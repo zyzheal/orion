@@ -5,8 +5,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Typography, Card, Form, Input, Select, Button, Space, message, Alert, Tag } from 'antd';
-import { colors } from '@/tokens';
-import { RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { ThunderboltOutlined, RocketOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { triggerDiagnostic } from '@/api/diagnostic';
 
 const { Title, Text } = Typography;
@@ -51,7 +51,7 @@ const DiagnosticTrigger: React.FC = () => {
     setSubmitting(true);
     try {
       const response = await triggerDiagnostic(data);
-      const sessionId = response.data.data?.sessionId;
+      const sessionId = response.data?.sessionId;
       message.success('诊断会话已创建');
       if (sessionId) {
         navigate(`/diagnostic/sessions`);
@@ -69,7 +69,7 @@ const DiagnosticTrigger: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -78,8 +78,9 @@ const DiagnosticTrigger: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <RocketOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <RocketOutlined style={{ marginRight: spacing.sm }} />
             触发诊断
           </Title>
           <Text type="secondary">启动新的诊断会话，收集症状并分析问题</Text>
@@ -91,7 +92,7 @@ const DiagnosticTrigger: React.FC = () => {
         message="提示"
         description="诊断系统会根据提供的症状自动匹配知识库中的模式，并生成诊断报告。请尽可能提供完整的症状信息以提高诊断准确性。"
         showIcon
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: spacing.lg }}
       />
 
       <Card>
@@ -127,13 +128,13 @@ const DiagnosticTrigger: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 16,
+              marginBottom: spacing.md,
             }}
           >
             <Title level={5} style={{ margin: 0 }}>
               症状列表
               {symptoms.length > 0 && (
-                <Tag color="blue" style={{ marginLeft: 8 }}>
+                <Tag color="blue" style={{ marginLeft: spacing.sm }}>
                   {symptoms.length} 个症状
                 </Tag>
               )}
@@ -149,7 +150,7 @@ const DiagnosticTrigger: React.FC = () => {
               message="暂无症状"
               description="点击「添加症状」按钮开始收集诊断症状，也可以先提交触发信息后再添加症状。"
               showIcon
-              style={{ marginBottom: 24 }}
+              style={{ marginBottom: spacing.lg }}
             />
           )}
 
@@ -157,7 +158,7 @@ const DiagnosticTrigger: React.FC = () => {
             <Card
               key={index}
               size="small"
-              style={{ marginBottom: 12, background: colors.neutral[50] }}
+              style={{ marginBottom: spacing[3], background: colors.neutral[50] }}
               title={`症状 #${index + 1}`}
               extra={
                 <Button
@@ -171,7 +172,7 @@ const DiagnosticTrigger: React.FC = () => {
                 </Button>
               }
             >
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[3] }}>
                 <Form.Item label="症状类型" required>
                   <Input
                     placeholder="例如：high_latency"
@@ -187,7 +188,7 @@ const DiagnosticTrigger: React.FC = () => {
                   />
                 </Form.Item>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing[3] }}>
                 <Form.Item label="严重级别">
                   <Select
                     value={symptom.severity}
@@ -212,7 +213,7 @@ const DiagnosticTrigger: React.FC = () => {
           ))}
 
           {/* Submit */}
-          <Form.Item style={{ marginTop: 24 }}>
+          <Form.Item style={{ marginTop: spacing.lg }}>
             <Space>
               <Button
                 type="primary"

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-dba-svc
+  namespace: orion
+  labels:
+    app: orion-dba
+    component: dba-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 3031
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-dba
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-dba-svc-headless
+  namespace: orion
+  labels:
+    app: orion-dba
+    component: dba-service
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 3031
+      targetPort: 3031
+      protocol: TCP
+      name: http
+  selector:
+    app: orion-dba

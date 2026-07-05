@@ -5,11 +5,12 @@
  * policy overrides in the system.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 import { PolicyOverrideRepository, PolicyOverrideEntity, CreatePolicyOverrideInput } from '../../repositories/PolicyOverrideRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyOverrideService');
 
 // ==================== Input Interfaces ====================
 
@@ -67,25 +68,7 @@ export class PolicyOverrideService {
     const now = new Date();
 
     if (!this.overrideRepo) {
-      // Mock mode
-      return {
-        id: this.generateId(),
-        tenantId: input.tenantId,
-        policyId: input.policyId,
-        pipelineId: input.pipelineId,
-        runId: input.runId,
-        violationId: input.violationId,
-        reason: input.reason,
-        approvedBy: input.approvedBy,
-        approvedAt: now,
-        status: 'active',
-        expiresAt: input.expiresAt,
-        createdAt: now,
-        updatedAt: now,
-        revokedAt: undefined,
-        revokedBy: undefined,
-        scope: input.scope,
-      };
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const createInput: CreatePolicyOverrideInput = {
@@ -117,7 +100,7 @@ export class PolicyOverrideService {
    */
   async getOverride(id: string): Promise<PolicyOverrideEntity | null> {
     if (!this.overrideRepo) {
-      return null;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
     const override = await this.overrideRepo.findById(id);
     return override ?? null;
@@ -128,7 +111,7 @@ export class PolicyOverrideService {
    */
   async getActiveOverride(tenantId: string, policyId: string): Promise<PolicyOverrideEntity | null> {
     if (!this.overrideRepo) {
-      return null;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
     const override = await this.overrideRepo.findActiveByTenantAndPolicy(tenantId, policyId);
     return override ?? null;
@@ -142,7 +125,7 @@ export class PolicyOverrideService {
     total: number;
   }> {
     if (!this.overrideRepo) {
-      return { overrides: [], total: 0 };
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     let overrides: PolicyOverrideEntity[];
@@ -179,7 +162,7 @@ export class PolicyOverrideService {
    */
   async updateOverride(id: string, updates: UpdateOverrideInput): Promise<PolicyOverrideEntity | null> {
     if (!this.overrideRepo) {
-      return null;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const existing = await this.overrideRepo.findById(id);
@@ -206,7 +189,7 @@ export class PolicyOverrideService {
    */
   async deleteOverride(id: string): Promise<boolean> {
     if (!this.overrideRepo) {
-      return false;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const deleted = await this.overrideRepo.delete(id);
@@ -223,7 +206,7 @@ export class PolicyOverrideService {
    */
   async revokeOverride(id: string, revokedBy: string): Promise<PolicyOverrideEntity | null> {
     if (!this.overrideRepo) {
-      return null;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const existing = await this.overrideRepo.findById(id);
@@ -252,7 +235,7 @@ export class PolicyOverrideService {
    */
   async markExpiredOverrides(): Promise<number> {
     if (!this.overrideRepo) {
-      return 0;
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     return this.overrideRepo.markExpired(new Date());
@@ -263,7 +246,7 @@ export class PolicyOverrideService {
    */
   async getActiveOverrides(tenantId: string): Promise<PolicyOverrideEntity[]> {
     if (!this.overrideRepo) {
-      return [];
+      throw new OrionError('PolicyOverrideRepository not initialized. Ensure database is configured.', ErrorCode.SERVICE_UNAVAILABLE);
     }
     return this.overrideRepo.findActiveByTenant(tenantId);
   }

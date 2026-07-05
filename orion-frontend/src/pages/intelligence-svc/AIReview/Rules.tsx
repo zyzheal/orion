@@ -24,7 +24,9 @@ import {
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
+  ScanOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import {
   getReviewRules,
   createReviewRule,
@@ -51,7 +53,7 @@ const AIReviewRules: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewRules();
-      setData(res.data.data?.items || []);
+      setData((res.data as any)?.items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审规则失败：${error.message}`);
@@ -207,10 +209,11 @@ const AIReviewRules: React.FC = () => {
   const tableData = filteredData.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             评审规则
           </Title>
           <Text type="secondary">管理 AI 代码评审规则</Text>
@@ -221,7 +224,7 @@ const AIReviewRules: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Input
             placeholder="搜索规则名称或描述"

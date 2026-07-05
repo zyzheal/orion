@@ -359,8 +359,8 @@ const PluginList: React.FC<PluginListProps> = ({
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
         data-testid="plugin-summary-cards"
       >
@@ -395,7 +395,7 @@ const PluginList: React.FC<PluginListProps> = ({
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={onSearchChange}
           onFilter={onFilterChange}

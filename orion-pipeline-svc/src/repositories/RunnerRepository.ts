@@ -81,5 +81,6 @@ export class RunnerRepository {
 
 export type RunnerRepositoryType = typeof RunnerRepository;
 
-export const PostgresRunnerRepository = {} as any;
-export type PostgresRunnerRepositoryType = typeof PostgresRunnerRepository;
+// PostgreSQL-compatible alias (uses in-memory until migration)
+export const PostgresRunnerRepository = RunnerRepository;
+export type PostgresRunnerRepositoryType = typeof RunnerRepository;

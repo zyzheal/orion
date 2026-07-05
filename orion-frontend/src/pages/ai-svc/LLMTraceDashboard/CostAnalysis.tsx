@@ -16,7 +16,7 @@ import {
   Spin,
   Statistic,
 } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, LineChartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCostBreakdown, type CostBreakdown } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
@@ -40,7 +40,7 @@ const CostAnalysis: React.FC = () => {
         params.endDate = dateRange[1];
       }
       const response = await getCostBreakdown(params);
-      setCostData(response.data.data as CostBreakdown | null);
+      setCostData(response.data as CostBreakdown | null);
     } catch (error: unknown) {
       setCostData(null);
       message.error(`加载成本数据失败: ${(error as Error).message}`);
@@ -111,13 +111,14 @@ const CostAnalysis: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             LLM 成本分析
           </Title>
           <Text type="secondary">按模型、时间范围分析成本构成</Text>
         </div>
         <Space>
-          <RangePicker onChange={handleDateChange as any} />
+          <RangePicker onChange={handleDateChange} />
           <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
             刷新
           </Button>

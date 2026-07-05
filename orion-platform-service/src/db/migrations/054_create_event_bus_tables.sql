@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS event_bus_config (
 -- Event subscription table (persistent subscription registry)
 CREATE TABLE IF NOT EXISTS event_subscriptions (
     id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(36) NOT NULL DEFAULT 'default',
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     subject_pattern VARCHAR(255) NOT NULL,
     handler_name VARCHAR(100) NOT NULL,
     handler_type VARCHAR(50) DEFAULT 'nats',
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_event_subscriptions_status ON event_subscriptions
 -- Event history table (published event log for audit & replay)
 CREATE TABLE IF NOT EXISTS event_bus_events (
     id VARCHAR(36) PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(36) NOT NULL DEFAULT 'default',
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     event_type VARCHAR(200) NOT NULL,
     subject VARCHAR(255) NOT NULL,
     source VARCHAR(200) DEFAULT 'orion-platform-service',

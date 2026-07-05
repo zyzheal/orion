@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons';
 import type { ArtifactVersion, VersionDiff } from '@/api/artifactVersions';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -109,7 +110,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
       ) : (
         <>
           {/* Version Headers */}
-          <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 24 }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <Card size="small" style={{ flex: 1 }}>
               <Title level={5} style={{ margin: 0 }}>
                 版本 A: {versionA.version}
@@ -118,7 +119,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
                 {dayjs(versionA.createdAt).format('YYYY-MM-DD HH:mm:ss')}
               </Text>
             </Card>
-            <ArrowRightOutlined style={{ fontSize: 20, color: '#999', margin: '0 12px' }} />
+            <ArrowRightOutlined style={{ fontSize: 20, color: colors.neutral[500], margin: '0 12px' }} />
             <Card size="small" style={{ flex: 1 }}>
               <Title level={5} style={{ margin: 0 }}>
                 版本 B: {versionB.version}
@@ -135,7 +136,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
             size="small"
             title="基本信息对比"
             column={1}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Descriptions.Item label="Commit SHA">
               <Space>
@@ -144,7 +145,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
                 ) : (
                   <Text type="secondary">-</Text>
                 )}
-                <ArrowRightOutlined style={{ fontSize: 12, color: '#999' }} />
+                <ArrowRightOutlined style={{ fontSize: 12, color: colors.neutral[500] }} />
                 {versionB.commitSha ? (
                   <Text code style={{ fontSize: 11 }}>{versionB.commitSha.slice(0, 7)}</Text>
                 ) : (
@@ -159,7 +160,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
                 ) : (
                   <Text type="secondary">-</Text>
                 )}
-                <ArrowRightOutlined style={{ fontSize: 12, color: '#999' }} />
+                <ArrowRightOutlined style={{ fontSize: 12, color: colors.neutral[500] }} />
                 {versionB.branch ? (
                   <Tag color="geekblue">{versionB.branch}</Tag>
                 ) : (
@@ -170,7 +171,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
             <Descriptions.Item label="阶段">
               <Space>
                 <Tag color="blue">{versionA.stageName}</Tag>
-                <ArrowRightOutlined style={{ fontSize: 12, color: '#999' }} />
+                <ArrowRightOutlined style={{ fontSize: 12, color: colors.neutral[500] }} />
                 <Tag color="blue">{versionB.stageName}</Tag>
               </Space>
             </Descriptions.Item>
@@ -185,7 +186,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
               <Alert
                 type="info"
                 showIcon
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
                 message={
                   <Space>
                     <span>Commit: </span>
@@ -233,7 +234,7 @@ const VersionCompareDrawer: React.FC<VersionCompareDrawerProps> = ({
 
               {/* Summary */}
               <Divider />
-              <Space style={{ marginTop: 8 }}>
+              <Space style={{ marginTop: spacing.sm }}>
                 {diff.changes.metadataAdded.length > 0 && (
                   <Tag color="green">+{diff.changes.metadataAdded.length} 新增</Tag>
                 )}

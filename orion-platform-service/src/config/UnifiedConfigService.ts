@@ -6,9 +6,37 @@
  */
 
 import { DatabasePool } from '../services/database';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('UnifiedConfigService');
+
+/**
+ * Parse DATABASE_URL into individual config fields (fallback when DB_* env vars are not set)
+ * Format: postgresql://user:password@host:port/database
+ */
+function parseDatabaseUrl(): {
+  host: string;
+  port: string;
+  user: string;
+  password: string;
+  database: string;
+} {
+  const url = process.env.DATABASE_URL;
+  if (!url) return { host: '', port: '', user: '', password: '', database: '' };
+  try {
+    // Remove protocol
+    const afterProtocol = url.replace(/^postgresql?:\/\//, '');
+    const [auth, rest] = afterProtocol.split('@');
+    const [user, password] = auth.split(':');
+    const [hostPort, database] = rest.split('/');
+    const [host, port] = hostPort.split(':');
+    return { host, port: port || '5432', user, password, database };
+  } catch {
+    return { host: '', port: '', user: '', password: '', database: '' };
+  }
+}
+
+const dbUrl = parseDatabaseUrl();
 
 // ==================== 配置类型定义 ====================
 
@@ -363,12 +391,12 @@ const DEFAULT_CONFIG: SystemConfig = {
   },
   
   database: {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'orion',
-    poolSize: parseInt(process.env.DB_POOL_SIZE || '10', 10),
+    host: process.env.DB_HOST || dbUrl.host || 'localhost',
+    port: parseInt(process.env.DB_PORT || dbUrl.port || '5432', 10),
+    user: process.env.DB_USER || dbUrl.user || 'postgres',
+    password: process.env.DB_PASSWORD || dbUrl.password || '',
+    database: process.env.DB_NAME || dbUrl.database || 'orion',
+    poolSize: parseInt(process.env.DB_POOL_SIZE || '50', 10),
   },
   
   redis: {

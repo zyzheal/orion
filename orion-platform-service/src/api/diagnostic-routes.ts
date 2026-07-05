@@ -8,7 +8,10 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import {  ValidationError, NotFoundError, handleError } from '../errors';
 import { DatabasePool } from '../services/database';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { DiagnosticRepository } from '../services/diagnostic/DiagnosticRepository';
 import {
   DiagnosticAgentService,
@@ -36,6 +39,7 @@ export default async function diagnosticRoutes(
     const repository = new DiagnosticRepository(options.database);
     const config: DiagnosticAgentServiceConfig = {
       repository,
+      db: options.database,
     };
     service = new DiagnosticAgentService(config);
   } else if (options.diagnosticAgentService) {
@@ -53,17 +57,18 @@ export default async function diagnosticRoutes(
    */
   app.post(
     '/trigger',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'execute' })],
+    },
     async (
-      request: FastifyRequest<{ Body: TriggerDiagnosticRequest }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { triggerType, triggerId, symptoms, tenantId } = request.body;
+      const body = request.body as TriggerDiagnosticRequest;
+      const { triggerType, triggerId, symptoms, tenantId } = body;
 
       if (!triggerType || !triggerId || !symptoms || symptoms.length === 0) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'triggerType, triggerId, and at least one symptom are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       const result = await service.triggerDiagnostic({
@@ -90,20 +95,22 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/sessions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Querystring: {
-          triggerType?: DiagnosticTriggerType;
-          triggerId?: string;
-          tenantId?: string;
-          status?: DiagnosticSessionStatus;
-          since?: string;
-          limit?: string;
-        };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { triggerType, triggerId, tenantId, status, since, limit } = request.query;
+      const query = request.query as {
+        triggerType?: DiagnosticTriggerType;
+        triggerId?: string;
+        tenantId?: string;
+        status?: DiagnosticSessionStatus;
+        since?: string;
+        limit?: string;
+      };
+      const { triggerType, triggerId, tenantId, status, since, limit } = query;
 
       const sessions = await service.getDiagnosticHistory({
         triggerType,
@@ -129,22 +136,22 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/sessions/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{ Params: { id: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
+      const { id } = request.params as { id: string };
       const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic session ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       // 尝试获取关联报告
-      const report = service.getReportBySession(id);
+      const report = await service.getReportBySession(id);
 
       return reply.send({
         data: session,
@@ -159,21 +166,19 @@ export default async function diagnosticRoutes(
    */
   app.post(
     '/sessions/:id/symptoms',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: AddSymptomRequest;
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
-      const { type, source, description, severity, metadata } = request.body;
+      const { id } = request.params as { id: string };
+      const body = request.body as AddSymptomRequest;
+      const { type, source, description, severity, metadata } = body;
 
       if (!type || !source || !description || !severity) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'type, source, description, and severity are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
       try {
@@ -190,10 +195,7 @@ export default async function diagnosticRoutes(
         });
       } catch (error: any) {
         if (error.message?.includes('not found')) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: error.message,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
         throw error;
       }
@@ -206,18 +208,18 @@ export default async function diagnosticRoutes(
    */
   app.post(
     '/sessions/:id/complete',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{ Params: { id: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
+      const { id } = request.params as { id: string };
       const session = await service.getDiagnosticDetail(id);
 
       if (!session) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic session ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       // 重新生成报告
@@ -240,19 +242,21 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/reports',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Querystring: {
-          sessionId?: string;
-          tenantId?: string;
-          limit?: string;
-        };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { sessionId, tenantId, limit } = request.query;
+      const query = request.query as {
+        sessionId?: string;
+        tenantId?: string;
+        limit?: string;
+      };
+      const { sessionId, tenantId, limit } = query;
 
-      const reports = service.getReportHistory({
+      const reports = await service.getReportHistory({
         sessionId,
         tenantId,
         limit: limit ? parseInt(limit, 10) : undefined,
@@ -273,18 +277,18 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/reports/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{ Params: { id: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
-      const report = service.getReport(id);
+      const { id } = request.params as { id: string };
+      const report = await service.getReport(id);
 
       if (!report) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic report ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       return reply.send({
@@ -299,23 +303,23 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/sessions/:id/complexity',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{ Params: { id: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
+      const { id } = request.params as { id: string };
 
       try {
-        const complexity = service.estimateFixComplexity(id);
+        const complexity = await service.estimateFixComplexity(id);
         return reply.send({
           data: complexity,
         });
       } catch (error: any) {
         if (error.message?.includes('not found')) {
-          return reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: error.message,
-          });
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
         throw error;
       }
@@ -330,20 +334,21 @@ export default async function diagnosticRoutes(
    */
   app.post(
     '/knowledge/patterns',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{ Body: AddPatternRequest }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { name, symptoms, rootCause, solution, category } = request.body;
+      const body = request.body as AddPatternRequest;
+      const { name, symptoms, rootCause, solution, category } = body;
 
       if (!name || !symptoms || !rootCause || !solution || !category) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'name, symptoms, rootCause, solution, and category are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
-      const pattern = service.addPattern({
+      const pattern = await service.addPattern({
         name,
         symptoms,
         rootCause,
@@ -363,20 +368,22 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/knowledge/patterns',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Querystring: {
-          category?: DiagnosticCategory;
-          keyword?: string;
-          minFrequency?: string;
-          limit?: string;
-        };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { category, keyword, minFrequency, limit } = request.query;
+      const query = request.query as {
+        category?: DiagnosticCategory;
+        keyword?: string;
+        minFrequency?: string;
+        limit?: string;
+      };
+      const { category, keyword, minFrequency, limit } = query;
 
-      const patterns = service.searchPatterns({
+      const patterns = await service.searchPatterns({
         category,
         keyword,
         minFrequency: minFrequency ? parseInt(minFrequency, 10) : undefined,
@@ -398,18 +405,18 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/knowledge/patterns/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
     async (
-      request: FastifyRequest<{ Params: { id: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { id } = request.params;
-      const pattern = service.getPattern(id);
+      const { id } = request.params as { id: string };
+      const pattern = await service.getPattern(id);
 
       if (!pattern) {
-        return reply.status(404).send({
-          error: 'NOT_FOUND',
-          message: `Diagnostic pattern ${id} not found`,
-        });
+        return handleError(reply, new NotFoundError('NOT_FOUND'))
       }
 
       return reply.send({
@@ -424,8 +431,11 @@ export default async function diagnosticRoutes(
    */
   app.get(
     '/knowledge/stats',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
+    },
     async (_request: FastifyRequest, reply: FastifyReply) => {
-      const stats = service.getKnowledgeBaseStats();
+      const stats = await service.getKnowledgeBaseStats();
       return reply.send({
         data: stats,
       });
@@ -438,28 +448,27 @@ export default async function diagnosticRoutes(
    */
   app.post(
     '/knowledge/outcomes',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{
-        Body: {
-          sessionId: string;
-          patternId: string;
-          confirmed: boolean;
-          actualRootCause?: string;
-          fixTimeMs?: number;
-        };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
-      const { sessionId, patternId, confirmed, actualRootCause, fixTimeMs } = request.body;
+      const body = request.body as {
+        sessionId: string;
+        patternId: string;
+        confirmed: boolean;
+        actualRootCause?: string;
+        fixTimeMs?: number;
+      };
+      const { sessionId, patternId, confirmed, actualRootCause, fixTimeMs } = body;
 
       if (!sessionId || !patternId) {
-        return reply.status(400).send({
-          error: 'BAD_REQUEST',
-          message: 'sessionId and patternId are required',
-        });
+        return handleError(reply, new ValidationError('BAD_REQUEST'))
       }
 
-      const outcome = service.recordOutcome({
+      const outcome = await service.recordOutcome({
         sessionId,
         patternId,
         confirmed,
@@ -479,8 +488,10 @@ export default async function diagnosticRoutes(
    * GET /api/v1/diagnostic/status
    * 获取诊断服务状态
    */
-  app.get('/status', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const status = service.getStatus();
+  app.get('/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'diagnostic', action: 'read' })],
+  }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const status = await service.getStatus();
     return reply.send({
       data: status,
     });

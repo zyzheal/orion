@@ -6,131 +6,149 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
-
-interface DataPipeline {
-  id: string;
-  name: string;
-  description: string;
-  source: string;
-  destination: string;
-  transforms: string[];
-  schedule?: string;
-  status: 'active' | 'inactive' | 'running' | 'failed';
-  createdAt: string;
-}
-
-interface PipelineExecution {
-  id: string;
-  pipelineId: string;
-  status: 'running' | 'completed' | 'failed';
-  recordsProcessed: number;
-  startedAt: string;
-  completedAt?: string;
-}
-
-interface DataLineage {
-  source: string;
-  destination: string;
-  transforms: Array<{ name: string; type: string }>;
-  dependencies: string[];
-}
+import { OrionError, ErrorCode } from '../../errors';
+import { DatabasePool } from '../../services/database';
+import { DataPipelineService } from '../../services/data-pipeline/DataPipelineService';
+import { DataPipelineInput } from '../../services/data-pipeline/types';
 
 export class DataPipelineController extends BaseController {
-  private pipelines = new Map<string, DataPipeline>();
-  private executions = new Map<string, PipelineExecution>();
+  private service: DataPipelineService;
+
+  constructor(db?: DatabasePool) {
+    super();
+    this.service = new DataPipelineService(db);
+  }
 
   async createPipeline(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      const body = request.body as {
-        name: string;
-        description: string;
-        source: string;
-        destination: string;
-        transforms: string[];
-        schedule?: string;
-      };
-      const id = `dp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const pipeline: DataPipeline = {
-        id,
-        name: body.name,
-        description: body.description,
-        source: body.source,
-        destination: body.destination,
-        transforms: body.transforms,
-        schedule: body.schedule,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-      };
-      this.pipelines.set(id, pipeline);
-      return pipeline;
+      const body = request.body as DataPipelineInput;
+      const tenantId = this.getTenantId(request);
+      return this.service.createPipeline(tenantId, body);
     }, (pipeline) => this.sendCreated(reply, pipeline));
   }
 
   async listPipelines(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
-      const query = request.query as { status?: string };
-      let results = Array.from(this.pipelines.values());
-      if (query.status) {
-        results = results.filter((p) => p.status === query.status);
-      }
-      return results;
+      const tenantId = this.getTenantId(request);
+      return this.service.listPipelines(tenantId);
     }, (pipelines) => this.sendSuccess(reply, pipelines));
   }
 
   async executePipeline(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
-      const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new Error(`Pipeline '${params.id}' not found`);
-      const id = `exec-${Date.now()}`;
-      const exec: PipelineExecution = {
-        id,
-        pipelineId: params.id,
-        status: 'running',
-        recordsProcessed: 0,
-        startedAt: new Date().toISOString(),
-      };
-      this.executions.set(id, exec);
-      pipeline.status = 'running';
-      return exec;
+      const tenantId = this.getTenantId(request);
+      return this.service.executePipeline(params.id, tenantId);
     }, (exec) => this.sendSuccess(reply, exec));
   }
 
-  async schedulePipeline(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getExecutions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
-      const body = request.body as { cron: string };
-      const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new Error(`Pipeline '${params.id}' not found`);
-      pipeline.schedule = body.cron;
-      return pipeline;
-    }, (pipeline) => this.sendSuccess(reply, pipeline));
+      return this.service.getExecutions(params.id);
+    }, (executions) => this.sendSuccess(reply, executions));
   }
 
-  async getPipelineStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getLineage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
-      const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new Error(`Pipeline '${params.id}' not found`);
-      const recentExecs = Array.from(this.executions.values())
-        .filter((e) => e.pipelineId === params.id)
-        .slice(-5);
-      return { pipeline, recentExecutions: recentExecs };
+      const lineage = this.service.getDataLineage(params.id);
+      if (!lineage) throw new OrionError(`Pipeline not found`, ErrorCode.NOT_FOUND);
+      return lineage;
     }, (data) => this.sendSuccess(reply, data));
   }
 
-  async getDataLineage(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  async getSchedule(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { id: string };
-      const pipeline = this.pipelines.get(params.id);
-      if (!pipeline) throw new Error(`Pipeline '${params.id}' not found`);
-      const lineage: DataLineage = {
-        source: pipeline.source,
-        destination: pipeline.destination,
-        transforms: pipeline.transforms.map((t) => ({ name: t, type: 'transform' })),
-        dependencies: [pipeline.source],
-      };
-      return lineage;
-    }, (lineage) => this.sendSuccess(reply, lineage));
+      const pipeline = this.service.getPipeline(params.id);
+      if (!pipeline) throw new OrionError(`Pipeline not found`, ErrorCode.NOT_FOUND);
+      return { schedule: pipeline.schedule || null };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async setSchedule(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const body = request.body as { cron: string };
+      return this.service.schedulePipeline(params.id, body.cron);
+    }, (pipeline) => this.sendSuccess(reply, pipeline));
+  }
+
+  async getLineageGraph(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const lineage = this.service.getDataLineage(params.id);
+      return lineage || { pipelineId: params.id, nodes: [], edges: [] };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getAllExecutions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const tenantId = this.getTenantId(request);
+      const pipelineList = await this.service.listPipelines(tenantId);
+      return pipelineList.flatMap(p =>
+        this.service.getExecutions(p.id).map(e => ({ ...e, pipelineId: p.id }))
+      );
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  // ---- Version Management (Task 5.8) ----
+
+  async createVersion(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const body = request.body as { changeSummary?: string; createdBy?: string };
+      const tenantId = this.getTenantId(request);
+      const user = (request as any).user as { userId?: string } | undefined;
+      const createdBy = body.createdBy || user?.userId || 'system';
+
+      const pipeline = this.service.getPipeline(params.id);
+      if (!pipeline) {
+        throw new OrionError('Pipeline not found', 'NOT_FOUND');
+      }
+
+      const result = await this.service.createVersion(
+        params.id,
+        tenantId,
+        {
+          name: pipeline.name,
+          description: pipeline.description,
+          stages: pipeline.stages,
+          schedule: pipeline.schedule,
+          inputConfig: {},
+          processors: [],
+          outputConfig: {},
+        },
+        createdBy,
+        body.changeSummary,
+      );
+
+      if (!result) {
+        throw new OrionError('Failed to create version - database not available', 'DATABASE_ERROR');
+      }
+
+      return { versionNumber: result.versionNumber, message: 'Version created successfully' };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async listVersions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const tenantId = this.getTenantId(request);
+      return this.service.listVersions(params.id, tenantId);
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getVersion(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string; version: string };
+      const tenantId = this.getTenantId(request);
+      const version = await this.service.getVersion(params.id, tenantId, parseInt(params.version, 10));
+      if (!version) {
+        throw new OrionError('Version not found', 'NOT_FOUND');
+      }
+      return version;
+    }, (data) => this.sendSuccess(reply, data));
   }
 }

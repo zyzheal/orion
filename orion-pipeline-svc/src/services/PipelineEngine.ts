@@ -10,12 +10,44 @@ import { HelmDeploymentService } from './HelmDeploymentService';
 import { RunnerCacheService } from './RunnerCacheService';
 import { ArtifactSignatureService } from './ArtifactSignatureService';
 import { ArtifactRegistryService } from './ArtifactRegistryService';
-import { spawn, ChildProcess } from 'child_process';
+import { TaskExecutorService } from './TaskExecutorService';
+import type { PipelineRunRepository } from './PipelineRunRepository';
+import { ChildProcess } from 'child_process';
 
 export interface PipelineEngineOptions {
   logger: FastifyBaseLogger;
   maxConcurrentRuns?: number;
   defaultTimeoutMs?: number;
+  runRepository?: PipelineRunRepository;
+}
+
+// Plugin execution types
+export interface PluginExecutionResult {
+  success: boolean;
+  output?: Record<string, any>;
+  duration: number;
+  error?: string;
+  exitCode: number;
+  killed?: boolean;
+  killReason?: string;
+}
+
+export interface PluginRegistration {
+  name: string;
+  version: string;
+  description: string;
+  entryPoint: string;
+  enabled: boolean;
+  timeoutMs?: number;
+  execute: (config: Record<string, unknown>, context: PluginExecutionContext, signal: AbortSignal) => Promise<Record<string, any>>;
+}
+
+export interface PluginExecutionContext {
+  runId: string;
+  stepId: string;
+  env: Record<string, string>;
+  inputs: Record<string, unknown>;
+  workingDir?: string;
 }
 
 // In-memory run store
@@ -77,26 +109,35 @@ export class PipelineEngine {
   private preprocessor: YamlPreprocessor;
   private dockerBuildService: DockerBuildService;
   private runningProcesses: Map<string, ChildProcess>;
+  // Task executor for local process execution
+  private taskExecutor: TaskExecutorService;
   // 新服务实例
   private kubernetesService: KubernetesDeploymentService;
   private helmService: HelmDeploymentService;
   private cacheService: RunnerCacheService;
   private artifactSignatureService: ArtifactSignatureService;
   private artifactRegistryService: ArtifactRegistryService;
+  // Persistence repository for run state
+  private runRepository?: PipelineRunRepository;
+  // Plugin registry for plugin step execution
+  private pluginRegistry: Map<string, PluginRegistration>;
 
   constructor(options: PipelineEngineOptions) {
     this.logger = options.logger.child({ service: 'PipelineEngine' });
     this.maxConcurrentRuns = options.maxConcurrentRuns ?? 10;
     this.defaultTimeoutMs = options.defaultTimeoutMs ?? 3600000;
+    this.runRepository = options.runRepository;
     this.preprocessor = new YamlPreprocessor();
     this.dockerBuildService = new DockerBuildService();
     this.runningProcesses = new Map();
+    this.taskExecutor = new TaskExecutorService();
     // 初始化新服务
     this.kubernetesService = new KubernetesDeploymentService();
     this.helmService = new HelmDeploymentService();
     this.cacheService = new RunnerCacheService();
     this.artifactSignatureService = new ArtifactSignatureService();
     this.artifactRegistryService = new ArtifactRegistryService();
+    this.pluginRegistry = new Map();
   }
 
   /**
@@ -189,6 +230,35 @@ export class PipelineEngine {
       };
     }
 
+    // 持久化运行状态 (Phase 3 Task 1)
+    if (this.runRepository) {
+      try {
+        const stageStatesArray = Array.from(stageStates.values()).map(s => ({
+          stageId: s.stageId,
+          name: s.name,
+          status: s.status,
+          dependsOn: s.dependsOn,
+          startedAt: s.startedAt,
+          completedAt: s.completedAt,
+        }));
+        await this.runRepository.saveState({
+          id: `prs-${runId}`,
+          runId,
+          pipelineId: pipeline.id,
+          tenantId: pipeline.tenantId,
+          status: 'running',
+          stageResults: run.stageResults,
+          stageStates: stageStatesArray,
+          executionModel: executionModel || undefined,
+          envOverrides: options?.envOverrides,
+          startedAt: new Date(run.startedAt),
+        });
+        this.logger.info({ runId }, 'Pipeline run state persisted');
+      } catch (error: any) {
+        this.logger.error({ runId, error: error.message }, 'Failed to persist run state');
+      }
+    }
+
     // Schedule first stages (those with no dependencies)
     await this.scheduleNextStages(runId, pipeline, '', run.stageResults);
 
@@ -271,6 +341,9 @@ export class PipelineEngine {
       // Mark run as failed
       run.status = 'failed';
       run.finishedAt = result.finishedAt;
+
+      // 持久化失败状态
+      await this.persistRunState(runId);
 
       throw error;
     }
@@ -475,7 +548,7 @@ export class PipelineEngine {
 
   /**
    * 执行 command 类型 step
-   * 使用安全的命令执行方式：禁止 shell 特性，防止注入
+   * 使用 TaskExecutorService 进行本地进程执行
    */
   private async executeCommand(
     runId: string,
@@ -502,59 +575,30 @@ export class PipelineEngine {
       }
     }
 
-    // 解析命令和参数（简单的空格分割，避免 shell 解析）
+    // 解析命令和参数
     const parts = this.parseCommand(command);
     if (parts.length === 0 || !parts[0]) {
       throw new Error('Empty command');
     }
 
     const [cmd, ...args] = parts;
+    const taskId = `task-${runId}-${Date.now()}`;
 
-    return new Promise((resolve, reject) => {
-      const timeout = timeoutMs || this.defaultTimeoutMs;
-      // 使用数组形式，避免 shell 注入
-      const child = spawn(cmd, args, {
-        env: { ...process.env, ...env },
-        stdio: ['ignore', 'pipe', 'pipe'],
-        // 明确不使用 shell
-        shell: false,
-      });
-
-      this.runningProcesses.set(runId, child);
-
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout?.on('data', (data: Buffer) => {
-        stdout += data.toString();
-      });
-
-      child.stderr?.on('data', (data: Buffer) => {
-        stderr += data.toString();
-      });
-
-      const timer = setTimeout(() => {
-        child.kill('SIGTERM');
-        this.runningProcesses.delete(runId);
-        reject(new Error(`Command timed out after ${timeout}ms`));
-      }, timeout);
-
-      child.on('close', (code) => {
-        clearTimeout(timer);
-        this.runningProcesses.delete(runId);
-        if (code === 0) {
-          resolve({ exitCode: code || 0, stdout, stderr });
-        } else {
-          reject(new Error(`Command failed with exit code ${code}: ${stderr || stdout}`));
-        }
-      });
-
-      child.on('error', (err) => {
-        clearTimeout(timer);
-        this.runningProcesses.delete(runId);
-        reject(err);
-      });
+    const result = await this.taskExecutor.executeTask({
+      taskId,
+      command: cmd,
+      args,
+      env: { ...(process.env as Record<string, string>), ...env },
+      timeoutMs: timeoutMs || this.defaultTimeoutMs,
     });
+
+    if (result.status !== 'success') {
+      throw new Error(
+        `Task ${taskId} ${result.status} with exit code ${result.exitCode}: ${result.stderr || result.stdout}`
+      );
+    }
+
+    return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
   }
 
   /**
@@ -609,16 +653,176 @@ export class PipelineEngine {
   }
 
   /**
-   * 执行 Plugin step (TODO: 集成 Plugin Service)
+   * 执行 Plugin step
+   *
+   * 集成 orion-plugin-svc 的插件执行机制：
+   * 1. 查找已注册的插件
+   * 2. 验证插件状态（存在且启用）
+   * 3. 在沙箱环境中执行（超时控制、错误捕获）
+   * 4. 返回结构化执行结果
    */
   private async executePlugin(runId: string, step: PipelineStep): Promise<void> {
-    // TODO: 集成 orion-plugin-svc
-    this.logger.info({ pluginRef: step.pluginRef }, 'Plugin execution not yet implemented');
-    throw new Error(`Plugin execution not implemented: ${step.pluginRef}`);
+    const pluginRef = step.pluginRef;
+    if (!pluginRef) {
+      throw new Error('Plugin step missing pluginRef');
+    }
+
+    const pluginConfig = step.pluginConfig || {};
+    const startTime = Date.now();
+
+    this.logger.info(
+      { runId, stepId: step.id, pluginRef, name: step.name },
+      'Starting plugin execution'
+    );
+
+    // 1. 查找插件
+    const plugin = this.pluginRegistry.get(pluginRef);
+    if (!plugin) {
+      throw new Error(`Plugin "${pluginRef}" not found. Available plugins: ${Array.from(this.pluginRegistry.keys()).join(', ') || '(none)'}`);
+    }
+
+    if (!plugin.enabled) {
+      throw new Error(`Plugin "${pluginRef}" is disabled`);
+    }
+
+    // 2. 构建执行上下文
+    const context: PluginExecutionContext = {
+      runId,
+      stepId: step.id,
+      env: { ...(step.env || {}) },
+      inputs: pluginConfig as Record<string, unknown>,
+      workingDir: step.workingDir,
+    };
+
+    // 3. 执行插件（带超时控制）
+    const timeoutMs = plugin.timeoutMs || this.defaultTimeoutMs;
+    const result = await this.executePluginWithTimeout(plugin, pluginConfig, context, timeoutMs);
+
+    const duration = Date.now() - startTime;
+
+    // 4. 处理结果
+    if (!result.success) {
+      const errorMsg = result.error || 'Plugin execution failed';
+      this.logger.error(
+        { runId, stepId: step.id, pluginRef, duration, error: errorMsg, killed: result.killed },
+        'Plugin execution failed'
+      );
+      throw new Error(`Plugin "${pluginRef}" failed: ${errorMsg}`);
+    }
+
+    this.logger.info(
+      { runId, stepId: step.id, pluginRef, duration, exitCode: result.exitCode },
+      'Plugin execution completed successfully'
+    );
   }
 
   /**
-   * 评估条件表达式 - 使用安全的解析器，不使用 eval
+   * 带超时控制的插件执行包装器
+   */
+  private async executePluginWithTimeout(
+    plugin: PluginRegistration,
+    config: Record<string, unknown>,
+    context: PluginExecutionContext,
+    timeoutMs: number
+  ): Promise<PluginExecutionResult> {
+    const abortController = new AbortController();
+    const { signal } = abortController;
+    const startTime = Date.now();
+    let timeoutError: Error | null = null;
+
+    try {
+      // 创建超时 Promise
+      timeoutError = new Error(`Plugin execution timed out after ${timeoutMs}ms`);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(timeoutError), timeoutMs);
+      });
+
+      // 创建执行 Promise，传递 AbortSignal 用于取消
+      const execPromise = plugin.execute(config, context, signal);
+
+      // 竞态：执行 vs 超时
+      const output = await Promise.race([execPromise, timeoutPromise]);
+
+      const duration = Date.now() - startTime;
+      return {
+        success: true,
+        output: output || {},
+        duration,
+        exitCode: 0,
+      };
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      const message = error instanceof Error ? error.message : String(error);
+      const isTimeout = error === timeoutError || signal.aborted;
+
+      if (isTimeout) {
+        this.logger.warn(
+          { pluginId: plugin.name, duration, timeoutMs },
+          'Plugin execution timed out'
+        );
+        return {
+          success: false,
+          duration,
+          error: `Execution timed out after ${timeoutMs}ms`,
+          exitCode: 124,
+          killed: true,
+          killReason: 'TIMEOUT',
+        };
+      }
+
+      this.logger.error(
+        { pluginId: plugin.name, duration, error: message },
+        'Plugin execution failed'
+      );
+      return {
+        success: false,
+        duration,
+        error: message,
+        exitCode: 1,
+      };
+    }
+  }
+
+  // ==================== Plugin Registry Management ====================
+
+  /**
+   * 注册一个插件到引擎
+   * 供外部调用方（如 app.ts）注册可用插件
+   */
+  registerPlugin(registration: Omit<PluginRegistration, 'enabled'> & { enabled?: boolean }): void {
+    const plugin: PluginRegistration = {
+      ...registration,
+      enabled: registration.enabled !== false,
+    };
+    this.pluginRegistry.set(plugin.name, plugin);
+    this.logger.info({ pluginId: plugin.name, version: plugin.version }, 'Plugin registered');
+  }
+
+  /**
+   * 获取已注册的插件列表
+   */
+  listRegisteredPlugins(): Array<{ name: string; version: string; description: string; enabled: boolean }> {
+    return Array.from(this.pluginRegistry.values()).map((p) => ({
+      name: p.name,
+      version: p.version,
+      description: p.description,
+      enabled: p.enabled,
+    }));
+  }
+
+  /**
+   * 启用/禁用插件
+   */
+  setPluginEnabled(name: string, enabled: boolean): boolean {
+    const plugin = this.pluginRegistry.get(name);
+    if (!plugin) return false;
+    plugin.enabled = enabled;
+    this.logger.info({ pluginId: name, enabled }, 'Plugin enabled status updated');
+    return true;
+  }
+
+  /**
+   * 执行条件表达式 - 使用安全的解析器，不使用 eval
    * 支持：==, !=, >, <, >=, <=, startsWith, endsWith, contains
    */
   private evaluateCondition(condition: string, context: VariableContext): boolean {
@@ -745,6 +949,12 @@ export class PipelineEngine {
       this.logger.info({ runId }, 'Killed running process');
     }
 
+    // Cancel any tasks running via TaskExecutorService
+    const runningTaskIds = this.taskExecutor.getRunningTaskIds();
+    for (const taskId of runningTaskIds) {
+      await this.taskExecutor.cancelTask(taskId);
+    }
+
     // Cancel all running/pending stages
     for (const [, state] of stageStates) {
       if (state.status === 'running' || state.status === 'pending') {
@@ -755,6 +965,9 @@ export class PipelineEngine {
 
     run.status = 'cancelled';
     run.finishedAt = now;
+
+    // 持久化取消状态
+    await this.persistRunState(runId);
   }
 
   /**
@@ -864,6 +1077,8 @@ export class PipelineEngine {
         const hasFailure = Array.from(stageStates.values()).some(s => s.status === 'failed');
         run.status = hasFailure ? 'failed' : 'success';
         run.finishedAt = new Date().toISOString();
+        // 持久化完成状态
+        await this.persistRunState(runId);
       }
       return;
     }
@@ -918,6 +1133,8 @@ export class PipelineEngine {
       const hasFailure = Array.from(stageStates.values()).some(s => s.status === 'failed');
       run.status = hasFailure ? 'failed' : 'success';
       run.finishedAt = new Date().toISOString();
+      // 持久化完成状态
+      await this.persistRunState(runId);
     }
   }
 
@@ -965,6 +1182,111 @@ export class PipelineEngine {
       }
     }
     return { stageId: stage.id, success: false };
+  }
+
+  /**
+   * 从数据库恢复未完成的 Pipeline 运行
+   * 在服务启动时调用，实现重启恢复功能
+   */
+  async recoverUnfinishedRuns(): Promise<number> {
+    if (!this.runRepository) {
+      this.logger.info('No run repository configured, skipping recovery');
+      return 0;
+    }
+
+    try {
+      const unfinishedRuns = await this.runRepository.findUnfinishedRuns();
+      this.logger.info({ count: unfinishedRuns.length }, 'Found unfinished runs to recover');
+
+      for (const state of unfinishedRuns) {
+        const runId = state.runId;
+
+        // 重建 run 对象
+        const run: PipelineRun = {
+          runId,
+          pipelineId: state.pipelineId,
+          tenantId: state.tenantId || '',
+          status: state.status as any,
+          stageResults: state.stageResults || {},
+          startedAt: state.startedAt?.toISOString() || new Date().toISOString(),
+          finishedAt: state.finishedAt?.toISOString(),
+          triggeredBy: 'manual' as const,
+        };
+
+        // 重建 stageStates
+        const stageStates = new Map<string, {
+          stageId: string;
+          name: string;
+          status: 'pending' | 'running' | 'success' | 'failed' | 'skipped' | 'cancelled';
+          dependsOn: string[];
+          startedAt?: string;
+          completedAt?: string;
+        }>();
+
+        for (const s of state.stageStates || []) {
+          stageStates.set(s.stageId, {
+            stageId: s.stageId,
+            name: s.name,
+            status: s.status as any,
+            dependsOn: s.dependsOn || [],
+            startedAt: s.startedAt,
+            completedAt: s.completedAt,
+          });
+        }
+
+        // 恢复 extended state
+        const extState: ExtendedRunState = {
+          run,
+          stageStates,
+          executionModel: state.executionModel,
+          yamlContext: state.yamlContext,
+        };
+
+        runStore.set(runId, run);
+        extendedStore.set(runId, extState);
+
+        this.logger.info({ runId, status: state.status }, 'Recovered run state from database');
+      }
+
+      return unfinishedRuns.length;
+    } catch (error: any) {
+      this.logger.error({ error: error.message }, 'Failed to recover unfinished runs');
+      return 0;
+    }
+  }
+
+  /**
+   * 持久化当前运行状态
+   * 在状态变更时调用
+   */
+  private async persistRunState(runId: string): Promise<void> {
+    if (!this.runRepository) return;
+
+    const extState = extendedStore.get(runId);
+    if (!extState) return;
+
+    const { run, stageStates } = extState;
+
+    try {
+      const stageStatesArray = Array.from(stageStates.values()).map(s => ({
+        stageId: s.stageId,
+        name: s.name,
+        status: s.status,
+        dependsOn: s.dependsOn,
+        startedAt: s.startedAt,
+        completedAt: s.completedAt,
+      }));
+
+      await this.runRepository.updateState(runId, {
+        status: run.status,
+        currentStageId: run.currentStage,
+        stageResults: run.stageResults,
+        stageStates: stageStatesArray,
+        finishedAt: run.finishedAt ? new Date(run.finishedAt) : undefined,
+      });
+    } catch (error: any) {
+      this.logger.error({ runId, error: error.message }, 'Failed to persist run state');
+    }
   }
 
   /**

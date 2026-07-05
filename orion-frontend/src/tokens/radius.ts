@@ -6,25 +6,25 @@
 export const radius = {
   // ============ 基础圆角 ============
   none: 0,
-  xs: 2,
-  sm: 4,
-  md: 6,
-  lg: 8,
-  xl: 12,
-  xxl: 16,
+  xs: 4,    // Apple/Feishu: was 2
+  sm: 6,    // was 4
+  md: 8,    // was 6
+  lg: 12,   // Apple card style: was 8
+  xl: 16,   // was 12
+  xxl: 20,
   full: 9999,
 
   // ============ 数值圆角 (px) ============
   0: 0,
-  1: 2,
-  2: 4,
-  3: 6,
-  4: 8,
-  5: 10,
-  6: 12,
-  8: 16,
-  10: 20,
-  12: 24,
+  1: 4,
+  2: 6,
+  3: 8,
+  4: 12,
+  5: 14,
+  6: 16,
+  8: 20,
+  10: 24,
+  12: 28,
 } as const;
 
 /**
@@ -33,19 +33,19 @@ export const radius = {
 export const componentRadius = {
   // 按钮圆角
   button: {
-    sm: 2,
-    md: 4,
-    lg: 6,
+    sm: 4,    // was 2
+    md: 6,    // Feishu style: was 4
+    lg: 8,    // was 6
   },
 
-  // 卡片圆角
-  card: 8,
+  // 卡片圆角 — Apple style
+  card: 12,   // was 8
 
-  // 弹窗圆角
-  modal: 12,
+  // 弹窗圆角 — Apple style
+  modal: 16,  // was 12
 
   // 下拉菜单圆角
-  dropdown: 6,
+  dropdown: 10, // was 6
 
   // 输入框圆角
   input: 6,
@@ -57,7 +57,7 @@ export const componentRadius = {
   },
 
   // 标签圆角
-  tag: 4,
+  tag: 6,     // was 4
 
   // 徽章圆角
   badge: 9999,

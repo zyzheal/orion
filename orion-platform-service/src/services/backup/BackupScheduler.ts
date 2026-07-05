@@ -7,6 +7,9 @@
  */
 
 import { EventEmitter } from 'events';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { BackupPlanRepository, BackupPlanEntity } from '../../repositories/BackupPlanRepository';
 import {
   BackupPlan,
   BackupRecord,
@@ -17,6 +20,8 @@ import {
   BackupSchedule,
 } from './types';
 
+const logger = createLogger('LBackup-LScheduler');
+
 /**
  * Parse a cron expression and calculate the next run time.
  * Supports basic 5-field cron: minute hour dayOfMonth month dayOfWeek
@@ -25,7 +30,7 @@ import {
 export function getNextCronTime(cronExpression: string, fromDate: Date = new Date()): Date {
   const parts = cronExpression.trim().split(/\s+/);
   if (parts.length !== 5) {
-    throw new Error(`Invalid cron expression: ${cronExpression}. Expected 5 fields.`);
+    throw new OrionError(`Invalid cron expression: ${cronExpression}. Expected 5 fields.`, ErrorCode.NOT_FOUND);
   }
 
   const [minuteStr, hourStr, dayOfMonthStr, monthStr, dayOfWeekStr] = parts;
@@ -60,7 +65,7 @@ export function getNextCronTime(cronExpression: string, fromDate: Date = new Dat
     iterations++;
   }
 
-  throw new Error(`Could not find next cron time for: ${cronExpression}`);
+  throw new OrionError(`Could not find next cron time for: ${cronExpression}`, ErrorCode.NOT_FOUND);
 }
 
 /**
@@ -100,8 +105,9 @@ function matchesField(value: number, field: string): boolean {
  * Backup Scheduler - Manages backup plans and scheduling
  */
 export class BackupScheduler extends EventEmitter {
-  /** Registered backup plans */
-  private plans: Map<string, BackupPlan> = new Map();
+  /** Registered backup plans - migrated to repository */
+  private plans: Map<string, BackupPlan> = new Map(); // in-memory cache
+  private planRepository?: BackupPlanRepository;
 
   /** Next scheduled execution times */
   private nextExecutions: Map<string, Date> = new Map();
@@ -118,10 +124,17 @@ export class BackupScheduler extends EventEmitter {
   /** Callback to execute a backup */
   public onExecuteBackup?: (plan: BackupPlan) => Promise<BackupRecord>;
 
-  constructor(checkIntervalMs?: number) {
+  constructor(checkIntervalMsOrOptions?: number | { checkIntervalMs?: number; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     super();
-    if (checkIntervalMs) {
-      this.checkIntervalMs = checkIntervalMs;
+    if (typeof checkIntervalMsOrOptions === 'number') {
+      this.checkIntervalMs = checkIntervalMsOrOptions;
+    } else if (checkIntervalMsOrOptions) {
+      if (checkIntervalMsOrOptions.checkIntervalMs) {
+        this.checkIntervalMs = checkIntervalMsOrOptions.checkIntervalMs;
+      }
+      if (checkIntervalMsOrOptions.db) {
+        this.planRepository = new BackupPlanRepository(checkIntervalMsOrOptions.db);
+      }
     }
   }
 
@@ -130,7 +143,7 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Create a new backup plan
    */
-  createPlan(plan: Omit<BackupPlan, 'createdAt' | 'updatedAt'>): BackupPlan {
+  async createPlan(plan: Omit<BackupPlan, 'createdAt' | 'updatedAt'>): Promise<BackupPlan> {
     const now = new Date();
     const fullPlan: BackupPlan = {
       ...plan,
@@ -140,13 +153,32 @@ export class BackupScheduler extends EventEmitter {
 
     this.plans.set(fullPlan.id, fullPlan);
 
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.create({
+          id: fullPlan.id,
+          name: fullPlan.name,
+          description: fullPlan.description || null,
+          sourceType: fullPlan.sources?.[0] || 'unknown',
+          backupType: fullPlan.type,
+          enabled: fullPlan.enabled,
+          schedule: fullPlan.schedule as any,
+          retention: fullPlan.retention as any,
+          storageConfig: {},
+        });
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to persist plan to repository:`, err);
+      }
+    }
+
     // Calculate next execution time
     if (fullPlan.enabled) {
       try {
         const nextTime = getNextCronTime(fullPlan.schedule.cronExpression);
         this.nextExecutions.set(fullPlan.id, nextTime);
       } catch (error) {
-        console.warn(`[BackupScheduler] Invalid cron expression for plan ${fullPlan.id}:`, error);
+        logger.warn(`[BackupScheduler] Invalid cron expression for plan ${fullPlan.id}:`, error);
       }
     }
 
@@ -178,7 +210,7 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Update a backup plan
    */
-  updatePlan(planId: string, updates: Partial<BackupPlan>): BackupPlan | null {
+  async updatePlan(planId: string, updates: Partial<BackupPlan>): Promise<BackupPlan | null> {
     const plan = this.plans.get(planId);
     if (!plan) return null;
 
@@ -190,6 +222,26 @@ export class BackupScheduler extends EventEmitter {
 
     this.plans.set(planId, updated);
 
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.update(entity.id, {
+            name: updated.name,
+            description: updated.description || null,
+            sourceType: updated.sources?.[0] || 'unknown',
+            backupType: updated.type,
+            enabled: updated.enabled,
+            schedule: updated.schedule as any,
+            retention: updated.retention as any,
+          });
+        }
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to persist plan update to repository:`, err);
+      }
+    }
+
     // Recalculate next execution if schedule changed or enabled status changed
     if (updates.schedule || updates.enabled !== undefined) {
       if (updated.enabled) {
@@ -197,7 +249,7 @@ export class BackupScheduler extends EventEmitter {
           const nextTime = getNextCronTime(updated.schedule.cronExpression);
           this.nextExecutions.set(planId, nextTime);
         } catch (error) {
-          console.warn(`[BackupScheduler] Invalid cron expression for plan ${planId}:`, error);
+          logger.warn(`[BackupScheduler] Invalid cron expression for plan ${planId}:`, error);
         }
       } else {
         this.nextExecutions.delete(planId);
@@ -211,9 +263,22 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Delete a backup plan
    */
-  deletePlan(planId: string): boolean {
+  async deletePlan(planId: string): Promise<boolean> {
     const deleted = this.plans.delete(planId);
     this.nextExecutions.delete(planId);
+
+    // Persist to repository
+    if (deleted && this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.delete(entity.id);
+        }
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to delete plan from repository:`, err);
+      }
+    }
+
     if (deleted) {
       this.emit('plan:deleted', planId);
     }
@@ -223,7 +288,15 @@ export class BackupScheduler extends EventEmitter {
   /**
    * Toggle a plan's enabled status
    */
-  togglePlan(planId: string, enabled: boolean): BackupPlan | null {
+  async togglePlan(planId: string, enabled: boolean): Promise<BackupPlan | null> {
+    // Persist toggle to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.toggleEnabled(planId, enabled);
+      } catch (err) {
+        logger.warn(`[BackupScheduler] Failed to toggle plan in repository:`, err);
+      }
+    }
     return this.updatePlan(planId, { enabled });
   }
 
@@ -237,7 +310,7 @@ export class BackupScheduler extends EventEmitter {
     this.isRunning = true;
 
     this.runScheduleCheck();
-    console.log('[BackupScheduler] Started');
+    logger.info('[BackupScheduler] Started');
     this.emit('started');
   }
 
@@ -250,7 +323,7 @@ export class BackupScheduler extends EventEmitter {
       clearTimeout(this.scheduleTimer);
       this.scheduleTimer = undefined;
     }
-    console.log('[BackupScheduler] Stopped');
+    logger.info('[BackupScheduler] Stopped');
     this.emit('stopped');
   }
 
@@ -270,7 +343,7 @@ export class BackupScheduler extends EventEmitter {
     try {
       this.checkSchedules();
     } catch (error) {
-      console.error('[BackupScheduler] Schedule check error:', error);
+      logger.error('[BackupScheduler] Schedule check error:', error);
     }
 
     this.scheduleTimer = setTimeout(
@@ -301,17 +374,17 @@ export class BackupScheduler extends EventEmitter {
   async triggerBackup(planId: string): Promise<BackupRecord | null> {
     const plan = this.plans.get(planId);
     if (!plan) {
-      console.warn(`[BackupScheduler] Plan ${planId} not found`);
+      logger.warn(`[BackupScheduler] Plan ${planId} not found`);
       return null;
     }
 
     if (!plan.enabled) {
-      console.warn(`[BackupScheduler] Plan ${planId} is disabled`);
+      logger.warn(`[BackupScheduler] Plan ${planId} is disabled`);
       return null;
     }
 
     if (!this.onExecuteBackup) {
-      console.warn('[BackupScheduler] No backup executor configured');
+      logger.warn('[BackupScheduler] No backup executor configured');
       return null;
     }
 
@@ -325,13 +398,13 @@ export class BackupScheduler extends EventEmitter {
         const nextTime = getNextCronTime(plan.schedule.cronExpression, new Date());
         this.nextExecutions.set(planId, nextTime);
       } catch (error) {
-        console.warn(`[BackupScheduler] Failed to calculate next time for plan ${planId}:`, error);
+        logger.warn(`[BackupScheduler] Failed to calculate next time for plan ${planId}:`, error);
       }
 
       this.emit('backup:completed', record);
       return record;
     } catch (error) {
-      console.error(`[BackupScheduler] Backup execution failed for plan ${planId}:`, error);
+      logger.error(`[BackupScheduler] Backup execution failed for plan ${planId}:`, error);
       this.emit('backup:failed', { planId, error });
 
       // Still calculate next execution even on failure

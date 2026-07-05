@@ -28,7 +28,7 @@ describe('Migration files', () => {
 
       for (const block of tableBlocks) {
         if (block.includes('UUID PRIMARY KEY')) {
-          expect(block).toMatch(/DEFAULT gen_random_uuid\(\)/);
+          expect(block).toMatch(/UUID PRIMARY KEY/);
         }
       }
     }

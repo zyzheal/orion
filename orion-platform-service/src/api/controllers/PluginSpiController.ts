@@ -11,6 +11,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PluginService } from '../../services/plugin-spi/PluginService';
 import { PluginManifest } from '../../services/plugin-spi/types';
+import { OrionError, ErrorCode } from '../../errors';
 
 let pluginService: PluginService | null = null;
 
@@ -26,7 +27,7 @@ export function initPluginSpiController(service: PluginService): void {
  */
 function getService(): PluginService {
   if (!pluginService) {
-    pluginService = new PluginService();
+    throw new OrionError('PluginSpiController not initialized. Call initPluginSpiController() first.', ErrorCode.UNAUTHORIZED);
   }
   return pluginService;
 }
@@ -328,7 +329,7 @@ export class PluginSpiController {
       }
 
       const service = getService();
-      const plugin = service.updatePluginConfig(params.pluginId, body.config);
+      const plugin = await service.updatePluginConfig(params.pluginId, body.config);
 
       if (!plugin) {
         await reply.status(404).send({
@@ -372,7 +373,7 @@ export class PluginSpiController {
         async (signal) => {
           // Simulated execution - in production this would load and run the plugin's entry point
           if (signal.aborted) {
-            throw new Error('Execution aborted');
+            throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
           }
 
           // Simulate some work

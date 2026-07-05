@@ -14,6 +14,12 @@ export {
   CostOptimizationSuggestion,
   CloudNetwork,
   CloudNetworkConfig,
+  ComplianceRule,
+  ComplianceCheckResult,
+  ComplianceReport,
+  SchedulingPolicy,
+  SchedulingDecision,
+  ResourceScheduleRequest,
 } from './MultiCloudAdvancedService';
 
 export {
@@ -21,6 +27,9 @@ export {
   AddCloudAccountInput,
   CloudAccountConfig,
   CloudStats,
+  ResourceSyncJob,
+  MigrationPlan,
+  MigrationResult,
 } from './MultiCloudManagerService';
 
 export {
@@ -29,6 +38,9 @@ export {
   CloudAccount,
   CloudResource,
   CloudProviderInfo,
+  CredentialValidationResult,
+  ProviderHealthStatus,
+  CloudCostSummary,
 } from './CloudProviderService';
 
 export {

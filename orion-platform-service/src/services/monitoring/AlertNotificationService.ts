@@ -4,9 +4,29 @@
  * Sends alerts via multiple channels (email, webhook, Slack).
  * Supports escalation policies with timed steps, alert acknowledgment
  * tracking, and notification history.
+ *
+ * Persistence: When `db` is provided, PostgreSQL is the primary store and
+ * Maps are used as write-through caches. Without `db`, in-memory Maps are
+ * the sole store (for tests and legacy usage).
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
+import {
+  MonitoringNotificationChannelRepository,
+  MonitoringNotificationChannelEntity,
+} from '../../repositories/MonitoringNotificationChannelRepository';
+import {
+  MonitoringEscalationPolicyRepository,
+  MonitoringEscalationPolicyEntity,
+} from '../../repositories/MonitoringEscalationPolicyRepository';
+import {
+  MonitoringNotificationHistoryRepository,
+  MonitoringNotificationHistoryEntity,
+} from '../../repositories/MonitoringNotificationHistoryRepository';
+
+const logger = createLogger('LAlert-LNotification-LService');
 import {
   Alert,
   AlertChannel,
@@ -20,6 +40,9 @@ import {
   WebhookChannelConfig,
   SlackChannelConfig,
 } from './types';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
+
+type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
 /**
  * Escalation state for a specific alert
@@ -47,38 +70,137 @@ interface EscalationState {
  * - Notification history and delivery status
  */
 export class AlertNotificationService {
-  /** Registered notification channels */
+  /** PostgreSQL repository for notification channels (primary when available) */
+  private readonly channelRepo?: MonitoringNotificationChannelRepository;
+
+  /** PostgreSQL repository for escalation policies (primary when available) */
+  private readonly escalationPolicyRepo?: MonitoringEscalationPolicyRepository;
+
+  /** PostgreSQL repository for notification history (primary when available) */
+  private readonly notificationHistoryRepo?: MonitoringNotificationHistoryRepository;
+
+  /** Registered notification channels (write-through cache / memory fallback) */
   private channels: Map<string, AlertChannel> = new Map();
 
-  /** Registered escalation policies */
+  /** Registered escalation policies (write-through cache / memory fallback) */
   private escalationPolicies: Map<string, EscalationPolicy> = new Map();
 
-  /** Notification history */
+  /** Notification history (write-through cache / memory fallback) */
   private notifications: NotificationRecord[] = [];
 
-  /** Active escalation states */
+  /** Active escalation states (always in-memory, runtime state with timers) */
   private escalationStates: Map<string, EscalationState> = new Map();
 
-  /** Alert to escalation policy mapping */
+  /** Alert to escalation policy mapping (always in-memory, runtime state) */
   private alertEscalationMap: Map<string, string> = new Map();
+
+  constructor(db?: DbConnection) {
+    if (db) {
+      this.channelRepo = new MonitoringNotificationChannelRepository(db);
+      this.escalationPolicyRepo = new MonitoringEscalationPolicyRepository(db);
+      this.notificationHistoryRepo = new MonitoringNotificationHistoryRepository(db);
+    }
+  }
+
+  /**
+   * Load persisted channels and escalation policies from PostgreSQL into in-memory Maps.
+   * Call this once after construction when db is provided.
+   */
+  async init(): Promise<void> {
+    if (this.channelRepo) {
+      const entities = await this.channelRepo.findEnabled();
+      for (const entity of entities) {
+        const channel = this.entityToChannel(entity);
+        this.channels.set(channel.id, channel);
+      }
+      logger.info(`[AlertNotificationService] Loaded ${entities.length} channels from repository`);
+    }
+
+    if (this.escalationPolicyRepo) {
+      const entities = await this.escalationPolicyRepo.findEnabled();
+      for (const entity of entities) {
+        const policy = this.entityToPolicy(entity);
+        this.escalationPolicies.set(policy.id, policy);
+      }
+      logger.info(`[AlertNotificationService] Loaded ${entities.length} escalation policies from repository`);
+    }
+  }
+
+  /**
+   * Convert repository entity to domain AlertChannel
+   */
+  private entityToChannel(entity: MonitoringNotificationChannelEntity): AlertChannel {
+    return {
+      id: entity.id,
+      type: entity.type as ChannelType,
+      config: entity.config as ChannelConfig,
+      enabled: entity.enabled,
+      name: entity.name,
+      severityFilter: entity.severity_filter as AlertSeverity[],
+    };
+  }
+
+  /**
+   * Convert repository entity to domain EscalationPolicy
+   */
+  private entityToPolicy(entity: MonitoringEscalationPolicyEntity): EscalationPolicy {
+    return {
+      id: entity.id,
+      name: entity.name,
+      steps: (entity.steps || []) as any[],
+      repeatCount: entity.repeat_count ?? 0,
+      enabled: entity.enabled,
+      description: entity.description ?? undefined,
+    };
+  }
 
   // ==================== Channel Management ====================
 
   /**
    * Add a notification channel
    */
-  addChannel(channel: AlertChannel): void {
+  async addChannel(channel: AlertChannel): Promise<void> {
+    // Persist to repository first
+    if (this.channelRepo) {
+      await this.channelRepo.create({
+        id: channel.id,
+        tenant_id: getCurrentTenantId(),
+        name: channel.name,
+        type: channel.type,
+        config: channel.config,
+        enabled: channel.enabled,
+        severity_filter: channel.severityFilter || [],
+      });
+    }
+
+    // Update in-memory cache
     this.channels.set(channel.id, channel);
   }
 
   /**
    * Update a channel
    */
-  updateChannel(channelId: string, updates: Partial<AlertChannel>): AlertChannel | null {
+  async updateChannel(channelId: string, updates: Partial<AlertChannel>): Promise<AlertChannel | null> {
     const existing = this.channels.get(channelId);
     if (!existing) return null;
 
     const updated = { ...existing, ...updates };
+
+    // Persist to repository first
+    if (this.channelRepo) {
+      const repoUpdate: any = {};
+      if (updates.name !== undefined) repoUpdate.name = updates.name;
+      if (updates.type !== undefined) repoUpdate.type = updates.type;
+      if (updates.config !== undefined) repoUpdate.config = updates.config;
+      if (updates.enabled !== undefined) repoUpdate.enabled = updates.enabled;
+      if (updates.severityFilter !== undefined) repoUpdate.severity_filter = updates.severityFilter;
+
+      if (Object.keys(repoUpdate).length > 0) {
+        await this.channelRepo.update(channelId, repoUpdate);
+      }
+    }
+
+    // Update in-memory cache
     this.channels.set(channelId, updated);
     return updated;
   }
@@ -86,8 +208,18 @@ export class AlertNotificationService {
   /**
    * Remove a channel
    */
-  removeChannel(channelId: string): boolean {
-    return this.channels.delete(channelId);
+  async removeChannel(channelId: string): Promise<boolean> {
+    const exists = this.channels.has(channelId);
+    if (!exists) return false;
+
+    // Delete from repository first
+    if (this.channelRepo) {
+      await this.channelRepo.delete(channelId);
+    }
+
+    // Update in-memory cache
+    this.channels.delete(channelId);
+    return true;
   }
 
   /**
@@ -111,6 +243,12 @@ export class AlertNotificationService {
     const channel = this.channels.get(channelId);
     if (!channel) return false;
     channel.enabled = enabled;
+
+    // Persist to repository if available (fire-and-forget)
+    this.channelRepo?.toggleEnabled(channelId, enabled).catch((err: any) =>
+      logger.warn('[AlertNotificationService] Failed to toggle channel in repository:', err)
+    );
+
     return true;
   }
 
@@ -121,6 +259,19 @@ export class AlertNotificationService {
    */
   addEscalationPolicy(policy: EscalationPolicy): void {
     this.escalationPolicies.set(policy.id, policy);
+
+    // Persist to repository if available (fire-and-forget)
+    this.escalationPolicyRepo?.create({
+      id: policy.id,
+      tenant_id: getCurrentTenantId(),
+      name: policy.name,
+      steps: policy.steps,
+      repeat_count: policy.repeatCount,
+      enabled: policy.enabled,
+      description: policy.description ?? null,
+    }).catch((err: any) =>
+      logger.warn('[AlertNotificationService] Failed to persist escalation policy:', err)
+    );
   }
 
   /**
@@ -142,16 +293,23 @@ export class AlertNotificationService {
    */
   removeEscalationPolicy(policyId: string): boolean {
     // Cancel any active escalations for this policy
-    for (const [alertId, state] of this.escalationStates) {
-      const policy = this.escalationPolicies.get(
-        this.alertEscalationMap.get(alertId) || ''
-      );
+    for (const [alertId] of this.escalationStates) {
+      const mappedPolicyId = this.alertEscalationMap.get(alertId) || '';
+      const policy = this.escalationPolicies.get(mappedPolicyId);
       if (policy && policy.id === policyId) {
         this.cancelEscalation(alertId);
       }
     }
 
-    return this.escalationPolicies.delete(policyId);
+    const result = this.escalationPolicies.delete(policyId);
+
+    if (result) {
+      this.escalationPolicyRepo?.delete(policyId).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to delete escalation policy from repository:', err)
+      );
+    }
+
+    return result;
   }
 
   // ==================== Notification Sending ====================
@@ -193,6 +351,14 @@ export class AlertNotificationService {
     }
 
     this.notifications.push(...records);
+
+    // Persist notification records to repository (fire-and-forget)
+    for (const record of records) {
+      this.notificationHistoryRepo?.create(this.notificationRecordToEntity(record) as any).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to persist notification record:', err)
+      );
+    }
+
     return records;
   }
 
@@ -240,7 +406,7 @@ export class AlertNotificationService {
     const body = this.formatAlertText(alert);
 
     // In production: await emailService.send({ to: config.recipients, subject, body });
-    console.log(`[Email] To: ${config.recipients.join(', ')} | Subject: ${subject}`);
+    logger.info(`[Email] To: ${config.recipients.join(', ')} | Subject: ${subject}`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify({ recipients: config.recipients, subject });
@@ -278,9 +444,9 @@ export class AlertNotificationService {
     //   body: JSON.stringify(payload),
     //   signal: AbortSignal.timeout(config.timeoutMs || 10000),
     // });
-    // if (!response.ok) throw new Error(`Webhook returned ${response.status}`);
+    // if (!response.ok) throw new OrionError(`Webhook returned ${response.status}`, 'OPERATION_FAILED');
 
-    console.log(`[Webhook] POST ${config.url} | Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
+    logger.info(`[Webhook] POST ${config.url} | Payload: ${JSON.stringify(payload).substring(0, 200)}...`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify({ status: 'delivered' });
@@ -309,7 +475,7 @@ export class AlertNotificationService {
     };
 
     // In production: await fetch(config.webhookUrl, { method: 'POST', body: JSON.stringify(message) });
-    console.log(`[Slack] Channel: ${message.channel} | Text: ${message.text.substring(0, 200)}...`);
+    logger.info(`[Slack] Channel: ${message.channel} | Text: ${message.text.substring(0, 200)}...`);
 
     record.status = 'sent';
     record.responsePayload = JSON.stringify(message);
@@ -377,7 +543,7 @@ export class AlertNotificationService {
       };
 
       // Log escalation
-      console.log(
+      logger.info(
         `[Escalation] Alert ${alertId} -> Step ${state.currentStep} | Recipients: ${step.recipients.join(', ')}`
       );
 
@@ -388,7 +554,12 @@ export class AlertNotificationService {
       });
 
       this.notifications.push(record);
-    })().catch(console.error);
+
+      // Persist escalation notification to repository (fire-and-forget)
+      this.notificationHistoryRepo?.create(this.notificationRecordToEntity(record) as any).catch((err: any) =>
+        logger.warn('[AlertNotificationService] Failed to persist escalation notification:', err)
+      );
+    })().catch((err) => logger.error({ traceId: getCurrentTraceId(), err }, 'Notification step failed'));
 
     // Schedule next step
     if (state.currentStep < policy.steps.length - 1) {
@@ -436,7 +607,7 @@ export class AlertNotificationService {
     // Cancel escalation
     this.cancelEscalation(alertId);
 
-    console.log(`[Alert] Alert ${alertId} acknowledged by ${acknowledgedBy}`);
+    logger.info(`[Alert] Alert ${alertId} acknowledged by ${acknowledgedBy}`);
   }
 
   // ==================== Notification History ====================
@@ -548,5 +719,25 @@ export class AlertNotificationService {
     this.notifications = [];
     this.escalationStates.clear();
     this.alertEscalationMap.clear();
+  }
+
+  // ==================== Private Helpers ====================
+
+  /**
+   * Convert a NotificationRecord to a repository entity object
+   */
+  private notificationRecordToEntity(record: NotificationRecord): Record<string, any> {
+    return {
+      id: record.id,
+      tenant_id: getCurrentTenantId(),
+      alert_id: record.alertId,
+      channel_id: record.channelId,
+      channel_type: record.channelType,
+      status: record.status,
+      sent_at: record.sentAt,
+      error_message: record.errorMessage ?? null,
+      response_payload: record.responsePayload ?? null,
+      escalation_step: record.escalationStep ?? null,
+    };
   }
 }

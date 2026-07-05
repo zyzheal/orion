@@ -29,10 +29,10 @@ import {
   getExtensionPoints,
   getPluginRegistrations,
   getSPIConfigs,
-  createSPIConfig,
-  updateSPIConfig,
-  deleteSPIConfig,
-  toggleRegistration,
+  createRegistration,
+  updatePluginConfig,
+  deleteRegistration,
+  toggleExtensionPoint,
   type SPIStats as APISPIStats,
   type SPIExtensionPoint as APISPIExtensionPoint,
   type PluginRegistration as APIPluginRegistration,
@@ -63,16 +63,16 @@ function mapApiExtensionPoint(p: APISPIExtensionPoint): SPIExtensionPoint {
 }
 
 /** Map API PluginRegistration to UI shape */
-function mapApiRegistration(r: APIPluginRegistration): PluginRegistration {
+function mapApiRegistration(r: APIPluginRegistration | any): PluginRegistration {
   return {
-    id: r.id,
-    pluginName: r.pluginName,
-    spiPoint: r.extensionPointName,
-    provider: '',
-    priority: 0,
-    status: r.enabled ? 'enabled' : 'disabled',
-    version: r.version,
-    registeredAt: r.createdAt,
+    id: r.id || r.pluginName || '',
+    pluginName: r.pluginName || r.name || '',
+    spiPoint: r.extensionPointName || r.spiPoint || r.capabilities?.[0] || 'Unknown',
+    provider: r.author || r.provider || '',
+    priority: r.priority || 0,
+    status: r.status || (r.enabled ? 'enabled' : 'disabled'),
+    version: r.version || r.manifest?.version || '1.0.0',
+    registeredAt: r.createdAt || r.enabledAt || new Date().toISOString(),
   };
 }
 
@@ -89,12 +89,12 @@ function mapApiSPIConfig(c: APISPIConfig): SPIConfigType {
 }
 
 /** Map API stats to UI stats */
-function mapApiStats(s: APISPIStats): SPIStats {
+function mapApiStats(s: APISPIStats | any): SPIStats {
   return {
-    totalExtensionPoints: s.totalExtensionPoints,
-    activePoints: s.activePoints,
-    totalRegistrations: s.totalRegistrations,
-    enabledPlugins: 0,
+    totalExtensionPoints: s.totalExtensionPoints || s.totalPlugins || 0,
+    activePoints: s.activePoints || s.enabledPlugins || 0,
+    totalRegistrations: s.totalRegistrations || s.totalPlugins || 0,
+    enabledPlugins: s.enabledPlugins || 0,
   };
 }
 
@@ -126,11 +126,14 @@ const PluginSPIPage: React.FC = () => {
         getPluginRegistrations(),
         getSPIConfigs(),
       ]);
-      setExtensionPoints(extRes.data.data.extensionPoints.map(mapApiExtensionPoint));
-      setPluginRegistrations(regRes.data.data.registrations.map(mapApiRegistration));
-      setSpiConfigs(cfgRes.data.data.configs.map(mapApiSPIConfig));
+      const extPoints = Array.isArray(extRes) ? extRes : ((extRes as any).data?.extensionPoints || []);
+      const regs = Array.isArray(regRes) ? regRes : ((regRes as any).data?.registrations || []);
+      const cfgs = Array.isArray(cfgRes) ? cfgRes : ((cfgRes as any).data?.configs || []);
+      setExtensionPoints(extPoints.map(mapApiExtensionPoint));
+      setPluginRegistrations(regs.map(mapApiRegistration));
+      setSpiConfigs(cfgs.map(mapApiSPIConfig));
     } catch (error: unknown) {
-      message.error(`Failed to load SPI data: ${(error as Error).message}`);
+      message.error(`加载 SPI 数据失败: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -139,9 +142,10 @@ const PluginSPIPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSPIStats();
-      setStats(mapApiStats(response.data.data.stats));
+      const statsData = (response as any).stats || response || {};
+      setStats(mapApiStats(statsData));
     } catch (error: unknown) {
-      message.error(`Failed to load SPI stats: ${(error as Error).message}`);
+      message.error(`加载统计信息失败: ${(error as Error).message}`);
     }
   };
 
@@ -172,7 +176,7 @@ const PluginSPIPage: React.FC = () => {
       const values = await configForm.validateFields();
       setSubmitting(true);
       if (editingConfig) {
-        await updateSPIConfig(editingConfig.id, {
+        await updatePluginConfig(editingConfig.id, {
           key: values.spiType || editingConfig.id,
           value: String(values.maxPlugins || ''),
           description: `SPI config for ${values.spiType}`,
@@ -181,13 +185,13 @@ const PluginSPIPage: React.FC = () => {
         });
         message.success('SPI 配置已更新');
       } else {
-        await createSPIConfig({
+        await createRegistration({
           key: values.spiType || 'new-config',
           value: String(values.maxPlugins || ''),
           description: 'New SPI config',
           category: values.spiType || 'general',
           encrypted: false,
-        });
+        } as any);
         message.success('SPI 配置已添加');
       }
       setConfigModalVisible(false);
@@ -205,7 +209,7 @@ const PluginSPIPage: React.FC = () => {
 
   const handleDeleteConfig = async (id: string) => {
     try {
-      await deleteSPIConfig(id);
+      await deleteRegistration(id);
       message.success('配置已删除');
       loadData();
     } catch (error: unknown) {
@@ -216,7 +220,7 @@ const PluginSPIPage: React.FC = () => {
   const handleTogglePlugin = async (record: PluginRegistration) => {
     const newEnabled = record.status === 'enabled' ? 'disabled' : 'enabled';
     try {
-      await toggleRegistration(record.id, newEnabled === 'enabled');
+      await toggleExtensionPoint(record.id, newEnabled === 'enabled');
       setPluginRegistrations((prev) =>
         prev.map((p) => (p.id === record.id ? { ...p, status: newEnabled } : p))
       );
@@ -250,7 +254,7 @@ const PluginSPIPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.purple[500] }} />
             Plugin SPI
           </Title>

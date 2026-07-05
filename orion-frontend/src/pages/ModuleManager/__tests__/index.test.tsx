@@ -99,13 +99,13 @@ describe('ModuleManager', { timeout: 15000 }, () => {
 
   it('renders page title', async () => {
     vi.mocked(moduleManagerApi.getModules).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { data: { validation: { valid: true, missingDependencies: [] } } },
+      data: { validation: { valid: true, missingDependencies: [] } } ,
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { data: { order: [] } },
+      data: { order: [] } ,
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;
@@ -135,13 +135,13 @@ describe('ModuleManager', { timeout: 15000 }, () => {
     ];
 
     vi.mocked(moduleManagerApi.getModules).mockResolvedValue({
-      data: { data: mockModules },
+      data: mockModules,
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { data: { validation: { valid: true, missingDependencies: [] } } },
+      data: { validation: { valid: true, missingDependencies: [] } } ,
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { data: { order: ['core:auth', 'service:api'] } },
+      data: { order: ['core:auth', 'service:api'] } ,
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;
@@ -156,13 +156,13 @@ describe('ModuleManager', { timeout: 15000 }, () => {
 
   it('calls API on mount', async () => {
     vi.mocked(moduleManagerApi.getModules).mockResolvedValue({
-      data: { data: [] },
+      data: [],
     } as any);
     vi.mocked(moduleManagerApi.validateDependencies).mockResolvedValue({
-      data: { data: { validation: { valid: true, missingDependencies: [] } } },
+      data: { validation: { valid: true, missingDependencies: [] } } ,
     } as any);
     vi.mocked(moduleManagerApi.getStartupOrder).mockResolvedValue({
-      data: { data: { order: [] } },
+      data: { order: [] } ,
     } as any);
 
     const ModuleManagerPage = (await import('@/pages/ModuleManager')).default;

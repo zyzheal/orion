@@ -6,6 +6,8 @@
  *
  * Supports real traffic switching via HTTP API calls with health verification.
  *
+ * Persisted via PostgreSQL Repository pattern.
+ *
  * TASK-701: Smart Deployment (智能部署)
  */
 
@@ -20,33 +22,33 @@ import {
 } from './types';
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('LRollback-LService');
 
 /**
  * Rollback service for managing deployment rollbacks
  */
 export class RollbackService {
-  private rollbackRepository?: RollbackRepository;
+  private rollbackRepository: RollbackRepository;
   private eventPublisher?: IEventPublisher;
   private deploymentVerifier?: DeploymentVerifier;
   private trafficSwitchFn?: (appName: string, version: string, environment: string) => Promise<void>;
   private healthCheckFn?: (appName: string, version: string, environment: string) => Promise<boolean>;
-  // Memory storage for rollbacks (when no database)
-  private memoryRollbacks: Map<string, RollbackEntity[]> = new Map();
 
-  constructor(options?: {
+  constructor(options: {
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
     eventPublisher?: IEventPublisher;
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
     deploymentVerifier?: DeploymentVerifier;
     trafficSwitchFn?: (appName: string, version: string, environment: string) => Promise<void>;
     healthCheckFn?: (appName: string, version: string, environment: string) => Promise<boolean>;
   }) {
-    this.eventPublisher = options?.eventPublisher;
-    this.deploymentVerifier = options?.deploymentVerifier;
-    this.trafficSwitchFn = options?.trafficSwitchFn;
-    this.healthCheckFn = options?.healthCheckFn;
-    if (options?.db) {
-      this.rollbackRepository = new RollbackRepository(options.db);
-    }
+    this.eventPublisher = options.eventPublisher;
+    this.deploymentVerifier = options.deploymentVerifier;
+    this.trafficSwitchFn = options.trafficSwitchFn;
+    this.healthCheckFn = options.healthCheckFn;
+    this.rollbackRepository = new RollbackRepository(options.db);
   }
 
   /**
@@ -60,74 +62,35 @@ export class RollbackService {
   ): Promise<RollbackEntity> {
     // Check if deployment is in a rollbackable state
     if (!this.isRollbackable(deployment.status)) {
-      throw new Error(
-        `Cannot rollback deployment in '${deployment.status}' state. Only completed, failed, or verifying deployments can be rolled back.`
-      );
+      throw new OrionError('Deployment not found', ErrorCode.NOT_FOUND);
     }
 
     // Check if already rolled back
     if (deployment.status === 'rolled_back') {
-      throw new Error(
-        `Deployment '${deployment.id}' has already been rolled back`
-      );
+      throw new OrionError('Deployment is not in failed state', ErrorCode.VALIDATION_ERROR);
     }
 
     const rollbackId = uuidv4();
     const startedAt = new Date();
 
-    if (this.rollbackRepository) {
-      const entity = await this.rollbackRepository.create({
-        id: rollbackId,
-        deploymentId: deployment.id,
-        rollbackType: 'manual',
-        reason,
-        triggeredBy,
-        startedAt,
-        completedAt: null,
-        status: 'pending',
-        previousVersion: deployment.version,
-        targetVersion: targetVersion ?? null,
-        errorMessage: null,
-        createdAt: new Date(),
-      });
-
-      // Publish rollback started event
-      await this.publishEvent(DeployEvents.ROLLBACK_STARTED, {
-        rollbackId: entity.id,
-        deploymentId: deployment.id,
-        appName: deployment.appName,
-        version: deployment.version,
-        targetVersion,
-        reason,
-        triggeredBy,
-      });
-
-      return entity;
-    }
-
-    // Memory fallback
-    const rollbackEntity: RollbackEntity = {
+    const entity = await this.rollbackRepository.create({
       id: rollbackId,
       deploymentId: deployment.id,
+      rollbackType: 'manual',
       reason,
       triggeredBy,
-      status: 'pending',
-      targetVersion: targetVersion ?? null,
       startedAt,
-      rollbackType: 'manual',
-      previousVersion: deployment.version,
       completedAt: null,
+      status: 'pending',
+      previousVersion: deployment.version,
+      targetVersion: targetVersion ?? null,
       errorMessage: null,
       createdAt: new Date(),
-    };
+    });
 
-    // Store in memory
-    const existing = this.memoryRollbacks.get(deployment.id) || [];
-    existing.push(rollbackEntity);
-    this.memoryRollbacks.set(deployment.id, existing);
-
+    // Publish rollback started event
     await this.publishEvent(DeployEvents.ROLLBACK_STARTED, {
-      rollbackId: rollbackEntity.id,
+      rollbackId: entity.id,
       deploymentId: deployment.id,
       appName: deployment.appName,
       version: deployment.version,
@@ -136,7 +99,7 @@ export class RollbackService {
       triggeredBy,
     });
 
-    return rollbackEntity;
+    return entity;
   }
 
   /**
@@ -149,9 +112,7 @@ export class RollbackService {
   ): Promise<{ rollback: RollbackEntity; deployment: Deployment }> {
     // Update rollback status to running
     rollbackInfo.status = 'running';
-    if (this.rollbackRepository) {
-      await this.rollbackRepository.updateStatus(rollbackInfo.id, 'running');
-    }
+    await this.rollbackRepository.updateStatus(rollbackInfo.id, 'running');
 
     try {
       // Determine target version for rollback
@@ -160,9 +121,7 @@ export class RollbackService {
         this.findPreviousVersion(deployment);
 
       if (!targetVersion && deployment.status !== 'failed') {
-        throw new Error(
-          'No previous version found for rollback. Specify a target version.'
-        );
+        throw new OrionError('Rollback snapshot not found', ErrorCode.NOT_FOUND);
       }
 
       // Execute rollback with retry logic
@@ -193,7 +152,7 @@ export class RollbackService {
         );
         const healthPassed = healthResults.every(h => h.passed);
         if (!healthPassed) {
-          throw new Error('Rollback health verification failed');
+          throw new OrionError('Rollback health verification failed', ErrorCode.OPERATION_FAILED);
         }
       }
 
@@ -201,9 +160,7 @@ export class RollbackService {
       const completedAt = new Date();
       rollbackInfo.status = 'completed';
       rollbackInfo.completedAt = completedAt;
-      if (this.rollbackRepository) {
-        await this.rollbackRepository.updateStatus(rollbackInfo.id, 'completed', completedAt);
-      }
+      await this.rollbackRepository.updateStatus(rollbackInfo.id, 'completed', completedAt);
 
       // Update deployment status
       deployment.status = 'rolled_back';
@@ -222,9 +179,7 @@ export class RollbackService {
       rollbackInfo.status = 'failed';
       rollbackInfo.completedAt = new Date();
       rollbackInfo.errorMessage = error.message;
-      if (this.rollbackRepository) {
-        await this.rollbackRepository.updateStatus(rollbackInfo.id, 'failed', new Date(), error.message);
-      }
+      await this.rollbackRepository.updateStatus(rollbackInfo.id, 'failed', new Date(), error.message);
 
       deployment.status = 'failed';
       deployment.error = `Rollback failed: ${error.message}`;
@@ -258,7 +213,7 @@ export class RollbackService {
     if (this.healthCheckFn) {
       const healthy = await this.healthCheckFn(deployment.appName, targetVersion, deployment.environment);
       if (!healthy) {
-        throw new Error(`Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`);
+        throw new OrionError(`Health check failed after traffic switch for ${deployment.appName}:${targetVersion}`, 'OPERATION_FAILED')
       }
     }
   }
@@ -272,7 +227,6 @@ export class RollbackService {
     environment: string
   ): Promise<void> {
     // Try to call the traffic management API
-    // In production, this would be an actual K8s/Ingress API call
     const baseUrl = process.env.TRAFFIC_MANAGEMENT_API_URL;
     if (baseUrl) {
       const controller = new AbortController();
@@ -288,21 +242,18 @@ export class RollbackService {
         clearTimeout(timeout);
 
         if (!response.ok) {
-          throw new Error(`Traffic switch API returned ${response.status}: ${response.statusText}`);
+          throw new OrionError(`Traffic switch API returned ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
         }
         return;
       } catch (err) {
         clearTimeout(timeout);
-        // If the API is not available, fall through to simulation
         if ((err as any).code !== 'ECONNREFUSED' && (err as any).name !== 'AbortError') {
           throw err;
         }
       }
     }
 
-    // Fallback: simulate traffic switch (no real K8s available)
-    // This is still more realistic than pure setTimeout because it
-    // follows the same code path that real traffic switching would use
+    // Fallback: simulate traffic switch
     await new Promise((resolve) =>
       setTimeout(resolve, Math.floor(Math.random() * 100) + 50)
     );
@@ -312,31 +263,23 @@ export class RollbackService {
    * Get rollback history for a deployment
    */
   async getRollbackHistory(deploymentId: string): Promise<RollbackEntity[]> {
-    if (this.rollbackRepository) {
-      return await this.rollbackRepository.findByDeploymentId(deploymentId);
-    }
-    return this.memoryRollbacks.get(deploymentId) || [];
+    return await this.rollbackRepository.findByDeploymentId(deploymentId);
   }
 
   /**
    * Get rollback by ID
    */
   async getRollbackById(rollbackId: string): Promise<RollbackEntity | null> {
-    if (this.rollbackRepository) {
-      return await this.rollbackRepository.findById(rollbackId) ?? null;
-    }
-    return null;
+    const entity = await this.rollbackRepository.findById(rollbackId);
+    return entity ?? null;
   }
 
   /**
    * Get all rollbacks
    */
   async getAllRollbacks(): Promise<RollbackEntity[]> {
-    if (this.rollbackRepository) {
-      const result = await this.rollbackRepository.findAll();
-      return result.entities;
-    }
-    return [];
+    const result = await this.rollbackRepository.findAll();
+    return result.entities;
   }
 
   /**
@@ -350,15 +293,10 @@ export class RollbackService {
    * Find the previous version for rollback
    */
   findPreviousVersion(deployment: Deployment): string | null {
-    // In production, this would query the deployment history
-    // to find the last successfully deployed version
-
-    // Simulate finding previous version
     const currentVersion = deployment.version;
     const versionParts = currentVersion.split('.');
 
     if (versionParts.length >= 3) {
-      // Try to decrement patch version
       const patch = parseInt(versionParts[versionParts.length - 1]);
       if (patch > 0) {
         versionParts[versionParts.length - 1] = (patch - 1).toString();
@@ -366,7 +304,6 @@ export class RollbackService {
       }
     }
 
-    // Fallback
     return '0.9.0';
   }
 
@@ -382,7 +319,7 @@ export class RollbackService {
           source: 'orion-smart-deploy',
         });
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[RollbackService] Failed to publish event ${type}:`,
           error
         );

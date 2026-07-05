@@ -1,171 +1,292 @@
 /**
  * Artifact Version API Routes
  *
- * - POST   /api/v1/artifact-versions                     — Create version
- * - GET    /api/v1/artifact-versions                     — List versions
- * - GET    /api/v1/artifact-versions/:id                 — Get version details
- * - POST   /api/v1/artifact-versions/:id/promote         — Promote version to environment
- * - GET    /api/v1/artifact-versions/:id/lineage         — Get version lineage (ancestors + descendants)
- * - POST   /api/v1/artifact-versions/:id/tags/:tag       — Add tag
- * - DELETE /api/v1/artifact-versions/:id/tags/:tag       — Remove tag
- * - GET    /api/v1/artifact-versions/tag/:tag            — Find versions by tag
- * - GET    /api/v1/artifact-versions/pipeline/:pipelineId/history — Get deployment history
- * - GET    /api/v1/artifact-versions/pipeline/:pipelineId/compare — Compare versions
+ * 制品版本追踪 REST API
+ * 路由前缀: /api/v1/artifact-versions
+ *
+ * 提供：
+ * - 版本列表查询（分页、过滤）
+ * - 版本详情
+ * - 部署历史
+ * - 版本对比
+ * - 溯源链查询
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { ArtifactVersionService } from '../services/pipeline/ArtifactVersionService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { ArtifactVersionRepository } from '../repositories/ArtifactVersionRepository';
+import { ArtifactVersionService } from '../services/pipeline/ArtifactVersionService';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-export default async function artifactVersionRoutes(app: FastifyInstance, opts: { database?: any }): Promise<void> {
-  if (!opts.database) {
-    app.get('/health', async () => ({ status: 'unavailable', reason: 'database not configured' }));
-    return;
-  }
+interface ArtifactVersionQueryParams {
+  pipelineId?: string;
+  branch?: string;
+  commitSha?: string;
+  version?: string;
+  artifactName?: string;
+  startDate?: string;
+  endDate?: string;
+  limit?: string;
+  offset?: string;
+}
 
-  const repository = new ArtifactVersionRepository(opts.database);
+interface VersionParams {
+  id: string;
+}
+
+interface TraceabilityParams {
+  id: string;
+}
+
+interface DiffQueryParams {
+  pipelineId: string;
+  versionA: string;
+  versionB: string;
+}
+
+interface HistoryParams {
+  pipelineId: string;
+  limit?: string;
+}
+
+export default async function artifactVersionRoutes(
+  app: FastifyInstance,
+  options: { database?: any }
+): Promise<void> {
+
+  // 创建 Repository 和 Service
+  const repository = new ArtifactVersionRepository(options.database);
   const service = new ArtifactVersionService(repository);
 
-  // POST /api/v1/artifact-versions — Create artifact version
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as any;
-    const { tenantId, pipelineId, runId, stageName, artifactName, version, commitSha, branch, storagePath, metadata } = body;
+  /**
+   * GET /artifact-versions
+   *
+   * 获取制品版本列表（支持分页、过滤）
+   */
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { pipelineId, branch, commitSha, version, artifactName, startDate, endDate, limit, offset } = request.query as ArtifactVersionQueryParams;
 
-    if (!tenantId || !pipelineId || !artifactName || !version) {
-      return reply.code(400).send({
-        error: 'Missing required fields: tenantId, pipelineId, artifactName, version',
+      const result = await repository.findWithFilters({
+        pipelineId,
+        branch,
+        commitSha,
+        version,
+        artifactName,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        limit: limit ? parseInt(limit, 10) : 50,
+        offset: offset ? parseInt(offset, 10) : 0,
       });
-    }
 
-    try {
-      const result = await service.createVersion({
-        tenantId, pipelineId, runId, stageName, artifactName, version, commitSha, branch, storagePath, metadata,
+      return reply.status(200).send({
+        success: true,
+        data: {
+          versions: result.versions,
+          total: result.total,
+        },
+        timestamp: new Date().toISOString(),
       });
-      return reply.code(201).send({ data: result });
     } catch (error: any) {
-      if (error.message.includes('already exists')) {
-        return reply.code(409).send({ error: error.message });
-      }
-      throw error;
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
-  // GET /api/v1/artifact-versions — List versions
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as any;
-    const options: any = {
-      pipelineId: query.pipelineId,
-      artifactName: query.artifactName,
-      environment: query.environment,
-      limit: query.limit ? parseInt(query.limit, 10) : 50,
-      offset: query.offset ? parseInt(query.offset, 10) : 0,
-    };
-
-    const results = await repository.findWithFilters(options);
-    return reply.send({ data: results.versions, total: results.total });
-  });
-
-  // GET /api/v1/artifact-versions/:id — Get version details
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-    const version = await service.getVersionById(params.id);
-
-    if (!version) {
-      return reply.code(404).send({ error: 'Artifact version not found' });
-    }
-
-    return reply.send({ data: version });
-  });
-
-  // POST /api/v1/artifact-versions/:id/promote — Promote version
-  app.post('/:id/promote', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-    const body = request.body as any;
-
-    if (!body.targetEnvironment) {
-      return reply.code(400).send({ error: 'Missing required field: targetEnvironment' });
-    }
-
+  /**
+   * GET /artifact-versions/:id
+   *
+   * 获取单个版本详情
+   */
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const result = await service.promoteVersion(params.id, body.targetEnvironment);
-      return reply.send({ data: result });
-    } catch (error: any) {
-      if (error.message.includes('already promoted') || error.message.includes('not found')) {
-        return reply.code(400).send({ error: error.message });
+      const version = await repository.findById((request.params as any).id);
+
+      if (!version) {
+        return handleError(reply, new NotFoundError('Version not found'))
       }
-      throw error;
+
+      return reply.status(200).send({
+        success: true,
+        data: version,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
-  // GET /api/v1/artifact-versions/:id/lineage — Get version lineage
-  app.get('/:id/lineage', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-
+  /**
+   * GET /artifact-versions/:id/traceability
+   *
+   * 获取版本溯源链
+   */
+  app.get('/:id/traceability', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const lineage = await service.getVersionLineage(params.id);
-      return reply.send({ data: lineage });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.code(404).send({ error: error.message });
+      const chain = await repository.findTraceabilityChain((request.params as any).id);
+
+      if (!chain) {
+        return handleError(reply, new NotFoundError('Version not found'))
       }
-      throw error;
+
+      return reply.status(200).send({
+        success: true,
+        data: chain,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
-  // POST /api/v1/artifact-versions/:id/tags/:tag — Add tag
-  app.post('/:id/tags/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-
+  /**
+   * GET /artifact-versions/diff
+   *
+   * 版本对比
+   */
+  app.get('/diff', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const result = await service.addTag(params.id, params.tag);
-      return reply.send({ data: result });
-    } catch (error: any) {
-      if (error.message.includes('not found')) {
-        return reply.code(404).send({ error: error.message });
+      const { pipelineId, versionA, versionB } = request.query as any;
+
+      if (!pipelineId || !versionA || !versionB) {
+        return handleError(reply, new ValidationError('Missing required params: pipelineId, versionA, versionB'))
       }
-      throw error;
-    }
-  });
 
-  // DELETE /api/v1/artifact-versions/:id/tags/:tag — Remove tag
-  app.delete('/:id/tags/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
+      const diff = await repository.getVersionDiff(pipelineId, versionA, versionB);
 
-    try {
-      await service.removeTag(params.id, params.tag);
-      return reply.send({ success: true });
+      return reply.status(200).send({
+        success: true,
+        data: diff,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error: any) {
-      return reply.code(400).send({ error: error.message });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
-  // GET /api/v1/artifact-versions/tag/:tag — Find versions by tag
-  app.get('/tag/:tag', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-    const versions = await service.findVersionsByTag(params.tag);
-    return reply.send({ data: versions, total: versions.length });
-  });
+  /**
+   * GET /artifact-versions/history/:pipelineId
+   *
+   * 获取部署历史
+   */
+  app.get('/history/:pipelineId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const limit = (request.query as any).limit ? parseInt((request.query as any).limit as string, 10) : 20;
+      const history = await repository.getDeploymentHistory((request.params as any).pipelineId, limit);
 
-  // GET /api/v1/artifact-versions/pipeline/:pipelineId/history — Get deployment history
-  app.get('/pipeline/:pipelineId/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-    const query = request.query as any;
-    const limit = query.limit ? parseInt(query.limit, 10) : 20;
-
-    const history = await service.getDeploymentHistory(params.pipelineId, limit);
-    return reply.send({ data: history });
-  });
-
-  // GET /api/v1/artifact-versions/pipeline/:pipelineId/compare — Compare versions
-  app.get('/pipeline/:pipelineId/compare', async (request: FastifyRequest, reply: FastifyReply) => {
-    const params = request.params as any;
-    const query = request.query as any;
-
-    if (!query.versionA || !query.versionB) {
-      return reply.code(400).send({ error: 'Missing required query params: versionA, versionB' });
+      return reply.status(200).send({
+        success: true,
+        data: history,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
+  });
 
-    const diff = await service.compareVersions(params.pipelineId, query.versionA, query.versionB);
-    return reply.send({ data: diff });
+  /**
+   * GET /artifact-versions/commit/:commitSha
+   *
+   * 通过 Commit SHA 查找版本（代码溯源）
+   */
+  app.get('/commit/:commitSha', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const versions = await repository.findByCommitSha((request.params as any).commitSha);
+
+      return reply.status(200).send({
+        success: true,
+        data: versions,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
+    }
+  });
+
+  /**
+   * POST /artifact-versions/:id/tags
+   *
+   * 添加标签
+   */
+  app.post('/:id/tags', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { tag } = request.body as any;
+
+      if (!tag) {
+        return handleError(reply, new ValidationError('Tag is required'))
+      }
+
+      const version = await service.addTag((request.params as any).id, tag);
+
+      return reply.status(200).send({
+        success: true,
+        data: version,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
+    }
+  });
+
+  /**
+   * DELETE /artifact-versions/:id/tags/:tag
+   *
+   * 删除标签
+   */
+  app.delete('/:id/tags/:tag', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await service.removeTag((request.params as any).id, (request.params as any).tag);
+
+      return reply.status(200).send({
+        success: true,
+        data: { message: 'Tag removed' },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
+    }
+  });
+
+  /**
+   * POST /artifact-versions/:id/promote
+   *
+   * 晋升版本到目标环境
+   */
+  app.post('/:id/promote', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-version', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { targetEnvironment } = request.body as any;
+
+      if (!targetEnvironment) {
+        return handleError(reply, new ValidationError('targetEnvironment is required'))
+      }
+
+      const newVersion = await service.promoteVersion((request.params as any).id, targetEnvironment);
+
+      return reply.status(200).send({
+        success: true,
+        data: newVersion,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
+    }
   });
 }

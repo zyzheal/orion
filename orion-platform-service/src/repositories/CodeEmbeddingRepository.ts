@@ -7,7 +7,7 @@
  * - Metadata JSONB queries
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
 import {
   CodeEmbedding,
@@ -16,7 +16,7 @@ import {
   CodeChunkMetadata,
 } from '../services/ai/vector-types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CodeEmbeddingRepository');
 
 export interface CodeEmbeddingEntity {
   id: string;

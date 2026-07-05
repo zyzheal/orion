@@ -1,0 +1,11 @@
+{
+  "version": "3.0",
+  "name": "module_template",
+  "description": "新模块配置模板，复制后修改 module_name",
+  "extends": ["base", "a1_data_structure", "a2_interaction"],
+  "module": "module_name",
+  "frontend_files": ["src/pages/{module_name}/"],
+  "backend_files": ["src/services/{module_name}/"],
+  "api_files": ["src/api/{module_name}.ts"],
+  "overrides": {}
+}

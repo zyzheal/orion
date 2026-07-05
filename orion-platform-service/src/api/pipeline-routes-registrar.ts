@@ -7,6 +7,7 @@
 
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { PipelineController } from './controllers/PipelineController';
 import { PipelineRunController } from './controllers/PipelineRunController';
 import { StageController } from './controllers/StageController';
@@ -66,7 +67,9 @@ export async function registerPipelineRoutes(
     });
 
     // DELETE /api/v1/pipelines/:id - 删除 Pipeline
-    instance.delete('/v1/pipelines/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.delete('/v1/pipelines/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'delete' })]
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return pipelineController.delete(request, reply);
     });
 

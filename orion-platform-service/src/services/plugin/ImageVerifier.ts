@@ -12,9 +12,9 @@
  */
 
 import { spawn } from 'child_process';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ImageVerifier');
 
 /**
  * Image verification result
@@ -52,7 +52,7 @@ export class ImageVerifier {
     pullPolicy: PullPolicy = PullPolicy.IfNotPresent
   ): Promise<ImageVerificationResult> {
     const warnings: string[] = [];
-    let imageRef = image;
+    const imageRef = image;
 
     if (!image || typeof image !== 'string') {
       return {

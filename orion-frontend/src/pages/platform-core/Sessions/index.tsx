@@ -27,6 +27,7 @@ import {
   StopOutlined,
   SearchOutlined,
   FilterOutlined,
+  DesktopOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import MetricCard from '@/components/MetricCard';
@@ -139,8 +140,8 @@ const SessionManagement: React.FC = () => {
     setLoading(true);
     try {
       const [sessionsRes, statsRes] = await Promise.all([getSessions(), getSessionStats()]);
-      const sessionsData = sessionsRes.data?.data?.sessions || sessionsRes.data?.data || [];
-      const statsData = statsRes.data?.data?.stats || statsRes.data?.data || {};
+      const sessionsData = (sessionsRes.data as any)?.sessions || sessionsRes.data || [];
+      const statsData = (statsRes.data as any)?.stats || statsRes.data || {};
       setSessions(Array.isArray(sessionsData) ? sessionsData.map(mapApiSession) : []);
       setStats(mapApiStats(statsData as ApiSessionStats));
     } catch (error: unknown) {
@@ -315,8 +316,9 @@ const SessionManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            Session Management
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            会话管理
           </Title>
           <Text type="secondary">用户会话管理</Text>
         </div>

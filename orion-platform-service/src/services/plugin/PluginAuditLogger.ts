@@ -8,7 +8,7 @@
  * - 安全事件告警
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -21,8 +21,12 @@ import {
   ExecutionContext,
   ResourceUsage,
 } from './types';
+import { PluginAuditLogRepository } from '../../repositories/PluginAuditLogRepository';
+import { PluginSecurityEventRepository } from '../../repositories/PluginSecurityEventRepository';
+import { PluginAuditEntryRepository } from '../../repositories/PluginAuditEntryRepository';
+import { PluginAuditLogRepository as PgAuditLogRepo } from '../../repositories/PluginAuditLogPgRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginAuditLogger');
 
 /**
  * 审计日志存储配置
@@ -73,11 +77,21 @@ const DLP_PATTERNS: Record<string, { pattern: RegExp; type: DLPPattern['type'] }
  */
 export class PluginAuditLogger extends EventEmitter {
   private logs: Map<string, AuditLogEntry> = new Map();
-  private securityEvents: Map<string, SecurityEvent> = new Map();
+
+  /** Audit entries - migrated to repository */
+  private auditEntryRepository?: PluginAuditEntryRepository;
+
+  /** Security events - migrated to repository */
+  private securityEventRepository?: PluginSecurityEventRepository;
+  private securityEvents: Map<string, SecurityEvent> = new Map(); // in-memory cache
+
+  /** Plugin audit logs - migrated to PostgreSQL with in-memory fallback */
+  private pgAuditLogRepo?: PgAuditLogRepo;
+
   private config: AuditLoggerConfig;
   private cleanupInterval?: NodeJS.Timeout;
 
-  constructor(config?: Partial<AuditLoggerConfig>) {
+  constructor(config?: Partial<AuditLoggerConfig>, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
     this.config = {
       maxEntries: config?.maxEntries || 10000,
@@ -85,6 +99,11 @@ export class PluginAuditLogger extends EventEmitter {
       enableDLPSanitization: config?.enableDLPSanitization ?? true,
       enableSecurityAlerts: config?.enableSecurityAlerts ?? true,
     };
+    if (db) {
+      this.auditEntryRepository = new PluginAuditEntryRepository(db);
+      this.securityEventRepository = new PluginSecurityEventRepository(db);
+      this.pgAuditLogRepo = new PgAuditLogRepo(db, config?.maxEntries || 10000);
+    }
 
     // 启动定期清理
     this.startCleanupInterval();
@@ -228,6 +247,18 @@ export class PluginAuditLogger extends EventEmitter {
 
     this.securityEvents.set(eventId, fullEvent);
 
+    // Persist to repository
+    if (this.securityEventRepository) {
+      this.securityEventRepository.create({
+        eventType: event.type,
+        severity: event.severity,
+        taskId: event.taskId || null,
+        pluginId: event.pluginId || null,
+        message: event.message || null,
+        details: event.details || {},
+      }).catch(() => {/* ignore */});
+    }
+
     // 根据严重程度设置日志级别
     const logLevel = event.severity === 'CRITICAL' ? 'error' :
                      event.severity === 'HIGH' ? 'warn' : 'info';
@@ -315,13 +346,67 @@ export class PluginAuditLogger extends EventEmitter {
   /**
    * 获取审计日志
    */
-  getLogs(options?: {
+  async getLogs(options?: {
     taskId?: string;
     pluginId?: string;
     level?: AuditLogLevel;
     action?: string;
     limit?: number;
-  }): AuditLogEntry[] {
+  }): Promise<AuditLogEntry[]> {
+    // Try PG audit log table first
+    if (this.pgAuditLogRepo) {
+      try {
+        const pgEntries = await this.pgAuditLogRepo.findByFilters({
+          pluginId: options?.pluginId,
+          severity: options?.level as string | undefined,
+          limit: options?.limit,
+        });
+        if (pgEntries.length > 0) {
+          return pgEntries.map(e => ({
+            id: e.id,
+            timestamp: e.createdAt,
+            level: e.severity as AuditLogLevel,
+            taskId: '',
+            pluginId: e.pluginId,
+            action: e.action as AuditLogEntry['action'],
+            message: '',
+            metadata: e.details,
+          }));
+        }
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to read audit logs from PG table, falling back');
+      }
+    }
+
+    // Try audit entry repository
+    if (this.auditEntryRepository) {
+      try {
+        const entities = await this.auditEntryRepository.findByFilters({
+          taskId: options?.taskId,
+          pluginId: options?.pluginId,
+          level: options?.level,
+          action: options?.action,
+          limit: options?.limit,
+        });
+        return entities.map(e => ({
+          id: e.id,
+          timestamp: e.entryAt,
+          level: e.level as AuditLogLevel,
+          taskId: e.taskId || '',
+          pluginId: e.pluginId || '',
+          action: e.action as AuditLogEntry['action'],
+          message: e.message || '',
+          input: e.input,
+          output: e.output,
+          durationMs: e.durationMs || undefined,
+          metadata: e.metadata,
+        }));
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to read audit entries from repository, falling back to in-memory');
+      }
+    }
+
+    // Fallback to in-memory
     let entries = Array.from(this.logs.values());
 
     if (options?.taskId) {
@@ -391,12 +476,12 @@ export class PluginAuditLogger extends EventEmitter {
   /**
    * 清理过期日志
    */
-  cleanupExpiredLogs(): number {
+  async cleanupExpiredLogs(): Promise<number> {
     const now = Date.now();
     const expiredThreshold = now - this.config.retentionMs;
     let removedCount = 0;
 
-    // 清理审计日志
+    // 清理审计日志 (in-memory)
     for (const [id, entry] of this.logs.entries()) {
       if (entry.timestamp.getTime() < expiredThreshold) {
         this.logs.delete(id);
@@ -404,14 +489,38 @@ export class PluginAuditLogger extends EventEmitter {
       }
     }
 
-    // 清理安全事件
+    // 清理安全事件 (in-memory)
     for (const [id, event] of this.securityEvents.entries()) {
       if (event.timestamp.getTime() < expiredThreshold) {
         this.securityEvents.delete(id);
       }
     }
 
-    // 如果超过最大条目数，删除最旧的
+    // Persist cleanup to PG audit log repo
+    if (this.pgAuditLogRepo) {
+      try {
+        const dbRemoved = await this.pgAuditLogRepo.cleanupExpired(this.config.retentionMs);
+        removedCount += dbRemoved;
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to cleanup expired audit logs from PG table');
+      }
+    }
+
+    // Persist cleanup to audit entry repository
+    if (this.auditEntryRepository) {
+      try {
+        const dbRemoved = await this.auditEntryRepository.cleanupExpired(this.config.retentionMs);
+        removedCount += dbRemoved;
+      } catch (err) {
+        logger.warn({ error: err }, 'Failed to cleanup expired audit entries from repository');
+      }
+    }
+
+    if (this.securityEventRepository) {
+      this.securityEventRepository.cleanupExpired(this.config.retentionMs).catch(() => {/* ignore */});
+    }
+
+    // 如果超过最大条目数，删除最旧的 (in-memory only)
     if (this.logs.size > this.config.maxEntries) {
       const entries = Array.from(this.logs.values()).sort(
         (a, b) => a.timestamp.getTime() - b.timestamp.getTime()
@@ -444,6 +553,63 @@ export class PluginAuditLogger extends EventEmitter {
   private addLog(entry: AuditLogEntry): void {
     this.logs.set(entry.id, entry);
     this.emit('log:created', entry);
+
+    // Persist to audit entry repository
+    if (this.auditEntryRepository) {
+      const tenantId = entry.metadata?.tenantId as string | undefined;
+      this.auditEntryRepository.create({
+        id: entry.id,
+        tenant_id: tenantId || null,
+        plugin_id: entry.pluginId || null,
+        task_id: entry.taskId || null,
+        level: entry.level,
+        action: entry.action,
+        message: entry.message || null,
+        input: entry.input ? JSON.stringify(entry.input) : null,
+        output: entry.output ? JSON.stringify(entry.output) : null,
+        duration_ms: entry.durationMs ?? null,
+        metadata: entry.metadata || {},
+        entry_at: entry.timestamp,
+      }).catch(err => {
+        logger.warn({ entryId: entry.id, error: err }, 'Failed to persist audit entry to repository');
+      });
+    }
+
+    // Persist to PG audit log table (with in-memory fallback)
+    if (this.pgAuditLogRepo) {
+      const tenantId = entry.metadata?.tenantId as string | undefined;
+      this.pgAuditLogRepo.create({
+        tenantId: tenantId || '00000000-0000-0000-0000-000000000000',
+        pluginId: entry.pluginId,
+        action: entry.action,
+        userId: entry.metadata?.userId as string | undefined,
+        details: {
+          taskId: entry.taskId,
+          level: entry.level,
+          message: entry.message,
+          ...(entry.durationMs != null && { durationMs: entry.durationMs }),
+          ...(entry.input != null && { inputSnapshot: entry.input }),
+          ...(entry.output != null && { outputSnapshot: entry.output }),
+          metadata: entry.metadata,
+        },
+        severity: this.mapLevelToSeverity(entry.level),
+      }).catch(err => {
+        logger.warn({ entryId: entry.id, error: err }, 'Failed to persist audit log to PG table');
+      });
+    }
+  }
+
+  /**
+   * 将日志级别映射到严重性等级
+   */
+  private mapLevelToSeverity(level: AuditLogLevel): string {
+    switch (level) {
+      case 'ERROR': return 'error';
+      case 'WARN': return 'warning';
+      case 'DEBUG': return 'debug';
+      case 'INFO':
+      default: return 'info';
+    }
   }
 
   /**

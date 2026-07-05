@@ -1,3 +1,5 @@
+import { createLogger } from '../../utils/logger';
+const logger = createLogger('DegradationConfigService');
 import { DatabasePool } from '../database';
 /**
  * DegradationConfigService - Business logic for AI Degradation Dynamic Configuration
@@ -254,7 +256,7 @@ export class DegradationConfigService {
           await this.repository.create(config);
         }
       } catch (err) {
-        console.error(`Failed to initialize config for ${config.scenario}:`, err);
+        logger.error(`Failed to initialize config for ${config.scenario}:`, err);
       }
     }
     this.initialized = true;

@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -98,12 +99,12 @@ export class RiskReportRepository extends BaseRepository<RiskReportEntity> {
     };
   }
 
-  async findById(id: string): Promise<RiskReportEntity | undefined> {
+  async findById(id: string): Promise<RiskReportEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM risk_reports WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -126,7 +127,7 @@ export class RiskReportRepository extends BaseRepository<RiskReportEntity> {
         input.generated_at ?? new Date(),
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

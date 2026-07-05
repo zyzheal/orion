@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Typography, Button, Space, Tag, message, Tabs, Select, Input, Table, Statistic, Row, Col, Card, Descriptions } from 'antd';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined, FileTextOutlined, CheckCircleOutlined, CloseCircleOutlined, MinusCircleOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
 import {
   getTestReports,
@@ -42,11 +42,11 @@ const TestReportPage: React.FC = () => {
         getTestReports({ runId, page: 1, pageSize: 100 }),
         getRunSummary(runId),
       ]);
-      if (reportsRes.data.data) {
-        setReports(reportsRes.data.data.items || []);
+      if (reportsRes.data) {
+        setReports(reportsRes.data.items || []);
       }
-      if (summaryRes.data.data) {
-        setSummary(summaryRes.data.data);
+      if (summaryRes.data) {
+        setSummary(summaryRes.data);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '加载测试报告失败';
@@ -64,8 +64,8 @@ const TestReportPage: React.FC = () => {
     setCaseLoading(true);
     try {
       const res = await getTestCases(reportId, { page: 1, pageSize: 200 });
-      if (res.data.data) {
-        setCases(res.data.data.items || []);
+      if (res.data) {
+        setCases(res.data.items || []);
       }
     } catch {
       message.error('加载测试用例失败');
@@ -196,12 +196,13 @@ const TestReportPage: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ExperimentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             测试报告
           </Title>
           <Text type="secondary">Run: {runId}</Text>
@@ -213,7 +214,7 @@ const TestReportPage: React.FC = () => {
 
       {/* Summary */}
       {summary && (
-        <Card style={{ marginBottom: 24 }}>
+        <Card style={{ marginBottom: spacing.lg }}>
           <Row gutter={16}>
             <Col span={4}>
               <Statistic title="总计" value={summary.totalTests} prefix={<FileTextOutlined />} />
@@ -222,7 +223,7 @@ const TestReportPage: React.FC = () => {
               <Statistic
                 title="通过"
                 value={summary.totalPassed}
-                valueStyle={{ color: colors.success?.[500] || '#52c41a' }}
+                valueStyle={{ color: colors.success?.[500] || colors.success[500] }}
                 prefix={<CheckCircleOutlined />}
               />
             </Col>
@@ -230,7 +231,7 @@ const TestReportPage: React.FC = () => {
               <Statistic
                 title="失败"
                 value={summary.totalFailed}
-                valueStyle={{ color: colors.error?.[500] || '#ff4d4f' }}
+                valueStyle={{ color: colors.error?.[500] || colors.error[400] }}
                 prefix={<CloseCircleOutlined />}
               />
             </Col>
@@ -289,7 +290,7 @@ const TestReportPage: React.FC = () => {
                     <Descriptions
                       size="small"
                       column={3}
-                      style={{ marginBottom: 16 }}
+                      style={{ marginBottom: spacing.md }}
                       bordered
                     >
                       <Descriptions.Item label="报告">{selectedReport.suiteName}</Descriptions.Item>
@@ -298,7 +299,7 @@ const TestReportPage: React.FC = () => {
                     </Descriptions>
 
                     {selectedReport.coverage && (
-                      <Card title="覆盖率" size="small" style={{ marginBottom: 16 }}>
+                      <Card title="覆盖率" size="small" style={{ marginBottom: spacing.md }}>
                         <Row gutter={16}>
                           <Col span={6}>
                             <Statistic title="行覆盖率" value={selectedReport.coverage.lines} precision={1} suffix="%" />
@@ -316,7 +317,7 @@ const TestReportPage: React.FC = () => {
                       </Card>
                     )}
 
-                    <Space style={{ marginBottom: 16 }}>
+                    <Space style={{ marginBottom: spacing.md }}>
                       <Search
                         placeholder="搜索用例名称"
                         value={caseSearch}

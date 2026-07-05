@@ -42,3 +42,13 @@ export {
   ServiceResilienceSummary,
   ResilienceScoreCalculatorError,
 } from './ResilienceScoreCalculator';
+
+export {
+  ResilienceScoringService,
+  ChaosSchedule,
+  PreDeployVerifyResult,
+  PreDeployExperimentResult,
+  ResilienceScoreEnhanced,
+  BlastRadiusMetrics,
+  FaultCoverageMetrics,
+} from './ResilienceScoringService';

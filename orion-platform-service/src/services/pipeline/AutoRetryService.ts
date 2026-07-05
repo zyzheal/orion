@@ -14,6 +14,10 @@
 
 import { ErrorClassifier, ErrorClassification, StageContext } from './ErrorClassifier';
 import { DatabasePool } from '../database';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LAuto-LRetry-LService');
 
 export interface RetryConfig {
   maxRetries: number;
@@ -278,7 +282,7 @@ export class AutoRetryService {
         byErrorType,
       };
     } catch (err) {
-      console.error('[AutoRetry] Failed to get retry stats:', err);
+      logger.error('[AutoRetry] Failed to get retry stats:', err);
       return {
         totalRetries: 0,
         successfulRetries: 0,
@@ -326,7 +330,7 @@ export class AutoRetryService {
           [target, targetType, JSON.stringify(result)]
         );
       } catch (err) {
-        console.warn('[AutoRetry] Failed to persist retry config:', err);
+        logger.warn('[AutoRetry] Failed to persist retry config:', err);
       }
     }
 
@@ -361,7 +365,7 @@ export class AutoRetryService {
         ]
       );
     } catch (err) {
-      console.warn('[AutoRetry] Failed to record retry:', err);
+      logger.warn('[AutoRetry] Failed to record retry:', err);
     }
   }
 

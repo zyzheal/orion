@@ -8,7 +8,7 @@
  * - 管理诊断历史和知识库
  *
  * Migration: Now supports PostgreSQL Repository for persistent session/report storage.
- * When repository is provided, sessions and reports are persisted to PostgreSQL.
+ * When db is provided, sessions, reports, patterns, and outcomes are persisted to PostgreSQL.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -31,6 +31,15 @@ import { DiagnosticReporter } from './DiagnosticReporter';
 import { DiagnosticKnowledgeBase } from './DiagnosticKnowledgeBase';
 import { DiagnosticRepository } from './DiagnosticRepository';
 import { DiagnosticService } from './DiagnosticService';
+import {
+  DiagnosticReportRepository,
+  DiagnosticReportEntity,
+} from '../../repositories/DiagnosticReportRepository';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LDiagnostic-LAgent-LService');
 
 /**
  * 诊断 Agent 服务配置
@@ -44,6 +53,8 @@ export interface DiagnosticAgentServiceConfig {
   autoDiagnosticEnabled?: boolean;
   /** PostgreSQL repository for persistent storage */
   repository?: DiagnosticRepository;
+  /** Database connection for repository persistence */
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
@@ -59,11 +70,16 @@ export class DiagnosticAgentService {
   private isRunning: boolean;
   /** PostgreSQL-backed service for persistent storage (optional) */
   private pgService: DiagnosticService | null;
+  /** PostgreSQL report repository */
+  private reportRepo: DiagnosticReportRepository | null;
   /** Fallback in-memory report store (used when no repository provided) */
   private reports: Map<string, DiagnosticReport>;
 
   constructor(config?: DiagnosticAgentServiceConfig) {
-    this.engine = new DiagnosticEngine(config?.engineConfig);
+    this.engine = new DiagnosticEngine({
+      ...config?.engineConfig,
+      db: config?.db || config?.engineConfig?.db,
+    });
     this.reporter = new DiagnosticReporter();
     this.knowledgeBase = this.engine.getKnowledgeBase();
     this.eventBus = config?.eventBus;
@@ -75,6 +91,11 @@ export class DiagnosticAgentService {
     // Initialize PostgreSQL service if repository is provided
     this.pgService = config?.repository
       ? new DiagnosticService(config.repository)
+      : null;
+
+    // Initialize report repository if db is provided
+    this.reportRepo = config?.db
+      ? new DiagnosticReportRepository(config.db)
       : null;
 
     // 初始化内置诊断模式
@@ -100,7 +121,7 @@ export class DiagnosticAgentService {
       metadata: s.metadata,
     }));
 
-    const session = this.engine.startDiagnostic({
+    const session = await this.engine.startDiagnostic({
       triggerType: params.triggerType,
       triggerId: params.triggerId,
       initialSymptoms: symptoms,
@@ -112,22 +133,43 @@ export class DiagnosticAgentService {
       try {
         await this.pgService.createSession(session);
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to persist session to PostgreSQL:', err);
+        logger.error('[DiagnosticAgentService] Failed to persist session to PostgreSQL:', err);
       }
     }
 
     // 2. 症状关联分析
-    this.engine.correlateSymptoms(session.id);
+    await this.engine.correlateSymptoms(session.id);
 
     // 3. 根因识别
-    this.engine.identifyRootCause(session.id);
+    await this.engine.identifyRootCause(session.id);
 
     // 4. 完成诊断
-    const completedSession = this.engine.completeDiagnostic(session.id);
+    const completedSession = await this.engine.completeDiagnostic(session.id);
 
     // 5. 生成报告
     const report = this.reporter.generateReport(completedSession);
-    this.reports.set(report.id, report);
+
+    // Persist report to PostgreSQL
+    if (this.reportRepo) {
+      try {
+        await this.reportRepo.create({
+          id: report.id,
+          sessionId: report.sessionId,
+          summary: report.summary,
+          findings: report.findings,
+          rootCause: report.rootCause,
+          recommendations: report.recommendations,
+          timeline: report.timeline,
+          estimatedFixTimeMs: report.estimatedFixTimeMs,
+          generatedAt: report.generatedAt,
+          tenantId: report.tenantId,
+        });
+      } catch (err) {
+        logger.error('[DiagnosticAgentService] Failed to persist report to PostgreSQL:', err);
+      }
+    } else {
+      this.reports.set(report.id, report);
+    }
 
     // Persist completed session with result to PostgreSQL
     if (this.pgService) {
@@ -139,14 +181,14 @@ export class DiagnosticAgentService {
           completedSession.findings
         );
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to complete session in PostgreSQL:', err);
+        logger.error('[DiagnosticAgentService] Failed to complete session in PostgreSQL:', err);
       }
     }
 
     // 6. 如果匹配到知识库模式，记录结果
-    const kbMatches = this.knowledgeBase.matchSymptoms(symptoms);
+    const kbMatches = await this.knowledgeBase.matchSymptoms(symptoms);
     if (kbMatches.length > 0 && kbMatches[0].matchScore >= 60) {
-      this.knowledgeBase.recordOutcome({
+      await this.knowledgeBase.recordOutcome({
         sessionId: completedSession.id,
         patternId: kbMatches[0].pattern.id,
         confirmed: false, // 需要人工确认
@@ -163,7 +205,7 @@ export class DiagnosticAgentService {
     sessionId: string,
     params: AddSymptomRequest
   ): Promise<DiagnosticSession> {
-    const session = this.engine.addSymptom(sessionId, {
+    const session = await this.engine.addSymptom(sessionId, {
       type: params.type,
       source: params.source,
       description: params.description,
@@ -173,8 +215,8 @@ export class DiagnosticAgentService {
     });
 
     // 重新执行关联分析和根因识别
-    this.engine.correlateSymptoms(sessionId);
-    this.engine.identifyRootCause(sessionId);
+    await this.engine.correlateSymptoms(sessionId);
+    await this.engine.identifyRootCause(sessionId);
 
     return session;
   }
@@ -195,7 +237,7 @@ export class DiagnosticAgentService {
       try {
         return await this.pgService.getHistory(params.tenantId, params.limit);
       } catch (err) {
-        console.error('[DiagnosticAgentService] Failed to get history from PostgreSQL, falling back to memory:', err);
+        logger.error('[DiagnosticAgentService] Failed to get history from PostgreSQL, falling back to memory:', err);
       }
     }
     return this.engine.getDiagnosticHistory(params);
@@ -219,14 +261,30 @@ export class DiagnosticAgentService {
   /**
    * 获取诊断报告
    */
-  getReport(reportId: string): DiagnosticReport | undefined {
+  async getReport(reportId: string): Promise<DiagnosticReport | undefined> {
+    if (this.reportRepo) {
+      try {
+        const entity = await this.reportRepo.findById(reportId);
+        return entity ? this.entityToReport(entity) : undefined;
+      } catch {
+        // Fall back to in-memory
+      }
+    }
     return this.reports.get(reportId);
   }
 
   /**
    * 获取会话关联的报告
    */
-  getReportBySession(sessionId: string): DiagnosticReport | undefined {
+  async getReportBySession(sessionId: string): Promise<DiagnosticReport | undefined> {
+    if (this.reportRepo) {
+      try {
+        const entity = await this.reportRepo.findBySessionId(sessionId);
+        return entity ? this.entityToReport(entity) : undefined;
+      } catch {
+        // Fall back to in-memory
+      }
+    }
     for (const report of this.reports.values()) {
       if (report.sessionId === sessionId) {
         return report;
@@ -238,11 +296,28 @@ export class DiagnosticAgentService {
   /**
    * 获取报告历史
    */
-  getReportHistory(params?: {
+  async getReportHistory(params?: {
     sessionId?: string;
     tenantId?: string;
     limit?: number;
-  }): DiagnosticReport[] {
+  }): Promise<DiagnosticReport[]> {
+    if (this.reportRepo) {
+      try {
+        if (params?.tenantId) {
+          const entities = await this.reportRepo.findByTenant(params.tenantId, params.limit);
+          return entities.map(e => this.entityToReport(e));
+        }
+        const result = await this.reportRepo.findAll({
+          limit: params?.limit || 50,
+          orderBy: 'generated_at',
+          orderDir: 'DESC',
+        });
+        return result.entities.map(e => this.entityToReport(e));
+      } catch {
+        // Fall back to in-memory
+      }
+    }
+
     let results = Array.from(this.reports.values());
 
     if (params?.sessionId) {
@@ -266,7 +341,7 @@ export class DiagnosticAgentService {
   /**
    * 添加诊断模式
    */
-  addPattern(params: AddPatternRequest): DiagnosticPattern {
+  async addPattern(params: AddPatternRequest): Promise<DiagnosticPattern> {
     return this.knowledgeBase.addPattern({
       name: params.name,
       symptoms: params.symptoms,
@@ -279,40 +354,40 @@ export class DiagnosticAgentService {
   /**
    * 获取诊断模式
    */
-  getPattern(patternId: string): DiagnosticPattern | undefined {
+  async getPattern(patternId: string): Promise<DiagnosticPattern | undefined> {
     return this.knowledgeBase.getPattern(patternId);
   }
 
   /**
    * 搜索诊断模式
    */
-  searchPatterns(params: {
+  async searchPatterns(params: {
     category?: DiagnosticCategory;
     keyword?: string;
     minFrequency?: number;
     limit?: number;
-  }): DiagnosticPattern[] {
+  }): Promise<DiagnosticPattern[]> {
     return this.knowledgeBase.searchPatterns(params);
   }
 
   /**
    * 匹配症状
    */
-  matchSymptoms(symptoms: Symptom[]) {
+  async matchSymptoms(symptoms: Symptom[]) {
     return this.knowledgeBase.matchSymptoms(symptoms);
   }
 
   /**
    * 获取所有模式
    */
-  getAllPatterns(): DiagnosticPattern[] {
+  async getAllPatterns(): Promise<DiagnosticPattern[]> {
     return this.knowledgeBase.getAllPatterns();
   }
 
   /**
    * 记录诊断结果
    */
-  recordOutcome(params: {
+  async recordOutcome(params: {
     sessionId: string;
     patternId: string;
     confirmed: boolean;
@@ -325,7 +400,7 @@ export class DiagnosticAgentService {
   /**
    * 获取知识库统计
    */
-  getKnowledgeBaseStats() {
+  async getKnowledgeBaseStats() {
     return this.knowledgeBase.getStats();
   }
 
@@ -334,10 +409,10 @@ export class DiagnosticAgentService {
   /**
    * 评估修复复杂度
    */
-  estimateFixComplexity(sessionId: string) {
-    const session = this.engine.getSession(sessionId);
+  async estimateFixComplexity(sessionId: string) {
+    const session = await this.engine.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(`Diagnostic session ${sessionId} not found`, ErrorCode.NOT_FOUND);
     }
     return this.reporter.estimateFixComplexity(session);
   }
@@ -349,11 +424,11 @@ export class DiagnosticAgentService {
    */
   async startEventSubscriptions(): Promise<void> {
     if (!this.eventBus || !this.autoDiagnosticEnabled) {
-      console.log('[DiagnosticAgentService] Auto-diagnostic disabled or event bus not available');
+      logger.info('[DiagnosticAgentService] Auto-diagnostic disabled or event bus not available');
       return;
     }
 
-    console.log('[DiagnosticAgentService] Subscribing to failure events...');
+    logger.info('[DiagnosticAgentService] Subscribing to failure events...');
 
     try {
       // 订阅部署失败事件
@@ -375,9 +450,9 @@ export class DiagnosticAgentService {
       );
 
       this.isRunning = true;
-      console.log('[DiagnosticAgentService] Event subscriptions active');
+      logger.info('[DiagnosticAgentService] Event subscriptions active');
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to subscribe to events:', error);
+      logger.error('[DiagnosticAgentService] Failed to subscribe to events:', error);
     }
   }
 
@@ -394,39 +469,18 @@ export class DiagnosticAgentService {
           await subscription.drain();
         }
       } catch (error) {
-        console.error('[DiagnosticAgentService] Error unsubscribing:', error);
+        logger.error('[DiagnosticAgentService] Error unsubscribing:', error);
       }
     }
     this.subscriptions = [];
     this.isRunning = false;
-    console.log('[DiagnosticAgentService] Event subscriptions removed');
+    logger.info('[DiagnosticAgentService] Event subscriptions removed');
   }
 
   /**
    * 获取服务状态
    */
-  getStatus(): {
-    service: string;
-    status: string;
-    sessionsCount: number;
-    reportsCount: number;
-    patternsCount: number;
-    isRunning: boolean;
-  } {
-    return {
-      service: 'diagnostic-agent',
-      status: this.isRunning ? 'running' : 'idle',
-      sessionsCount: this.engine.getDiagnosticHistory().length,
-      reportsCount: this.reports.size,
-      patternsCount: this.knowledgeBase.getAllPatterns().length,
-      isRunning: this.isRunning,
-    };
-  }
-
-  /**
-   * 获取服务状态 (async version with PostgreSQL counts)
-   */
-  async getStatusAsync(): Promise<{
+  async getStatus(): Promise<{
     service: string;
     status: string;
     sessionsCount: number;
@@ -434,17 +488,29 @@ export class DiagnosticAgentService {
     patternsCount: number;
     isRunning: boolean;
   }> {
-    const base = this.getStatus();
-    if (this.pgService) {
+    let reportsCount = this.reports.size;
+    if (this.reportRepo) {
       try {
-        const sessions = await this.pgService.getHistory('default', 1);
-        // We can't get total without a count query, so use memory count as fallback
-        base.sessionsCount = Math.max(base.sessionsCount, sessions.length > 0 ? base.sessionsCount : 0);
+        const result = await this.reportRepo.findAll({ limit: 1 });
+        reportsCount = result.total;
       } catch {
-        // ignore
+        // Use in-memory count
       }
     }
-    return base;
+
+    const history = await this.engine.getDiagnosticHistory();
+    const sessionsCount = history.length;
+
+    const patterns = await this.knowledgeBase.getAllPatterns();
+
+    return {
+      service: 'diagnostic-agent',
+      status: this.isRunning ? 'running' : 'idle',
+      sessionsCount,
+      reportsCount,
+      patternsCount: patterns.length,
+      isRunning: this.isRunning,
+    };
   }
 
   /**
@@ -460,11 +526,29 @@ export class DiagnosticAgentService {
   // ==================== 私有方法 ====================
 
   /**
+   * Convert repository entity to domain report
+   */
+  private entityToReport(entity: DiagnosticReportEntity): DiagnosticReport {
+    return {
+      id: entity.id,
+      sessionId: entity.sessionId,
+      summary: entity.summary,
+      findings: entity.findings,
+      rootCause: entity.rootCause,
+      recommendations: entity.recommendations,
+      timeline: entity.timeline,
+      estimatedFixTimeMs: entity.estimatedFixTimeMs,
+      generatedAt: entity.generatedAt,
+      tenantId: entity.tenantId,
+    };
+  }
+
+  /**
    * 初始化内置诊断模式
    */
-  private initializeDefaultPatterns(): void {
+  private async initializeDefaultPatterns(): Promise<void> {
     // 模式 1: CrashLoopBackOff
-    this.knowledgeBase.addPattern({
+    await this.knowledgeBase.addPattern({
       name: 'Container CrashLoop Pattern',
       symptoms: [
         {
@@ -482,7 +566,7 @@ export class DiagnosticAgentService {
     });
 
     // 模式 2: Image Pull Failure
-    this.knowledgeBase.addPattern({
+    await this.knowledgeBase.addPattern({
       name: 'Image Pull Failure Pattern',
       symptoms: [
         {
@@ -500,7 +584,7 @@ export class DiagnosticAgentService {
     });
 
     // 模式 3: Database Connection Issue
-    this.knowledgeBase.addPattern({
+    await this.knowledgeBase.addPattern({
       name: 'Database Connection Failure Pattern',
       symptoms: [
         {
@@ -518,7 +602,7 @@ export class DiagnosticAgentService {
     });
 
     // 模式 4: Pipeline Test Failure
-    this.knowledgeBase.addPattern({
+    await this.knowledgeBase.addPattern({
       name: 'Pipeline Test Failure Pattern',
       symptoms: [
         {
@@ -536,7 +620,7 @@ export class DiagnosticAgentService {
     });
 
     // 模式 5: Resource Exhaustion
-    this.knowledgeBase.addPattern({
+    await this.knowledgeBase.addPattern({
       name: 'Resource Exhaustion Pattern',
       symptoms: [
         {
@@ -569,9 +653,9 @@ export class DiagnosticAgentService {
         autoAck: true,
       });
       this.subscriptions.push(unsubscribe);
-      console.log(`[DiagnosticAgentService] Subscribed to ${eventType}`);
+      logger.info({ eventType, traceId: getCurrentTraceId() }, '[DiagnosticAgentService] Subscribed to event');
     } catch (error) {
-      console.error(`[DiagnosticAgentService] Failed to subscribe to ${eventType}:`, error);
+      logger.error({ eventType, err: error, traceId: getCurrentTraceId() }, '[DiagnosticAgentService] Failed to subscribe to event');
     }
   }
 
@@ -579,7 +663,7 @@ export class DiagnosticAgentService {
    * 处理部署失败事件
    */
   private async handleDeploymentFailure(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing deployment.failed event');
+    logger.info('[DiagnosticAgentService] Processing deployment.failed event');
 
     try {
       const deploymentId = event.data?.deploymentId || event.data?.id || 'unknown';
@@ -619,7 +703,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process deployment failure:', error);
+      logger.error('[DiagnosticAgentService] Failed to process deployment failure:', error);
     }
   }
 
@@ -627,7 +711,7 @@ export class DiagnosticAgentService {
    * 处理 Pipeline 失败事件
    */
   private async handlePipelineFailure(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing pipeline.run.failed event');
+    logger.info('[DiagnosticAgentService] Processing pipeline.run.failed event');
 
     try {
       const runId = event.data?.runId || event.data?.id || 'unknown';
@@ -675,7 +759,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process pipeline failure:', error);
+      logger.error('[DiagnosticAgentService] Failed to process pipeline failure:', error);
     }
   }
 
@@ -683,7 +767,7 @@ export class DiagnosticAgentService {
    * 处理事故创建事件
    */
   private async handleIncidentCreated(event: any): Promise<void> {
-    console.log('[DiagnosticAgentService] Processing incident.created event');
+    logger.info('[DiagnosticAgentService] Processing incident.created event');
 
     try {
       const incidentId = event.data?.incidentId || event.data?.id || 'unknown';
@@ -724,7 +808,7 @@ export class DiagnosticAgentService {
         });
       }
     } catch (error) {
-      console.error('[DiagnosticAgentService] Failed to process incident:', error);
+      logger.error('[DiagnosticAgentService] Failed to process incident:', error);
     }
   }
 }

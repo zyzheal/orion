@@ -4,8 +4,8 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Form, Input, Button, Select, message, Divider, Space } from 'antd';
-import { spacing } from '@/tokens';
-import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { SaveOutlined, ReloadOutlined, ScanOutlined } from '@ant-design/icons';
 import { getReviewConfig, updateReviewConfig } from '@/api/ai-review';
 import type { AIReviewConfig } from '@/api/ai-review';
 
@@ -21,7 +21,7 @@ const AIReviewConfig: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewConfig();
-      const config = res.data.data;
+      const config = res.data;
       if (config) {
         form.setFieldsValue(config);
       }
@@ -61,10 +61,11 @@ const AIReviewConfig: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             评审配置
           </Title>
           <Text type="secondary">配置 AI Review 的模型、提示模板和评审范围</Text>
@@ -135,7 +136,7 @@ const AIReviewConfig: React.FC = () => {
       </Card>
 
       {/* Config Tips */}
-      <Card title="配置说明" style={{ marginTop: 16 }}>
+      <Card title="配置说明" style={{ marginTop: spacing.md }}>
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           <li>
             <Text strong>AI 模型：</Text>选择用于代码评审的 AI

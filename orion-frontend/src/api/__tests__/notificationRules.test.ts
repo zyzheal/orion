@@ -30,20 +30,18 @@ describe('Notification Rules API', () => {
 
   it('should get IM notification rules', async () => {
     vi.mocked(api.get).mockResolvedValue({
-      data: {
-        data: [
-          {
-            id: '1',
-            platform: 'dingtalk',
-            name: '研发群',
-            webhookUrl: 'https://oapi.dingtalk.com/robot/send',
-            events: ['pipeline.complete'],
-            enabled: true,
-            createdAt: '2025-01-01T00:00:00Z',
-            updatedAt: '2025-01-01T00:00:00Z',
-          },
-        ],
-      },
+      data: [
+        {
+          id: '1',
+          platform: 'dingtalk',
+          name: '研发群',
+          webhookUrl: 'https://oapi.dingtalk.com/robot/send',
+          events: ['pipeline.complete'],
+          enabled: true,
+          createdAt: '2025-01-01T00:00:00Z',
+          updatedAt: '2025-01-01T00:00:00Z',
+        },
+      ],
     } as any);
 
     const result = await getIMNotificationRules();
@@ -55,16 +53,14 @@ describe('Notification Rules API', () => {
   it('should create an IM notification rule', async () => {
     vi.mocked(api.post).mockResolvedValue({
       data: {
-        data: {
-          id: '1',
-          platform: 'wecom',
-          name: 'Test Rule',
-          webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send',
-          events: ['pipeline.failed'],
-          enabled: true,
-          createdAt: '2025-01-01T00:00:00Z',
-          updatedAt: '2025-01-01T00:00:00Z',
-        },
+        id: '1',
+        platform: 'wecom',
+        name: 'Test Rule',
+        webhookUrl: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send',
+        events: ['pipeline.failed'],
+        enabled: true,
+        createdAt: '2025-01-01T00:00:00Z',
+        updatedAt: '2025-01-01T00:00:00Z',
       },
     } as any);
 
@@ -85,7 +81,7 @@ describe('Notification Rules API', () => {
 
   it('should update an IM notification rule', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      data: { data: { id: '1', name: 'Updated' } },
+      data: { id: '1', name: 'Updated' } ,
     } as any);
 
     await updateIMNotificationRule('1', { name: 'Updated' });
@@ -93,7 +89,7 @@ describe('Notification Rules API', () => {
   });
 
   it('should delete an IM notification rule', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: { data: undefined } } as any);
+    vi.mocked(api.delete).mockResolvedValue({ data: undefined } as any);
 
     await deleteIMNotificationRule('1');
     expect(api.delete).toHaveBeenCalledWith('/v1/notifications/im-rules/1');
@@ -101,7 +97,7 @@ describe('Notification Rules API', () => {
 
   it('should toggle IM notification rule', async () => {
     vi.mocked(api.put).mockResolvedValue({
-      data: { data: { id: '1', enabled: false } },
+      data: { id: '1', enabled: false } ,
     } as any);
 
     const result = await toggleIMNotificationRule('1', false);
@@ -111,7 +107,7 @@ describe('Notification Rules API', () => {
 
   it('should test an IM notification rule', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { data: { success: true, message: 'OK' } },
+      data: { success: true, message: 'OK' } ,
     } as any);
 
     const result = await testIMNotificationRule('1');

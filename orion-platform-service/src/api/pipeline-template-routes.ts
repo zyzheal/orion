@@ -6,13 +6,21 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
 import { PipelineTemplateService } from '../services/pipeline/PipelineTemplateService';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { PipelineTemplateController } from './controllers/PipelineTemplateController';
+import { CacheService } from '../services/cache/CacheService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('pipeline-template-routes');
 
 interface PipelineTemplateRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function pipelineTemplateRoutes(
@@ -20,42 +28,73 @@ export default async function pipelineTemplateRoutes(
   options: PipelineTemplateRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    console.warn('[PipelineTemplateRoutes] No database pool available, routes will not be functional');
+    logger.warn('[PipelineTemplateRoutes] No database pool available, routes will not be functional');
     return;
   }
 
   const pipelineRepository = new PipelineRepository(options.database);
-  const pipelineService = new PipelineService(pipelineRepository);
+  const cache = new CacheService(options.redis || null, 60);
+  const pipelineService = new PipelineService(pipelineRepository, cache);
   const templateService = new PipelineTemplateService(options.database);
   const controller = new PipelineTemplateController(templateService, pipelineService);
 
   // GET /v1/pipeline-templates - List templates
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get(
+    '/',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listTemplates(request, reply);
   });
 
   // GET /v1/pipeline-templates/:templateId - Get template detail
-  app.get('/:templateId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get(
+    '/:templateId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getTemplate(request, reply);
   });
 
   // POST /v1/pipeline-templates - Create template
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post(
+    '/',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTemplate(request, reply);
   });
 
   // PUT /v1/pipeline-templates/:templateId - Update template
-  app.put('/:templateId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put(
+    '/:templateId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateTemplate(request, reply);
   });
 
   // DELETE /v1/pipeline-templates/:templateId - Delete template
-  app.delete('/:templateId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete(
+    '/:templateId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.deleteTemplate(request, reply);
   });
 
   // POST /v1/pipeline-templates/:templateId/instantiate - Instantiate template
-  app.post('/:templateId/instantiate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post(
+    '/:templateId/instantiate',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'pipeline', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.instantiateTemplate(request, reply);
   });
 }

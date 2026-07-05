@@ -7,10 +7,12 @@
  * 3. 检查告警是否被静默
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { BaseRepository } from '../../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AlertSilenceService');
 
 // ==================== Types ====================
 
@@ -126,16 +128,11 @@ export class AlertSilenceRepository extends BaseRepository<AlertSilenceEntity> {
 // ==================== Service ====================
 
 export class AlertSilenceService {
-  private repository?: AlertSilenceRepository;
-  private inMemorySilences: Map<string, AlertSilence> = new Map();
+  private repository: AlertSilenceRepository;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
-    if (db) {
-      this.repository = new AlertSilenceRepository(db);
-      logger.info('[AlertSilenceService] Database-backed repository initialized');
-    } else {
-      logger.info('[AlertSilenceService] Memory mode initialized');
-    }
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new AlertSilenceRepository(db);
+    logger.info('[AlertSilenceService] Database-backed repository initialized');
   }
 
   /**
@@ -147,7 +144,7 @@ export class AlertSilenceService {
     createdBy?: string,
   ): Promise<AlertSilence> {
     if (!input.matchers || input.matchers.length === 0) {
-      throw new Error('Silence requires at least one matcher');
+      throw new OrionError('Silence requires at least one matcher', ErrorCode.OPERATION_FAILED);
     }
 
     const now = new Date();
@@ -168,7 +165,7 @@ export class AlertSilenceService {
 
     // Validate time range
     if (silence.endsAt <= silence.startsAt) {
-      throw new Error('endsAt must be after startsAt');
+      throw new OrionError('endsAt must be after startsAt', ErrorCode.OPERATION_FAILED);
     }
 
     if (this.repository) {
@@ -186,69 +183,46 @@ export class AlertSilenceService {
         createdAt: silence.createdAt,
         updatedAt: silence.updatedAt,
       });
+      logger.info(
+        { silenceId: silence.id, name: silence.name, endsAt: silence.endsAt },
+        '[AlertSilenceService] Silence created'
+      );
       return this.entityToSilence(created);
     }
 
-    this.inMemorySilences.set(silence.id, silence);
-    logger.info(
-      { silenceId: silence.id, name: silence.name, endsAt: silence.endsAt },
-      '[AlertSilenceService] Silence created (memory)'
-    );
-    return silence;
+    // Should not reach here — repository is always initialized
+    throw new OrionError('AlertSilenceRepository not initialized', ErrorCode.OPERATION_FAILED);
   }
 
   /**
    * 获取活跃静默规则
    */
   async getActiveSilences(tenantId: string): Promise<AlertSilence[]> {
-    if (this.repository) {
-      const entities = await this.repository.findActiveByTenant(tenantId);
-      return entities.map((e) => this.entityToSilence(e));
-    }
-
-    const now = new Date();
-    return Array.from(this.inMemorySilences.values()).filter(
-      (s) =>
-        s.tenantId === tenantId &&
-        s.enabled &&
-        s.startsAt <= now &&
-        s.endsAt > now
-    );
+    const entities = await this.repository.findActiveByTenant(tenantId);
+    return entities.map((e) => this.entityToSilence(e));
   }
 
   /**
    * 获取所有静默规则（包括过期的）
    */
   async getAllSilences(tenantId: string): Promise<AlertSilence[]> {
-    if (this.repository) {
-      const entities = await this.repository.findByTenantId(tenantId);
-      return entities.map((e) => this.entityToSilence(e));
-    }
-
-    return Array.from(this.inMemorySilences.values()).filter(
-      (s) => s.tenantId === tenantId
-    );
+    const entities = await this.repository.findByTenantId(tenantId);
+    return entities.map((e) => this.entityToSilence(e));
   }
 
   /**
    * 获取单个静默规则
    */
   async getSilenceById(silenceId: string): Promise<AlertSilence | undefined> {
-    if (this.repository) {
-      const entity = await this.repository.findById(silenceId);
-      return entity ? this.entityToSilence(entity) : undefined;
-    }
-    return this.inMemorySilences.get(silenceId);
+    const entity = await this.repository.findById(silenceId);
+    return entity ? this.entityToSilence(entity) : undefined;
   }
 
   /**
    * 删除静默规则
    */
   async deleteSilence(silenceId: string): Promise<boolean> {
-    if (this.repository) {
-      return this.repository.delete(silenceId);
-    }
-    return this.inMemorySilences.delete(silenceId);
+    return this.repository.delete(silenceId);
   }
 
   /**
@@ -282,8 +256,6 @@ export class AlertSilenceService {
       if (input.endsAt !== undefined) updateData.endsAt = updated.endsAt;
       if (input.enabled !== undefined) updateData.enabled = updated.enabled;
       await this.repository.update(silenceId, updateData);
-    } else {
-      this.inMemorySilences.set(silenceId, updated);
     }
 
     logger.info({ silenceId }, '[AlertSilenceService] Silence updated');
@@ -318,20 +290,7 @@ export class AlertSilenceService {
    * 清理过期静默规则
    */
   async expireSilences(): Promise<number> {
-    const now = new Date();
-    let count = 0;
-
-    if (this.repository) {
-      count = await this.repository.deleteExpired();
-    }
-
-    // Also clean in-memory silences
-    for (const [id, silence] of this.inMemorySilences) {
-      if (silence.endsAt < now) {
-        this.inMemorySilences.delete(id);
-        count++;
-      }
-    }
+    const count = await this.repository.deleteExpired();
 
     if (count > 0) {
       logger.info({ count }, '[AlertSilenceService] Expired silences cleaned up');
@@ -389,7 +348,7 @@ export class AlertSilenceService {
             return false;
           }
         } catch {
-          logger.warn({ matcher }, '[AlertSilenceService] Invalid regex in matcher');
+          logger.warn({ traceId: getCurrentTraceId(), matcher }, '[AlertSilenceService] Invalid regex in matcher');
           return false;
         }
       }

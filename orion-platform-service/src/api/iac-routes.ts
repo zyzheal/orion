@@ -12,6 +12,8 @@ import { WorkspaceService } from '../services/iac/WorkspaceService';
 import { PlanService } from '../services/iac/PlanService';
 import { IacController } from './controllers/IacController';
 import { EventBusService } from '../services/event-bus-service';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 export default async function iacRoutes(
   app: FastifyInstance,
@@ -30,59 +32,59 @@ export default async function iacRoutes(
 
   // ==================== Workspaces ====================
 
-  app.get('/workspaces', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listWorkspaces(request, reply);
   });
 
-  app.post('/workspaces', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/workspaces', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createWorkspace(request, reply);
   });
 
-  app.get('/workspaces/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getWorkspace(request, reply);
   });
 
-  app.put('/workspaces/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/workspaces/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.updateWorkspace(request, reply);
   });
 
   // ==================== Plan & Apply ====================
 
-  app.post('/workspaces/:id/plan', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/workspaces/:id/plan', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.generatePlan(request, reply);
   });
 
-  app.post('/workspaces/:id/apply', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/workspaces/:id/apply', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'execute' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.applyPlan(request, reply);
   });
 
   // ==================== State & Resources ====================
 
-  app.get('/workspaces/:id/state', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id/state', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getCurrentState(request, reply);
   });
 
-  app.get('/workspaces/:id/resources', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id/resources', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listResources(request, reply);
   });
 
-  app.post('/workspaces/:id/import', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/workspaces/:id/import', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.importResource(request, reply);
   });
 
   // ==================== Modules ====================
 
-  app.get('/modules', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/modules', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.listModules(request, reply);
   });
 
-  app.post('/modules', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/modules', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createModule(request, reply);
   });
 
   // ==================== Plan Details ====================
 
-  app.get('/workspaces/:id/plans', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id/plans', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const plans = await planService.listByWorkspace(params.id);
@@ -92,7 +94,7 @@ export default async function iacRoutes(
     }
   });
 
-  app.get('/workspaces/:workspaceId/plans/:planId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:workspaceId/plans/:planId', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { workspaceId: string; planId: string };
     try {
       const plan = await planService.getById(params.planId);
@@ -107,7 +109,7 @@ export default async function iacRoutes(
 
   // ==================== State Versions ====================
 
-  app.get('/workspaces/:id/state/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id/state/versions', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const versions = await workspaceService.listStateVersions(params.id);
@@ -120,7 +122,7 @@ export default async function iacRoutes(
     }
   });
 
-  app.get('/workspaces/:id/state/diff', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/workspaces/:id/state/diff', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const query = request.query as { versionA: string; versionB: string };
     if (!query.versionA || !query.versionB) {
@@ -136,7 +138,7 @@ export default async function iacRoutes(
 
   // ==================== Module Details ====================
 
-  app.get('/modules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/modules/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       const module = await workspaceService.getModuleById(params.id);
@@ -149,7 +151,7 @@ export default async function iacRoutes(
     }
   });
 
-  app.delete('/modules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/modules/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'iac', action: 'delete' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     try {
       await workspaceService.deleteModule(params.id);

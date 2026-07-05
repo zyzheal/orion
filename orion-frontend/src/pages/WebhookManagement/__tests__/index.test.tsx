@@ -37,7 +37,7 @@ describe('WebhookManagement', () => {
   });
 
   it('renders loading state then displays data', async () => {
-    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { data: { webhooks: mockWebhooks } } } as any);
+    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { webhooks: mockWebhooks } } as any);
 
     render(<WebhookManagement />);
 
@@ -50,7 +50,7 @@ describe('WebhookManagement', () => {
   });
 
   it('opens create modal on button click', async () => {
-    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { data: { webhooks: [] } } } as any);
+    vi.mocked(webhookApi.getWebhooks).mockResolvedValue({ data: { webhooks: [] } } as any);
 
     render(<WebhookManagement />);
 

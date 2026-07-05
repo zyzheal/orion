@@ -3,13 +3,79 @@
  */
 
 import { CodeOwnershipService } from '../CodeOwnershipService';
+import { CodeOwnersFile } from '../types';
+
+/** 内存 Mock Repository */
+class MockCodeOwnershipRepository {
+  private files: Map<string, CodeOwnersFile> = new Map();
+  private byRepo: Map<string, string> = new Map();
+
+  async create(file: {
+    id: string;
+    repoId: string;
+    filePath: string;
+    rules: any[];
+    rawContent: string;
+  }): Promise<CodeOwnersFile> {
+    const entry: CodeOwnersFile = {
+      filePath: file.filePath,
+      repoId: file.repoId,
+      rules: file.rules,
+      lastUpdated: new Date(),
+      rawContent: file.rawContent,
+    };
+    this.files.set(file.id, entry);
+    this.byRepo.set(file.repoId, file.id);
+    return { ...entry, id: file.id };
+  }
+
+  async findByRepo(repoId: string): Promise<CodeOwnersFile | null> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return null;
+    const file = this.files.get(fileId);
+    return file ? { ...file, id: fileId } : null;
+  }
+
+  async update(
+    repoId: string,
+    input: { filePath?: string; rules?: any[]; rawContent?: string }
+  ): Promise<CodeOwnersFile | null> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return null;
+    const existing = this.files.get(fileId);
+    if (!existing) return null;
+    const updated: CodeOwnersFile = {
+      ...existing,
+      filePath: input.filePath ?? existing.filePath,
+      rules: input.rules ?? existing.rules,
+      rawContent: input.rawContent ?? existing.rawContent,
+      lastUpdated: new Date(),
+    };
+    this.files.set(fileId, updated);
+    return { ...updated, id: fileId };
+  }
+
+  async delete(repoId: string): Promise<boolean> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return false;
+    this.files.delete(fileId);
+    this.byRepo.delete(repoId);
+    return true;
+  }
+
+  clear(): void {
+    this.files.clear();
+    this.byRepo.clear();
+  }
+}
 
 describe('CodeOwnershipService', () => {
   let service: CodeOwnershipService;
+  let mockRepo: MockCodeOwnershipRepository;
 
   beforeEach(() => {
-    service = new CodeOwnershipService();
-    service._clearStorage();
+    mockRepo = new MockCodeOwnershipRepository();
+    service = new CodeOwnershipService(mockRepo);
   });
 
   describe('registerCodeOwnersFile', () => {
@@ -145,28 +211,27 @@ describe('CodeOwnershipService', () => {
       const recs = await service.recommendOwners('test-repo', ['index.js', 'main.ts']);
 
       expect(recs).toHaveLength(2);
-      expect(recs[0].recommendedOwners).toContain('frontend-team');
-      expect(recs[1].recommendedOwners).toContain('backend-team');
+      expect(recs[0].owners).toContain('frontend-team');
+      expect(recs[1].owners).toContain('backend-team');
     });
 
     it('should return empty owners for unmatched files', async () => {
       const recs = await service.recommendOwners('test-repo', ['unknown.xyz']);
 
-      expect(recs[0].recommendedOwners).toEqual([]);
+      expect(recs[0].owners).toEqual([]);
     });
 
     it('should return empty for repo without CODEOWNERS', async () => {
       const recs = await service.recommendOwners('no-owners-repo', ['file.js']);
-      expect(recs[0].recommendedOwners).toEqual([]);
+      expect(recs[0].owners).toEqual([]);
     });
 
     it('should match path-based rules', async () => {
       const recs = await service.recommendOwners('test-repo', ['src/api/users.js']);
 
       // Both *.js and /src/api/ should match
-      const apiRule = recs[0].matchedRules.find(r => r.pattern === '/src/api/');
-      expect(apiRule).toBeDefined();
-      expect(recs[0].recommendedOwners).toContain('api-team');
+      expect(recs[0].matchedPattern).toBe('/src/api/');
+      expect(recs[0].owners).toContain('api-team');
     });
   });
 
@@ -217,17 +282,17 @@ package.json @core-team
 
     it('should match exact file names', async () => {
       const recs = await service.recommendOwners('test-repo', ['package.json']);
-      expect(recs[0].recommendedOwners).toContain('core-team');
+      expect(recs[0].owners).toContain('core-team');
     });
 
     it('should match directory patterns', async () => {
       const recs = await service.recommendOwners('test-repo', ['docs/readme.md']);
-      expect(recs[0].recommendedOwners).toContain('docs-team');
+      expect(recs[0].owners).toContain('docs-team');
     });
 
     it('should match extension patterns', async () => {
       const recs = await service.recommendOwners('test-repo', ['src/main.ts']);
-      expect(recs[0].recommendedOwners).toContain('typescript-team');
+      expect(recs[0].owners).toContain('typescript-team');
     });
   });
 });

@@ -16,7 +16,7 @@ import {
   Spin,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, DownloadOutlined, ReloadOutlined, SafetyOutlined } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import type { TableColumn } from '@/components/Table';
 import {
@@ -86,10 +86,10 @@ const SbomDetail: React.FC = () => {
         getSbomVulnerabilityResults({ sbomId: id }),
         getSbomAttestation(id),
       ]);
-      setDoc(docRes.data.data);
-      setPackages(Array.isArray(pkgRes.data.data) ? pkgRes.data.data : []);
-      setVulnResults(Array.isArray(vulnRes.data.data) ? vulnRes.data.data : []);
-      setAttestation(attRes.data.data);
+      setDoc(docRes.data);
+      setPackages(Array.isArray(pkgRes.data) ? pkgRes.data : []);
+      setVulnResults(Array.isArray(vulnRes.data) ? vulnRes.data : []);
+      setAttestation(attRes.data);
     } catch {
       message.error('Failed to load SBOM detail');
     } finally {
@@ -128,7 +128,7 @@ const SbomDetail: React.FC = () => {
   const handleViewVulnDetails = async (resultId: string) => {
     try {
       const res = await getSbomVulnerabilityDetails(resultId);
-      setVulnDetails(Array.isArray(res.data.data) ? res.data.data : []);
+      setVulnDetails(Array.isArray(res.data) ? res.data : []);
       setVulnDetailVisible(true);
     } catch {
       message.error('Failed to load vulnerability details');
@@ -331,21 +331,23 @@ const SbomDetail: React.FC = () => {
   return (
     <Spin spinning={loading}>
       <div style={{ padding: 0 }}>
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: spacing.lg }}>
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate('/sbom')}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             返回
           </Button>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SafetyOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             SBOM 详情
           </Title>
+          <Text type="secondary">软件物料清单详细信息</Text>
         </div>
 
         {doc && (
-          <Card style={{ marginBottom: 24 }}>
+          <Card style={{ marginBottom: spacing.lg }}>
             <Descriptions title="文档信息" bordered column={3}>
               <Descriptions.Item label="Document ID">{doc.documentId}</Descriptions.Item>
               <Descriptions.Item label="格式">{doc.format}</Descriptions.Item>
@@ -354,7 +356,7 @@ const SbomDetail: React.FC = () => {
               <Descriptions.Item label="Pipeline Run">{doc.pipelineRunId}</Descriptions.Item>
               <Descriptions.Item label="包数量">{doc.packageCount}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <StatusBadge status={doc.status as any} size="small" />
+                <StatusBadge status={doc.status as 'success' | 'running' | 'failed'} size="small" />
               </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(doc.createdAt).format('YYYY-MM-DD HH:mm')}
@@ -363,7 +365,7 @@ const SbomDetail: React.FC = () => {
                 {doc.expiresAt ? dayjs(doc.expiresAt).format('YYYY-MM-DD') : '-'}
               </Descriptions.Item>
             </Descriptions>
-            <Space style={{ marginTop: 16 }}>
+            <Space style={{ marginTop: spacing.md }}>
               <Button icon={<DownloadOutlined />} onClick={handleDownload}>
                 下载 {doc.format.toUpperCase()}
               </Button>
@@ -376,7 +378,7 @@ const SbomDetail: React.FC = () => {
 
         {/* Attestation */}
         {attestation && (
-          <Card title="签名证明" style={{ marginBottom: 24 }}>
+          <Card title="签名证明" style={{ marginBottom: spacing.lg }}>
             <Descriptions bordered column={2}>
               <Descriptions.Item label="签名类型">{attestation.attestationType}</Descriptions.Item>
               <Descriptions.Item label="验证状态">
@@ -395,7 +397,7 @@ const SbomDetail: React.FC = () => {
         )}
 
         {/* Package List */}
-        <Card title={`包清单 (${packages.length})`} style={{ marginBottom: 24 }}>
+        <Card title={`包清单 (${packages.length})`} style={{ marginBottom: spacing.lg }}>
           <AntTable
             columns={packageColumns}
             dataSource={packages}
@@ -406,7 +408,7 @@ const SbomDetail: React.FC = () => {
         </Card>
 
         {/* Vulnerability Scan Results */}
-        <Card title="漏洞扫描结果" style={{ marginBottom: 24 }}>
+        <Card title="漏洞扫描结果" style={{ marginBottom: spacing.lg }}>
           {vulnResults.length > 0 ? (
             <AntTable columns={vulnColumns} dataSource={vulnResults} rowKey="id" size="small" />
           ) : (

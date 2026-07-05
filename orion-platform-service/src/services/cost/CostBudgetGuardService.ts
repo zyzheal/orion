@@ -4,12 +4,13 @@
  * Phase 2: 在 Pipeline 执行前评估预估成本是否超出预算，
  * 提供成本门禁功能，阻止超预算的 Pipeline 执行。
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CostBudgetGuardService');
 
 export enum BudgetGuardAction {
   ALLOW = 'allow',
@@ -130,7 +131,7 @@ export class CostBudgetGuardService {
     estimatedCost: number,
     options?: { tenantId?: string; projectId?: string; environment?: string },
   ): Promise<EvaluationResult> {
-    const tenantId = options?.tenantId || 'default';
+    const tenantId = options?.tenantId || getCurrentTenantId();
 
     // Get all active guards for this tenant
     const guards = await this.getBudgetGuards(tenantId);
@@ -302,7 +303,7 @@ export class CostBudgetGuardService {
         ],
       );
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Failed to log budget guard evaluation');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Failed to log budget guard evaluation');
     }
   }
 
@@ -339,7 +340,7 @@ export class CostBudgetGuardService {
       `);
       logger.info('budget_guards tables ensured');
     } catch (err: any) {
-      logger.warn({ error: err.message }, 'Could not ensure budget_guards tables (may need migration)');
+      logger.warn({ traceId: getCurrentTraceId(), error: err.message }, 'Could not ensure budget_guards tables (may need migration)');
     }
   }
 }

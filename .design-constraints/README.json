@@ -1,0 +1,11 @@
+{
+  "version": "1.0",
+  "description": "Design Constraint persistent storage for false positive logs, confidence configs, and detection counts.",
+  "files": {
+    "false-positive-log": "./false-positive-log.json",
+    "confidence-config": "./confidence-config.json",
+    "detection-counts": "./detection-counts.json"
+  },
+  "created": "2026-05-25",
+  "migration_note": "Moved from docs/design-constraints/framework/core/ to .design-constraints/ for persistent storage separation from source code."
+}

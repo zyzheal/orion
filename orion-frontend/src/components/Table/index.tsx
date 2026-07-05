@@ -8,9 +8,10 @@
  * Wraps Ant Design Table with additional conveniences for the Orion platform.
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { Table as AntTable, Pagination, Input, Space, Button } from 'antd';
+import { Table as AntTable, Pagination, Input, Space, Button, Empty } from 'antd';
 import { SearchOutlined, FilterOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType, TableProps } from 'antd/es/table';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -139,7 +140,7 @@ function OrionTable<T extends object>({
 
         if (col.filterable) {
           antCol.filterDropdown = () => (
-            <div style={{ padding: 8 }}>
+            <div style={{ padding: spacing.sm }}>
               <Input
                 placeholder={`Search ${col.title}`}
                 value={filterValues[col.key] || ''}
@@ -151,7 +152,7 @@ function OrionTable<T extends object>({
                   }
                 }}
                 onPressEnter={() => setFilterVisible({ ...filterVisible, [col.key]: false })}
-                style={{ marginBottom: 8, display: 'block' }}
+                style={{ marginBottom: spacing.sm, display: 'block' }}
                 size="small"
                 prefix={<SearchOutlined />}
               />
@@ -181,7 +182,7 @@ function OrionTable<T extends object>({
             </div>
           );
           antCol.filterIcon = (filtered: boolean) => (
-            <FilterOutlined style={{ color: filtered ? '#1890ff' : undefined }} />
+            <FilterOutlined style={{ color: filtered ? colors.primary[500] : undefined }} />
           );
           antCol.onFilter = undefined; // We handle filter externally
         }
@@ -199,7 +200,7 @@ function OrionTable<T extends object>({
     if (activeFilters.length > 0) {
       data = data.filter((record) =>
         activeFilters.every(([key, value]) => {
-          const cellValue = String((record as any)[key] ?? '');
+          const cellValue = String((record as Record<string, unknown>)[key] ?? '');
           return cellValue.toLowerCase().includes(value.toLowerCase());
         })
       );
@@ -208,8 +209,8 @@ function OrionTable<T extends object>({
     // Apply sorting
     if (sortConfig.order && sortConfig.columnKey) {
       data.sort((a, b) => {
-        const aVal = (a as any)[sortConfig.columnKey];
-        const bVal = (b as any)[sortConfig.columnKey];
+        const aVal = (a as Record<string, unknown>)[sortConfig.columnKey];
+        const bVal = (b as Record<string, unknown>)[sortConfig.columnKey];
 
         if (aVal === bVal) return 0;
         if (aVal == null) return 1;
@@ -285,10 +286,10 @@ function OrionTable<T extends object>({
       {columns.some((c) => c.filterable) && (
         <div
           style={{
-            marginBottom: 12,
+            marginBottom: spacing[3],
             display: 'flex',
             justifyContent: 'flex-end',
-            gap: 8,
+            gap: spacing.sm,
           }}
         >
           {hasActiveFilters && (
@@ -315,7 +316,7 @@ function OrionTable<T extends object>({
             : undefined
         }
         locale={{
-          emptyText: 'No data available',
+          emptyText: <Empty description="暂无数据" />,
           ...restProps.locale,
         }}
         {...restProps}
@@ -325,7 +326,7 @@ function OrionTable<T extends object>({
       {(clientPagination || externalPagination) && (
         <div
           style={{
-            marginTop: 16,
+            marginTop: spacing.md,
             display: 'flex',
             justifyContent: 'flex-end',
           }}
@@ -351,7 +352,7 @@ function OrionTable<T extends object>({
             pageSizeOptions={pageSizeOptions.map(String)}
             showSizeChanger
             showQuickJumper={showQuickJumper}
-            showTotal={showTotal ? (total) => `Total ${total} items` : undefined}
+            showTotal={showTotal ? (total) => `共 ${total} 条` : undefined}
           />
         </div>
       )}

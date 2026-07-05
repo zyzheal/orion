@@ -25,6 +25,7 @@ import {
   formatSize,
 } from './constants';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -82,7 +83,7 @@ const SecurityTab: React.FC<{ artifact: Artifact }> = ({ artifact }) => {
   if (!artifact.security) return <Text type="secondary">暂无安全扫描数据</Text>;
   return (
     <div>
-      <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
+      <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.md }}>
         <Descriptions.Item label="已签名">
           {artifact.security.signed ? <Tag color="green">是</Tag> : <Tag color="red">否</Tag>}
         </Descriptions.Item>
@@ -161,7 +162,7 @@ const TestsTab: React.FC<{ artifact: Artifact }> = ({ artifact }) => {
           bordered
           size="small"
           title="单元测试"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           <Descriptions.Item label="通过">{artifact.tests.unitTests.passed}</Descriptions.Item>
           <Descriptions.Item label="失败">{artifact.tests.unitTests.failed}</Descriptions.Item>
@@ -176,7 +177,7 @@ const TestsTab: React.FC<{ artifact: Artifact }> = ({ artifact }) => {
           bordered
           size="small"
           title="集成测试"
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           <Descriptions.Item label="通过">
             {artifact.tests.integrationTests.passed}
@@ -223,7 +224,7 @@ const TagsTab: React.FC<{
   onAddTags: (artifact: Artifact) => void;
 }> = ({ artifact, tags, onAddTags }) => (
   <div>
-    <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+    <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
       <Text type="secondary">管理制品标签</Text>
       <Button
         type="primary"

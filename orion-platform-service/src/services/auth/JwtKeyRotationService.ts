@@ -1,11 +1,13 @@
 // orion-platform-service/src/services/auth/JwtKeyRotationService.ts
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import pino from 'pino';
-import { DatabasePool } from '../database';
+import { createLogger } from '../../utils/logger';
+import { JwtKeyRotationRepository, JwtKeyEntity } from '../../repositories/JwtKeyRotationRepository';
 import { K8sSecretKeyStorage, k8sSecretStorage } from './K8sSecretKeyStorage';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('jwt-key-rotation');
 
 export interface JwtKeyRotationConfig {
   rotationIntervalDays: number;
@@ -31,18 +33,30 @@ const DEFAULT_CONFIG: JwtKeyRotationConfig = {
   rotationTrigger: 'scheduled',
 };
 
+/** Convert a DB entity to the service-level JwtKey interface */
+function entityToJwtKey(entity: JwtKeyEntity): JwtKey {
+  return {
+    keyId: entity.keyId,
+    keyHash: entity.keyHash,
+    keyStrength: entity.keyStrength,
+    status: entity.status,
+    createdAt: entity.createdAt,
+    activatedAt: entity.activatedAt ?? undefined,
+    expiresAt: entity.expiresAt ?? undefined,
+  };
+}
+
 export class JwtKeyRotationService extends EventEmitter {
   private config: JwtKeyRotationConfig;
-  private dbPool: DatabasePool | null;
+  private repository: JwtKeyRotationRepository | null;
   private k8sStorage: K8sSecretKeyStorage;
   private currentKey: JwtKey | null = null;
   private previousKey: JwtKey | null = null;
-  private keys: Map<string, JwtKey> = new Map();
   private rotationTimer?: NodeJS.Timeout;
 
-  constructor(dbPool: DatabasePool | null, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } | null, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
     super();
-    this.dbPool = dbPool;
+    this.repository = db ? new JwtKeyRotationRepository(db) : null;
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.k8sStorage = k8sStorage || k8sSecretStorage;
   }
@@ -71,19 +85,17 @@ export class JwtKeyRotationService extends EventEmitter {
       const activeKey = storedKeys.find(k => k.status === 'active');
       if (activeKey) {
         this.currentKey = activeKey;
-        this.keys.set(activeKey.keyId, activeKey);
       }
 
       // Find expiring key (overlap period)
       const expiringKey = storedKeys.find(k => k.status === 'expiring');
       if (expiringKey) {
         this.previousKey = expiringKey;
-        this.keys.set(expiringKey.keyId, expiringKey);
       }
     }
 
     // Schedule next rotation
-    this.scheduleNextRotation();
+    await this.scheduleNextRotation();
 
     logger.info('[JwtKeyRotation] Service initialized');
   }
@@ -107,9 +119,7 @@ export class JwtKeyRotationService extends EventEmitter {
       createdAt: new Date(),
     };
 
-    this.keys.set(keyId, key);
-
-    // Store in database
+    // Store in database via repository
     await this.storeKeyInDatabase(key);
 
     logger.info(`[JwtKeyRotation] Generated new key: ${keyId}`);
@@ -117,9 +127,9 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   async activateKey(keyId: string): Promise<void> {
-    const key = this.keys.get(keyId);
+    const key = await this.getKeyById(keyId);
     if (!key) {
-      throw new Error(`Key not found: ${keyId}`);
+      throw new OrionError(`Key not found: ${keyId}`, ErrorCode.NOT_FOUND);
     }
 
     // Mark previous key as expiring (overlap period)
@@ -175,7 +185,7 @@ export class JwtKeyRotationService extends EventEmitter {
     return nextDate;
   }
 
-  private scheduleNextRotation(): void {
+  private async scheduleNextRotation(): Promise<void> {
     if (!this.currentKey?.expiresAt) {
       return;
     }
@@ -188,11 +198,20 @@ export class JwtKeyRotationService extends EventEmitter {
     const delay = overlapStart.getTime() - now.getTime();
 
     if (delay > 0) {
+      // Cap delay to avoid Node.js TimeoutOverflowWarning for very long intervals
+      const maxDelay = 2147483647; // 2^31 - 1 ms (~24.8 days)
+      const cappedDelay = Math.min(delay, maxDelay);
+
       this.rotationTimer = setTimeout(async () => {
         await this.startRotation();
-      }, delay);
+      }, cappedDelay);
 
       logger.info(`[JwtKeyRotation] Next rotation scheduled at: ${overlapStart.toISOString()}`);
+    } else {
+      // Overlap window already started (e.g. process restarted past the scheduled time)
+      // Trigger rotation immediately to avoid skipping the rotation cycle
+      logger.warn(`[JwtKeyRotation] Overlap window already passed (${delay}ms), triggering rotation immediately`);
+      await this.startRotation();
     }
   }
 
@@ -209,32 +228,30 @@ export class JwtKeyRotationService extends EventEmitter {
       });
 
       // Schedule next rotation
-      this.scheduleNextRotation();
+      await this.scheduleNextRotation();
     } catch (error) {
       logger.error('[JwtKeyRotation] Rotation failed:', error);
       this.emit('rotation:failed', error);
     }
   }
 
-  private async loadKeysFromDatabase(): Promise<JwtKey[]> {
-    if (!this.dbPool) return [];
+  /** Get a key by ID from repository */
+  private async getKeyById(keyId: string): Promise<JwtKey | null> {
+    if (!this.repository) return null;
     try {
-      const result = await this.dbPool.query(
-        `SELECT key_id, key_hash, key_strength, status, created_at, activated_at, expires_at
-         FROM jwt_key_rotation
-         WHERE status IN ('active', 'expiring')
-         ORDER BY created_at DESC`,
-      );
+      const entity = await this.repository.findByKeyId(keyId);
+      return entity ? entityToJwtKey(entity) : null;
+    } catch (error) {
+      logger.error('[JwtKeyRotation] Failed to get key from repository:', error);
+      return null;
+    }
+  }
 
-      return result.rows.map(row => ({
-        keyId: row.key_id,
-        keyHash: row.key_hash,
-        keyStrength: row.key_strength,
-        status: row.status,
-        createdAt: row.created_at,
-        activatedAt: row.activated_at,
-        expiresAt: row.expires_at,
-      }));
+  private async loadKeysFromDatabase(): Promise<JwtKey[]> {
+    if (!this.repository) return [];
+    try {
+      const entities = await this.repository.findByStatuses(['active', 'expiring']);
+      return entities.map(entityToJwtKey);
     } catch (error) {
       logger.error('[JwtKeyRotation] Failed to load keys from database:', error);
       return [];
@@ -242,13 +259,15 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async storeKeyInDatabase(key: JwtKey): Promise<void> {
-    if (!this.dbPool) return;
+    if (!this.repository) return;
     try {
-      await this.dbPool.query(
-        `INSERT INTO jwt_key_rotation (key_id, key_hash, key_strength, status, created_at, rotation_trigger)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [key.keyId, key.keyHash, key.keyStrength, key.status, key.createdAt, this.config.rotationTrigger || 'scheduled'],
-      );
+      await this.repository.create({
+        keyId: key.keyId,
+        keyHash: key.keyHash,
+        keyStrength: key.keyStrength,
+        status: key.status,
+        rotationTrigger: this.config.rotationTrigger || 'scheduled',
+      });
       logger.debug(`[JwtKeyRotation] Stored key in database: ${key.keyId}`);
 
       // Also store in K8s Secret if available
@@ -260,14 +279,13 @@ export class JwtKeyRotationService extends EventEmitter {
   }
 
   private async updateKeyInDatabase(key: JwtKey): Promise<void> {
-    if (!this.dbPool) return;
+    if (!this.repository) return;
     try {
-      await this.dbPool.query(
-        `UPDATE jwt_key_rotation
-         SET status = $1, activated_at = $2, expires_at = $3
-         WHERE key_id = $4`,
-        [key.status, key.activatedAt, key.expiresAt, key.keyId],
-      );
+      await this.repository.updateByKeyId(key.keyId, {
+        status: key.status,
+        activatedAt: key.activatedAt ?? null,
+        expiresAt: key.expiresAt ?? null,
+      });
       logger.debug(`[JwtKeyRotation] Updated key in database: ${key.keyId}`);
 
       // Also update in K8s Secret if available

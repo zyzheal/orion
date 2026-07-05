@@ -113,7 +113,7 @@ export class RBACRuleRepository {
     return Array.from(store.values()).filter(r => r.resource === `pipeline:${pipelineId}`);
   }
 
-  async upsert(pipelineId: string, userId: string, role: string): Promise<RBACRuleEntity> {
+  async upsertByPipelineAndUser(pipelineId: string, userId: string, role: string): Promise<RBACRuleEntity> {
     const existing = Array.from(store.values()).find(
       r => r.resource === `pipeline:${pipelineId}` && r.subjects.includes(userId)
     );

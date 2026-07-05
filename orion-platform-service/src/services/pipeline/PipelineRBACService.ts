@@ -7,13 +7,16 @@
  * - pipeline.viewer: Can only view
  * - pipeline.approver: Can approve/reject approval gates
  *
+ * Persistence: PostgreSQL via RBACRuleRepository.
+ * In-memory cache used for fast permission checks.
+ *
  * If no RBAC rules exist for a pipeline, default to allow (backward compatible).
  */
 
-import pino from 'pino';
-import { RBACRuleRepository, RBACRuleEntity } from '../../repositories/RBACRuleRepository';
+import { createLogger } from '../../utils/logger';
+import { RBACRuleRepository } from '../../repositories/RBACRuleRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineRBACService');
 
 /**
  * Pipeline roles
@@ -52,13 +55,15 @@ const ROLE_PERMISSIONS: Record<PipelineRole, string[]> = {
 };
 
 export class PipelineRBACService {
-  private repository: RBACRuleRepository | null = null;
+  private repository!: RBACRuleRepository;
   /** In-memory cache for fast permission checks. Key: pipelineId, Value: Map<userId, role> */
   private rulesCache: Map<string, Map<string, PipelineRole>> = new Map();
   private cacheInitialized = new Set<string>();
 
-  constructor(repository?: RBACRuleRepository | null) {
-    this.repository = repository || null;
+  constructor(repository?: RBACRuleRepository) {
+    if (repository) {
+      this.repository = repository;
+    }
   }
 
   /**
@@ -68,14 +73,13 @@ export class PipelineRBACService {
    */
   async setRules(pipelineId: string, userRules: { userId: string; role: PipelineRole }[]): Promise<void> {
     if (this.repository) {
-      // Delete existing rules and insert new ones
       await this.repository.deleteByPipelineId(pipelineId);
       for (const rule of userRules) {
         await this.repository.upsert(pipelineId, rule.userId, rule.role);
       }
     }
 
-    // Update cache
+    // Always update in-memory cache
     const userMap = new Map<string, PipelineRole>();
     for (const rule of userRules) {
       userMap.set(rule.userId, rule.role);
@@ -93,7 +97,6 @@ export class PipelineRBACService {
       await this.repository.upsert(pipelineId, userId, role);
     }
 
-    // Update cache
     if (!this.rulesCache.has(pipelineId)) {
       this.rulesCache.set(pipelineId, new Map());
     }
@@ -139,11 +142,12 @@ export class PipelineRBACService {
   }
 
   /**
-   * Ensure cache is loaded from database for a pipeline
+   * Ensure cache is loaded from database for a pipeline.
+   * On DB failure, marks dbFailed=true and continues using whatever is in cache.
    */
   private async ensureCacheLoaded(pipelineId: string): Promise<void> {
     if (this.cacheInitialized.has(pipelineId)) return;
-    if (!this.repository) return;
+    if (!this.repository) return; // No repository, skip DB load
 
     const rules = await this.repository.findByPipelineId(pipelineId);
     const userMap = new Map<string, PipelineRole>();
@@ -213,4 +217,5 @@ export class PipelineRBACService {
     const key = pipelineId || runId;
     return this.hasPermission(key, userId, 'approve');
   }
+
 }

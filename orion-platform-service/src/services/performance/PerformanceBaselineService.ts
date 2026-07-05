@@ -14,6 +14,7 @@ import {
   PerformanceTestResultRepository,
   PerformanceTestResultEntity,
 } from '../../repositories/PerformanceRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface PerformanceBaseline {
   id: string;
@@ -207,7 +208,7 @@ export class PerformanceBaselineService {
       updated_at: new Date(),
       version: baseline.version + 1,
     });
-
+    if (!entity) throw new OrionError('Failed to update performance baseline', ErrorCode.OPERATION_FAILED);
     return this.mapEntityToBaseline(entity);
   }
 

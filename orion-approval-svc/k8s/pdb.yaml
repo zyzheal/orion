@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-approval-pdb
+  namespace: orion
+  labels:
+    app: orion-approval
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-approval

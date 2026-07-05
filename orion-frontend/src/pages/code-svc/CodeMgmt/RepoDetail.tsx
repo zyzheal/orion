@@ -15,6 +15,7 @@ import {
   message,
   Spin,
   Select,
+  Popconfirm,
 } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
@@ -24,7 +25,7 @@ import {
   DeleteOutlined,
   LockOutlined,
   UnlockOutlined,
-} from '@ant-design/icons';
+  FolderOpenOutlined,} from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
@@ -68,13 +69,13 @@ const RepoDetail: React.FC = () => {
     setRepoLoading(true);
     try {
       const adaptersResp = await getCodeRepoAdapters();
-      const adapters = adaptersResp.data.data as Array<{ id: string; name: string; type: string }>;
+      const adapters = adaptersResp.data as Array<{ id: string; name: string; type: string }>;
       if (!Array.isArray(adapters)) return;
 
       for (const adapter of adapters) {
         try {
           const reposResp = await getCodeRepos(adapter.id);
-          const repos = reposResp.data.data as Array<{
+          const repos = reposResp.data as Array<{
             id: string;
             name: string;
             adapterId: string;
@@ -107,7 +108,7 @@ const RepoDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCodeRepoBranches(adapterId, id);
-      const data = response.data.data as Branch[];
+      const data = response.data as Branch[];
       setBranches(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -125,7 +126,7 @@ const RepoDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getPullRequests(adapterId, id);
-      const data = response.data.data as PullRequest[];
+      const data = response.data as PullRequest[];
       setPullRequests(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -165,22 +166,14 @@ const RepoDetail: React.FC = () => {
     }
   };
 
-  const handleDeleteBranch = (branchName: string) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除分支 "${branchName}" 吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteCodeRepoBranch(adapterId, id!, branchName);
-          message.success('分支已删除');
-          loadBranches();
-        } catch (error) {
-          message.error('删除分支失败');
-        }
-      },
-    });
+  const handleDeleteBranch = async (branchName: string) => {
+    try {
+      await deleteCodeRepoBranch(adapterId, id!, branchName);
+      message.success('分支已删除');
+      loadBranches();
+    } catch (error) {
+      message.error('删除分支失败');
+    }
   };
 
   const handleCreatePR = async (values: CreatePullRequestInput) => {
@@ -245,13 +238,20 @@ const RepoDetail: React.FC = () => {
           >
             {record.isProtected ? '解锁' : '保护'}
           </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteBranch(record.name)}
-          />
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={() => handleDeleteBranch(record.name)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -336,7 +336,7 @@ const RepoDetail: React.FC = () => {
       label: `分支 (${branches.length})`,
       children: (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -361,7 +361,7 @@ const RepoDetail: React.FC = () => {
       label: `Pull Requests (${pullRequests.length})`,
       children: (
         <>
-          <div style={{ marginBottom: 16 }}>
+          <div style={{ marginBottom: spacing.md }}>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreatePrModal(true)}>
               创建 Pull Request
             </Button>
@@ -392,15 +392,16 @@ const RepoDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/code-mgmt')}>
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FolderOpenOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {repoName || id}
           </Title>
           <Text type="secondary">仓库详情</Text>

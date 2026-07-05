@@ -1,732 +1,439 @@
 /**
- * AI Security API Routes (TASK-1004)
- * AI 安全加固接口
+ * AI Security API Routes
  *
- * P1-15 Fix: Connected to PostgreSQL via AuditRepository for audit log persistence.
- * Critical Fix: Added tenant isolation validation.
+ * Routes under /api/v1/ai/security
  *
- * 新增功能：
- * - Prompt 注入检测
- * - Prompt 清洗
- * - 租户隔离验证
+ * Provides security scan, policy management, and security alert endpoints
+ * via the AISecurityService (four-layer protection: input sanitization,
+ * execution sandbox, output validation, audit logging).
  */
+
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { AISecurityService, AISecurityConfig } from '../services/ai-security';
 import { DatabasePool } from '../services/database';
-import {
-  AISecurityService,
-  sanitizeInput,
-  validateOutput,
-  ExecutionSandbox,
-  SecurityError,
-} from '../services/ai-security';
-import { AuditRepository, CreateAuditLogInput, AuditLog } from '../services/audit/AuditRepository';
-import { PromptInjectionDetector } from '../services/ai/PromptInjectionDetector';
-import { PromptSanitizer } from '../services/ai/PromptSanitizer';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ai-security-routes');
 
-interface AISecurityRoutesOptions {
+export interface AISecurityRoutesOptions {
   database?: DatabasePool;
-}
-
-// 扩展 request.user 类型以包含 tenantId
-interface AuthenticatedUser {
-  userId: string;
-  username: string;
-  role: string;
-  tenantId?: string;
-}
-
-// 初始化检测器和清洗器
-const promptDetector = new PromptInjectionDetector();
-const promptSanitizer = new PromptSanitizer();
-
-/**
- * 从请求中提取租户 ID
- * 优先级: JWT > API Key > 默认值
- */
-function extractTenantId(request: FastifyRequest): string {
-  // 1. 从 JWT 中提取（扩展类型以支持 tenantId）
-  const user = (request.user as AuthenticatedUser | undefined);
-  if (user?.tenantId) {
-    return user.tenantId;
-  }
-
-  // 2. 从 API Key 中提取 (假设 API Key 格式为 orion-{tenantId}-{random})
-  const apiKey = request.headers['x-api-key'] as string;
-  if (apiKey && apiKey.startsWith('orion-')) {
-    const parts = apiKey.split('-');
-    if (parts.length >= 3) {
-      return parts[1]; // 返回 tenantId 部分
-    }
-  }
-
-  // 3. 从请求头 X-Tenant-ID 中提取
-  const tenantHeader = request.headers['x-tenant-id'] as string;
-  if (tenantHeader) {
-    return tenantHeader;
-  }
-
-  // 4. 返回默认租户（未认证情况）
-  return 'default-tenant';
-}
-
-/**
- * 从请求中提取用户 ID
- */
-function extractUserId(request: FastifyRequest): string {
-  if (request.user?.userId) {
-    return request.user.userId;
-  }
-
-  const apiKey = request.headers['x-api-key'] as string;
-  if (apiKey && apiKey.startsWith('orion-')) {
-    return 'api-key-user';
-  }
-
-  return 'anonymous';
-}
-
-/**
- * 验证租户访问权限
- */
-function validateTenantAccess(
-  request: FastifyRequest,
-  resourceTenantId: string
-): boolean {
-  const requestTenantId = extractTenantId(request);
-  return requestTenantId === resourceTenantId;
+  securityService?: AISecurityService;
 }
 
 export default async function aiSecurityRoutes(
   app: FastifyInstance,
-  options: AISecurityRoutesOptions = {}
+  options: AISecurityRoutesOptions
 ): Promise<void> {
-  const auditRepository = options.database ? new AuditRepository(options.database) : undefined;
-  const securityService = new AISecurityService({}, { auditRepository });
+  const service = options.securityService || new AISecurityService();
+
+  // ==================== Scans ====================
 
   /**
-   * POST /api/v1/ai-security/check-input
-   * 检查输入内容安全性
+   * GET /api/v1/ai/security/scans
+   * List security scan audit logs
    */
-  app.post('/check-input', async (
-    request: FastifyRequest<{
-      Body: {
-        input: string;
-        userId?: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { input, userId: bodyUserId } = request.body;
-      const tenantId = extractTenantId(request);
-      const userId = bodyUserId || extractUserId(request);
-
-      const result = sanitizeInput(input);
-
-      // 记录审计日志
-      await auditRepository?.create({
-        tenant_id: tenantId,
-        user_id: userId,
-        action: 'ai_security:check_input',
-        resource_type: 'input_validation',
-        resource_id: 'check-input',
-        request_body: {
-          passed: result.passed,
-          riskScore: result.riskScore,
-        },
-      });
-
-      return {
-        success: true,
-        data: {
-          passed: result.passed,
-          riskScore: result.riskScore,
-          violations: result.violations,
-          sanitizedInput: result.sanitizedInput,
-          tenantId,
-        },
-      };
-    } catch (error) {
-      return reply.code(400).send({
-        success: false,
-        error: error instanceof Error ? error.message : '安全检查失败',
-      });
-    }
-  });
-
-  /**
-   * POST /api/v1/ai-security/check-output
-   * 检查输出内容安全性
-   */
-  app.post('/check-output', async (
-    request: FastifyRequest<{
-      Body: {
-        output: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { output } = request.body;
-      const tenantId = extractTenantId(request);
-      const userId = extractUserId(request);
-
-      const result = validateOutput(output);
-
-      // 记录审计日志
-      await auditRepository?.create({
-        tenant_id: tenantId,
-        user_id: userId,
-        action: 'ai_security:check_output',
-        resource_type: 'output_validation',
-        resource_id: 'check-output',
-        request_body: {
-          passed: result.passed,
-          riskScore: result.riskScore,
-        },
-      });
-
-      return {
-        success: true,
-        data: {
-          passed: result.passed,
-          riskScore: result.riskScore,
-          violations: result.violations,
-          tenantId,
-        },
-      };
-    } catch (error) {
-      return reply.code(400).send({
-        success: false,
-        error: error instanceof Error ? error.message : '安全检查失败',
-      });
-    }
-  });
-
-  /**
-   * POST /api/v1/ai-security/execute
-   * 在沙箱中执行代码
-   */
-  app.post('/execute', async (
-    request: FastifyRequest<{
-      Body: {
-        code: string;
-        context?: Record<string, unknown>;
-        timeout?: number;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { code, context = {}, timeout = 5000 } = request.body;
-      const sandbox = new ExecutionSandbox(timeout);
-      const result = await sandbox.execute(code, context);
-
-      return {
-        success: true,
-        data: { result },
-      };
-    } catch (error) {
-      return reply.code(400).send({
-        success: false,
-        error: error instanceof Error ? error.message : '代码执行失败',
-      });
-    }
-  });
-
-  /**
-   * GET /api/v1/ai-security/logs
-   * 获取审计日志
-   */
-  app.get('/logs', async (
-    request: FastifyRequest<{
-      Querystring: {
-        action?: string;
-        userId?: string;
-        sessionId?: string;
-        startTime?: string;
-        endTime?: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { action, userId, sessionId, startTime, endTime } = request.query;
-
-      const logs = await securityService.getAuditLogsAsync({
-        action: action as 'input_sanitized' | 'output_validated' | 'sandbox_executed' | 'security_violation',
-        userId,
-        sessionId,
-        startTime: startTime ? new Date(startTime) : undefined,
-        endTime: endTime ? new Date(endTime) : undefined,
-      });
-
-      return {
-        success: true,
-        data: { logs, total: logs.length },
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : '获取日志失败',
-      });
-    }
-  });
-
-  /**
-   * GET /api/v1/ai-security/logs/export
-   * 导出审计日志
-   */
-  app.get('/logs/export', async (
-    request: FastifyRequest<{
-      Querystring: {
-        format?: 'json' | 'csv';
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { format = 'json' } = request.query;
-      const data = await securityService.exportAuditLogsAsync(format);
-
-      const contentType = format === 'json' ? 'application/json' : 'text/csv';
-      reply.header('Content-Type', contentType);
-      reply.header('Content-Disposition', `attachment; filename=audit-logs.${format}`);
-      reply.type(contentType).send(data);
-      return reply;
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : '导出日志失败',
-      });
-    }
-  });
-
-  /**
-   * POST /api/v1/ai-security/process
-   * 处理 AI 请求（完整安全流程）
-   */
-  app.post('/process', async (
-    request: FastifyRequest<{
-      Body: {
-        input: string;
-        userId?: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { input, userId: bodyUserId } = request.body;
-      const tenantId = extractTenantId(request);
-      const userId = bodyUserId || extractUserId(request);
-
-      const result = await securityService.processRequest(input, userId);
-
-      // 记录审计日志
-      await auditRepository?.create({
-        tenant_id: tenantId,
-        user_id: userId,
-        action: 'ai_security:process_request',
-        resource_type: 'request_processing',
-        resource_id: 'process',
-        request_body: {
-          output: result.output,
-          riskScore: result.riskScore,
-        },
-      });
-
-      return {
-        success: true,
-        data: {
-          output: result.output,
-          riskScore: result.riskScore,
-          tenantId,
-        },
-      };
-    } catch (error) {
-      return reply.code(400).send({
-        success: false,
-        error: error instanceof Error ? error.message : '请求处理失败',
-      });
-    }
-  });
-
-  // ========== 新增：Prompt 注入检测和清洗 API ==========
-
-  /**
-   * POST /api/v1/ai-security/check-prompt
-   * 检测 Prompt 注入风险
-   */
-  app.post('/check-prompt', async (
-    request: FastifyRequest<{
-      Body: {
-        prompt: string;
-        options?: {
-          logResults?: boolean;
-          includeContext?: boolean;
+  app.get(
+    '/scans',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as {
+          action?: string;
+          userId?: string;
+          startTime?: string;
+          endTime?: string;
         };
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { prompt, options = {} } = request.body;
-      const tenantId = extractTenantId(request);
-      const userId = extractUserId(request);
 
-      if (!prompt || typeof prompt !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: 'prompt 参数必须是非空字符串',
+        const logs = await service.getAuditLogsAsync({
+          action: query.action as any,
+          userId: query.userId,
+          startTime: query.startTime ? new Date(query.startTime) : undefined,
+          endTime: query.endTime ? new Date(query.endTime) : undefined,
         });
-      }
 
-      const analysis = promptDetector.analyze(prompt);
-
-      // 记录检测结果（使用租户 ID）
-      if (options.logResults && analysis.threats.length > 0) {
-        await auditRepository?.create({
-          tenant_id: tenantId,
-          user_id: userId,
-          action: 'ai_security:prompt_check',
-          resource_type: 'prompt_analysis',
-          resource_id: analysis.metadata.analysisVersion,
-          request_body: {
-            riskScore: analysis.riskScore,
-            threatCount: analysis.threats.length,
-            threatTypes: analysis.threats.map(t => t.type),
-            recommendation: analysis.recommendation,
-          },
+        return reply.send({
+          data: logs,
+          meta: { total: logs.length },
         });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to list security scans');
+        return handleError(reply, new OrionError('SCANS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
       }
-
-      return {
-        success: true,
-        data: {
-          isSafe: analysis.isSafe,
-          riskScore: analysis.riskScore,
-          recommendation: analysis.recommendation,
-          threats: options.includeContext
-            ? analysis.threats.map(t => ({
-                type: t.type,
-                severity: t.severity,
-                description: t.description,
-                matchedPattern: t.matchedPattern,
-                context: t.context,
-              }))
-            : analysis.threats.map(t => ({
-                type: t.type,
-                severity: t.severity,
-                description: t.description,
-              })),
-          attackCategories: analysis.attackCategories,
-          metadata: analysis.metadata,
-        },
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : 'Prompt 检测失败',
-      });
     }
-  });
+  );
 
   /**
-   * POST /api/v1/ai-security/sanitize-prompt
-   * 清洗 Prompt 内容
+   * GET /api/v1/ai/security/scans/:id
+   * Get a specific security scan/audit log by session ID
    */
-  app.post('/sanitize-prompt', async (
-    request: FastifyRequest<{
-      Body: {
-        prompt: string;
-        options?: {
-          strategy?: 'remove' | 'replace' | 'neutralize' | 'escape';
-          preserveIntent?: boolean;
-        };
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { prompt, options = {} } = request.body;
-      const tenantId = extractTenantId(request);
-      const userId = extractUserId(request);
+  app.get(
+    '/scans/:id',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
 
-      if (!prompt || typeof prompt !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: 'prompt 参数必须是非空字符串',
-        });
-      }
+        const logs = await service.getAuditLogsAsync({ sessionId: id });
 
-      // 先检测威胁
-      const analysis = promptDetector.analyze(prompt);
-
-      if (analysis.threats.length === 0) {
-        return {
-          success: true,
-          data: {
-            originalPrompt: prompt,
-            sanitizedPrompt: prompt,
-            sanitizationCount: 0,
-            intentPreserved: true,
-            message: '未检测到威胁，无需清洗',
-          },
-        };
-      }
-
-      // 清洗 Prompt
-      const sanitization = promptSanitizer.sanitize(prompt, analysis.threats);
-
-      // 记录清洗操作（使用租户 ID）
-      await auditRepository?.create({
-        tenant_id: tenantId,
-        user_id: userId,
-        action: 'ai_security:prompt_sanitize',
-        resource_type: 'prompt_sanitization',
-        resource_id: sanitization.metadata.version,
-        request_body: {
-          sanitizationCount: sanitization.sanitizationCount,
-          originalLength: sanitization.metadata.originalLength,
-          sanitizedLength: sanitization.metadata.sanitizedLength,
-          threatTypes: sanitization.appliedSanitizations.map(s => s.threatType),
-        },
-      });
-
-      return {
-        success: true,
-        data: {
-          originalPrompt: sanitization.originalPrompt,
-          sanitizedPrompt: sanitization.sanitizedPrompt,
-          sanitizationCount: sanitization.sanitizationCount,
-          intentPreserved: sanitization.intentPreserved,
-          appliedSanitizations: sanitization.appliedSanitizations.map(s => ({
-            threatType: s.threatType,
-            strategy: s.strategy,
-            originalContent: s.originalContent.slice(0, 100),
-          })),
-          riskScore: analysis.riskScore,
-          metadata: sanitization.metadata,
-        },
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : 'Prompt 清洗失败',
-      });
-    }
-  });
-
-  /**
-   * POST /api/v1/ai-security/check-and-sanitize
-   * 检测并清洗 Prompt（一体化接口）
-   */
-  app.post('/check-and-sanitize', async (
-    request: FastifyRequest<{
-      Body: {
-        prompt: string;
-        riskThresholdHigh?: number;
-        riskThresholdMedium?: number;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { prompt, riskThresholdHigh = 70, riskThresholdMedium = 30 } = request.body;
-
-      if (!prompt || typeof prompt !== 'string') {
-        return reply.code(400).send({
-          success: false,
-          error: 'prompt 参数必须是非空字符串',
-        });
-      }
-
-      // 检测
-      const analysis = promptDetector.analyze(prompt);
-
-      // 根据风险等级决定操作
-      if (analysis.riskScore >= riskThresholdHigh) {
-        // 高风险：拒绝
-        return {
-          success: false,
-          data: {
-            action: 'reject',
-            reason: `风险评分过高 (${analysis.riskScore}/${riskThresholdHigh})`,
-            riskScore: analysis.riskScore,
-            threats: analysis.threats,
-            sanitizedPrompt: null,
-          },
-          error: 'PROMPT_RISK_TOO_HIGH',
-        };
-      }
-
-      if (analysis.riskScore >= riskThresholdMedium) {
-        // 中风险：清洗
-        const sanitization = promptSanitizer.sanitize(prompt, analysis.threats);
-
-        return {
-          success: true,
-          data: {
-            action: 'sanitize',
-            originalPrompt: prompt,
-            sanitizedPrompt: sanitization.sanitizedPrompt,
-            riskScore: analysis.riskScore,
-            sanitizationCount: sanitization.sanitizationCount,
-            intentPreserved: sanitization.intentPreserved,
-            threats: analysis.threats.map(t => ({
-              type: t.type,
-              severity: t.severity,
-            })),
-          },
-        };
-      }
-
-      // 低风险：允许
-      return {
-        success: true,
-        data: {
-          action: 'allow',
-          originalPrompt: prompt,
-          sanitizedPrompt: prompt,
-          riskScore: analysis.riskScore,
-          threats: [],
-        },
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : '检测和清洗失败',
-      });
-    }
-  });
-
-  /**
-   * GET /api/v1/ai-security/rules
-   * 获取检测规则列表
-   */
-  app.get('/rules', async (
-    request: FastifyRequest<{
-      Querystring: {
-        threatType?: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { threatType } = request.query;
-      const rules = promptDetector.getRules();
-
-      // 过滤规则
-      const filteredRules = threatType
-        ? rules.filter(r => r.type === threatType)
-        : rules;
-
-      return {
-        success: true,
-        data: {
-          rules: filteredRules.map(r => ({
-            id: r.id,
-            name: r.name,
-            type: r.type,
-            severity: r.severity,
-            enabled: r.enabled,
-            description: r.description,
-          })),
-          total: filteredRules.length,
-        },
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : '获取规则失败',
-      });
-    }
-  });
-
-  /**
-   * POST /api/v1/ai-security/stats
-   * 获取安全统计信息（支持租户隔离）
-   * 注意：此端点使用 PromptSecurityRepository 获取租户级统计，
-   * 当前实现返回基本统计信息，后续可扩展
-   */
-  app.get('/stats', async (
-    request: FastifyRequest<{
-      Querystring: {
-        startTime?: string;
-        endTime?: string;
-        tenantId?: string;
-      };
-    }>,
-    reply: FastifyReply
-  ) => {
-    try {
-      const { startTime, endTime, tenantId: queryTenantId } = request.query;
-      const requestTenantId = extractTenantId(request);
-
-      // 如果查询指定了 tenantId，验证是否与请求租户一致
-      // 管理员角色可以查询其他租户（需要扩展 JWT 角色验证）
-      const targetTenantId = queryTenantId || requestTenantId;
-
-      // 从 PromptSecurity 审计日志获取统计
-      // 使用 AuditRepository.findAll 查询 prompt 相关记录
-      const logs: AuditLog[] = auditRepository
-        ? await auditRepository.findAll({ tenantId: targetTenantId, limit: 1000 })
-        : [];
-
-      // 过滤时间范围和 prompt 相关操作
-      const filteredLogs = logs.filter((log: AuditLog) => {
-        // 时间过滤
-        if (startTime && log.created_at < new Date(startTime)) {
-          return false;
+        if (logs.length === 0) {
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
         }
-        if (endTime && log.created_at > new Date(endTime)) {
-          return false;
-        }
-        // 只统计 prompt 相关操作
-        return log.action.startsWith('ai_security:prompt');
-      });
 
-      // 计算统计
-      const stats = {
-        tenantId: targetTenantId,
-        totalChecks: filteredLogs.filter((l: AuditLog) => l.action === 'ai_security:prompt_check').length,
-        totalSanitizations: filteredLogs.filter((l: AuditLog) => l.action === 'ai_security:prompt_sanitize').length,
-        totalRejections: filteredLogs.filter((l: AuditLog) => {
-          const riskScore = l.request_body?.riskScore;
-          return typeof riskScore === 'number' && riskScore >= 70;
-        }).length,
-        threatDistribution: {} as Record<string, number>,
-      };
-
-      // 计算威胁分布
-      for (const log of filteredLogs) {
-        const threatTypes = log.request_body?.threatTypes as string[] | undefined;
-        if (threatTypes) {
-          for (const type of threatTypes) {
-            stats.threatDistribution[type] = (stats.threatDistribution[type] || 0) + 1;
-          }
-        }
+        return reply.send({ data: logs });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get security scan');
+        return handleError(reply, new OrionError('SCAN_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
       }
-
-      logger.info({
-        msg: 'AI security stats retrieved',
-        tenantId: targetTenantId,
-        requestedBy: requestTenantId,
-        totalChecks: stats.totalChecks,
-      });
-
-      return {
-        success: true,
-        data: stats,
-      };
-    } catch (error) {
-      return reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : '获取统计失败',
-      });
     }
-  });
+  );
+
+  /**
+   * POST /api/v1/ai/security/scans
+   * Run a security scan on input text
+   */
+  app.post(
+    '/scans',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'execute' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as { input: string };
+
+        if (!body.input) {
+          return handleError(reply, new ValidationError('BAD_REQUEST'))
+        }
+
+        const userId = (request as any).user?.id || 'unknown';
+        const result = await service.processRequest(body.input, userId);
+
+        return reply.status(201).send({ data: result });
+      } catch (error: any) {
+        if (error.name === 'SecurityError') {
+          return handleError(reply, new ForbiddenError('SECURITY_VIOLATION'))
+        }
+        logger.error({ error }, 'Security scan failed');
+        return handleError(reply, new OrionError('SCAN_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  // ==================== Policies ====================
+
+  /**
+   * GET /api/v1/ai/security/policies
+   * List current AI security policies (configuration)
+   */
+  app.get(
+    '/policies',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Return the current security configuration as "policies"
+        const config = (service as any).config as AISecurityConfig;
+
+        const policies = [
+          {
+            id: 'input-sanitization',
+            name: 'Input Sanitization',
+            enabled: config.enableInputSanitization,
+            description: 'Sanitize AI input to remove potential malicious content',
+            settings: {
+              maxInputLength: config.maxInputLength,
+              blockedPatternCount: config.blockedPatterns.length,
+            },
+          },
+          {
+            id: 'execution-sandbox',
+            name: 'Execution Sandbox',
+            enabled: config.enableSandbox,
+            description: 'Execute AI-generated code in an isolated sandbox environment',
+          },
+          {
+            id: 'output-validation',
+            name: 'Output Validation',
+            enabled: config.enableOutputValidation,
+            description: 'Validate AI output for sensitive information and code injection',
+            settings: {
+              maxOutputLength: config.maxOutputLength,
+            },
+          },
+          {
+            id: 'audit-logging',
+            name: 'Audit Logging',
+            enabled: config.enableAuditLog,
+            description: 'Log all security events for compliance and analysis',
+          },
+        ];
+
+        return reply.send({ data: policies });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to list security policies');
+        return handleError(reply, new OrionError('POLICIES_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  /**
+   * GET /api/v1/ai/security/policies/:id
+   * Get a specific security policy
+   */
+  app.get(
+    '/policies/:id',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const config = (service as any).config as AISecurityConfig;
+
+        const policyMap: Record<string, { name: string; enabled: boolean; description: string; settings?: Record<string, unknown> }> = {
+          'input-sanitization': {
+            name: 'Input Sanitization',
+            enabled: config.enableInputSanitization,
+            description: 'Sanitize AI input to remove potential malicious content',
+            settings: {
+              maxInputLength: config.maxInputLength,
+              blockedPatternCount: config.blockedPatterns.length,
+            },
+          },
+          'execution-sandbox': {
+            name: 'Execution Sandbox',
+            enabled: config.enableSandbox,
+            description: 'Execute AI-generated code in an isolated sandbox environment',
+          },
+          'output-validation': {
+            name: 'Output Validation',
+            enabled: config.enableOutputValidation,
+            description: 'Validate AI output for sensitive information and code injection',
+            settings: { maxOutputLength: config.maxOutputLength },
+          },
+          'audit-logging': {
+            name: 'Audit Logging',
+            enabled: config.enableAuditLog,
+            description: 'Log all security events for compliance and analysis',
+          },
+        };
+
+        const policy = policyMap[id];
+        if (!policy) {
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
+        }
+
+        return reply.send({ data: { id, ...policy } });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get security policy');
+        return handleError(reply, new OrionError('POLICY_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  /**
+   * PUT /api/v1/ai/security/policies/:id
+   * Update a security policy (enable/disable)
+   */
+  app.put(
+    '/policies/:id',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const body = request.body as { enabled?: boolean };
+
+        const validPolicies = ['input-sanitization', 'execution-sandbox', 'output-validation', 'audit-logging'];
+        if (!validPolicies.includes(id)) {
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
+        }
+
+        // Map policy ID to config key
+        const configKeyMap: Record<string, keyof AISecurityConfig> = {
+          'input-sanitization': 'enableInputSanitization',
+          'execution-sandbox': 'enableSandbox',
+          'output-validation': 'enableOutputValidation',
+          'audit-logging': 'enableAuditLog',
+        };
+
+        if (body.enabled !== undefined) {
+          const configKey = configKeyMap[id];
+          const currentConfig = (service as any).config as AISecurityConfig;
+          (currentConfig as any)[configKey] = body.enabled;
+
+          logger.info({ policyId: id, enabled: body.enabled }, 'Security policy updated');
+        }
+
+        return reply.send({
+          data: { id, updated: true },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to update security policy');
+        return handleError(reply, new OrionError('POLICY_UPDATE_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  /**
+   * DELETE /api/v1/ai/security/policies/:id
+   * Disable a security policy (soft delete - sets enabled to false)
+   */
+  app.delete(
+    '/policies/:id',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        const validPolicies = ['input-sanitization', 'execution-sandbox', 'output-validation', 'audit-logging'];
+        if (!validPolicies.includes(id)) {
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
+        }
+
+        const configKeyMap: Record<string, keyof AISecurityConfig> = {
+          'input-sanitization': 'enableInputSanitization',
+          'execution-sandbox': 'enableSandbox',
+          'output-validation': 'enableOutputValidation',
+          'audit-logging': 'enableAuditLog',
+        };
+
+        const configKey = configKeyMap[id];
+        const currentConfig = (service as any).config as AISecurityConfig;
+        (currentConfig as any)[configKey] = false;
+
+        logger.info({ policyId: id }, 'Security policy disabled');
+
+        return reply.send({
+          data: { id, disabled: true },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to disable security policy');
+        return handleError(reply, new OrionError('POLICY_DELETE_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  // ==================== Alerts ====================
+
+  /**
+   * GET /api/v1/ai/security/alerts
+   * List security alerts (security violation audit logs)
+   */
+  app.get(
+    '/alerts',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as {
+          userId?: string;
+          startTime?: string;
+          endTime?: string;
+        };
+
+        // Get only security violation events as "alerts"
+        const logs = await service.getAuditLogsAsync({
+          action: 'security_violation',
+          userId: query.userId,
+          startTime: query.startTime ? new Date(query.startTime) : undefined,
+          endTime: query.endTime ? new Date(query.endTime) : undefined,
+        });
+
+        const alerts = logs.map((log) => ({
+          id: log.id,
+          timestamp: log.timestamp,
+          userId: log.userId,
+          sessionId: log.sessionId,
+          riskScore: log.details.riskScore,
+          violations: log.details.violations,
+        }));
+
+        return reply.send({
+          data: alerts,
+          meta: { total: alerts.length },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to list security alerts');
+        return handleError(reply, new OrionError('ALERTS_LIST_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
+
+  /**
+   * GET /api/v1/ai/security/alerts/:id
+   * Get a specific security alert by ID
+   */
+  app.get(
+    '/alerts/:id',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-security', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+
+        const logs = await service.getAuditLogsAsync({
+          action: 'security_violation',
+        });
+
+        const alert = logs.find((log) => log.id === id);
+        if (!alert) {
+          return handleError(reply, new NotFoundError('NOT_FOUND'))
+        }
+
+        return reply.send({
+          data: {
+            id: alert.id,
+            timestamp: alert.timestamp,
+            userId: alert.userId,
+            sessionId: alert.sessionId,
+            riskScore: alert.details.riskScore,
+            violations: alert.details.violations,
+          },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get security alert');
+        return handleError(reply, new OrionError('ALERT_DETAIL_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
 }

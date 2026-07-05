@@ -4,11 +4,12 @@
  * Phase 2: 支持多级串行/并行审批、审批链查询、待办列表等高级功能。
  * 基于现有的 ApprovalRepository 进行扩展。
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('approval-multilevel');
 
 export enum ApprovalAction {
   APPROVE = 'approve',
@@ -134,15 +135,15 @@ export class MultiLevelApprovalService {
     comment?: string,
   ): Promise<ApprovalRequestDetail> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new Error(`Approval request not found: ${requestId}`);
-    if (entity.status !== 'pending') throw new Error(`Approval request is not pending (current status: ${entity.status})`);
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
+    if (entity.status !== 'pending') throw new OrionError(`Approval request is not pending (current status: ${entity.status})`, ErrorCode.NOT_FOUND);
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const matchingStep = steps.find(s => s.approverId === reviewerId && (s.status === 'pending' || s.status === 'waiting'));
-    if (!matchingStep) throw new Error('Not authorized to review this request');
+    if (!matchingStep) throw new OrionError('Not authorized to review this request', ErrorCode.OPERATION_FAILED);
 
     if (matchingStep.status === 'waiting') {
-      throw new Error('This step is waiting for previous level to complete');
+      throw new OrionError('This step is waiting for previous level to complete', ErrorCode.OPERATION_FAILED);
     }
 
     // Update the step status
@@ -185,7 +186,7 @@ export class MultiLevelApprovalService {
    */
   async getApprovalChain(requestId: string): Promise<ApprovalChainInfo> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new Error(`Approval request not found: ${requestId}`);
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const levels = this.extractLevels(steps);

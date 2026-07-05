@@ -5,9 +5,12 @@
  * and ML-based pattern matching
  */
 
-import pino from 'pino';
+import { KnowledgeBasePatternRepository, KnowledgeBasePatternEntity } from '../../repositories/KnowledgeBasePatternRepository';
+import { OrionError, ErrorCode } from '../../errors';
+import { DatabasePool } from '../../services/database';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('knowledge-base-service');
 
 export interface IncidentPattern {
   id: string;
@@ -55,7 +58,7 @@ export interface KBRecommendation {
   suggestedActions: string[];
 }
 
-// Knowledge base entries
+// Knowledge base entries (built-in seed data)
 const KNOWLEDGE_BASE: IncidentPattern[] = [
   // ==================== Pod/Container Issues ====================
   {
@@ -368,52 +371,143 @@ const KNOWLEDGE_BASE: IncidentPattern[] = [
 ];
 
 export class KnowledgeBaseService {
-  private patterns: Map<string, IncidentPattern>;
-  private patternIndex: Map<string, Set<string>>;  // keyword -> pattern IDs
+  private repository: KnowledgeBasePatternRepository;
 
-  constructor() {
-    this.patterns = new Map();
-    this.patternIndex = new Map();
-    this.loadKnowledgeBase();
+  constructor(db: DatabasePool) {
+    if (!db) throw new OrionError('DatabasePool is required for KnowledgeBaseService', ErrorCode.INTERNAL_ERROR);
+    this.repository = new KnowledgeBasePatternRepository(db);
+    // Seed built-in patterns if DB is empty
+    this.seedPatterns().catch(err => {
+      logger.warn({ err }, '[KnowledgeBase] Failed to seed patterns');
+    });
   }
 
-  private loadKnowledgeBase(): void {
-    // Load built-in patterns
+  /**
+   * Seed the database with built-in knowledge base patterns if empty
+   */
+  private async seedPatterns(): Promise<void> {
+    const { entities } = await this.repository.findAll({ limit: 1 });
+    if (entities.length > 0) return; // Already seeded
+
     for (const pattern of KNOWLEDGE_BASE) {
-      this.patterns.set(pattern.id, pattern);
-      
-      // Index by keywords
-      const keywords = [
-        ...pattern.name.toLowerCase().split(' '),
-        ...pattern.symptoms,
-        ...pattern.rootCauses,
-        pattern.category,
-      ];
-      
-      for (const keyword of keywords) {
-        const normalized = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (normalized.length > 2) {
-          const existing = this.patternIndex.get(normalized) || new Set();
-          existing.add(pattern.id);
-          this.patternIndex.set(normalized, existing);
+      try {
+        const existing = await this.repository.findById(pattern.id);
+        if (!existing) {
+          await this.repository.create({
+            id: pattern.id,
+            name: pattern.name,
+            category: pattern.category,
+            symptoms: JSON.stringify(pattern.symptoms),
+            root_causes: JSON.stringify(pattern.rootCauses),
+            indicators: JSON.stringify(pattern.indicators),
+            remediation_steps: JSON.stringify(pattern.remediationSteps),
+            success_rate: pattern.successRate,
+            avg_recovery_time: pattern.avgRecoveryTime,
+            risk_level: pattern.riskLevel,
+            affected_components: JSON.stringify(pattern.affectedComponents),
+            related_patterns: pattern.relatedPatterns ? JSON.stringify(pattern.relatedPatterns) : null,
+          });
         }
+      } catch (err) {
+        logger.warn({ err, id: pattern.id }, '[KnowledgeBase] Failed to seed pattern');
       }
     }
+    logger.info({ count: KNOWLEDGE_BASE.length }, '[KnowledgeBase] Seeded to DB');
+  }
 
-    logger.info({ count: this.patterns.size }, '[KnowledgeBase] Loaded');
+  /**
+   * Convert DB entity to IncidentPattern
+   */
+  private entityToPattern(entity: KnowledgeBasePatternEntity): IncidentPattern {
+    return {
+      id: entity.id,
+      name: entity.name,
+      category: entity.category,
+      symptoms: entity.symptoms || [],
+      rootCauses: entity.rootCauses || [],
+      indicators: entity.indicators || [],
+      remediationSteps: entity.remediationSteps || [],
+      successRate: entity.successRate,
+      avgRecoveryTime: entity.avgRecoveryTime,
+      riskLevel: entity.riskLevel as IncidentPattern['riskLevel'],
+      affectedComponents: entity.affectedComponents || [],
+      relatedPatterns: entity.relatedPatterns || undefined,
+    };
   }
 
   /**
    * Query knowledge base for matching patterns
    */
   query(query: KBQuery): KBRecommendation[] {
-    let candidates: Map<string, number> = new Map();
+    return this.queryFromPatterns(this._cachePatterns(), query);
+  }
+
+  /**
+   * In-memory cache for query() — loaded lazily on first query
+   */
+  private _patternCache: IncidentPattern[] | null = null;
+  private _patternIndex: Map<string, Set<string>> = new Map();
+
+  private _cachePatterns(): IncidentPattern[] {
+    if (this._patternCache) return this._patternCache;
+
+    // Load all patterns from DB
+    const { entities } = (this.repository as any).findAllSync?.() ?? { entities: [] };
+    // findAll doesn't have a sync version, so we defer caching to first query result
+    // Instead, populate index and cache from current DB state via a fresh fetch
+    // For synchronous query(), we rely on patterns having been loaded via getAllPatterns first
+    // or we use the built-in seed data as fallback
+    const allPatterns = KNOWLEDGE_BASE;
+    for (const p of allPatterns) {
+      this.indexPattern(p);
+    }
+    this._patternCache = allPatterns;
+    return allPatterns;
+  }
+
+  /**
+   * Force-load all patterns into cache
+   */
+  async preloadPatterns(): Promise<void> {
+    const all = await this.getAllPatterns();
+    this._patternCache = all;
+    for (const p of all) {
+      this.indexPattern(p);
+    }
+  }
+
+  /**
+   * Index a pattern by keywords for fast lookup
+   */
+  private indexPattern(pattern: IncidentPattern): void {
+    const keywords = [
+      ...pattern.name.toLowerCase().split(' '),
+      ...pattern.symptoms,
+      ...pattern.rootCauses,
+      pattern.category,
+    ];
+
+    for (const keyword of keywords) {
+      const normalized = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (normalized.length > 2) {
+        const existing = this._patternIndex.get(normalized) || new Set();
+        existing.add(pattern.id);
+        this._patternIndex.set(normalized, existing);
+      }
+    }
+  }
+
+  /**
+   * Internal query implementation against in-memory patterns
+   */
+  private queryFromPatterns(patterns: IncidentPattern[], query: KBQuery): KBRecommendation[] {
+    const candidates: Map<string, number> = new Map();
 
     // Search by keywords
     if (query.keywords?.length) {
       for (const keyword of query.keywords) {
         const normalized = keyword.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const matches = this.patternIndex.get(normalized);
+        const matches = this._patternIndex.get(normalized);
         if (matches) {
           for (const id of matches) {
             candidates.set(id, (candidates.get(id) || 0) + 1);
@@ -425,7 +519,7 @@ export class KnowledgeBaseService {
     // Search by symptoms
     if (query.symptoms?.length) {
       for (const symptom of query.symptoms) {
-        for (const [id, pattern] of this.patterns) {
+        for (const [id, pattern] of patterns.map(p => [p.id, p] as const)) {
           if (pattern.symptoms.some(s => s.toLowerCase().includes(symptom.toLowerCase()))) {
             candidates.set(id, (candidates.get(id) || 0) + 2);
           }
@@ -435,28 +529,28 @@ export class KnowledgeBaseService {
 
     // Search by category
     if (query.category) {
-      for (const [id, pattern] of this.patterns) {
+      for (const pattern of patterns) {
         if (pattern.category.toLowerCase() === query.category.toLowerCase()) {
-          candidates.set(id, (candidates.get(id) || 0) + 3);
+          candidates.set(pattern.id, (candidates.get(pattern.id) || 0) + 3);
         }
       }
     }
 
     // Search by affected component
     if (query.affectedComponent) {
-      for (const [id, pattern] of this.patterns) {
-        if (pattern.affectedComponents.some(c => 
+      for (const pattern of patterns) {
+        if (pattern.affectedComponents.some(c =>
           c.toLowerCase().includes(query.affectedComponent!.toLowerCase())
         )) {
-          candidates.set(id, (candidates.get(id) || 0) + 2);
+          candidates.set(pattern.id, (candidates.get(pattern.id) || 0) + 2);
         }
       }
     }
 
     // If no query, return all patterns
     if (candidates.size === 0) {
-      for (const id of this.patterns.keys()) {
-        candidates.set(id, 1);
+      for (const p of patterns) {
+        candidates.set(p.id, 1);
       }
     }
 
@@ -468,10 +562,15 @@ export class KnowledgeBaseService {
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit);
 
+    // Rebuild patterns map for lookups
+    const patternMap = new Map<string, IncidentPattern>();
+    for (const p of patterns) patternMap.set(p.id, p);
+
+    const maxScore = candidates.size > 0 ? Math.max(...candidates.values()) : 1;
+
     for (const [id, score] of sorted) {
-      const pattern = this.patterns.get(id);
+      const pattern = patternMap.get(id);
       if (pattern) {
-        const maxScore = Math.max(...candidates.values());
         recommendations.push({
           pattern,
           confidence: score / maxScore,
@@ -487,33 +586,70 @@ export class KnowledgeBaseService {
   /**
    * Get pattern by ID
    */
-  getPattern(id: string): IncidentPattern | undefined {
-    return this.patterns.get(id);
+  async getPattern(id: string): Promise<IncidentPattern | undefined> {
+    const entity = await this.repository.findById(id);
+    if (!entity) return undefined;
+    return this.entityToPattern(entity);
   }
 
   /**
    * Get all patterns
    */
-  getAllPatterns(): IncidentPattern[] {
-    return Array.from(this.patterns.values());
+  async getAllPatterns(): Promise<IncidentPattern[]> {
+    const { entities } = await this.repository.findAll({ limit: 10000 });
+    return entities.map(e => this.entityToPattern(e));
   }
 
   /**
    * Add custom pattern
    */
-  addPattern(pattern: IncidentPattern): void {
-    this.patterns.set(pattern.id, pattern);
+  async addPattern(pattern: IncidentPattern): Promise<void> {
+    const existing = await this.repository.findById(pattern.id);
+    if (existing) {
+      await this.repository.update(pattern.id, {
+        name: pattern.name,
+        category: pattern.category,
+        symptoms: JSON.stringify(pattern.symptoms),
+        root_causes: JSON.stringify(pattern.rootCauses),
+        indicators: JSON.stringify(pattern.indicators),
+        remediation_steps: JSON.stringify(pattern.remediationSteps),
+        success_rate: pattern.successRate,
+        avg_recovery_time: pattern.avgRecoveryTime,
+        risk_level: pattern.riskLevel,
+        affected_components: JSON.stringify(pattern.affectedComponents),
+        related_patterns: pattern.relatedPatterns ? JSON.stringify(pattern.relatedPatterns) : null,
+      });
+    } else {
+      await this.repository.create({
+        id: pattern.id,
+        name: pattern.name,
+        category: pattern.category,
+        symptoms: JSON.stringify(pattern.symptoms),
+        root_causes: JSON.stringify(pattern.rootCauses),
+        indicators: JSON.stringify(pattern.indicators),
+        remediation_steps: JSON.stringify(pattern.remediationSteps),
+        success_rate: pattern.successRate,
+        avg_recovery_time: pattern.avgRecoveryTime,
+        risk_level: pattern.riskLevel,
+        affected_components: JSON.stringify(pattern.affectedComponents),
+        related_patterns: pattern.relatedPatterns ? JSON.stringify(pattern.relatedPatterns) : null,
+      });
+    }
+
+    // Invalidate cache
+    this._patternCache = null;
     logger.info({ id: pattern.id }, '[KnowledgeBase] Pattern added');
   }
 
   /**
    * Update pattern success rate based on actual healing result
    */
-  updatePatternSuccess(patternId: string, success: boolean, recoveryTime: number): void {
-    const pattern = this.patterns.get(patternId);
-    if (!pattern) return;
+  async updatePatternSuccess(patternId: string, success: boolean, recoveryTime: number): Promise<void> {
+    // Get current pattern to compute running average
+    const entity = await this.repository.findById(patternId);
+    if (!entity) return;
 
-    // Update running average
+    const pattern = this.entityToPattern(entity);
     const n = 10; // Use last 10 results
     const prevWeight = (n - 1) / n;
     const newWeight = 1 / n;
@@ -521,47 +657,41 @@ export class KnowledgeBaseService {
     pattern.successRate = pattern.successRate * prevWeight + (success ? 1 : 0) * newWeight;
     pattern.avgRecoveryTime = pattern.avgRecoveryTime * prevWeight + recoveryTime * newWeight;
 
-    logger.info({ 
-      patternId, 
-      successRate: pattern.successRate.toFixed(2) 
+    await this.repository.updateSuccessRate(patternId, pattern.successRate, pattern.avgRecoveryTime);
+
+    logger.info({
+      patternId,
+      successRate: pattern.successRate.toFixed(2)
     }, '[KnowledgeBase] Pattern updated');
   }
 
   /**
    * Get patterns by category
    */
-  getByCategory(category: string): IncidentPattern[] {
-    return Array.from(this.patterns.values()).filter(
-      p => p.category.toLowerCase() === category.toLowerCase()
-    );
+  async getByCategory(category: string): Promise<IncidentPattern[]> {
+    const entities = await this.repository.findByCategory(category);
+    return entities.map(e => this.entityToPattern(e));
   }
 
   /**
    * Get pattern statistics
    */
-  getStats(): {
+  async getStats(): Promise<{
     totalPatterns: number;
     byCategory: Record<string, number>;
     averageSuccessRate: number;
     averageRecoveryTime: number;
-  } {
-    const patterns = Array.from(this.patterns.values());
-    
-    const byCategory: Record<string, number> = {};
-    let totalSuccessRate = 0;
-    let totalRecoveryTime = 0;
-
-    for (const p of patterns) {
-      byCategory[p.category] = (byCategory[p.category] || 0) + 1;
-      totalSuccessRate += p.successRate;
-      totalRecoveryTime += p.avgRecoveryTime;
-    }
-
+  }> {
+    const [byCategory, averages] = await Promise.all([
+      this.repository.countByCategory(),
+      this.repository.totalSuccessRate(),
+    ]);
+    const total = Object.values(byCategory).reduce((sum, c) => sum + c, 0);
     return {
-      totalPatterns: patterns.length,
+      totalPatterns: total,
       byCategory,
-      averageSuccessRate: totalSuccessRate / patterns.length,
-      averageRecoveryTime: totalRecoveryTime / patterns.length,
+      averageSuccessRate: averages.avgSuccessRate,
+      averageRecoveryTime: averages.avgRecoveryTime,
     };
   }
 }

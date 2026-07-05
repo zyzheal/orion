@@ -21,7 +21,7 @@ vi.mock('dayjs', async () => {
 // Mock API - fail so component shows empty/error state
 vi.mock('@/api/deployments', () => ({
   getDeployment: vi.fn().mockRejectedValue(new Error('Network error')),
-  getDeploymentHistory: vi.fn().mockResolvedValue({ data: { data: [] } }),
+  getDeploymentHistory: vi.fn().mockResolvedValue({ data: [] }),
 }));
 
 // Mock window.location

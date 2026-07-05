@@ -8,12 +8,17 @@
  * 4. 当 successRate > 50% 时恢复正常状态
  * 5. 发送 recovery:success 和 recovery:failed 事件
  * 6. 跟踪整体成功率（目标 >80%）
+ *
+ * 数据存储：PostgreSQL（通过 AutoRecoveryRecordRepository + DegradedStateRepository）
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
+import { AutoRecoveryRecordRepository } from '../../repositories/AutoRecoveryRecordRepository';
+import { DegradedStateRepository } from '../../repositories/DegradedStateRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AutoRecoveryService');
 
 export interface AutoRecoveryConfig {
   recoveryCheckInterval: number;   // 检查间隔，默认 30 秒
@@ -47,14 +52,18 @@ const DEFAULT_CONFIG: AutoRecoveryConfig = {
 
 export class AutoRecoveryService extends EventEmitter {
   private config: AutoRecoveryConfig;
-  private recoveryAttempts: Map<string, RecoveryAttempt[]> = new Map();
-  private degradedProviders: Map<string, Date> = new Map();
-  private providerSuccessRates: Map<string, number> = new Map();
   private timer?: NodeJS.Timeout;
+  private repository: AutoRecoveryRecordRepository;
+  private degradedStateRepository: DegradedStateRepository;
 
-  constructor(config: Partial<AutoRecoveryConfig> = {}) {
+  constructor(
+    config: Partial<AutoRecoveryConfig> = {},
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.repository = new AutoRecoveryRecordRepository(db);
+    this.degradedStateRepository = new DegradedStateRepository(db);
   }
 
   /**
@@ -77,12 +86,15 @@ export class AutoRecoveryService extends EventEmitter {
    * 检查恢复候选
    */
   async checkRecoveryCandidates(): Promise<void> {
-    for (const [providerId, degradedAt] of this.degradedProviders) {
-      const elapsed = Date.now() - degradedAt.getTime();
+    const degradedStates = await this.degradedStateRepository.findAllDegraded();
+    const now = Date.now();
+
+    for (const state of degradedStates) {
+      const elapsed = now - state.degradedAt.getTime();
 
       if (elapsed >= this.config.minRecoveryTime) {
-        logger.debug('[AutoRecovery] Provider %s eligible for recovery (elapsed: %dms)', providerId, elapsed);
-        await this.attemptRecovery(providerId);
+        logger.debug('[AutoRecovery] Provider %s eligible for recovery (elapsed: %dms)', state.providerId, elapsed);
+        await this.attemptRecovery(state.providerId);
       }
     }
   }
@@ -91,11 +103,10 @@ export class AutoRecoveryService extends EventEmitter {
    * 尝试恢复
    */
   async attemptRecovery(providerId: string): Promise<{ attempted: boolean; success: boolean }> {
-    const attempts = this.recoveryAttempts.get(providerId) || [];
-
     // 检查最大尝试次数
-    if (attempts.length >= this.config.maxRecoveryAttempts) {
-      logger.warn('[AutoRecovery] Max attempts reached for: %s (attempts: %d)', providerId, attempts.length);
+    const stats = await this.repository.getAttemptStats(providerId);
+    if (stats.attemptCount >= this.config.maxRecoveryAttempts) {
+      logger.warn('[AutoRecovery] Max attempts reached for: %s (attempts: %d)', providerId, stats.attemptCount);
       return { attempted: false, success: false };
     }
 
@@ -103,24 +114,32 @@ export class AutoRecoveryService extends EventEmitter {
     const successRate = await this.probeProvider(providerId);
     const success = successRate >= this.config.successThreshold;
 
-    const attempt: RecoveryAttempt = {
-      providerId,
-      attemptedAt: new Date(),
+    // Persist attempt to repository
+    await this.repository.create({
+      id: uuidv4(),
+      provider_id: providerId,
+      attempted_at: new Date(),
       success,
-      successRate,
-    };
-
-    attempts.push(attempt);
-    this.recoveryAttempts.set(providerId, attempts);
-    this.providerSuccessRates.set(providerId, successRate);
+      success_rate: successRate,
+      degraded_at: null,
+      recovered_at: success ? new Date() : null,
+      tenant_id: null,
+    });
 
     if (success) {
       // 从降级列表中移除
-      this.degradedProviders.delete(providerId);
-      this.emit('recovery:success', { providerId, attempt, successRate });
+      await this.degradedStateRepository.removeByProviderId(providerId);
+
+      this.emit('recovery:success', { providerId, successRate });
       logger.info('[AutoRecovery] Provider recovered: %s (successRate: %.2f)', providerId, successRate);
     } else {
-      this.emit('recovery:failed', { providerId, attempt, successRate });
+      // Update success rate in degraded state
+      const degradedState = await this.degradedStateRepository.findByProviderId(providerId);
+      if (degradedState) {
+        await this.degradedStateRepository.upsert(providerId, degradedState.degradedAt, successRate);
+      }
+
+      this.emit('recovery:failed', { providerId, successRate });
       logger.warn('[AutoRecovery] Recovery failed for: %s (successRate: %.2f, threshold: %.2f)',
         providerId, successRate, this.config.successThreshold);
     }
@@ -139,10 +158,9 @@ export class AutoRecoveryService extends EventEmitter {
     // 3. 返回成功率
 
     // 模拟实现：基于历史数据或默认值
-    const recentRequests = this.getRecentRequestStats(providerId);
-
-    if (recentRequests.total > 0) {
-      return recentRequests.successes / recentRequests.total;
+    const degradedState = await this.degradedStateRepository.findByProviderId(providerId);
+    if (degradedState?.lastSuccessRate !== null && degradedState?.lastSuccessRate !== undefined) {
+      return degradedState.lastSuccessRate;
     }
 
     // 默认返回 60% 成功率（模拟探测结果）
@@ -151,81 +169,68 @@ export class AutoRecoveryService extends EventEmitter {
   }
 
   /**
-   * 获取最近请求统计（占位实现）
-   */
-  private getRecentRequestStats(providerId: string): { total: number; successes: number } {
-    // 在生产环境中从请求日志或监控数据获取
-    // 占位实现返回模拟数据
-    const existingRate = this.providerSuccessRates.get(providerId);
-    if (existingRate !== undefined) {
-      return { total: 10, successes: Math.round(10 * existingRate) };
-    }
-    return { total: 0, successes: 0 };
-  }
-
-  /**
    * 标记 Provider 为降级状态
    */
-  markDegraded(providerId: string): void {
+  async markDegraded(providerId: string): Promise<void> {
     const now = new Date();
-    this.degradedProviders.set(providerId, now);
+    await this.degradedStateRepository.upsert(providerId, now);
+
     logger.info('[AutoRecovery] Provider marked degraded: %s at %s', providerId, now.toISOString());
   }
 
   /**
    * 获取恢复统计
    */
-  getRecoveryStats(providerId: string): RecoveryStats {
-    const attempts = this.recoveryAttempts.get(providerId) || [];
-    const successes = attempts.filter(a => a.success);
-    const failures = attempts.filter(a => !a.success);
+  async getRecoveryStats(providerId: string): Promise<RecoveryStats> {
+    const stats = await this.repository.getAttemptStats(providerId);
 
     return {
       providerId,
-      attemptCount: attempts.length,
-      successCount: successes.length,
-      failureCount: failures.length,
-      lastAttempt: attempts.length > 0 ? attempts[attempts.length - 1].attemptedAt : undefined,
-      lastSuccess: successes.length > 0 ? successes[successes.length - 1].attemptedAt : undefined,
+      attemptCount: stats.attemptCount,
+      successCount: stats.successCount,
+      failureCount: stats.failureCount,
+      lastAttempt: stats.lastAttemptAt ?? undefined,
+      lastSuccess: stats.lastSuccessAt ?? undefined,
     };
   }
 
   /**
    * 获取整体成功率
    */
-  getOverallSuccessRate(): number {
-    const allAttempts = Array.from(this.recoveryAttempts.values()).flat();
-    const successes = allAttempts.filter(a => a.success);
+  async getOverallSuccessRate(): Promise<number> {
+    const stats = await this.repository.getOverallStats();
 
-    if (allAttempts.length === 0) {
+    if (stats.totalAttempts === 0) {
       return 0;
     }
 
-    const rate = successes.length / allAttempts.length;
-    logger.debug('[AutoRecovery] Overall success rate: %.2f (%d/%d)', rate, successes.length, allAttempts.length);
+    const rate = stats.totalSuccesses / stats.totalAttempts;
+    logger.debug('[AutoRecovery] Overall success rate: %.2f (%d/%d)', rate, stats.totalSuccesses, stats.totalAttempts);
     return rate;
   }
 
   /**
    * 获取所有降级的 Provider
    */
-  getDegradedProviders(): string[] {
-    return Array.from(this.degradedProviders.keys());
+  async getDegradedProviders(): Promise<string[]> {
+    const states = await this.degradedStateRepository.findAllDegraded();
+    return states.map(s => s.providerId);
   }
 
   /**
    * 手动清除降级状态
    */
-  clearDegraded(providerId: string): void {
-    this.degradedProviders.delete(providerId);
+  async clearDegraded(providerId: string): Promise<void> {
+    await this.degradedStateRepository.removeByProviderId(providerId);
+
     logger.info('[AutoRecovery] Provider cleared from degraded list: %s', providerId);
   }
 
   /**
    * 重置 Provider 的恢复尝试计数
    */
-  resetAttempts(providerId: string): void {
-    this.recoveryAttempts.delete(providerId);
+  async resetAttempts(providerId: string): Promise<void> {
+    await this.repository.deleteByProviderId(providerId);
     logger.info('[AutoRecovery] Attempts reset for: %s', providerId);
   }
 
@@ -243,8 +248,11 @@ export class AutoRecoveryService extends EventEmitter {
   /**
    * 更新 Provider 成功率（供外部调用）
    */
-  updateProviderSuccessRate(providerId: string, rate: number): void {
-    this.providerSuccessRates.set(providerId, rate);
+  async updateProviderSuccessRate(providerId: string, rate: number): Promise<void> {
+    const existing = await this.degradedStateRepository.findByProviderId(providerId);
+    if (existing) {
+      await this.degradedStateRepository.upsert(providerId, existing.degradedAt, rate);
+    }
   }
 
   /**
@@ -257,18 +265,20 @@ export class AutoRecoveryService extends EventEmitter {
   /**
    * 获取所有 Provider 的恢复统计摘要
    */
-  getAllStats(): {
+  async getAllStats(): Promise<{
     totalProviders: number;
     degradedProviders: number;
     overallSuccessRate: number;
     providers: RecoveryStats[];
-  } {
-    const providers = Array.from(this.recoveryAttempts.keys()).map(id => this.getRecoveryStats(id));
+  }> {
+    const providerIds = await this.repository.getDistinctProviderIds();
+    const degradedStates = await this.degradedStateRepository.findAllDegraded();
+    const providers = await Promise.all(providerIds.map(id => this.getRecoveryStats(id)));
 
     return {
-      totalProviders: this.recoveryAttempts.size,
-      degradedProviders: this.degradedProviders.size,
-      overallSuccessRate: this.getOverallSuccessRate(),
+      totalProviders: providerIds.length,
+      degradedProviders: degradedStates.length,
+      overallSuccessRate: await this.getOverallSuccessRate(),
       providers,
     };
   }

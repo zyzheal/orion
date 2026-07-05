@@ -68,7 +68,7 @@ describe('ApprovalGateService', () => {
 
   beforeEach(() => {
     mockRepo = createMockRepository();
-    service = new ApprovalGateService({ repository: mockRepo.repository });
+    service = new ApprovalGateService(mockRepo.repository);
   });
 
   describe('requestApproval', () => {
@@ -96,7 +96,7 @@ describe('ApprovalGateService', () => {
         approvers: ['user1'],
       });
 
-      expect(result.tenantId).toBe('default');
+      expect(result.tenantId).toBe('__system__');
     });
   });
 

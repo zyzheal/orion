@@ -25,7 +25,6 @@ import { arrayMove } from '@dnd-kit/sortable';
 import { Stack } from '@mui/material';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RagErrorReStart from '../component/RagErrorReStart';
-import DocPageHeader from './DocPageHeader';
 import DocPageList from './DocPageList';
 import DocPageNavs from './DocPageNavs';
 
@@ -39,16 +38,16 @@ const Content = () => {
   const [searchParams] = useURLSearchParams();
   const search = searchParams.get('search') || '';
 
-  const [publishOpen, setPublishOpen] = useState(false);
-  const [publishIds, setPublishIds] = useState<string[]>([]);
-  const [ragOpen, setRagOpen] = useState(false);
-  const [ragIds, setRagIds] = useState<string[]>([]);
   const [groups, setGroups] = useState<
     GithubComOrionPlatformOrionKnowledgeApiNodeV1NodeListGroupNavResp[]
   >([]);
   const [navList, setNavList] = useState<V1NavListResp[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishIds, setPublishIds] = useState<string[]>([]);
+  const [ragOpen, setRagOpen] = useState(false);
+  const [ragIds, setRagIds] = useState<string[]>([]);
 
   const getData = useCallback(() => {
     if (!kb_id) {
@@ -87,10 +86,8 @@ const Content = () => {
       .finally(() => setLoading(false));
   }, [search, kb_id, dispatch]);
 
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const refresh = useCallback(() => {
     getData();
-    setRefreshTrigger(t => t + 1);
   }, [getData]);
 
   const currentKb = useMemo(() => {
@@ -231,76 +228,65 @@ const Content = () => {
 
   return (
     <>
-      <DocPageHeader
-        onPublishClick={() => {
-          setPublishIds([]);
-          setPublishOpen(true);
-        }}
-        onRagClick={() => {
-          setRagIds([]);
-          setRagOpen(true);
-        }}
-        refreshTrigger={refreshTrigger}
-      />
       <DndContext
-        sensors={sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleLayoutDragStart}
-        onDragMove={handleLayoutDragMove}
-        onDragOver={handleLayoutDragOver}
-        onDragEnd={handleLayoutDragEnd}
-        onDragCancel={handleLayoutDragCancel}
-      >
-        <Stack direction={'row'} sx={{ mt: 2 }}>
-          <DocPageNavs
-            navList={navList}
-            onNavListChange={setNavList}
-            onNavDeleted={navId => {
-              setGroups(prev => prev.filter(g => g.nav_id !== navId));
-            }}
-            refresh={refresh}
-            isSearching={!!search}
-            loading={loading && !hasLoadedOnce}
-          />
-          <DocPageList
-            groups={groups}
-            nav_id={nav_id}
-            search={search}
-            refresh={refresh}
-            wikiUrl={wikiUrl}
-            loading={loading && !hasLoadedOnce}
-            onPublishOpen={ids => {
-              setPublishIds(ids ?? []);
-              setPublishOpen(true);
-            }}
-            onRagOpen={ids => {
-              setRagIds(ids ?? []);
-              setRagOpen(true);
-            }}
-            registerTreeDragHandlers={handlers => {
-              treeDragHandlersRef.current = handlers;
-            }}
-          />
-        </Stack>
-      </DndContext>
-      <VersionPublish
-        open={publishOpen}
-        defaultSelected={publishIds}
-        onClose={() => {
-          setPublishOpen(false);
-          setPublishIds([]);
-        }}
-        refresh={refresh}
-      />
-      <RagErrorReStart
-        open={ragOpen}
-        defaultSelected={ragIds}
-        onClose={() => {
-          setRagOpen(false);
-          setRagIds([]);
-        }}
-        refresh={refresh}
-      />
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={handleLayoutDragStart}
+      onDragMove={handleLayoutDragMove}
+      onDragOver={handleLayoutDragOver}
+      onDragEnd={handleLayoutDragEnd}
+      onDragCancel={handleLayoutDragCancel}
+    >
+      <Stack direction={'row'} sx={{ mt: 2 }}>
+        <DocPageNavs
+          navList={navList}
+          onNavListChange={setNavList}
+          onNavDeleted={navId => {
+            setGroups(prev => prev.filter(g => g.nav_id !== navId));
+          }}
+          refresh={refresh}
+          isSearching={!!search}
+          loading={loading && !hasLoadedOnce}
+        />
+        <DocPageList
+          groups={groups}
+          nav_id={nav_id}
+          search={search}
+          refresh={refresh}
+          wikiUrl={wikiUrl}
+          loading={loading && !hasLoadedOnce}
+          onPublishOpen={ids => {
+            setPublishIds(ids ?? []);
+            setPublishOpen(true);
+          }}
+          onRagOpen={ids => {
+            setRagIds(ids ?? []);
+            setRagOpen(true);
+          }}
+          registerTreeDragHandlers={handlers => {
+            treeDragHandlersRef.current = handlers;
+          }}
+        />
+      </Stack>
+    </DndContext>
+    <VersionPublish
+      open={publishOpen}
+      defaultSelected={publishIds}
+      onClose={() => {
+        setPublishOpen(false);
+        setPublishIds([]);
+      }}
+      refresh={refresh}
+    />
+    <RagErrorReStart
+      open={ragOpen}
+      defaultSelected={ragIds}
+      onClose={() => {
+        setRagOpen(false);
+        setRagIds([]);
+      }}
+      refresh={refresh}
+    />
     </>
   );
 };

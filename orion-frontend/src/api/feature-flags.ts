@@ -54,34 +54,34 @@ export interface FeatureFlagStats {
 }
 
 export async function getFeatureFlags(params?: { tenantId?: string; enabled?: boolean }) {
-  return api.get<FeatureFlag[]>('/v1/feature-flags', { params });
+  return api.get<FeatureFlag[]>('/api/v1/feature-flags', { params });
 }
 
 export async function createFeatureFlag(
   data: Omit<FeatureFlag, 'id' | 'createdAt' | 'updatedAt' | 'evaluationCount'>
 ) {
-  return api.post<FeatureFlag>('/v1/feature-flags', data);
+  return api.post<FeatureFlag>('/api/v1/feature-flags', data);
 }
 
 export async function updateFeatureFlag(id: string, data: Partial<FeatureFlag>) {
-  return api.put<FeatureFlag>(`/v1/feature-flags/${id}`, data);
+  return api.put<FeatureFlag>(`/api/v1/feature-flags/${id}`, data);
 }
 
 export async function deleteFeatureFlag(id: string) {
-  return api.delete<void>(`/v1/feature-flags/${id}`);
+  return api.delete<void>(`/api/v1/feature-flags/${id}`);
 }
 
 export async function toggleFeatureFlag(id: string, enabled: boolean) {
-  return api.post<FeatureFlag>(`/v1/feature-flags/${id}/toggle`, { enabled });
+  return api.post<FeatureFlag>(`/api/v1/feature-flags/${id}/toggle`, { enabled });
 }
 
 export async function evaluateFeatureFlag(
   id: string,
   context: { tenantId?: string; userId?: string; userGroups?: string[] }
 ) {
-  return api.post<FlagEvaluationResult>(`/v1/feature-flags/${id}/evaluate`, context);
+  return api.post<FlagEvaluationResult>(`/api/v1/feature-flags/${id}/evaluate`, context);
 }
 
 export async function getFeatureFlagStats() {
-  return api.get<FeatureFlagStats>('/v1/feature-flags/stats');
+  return api.get<FeatureFlagStats>('/api/v1/feature-flags/stats');
 }

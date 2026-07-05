@@ -7,6 +7,10 @@
 import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
 import { SSEConnectionManager, SSEConnection } from '../chatops/SSEConnectionManager';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LPipeline-LLog-LS-LS-LE-LService');
 
 export interface PipelineLogEvent {
   pipelineId: string;
@@ -54,9 +58,12 @@ export class PipelineLogSSEService {
     'pipeline.step_end',
   ];
 
-  constructor(localBus: EventEmitter) {
+  constructor(
+    localBus: EventEmitter,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
     this.localBus = localBus;
-    this.sseManager = new SSEConnectionManager(localBus);
+    this.sseManager = new SSEConnectionManager(localBus, db);
 
     // 监听 Pipeline 事件并广播到 SSE 客户端
     this.setupEventForwarding();
@@ -79,7 +86,7 @@ export class PipelineLogSSEService {
   /**
    * 创建 SSE 连接 - 为特定 Pipeline Run
    */
-  createConnection(
+  async createConnection(
     pipelineId: string,
     runId: string,
     userId: string,
@@ -89,7 +96,7 @@ export class PipelineLogSSEService {
       includeStatus?: boolean;
       logLevel?: PipelineLogEvent['level'][];
     }
-  ): string {
+  ): Promise<string> {
     const connId = `pipeline-${pipelineId}-${runId}-${Date.now()}`;
 
     // 创建事件监听器
@@ -114,7 +121,7 @@ export class PipelineLogSSEService {
       connectedAt: new Date(),
     };
 
-    this.sseManager.addConnection(conn, reply);
+    await this.sseManager.addConnection(conn, reply);
 
     // 发送连接成功消息
     this.sendEvent(reply, {
@@ -143,7 +150,7 @@ export class PipelineLogSSEService {
       const eventStr = `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
       raw.write(eventStr);
     } catch (error) {
-      console.error('[PipelineLogSSE] Failed to send event:', error);
+      logger.error('[PipelineLogSSE] Failed to send event:', error);
     }
   }
 
@@ -256,8 +263,8 @@ export class PipelineLogSSEService {
   /**
    * 移除 SSE 连接
    */
-  removeConnection(connId: string): void {
-    this.sseManager.removeConnection(connId);
+  async removeConnection(connId: string): Promise<void> {
+    await this.sseManager.removeConnection(connId);
   }
 
   /**
@@ -280,6 +287,3 @@ export class PipelineLogSSEService {
     };
   }
 }
-
-// 默认导出
-export const pipelineLogSSE = new PipelineLogSSEService(new EventEmitter());

@@ -7,6 +7,9 @@
  * @see https://modelcontextprotocol.io/specification
  */
 
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('LMcp-LServer');
 import {
   McpConfig,
   McpContext,
@@ -47,7 +50,7 @@ export class McpServer {
    */
   registerTool(tool: McpTool): void {
     this.tools.set(tool.name, tool);
-    console.log(`[McpServer] Registered tool: ${tool.name}`);
+    logger.info(`[McpServer] Registered tool: ${tool.name}`);
   }
 
   /**
@@ -64,7 +67,7 @@ export class McpServer {
    */
   registerResource(resource: McpResource): void {
     this.resources.set(resource.uri, resource);
-    console.log(`[McpServer] Registered resource: ${resource.uri}`);
+    logger.info(`[McpServer] Registered resource: ${resource.uri}`);
   }
 
   /**
@@ -72,7 +75,7 @@ export class McpServer {
    */
   registerResourceTemplate(template: McpResourceTemplate): void {
     this.resourceTemplates.set(template.uriTemplate, template);
-    console.log(`[McpServer] Registered resource template: ${template.uriTemplate}`);
+    logger.info(`[McpServer] Registered resource template: ${template.uriTemplate}`);
   }
 
   /**
@@ -108,7 +111,7 @@ export class McpServer {
           return this.createErrorResponse(request.id, JSON_RPC_ERRORS.METHOD_NOT_FOUND);
       }
     } catch (error) {
-      console.error('[McpServer] Error handling request:', error);
+      logger.error('[McpServer] Error handling request:', error);
       return this.createErrorResponse(
         request.id,
         JSON_RPC_ERRORS.INTERNAL_ERROR,

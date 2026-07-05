@@ -14,9 +14,12 @@ import { EventEmitter } from 'events';
 import { PluginLifecycleManager, ActivationHook, DeactivationHook } from './PluginLifecycleManager';
 import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginHotReloadService');
 
 export interface HotReloadConfig {
   watchPaths: string[]; // 插件目录路径
@@ -63,8 +66,9 @@ export class PluginHotReloadService extends EventEmitter {
   private registry: PluginRegistry;
   private config: HotReloadConfig;
 
-  // 版本快照存储 (用于回滚)
-  private versionSnapshots: Map<string, PluginVersionSnapshot[]> = new Map();
+  // 版本快照存储 (用于回滚) - migrated to repository
+  private snapshotRepository: PluginVersionSnapshotRepository;
+  private versionSnapshots: Map<string, PluginVersionSnapshot[]> = new Map(); // in-memory cache
   private maxSnapshots = 5; // 每个插件最多保存 5 个版本快照
 
   // 监控器
@@ -77,11 +81,14 @@ export class PluginHotReloadService extends EventEmitter {
   constructor(
     lifecycleManager: PluginLifecycleManager,
     registry: PluginRegistry,
-    config: Partial<HotReloadConfig> = {}
+    snapshotRepository: PluginVersionSnapshotRepository,
+    config: Partial<HotReloadConfig> = {},
   ) {
     super();
+    if (!snapshotRepository) throw new OrionError('PluginVersionSnapshotRepository is required', ErrorCode.INTERNAL_ERROR);
     this.lifecycleManager = lifecycleManager;
     this.registry = registry;
+    this.snapshotRepository = snapshotRepository;
     this.config = { ...DEFAULT_CONFIG, ...config };
 
     // 监听生命周期事件
@@ -117,7 +124,7 @@ export class PluginHotReloadService extends EventEmitter {
     // Browser detection - use any to avoid TS errors in Node.js
     const isBrowser = typeof (globalThis as any).window !== 'undefined';
     if (isBrowser || typeof (global as any).require === 'undefined') {
-      logger.warn('File watching not available in browser environment');
+      logger.warn({ traceId: getCurrentTraceId() }, 'File watching not available in browser environment');
       return;
     }
 
@@ -128,7 +135,7 @@ export class PluginHotReloadService extends EventEmitter {
       try {
         // 检查路径是否存在
         if (!fs.existsSync(watchPath)) {
-          logger.warn({ watchPath }, 'Watch path does not exist');
+          logger.warn({ traceId: getCurrentTraceId(), watchPath }, 'Watch path does not exist');
           continue;
         }
 
@@ -143,13 +150,13 @@ export class PluginHotReloadService extends EventEmitter {
 
         // 监听器错误处理
         watcher.on('error', (error: Error) => {
-          logger.error({ watchPath, error: error.message }, 'Watcher error');
+          logger.error({ traceId: getCurrentTraceId(), watchPath, error: error.message }, 'Watcher error');
         });
 
         this.watchers.set(watchPath, watcher);
         logger.info({ watchPath }, 'Started watching plugin directory');
       } catch (error) {
-        logger.error({ watchPath, error }, 'Failed to start watcher');
+        logger.error({ traceId: getCurrentTraceId(), watchPath, error }, 'Failed to start watcher');
       }
     }
   }
@@ -163,7 +170,7 @@ export class PluginHotReloadService extends EventEmitter {
         watcher.close();
         this.watchers.delete(path);
       } catch (error) {
-        logger.error({ path, error }, 'Failed to close watcher');
+        logger.error({ traceId: getCurrentTraceId(), path, error }, 'Failed to close watcher');
       }
     }
 
@@ -188,7 +195,7 @@ export class PluginHotReloadService extends EventEmitter {
     // 从文件路径推断插件 ID
     const pluginId = this.extractPluginId(watchPath, filename);
     if (!pluginId) {
-      logger.warn({ filename }, 'Could not determine plugin ID from file path');
+      logger.warn({ traceId: getCurrentTraceId(), filename }, 'Could not determine plugin ID from file path');
       return;
     }
 
@@ -203,7 +210,7 @@ export class PluginHotReloadService extends EventEmitter {
       const timeout = setTimeout(() => {
         this.pendingReloads.delete(pluginId);
         this.hotReload(pluginId).catch(error => {
-          logger.error({ pluginId, error }, 'Hot reload failed');
+          logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Hot reload failed');
         });
       }, this.config.reloadDelay);
 
@@ -236,7 +243,7 @@ export class PluginHotReloadService extends EventEmitter {
   async hotReload(pluginId: string, newManifest?: PluginManifest): Promise<PluginInfo> {
     // 防止重复加载
     if (this.reloadingPlugins.has(pluginId)) {
-      throw new Error(`Plugin "${pluginId}" is already being reloaded`);
+      throw new OrionError(`Plugin "${pluginId}" is already being reloaded`, ErrorCode.NOT_FOUND);
     }
 
     this.reloadingPlugins.add(pluginId);
@@ -245,7 +252,7 @@ export class PluginHotReloadService extends EventEmitter {
       // 获取当前插件信息
       const currentPlugin = this.registry.getPlugin(pluginId);
       if (!currentPlugin) {
-        throw new Error(`Plugin "${pluginId}" not found`);
+        throw new OrionError(`Plugin "${pluginId}" not found`, ErrorCode.NOT_FOUND);
       }
 
       const oldVersion = currentPlugin.version;
@@ -300,7 +307,7 @@ export class PluginHotReloadService extends EventEmitter {
 
       return newPlugin;
     } catch (error) {
-      logger.error({ pluginId, error }, 'Hot reload failed');
+      logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Hot reload failed');
 
       this.emit('hotreload:failed', {
         type: 'failed',
@@ -327,7 +334,7 @@ export class PluginHotReloadService extends EventEmitter {
     // 浏览器环境不支持
     const isBrowser = typeof (globalThis as any).window !== 'undefined';
     if (isBrowser) {
-      throw new Error('File loading not supported in browser');
+      throw new OrionError('File loading not supported in browser', ErrorCode.VALIDATION_ERROR);
     }
 
     const fs = (global as any).require('fs');
@@ -350,22 +357,33 @@ export class PluginHotReloadService extends EventEmitter {
 
             return manifest;
           } catch (error) {
-            logger.warn({ manifestPath, error }, 'Failed to load manifest');
+            logger.warn({ traceId: getCurrentTraceId(), manifestPath, error }, 'Failed to load manifest');
           }
         }
       }
     }
 
-    throw new Error(`Manifest not found for plugin "${pluginId}"`);
+    throw new OrionError(`Manifest not found for plugin "${pluginId}"`, ErrorCode.NOT_FOUND);
   }
 
   /**
    * 回滚到上一个版本
    */
   async rollback(pluginId: string, targetVersion?: string): Promise<PluginInfo> {
-    const snapshots = this.versionSnapshots.get(pluginId);
+    // Read from repository
+    const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+    const snapshots: PluginVersionSnapshot[] = entities.map(e => ({
+      pluginId: e.pluginId,
+      version: e.version,
+      manifest: e.manifest as PluginManifest,
+      config: e.config,
+      status: e.status as PluginVersionSnapshot['status'],
+      timestamp: e.snapshotAt,
+      checksum: e.checksum || undefined,
+    }));
+
     if (!snapshots || snapshots.length === 0) {
-      throw new Error(`No snapshots available for plugin "${pluginId}"`);
+      throw new OrionError(`No snapshots available for plugin "${pluginId}"`, ErrorCode.NOT_FOUND);
     }
 
     // 找到目标版本快照
@@ -378,7 +396,7 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     if (!targetSnapshot) {
-      throw new Error(`Snapshot not found for version "${targetVersion || 'previous'}"`);
+      throw new OrionError(`Snapshot not found for version "${targetVersion || 'previous'}"`, ErrorCode.NOT_FOUND);
     }
 
     logger.info({ pluginId, targetVersion: targetSnapshot.version }, 'Rolling back plugin');
@@ -397,7 +415,7 @@ export class PluginHotReloadService extends EventEmitter {
 
       return result;
     } catch (error) {
-      logger.error({ pluginId, error }, 'Rollback failed');
+      logger.error({ traceId: getCurrentTraceId(), pluginId, error }, 'Rollback failed');
       throw error;
     }
   }
@@ -405,7 +423,7 @@ export class PluginHotReloadService extends EventEmitter {
   /**
    * 保存版本快照
    */
-  private saveSnapshot(pluginId: string): void {
+  private async saveSnapshot(pluginId: string): Promise<void> {
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) return;
 
@@ -427,6 +445,18 @@ export class PluginHotReloadService extends EventEmitter {
     }
 
     this.versionSnapshots.set(pluginId, snapshots);
+
+    // Persist to repository
+    await this.snapshotRepository.create({
+      pluginId,
+      version: plugin.version,
+      manifest: plugin.manifest as any,
+      config: plugin.config || {},
+      status: plugin.status,
+    });
+    // Prune old snapshots
+    await this.snapshotRepository.pruneOldSnapshots(pluginId, this.maxSnapshots);
+
     logger.debug({ pluginId, version: plugin.version }, 'Snapshot saved');
   }
 
@@ -446,8 +476,18 @@ export class PluginHotReloadService extends EventEmitter {
   /**
    * 获取插件版本历史
    */
-  getVersionHistory(pluginId: string): PluginVersionSnapshot[] {
-    return this.versionSnapshots.get(pluginId) || [];
+  async getVersionHistory(pluginId: string): Promise<PluginVersionSnapshot[]> {
+    // Read from repository
+    const entities = await this.snapshotRepository.findByPluginId(pluginId, this.maxSnapshots);
+    return entities.map(e => ({
+      pluginId: e.pluginId,
+      version: e.version,
+      manifest: e.manifest as PluginManifest,
+      config: e.config,
+      status: e.status as PluginVersionSnapshot['status'],
+      timestamp: e.snapshotAt,
+      checksum: e.checksum || undefined,
+    }));
   }
 
   /**

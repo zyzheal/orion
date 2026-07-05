@@ -3,10 +3,13 @@
  *
  * Manages approval gates across cross-domain orchestration steps,
  * ensuring changes are properly reviewed before execution.
+ *
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type GateStatus = 'pending' | 'approved' | 'rejected' | 'skipped';
 export type GateType = 'manual' | 'auto' | 'policy';
@@ -40,16 +43,16 @@ export interface CreateApprovalGateInput {
 // Repository
 // ============================================================
 
-class ApprovalGateRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, ApprovalGate>();
+class ApprovalGateCoordRepository {
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) { this.pool = pool || null; }
-  private isDbAvailable(): boolean { return this.pool !== null; }
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
+    this.pool = pool;
+  }
 
   async save(gate: ApprovalGate): Promise<void> {
-    if (!this.isDbAvailable()) { this.memory.set(gate.id, gate); return; }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO approval_gates (
         id, tenant_id, orchestration_id, step_name, domain_name, type, status,
         required_approvers, actual_approvers, auto_approve_condition,
@@ -69,10 +72,7 @@ class ApprovalGateRepository {
   }
 
   async findByOrchestration(orchestrationId: string): Promise<ApprovalGate[]> {
-    if (!this.isDbAvailable()) {
-      return Array.from(this.memory.values()).filter(g => g.orchestrationId === orchestrationId);
-    }
-    const rows = (await this.pool!.query(
+    const rows = (await this.pool.query(
       'SELECT * FROM approval_gates WHERE orchestration_id = $1 ORDER BY created_at',
       [orchestrationId]
     )).rows;
@@ -80,8 +80,7 @@ class ApprovalGateRepository {
   }
 
   async findById(id: string): Promise<ApprovalGate | null> {
-    if (!this.isDbAvailable()) return this.memory.get(id) || null;
-    const rows = (await this.pool!.query('SELECT * FROM approval_gates WHERE id = $1', [id])).rows;
+    const rows = (await this.pool.query('SELECT * FROM approval_gates WHERE id = $1', [id])).rows;
     return rows.length ? this.rowToGate(rows[0]) : null;
   }
 
@@ -103,10 +102,11 @@ class ApprovalGateRepository {
 // ============================================================
 
 export class ApprovalGateCoordinator {
-  private repository: ApprovalGateRepository;
+  private repository: ApprovalGateCoordRepository;
 
-  constructor(database?: DatabasePool) {
-    this.repository = new ApprovalGateRepository(database);
+  constructor(database: DatabasePool) {
+    if (!database) throw new OrionError('DatabasePool is required for ApprovalGateCoordinator', ErrorCode.INTERNAL_ERROR);
+    this.repository = new ApprovalGateCoordRepository(database);
   }
 
   async createGate(tenantId: string, input: CreateApprovalGateInput): Promise<ApprovalGate> {
@@ -125,8 +125,8 @@ export class ApprovalGateCoordinator {
 
   async approveGate(gateId: string, approver: string, comment?: string): Promise<ApprovalGate> {
     const gate = await this.repository.findById(gateId);
-    if (!gate) throw new Error(`Approval gate '${gateId}' not found`);
-    if (gate.status !== 'pending') throw new Error(`Gate is already ${gate.status}`);
+    if (!gate) throw new OrionError(`Approval gate '${gateId}' not found`, ErrorCode.NOT_FOUND);
+    if (gate.status !== 'pending') throw new OrionError(`Gate is already ${gate.status}`, ErrorCode.NOT_FOUND);
 
     gate.actualApprovers.push({ approver, decision: 'approved', comment, decidedAt: new Date() });
     gate.updatedAt = new Date();
@@ -141,8 +141,8 @@ export class ApprovalGateCoordinator {
 
   async rejectGate(gateId: string, approver: string, comment?: string): Promise<ApprovalGate> {
     const gate = await this.repository.findById(gateId);
-    if (!gate) throw new Error(`Approval gate '${gateId}' not found`);
-    if (gate.status !== 'pending') throw new Error(`Gate is already ${gate.status}`);
+    if (!gate) throw new OrionError(`Approval gate '${gateId}' not found`, ErrorCode.NOT_FOUND);
+    if (gate.status !== 'pending') throw new OrionError(`Gate is already ${gate.status}`, ErrorCode.NOT_FOUND);
 
     gate.actualApprovers.push({ approver, decision: 'rejected', comment, decidedAt: new Date() });
     gate.status = 'rejected';
@@ -154,7 +154,7 @@ export class ApprovalGateCoordinator {
 
   async autoEvaluateGate(gateId: string, context: Record<string, unknown>): Promise<ApprovalGate> {
     const gate = await this.repository.findById(gateId);
-    if (!gate) throw new Error(`Approval gate '${gateId}' not found`);
+    if (!gate) throw new OrionError(`Approval gate '${gateId}' not found`, ErrorCode.NOT_FOUND);
     if (gate.status !== 'pending') return gate;
     if (gate.type !== 'auto' || !gate.autoApproveCondition) return gate;
 

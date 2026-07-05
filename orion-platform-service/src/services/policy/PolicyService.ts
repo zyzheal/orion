@@ -5,7 +5,7 @@
  * against pipeline runs and other resources.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   PolicyDefinitionRepository,
   PolicyDefinitionEntity,
@@ -16,8 +16,10 @@ import {
 } from '../../repositories/PolicyDefinitionRepository';
 import { PolicyEvaluationRepository, PolicyEvaluationEntity } from '../../repositories/PolicyEvaluationRepository';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyService');
 
 // ==================== Input Interfaces ====================
 
@@ -105,20 +107,21 @@ export class PolicyService {
    */
   async createPolicy(config: CreatePolicyInput): Promise<PolicyDefinitionEntity> {
     if (!this.policyRepo) {
-      // Mock mode
+      // Mock mode: return a synthetic entity
       return {
         id: this.generateId(),
+        tenantId: 'default',
         name: config.name,
         description: config.description ?? null,
-        category: config.category,
-        regoPath: config.regoPath,
+        category: config.category ?? 'general',
+        regoPath: config.regoPath ?? '',
         gateId: config.gateId ?? null,
         severity: config.severity ?? 'warning',
         enabled: true,
-        metadata: config.metadata ?? {},
+        metadata: config.metadata ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as PolicyDefinitionEntity;
     }
 
     const entity = await this.policyRepo.createPolicy({
@@ -281,11 +284,7 @@ export class PolicyService {
     const startTime = Date.now();
 
     if (!this.policyRepo) {
-      return {
-        allowed: true,
-        violations: [],
-        evaluationMs: Date.now() - startTime,
-      };
+      return { allowed: true, violations: [], evaluationMs: Date.now() - startTime };
     }
 
     const enabledPolicies = await this.policyRepo.findEnabled();
@@ -380,7 +379,8 @@ export class PolicyService {
     if (!this.bundleRepo) {
       return [];
     }
-    return this.bundleRepo.findAll();
+    const result = await this.bundleRepo.findAll();
+    return result.entities;
   }
 
   /**
@@ -390,7 +390,7 @@ export class PolicyService {
     if (!this.bundleRepo) {
       return null;
     }
-    return this.bundleRepo.findById(id);
+    return (await this.bundleRepo.findById(id)) ?? null;
   }
 
   /**
@@ -402,7 +402,8 @@ export class PolicyService {
     }
     // Mock implementation - would fetch from external source
     logger.info({ sourceUrl }, 'Syncing policy bundles');
-    return this.bundleRepo.findAll();
+    const result = await this.bundleRepo.findAll();
+    return result.entities;
   }
 
   /**

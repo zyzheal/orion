@@ -1,19 +1,74 @@
 /**
- * TASK-703: MetricCollector Unit Tests
+ * TASK-703: MetricCollector Unit Tests - PostgreSQL Repository pattern
  */
 
 import { MetricCollector } from '../MetricCollector';
 
+// Mock repository for testing
+const createMockRepo = () => ({
+  registerMetric: jest.fn().mockResolvedValue({}),
+  unregisterMetric: jest.fn().mockResolvedValue(true),
+  getAllRegisteredMetrics: jest.fn().mockResolvedValue([]),
+  getMetricRegistry: jest.fn().mockResolvedValue(null),
+  insertDataPoint: jest.fn().mockResolvedValue(undefined),
+  queryMetricSeries: jest.fn().mockResolvedValue({
+    name: '',
+    dataPoints: [],
+    aggregation: { avg: 0, max: 0, min: 0, p99: 0, p95: 0, count: 0, sum: 0 },
+    windowStart: new Date(),
+    windowEnd: new Date(),
+  }),
+  getLatestValue: jest.fn().mockResolvedValue(null),
+  pruneExpired: jest.fn().mockResolvedValue(0),
+  clearAll: jest.fn().mockResolvedValue(undefined),
+});
+
 describe('MetricCollector', () => {
-  let collector: MetricCollector;
+  let mockRepo: ReturnType<typeof createMockRepo>;
 
   beforeEach(() => {
-    collector = new MetricCollector();
+    mockRepo = createMockRepo();
+  });
+
+  // ==================== Constructor Validation ====================
+
+  describe('constructor', () => {
+    it('should throw when no repository provided', () => {
+      expect(() => new MetricCollector()).toThrow('MetricStorageRepository is required for MetricCollector');
+    });
+
+    it('should throw when repository is undefined', () => {
+      expect(() => new MetricCollector({ repository: undefined as any })).toThrow('MetricStorageRepository is required for MetricCollector');
+    });
+
+    it('should throw when repository is null', () => {
+      expect(() => new MetricCollector({ repository: null as any })).toThrow('MetricStorageRepository is required for MetricCollector');
+    });
+
+    it('should accept a repository and initialize', () => {
+      expect(() => new MetricCollector({ repository: mockRepo })).not.toThrow();
+    });
+
+    it('should use default retention period (24h) when not specified', () => {
+      const collector = new MetricCollector({ repository: mockRepo });
+      // Should not throw - collector initializes
+      expect(collector).toBeDefined();
+    });
+
+    it('should allow custom retention period', () => {
+      expect(() => new MetricCollector({ repository: mockRepo, retentionMs: 3600000 })).not.toThrow();
+    });
   });
 
   // ==================== System Metrics ====================
 
   describe('collectSystemMetrics', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should collect system metrics', () => {
       const metrics = collector.collectSystemMetrics();
 
@@ -48,6 +103,12 @@ describe('MetricCollector', () => {
   // ==================== Custom Metric Registration ====================
 
   describe('registerMetric', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should register a custom metric', () => {
       collector.registerMetric({
         name: 'custom.requests',
@@ -79,6 +140,12 @@ describe('MetricCollector', () => {
   // ==================== Metric Recording ====================
 
   describe('recordMetric', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should record a metric value', () => {
       collector.recordMetric('test.metric', 42, { env: 'prod' });
 
@@ -114,6 +181,12 @@ describe('MetricCollector', () => {
   });
 
   describe('recordLatency', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should record latency with endpoint tag', () => {
       collector.recordLatency('/api/users', 150, 200);
 
@@ -128,6 +201,12 @@ describe('MetricCollector', () => {
   });
 
   describe('recordError', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should record an error', () => {
       collector.recordError('auth-service', 'TimeoutError');
 
@@ -141,6 +220,12 @@ describe('MetricCollector', () => {
   });
 
   describe('recordThroughput', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should record throughput', () => {
       collector.recordThroughput('api-service', 5);
 
@@ -155,6 +240,12 @@ describe('MetricCollector', () => {
   });
 
   describe('recordNatsMessageRate', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should record NATS message rate', () => {
       collector.recordNatsMessageRate('events.user.created', 3);
 
@@ -185,15 +276,19 @@ describe('MetricCollector', () => {
   // ==================== Metric Retrieval ====================
 
   describe('getMetricSeries', () => {
+    let collector: MetricCollector;
+
     beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
+    it('should return all data points', () => {
       collector.recordMetric('cpu', 10, {}, new Date('2026-04-12T08:00:00Z'));
       collector.recordMetric('cpu', 20, {}, new Date('2026-04-12T09:00:00Z'));
       collector.recordMetric('cpu', 30, {}, new Date('2026-04-12T10:00:00Z'));
       collector.recordMetric('cpu', 40, {}, new Date('2026-04-12T11:00:00Z'));
       collector.recordMetric('cpu', 50, {}, new Date('2026-04-12T12:00:00Z'));
-    });
 
-    it('should return all data points', () => {
       const series = collector.getMetricSeries({ name: 'cpu' });
 
       expect(series.name).toBe('cpu');
@@ -201,6 +296,12 @@ describe('MetricCollector', () => {
     });
 
     it('should compute correct aggregation', () => {
+      collector.recordMetric('cpu', 10, {}, new Date('2026-04-12T08:00:00Z'));
+      collector.recordMetric('cpu', 20, {}, new Date('2026-04-12T09:00:00Z'));
+      collector.recordMetric('cpu', 30, {}, new Date('2026-04-12T10:00:00Z'));
+      collector.recordMetric('cpu', 40, {}, new Date('2026-04-12T11:00:00Z'));
+      collector.recordMetric('cpu', 50, {}, new Date('2026-04-12T12:00:00Z'));
+
       const series = collector.getMetricSeries({ name: 'cpu' });
 
       expect(series.aggregation.avg).toBe(30);
@@ -210,6 +311,12 @@ describe('MetricCollector', () => {
     });
 
     it('should filter by time window', () => {
+      collector.recordMetric('cpu', 10, {}, new Date('2026-04-12T08:00:00Z'));
+      collector.recordMetric('cpu', 20, {}, new Date('2026-04-12T09:00:00Z'));
+      collector.recordMetric('cpu', 30, {}, new Date('2026-04-12T10:00:00Z'));
+      collector.recordMetric('cpu', 40, {}, new Date('2026-04-12T11:00:00Z'));
+      collector.recordMetric('cpu', 50, {}, new Date('2026-04-12T12:00:00Z'));
+
       const series = collector.getMetricSeries({
         name: 'cpu',
         startTime: new Date('2026-04-12T10:00:00Z'),
@@ -220,6 +327,12 @@ describe('MetricCollector', () => {
     });
 
     it('should limit max points', () => {
+      collector.recordMetric('cpu', 10, {}, new Date('2026-04-12T08:00:00Z'));
+      collector.recordMetric('cpu', 20, {}, new Date('2026-04-12T09:00:00Z'));
+      collector.recordMetric('cpu', 30, {}, new Date('2026-04-12T10:00:00Z'));
+      collector.recordMetric('cpu', 40, {}, new Date('2026-04-12T11:00:00Z'));
+      collector.recordMetric('cpu', 50, {}, new Date('2026-04-12T12:00:00Z'));
+
       const series = collector.getMetricSeries({ name: 'cpu', maxPoints: 3 });
 
       expect(series.dataPoints.length).toBeLessThanOrEqual(3);
@@ -234,6 +347,12 @@ describe('MetricCollector', () => {
   });
 
   describe('getMetricSummary', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should return summary with time window', () => {
       const now = Date.now();
       collector.recordMetric('mem', 70, {}, new Date(now - 60000));
@@ -258,6 +377,12 @@ describe('MetricCollector', () => {
   });
 
   describe('getLatestValue', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should return the latest recorded value', () => {
       collector.recordMetric('counter', 1);
       collector.recordMetric('counter', 2);
@@ -283,18 +408,28 @@ describe('MetricCollector', () => {
   // ==================== Maintenance ====================
 
   describe('pruneExpired', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo, retentionMs: 60000 }); // 1 minute
+    });
+
     it('should prune data older than retention period', () => {
-      const shortRetention = new MetricCollector({ retentionMs: 60000 }); // 1 minute
+      collector.recordMetric('old', 1, {}, new Date(Date.now() - 120000));
+      collector.recordMetric('new', 2);
 
-      shortRetention.recordMetric('old', 1, {}, new Date(Date.now() - 120000));
-      shortRetention.recordMetric('new', 2);
-
-      const pruned = shortRetention.pruneExpired();
+      const pruned = collector.pruneExpired();
       expect(pruned).toBeGreaterThanOrEqual(1);
     });
   });
 
   describe('clearAll', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should clear all data', () => {
       collector.recordMetric('test', 1);
       collector.registerMetric({ name: 'registered', unit: 'count' });
@@ -311,6 +446,12 @@ describe('MetricCollector', () => {
   // ==================== Percentile Calculation ====================
 
   describe('percentile calculation', () => {
+    let collector: MetricCollector;
+
+    beforeEach(() => {
+      collector = new MetricCollector({ repository: mockRepo });
+    });
+
     it('should compute p95 correctly', () => {
       for (let i = 1; i <= 100; i++) {
         collector.recordMetric('p95test', i);

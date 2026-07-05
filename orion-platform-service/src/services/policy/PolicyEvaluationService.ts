@@ -5,7 +5,8 @@
  * and analyzing evaluation history.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   PolicyEvaluationRepository,
   PolicyEvaluationEntity,
@@ -13,7 +14,7 @@ import {
 import { PolicyViolationRepository, PolicyViolationEntity } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyEvaluationService');
 
 // ==================== Types ====================
 
@@ -121,7 +122,7 @@ export class PolicyEvaluationService {
     const runId = context.runId || this.generateId();
     return this.evaluate({
       policyId,
-      tenantId: context.tenantId || 'default',
+      tenantId: context.tenantId || getCurrentTenantId(),
       runId,
       context,
     });
@@ -274,7 +275,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.findById(id);
+    return (await this.violationRepo.findById(id)) ?? null;
   }
 
   /**
@@ -284,7 +285,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.updateStatus(id, 'waived');
+    return (await this.violationRepo.updateStatus(id, 'waived')) ?? null;
   }
 
   /**
@@ -294,7 +295,7 @@ export class PolicyEvaluationService {
     if (!this.violationRepo) {
       return null;
     }
-    return this.violationRepo.updateStatus(id, 'resolved');
+    return (await this.violationRepo.updateStatus(id, 'resolved')) ?? null;
   }
 
   /**
@@ -316,7 +317,7 @@ export class PolicyEvaluationService {
     }
     const violation = await this.violationRepo.findById(violationId);
     if (violation) {
-      return this.violationRepo.updateStatus(violationId, 'waived');
+      return (await this.violationRepo.updateStatus(violationId, 'waived')) ?? null;
     }
     return null;
   }
@@ -360,13 +361,22 @@ export class PolicyEvaluationService {
 
     let evaluations: PolicyEvaluationEntity[] = [];
 
-    if (this.evalRepo) {
-      if (options?.policyId) {
-        evaluations = await this.evalRepo.findByPolicyId(options.policyId, { limit: 1000 });
-      } else {
-        const result = await this.evalRepo.findAll({ limit: 1000, offset: 0 });
-        evaluations = result.entities;
-      }
+    if (!this.evalRepo) {
+      return {
+        totalEvaluations: 0,
+        allowedCount: 0,
+        deniedCount: 0,
+        complianceRate: 1,
+        byPolicy: [],
+        period,
+      };
+    }
+
+    if (options?.policyId) {
+      evaluations = await this.evalRepo.findByPolicyId(options.policyId, { limit: 1000 });
+    } else {
+      const result = await this.evalRepo.findAll({ limit: 1000, offset: 0 });
+      evaluations = result.entities;
     }
 
     // Filter by date
@@ -421,7 +431,11 @@ export class PolicyEvaluationService {
     activeViolations: number;
     resolvedViolations: number;
     policies: Array<{ id: string; name: string; violationCount: number }>;
-  }> {
+  }>{
+    if (!this.violationRepo) {
+      return { activeViolations: 0, resolvedViolations: 0, policies: [] };
+    }
+
     const openViolations = await this.getOpenViolations('open');
     const allViolations = await this.getOpenViolations();
 

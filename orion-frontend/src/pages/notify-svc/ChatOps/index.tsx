@@ -1,47 +1,113 @@
-import React from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu } from 'antd';
+/**
+ * ChatOps 主页面 - Tab 分页结构
+ *
+ * 定位说明：
+ * - 本页：ChatOps 管理中心（分析、历史、审计、配置）
+ * - 右下角悬浮助手：日常对话交互入口（点击右下角按钮打开）
+ *
+ * Tab 结构（设计文档: chatops-dashboard-design.md）:
+ * 1. 总览看板 - 执行统计、趋势分析、热门命令、平台分布
+ * 2. 执行记录 - 命令执行历史列表
+ * 3. 审计日志 - 审计日志查看与导出
+ * 4. 管理配置 - 命令-Capability 映射、审批配置
+ */
+import _React, { useState } from 'react';
+import { Tabs, Alert } from 'antd';
 import {
-  SearchOutlined,
   DashboardOutlined,
-  FileTextOutlined,
+  PlayCircleOutlined,
+  AuditOutlined,
   SettingOutlined,
-  BulbOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import ChatDashboard from './ChatDashboard';
+import ExecutionDashboard from './ExecutionDashboard';
+import AuditLogViewer from './AuditLogViewer';
+import AdminSettings from './AdminSettings';
+import { colors } from '@/tokens';
 
-const { Sider, Content } = Layout;
+export default function ChatOpsPage() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showGuide, setShowGuide] = useState(() => {
+    // 首次访问显示引导，关闭后不再显示
+    return localStorage.getItem('chatops-guide-dismissed') !== 'true';
+  });
 
-const menuItems = [
-  { key: '/console/chatops/recommend', icon: <BulbOutlined />, label: '智能推荐' },
-  { key: '/console/chatops/commands', icon: <SearchOutlined />, label: '命令浏览' },
-  { key: '/console/chatops/executions', icon: <DashboardOutlined />, label: '执行监控' },
-  { key: '/console/chatops/audit', icon: <FileTextOutlined />, label: '审计日志' },
-  { key: '/console/chatops/settings', icon: <SettingOutlined />, label: '设置' },
-];
+  const tabItems = [
+    {
+      key: 'overview',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+          <DashboardOutlined />
+          总览看板
+        </span>
+      ),
+      children: <ChatDashboard />,
+    },
+    {
+      key: 'executions',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+          <PlayCircleOutlined />
+          执行记录
+        </span>
+      ),
+      children: <ExecutionDashboard />,
+    },
+    {
+      key: 'audit',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+          <AuditOutlined />
+          审计日志
+        </span>
+      ),
+      children: <AuditLogViewer />,
+    },
+    {
+      key: 'admin',
+      label: (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 500 }}>
+          <SettingOutlined />
+          管理配置
+        </span>
+      ),
+      children: <AdminSettings />,
+    },
+  ];
 
-const ChatOpsLayout: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   return (
-    <Layout style={{ minHeight: '100%' }}>
-      <Sider
-        width={200}
-        theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
-      >
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
+    <div style={{ padding: 0, height: 'calc(100vh - 64px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* 使用引导 */}
+      {showGuide && (
+        <Alert
+          type="info"
+          style={{ margin: '8px 16px 0', borderRadius: 8 }}
+          message={
+            <span style={{ fontSize: 13 }}>
+              <strong>如何使用 ChatOps？</strong>
+              {' '}本页为<span style={{ color: colors.primary[500], fontWeight: 500 }}>管理中心</span>（数据看板、命令文档、执行记录、配置管理）。
+              {' '}需要对话操作？点击页面<span style={{ color: colors.primary[500], fontWeight: 500 }}>右下角</span>的悬浮按钮打开 AI 助手。
+            </span>
+          }
+          action={
+            <a onClick={() => { setShowGuide(false); localStorage.setItem('chatops-guide-dismissed', 'true'); }} style={{ fontSize: 12 }}>
+              <CloseOutlined /> 不再提示
+            </a>
+          }
+          closable
+          onClose={() => { setShowGuide(false); localStorage.setItem('chatops-guide-dismissed', 'true'); }}
         />
-      </Sider>
-      <Content style={{ padding: spacing[6], background: colors.light.bg.primary }}>
-        <Outlet />
-      </Content>
-    </Layout>
-  );
-};
+      )}
 
-export default ChatOpsLayout;
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+        style={{ flex: 1, overflow: 'hidden' }}
+        tabBarStyle={{ margin: 0, padding: showGuide ? '8px 16px 0' : '16px 16px 0' }}
+        size="large"
+      />
+    </div>
+  );
+}

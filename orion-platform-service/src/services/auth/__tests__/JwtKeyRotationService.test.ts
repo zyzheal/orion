@@ -17,20 +17,89 @@ jest.mock('@kubernetes/client-node', () => ({
   CoreV1Api: jest.fn(),
 }));
 
-// Mock DatabasePool for testing
-const createMockDbPool = () => ({
-  query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
-    // Return empty result for most queries
-    return { rows: [], rowCount: 0 };
-  }),
-  connect: jest.fn(),
-  transaction: jest.fn(),
-  checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
-  close: jest.fn(),
-  isHealthy: jest.fn().mockReturnValue(true),
-  getPoolSize: jest.fn().mockReturnValue(10),
-  getIdleCount: jest.fn().mockReturnValue(5),
-});
+// Helper to parse $N param references from SQL
+function extractParamValue(sql: string, paramName: string, params: any[]): any {
+  const match = sql.match(new RegExp(`(\\w+)\\s*=\\s*\\$${paramName}`));
+  if (!match) return undefined;
+  const idx = parseInt(paramName, 10) - 1;
+  return params[idx];
+}
+
+// Stateful mock db for JwtKeyRotationRepository queries
+let keyStore: Map<string, any>;
+
+function createMockDbPool() {
+  keyStore = new Map();
+  return {
+    query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      // INSERT ... RETURNING *
+      if (sql.includes('INSERT INTO jwt_key_rotation')) {
+        const colsMatch = sql.match(/\(([^)]+)\)/);
+        const cols = colsMatch ? colsMatch[1].split(', ').map((c) => c.trim()) : [];
+        const row: any = { id: keyStore.size + 1 };
+        cols.forEach((col, i) => {
+          row[col] = params?.[i];
+        });
+        row.created_at = new Date();
+        row.updated_at = new Date();
+        keyStore.set(row.key_id, row);
+        return { rows: [row], rowCount: 1 };
+      }
+      // UPDATE ... WHERE key_id = $N RETURNING *
+      if (sql.includes('UPDATE jwt_key_rotation')) {
+        // Parse WHERE key_id = $N
+        const whereMatch = sql.match(/WHERE key_id = \$(\d+)/);
+        const keyIdIdx = whereMatch ? parseInt(whereMatch[1], 10) - 1 : params!.length - 1;
+        const keyId = params?.[keyIdIdx];
+        const existing = keyStore.get(keyId);
+        if (!existing) return { rows: [], rowCount: 0 };
+        // Parse SET clauses
+        const setMatch = sql.match(/SET (.+?) WHERE/);
+        if (setMatch) {
+          const assignments = setMatch[1].split(', ');
+          for (const assignment of assignments) {
+            const parts = assignment.split(' = ');
+            const col = parts[0].trim();
+            const paramRef = parts[1].trim();
+            const paramMatch = paramRef.match(/\$(\d+)/);
+            if (paramMatch) {
+              const paramIdx = parseInt(paramMatch[1], 10) - 1;
+              existing[col] = params?.[paramIdx];
+            }
+          }
+        }
+        existing.updated_at = new Date();
+        keyStore.set(keyId, existing);
+        return { rows: [existing], rowCount: 1 };
+      }
+      // SELECT ... WHERE status = ANY($1)
+      if (sql.includes('status = ANY')) {
+        const statuses = params?.[0] || [];
+        const rows = Array.from(keyStore.values()).filter((r) => statuses.includes(r.status));
+        return { rows, rowCount: rows.length };
+      }
+      // SELECT ... WHERE key_id = $1
+      if (sql.includes('WHERE key_id = $1')) {
+        const keyId = params?.[0];
+        const row = keyStore.get(keyId);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      // SELECT ... WHERE status = 'active'
+      if (sql.includes("WHERE status = 'active'")) {
+        const rows = Array.from(keyStore.values()).filter((r) => r.status === 'active');
+        return { rows, rowCount: rows.length };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+    connect: jest.fn(),
+    transaction: jest.fn(),
+    checkHealth: jest.fn().mockResolvedValue({ status: 'up', latency: 1 }),
+    close: jest.fn(),
+    isHealthy: jest.fn().mockReturnValue(true),
+    getPoolSize: jest.fn().mockReturnValue(10),
+    getIdleCount: jest.fn().mockReturnValue(5),
+  };
+}
 
 describe('JwtKeyRotationService', () => {
   let service: JwtKeyRotationService;
@@ -110,8 +179,8 @@ describe('JwtKeyRotationService', () => {
       // First key should now be expiring
       const verificationKeys = service.getVerificationKeys();
       expect(verificationKeys).toHaveLength(2);
-      expect(verificationKeys.find(k => k.keyId === firstKey?.keyId)?.status).toBe('expiring');
-      expect(verificationKeys.find(k => k.keyId === newKey.keyId)?.status).toBe('active');
+      expect(verificationKeys.find((k) => k.keyId === firstKey?.keyId)?.status).toBe('expiring');
+      expect(verificationKeys.find((k) => k.keyId === newKey.keyId)?.status).toBe('active');
     });
 
     it('should throw error for non-existent key', async () => {
@@ -140,8 +209,8 @@ describe('JwtKeyRotationService', () => {
 
       const keys = service.getVerificationKeys();
       expect(keys).toHaveLength(2);
-      expect(keys.some(k => k.status === 'active')).toBe(true);
-      expect(keys.some(k => k.status === 'expiring')).toBe(true);
+      expect(keys.some((k) => k.status === 'active')).toBe(true);
+      expect(keys.some((k) => k.status === 'expiring')).toBe(true);
     });
   });
 
@@ -193,7 +262,7 @@ describe('JwtKeyRotationService', () => {
 
       // Previous key should be expiring
       const keys = service.getVerificationKeys();
-      const expiringKey = keys.find(k => k.keyId === key.keyId);
+      const expiringKey = keys.find((k) => k.keyId === key.keyId);
       expect(expiringKey?.status).toBe('expiring');
     });
   });
@@ -210,7 +279,7 @@ describe('JwtKeyRotationService', () => {
         expect.objectContaining({
           keyId: key.keyId,
           status: 'active',
-        })
+        }),
       );
     });
 
@@ -265,7 +334,7 @@ describe('JwtKeyRotationService', () => {
       await service.activateKey(newKey.keyId);
 
       const keys = service.getVerificationKeys();
-      const expiringKey = keys.find(k => k.keyId === firstKey?.keyId);
+      const expiringKey = keys.find((k) => k.keyId === firstKey?.keyId);
 
       // Expiring key should have expiresAt set
       expect(expiringKey?.expiresAt).toBeDefined();
@@ -275,6 +344,81 @@ describe('JwtKeyRotationService', () => {
       const expectedExpiry = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const diff = Math.abs(expiringKey!.expiresAt!.getTime() - expectedExpiry.getTime());
       expect(diff).toBeLessThan(5000); // Within 5 seconds tolerance
+    });
+  });
+
+  describe('restart recovery', () => {
+    it('should trigger rotation immediately when overlap window has already passed', async () => {
+      // Step 1: Initialize and create an active key
+      await service.initialize();
+      const initialKey = service.getCurrentActiveKey();
+      expect(initialKey).toBeDefined();
+      expect(initialKey?.status).toBe('active');
+
+      // Step 2: Shutdown (clears timer)
+      service.shutdown();
+
+      // Step 3: Simulate process restart with a key that has an expired overlap window
+      // Directly manipulate the stored key to set expiresAt in the past
+      const pastExpiry = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000); // expired 10 days ago
+      const updatedRow = await mockDbPool.query(
+        'UPDATE jwt_key_rotation SET expires_at = $1, status = $2 WHERE key_id = $3 RETURNING *',
+        [pastExpiry, 'active', initialKey!.keyId],
+      );
+      keyStore.set(initialKey!.keyId, updatedRow.rows[0]);
+
+      // Step 4: Create new service instance and initialize (simulates restart)
+      const restartedService = new JwtKeyRotationService(mockDbPool as any, {
+        rotationIntervalDays: 90,
+        overlapDays: 7,
+        keyStrength: '256-bit',
+      });
+
+      const rotationCompletedHandler = jest.fn();
+      restartedService.on('rotation:completed', rotationCompletedHandler);
+
+      // Step 5: Initialize should trigger rotation immediately since overlap window passed
+      await restartedService.initialize();
+
+      // Should have emitted rotation:completed because overlap window was in the past
+      expect(rotationCompletedHandler).toHaveBeenCalled();
+
+      // After rotation, there should be a new active key
+      const newActiveKey = restartedService.getCurrentActiveKey();
+      expect(newActiveKey).toBeDefined();
+      expect(newActiveKey?.keyId).not.toBe(initialKey?.keyId);
+      expect(newActiveKey?.status).toBe('active');
+
+      restartedService.shutdown();
+    });
+
+    it('should schedule timer normally when overlap window is in the future', async () => {
+      // Initialize with a key that has a future expiry
+      await service.initialize();
+      const initialKey = service.getCurrentActiveKey();
+      expect(initialKey?.expiresAt).toBeDefined();
+
+      // Shutdown and restart
+      service.shutdown();
+
+      const restartedService = new JwtKeyRotationService(mockDbPool as any, {
+        rotationIntervalDays: 90,
+        overlapDays: 7,
+        keyStrength: '256-bit',
+      });
+
+      const rotationCompletedHandler = jest.fn();
+      restartedService.on('rotation:completed', rotationCompletedHandler);
+
+      await restartedService.initialize();
+
+      // Should NOT have emitted rotation:completed yet (timer is pending)
+      expect(rotationCompletedHandler).not.toHaveBeenCalled();
+
+      // Should have a timer scheduled
+      expect(restartedService['rotationTimer']).toBeDefined();
+
+      restartedService.shutdown();
     });
   });
 });

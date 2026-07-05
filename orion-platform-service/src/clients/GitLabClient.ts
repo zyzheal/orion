@@ -3,9 +3,10 @@
  * GitLab API 客户端
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('GitLabClient');
 
 export interface GitLabConfig {
   baseUrl: string;
@@ -69,7 +70,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info({
@@ -108,7 +109,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       const statuses = await response.json();
@@ -144,7 +145,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info({
@@ -205,7 +206,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -232,7 +233,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -259,7 +260,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -286,7 +287,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -325,7 +326,7 @@ export class GitLabClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitLab API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();

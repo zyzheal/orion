@@ -32,6 +32,7 @@ import {
   CloseCircleOutlined,
   InfoCircleOutlined,
   QuestionCircleOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -86,7 +87,7 @@ const DeploymentDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getDeployment(id);
-      const data = response.data.data || response.data;
+      const data = response.data;
       setDeployment(data as Deployment);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -175,15 +176,16 @@ const DeploymentDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/deployments')}>
           返回列表
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             部署详情: {deployment.appName}
           </Title>
           <Text type="secondary">
@@ -191,7 +193,7 @@ const DeploymentDetail: React.FC = () => {
           </Text>
         </div>
         <Space>
-          <StatusBadge status={deployment.status as any} size="medium" />
+          <StatusBadge status={(deployment.status as string) === 'success' ? 'success' : (deployment.status as string) === 'running' ? 'running' : (deployment.status as string) === 'failed' ? 'failed' : (deployment.status as string) === 'pending' ? 'pending' : (deployment.status as string) === 'cancelled' ? 'cancelled' : 'unknown'} size="medium" />
           {canRollback && (
             <Button
               danger
@@ -313,7 +315,7 @@ const DeploymentDetail: React.FC = () => {
                             {stage.details}
                           </Text>
                         )}
-                        <StatusBadge status={stage.status as any} size="small" />
+                        <StatusBadge status={stage.status === 'success' ? 'success' : stage.status === 'running' ? 'running' : stage.status === 'failed' ? 'failed' : stage.status === 'pending' ? 'pending' : stage.status === 'cancelled' ? 'cancelled' : 'unknown'} size="small" />
                       </Space>
                     </div>
                   </Card>
@@ -336,7 +338,7 @@ const DeploymentDetail: React.FC = () => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 12,
+                      gap: spacing[3],
                       padding: '12px 16px',
                       background:
                         check.status === 'healthy'

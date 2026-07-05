@@ -168,36 +168,36 @@ describe('K8sCostAllocator', () => {
       allocator.allocateClusterCosts(clusterUsage, podUsage);
     });
 
-    it('should return costs for all namespaces', () => {
-      const costs = allocator.getNamespaceCosts();
+    it('should return costs for all namespaces', async () => {
+      const costs = await allocator.getNamespaceCosts();
 
       expect(costs.length).toBe(2);
       expect(costs[0].namespace).toBe('production'); // Highest cost first
       expect(costs[1].namespace).toBe('staging');
     });
 
-    it('should filter by namespace', () => {
-      const costs = allocator.getNamespaceCosts({ namespace: 'production' });
+    it('should filter by namespace', async () => {
+      const costs = await allocator.getNamespaceCosts({ namespace: 'production' });
 
       expect(costs.length).toBe(1);
       expect(costs[0].namespace).toBe('production');
     });
 
-    it('should return empty for non-existent namespace', () => {
-      const costs = allocator.getNamespaceCosts({ namespace: 'nonexistent' });
+    it('should return empty for non-existent namespace', async () => {
+      const costs = await allocator.getNamespaceCosts({ namespace: 'nonexistent' });
       expect(costs.length).toBe(0);
     });
 
-    it('should sort by total cost descending', () => {
-      const costs = allocator.getNamespaceCosts();
+    it('should sort by total cost descending', async () => {
+      const costs = await allocator.getNamespaceCosts();
 
       for (let i = 0; i < costs.length - 1; i++) {
         expect(costs[i].totalCost).toBeGreaterThanOrEqual(costs[i + 1].totalCost);
       }
     });
 
-    it('should include pod count', () => {
-      const costs = allocator.getNamespaceCosts({ namespace: 'production' });
+    it('should include pod count', async () => {
+      const costs = await allocator.getNamespaceCosts({ namespace: 'production' });
 
       expect(costs[0].podCount).toBe(2);
     });

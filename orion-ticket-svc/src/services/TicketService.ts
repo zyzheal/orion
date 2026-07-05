@@ -20,6 +20,7 @@ import { DispatchAnalytics } from './DispatchAnalytics';
 import { TicketTransferService } from './TicketTransferService';
 import { EngineerSuspendService } from './EngineerSuspendService';
 import { TicketingRepository } from './TicketingRepository';
+import { DispatchQueueRepository } from '../repositories/DispatchQueueRepository';
 import {
   Ticket,
   TicketStatus,
@@ -168,7 +169,8 @@ export class TicketService extends EventEmitter {
     this.dispatchEngine = repository
       ? new DispatchEngine({ ticketingRepository: repository })
       : new DispatchEngine({ ticketingRepository: undefined }); // will throw if used without repo
-    this.dispatchQueue = new DispatchQueueManager();
+    const dispatchQueueRepo = repository ? new DispatchQueueRepository(repository as any) : (null as any);
+    this.dispatchQueue = new DispatchQueueManager(dispatchQueueRepo);
     this.loadBalancer = repository
       ? new LoadBalancer({ ticketingRepository: repository })
       : new LoadBalancer({ ticketingRepository: undefined });
@@ -184,8 +186,8 @@ export class TicketService extends EventEmitter {
     this.bi = new TicketBIService();
 
     // Wire up dispatch queue callback
-    this.dispatchQueue.setDispatchCallback((entry) => {
-      this.attemptAutoDispatch(entry.ticket.id);
+    this.dispatchQueue.setDispatchCallback(async (entry) => {
+      await this.attemptAutoDispatch(entry.ticket.id);
     });
 
     // Wire up transfer callback to update ticket assignee
@@ -339,13 +341,13 @@ export class TicketService extends EventEmitter {
         // TASK-802: Enqueue for dispatch if not assigned
         if (!result) {
           const slaTarget = this.workflow.getSLATarget(created.priority);
-          this.dispatchQueue.enqueue(created, slaTarget);
+          await this.dispatchQueue.enqueue(created, slaTarget);
         }
       }
     } else {
       // TASK-802: Even if auto-assignment disabled, queue for dispatch
       const slaTarget = this.workflow.getSLATarget(created.priority);
-      this.dispatchQueue.enqueue(created, slaTarget);
+      await this.dispatchQueue.enqueue(created, slaTarget);
     }
 
     return created;
@@ -599,7 +601,7 @@ export class TicketService extends EventEmitter {
     }
 
     // Mark dispatch attempt
-    this.dispatchQueue.recordDispatchAttempt(ticketId);
+    await this.dispatchQueue.recordDispatchAttempt(ticketId);
 
     // Use dispatch engine to find best engineer
     const result = await (this.dispatchEngine as any).dispatchTicket(ticket.id, {
@@ -632,7 +634,7 @@ export class TicketService extends EventEmitter {
       this.dispatchAnalytics.recordDispatch(r);
 
       // Mark dispatched in queue
-      this.dispatchQueue.markDispatched(ticketId);
+      await this.dispatchQueue.markDispatched(ticketId);
 
       this.emit('ticket:auto-dispatched', { ticket: assignResult.ticket, dispatch: r });
       this.publishNatsEvent('ticket.assigned', {
@@ -691,7 +693,7 @@ export class TicketService extends EventEmitter {
       category: ticket.category,
     });
     this.dispatchAnalytics.recordDispatch(dispatchResult);
-    this.dispatchQueue.markDispatched(ticketId);
+    await this.dispatchQueue.markDispatched(ticketId);
 
     const assignResult = await this.workflow.assignTicket(
       ticketId,
@@ -706,22 +708,23 @@ export class TicketService extends EventEmitter {
   /**
    * Get the dispatch queue status
    */
-  getDispatchQueueStatus(): DispatchQueueStatus {
+  async getDispatchQueueStatus(): Promise<DispatchQueueStatus> {
     return this.dispatchQueue.getQueueStatus();
   }
 
   /**
    * Get dispatch queue entries
    */
-  getDispatchQueueEntries(): {
+  async getDispatchQueueEntries(): Promise<{
     id: string;
     ticket: Ticket;
     priority: number;
     enqueuedAt: Date;
     slaDeadline?: Date;
     attempts: number;
-  }[] {
-    return this.dispatchQueue.getEntries().map((e) => ({
+  }[]> {
+    const entries = await this.dispatchQueue.getEntries();
+    return entries.map((e) => ({
       id: e.id,
       ticket: e.ticket,
       priority: e.dispatchPriority,
@@ -734,10 +737,10 @@ export class TicketService extends EventEmitter {
   /**
    * Get SLA alerts from the dispatch queue
    */
-  getDispatchSLAAlerts(options?: {
+  async getDispatchSLAAlerts(options?: {
     type?: 'sla-warning' | 'sla-critical' | 'sla-breach';
     limit?: number;
-  }): SLAAlert[] {
+  }): Promise<SLAAlert[]> {
     return this.dispatchQueue.getSLAAlerts(options);
   }
 
@@ -1471,12 +1474,12 @@ export class TicketService extends EventEmitter {
   /**
    * Clear all data (for testing)
    */
-  clearAll(): void {
+  async clearAll(): Promise<void> {
     this.workflow.clearAll();
     this.analyzer.clearAll();
     this.stopEscalationChecks();
     this.dispatchEngine.clearAll();
-    this.dispatchQueue.clearAll();
+    await this.dispatchQueue.clear();
     this.loadBalancer.clearAll();
     this.dispatchAnalytics.clearAll();
     this.transfer.clearAll();

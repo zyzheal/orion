@@ -14,10 +14,12 @@ import {
   Input,
   InputNumber,
   Checkbox,
+  Popconfirm,
   message,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, BranchesOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
 import {
   getBranchPolicies,
@@ -42,7 +44,7 @@ const BranchPolicyList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBranchPolicies();
-      const data = response.data.data as BranchPolicy[];
+      const data = response.data as BranchPolicy[];
       setPolicies(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -121,26 +123,18 @@ const BranchPolicyList: React.FC = () => {
     }
   };
 
-  const handleDelete = (policy: any) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除分支策略 "${policy.branchPattern}" 吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteBranchPolicy(policy.id);
-          message.success('策略已删除');
-          loadPolicies();
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            message.error(`删除策略失败：${error.message}`);
-          } else {
-            message.error('删除策略失败');
-          }
-        }
-      },
-    });
+  const handleDelete = async (policy: any) => {
+    try {
+      await deleteBranchPolicy(policy.id);
+      message.success('策略已删除');
+      loadPolicies();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除策略失败：${error.message}`);
+      } else {
+        message.error('删除策略失败');
+      }
+    }
   };
 
   const handleToggleEnabled = async (policy: any, enabled: boolean) => {
@@ -241,15 +235,22 @@ const BranchPolicyList: React.FC = () => {
           >
             编辑
           </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={() => handleDelete(record)}
+            okText="确定"
+            cancelText="取消"
           >
-            删除
-          </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -263,11 +264,12 @@ const BranchPolicyList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BranchesOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             分支策略
           </Title>
           <Text type="secondary">管理分支保护策略和合并规则</Text>
@@ -303,7 +305,7 @@ const BranchPolicyList: React.FC = () => {
         onOk={() => form.submit()}
         width={600}
       >
-        <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={form} onFinish={handleSave} layout="vertical" style={{ marginTop: spacing.md }}>
           <Form.Item
             label="分支匹配模式"
             name="branchPattern"

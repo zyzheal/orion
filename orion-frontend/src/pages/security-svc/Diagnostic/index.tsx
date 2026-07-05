@@ -5,30 +5,51 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   FileTextOutlined,
   BookOutlined,
   RocketOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
+import { useAppStore } from '@/stores/appStore';
 
 const { Sider, Content } = Layout;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const menuItems = [
-  { key: '/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
-  { key: '/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
-  { key: '/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
-  { key: '/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
+  { key: '/observability/diagnostic/sessions', icon: <PlayCircleOutlined />, label: 'Sessions' },
+  { key: '/observability/diagnostic/reports', icon: <FileTextOutlined />, label: 'Reports' },
+  { key: '/observability/diagnostic/knowledge', icon: <BookOutlined />, label: 'Knowledge Base' },
+  { key: '/observability/diagnostic/trigger', icon: <RocketOutlined />, label: 'Trigger' },
 ];
+
+const pageTitleMap: Record<string, { icon: React.ReactNode; title: string; subtitle: string }> = {
+  '/observability/diagnostic/sessions': { icon: <PlayCircleOutlined />, title: 'Sessions', subtitle: '诊断会话管理' },
+  '/observability/diagnostic/reports': { icon: <FileTextOutlined />, title: 'Reports', subtitle: '诊断报告查看' },
+  '/observability/diagnostic/knowledge': { icon: <BookOutlined />, title: 'Knowledge Base', subtitle: '诊断知识库' },
+  '/observability/diagnostic/trigger': { icon: <RocketOutlined />, title: 'Trigger', subtitle: '诊断触发规则' },
+};
+
+// 统一的 Layout 配置
+const LAYOUT_CONFIG = {
+  siderWidth: 220,
+  titleLevel: 5 as const,
+  headerPadding: `${spacing[4]}px ${spacing[3]}px ${spacing[2]}px`,
+};
 
 const DiagnosticLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
+  // 从全局 store 获取主题（响应式）
+  const theme = useAppStore((state) => state.theme);
+  const isDark = theme === 'dark';
+
   const selectedKey = location.pathname;
+  const pageInfo = pageTitleMap[selectedKey] || { icon: null, title: 'Diagnostic', subtitle: '' };
 
   const handleMenuClick = ({ key }: { key: string }) => {
     navigate(key);
@@ -40,13 +61,17 @@ const DiagnosticLayout: React.FC = () => {
         collapsible
         collapsed={collapsed}
         onCollapse={setCollapsed}
-        theme="light"
-        style={{ borderRight: `1px solid ${colors.light.border.light}` }}
-        width={200}
+        theme={theme}
+        width={LAYOUT_CONFIG.siderWidth}
+        style={{
+          background: isDark ? colors.dark.bg.elevated : colors.light.bg.primary,
+          borderRight: `1px solid ${isDark ? colors.dark.border.default : colors.light.border.light}`,
+        }}
       >
         {!collapsed && (
-          <div style={{ padding: '16px 12px 8px' }}>
-            <Title level={5} style={{ margin: 0, color: colors.purple[500] }}>
+          <div style={{ padding: LAYOUT_CONFIG.headerPadding }}>
+            <Title level={2} style={{ marginBottom: spacing.sm, color: colors.primary[500] }}>
+              <ToolOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               Diagnostic
             </Title>
           </div>
@@ -62,12 +87,22 @@ const DiagnosticLayout: React.FC = () => {
       <Layout>
         <Content
           style={{
-            padding: 24,
+            padding: spacing[6],
             margin: 0,
-            minHeight: 280,
-            background: colors.light.bg.primary,
+            background: isDark ? colors.dark.bg.primary : colors.light.bg.primary,
           }}
         >
+          {pageInfo.title && (
+            <div style={{ marginBottom: spacing.md }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                {pageInfo.icon && <span style={{ marginRight: spacing[3], color: colors.primary[500] }}>{pageInfo.icon}</span>}
+                {pageInfo.title}
+              </Title>
+              {pageInfo.subtitle && (
+                <Text type="secondary">{pageInfo.subtitle}</Text>
+              )}
+            </div>
+          )}
           <Outlet />
         </Content>
       </Layout>

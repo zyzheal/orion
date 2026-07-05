@@ -49,19 +49,24 @@ export class TenantContext extends EventEmitter {
   extractTenantFromRequest(request: {
     headers: Record<string, string | undefined>;
     user?: {
-      tenant_id?: number;
+      tenantId?: number | string;  // camelCase (新标准)
+      tenant_id?: number | string; // snake_case (兼容)
       userId?: string;
       roles?: string[];
       permissions?: string[];
     };
   }): TenantInfo | null {
     // 优先从 JWT 解析的 user 对象获取
-    if (request.user?.tenant_id) {
+    // 支持 tenantId (camelCase) 和 tenant_id (snake_case)
+    const tenantId = request.user?.tenantId || request.user?.tenant_id;
+
+    if (tenantId !== undefined && tenantId !== null) {
+      const parsedTenantId = typeof tenantId === 'string' ? parseInt(tenantId, 10) : tenantId;
       return {
-        tenantId: request.user.tenant_id,
-        userId: request.user.userId,
-        roles: request.user.roles,
-        permissions: request.user.permissions,
+        tenantId: parsedTenantId,
+        userId: request.user?.userId,
+        roles: request.user?.roles,
+        permissions: request.user?.permissions,
       };
     }
 
@@ -324,9 +329,11 @@ export class TenantContext extends EventEmitter {
 
   /**
    * 从 JWT payload 解析租户信息
+   * 支持 tenantId (camelCase) 和 tenant_id (snake_case)
    */
   static parseFromJWT(payload: Record<string, unknown>): TenantInfo | null {
-    const tenantId = payload['tenant_id'] as number | undefined;
+    // 支持 tenantId (camelCase) 和 tenant_id (snake_case)
+    const tenantId = (payload['tenantId'] || payload['tenant_id']) as number | undefined;
 
     if (tenantId === undefined || tenantId === null) {
       return null;

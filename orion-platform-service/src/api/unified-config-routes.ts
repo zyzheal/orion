@@ -6,9 +6,11 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { DatabasePool } from '../services/database';
 import { UnifiedConfigService, SystemConfig, unifiedConfig } from '../config/UnifiedConfigService';
-import { roleGuard } from '../middleware/roleGuard';
+import { NotFoundError, handleError } from '../errors';
 
 interface ConfigRoutesOptions {
   database?: DatabasePool;
@@ -83,13 +85,13 @@ export default async function configRoutes(
       const value = configService.get(key);
       return reply.send({ key, value });
     } catch (error: any) {
-      return reply.status(404).send({ code: 'NOT_FOUND', message: error.message });
+      return handleError(reply, new NotFoundError(error.message));
     }
   });
 
   // GET /config/:key/full - 获取完整配置 (含敏感信息, 仅 admin)
   app.get<{ Params: { key: string } }>('/:key/full', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request, reply) => {
     const { key } = request.params as { key: keyof SystemConfig };
     const value = configService.get(key);
@@ -100,7 +102,7 @@ export default async function configRoutes(
 
   // PUT /config/:key - 更新配置
   app.put<{ Params: { key: string }; Body: { value: any } }>('/:key', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request, reply) => {
     const { key } = request.params as { key: keyof SystemConfig };
     const { value } = request.body;
@@ -122,7 +124,7 @@ export default async function configRoutes(
 
   // POST /config/batch - 批量更新
   app.post<{ Body: { configs: { key: keyof SystemConfig; value: any }[] } }>('/batch', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request, reply) => {
     const { configs } = request.body;
     const results: any[] = [];
@@ -144,7 +146,7 @@ export default async function configRoutes(
 
   // POST /config/:key/reset - 重置单个配置
   app.post<{ Params: { key: string } }>('/:key/reset', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request, reply) => {
     const { key } = request.params as { key: keyof SystemConfig };
     await configService.reset(key);
@@ -154,7 +156,7 @@ export default async function configRoutes(
 
   // POST /config/reset - 重置所有配置
   app.post('/reset', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (_request, reply) => {
     await configService.reset();
     return reply.send({ message: '所有配置已重置为默认值' });
@@ -182,7 +184,7 @@ export default async function configRoutes(
 
   // POST /config/import - 导入配置
   app.post<{ Body: { config: Partial<SystemConfig>; merge?: boolean } }>('/import', {
-    onRequest: [roleGuard(['admin'])],
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
   }, async (request, reply) => {
     const { config, merge = false } = request.body;
     

@@ -3,6 +3,7 @@ import path from 'path';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig, loadEnv, Plugin } from 'vite';
 import { execSync } from 'child_process';
+import federation from '@originjs/vite-plugin-federation';
 
 // 创建路由生成插件
 function generateRoutesPlugin(): Plugin {
@@ -50,47 +51,23 @@ export default defineConfig(({ command, mode }) => {
   const isMicroFrontend = mode === 'micro-frontend';
 
   return {
-    base: isMicroFrontend ? '/orion-knowledge/' : '/',
+    // Use '/' base so chunk imports work when served directly from localhost:5173
+    // In production, the nginx reverse proxy handles the /orion-knowledge/ prefix
+    base: '/',
 
     build: {
       assetsDir: 'orion-knowledge-admin-assets',
+      target: 'esnext',
 
-      // 微前端模式：输出为 UMD 格式
+      // MF 模式：输出到 dist-mf 目录，避免覆盖 SPA 构建产物
       ...(isMicroFrontend && {
-        lib: {
-          entry: path.resolve(__dirname, 'src/main.tsx'),
-          name: 'orion-knowledge-app',
-          fileName: () => 'orion-knowledge-app.js',
-          formats: ['umd'],
-        },
+        outDir: 'dist-mf',
         cssCodeSplit: false,
         sourcemap: true,
       }),
 
+      // 通用配置：代码分割
       rollupOptions: {
-        // 微前端模式：配置外部依赖
-        ...(isMicroFrontend && {
-          external: [
-            'react',
-            'react-dom',
-            'react-router-dom',
-            'react-redux',
-            '@reduxjs/toolkit',
-            '@mui/material',
-          ],
-          output: {
-            globals: {
-              react: 'React',
-              'react-dom': 'ReactDOM',
-              'react-router-dom': 'ReactRouterDOM',
-              'react-redux': 'ReactRedux',
-              '@reduxjs/toolkit': 'ReduxToolkit',
-              '@mui/material': 'MaterialUI',
-            },
-          },
-        }),
-
-        // 通用配置：代码分割
         output: {
           manualChunks: {
             'vendor-react': [
@@ -141,12 +118,30 @@ export default defineConfig(({ command, mode }) => {
         },
       },
       host: '0.0.0.0',
+      cors: true,
+      headers: {
+        'Access-Control-Allow-Origin': '*', // wujie 需要
+      },
     },
     esbuild: {
       // 保留函数和类名
       keepNames: true,
     },
     plugins: [
+      // Module Federation 插件（仅在微前端模式下启用）
+      ...(isMicroFrontend
+        ? [
+            federation({
+              name: 'orion_knowledge',
+              filename: 'remoteEntry.js',
+              exposes: {
+                './index': './src/main.tsx',
+              },
+              // 默认无 shared：子应用打包自己的依赖，支持独立运行
+              // 如需共享主应用依赖（性能优化），在 SubAppStore 中设置 use_shared: true
+            }),
+          ]
+        : []),
       react(),
       generateRoutesPlugin(),
       ...(command === 'build' && shouldAnalyze

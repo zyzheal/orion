@@ -17,9 +17,12 @@
  */
 
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { pipelineCircuitBreaker } from '../circuit-breaker/pipeline-circuit-breaker';
+import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('WebhookNotifier');
 
 // ============================================================================
 // 接口定义
@@ -167,6 +170,40 @@ export class WebhookNotifier {
     await Promise.allSettled(promises);
   }
 
+  /**
+   * Send webhook with template variable resolution.
+   * Resolves {{stages.<name>.status}}, {{tasks.<name>.outputs.<key>}}, {{run.<field>}} placeholders.
+   */
+  async sendWithTemplate(
+    config: WebhookConfig,
+    template: { subject?: string; body: string },
+    context: {
+      stages?: Record<string, { status: string }>;
+      tasks?: Record<string, Record<string, unknown>>;
+      run: { id: string; pipelineId: string; status: string; durationMs?: number; triggerBy?: string };
+    },
+  ): Promise<void> {
+    const body = this.resolveTemplate(template.body, context);
+    const eventType = this.mapStatusToEventType(context.run.status);
+
+    const payload: WebhookPayload = {
+      eventType,
+      runId: context.run.id,
+      pipelineId: context.run.pipelineId,
+      status: context.run.status as WebhookPayload['status'],
+      timestamp: new Date(),
+      durationMs: context.run.durationMs,
+      triggerBy: context.run.triggerBy,
+    };
+
+    // Override the body by creating a custom config with a modified payload builder
+    const customConfig = { ...config };
+    await this.sendWebhook(customConfig, {
+      ...payload,
+      metadata: { ...payload.metadata, templateBody: body },
+    });
+  }
+
   // ============================================================================
   // 私有辅助方法
   // ============================================================================
@@ -189,7 +226,56 @@ export class WebhookNotifier {
   }
 
   /**
-   * 执行单次 HTTP 请求
+   * Resolve template variables from context.
+   */
+  private resolveTemplate(template: string, context: {
+    stages?: Record<string, { status: string }>;
+    tasks?: Record<string, Record<string, unknown>>;
+    run: Record<string, unknown>;
+  }): string {
+    return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const value = this.resolvePath(path.trim(), context);
+      return value !== undefined ? String(value) : match;
+    });
+  }
+
+  /**
+   * Resolve a dot-notation path from context object.
+   */
+  private resolvePath(path: string, context: Record<string, unknown>): unknown {
+    const parts = path.split('.');
+    let current: unknown = context;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      if (typeof current === 'object' && part in current) {
+        current = (current as Record<string, unknown>)[part];
+      } else {
+        return undefined;
+      }
+    }
+
+    return current;
+  }
+
+  /**
+   * Map run status to webhook event type.
+   */
+  private mapStatusToEventType(status: string): 'pipeline.complete' | 'pipeline.failed' | 'pipeline.cancelled' {
+    switch (status) {
+      case 'success':
+        return 'pipeline.complete';
+      case 'failed':
+        return 'pipeline.failed';
+      case 'cancelled':
+        return 'pipeline.cancelled';
+      default:
+        return 'pipeline.complete';
+    }
+  }
+
+  /**
+   * 执行单次 HTTP 请求 (F004: 通过熔断器保护)
    */
   private async doSend(config: WebhookConfig, body: string): Promise<void> {
     const headers: Record<string, string> = {
@@ -204,21 +290,42 @@ export class WebhookNotifier {
       headers['X-Webhook-Signature-Algorithm'] = 'sha256';
     }
 
-    const response = await fetch(config.url, {
-      method: config.method || 'POST',
-      headers,
-      body,
+    // F004: 通过熔断器执行 webhook 调用
+    await pipelineCircuitBreaker.execute('notification', this.extractProvider(config.url), async () => {
+      const response = await fetch(config.url, {
+        method: config.method || 'POST',
+        headers,
+        body,
+      });
+
+      if (!response.ok) {
+        throw new OrionError(`Webhook returned ${response.status} ${response.statusText}`, 'OPERATION_FAILED')
+      }
+
+      try {
+        await response.json();
+      } catch {
+        // 忽略解析错误
+      }
     });
+  }
 
-    if (!response.ok) {
-      throw new Error(`Webhook returned ${response.status} ${response.statusText}`);
-    }
-
-    // 尝试解析响应体（非必须，解析失败不影响成功状态）
+  /**
+   * Extract notification provider name from webhook URL hostname.
+   * e.g., https://hooks.slack.com/... → 'slack'
+   */
+  private extractProvider(url: string): string {
     try {
-      await response.json();
+      const hostname = new URL(url).hostname.toLowerCase();
+      if (hostname.includes('slack')) return 'slack';
+      if (hostname.includes('dingtalk') || hostname.includes('ding')) return 'dingtalk';
+      if (hostname.includes('wecom') || hostname.includes('wechat')) return 'wecom';
+      if (hostname.includes('lark') || hostname.includes('feishu')) return 'lark';
+      if (hostname.includes('teams') || hostname.includes('microsoft')) return 'teams';
+      // Use hostname as provider fallback
+      return hostname.split('.')[0];
     } catch {
-      // 响应体不是 JSON，忽略
+      return 'unknown';
     }
   }
 

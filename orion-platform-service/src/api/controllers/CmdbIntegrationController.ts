@@ -3,14 +3,14 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   CmdbIntegrationService,
   ScriptExecutionRequest,
   K8sSyncConfig,
 } from '../../services/cmdb-integration-service';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CmdbIntegrationController');
 
 export class CmdbIntegrationController {
   private service: CmdbIntegrationService;

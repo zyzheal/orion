@@ -140,3 +140,19 @@ CREATE TRIGGER trigger_plugin_usage_stats
     AFTER INSERT ON plugin_downloads
     FOR EACH ROW
     EXECUTE FUNCTION update_plugin_usage_stats();
+
+-- ============================================================
+-- Tenant isolation: add tenant_id to all tables
+-- ============================================================
+
+ALTER TABLE plugins ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_plugins_tenant_id ON plugins(tenant_id);
+
+ALTER TABLE plugin_tags ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_plugin_tags_tenant_id ON plugin_tags(tenant_id);
+
+ALTER TABLE plugin_downloads ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_plugin_downloads_tenant_id ON plugin_downloads(tenant_id);
+
+ALTER TABLE plugin_usage_stats ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_plugin_usage_stats_tenant_id ON plugin_usage_stats(tenant_id);

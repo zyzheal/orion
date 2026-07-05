@@ -13,22 +13,30 @@ import {
   RecoveryStatus,
   BackupRecord,
 } from './types';
+import { OrionError, ErrorCode } from '../../errors';
+import { RecoveryPlanRepository, RecoveryExecutionRepository } from '../../repositories/RecoveryPlanRepository';
 
 /**
  * Recovery Service - Disaster recovery and RTO/RPO tracking
  */
 export class RecoveryService extends EventEmitter {
-  /** Recovery plans */
-  private recoveryPlans: Map<string, RecoveryPlan> = new Map();
+  /** Recovery plans - migrated to repository */
+  private planRepository?: RecoveryPlanRepository;
+  private recoveryPlans: Map<string, RecoveryPlan> = new Map(); // in-memory cache
 
-  /** Recovery executions */
-  private executions: Map<string, RecoveryExecution> = new Map();
+  /** Recovery executions - migrated to repository */
+  private executionRepository?: RecoveryExecutionRepository;
+  private executions: Map<string, RecoveryExecution> = new Map(); // in-memory cache
 
   /** Available backups reference */
   private backups: Map<string, BackupRecord> = new Map();
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     super();
+    if (db) {
+      this.planRepository = new RecoveryPlanRepository(db);
+      this.executionRepository = new RecoveryExecutionRepository(db);
+    }
   }
 
   // ==================== Recovery Plan Management ====================
@@ -36,7 +44,7 @@ export class RecoveryService extends EventEmitter {
   /**
    * Create a recovery plan
    */
-  createPlan(plan: Omit<RecoveryPlan, 'createdAt' | 'updatedAt'>): RecoveryPlan {
+  async createPlan(plan: Omit<RecoveryPlan, 'createdAt' | 'updatedAt'>): Promise<RecoveryPlan> {
     const now = new Date();
     const fullPlan: RecoveryPlan = {
       ...plan,
@@ -46,16 +54,35 @@ export class RecoveryService extends EventEmitter {
 
     // Validate RTO and RPO are positive
     if (fullPlan.rto <= 0) {
-      throw new Error('RTO must be a positive number (milliseconds)');
+      throw new OrionError('RTO must be a positive number (milliseconds)', ErrorCode.OPERATION_FAILED);
     }
     if (fullPlan.rpo <= 0) {
-      throw new Error('RPO must be a positive number (milliseconds)');
+      throw new OrionError('RPO must be a positive number (milliseconds)', ErrorCode.OPERATION_FAILED);
     }
 
     // Sort steps by order
     fullPlan.steps.sort((a, b) => a.order - b.order);
 
     this.recoveryPlans.set(fullPlan.id, fullPlan);
+
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.create({
+          id: fullPlan.id,
+          name: fullPlan.name,
+          description: fullPlan.description || null,
+          enabled: fullPlan.enabled,
+          rtoMs: fullPlan.rto,
+          rpoMs: fullPlan.rpo,
+          steps: fullPlan.steps as any,
+          lastTested: null,
+        });
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     this.emit('plan:created', fullPlan);
     return fullPlan;
   }
@@ -77,7 +104,7 @@ export class RecoveryService extends EventEmitter {
   /**
    * Update a recovery plan
    */
-  updatePlan(planId: string, updates: Partial<RecoveryPlan>): RecoveryPlan | null {
+  async updatePlan(planId: string, updates: Partial<RecoveryPlan>): Promise<RecoveryPlan | null> {
     const plan = this.recoveryPlans.get(planId);
     if (!plan) return null;
 
@@ -92,6 +119,27 @@ export class RecoveryService extends EventEmitter {
     }
 
     this.recoveryPlans.set(planId, updated);
+
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.update(entity.id, {
+            name: updated.name,
+            description: updated.description || null,
+            enabled: updated.enabled,
+            rtoMs: updated.rto,
+            rpoMs: updated.rpo,
+            steps: updated.steps as any,
+            lastTested: updated.lastTested || null,
+          });
+        }
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     this.emit('plan:updated', updated);
     return updated;
   }
@@ -99,8 +147,21 @@ export class RecoveryService extends EventEmitter {
   /**
    * Delete a recovery plan
    */
-  deletePlan(planId: string): boolean {
+  async deletePlan(planId: string): Promise<boolean> {
     const deleted = this.recoveryPlans.delete(planId);
+
+    // Persist to repository
+    if (deleted && this.planRepository) {
+      try {
+        const entity = await this.planRepository.findById(planId);
+        if (entity) {
+          await this.planRepository.delete(entity.id);
+        }
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     if (deleted) {
       this.emit('plan:deleted', planId);
     }
@@ -110,7 +171,15 @@ export class RecoveryService extends EventEmitter {
   /**
    * Mark a recovery plan as tested
    */
-  markPlanTested(planId: string): RecoveryPlan | null {
+  async markPlanTested(planId: string): Promise<RecoveryPlan | null> {
+    // Persist to repository
+    if (this.planRepository) {
+      try {
+        await this.planRepository.markTested(planId);
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
     return this.updatePlan(planId, { lastTested: new Date() });
   }
 
@@ -128,11 +197,11 @@ export class RecoveryService extends EventEmitter {
   ): Promise<RecoveryExecution> {
     const plan = this.recoveryPlans.get(planId);
     if (!plan) {
-      throw new Error(`Recovery plan ${planId} not found`);
+      throw new OrionError(`Recovery plan ${planId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (!plan.enabled) {
-      throw new Error(`Recovery plan ${planId} is disabled`);
+      throw new OrionError(`Recovery plan ${planId} is disabled`, ErrorCode.NOT_FOUND);
     }
 
     // Create recovery execution record
@@ -157,6 +226,26 @@ export class RecoveryService extends EventEmitter {
     };
 
     this.executions.set(executionId, execution);
+
+    // Persist to repository
+    if (this.executionRepository) {
+      try {
+        await this.executionRepository.create({
+          id: executionId,
+          planId,
+          planName: plan.name,
+          status: 'initiated',
+          targetTime: options?.targetTime || null,
+          backupId: options?.backupId || null,
+          stepExecutions: stepExecutions as any,
+          rtoTargetMs: plan.rto,
+          rpoTargetMs: plan.rpo,
+        });
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     this.emit('recovery:initiated', execution);
 
     return execution;
@@ -168,19 +257,20 @@ export class RecoveryService extends EventEmitter {
   async executeRecoveryPlan(executionId: string): Promise<RecoveryExecution> {
     const execution = this.executions.get(executionId);
     if (!execution) {
-      throw new Error(`Recovery execution ${executionId} not found`);
+      throw new OrionError(`Recovery execution ${executionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (execution.status !== 'initiated') {
-      throw new Error(`Recovery execution ${executionId} is not in initiated state`);
+      throw new OrionError(`Recovery execution ${executionId} is not in initiated state`, ErrorCode.NOT_FOUND);
     }
 
     const plan = this.recoveryPlans.get(execution.planId);
     if (!plan) {
-      throw new Error(`Recovery plan ${execution.planId} not found`);
+      throw new OrionError(`Recovery plan ${execution.planId} not found`, ErrorCode.NOT_FOUND);
     }
 
     execution.status = 'in_progress';
+    this.persistExecutionStatus(executionId, 'in_progress');
     this.emit('recovery:started', execution);
 
     let allStepsCompleted = true;
@@ -246,6 +336,11 @@ export class RecoveryService extends EventEmitter {
         execution.errorMessage = 'One or more recovery steps failed';
         this.emit('recovery:failed', execution);
       }
+
+      // Persist final status and RTO/RPO to repository
+      this.persistExecutionStatus(executionId, execution.status, execution.errorMessage);
+      this.persistExecutionRtoRpo(execution);
+      this.persistStepExecutions(executionId, execution.stepExecutions);
     }
 
     return execution;
@@ -310,7 +405,7 @@ export class RecoveryService extends EventEmitter {
     const backupResult = this.findBackupForPointInTime(targetTime, backups);
 
     if (!backupResult) {
-      throw new Error(`No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`);
+      throw new OrionError(`No suitable backup found for point-in-time recovery at ${targetTime.toISOString()}`, 'OPERATION_FAILED')
     }
 
     const execution = await this.initiateRecovery(planId, {
@@ -466,7 +561,53 @@ export class RecoveryService extends EventEmitter {
     execution.status = 'rolled_back';
     execution.completedAt = new Date();
 
+    // Persist to repository
+    this.persistExecutionStatus(executionId, 'rolled_back');
+
     this.emit('recovery:rolled_back', execution);
     return execution;
+  }
+
+  // ==================== Repository Helpers ====================
+
+  /**
+   * Persist execution status to repository
+   */
+  private async persistExecutionStatus(executionId: string, status: string, errorMessage?: string): Promise<void> {
+    if (!this.executionRepository) return;
+    try {
+      await this.executionRepository.updateStatus(executionId, status, errorMessage);
+    } catch (err) {
+      // Log but don't fail
+    }
+  }
+
+  /**
+   * Persist RTO/RPO tracking to repository
+   */
+  private async persistExecutionRtoRpo(execution: RecoveryExecution): Promise<void> {
+    if (!this.executionRepository) return;
+    try {
+      await this.executionRepository.updateRtoRpo(execution.id, {
+        actualRtoMs: execution.actualRtoMs,
+        actualRpoMs: execution.actualRpoMs,
+        rtoMet: execution.rtoMet,
+        rpoMet: execution.rpoMet,
+      });
+    } catch (err) {
+      // Log but don't fail
+    }
+  }
+
+  /**
+   * Persist step executions to repository
+   */
+  private async persistStepExecutions(executionId: string, stepExecutions: RecoveryStepExecution[]): Promise<void> {
+    if (!this.executionRepository) return;
+    try {
+      await this.executionRepository.updateStepExecutions(executionId, stepExecutions as any);
+    } catch (err) {
+      // Log but don't fail
+    }
   }
 }

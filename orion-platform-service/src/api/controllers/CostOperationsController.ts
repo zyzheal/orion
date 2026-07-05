@@ -4,11 +4,12 @@
  * Phase 2: 处理预算门禁、成本异常检测、成本优化建议相关的 HTTP 请求。
  */
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { CostBudgetGuardService, BudgetGuardInput, EvaluationResult } from '../../services/cost/CostBudgetGuardService';
 import { CostAnomalyDetectionService, AnomalyDetectionResult, CostTrendResult, CostForecastResult } from '../../services/cost/CostAnomalyDetectionService';
 import { CostOptimizationService, UtilizationAnalysis, OptimizationCategory } from '../../services/cost/CostOptimizationService';
 
-export class CostOperationsController {
+export class CostOperationsController extends BaseController {
   private budgetGuardService: CostBudgetGuardService;
   private anomalyDetectionService: CostAnomalyDetectionService;
   private optimizationService: CostOptimizationService;
@@ -18,6 +19,7 @@ export class CostOperationsController {
     anomalyDetectionService: CostAnomalyDetectionService,
     optimizationService: CostOptimizationService,
   ) {
+    super();
     this.budgetGuardService = budgetGuardService;
     this.anomalyDetectionService = anomalyDetectionService;
     this.optimizationService = optimizationService;
@@ -48,7 +50,7 @@ export class CostOperationsController {
         });
       }
 
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const input: BudgetGuardInput = {
         name,
@@ -73,7 +75,7 @@ export class CostOperationsController {
   async getBudgetGuards(request: FastifyRequest, reply: FastifyReply) {
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const guards = await this.budgetGuardService.getBudgetGuards(tenantId);
       return reply.status(200).send({ success: true, data: guards });
@@ -98,7 +100,7 @@ export class CostOperationsController {
         });
       }
 
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const result: EvaluationResult = await this.budgetGuardService.evaluateCostGuard(
         pipelineId,
@@ -125,7 +127,7 @@ export class CostOperationsController {
   async detectAnomalies(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any;
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       let timeWindow: { start: Date; end: Date };
 
@@ -156,7 +158,7 @@ export class CostOperationsController {
   async getCostTrend(request: FastifyRequest, reply: FastifyReply) {
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = this.getTenantId(request);
       const days = parseInt(query.days, 10) || 30;
 
       const result: CostTrendResult = await this.anomalyDetectionService.getCostTrend(tenantId, days);
@@ -173,7 +175,7 @@ export class CostOperationsController {
   async forecastCost(request: FastifyRequest, reply: FastifyReply) {
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = this.getTenantId(request);
       const days = parseInt(query.days, 10) || 30;
 
       const result: CostForecastResult = await this.anomalyDetectionService.forecastCost(tenantId, days);
@@ -192,7 +194,7 @@ export class CostOperationsController {
   async getOptimizationSuggestions(request: FastifyRequest, reply: FastifyReply) {
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const options: { category?: OptimizationCategory; minSavings?: number } = {};
       if (query.category) options.category = query.category as OptimizationCategory;
@@ -209,10 +211,92 @@ export class CostOperationsController {
    * 分析资源利用率
    * POST /api/v1/cost-operations/analyze-utilization
    */
+  /**
+   * 删除预算门禁
+   * DELETE /api/v1/cost-operations/budget-guards/:id
+   */
+  async deleteBudgetGuard(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = this.getTenantId(request);
+      const deleted = await this.budgetGuardService.deleteBudgetGuard(params.id, tenantId);
+
+      if (!deleted) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Budget guard ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Budget guard deleted',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'DELETE_GUARD_ERROR', message: error.message });
+    }
+  }
+
+  /**
+   * 应用优化建议
+   * POST /api/v1/cost-operations/optimizations/:id/apply
+   */
+  async applyOptimization(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = this.getTenantId(request);
+
+      const updated = await this.optimizationService.applySuggestion(tenantId, params.id);
+
+      if (!updated) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Optimization ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: { optimization: updated },
+        message: 'Optimization applied',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'APPLY_OPTIMIZATION_ERROR', message: error.message });
+    }
+  }
+
+  /**
+   * 拒绝优化建议
+   * POST /api/v1/cost-operations/optimizations/:id/reject
+   */
+  async rejectOptimization(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const params = request.params as any;
+      const tenantId = this.getTenantId(request);
+
+      const updated = await this.optimizationService.rejectSuggestion(tenantId, params.id);
+
+      if (!updated) {
+        return reply.status(404).send({
+          error: 'NOT_FOUND',
+          message: 'Optimization ' + params.id + ' not found',
+        });
+      }
+
+      return reply.status(200).send({
+        success: true,
+        data: { optimization: updated },
+        message: 'Optimization rejected',
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ error: 'REJECT_OPTIMIZATION_ERROR', message: error.message });
+    }
+  }
+
   async analyzeUtilization(request: FastifyRequest, reply: FastifyReply) {
     try {
       const body = request.body as any;
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       // If resources are provided, record them first
       if (body.resources && Array.isArray(body.resources)) {

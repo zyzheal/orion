@@ -53,8 +53,8 @@ export const artifactOpsApi = {
     return response.data as OperationHistory;
   },
 
-  getArtifactStats: async (artifactId: string) => {
-    const response = await apiClient.get(`/api/v1/artifact-ops/stats/${artifactId}`);
+  getArtifactStats: async () => {
+    const response = await apiClient.get('/api/v1/artifact-ops/stats');
     return response.data as ArtifactStats;
   },
 

@@ -16,6 +16,11 @@ class MockApprovalDb {
   private steps: Map<string, any[]> = new Map();
   private idCounter = 0;
 
+  async transaction<T>(fn: (client: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> }) => Promise<T>): Promise<T> {
+    // Mock: just execute sequentially (no real transaction isolation for tests)
+    return fn(this);
+  }
+
   async query(text: string, params?: any[]): Promise<{ rows: any[]; rowCount: number | null }> {
     if (text === 'BEGIN' || text === 'COMMIT') return { rows: [], rowCount: 0 };
 

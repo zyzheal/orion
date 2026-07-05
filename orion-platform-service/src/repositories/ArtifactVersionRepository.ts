@@ -14,6 +14,7 @@ import {
   DeploymentHistory,
   VersionDiff,
 } from '../models/ArtifactVersion';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * 数据库行映射（snake_case -> camelCase 转换中间层）
@@ -64,7 +65,7 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into artifact_version_tracking returned no rows');
+      throw new OrionError('INSERT into artifact_version_tracking returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -302,12 +303,12 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
   /**
    * 根据 ID 查找制品版本
    */
-  async findById(id: string): Promise<ArtifactVersion | undefined> {
+  async findById(id: string): Promise<ArtifactVersion | null> {
     const result = await this.db.query(
       `SELECT * FROM artifact_version_tracking WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

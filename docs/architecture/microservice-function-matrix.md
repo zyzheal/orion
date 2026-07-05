@@ -48,9 +48,7 @@
 | 17 | orion-monitor-svc | 3005 | Node.js/Fastify | **监控告警** — 指标采集、告警规则、故障诊断，5 个服务文件 |
 | 18 | orion-selfhealing-svc | 3025 | Node.js/Fastify | **自愈引擎** — 自动故障检测、自愈策略执行、恢复流程 |
 | 19 | orion-config-mgmt-svc | 3024 | Node.js/Fastify | **配置管理** — GitOps 配置同步、配置漂移检测、版本管理 |
-| 20 | orion-cmdb-svc | 3019 | Node.js/Fastify | **CMDB** — 配置管理数据库、资产台账、服务拓扑 |
-| 21 | orion-dba-svc | 3031 | Node.js/Fastify | **DBA 服务** — SQL 审核/工单审批/数据源管理，包装 Yearning Java 后端 |
-| 22 | orion-visor-svc | 3032 | Node.js/Fastify | **运维平台** — 主机管理/脚本管理/任务执行/终端会话，包装 Dromara Visor |
+| 20 | orion-dba-svc | 3031 | Node.js/Fastify | **DBA 服务** — SQL 审核/工单审批/数据源管理，包装 Yearning Java 后端 |
 
 ---
 
@@ -96,8 +94,7 @@
 | 37 | orion-pandawiki-svc | 3034 | PandaWiki HTTP(8001) | **知识库管理** — PandaWiki 文档/空间/搜索/AI 问答统一 API |
 | 38 | orion-graph-svc | 3035 | Neo4j Bolt(7687) | **知识图谱** — Neo4j Cypher 查询、最短路径、服务拓扑发现 |
 | 39 | orion-dba-svc | 3031 | Yearning HTTP(8000) | **SQL 工单** — SQL 审核工单、数据源、权限管理 |
-| 40 | orion-visor-svc | 3032 | Dromara Visor HTTP(8080) | **运维主机** — 主机管理、脚本执行、终端会话 |
-| 41 | orion-ai-service | 8000 | Python FastAPI | **AI 事件处理** — NATS 事件订阅、AI 模型调用 |
+| 40 | orion-ai-service | 8000 | Python FastAPI | **AI 事件处理** — NATS 事件订阅、AI 模型调用 |
 
 ---
 

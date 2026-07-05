@@ -4,7 +4,8 @@
  * 在 DoraMetricsService 基础上，提供带趋势、目标值、状态的标准指标格式：
  * { value, trend, target, status }
  *
- * 使用 Map 内存存储历史数据，支持趋势分析
+ * Migration: Now fully uses PostgreSQL Repository for snapshot persistence.
+ * The in-memory snapshotHistory Map is replaced by EfficiencyMetricSnapshotRepository.
  */
 
 import {
@@ -15,6 +16,11 @@ import {
   IncidentRecord,
 } from '../efficiency/types';
 import { DoraMetricsService } from '../efficiency/DoraMetricsService';
+import {
+  EfficiencyMetricSnapshotRepository,
+  EfficiencyMetricSnapshotEntity,
+} from '../../repositories/EfficiencyMetricSnapshotRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 标准指标结果格式
@@ -89,27 +95,32 @@ const DEFAULT_TARGETS = {
  */
 export class DORACalculator {
   private doraService: DoraMetricsService;
-  /** 历史快照存储 */
+  /** In-memory snapshot cache (fallback when no repo) */
   private snapshotHistory: Map<string, MetricSnapshot[]> = new Map();
+  /** PostgreSQL repository for persistent snapshot storage */
+  private snapshotRepo: EfficiencyMetricSnapshotRepository | null = null;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.doraService = new DoraMetricsService();
+    if (db) {
+      this.snapshotRepo = new EfficiencyMetricSnapshotRepository(db);
+    }
   }
 
   /**
    * 计算部署频率
    */
-  calculateDeploymentFrequency(
+  async calculateDeploymentFrequency(
     tenantId: string,
     deployments: DeploymentRecord[],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): DORAMetricResult {
+  ): Promise<DORAMetricResult> {
     const windowConfig = this.doraService.buildTimeWindow(timeWindow, windowSize);
     const frequency = this.doraService.calculateDeploymentFrequency(deployments, windowConfig);
 
     // 保存快照
-    this.saveSnapshot(tenantId, timeWindow, {
+    await this.saveSnapshot(tenantId, timeWindow, {
       deploymentFrequency: frequency.deploymentsPerDay,
       leadTimeMs: 0,
       changeFailureRate: 0,
@@ -117,7 +128,7 @@ export class DORACalculator {
     });
 
     const target = DEFAULT_TARGETS.deploymentsPerDay;
-    const trend = this.getTrend(tenantId, 'deploymentFrequency');
+    const trend = await this.getTrend(tenantId, 'deploymentFrequency');
 
     return {
       value: frequency.deploymentsPerDay,
@@ -131,19 +142,19 @@ export class DORACalculator {
   /**
    * 计算变更前置时间（返回小时数）
    */
-  calculateLeadTime(
+  async calculateLeadTime(
     tenantId: string,
     pipelineRecords: PipelineCompletionRecord[],
     deployments: DeploymentRecord[] = [],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): DORAMetricResult {
+  ): Promise<DORAMetricResult> {
     const windowConfig = this.doraService.buildTimeWindow(timeWindow, windowSize);
     const leadTime = this.doraService.calculateLeadTimeForChanges(pipelineRecords, windowConfig, deployments);
 
     const leadTimeHours = leadTime.averageLeadTimeMs / (1000 * 60 * 60);
 
-    this.saveSnapshot(tenantId, timeWindow, {
+    await this.saveSnapshot(tenantId, timeWindow, {
       deploymentFrequency: 0,
       leadTimeMs: leadTime.averageLeadTimeMs,
       changeFailureRate: 0,
@@ -151,7 +162,7 @@ export class DORACalculator {
     });
 
     const target = DEFAULT_TARGETS.leadTimeHours;
-    const trend = this.getTrend(tenantId, 'leadTimeMs');
+    const trend = await this.getTrend(tenantId, 'leadTimeMs');
 
     // Lead Time 越低越好，所以趋势和状态判断相反
     return {
@@ -166,16 +177,16 @@ export class DORACalculator {
   /**
    * 计算变更失败率
    */
-  calculateChangeFailureRate(
+  async calculateChangeFailureRate(
     tenantId: string,
     deployments: DeploymentRecord[],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): DORAMetricResult {
+  ): Promise<DORAMetricResult> {
     const windowConfig = this.doraService.buildTimeWindow(timeWindow, windowSize);
     const failureRate = this.doraService.calculateChangeFailureRate(deployments, windowConfig);
 
-    this.saveSnapshot(tenantId, timeWindow, {
+    await this.saveSnapshot(tenantId, timeWindow, {
       deploymentFrequency: 0,
       leadTimeMs: 0,
       changeFailureRate: failureRate.failureRate,
@@ -183,7 +194,7 @@ export class DORACalculator {
     });
 
     const target = DEFAULT_TARGETS.changeFailureRate;
-    const trend = this.getTrend(tenantId, 'changeFailureRate');
+    const trend = await this.getTrend(tenantId, 'changeFailureRate');
 
     // 失败率越低越好
     return {
@@ -198,19 +209,19 @@ export class DORACalculator {
   /**
    * 计算平均恢复时间（返回小时数）
    */
-  calculateMTTR(
+  async calculateMTTR(
     tenantId: string,
     deployments: DeploymentRecord[],
     incidents: IncidentRecord[] = [],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): DORAMetricResult {
+  ): Promise<DORAMetricResult> {
     const windowConfig = this.doraService.buildTimeWindow(timeWindow, windowSize);
     const mttr = this.doraService.calculateMeanTimeToRecovery(deployments, windowConfig, incidents);
 
     const mttrHours = mttr.averageRecoveryTimeMs / (1000 * 60 * 60);
 
-    this.saveSnapshot(tenantId, timeWindow, {
+    await this.saveSnapshot(tenantId, timeWindow, {
       deploymentFrequency: 0,
       leadTimeMs: 0,
       changeFailureRate: 0,
@@ -218,7 +229,7 @@ export class DORACalculator {
     });
 
     const target = DEFAULT_TARGETS.mttrHours;
-    const trend = this.getTrend(tenantId, 'mttrMs');
+    const trend = await this.getTrend(tenantId, 'mttrMs');
 
     // MTTR 越低越好
     return {
@@ -233,19 +244,19 @@ export class DORACalculator {
   /**
    * 计算全部 DORA 指标
    */
-  calculateAllDORA(
+  async calculateAllDORA(
     tenantId: string,
     deployments: DeploymentRecord[],
     pipelineRecords: PipelineCompletionRecord[],
     incidents: IncidentRecord[] = [],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): AllDORAResult {
+  ): Promise<AllDORAResult> {
     return {
-      deploymentFrequency: this.calculateDeploymentFrequency(tenantId, deployments, timeWindow, windowSize),
-      leadTime: this.calculateLeadTime(tenantId, pipelineRecords, deployments, timeWindow, windowSize),
-      changeFailureRate: this.calculateChangeFailureRate(tenantId, deployments, timeWindow, windowSize),
-      mttr: this.calculateMTTR(tenantId, deployments, incidents, timeWindow, windowSize),
+      deploymentFrequency: await this.calculateDeploymentFrequency(tenantId, deployments, timeWindow, windowSize),
+      leadTime: await this.calculateLeadTime(tenantId, pipelineRecords, deployments, timeWindow, windowSize),
+      changeFailureRate: await this.calculateChangeFailureRate(tenantId, deployments, timeWindow, windowSize),
+      mttr: await this.calculateMTTR(tenantId, deployments, incidents, timeWindow, windowSize),
       computedAt: new Date(),
     };
   }
@@ -253,16 +264,16 @@ export class DORACalculator {
   /**
    * 获取 DORA 趋势（对比当前时间段与上一个时间段）
    */
-  getDORATrend(
+  async getDORATrend(
     tenantId: string,
     deployments: DeploymentRecord[],
     pipelineRecords: PipelineCompletionRecord[],
     incidents: IncidentRecord[] = [],
     timeWindow: TimeWindow = 'week',
     windowSize: number = 1
-  ): DORATrendResult {
+  ): Promise<DORATrendResult> {
     // 计算当前时间段的指标
-    const current = this.calculateAllDORA(
+    const current = await this.calculateAllDORA(
       tenantId, deployments, pipelineRecords, incidents, timeWindow, windowSize
     );
 
@@ -286,7 +297,7 @@ export class DORACalculator {
       return detectedAt >= previousStart && detectedAt < previousEnd;
     });
 
-    const previous = this.calculateAllDORA(
+    const previous = await this.calculateAllDORA(
       tenantId, previousDeployments, previousPipelines, previousIncidents, timeWindow, windowSize
     );
 
@@ -311,24 +322,135 @@ export class DORACalculator {
     };
   }
 
+  /**
+   * 获取历史快照用于趋势图
+   */
+  async getHistoricalSnapshots(tenantId: string, weeks: number = 12): Promise<Array<{
+    week: string;
+    deploymentFrequency: number;
+    leadTime: number;
+    mttr: number;
+    changeFailureRate: number;
+  }>> {
+    const result: Array<{ week: string; deploymentFrequency: number; leadTime: number; mttr: number; changeFailureRate: number }> = [];
+
+    // Try to get from PostgreSQL repository
+    let history: MetricSnapshot[] = [];
+    if (this.snapshotRepo) {
+      try {
+        const entities = await this.snapshotRepo.findByTenant(tenantId, weeks * 7); // 7 days per week
+        history = entities.map(e => ({
+          tenantId: e.tenantId,
+          timeWindow: e.timeWindow,
+          deploymentFrequency: e.deploymentFrequency,
+          leadTimeMs: e.leadTimeMs,
+          changeFailureRate: e.changeFailureRate,
+          mttrMs: e.mttrMs,
+          capturedAt: e.capturedAt,
+        }));
+      } catch {
+        // Fall back to in-memory
+      }
+    }
+
+    // If not enough from DB, use in-memory cache
+    if (history.length === 0) {
+      history = this.snapshotHistory.get(tenantId) ?? [];
+    }
+
+    // Sort by capturedAt descending (avoid mutating shared array reference)
+    history = [...history].sort((a, b) => b.capturedAt.getTime() - a.capturedAt.getTime());
+
+    // Build weekly data points
+    const now = new Date();
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - i * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const weekLabel = `${weekStart.getMonth() + 1}/${weekStart.getDate()}`;
+
+      // Find snapshots in this week
+      const weekSnapshots = history.filter(s =>
+        s.capturedAt >= weekStart && s.capturedAt < weekEnd
+      );
+
+      if (weekSnapshots.length > 0) {
+        // Aggregate from actual snapshots
+        const latest = weekSnapshots[weekSnapshots.length - 1];
+        result.push({
+          week: weekLabel,
+          deploymentFrequency: latest.deploymentFrequency,
+          leadTime: Math.round(latest.leadTimeMs / (1000 * 60 * 60)),
+          mttr: Math.round(latest.mttrMs / (1000 * 60)),
+          changeFailureRate: latest.changeFailureRate,
+        });
+      } else {
+        // No real data for this week, use zero
+        result.push({
+          week: weekLabel,
+          deploymentFrequency: 0,
+          leadTime: 0,
+          mttr: 0,
+          changeFailureRate: 0,
+        });
+      }
+    }
+
+    return result;
+  }
+
   // ==================== 私有方法 ====================
 
   /**
    * 保存指标快照
+   *
+   * Uses PostgreSQL repository for persistence, with in-memory cache as fallback.
    */
-  private saveSnapshot(
+  private async saveSnapshot(
     tenantId: string,
     timeWindow: TimeWindow,
     metrics: Omit<MetricSnapshot, 'tenantId' | 'timeWindow' | 'capturedAt'>
-  ): void {
-    const history = this.snapshotHistory.get(tenantId) ?? [];
-    history.push({
+  ): Promise<void> {
+    const snapshot: MetricSnapshot = {
       tenantId,
       timeWindow,
       ...metrics,
       capturedAt: new Date(),
-    });
-    // 保留最近 100 条快照
+    };
+
+    // PostgreSQL persistence (primary)
+    if (this.snapshotRepo) {
+      try {
+        await this.snapshotRepo.create({
+          id: uuidv4(),
+          tenantId,
+          timeWindow,
+          deploymentFrequency: metrics.deploymentFrequency,
+          leadTimeMs: metrics.leadTimeMs,
+          changeFailureRate: metrics.changeFailureRate,
+          mttrMs: metrics.mttrMs,
+          capturedAt: snapshot.capturedAt,
+        });
+        // Prune old snapshots
+        await this.snapshotRepo.pruneOld(tenantId, 100);
+      } catch {
+        // Fall back to in-memory cache
+        this.saveSnapshotInMemory(tenantId, snapshot);
+      }
+    } else {
+      // In-memory fallback
+      this.saveSnapshotInMemory(tenantId, snapshot);
+    }
+  }
+
+  /**
+   * Save snapshot to in-memory cache
+   */
+  private saveSnapshotInMemory(tenantId: string, snapshot: MetricSnapshot): void {
+    const history = this.snapshotHistory.get(tenantId) ?? [];
+    history.push(snapshot);
     if (history.length > 100) {
       history.splice(0, history.length - 100);
     }
@@ -337,10 +459,32 @@ export class DORACalculator {
 
   /**
    * 获取指标趋势（与上一次快照对比）
+   *
+   * Uses PostgreSQL repository for history, with in-memory cache as fallback.
    */
-  private getTrend(tenantId: string, metricKey: keyof Pick<MetricSnapshot, 'deploymentFrequency' | 'leadTimeMs' | 'changeFailureRate' | 'mttrMs'>): 'up' | 'down' | 'stable' {
-    const history = this.snapshotHistory.get(tenantId);
-    if (!history || history.length < 2) {
+  private async getTrend(tenantId: string, metricKey: keyof Pick<MetricSnapshot, 'deploymentFrequency' | 'leadTimeMs' | 'changeFailureRate' | 'mttrMs'>): Promise<'up' | 'down' | 'stable'> {
+    let history: MetricSnapshot[];
+
+    if (this.snapshotRepo) {
+      try {
+        const entities = await this.snapshotRepo.findByTenant(tenantId, 10);
+        history = entities.map(e => ({
+          tenantId: e.tenantId,
+          timeWindow: e.timeWindow,
+          deploymentFrequency: e.deploymentFrequency,
+          leadTimeMs: e.leadTimeMs,
+          changeFailureRate: e.changeFailureRate,
+          mttrMs: e.mttrMs,
+          capturedAt: e.capturedAt,
+        }));
+      } catch {
+        history = this.snapshotHistory.get(tenantId) ?? [];
+      }
+    } else {
+      history = this.snapshotHistory.get(tenantId) ?? [];
+    }
+
+    if (history.length < 2) {
       return 'stable';
     }
 

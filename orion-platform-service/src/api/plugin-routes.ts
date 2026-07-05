@@ -5,12 +5,16 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PluginManagerService } from '../services/plugin-manager-service';
 import { PluginExecutorService, registerExecutorForShutdown } from '../services/plugin-executor-service';
 import { ExecutionTimelineService, registerTimelineForShutdown } from '../services/observability/ExecutionTimelineService';
+import { ExecutionTimelineRepository } from '../repositories/ExecutionTimelineRepository';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
-import { DebugController } from '../engine/DebugController';
+import { DebugController } from '../services/pipeline';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
-import pino from 'pino';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('plugin-routes');
 
 export interface PluginEnhancedRoutesOptions {
   database?: any;
@@ -23,12 +27,18 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   const pluginManager = options?.pluginManager || new PluginManagerService();
   const pluginExecutor = new PluginExecutorService({
     pluginManager,
+    database: options?.database,
   });
 
   // Register for graceful shutdown
   registerExecutorForShutdown(pluginExecutor);
-  const timelineService = new ExecutionTimelineService();
-  registerTimelineForShutdown(timelineService);
+  const timelineRepo = options?.database ? new ExecutionTimelineRepository(options.database) : undefined;
+  const timelineService = timelineRepo
+    ? new ExecutionTimelineService({ repository: timelineRepo })
+    : undefined;
+  if (timelineService) {
+    registerTimelineForShutdown(timelineService);
+  }
   const aiDiagnosis = new AIDiagnosisService();
   const auditLogRepo = options?.database ? new PostgresPluginAuditLogRepository(options.database) : undefined;
   const debugController = DebugController.getInstance();
@@ -44,25 +54,31 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET / - List all installed plugins
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const tenantId = (request as any).tenantId;
     const plugins = await pluginManager.listAvailablePlugins();
     return { plugins, tenantId };
   });
 
   // GET /:pluginId - Get plugin details
-  app.get('/:pluginId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.getPluginDetails(pluginId);
       return { plugin };
     } catch (error) {
-      return reply.code(404).send({ error: `Plugin ${pluginId} not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
   });
 
   // POST /:pluginId/install - Install a plugin
-  app.post('/:pluginId/install', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/install', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     const body = request.body as any;
     const userId = (request as any).userId;
@@ -72,45 +88,53 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
       const result = await pluginManager.installPlugin(pluginId, version, config);
       return { pluginId, action: 'install', version, userId };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to install plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // POST /:pluginId/enable - Enable a plugin
-  app.post('/:pluginId/enable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/enable', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.activatePlugin(pluginId);
       return { pluginId, action: 'enable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to enable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // POST /:pluginId/disable - Disable a plugin
-  app.post('/:pluginId/disable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:pluginId/disable', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       const plugin = await pluginManager.deactivatePlugin(pluginId);
       return { pluginId, action: 'disable', status: plugin.state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to disable plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // DELETE /:pluginId - Uninstall a plugin
-  app.delete('/:pluginId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { pluginId } = request.params as { pluginId: string };
     try {
       await pluginManager.uninstallPlugin(pluginId);
       return { pluginId, action: 'uninstall', status: 'uninstalled' };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to uninstall plugin ${pluginId}: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // GET /audit - Get audit logs
-  app.get('/audit', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
     const tenantId = (request as any).tenantId;
     const limit = query?.limit || 50;
@@ -124,7 +148,9 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /audit/:taskId/trail - Get task audit trail
-  app.get('/audit/:taskId/trail', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/audit/:taskId/trail', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { taskId } = request.params as { taskId: string };
 
     if (auditLogRepo) {
@@ -136,60 +162,75 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   });
 
   // GET /:runId/timeline - Get execution timeline
-  app.get('/:runId/timeline', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:runId/timeline', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
+    if (!timelineService) {
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    }
     const replayData = await timelineService.getReplayData(runId);
     return replayData;
   });
 
   // POST /:runId/debug/pause - Pause for debug
-  app.post('/:runId/debug/pause', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/pause', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       const state = await debugController.pause(runId);
       return { runId, status: 'paused', debugState: state };
     } catch (error) {
-      return reply.code(500).send({ error: `Failed to pause: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new OrionError('Unknown error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   // POST /:runId/debug/resume - Resume execution
-  app.post('/:runId/debug/resume', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/resume', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       await debugController.resume(runId);
       return { runId, status: 'resumed' };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to resume: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // POST /:runId/debug/step - Single step execution
-  app.post('/:runId/debug/step', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:runId/debug/step', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     try {
       const state = await debugController.step(runId);
       return { runId, status: 'stepping', debugState: state };
     } catch (error) {
-      return reply.code(400).send({ error: `Failed to step: ${error instanceof Error ? error.message : String(error)}` });
+      return handleError(reply, new ValidationError('Unknown error'));
     }
   });
 
   // GET /:runId/debug/state - Get debug state
-  app.get('/:runId/debug/state', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:runId/debug/state', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { runId } = request.params as { runId: string };
     const state = debugController.getState(runId);
     if (!state) {
-      return reply.code(404).send({ error: `No debug state found for run ${runId}` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
     return state;
   });
 
   // POST /ai-diagnose - AI error diagnosis
-  app.post('/ai-diagnose', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ai-diagnose', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body?.context?.taskId || !body?.context?.pluginId || !body?.context?.errorMessage) {
-      return reply.code(400).send({ error: 'Missing required context fields: taskId, pluginId, errorMessage' });
+      return handleError(reply, new ValidationError('Missing required context fields: taskId, pluginId, errorMessage'));
     }
     const result = await aiDiagnosis.diagnose(body.context);
     return result;

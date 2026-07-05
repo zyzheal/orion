@@ -10,6 +10,8 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
+import { CacheService } from '../services/cache/CacheService';
 import { McpServer } from '../mcp/McpServer';
 import { mcpConfig, McpContext, JsonRpcRequest } from '../mcp/mcp-config';
 import { allTools } from '../mcp/tools';
@@ -17,12 +19,16 @@ import { allResources } from '../mcp/resources';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineRepository } from '../services/pipeline/PipelineRepository';
 import { AuditRepository } from '../services/audit/AuditRepository';
-import pino from 'pino';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+import { ValidationError, UnauthorizedError, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('mcp-routes');
 
 interface McpRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 // 扩展 request.user 类型以包含 tenantId
@@ -118,10 +124,7 @@ async function requireAuth(
     }
   }
 
-  reply.status(401).send({
-    error: 'Authentication required',
-    message: 'Provide x-api-key header or valid JWT token',
-  });
+handleError(reply, new UnauthorizedError('Authentication required'))
 
   return null;
 }
@@ -129,13 +132,14 @@ async function requireAuth(
 /**
  * Build MCP context from request
  */
-function buildMcpContext(request: FastifyRequest, database?: DatabasePool): McpContext {
+function buildMcpContext(request: FastifyRequest, database?: DatabasePool, redis?: RedisCache): McpContext {
   const auth = validateApiKey(request);
   const user = request.user as AuthenticatedUser | undefined;
 
   // Initialize services for context
   const pipelineRepository = database ? new PipelineRepository(database) : null;
-  const pipelineService = pipelineRepository ? new PipelineService(pipelineRepository) : undefined;
+  const pipelineCache = redis ? new CacheService(redis, 60) : null;
+  const pipelineService = pipelineRepository ? new PipelineService(pipelineRepository, pipelineCache || undefined) : undefined;
 
   return {
     userId: auth?.userId || user?.userId,
@@ -157,7 +161,7 @@ export default async function mcpRoutes(
   const auditRepository = options.database ? new AuditRepository(options.database) : undefined;
 
   // Initialize MCP Server with context
-  const createContext = (request: FastifyRequest) => buildMcpContext(request, options.database);
+  const createContext = (request: FastifyRequest) => buildMcpContext(request, options.database, options.redis);
 
   // Create a fresh server instance for each request
   const createServer = (context: McpContext) => {
@@ -185,7 +189,9 @@ export default async function mcpRoutes(
    * POST /api/v1/mcp - JSON-RPC 2.0 endpoint
    * Handles all MCP protocol requests
    */
-  app.post('/mcp', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/mcp', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication using middleware
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -200,11 +206,7 @@ export default async function mcpRoutes(
 
     // Validate JSON-RPC structure
     if (!rpcRequest.jsonrpc || rpcRequest.jsonrpc !== '2.0') {
-      return reply.status(400).send({
-        jsonrpc: '2.0',
-        id: null,
-        error: { code: -32600, message: 'Invalid request: jsonrpc version must be 2.0' },
-      });
+      return handleError(reply, new ValidationError('Invalid request: jsonrpc version must be 2.0'))
     }
 
     // Handle request
@@ -218,7 +220,9 @@ export default async function mcpRoutes(
   /**
    * GET /api/v1/mcp/sse - SSE connection for real-time updates
    */
-  app.get('/mcp/sse', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/sse', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication using middleware
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -237,7 +241,7 @@ export default async function mcpRoutes(
     // Store connection
     sseConnections.set(connectionId, { reply, lastEventId });
 
-    console.log(`[McpRoutes] SSE connection established: ${connectionId}`);
+    logger.info(`[McpRoutes] SSE connection established: ${connectionId}`);
 
     // Send initial server info
     reply.raw.write(`event: server-info\ndata: ${JSON.stringify(mcpConfig)}\n\n`);
@@ -251,7 +255,7 @@ export default async function mcpRoutes(
     request.raw.on('close', () => {
       clearInterval(keepaliveInterval);
       sseConnections.delete(connectionId);
-      console.log(`[McpRoutes] SSE connection closed: ${connectionId}`);
+      logger.info(`[McpRoutes] SSE connection closed: ${connectionId}`);
     });
 
     // Keep connection alive
@@ -264,7 +268,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/tools - List all available tools (debug)
    * Requires authentication
    */
-  app.get('/mcp/tools', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/tools', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -288,7 +294,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/resources - List all available resources (debug)
    * Requires authentication
    */
-  app.get('/mcp/resources', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/resources', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // Validate authentication
     const auth = await requireAuth(request, reply, auditRepository);
     if (!auth) {
@@ -323,7 +331,9 @@ export default async function mcpRoutes(
    * GET /api/v1/mcp/info - Server information
    * Public endpoint - no authentication required
    */
-  app.get('/mcp/info', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/mcp/info', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'mcp', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({
       server: mcpConfig,
       protocolVersion: '2024-11-05',
@@ -332,5 +342,5 @@ export default async function mcpRoutes(
     });
   });
 
-  console.log('[McpRoutes] MCP routes registered with authentication middleware');
+  logger.info('[McpRoutes] MCP routes registered with authentication middleware');
 }

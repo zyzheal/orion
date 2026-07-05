@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orion-notify-pdb
+  namespace: orion
+  labels:
+    app: orion-notify
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orion-notify

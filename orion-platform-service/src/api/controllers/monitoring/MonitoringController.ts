@@ -9,6 +9,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from '../BaseController';
 import {
   MonitoringService,
   MonitoringServiceError,
@@ -22,10 +23,11 @@ import {
 import { TimeWindow } from '../../../services/monitoring/MonitoringDashboard';
 import { WidgetConfig } from '../../../services/monitoring/MonitoringDashboard';
 
-export class MonitoringController {
+export class MonitoringController extends BaseController {
   private monitoringService: MonitoringService;
 
   constructor(monitoringService?: MonitoringService) {
+    super();
     if (monitoringService) {
       this.monitoringService = monitoringService;
     } else {
@@ -179,7 +181,7 @@ export class MonitoringController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const series = this.monitoringService.metricCollector.getMetricSeries({
+    const series = await this.monitoringService.metricCollector.getMetricSeriesAsync({
       name: params.name,
       tags: query.tags ? JSON.parse(query.tags) : undefined,
       startTime: query.startTime ? new Date(query.startTime) : undefined,
@@ -201,7 +203,7 @@ export class MonitoringController {
     const params = request.params as any;
     const query = request.query as any;
 
-    const summary = this.monitoringService.metricCollector.getMetricSummary(
+    const summary = await this.monitoringService.metricCollector.getMetricSummaryAsync(
       params.name,
       query.tags ? JSON.parse(query.tags) : undefined,
       query.windowMs ? parseInt(query.windowMs) : undefined
@@ -277,7 +279,7 @@ export class MonitoringController {
       // Try database-backed method, fall back to in-memory
       try {
         const rule = await this.monitoringService.createRule({
-          tenant_id: (body as any).tenant_id || 'default',
+          tenant_id: (body as any).tenant_id || this.getTenantId(request),
           name,
           metric,
           condition,
@@ -780,7 +782,7 @@ export class MonitoringController {
 
       try {
         const channel = await this.monitoringService.createChannel({
-          tenant_id: body.tenant_id || 'default',
+          tenant_id: body.tenant_id || this.getTenantId(request),
           name,
           type,
           config,
@@ -905,7 +907,7 @@ export class MonitoringController {
 
       try {
         const policy = await this.monitoringService.createPolicy({
-          tenant_id: body.tenant_id || 'default',
+          tenant_id: body.tenant_id || this.getTenantId(request),
           name,
           steps,
           repeat_count: repeatCount ?? 0,
@@ -1017,7 +1019,7 @@ export class MonitoringController {
    * GET /api/v1/monitoring/dashboard
    */
   async getDashboard(request: FastifyRequest, reply: FastifyReply) {
-    const dashboard = this.monitoringService.getDashboardData();
+    const dashboard = await this.monitoringService.getDashboardData();
     await reply.status(200).send({
       success: true,
       data: { dashboard },

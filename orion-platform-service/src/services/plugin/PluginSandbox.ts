@@ -6,11 +6,13 @@
  * - 执行超时控制
  * - 输入验证
  * - 输出 DLP 检测
+ * - 执行记录 PostgreSQL 持久化
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import os from 'os';
+import { v4 as uuidv4 } from 'uuid';
 import {
   ExecutionContext,
   ValidationResult,
@@ -20,8 +22,9 @@ import {
 } from './types';
 import { PluginResourceManager } from './PluginResourceManager';
 import { PluginAuditLogger } from './PluginAuditLogger';
+import { PluginSandboxRepository } from '../../repositories/PluginSandboxRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginSandbox');
 
 /**
  * 沙箱配置
@@ -58,12 +61,28 @@ const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
 };
 
 /**
+ * Plugin Sandbox — PostgreSQL 持久化记录实体
+ */
+interface SandboxTaskRecord {
+  id: string;
+  tenantId: string;
+  pluginId: string;
+  status: string;
+  errorMessage?: string;
+  startedAt?: Date;
+  completedAt?: Date;
+}
+
+/**
  * Plugin Sandbox
  */
 export class PluginSandbox extends EventEmitter {
   private config: SandboxConfig;
   private resourceManager: PluginResourceManager;
   private auditLogger: PluginAuditLogger;
+  private repository?: PluginSandboxRepository;
+
+  /** In-memory runtime state (AbortController, timers) */
   private activeExecutions: Map<string, {
     context: ExecutionContext;
     timeoutId?: NodeJS.Timeout;
@@ -71,6 +90,7 @@ export class PluginSandbox extends EventEmitter {
     aborted: boolean;
     abortReason?: string;
     promise?: Promise<SandboxExecutionResult>;
+    dbRecordId?: string;
   }> = new Map();
   private runningTasks: Map<string, AbortController> = new Map();
 
@@ -78,11 +98,76 @@ export class PluginSandbox extends EventEmitter {
     resourceManager: PluginResourceManager;
     auditLogger: PluginAuditLogger;
     config?: Partial<SandboxConfig>;
+    db?: {
+      query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+    };
   }) {
     super();
     this.resourceManager = options.resourceManager;
     this.auditLogger = options.auditLogger;
     this.config = { ...DEFAULT_SANDBOX_CONFIG, ...options.config };
+    this.repository = options.db ? new PluginSandboxRepository(options.db) : undefined;
+  }
+
+  /**
+   * 持久化：创建执行记录
+   * 失败时降级到内存（仅记录日志）
+   */
+  private async persistExecutionStart(
+    context: ExecutionContext,
+  ): Promise<string | undefined> {
+    if (!this.repository) return undefined;
+    try {
+      const recordId = uuidv4();
+      await this.repository.create({
+        id: recordId,
+        tenantId: context.tenantId || '00000000-0000-0000-0000-000000000000',
+        pluginId: context.pluginId,
+        taskType: 'sandbox',
+        inputData: {},
+        outputData: null,
+        status: 'running',
+        errorMessage: null,
+        startedAt: new Date(),
+        completedAt: null,
+      });
+      return recordId;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error({ err: msg, pluginId: context.pluginId, taskId: context.taskId }, 'Failed to persist execution start, falling back to memory');
+      return undefined;
+    }
+  }
+
+  /**
+   * 持久化：更新执行完成记录
+   */
+  private async persistExecutionComplete(
+    recordId: string,
+    status: string,
+    errorMessage?: string,
+    outputData?: any,
+  ): Promise<void> {
+    if (!recordId || !this.repository) return;
+    try {
+      const updateData: any = { status };
+      if (status === 'running') {
+        updateData.startedAt = new Date();
+      }
+      if (status === 'completed' || status === 'failed') {
+        updateData.completedAt = new Date();
+      }
+      if (errorMessage) {
+        updateData.errorMessage = errorMessage;
+      }
+      if (outputData) {
+        updateData.outputData = typeof outputData === 'string' ? JSON.parse(outputData) : outputData;
+      }
+      await this.repository.update(recordId, updateData);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn({ err: msg, recordId }, 'Failed to persist execution complete');
+    }
   }
 
   /**
@@ -192,6 +277,9 @@ export class PluginSandbox extends EventEmitter {
       }, effectiveTimeout);
     });
 
+    // 持久化：创建执行记录（fire-and-forget，不阻塞执行注册）
+    const recordIdPromise = this.persistExecutionStart(context);
+
     // 记录执行开始
     this.auditLogger.logExecutionStart(context);
 
@@ -200,14 +288,26 @@ export class PluginSandbox extends EventEmitter {
       ? this.startResourceMonitoring(context)
       : undefined;
 
-    // 记录活跃执行
-    const executionEntry = {
+    // 记录活跃执行（必须在 await 之前注册，否则外部检查会看到 0）
+    const executionEntry: {
+      context: ExecutionContext;
+      timeoutId?: NodeJS.Timeout;
+      monitorInterval?: NodeJS.Timeout;
+      aborted: boolean;
+      abortReason?: string;
+      promise?: Promise<SandboxExecutionResult>;
+      dbRecordId?: string;
+    } = {
       context,
       timeoutId,
       monitorInterval,
       aborted: false,
     };
     this.activeExecutions.set(context.taskId, executionEntry);
+
+    // 等待 DB 持久化完成，获取 recordId
+    const recordId = await recordIdPromise;
+    executionEntry.dbRecordId = recordId;
 
     try {
       // 执行函数
@@ -224,6 +324,8 @@ export class PluginSandbox extends EventEmitter {
       if (execEntry?.monitorInterval) clearInterval(execEntry.monitorInterval);
       this.activeExecutions.delete(context.taskId);
 
+      const durationMs = Date.now() - startTime;
+
       // 检测输出中的敏感数据
       const dlpResult = this.detectSensitiveOutput(result);
       if (dlpResult.hasSensitiveData) {
@@ -239,7 +341,10 @@ export class PluginSandbox extends EventEmitter {
         });
       }
 
-      const durationMs = Date.now() - startTime;
+      // 持久化：更新执行完成
+      if (recordId) {
+        await this.persistExecutionComplete(recordId, 'completed', undefined, result);
+      }
 
       // 记录执行完成
       this.auditLogger.logExecutionComplete(context, dlpResult.redactedData, durationMs);
@@ -271,6 +376,7 @@ export class PluginSandbox extends EventEmitter {
       const executionState = this.activeExecutions.get(context.taskId);
       const wasAborted = executionState?.aborted || false;
       const abortReason = executionState?.abortReason;
+      const storedRecordId = executionState?.dbRecordId;
 
       // 删除活跃执行记录
       this.activeExecutions.delete(context.taskId);
@@ -281,6 +387,11 @@ export class PluginSandbox extends EventEmitter {
       // 判断是否为手动取消
       if (wasAborted && abortReason) {
         this.auditLogger.logExecutionError(context, new Error(`Execution cancelled: ${abortReason}`), durationMs);
+
+        // 持久化：取消记录
+        if (storedRecordId) {
+          await this.persistExecutionComplete(storedRecordId, 'cancelled', `Execution cancelled: ${abortReason}`);
+        }
 
         this.emit('execution:cancelled', {
           taskId: context.taskId,
@@ -303,6 +414,11 @@ export class PluginSandbox extends EventEmitter {
       const isTimeout = timeoutReached || errorMessage.includes('timeout');
 
       if (isTimeout) {
+        // 持久化：超时记录
+        if (storedRecordId) {
+          await this.persistExecutionComplete(storedRecordId, 'timeout', `Execution timeout after ${effectiveTimeout}ms`);
+        }
+
         // 记录超时安全事件
         this.auditLogger.logSecurityEvent({
           type: 'TIMEOUT_KILLED',
@@ -333,6 +449,11 @@ export class PluginSandbox extends EventEmitter {
           killed: true,
           killReason: 'TIMEOUT',
         };
+      }
+
+      // 持久化：错误记录
+      if (storedRecordId) {
+        await this.persistExecutionComplete(storedRecordId, 'failed', errorMessage);
       }
 
       // 记录执行错误

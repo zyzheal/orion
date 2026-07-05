@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../errors';
 /**
  * ConfigDiffService - Configuration Diff & Comparison
  *
@@ -14,6 +15,7 @@
 import { ConfigService } from './ConfigService';
 import { ConfigHistory } from './ConfigRepository';
 import type { ConfigItem } from './types';
+import { OrionError } from '../../errors';
 import {
   ConfigDiff,
   DiffReport,
@@ -122,21 +124,17 @@ export class ConfigDiffService {
   ): Promise<VersionDiffReport> {
     const versions = await this.configService.getConfigVersionsById(configId);
     if (versions.length === 0) {
-      throw new Error(`No versions found for config '${configId}'`);
+      throw new OrionError(`No versions found for config '${configId}'`, 'OPERATION_FAILED')
     }
 
     const fromVersionRecord = versions.find((v) => v.version === fromVersion);
     const toVersionRecord = versions.find((v) => v.version === toVersion);
 
     if (!fromVersionRecord) {
-      throw new Error(
-        `Version ${fromVersion} not found for config '${configId}'`
-      );
+      throw new OrionError('Invalid configuration format', ErrorCode.VALIDATION_ERROR);
     }
     if (!toVersionRecord) {
-      throw new Error(
-        `Version ${toVersion} not found for config '${configId}'`
-      );
+      throw new OrionError(`Version ${toVersion} not found`, ErrorCode.NOT_FOUND);
     }
 
     const valToString = (v: any): string => {

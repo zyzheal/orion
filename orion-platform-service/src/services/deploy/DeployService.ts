@@ -4,14 +4,18 @@
  * Handles deployment execution, rollback, and management
  */
 
-import { 
-  DeployRepository, 
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LDeploy-LService');
+import {
+  DeployRepository,
   Deployment,
   DeploymentEvent,
   CreateDeploymentInput,
   UpdateDeploymentInput,
   CreateDeploymentEventInput
 } from './DeployRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface ListDeploymentsOptions {
   page?: number;
@@ -128,7 +132,7 @@ export class DeployService {
 
     // Execute deployment asynchronously
     this.executeDeployment(id).catch(err => {
-      console.error(`Deployment execution failed: ${err.message}`);
+      logger.error(`Deployment execution failed: ${err.message}`);
     });
 
     return updated;
@@ -260,7 +264,7 @@ export class DeployService {
         actor_id: actorId,
       });
     } catch (err) {
-      console.error('Failed to log deployment event:', err);
+      logger.error('Failed to log deployment event:', err);
     }
   }
 

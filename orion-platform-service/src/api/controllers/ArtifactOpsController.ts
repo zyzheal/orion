@@ -10,6 +10,7 @@ import { BaseController } from './BaseController';
 import { ArtifactOperationService, ArtifactOperationInput } from '../../services/artifact-ops/ArtifactOperationService';
 import { ArtifactScanService } from '../../services/artifact-ops/ArtifactScanService';
 import { ArtifactRetentionService, RetentionPolicyInput, ArtifactEntry } from '../../services/artifact-ops/ArtifactRetentionService';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface ArtifactOpsServices {
   operationService: ArtifactOperationService;
@@ -50,7 +51,7 @@ export class ArtifactOpsController extends BaseController {
         initiatedBy: body.initiatedBy,
       };
 
-      const tenantId = body.tenantId || 'default';
+      const tenantId = body.tenantId || this.getTenantId(request);
       return this.operationService.trackOperation(tenantId, input);
     }, (record) => this.sendCreated(reply, record));
   }
@@ -59,7 +60,7 @@ export class ArtifactOpsController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { artifactId: string };
       const query = request.query as { tenantId?: string };
-      const tenantId = query.tenantId || 'default';
+      const tenantId = query.tenantId || this.getTenantId(request);
 
       const history = await this.operationService.getOperationHistory(tenantId, {
         artifactId: params.artifactId,
@@ -72,7 +73,7 @@ export class ArtifactOpsController extends BaseController {
   async getArtifactStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const params = request.params as { tenantId?: string };
-      const tenantId = params.tenantId || 'default';
+      const tenantId = params.tenantId || this.getTenantId(request);
       return this.operationService.getArtifactStats(tenantId);
     }, (stats) => this.sendSuccess(reply, stats));
   }
@@ -98,7 +99,7 @@ export class ArtifactOpsController extends BaseController {
         schedule: body.schedule,
       };
 
-      const tenantId = body.tenantId || 'default';
+      const tenantId = body.tenantId || this.getTenantId(request);
       return this.retentionService.defineRetentionPolicy(tenantId, input);
     }, (policy) => this.sendCreated(reply, policy));
   }
@@ -106,7 +107,7 @@ export class ArtifactOpsController extends BaseController {
   async cleanup(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const body = request.body as { tenantId?: string; artifactId?: string };
-      const tenantId = body.tenantId || 'default';
+      const tenantId = body.tenantId || this.getTenantId(request);
 
       let cleaned = 0;
       if (body.artifactId) {
@@ -127,7 +128,7 @@ export class ArtifactOpsController extends BaseController {
     await this.tryExecute(reply, async () => {
       const params = request.params as { artifactId: string };
       const query = request.query as { tenantId?: string };
-      const tenantId = query.tenantId || 'default';
+      const tenantId = query.tenantId || this.getTenantId(request);
 
       return this.scanService.scanArtifact(tenantId, params.artifactId);
     }, (result) => this.sendSuccess(reply, result));
@@ -138,7 +139,7 @@ export class ArtifactOpsController extends BaseController {
       const params = request.params as { scanId: string };
       const report = await this.scanService.getScanReport(params.scanId);
       if (!report) {
-        throw new Error(`Scan report '${params.scanId}' not found`);
+        throw new OrionError(`Scan report '${params.scanId}' not found`, ErrorCode.NOT_FOUND);
       }
       return report;
     }, (report) => this.sendSuccess(reply, report));
@@ -154,7 +155,7 @@ export class ArtifactOpsController extends BaseController {
   async detectMalicious(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const body = request.body as { artifactId: string; tenantId?: string };
-      const tenantId = body.tenantId || 'default';
+      const tenantId = body.tenantId || this.getTenantId(request);
       return this.scanService.detectMaliciousArtifact(tenantId, body.artifactId);
     }, (detection) => this.sendSuccess(reply, detection));
   }
@@ -165,7 +166,7 @@ export class ArtifactOpsController extends BaseController {
         tenantId: string;
         artifacts: ArtifactEntry[];
       };
-      const tenantId = body.tenantId || 'default';
+      const tenantId = body.tenantId || this.getTenantId(request);
       return this.retentionService.evaluateRetention(tenantId, body.artifacts);
     }, (evaluations) => this.sendSuccess(reply, evaluations));
   }
@@ -174,7 +175,7 @@ export class ArtifactOpsController extends BaseController {
     await this.tryExecute(reply, async () => {
       const query = request.query as { tenantId?: string };
       const params = request.params as { artifacts?: string };
-      const tenantId = query.tenantId || 'default';
+      const tenantId = query.tenantId || this.getTenantId(request);
 
       // Parse artifacts from query params or body
       const artifacts: ArtifactEntry[] = (request.body as any)?.artifacts || [];
@@ -185,7 +186,7 @@ export class ArtifactOpsController extends BaseController {
   async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     await this.tryExecute(reply, async () => {
       const query = request.query as { tenantId?: string; enabledOnly?: string };
-      const tenantId = query.tenantId || 'default';
+      const tenantId = query.tenantId || this.getTenantId(request);
       const enabledOnly = query.enabledOnly === 'true';
       return this.retentionService.listPolicies(tenantId, enabledOnly || undefined);
     }, (policies) => this.sendSuccess(reply, policies));
@@ -196,7 +197,7 @@ export class ArtifactOpsController extends BaseController {
       const params = request.params as { policyId: string };
       const deleted = await this.retentionService.deletePolicy(params.policyId);
       if (!deleted) {
-        throw new Error(`Policy '${params.policyId}' not found`);
+        throw new OrionError(`Policy '${params.policyId}' not found`, ErrorCode.NOT_FOUND);
       }
       return { deleted: true, policyId: params.policyId };
     }, (result) => this.sendSuccess(reply, result));

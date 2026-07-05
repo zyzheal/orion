@@ -66,8 +66,7 @@ export class RoleController {
       }
       const role = await this.service.createRole(
         body.tenantId as string,
-        body.name as string,
-        (body.permissions as string[]) ?? []
+        body.name as string
       );
       await reply.status(201).send({ success: true, data: role });
     } catch (err) {
@@ -94,6 +93,19 @@ export class RoleController {
         return;
       }
       await reply.send({ success: true, message: 'Role deleted' });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  /** GET /api/v1/roles/permissions-map — 返回完整角色权限映射（含继承） */
+  async getPermissionsMap(_request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const map = this.service.getPermissionsMap();
+      await reply.send({ success: true, data: map });
     } catch (err) {
       await reply.status(500).send({
         success: false,

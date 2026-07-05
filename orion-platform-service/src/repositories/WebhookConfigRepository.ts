@@ -8,6 +8,7 @@
  */
 import { BaseRepository } from '../db/base-repository';
 import { WebhookEventType } from '../services/pipeline/WebhookNotifier';
+import { decryptValue, encryptValue } from '../utils/encryption';
 
 // ============================================================================
 // Entity 定义
@@ -110,7 +111,7 @@ export class WebhookConfigRepository extends BaseRepository<WebhookConfigEntity>
       url: row.url,
       method: row.method || 'POST',
       headers: row.headers ?? {},
-      secret: row.secret || null,
+      secret: decryptValue(row.secret),
       events: row.events || [],
       enabled: row.enabled ?? true,
       retries: row.retries ?? 3,

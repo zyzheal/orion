@@ -17,6 +17,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
+  LayoutOutlined,
   ReloadOutlined,
   PlayCircleOutlined,
   LockOutlined,
@@ -25,7 +26,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getWorkspaces,
@@ -77,7 +78,7 @@ const WorkspaceList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getWorkspaces();
-      setWorkspaces(Array.isArray(res.data.data) ? res.data.data : []);
+      setWorkspaces(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load workspaces：${error.message}`);
@@ -194,7 +195,7 @@ const WorkspaceList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'lockedBy',
@@ -294,7 +295,8 @@ const WorkspaceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LayoutOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             工作空间
           </Title>
           <Text type="secondary">管理 IaC 工作空间</Text>

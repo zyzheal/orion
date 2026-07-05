@@ -4,12 +4,13 @@
  * 职责：
  * - 处理 pipeline.run.completed 事件
  * - 处理 deployment.completed/failed 事件
- * - 记录事件到本地存储
+ * - 记录事件到 PostgreSQL（EfficiencyPipelineRecordRepository / EfficiencyDeploymentRecordRepository）
  * - 触发 ClickHouse 同步
  */
 
 import { CloudEvent, EventContext, EventBus, EventHandler } from '@orion/event-bus';
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { DoraMetricsService } from './DoraMetricsService';
 import { ClickHouseSync } from './ClickHouseSync';
 import {
@@ -23,6 +24,18 @@ import {
   DeploymentCompletedEventData,
   DeploymentFailedEventData,
 } from '../../events/types/deployment';
+import {
+  EfficiencyPipelineRecordRepository,
+  EfficiencyPipelineRecordEntity,
+} from '../../repositories/EfficiencyPipelineRecordRepository';
+import {
+  EfficiencyDeploymentRecordRepository,
+  EfficiencyDeploymentRecordEntity,
+} from '../../repositories/EfficiencyDeploymentRecordRepository';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LEvent-LHandler');
 
 /**
  * 效能事件处理器配置
@@ -40,10 +53,12 @@ export interface EfficiencyEventHandlerConfig {
   consumerGroup?: string;
   /** 自动同步间隔（毫秒，0 表示手动同步） */
   autoSyncInterval?: number;
+  /** PostgreSQL 数据库连接（必填，用于持久化） */
+  db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
- * 本地存储接口（可扩展为 Redis 或 DB）
+ * 本地存储接口（抽象层，PostgresLocalStorage 为唯一实现）
  */
 export interface LocalStorage {
   /** 保存 Pipeline 完成记录 */
@@ -65,68 +80,125 @@ export interface LocalStorage {
 }
 
 /**
- * 内存本地存储实现
+ * PostgreSQL 存储实现 — 唯一持久化数据存储
+ * 使用 EfficiencyPipelineRecordRepository / EfficiencyDeploymentRecordRepository
  */
-export class InMemoryLocalStorage implements LocalStorage {
-  private pipelineRecords: Map<string, PipelineCompletionRecord> = new Map();
-  private deploymentRecords: Map<string, DeploymentRecord> = new Map();
+export class PostgresLocalStorage implements LocalStorage {
+  private pipelineRepo: EfficiencyPipelineRecordRepository;
+  private deploymentRepo: EfficiencyDeploymentRecordRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.pipelineRepo = new EfficiencyPipelineRecordRepository(db);
+    this.deploymentRepo = new EfficiencyDeploymentRecordRepository(db);
+  }
 
   async savePipelineRecord(record: PipelineCompletionRecord): Promise<void> {
-    this.pipelineRecords.set(record.id, record);
+    await this.pipelineRepo.create({
+      id: record.id,
+      tenantId: record.tenantId || getCurrentTenantId(),
+      runId: record.runId,
+      pipelineId: record.pipelineId,
+      status: record.status,
+      triggerType: record.triggerType,
+      gitRef: record.gitRef,
+      gitSha: record.gitSha,
+      durationMs: record.durationMs,
+      completedAt: record.completedAt,
+      syncedToClickhouse: record.syncedToClickHouse ?? false,
+    });
   }
 
   async getPipelineRecords(filter?: { tenantId?: string; since?: Date }): Promise<PipelineCompletionRecord[]> {
-    let records = Array.from(this.pipelineRecords.values());
-    if (filter?.tenantId) {
-      records = records.filter((r) => r.tenantId === filter.tenantId);
-    }
-    if (filter?.since) {
-      records = records.filter((r) => r.completedAt >= filter.since!);
-    }
-    return records;
+    const entities = await this.pipelineRepo.findByTenant(filter?.tenantId || getCurrentTenantId(), filter?.since);
+    return entities.map(e => ({
+      id: e.id,
+      runId: e.runId,
+      pipelineId: e.pipelineId,
+      status: e.status as 'success' | 'failed',
+      triggerType: e.triggerType || '',
+      gitRef: e.gitRef || '',
+      gitSha: e.gitSha || '',
+      durationMs: e.durationMs,
+      completedAt: e.completedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+      syncedAt: e.syncedAt || undefined,
+    }));
   }
 
   async getUnsyncedPipelineRecords(limit: number = 100): Promise<PipelineCompletionRecord[]> {
-    return Array.from(this.pipelineRecords.values())
-      .filter((r) => !r.syncedToClickHouse)
-      .slice(0, limit);
+    const entities = await this.pipelineRepo.findUnsynced(limit);
+    return entities.map(e => ({
+      id: e.id,
+      runId: e.runId,
+      pipelineId: e.pipelineId,
+      status: e.status as 'success' | 'failed',
+      triggerType: e.triggerType || '',
+      gitRef: e.gitRef || '',
+      gitSha: e.gitSha || '',
+      durationMs: e.durationMs,
+      completedAt: e.completedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+    }));
   }
 
   async saveDeploymentRecord(record: DeploymentRecord): Promise<void> {
-    this.deploymentRecords.set(record.id, record);
+    await this.deploymentRepo.create({
+      id: record.id,
+      tenantId: record.tenantId || getCurrentTenantId(),
+      deploymentId: record.deploymentId,
+      service: record.service,
+      environment: record.environment,
+      status: record.status,
+      version: record.version,
+      durationMs: record.durationMs,
+      deployedAt: record.deployedAt,
+      syncedToClickhouse: record.syncedToClickHouse ?? false,
+      recoveryTimeMs: record.recoveryTimeMs,
+    });
   }
 
   async getDeploymentRecords(filter?: { tenantId?: string; since?: Date }): Promise<DeploymentRecord[]> {
-    let records = Array.from(this.deploymentRecords.values());
-    if (filter?.tenantId) {
-      records = records.filter((r) => r.tenantId === filter.tenantId);
-    }
-    if (filter?.since) {
-      records = records.filter((r) => r.deployedAt >= filter.since!);
-    }
-    return records;
+    const entities = await this.deploymentRepo.findByTenant(filter?.tenantId || getCurrentTenantId(), filter?.since);
+    return entities.map(e => ({
+      id: e.id,
+      deploymentId: e.deploymentId,
+      service: e.service || '',
+      environment: e.environment || '',
+      status: e.status as 'success' | 'failed' | 'rolled_back',
+      version: e.version || '',
+      durationMs: e.durationMs || 0,
+      deployedAt: e.deployedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+      syncedAt: e.syncedAt || undefined,
+      recoveryTimeMs: e.recoveryTimeMs || undefined,
+    }));
   }
 
   async getUnsyncedDeploymentRecords(limit: number = 100): Promise<DeploymentRecord[]> {
-    return Array.from(this.deploymentRecords.values())
-      .filter((r) => !r.syncedToClickHouse)
-      .slice(0, limit);
+    const entities = await this.deploymentRepo.findUnsynced(limit);
+    return entities.map(e => ({
+      id: e.id,
+      deploymentId: e.deploymentId,
+      service: e.service || '',
+      environment: e.environment || '',
+      status: e.status as 'success' | 'failed' | 'rolled_back',
+      version: e.version || '',
+      durationMs: e.durationMs || 0,
+      deployedAt: e.deployedAt,
+      tenantId: e.tenantId,
+      syncedToClickHouse: e.syncedToClickhouse,
+    }));
   }
 
   async markPipelineSynced(id: string): Promise<void> {
-    const record = this.pipelineRecords.get(id);
-    if (record) {
-      record.syncedToClickHouse = true;
-      record.syncedAt = new Date();
-    }
+    await this.pipelineRepo.markSynced(id);
   }
 
   async markDeploymentSynced(id: string): Promise<void> {
-    const record = this.deploymentRecords.get(id);
-    if (record) {
-      record.syncedToClickHouse = true;
-      record.syncedAt = new Date();
-    }
+    await this.deploymentRepo.markSynced(id);
   }
 }
 
@@ -148,7 +220,7 @@ export class EfficiencyEventHandler {
     this.eventBus = config.eventBus;
     this.doraMetricsService = config.doraMetricsService;
     this.clickHouseSync = config.clickHouseSync;
-    this.localStorage = new InMemoryLocalStorage();
+    this.localStorage = new PostgresLocalStorage(config.db);
     this.streamName = config.streamName || 'orion-platform-stream';
     this.consumerGroup = config.consumerGroup || 'efficiency-consumers';
     this.autoSyncInterval = config.autoSyncInterval;
@@ -182,12 +254,12 @@ export class EfficiencyEventHandler {
     if (this.autoSyncInterval && this.autoSyncInterval > 0) {
       this.syncTimer = setInterval(() => {
         this.flushToClickHouse().catch((err) => {
-          console.error('[EfficiencyEventHandler] Auto sync failed:', err);
+          logger.error('[EfficiencyEventHandler] Auto sync failed:', err);
         });
       }, this.autoSyncInterval);
     }
 
-    console.log('[EfficiencyEventHandler] Event listeners started');
+    logger.info('[EfficiencyEventHandler] Event listeners started');
   }
 
   /**
@@ -203,12 +275,12 @@ export class EfficiencyEventHandler {
       try {
         await unsubscribe();
       } catch (error) {
-        console.error('[EfficiencyEventHandler] Error unsubscribing:', error);
+        logger.error('[EfficiencyEventHandler] Error unsubscribing:', error);
       }
     }
 
     this.subscriptions = [];
-    console.log('[EfficiencyEventHandler] Event listeners stopped');
+    logger.info('[EfficiencyEventHandler] Event listeners stopped');
   }
 
   /**
@@ -218,7 +290,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<PipelineRunEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing pipeline.run.completed:', event.data.runId);
+    logger.info('[EfficiencyEventHandler] Processing pipeline.run.completed:', event.data.runId);
 
     const record: PipelineCompletionRecord = {
       id: uuidv4(),
@@ -234,14 +306,14 @@ export class EfficiencyEventHandler {
       syncedToClickHouse: false,
     };
 
-    // 保存到本地存储
+    // 保存到 PostgreSQL
     await this.localStorage.savePipelineRecord(record);
 
     // 触发 ClickHouse 同步
     await this.syncToClickHouse();
 
     // 发布效能更新事件
-    await this.publishEfficiencyUpdate(record.tenantId || 'default');
+    await this.publishEfficiencyUpdate(record.tenantId || getCurrentTenantId());
   }
 
   /**
@@ -251,7 +323,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<PipelineRunEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing pipeline.run.failed:', event.data.runId);
+    logger.info('[EfficiencyEventHandler] Processing pipeline.run.failed:', event.data.runId);
 
     const record: PipelineCompletionRecord = {
       id: uuidv4(),
@@ -278,7 +350,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<DeploymentCompletedEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.completed:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.completed:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -295,7 +367,7 @@ export class EfficiencyEventHandler {
 
     await this.localStorage.saveDeploymentRecord(record);
     await this.syncToClickHouse();
-    await this.publishEfficiencyUpdate(record.tenantId || 'default');
+    await this.publishEfficiencyUpdate(record.tenantId || getCurrentTenantId());
   }
 
   /**
@@ -305,7 +377,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<DeploymentFailedEventData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.failed:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.failed:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -329,7 +401,7 @@ export class EfficiencyEventHandler {
     event: CloudEvent<any>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[EfficiencyEventHandler] Processing deployment.rolled_back:', event.data.deploymentId);
+    logger.info('[EfficiencyEventHandler] Processing deployment.rolled_back:', event.data.deploymentId);
 
     const record: DeploymentRecord = {
       id: uuidv4(),
@@ -369,7 +441,7 @@ export class EfficiencyEventHandler {
    */
   private async syncToClickHouse(): Promise<void> {
     if (!this.clickHouseSync) {
-      return; // 没有配置 ClickHouse，降级到本地存储
+      return; // 没有配置 ClickHouse，降级到 PostgreSQL
     }
 
     try {
@@ -391,8 +463,8 @@ export class EfficiencyEventHandler {
         }
       }
     } catch (error) {
-      console.error('[EfficiencyEventHandler] Failed to sync to ClickHouse:', error);
-      // 降级到本地存储，不抛出错误
+      logger.error('[EfficiencyEventHandler] Failed to sync to ClickHouse:', error);
+      // 降级到 PostgreSQL，不抛出错误
     }
   }
 
@@ -429,7 +501,7 @@ export class EfficiencyEventHandler {
 
       await this.eventBus.publish(event);
     } catch (error) {
-      console.error('[EfficiencyEventHandler] Failed to publish efficiency update:', error);
+      logger.error('[EfficiencyEventHandler] Failed to publish efficiency update:', error);
     }
   }
 
@@ -438,7 +510,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToPipelineEvents(): Promise<void> {
     if (!this.eventBus) {
-      console.warn('[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
+      logger.warn({ traceId: getCurrentTraceId() }, '[EfficiencyEventHandler] EventBus not configured, skipping pipeline subscription');
       return;
     }
 
@@ -464,7 +536,7 @@ export class EfficiencyEventHandler {
     );
     this.subscriptions.push(async () => { await subFailed.unsubscribe(); });
 
-    console.log('[EfficiencyEventHandler] Subscribed to pipeline events');
+    logger.info('[EfficiencyEventHandler] Subscribed to pipeline events');
   }
 
   /**
@@ -472,7 +544,7 @@ export class EfficiencyEventHandler {
    */
   private async subscribeToDeploymentEvents(): Promise<void> {
     if (!this.eventBus) {
-      console.warn('[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
+      logger.warn({ traceId: getCurrentTraceId() }, '[EfficiencyEventHandler] EventBus not configured, skipping deployment subscription');
       return;
     }
 
@@ -509,6 +581,6 @@ export class EfficiencyEventHandler {
     );
     this.subscriptions.push(async () => { await subRolledBack.unsubscribe(); });
 
-    console.log('[EfficiencyEventHandler] Subscribed to deployment events');
+    logger.info('[EfficiencyEventHandler] Subscribed to deployment events');
   }
 }

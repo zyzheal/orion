@@ -5,10 +5,20 @@
  * - Runner 配额检查
  * - 资源使用量统计
  * - 配额超限告警
+ *
+ * PostgreSQL Repository 持久化：
+ * - 配额配置通过 TenantQuotaRepository 持久化到 tenant_quotas 表
+ * - 使用量数据持久化到 tenant_quotas.usage (JSONB) 列
+ * - 内存 Map 作为写透缓存，保证读写性能
  */
 
 import { EventEmitter } from 'events';
+import { OrionError, ErrorCode } from '../../errors';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('TenantQuotaService');
 
 export interface TenantQuota {
   tenantId: number;
@@ -70,38 +80,143 @@ const ALERT_THRESHOLD_PERCENT = 80;
 
 /**
  * TenantQuotaService - 租户配额服务
+ *
+ * 配额配置和使用量数据均通过 PostgreSQL 持久化。
+ * 使用量存储在 tenant_quotas.usage (JSONB) 列中。
+ * 内存 Map 作为写透缓存，保证读写性能。
  */
 export class TenantQuotaService extends EventEmitter {
-  private repository: TenantQuotaRepository | null = null;
-  // in-memory fallback for tests and environments without DB
-  private quotas: Map<number, TenantQuota> = new Map();
-  // usage map kept for rate limiting (in-memory by design)
+  private repository: TenantQuotaRepository;
+  // 使用量写透缓存：同步方法写入此处，异步方法从此处读取
+  // 持久化到 tenant_quotas.usage JSONB 列
   private usage: Map<string, TenantUsage> = new Map();
   private alertThreshold: number = ALERT_THRESHOLD_PERCENT;
+  // 标记是否已从 DB 加载过使用量数据（仅加载一次）
+  private usageLoadedFromDb: boolean = false;
 
-  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(repository: TenantQuotaRepository) {
     super();
-    if (db) {
-      this.repository = new TenantQuotaRepository(db);
+    if (!repository) throw new OrionError('TenantQuotaRepository is required', ErrorCode.INTERNAL_ERROR);
+    this.repository = repository;
+  }
+
+  // ─── DB 持久化辅助方法 ───────────────────────────────────────────────
+
+  /**
+   * 从 DB 加载所有租户的使用量数据到内存 Map（冷启动恢复）
+   * 仅在首次异步读取时执行一次，后续读取直接使用内存缓存
+   */
+  private async loadUsageFromDb(): Promise<void> {
+    if (this.usageLoadedFromDb) return;
+    try {
+      const { entities } = await this.repository.findAll({ limit: 10000 });
+      for (const entity of entities) {
+        if (entity.usage && typeof entity.usage === 'object') {
+          for (const [key, raw] of Object.entries(entity.usage)) {
+            const entry = raw as Record<string, unknown>;
+            this.usage.set(key, {
+              tenantId: Number(entry.tenantId),
+              resourceType: String(entry.resourceType),
+              resourceKey: String(entry.resourceKey),
+              currentValue: Number(entry.currentValue) || 0,
+              windowStart: new Date(entry.windowStart as string),
+              windowEnd: new Date(entry.windowEnd as string),
+            });
+          }
+        }
+      }
+      this.usageLoadedFromDb = true;
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[TenantQuotaService] Failed to load usage from DB, using in-memory only');
+      this.usageLoadedFromDb = true;
     }
   }
 
   /**
+   * 将指定租户的使用量数据持久化到 tenant_quotas.usage JSONB 列
+   * 作为 fire-and-forget 调用，不阻塞主流程
+   */
+  private async persistTenantUsage(tenantId: number): Promise<void> {
+    try {
+      const tenantUsage: Record<string, TenantUsage> = {};
+      const prefix = `${tenantId}:`;
+      for (const [key, value] of this.usage.entries()) {
+        if (key.startsWith(prefix)) {
+          tenantUsage[key] = value;
+        }
+      }
+
+      const entity = await this.repository.findByTenantId(String(tenantId));
+      if (entity) {
+        await this.repository.update(entity.id, { usage: tenantUsage as Record<string, unknown> });
+      }
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err, tenantId }, '[TenantQuotaService] Failed to persist usage to DB');
+    }
+  }
+
+  /**
+   * 重置 DB 中指定租户的使用量数据
+   */
+  private async resetTenantUsageInDb(tenantId: number): Promise<void> {
+    try {
+      const entity = await this.repository.findByTenantId(String(tenantId));
+      if (entity) {
+        await this.repository.update(entity.id, { usage: {} });
+      }
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err, tenantId }, '[TenantQuotaService] Failed to reset usage in DB');
+    }
+  }
+
+  /**
+   * 清理 DB 中过期的使用量条目
+   */
+  private async cleanupExpiredUsageInDb(affectedTenants: Set<number>): Promise<void> {
+    try {
+      for (const tenantId of affectedTenants) {
+        const entity = await this.repository.findByTenantId(String(tenantId));
+        if (entity?.usage && typeof entity.usage === 'object') {
+          const now = new Date();
+          const cleaned: Record<string, unknown> = {};
+          for (const [key, raw] of Object.entries(entity.usage)) {
+            const entry = raw as Record<string, unknown>;
+            const windowEnd = new Date(entry.windowEnd as string);
+            if (windowEnd >= now) {
+              cleaned[key] = entry;
+            }
+          }
+          await this.repository.update(entity.id, { usage: cleaned });
+        }
+      }
+    } catch (err) {
+      logger.warn({ traceId: getCurrentTraceId(), err }, '[TenantQuotaService] Failed to cleanup expired usage in DB');
+    }
+  }
+
+  // ─── 配额配置方法 ────────────────────────────────────────────────────
+
+  /**
    * 获取租户配额配置
    */
-  async getQuota(tenantId: number): Promise<TenantQuota> {
-    if (this.repository) {
+  async getQuota(tenantId: number, tenantUuid?: string): Promise<TenantQuota> {
+    if (tenantUuid && this.isUuid(tenantUuid)) {
+      const uuidEntity = await this.repository.findByTenantId(tenantUuid);
+      if (uuidEntity) {
+        return this.mapEntityToQuota(uuidEntity);
+      }
+    }
+    if (tenantId > 0) {
       const entity = await this.repository.findByTenantId(String(tenantId));
       if (entity) {
         return this.mapEntityToQuota(entity);
       }
     }
-    // in-memory fallback (tests / no-DB environments)
-    const cached = this.quotas.get(tenantId);
-    if (cached) {
-      return cached;
-    }
     return { ...DEFAULT_QUOTA, tenantId };
+  }
+
+  private isUuid(value: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
   }
 
   private mapEntityToQuota(entity: TenantQuotaEntity): TenantQuota {
@@ -125,41 +240,38 @@ export class TenantQuotaService extends EventEmitter {
    * 设置租户配额配置
    */
   async setQuota(quota: TenantQuota): Promise<void> {
-    if (this.repository) {
-      const existing = await this.repository.findByTenantId(String(quota.tenantId));
-      const entityData = {
-        maxPipelines: quota.maxPipelines,
-        maxApiCallsPerHour: quota.apiRateLimit,
-        maxConcurrentBuilds: quota.maxConcurrentRuns,
-        maxProjects: quota.maxNamespaces,
-        maxStorageMb: quota.maxStorageGb * 1024,
-        maxCpuCores: quota.maxCpuCores,
-        maxMemoryGb: quota.maxMemoryGb,
-        maxTasksPerPipeline: quota.maxTasksPerPipeline,
-        maxRunners: quota.maxRunners,
-        apiRateLimit: quota.apiRateLimit,
-        apiRateLimitWindowSeconds: quota.apiRateLimitWindowSeconds,
-        maxPipelineRunsPerDay: quota.maxPipelineRunsPerDay,
-        usage: existing?.usage ?? {},
-      };
-      if (existing) {
-        await this.repository.update(existing.id, entityData);
-      } else {
-        await this.repository.create({
-          id: `quota_${quota.tenantId}`,
-          tenantId: String(quota.tenantId),
-          maxUsers: 100,
-          ...entityData,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-      }
+    const existing = await this.repository.findByTenantId(String(quota.tenantId));
+    const entityData = {
+      maxPipelines: quota.maxPipelines,
+      maxApiCallsPerHour: quota.apiRateLimit,
+      maxConcurrentBuilds: quota.maxConcurrentRuns,
+      maxProjects: quota.maxNamespaces,
+      maxStorageMb: quota.maxStorageGb * 1024,
+      maxCpuCores: quota.maxCpuCores,
+      maxMemoryGb: quota.maxMemoryGb,
+      maxTasksPerPipeline: quota.maxTasksPerPipeline,
+      maxRunners: quota.maxRunners,
+      apiRateLimit: quota.apiRateLimit,
+      apiRateLimitWindowSeconds: quota.apiRateLimitWindowSeconds,
+      maxPipelineRunsPerDay: quota.maxPipelineRunsPerDay,
+      usage: existing?.usage ?? {},
+    };
+    if (existing) {
+      await this.repository.update(existing.id, entityData);
     } else {
-      // in-memory fallback (tests / no-DB environments)
-      this.quotas.set(quota.tenantId, quota);
+      await this.repository.create({
+        id: `quota_${quota.tenantId}`,
+        tenantId: String(quota.tenantId),
+        maxUsers: 100,
+        ...entityData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
     this.emit('quota:updated', quota);
   }
+
+  // ─── 配额检查方法 ────────────────────────────────────────────────────
 
   /**
    * 检查配额限制
@@ -176,7 +288,6 @@ export class TenantQuotaService extends EventEmitter {
 
     const allowed = currentUsage + requestedValue <= limit;
 
-    // Check if we need to emit an alert
     const usagePercent = (currentUsage / limit) * 100;
     if (usagePercent >= this.alertThreshold && !allowed) {
       this.emitAlert(tenantId, resourceType, currentUsage, limit, usagePercent);
@@ -191,16 +302,10 @@ export class TenantQuotaService extends EventEmitter {
     };
   }
 
-  /**
-   * 检查 Runner 配额
-   */
   async checkRunnerQuota(tenantId: number, requestedRunners: number = 1): Promise<QuotaCheckResult> {
     return this.checkQuota(tenantId, 'runners', requestedRunners);
   }
 
-  /**
-   * 检查并发 Pipeline 运行配额
-   */
   async checkConcurrentRunsQuota(
     tenantId: number,
     requestedRuns: number = 1
@@ -208,9 +313,6 @@ export class TenantQuotaService extends EventEmitter {
     return this.checkQuota(tenantId, 'concurrent_runs', requestedRuns);
   }
 
-  /**
-   * 检查 Namespace 配额
-   */
   async checkNamespaceQuota(
     tenantId: number,
     requestedNamespaces: number = 1
@@ -218,17 +320,13 @@ export class TenantQuotaService extends EventEmitter {
     return this.checkQuota(tenantId, 'namespaces', requestedNamespaces);
   }
 
-  /**
-   * 检查 Pipeline 配额
-   */
   async checkPipelineQuota(tenantId: number, requestedPipelines: number = 1): Promise<QuotaCheckResult> {
     return this.checkQuota(tenantId, 'pipelines', requestedPipelines);
   }
 
-  /**
-   * 检查 API 速率限制
-   */
   async checkApiRateLimit(tenantId: number): Promise<QuotaCheckResult> {
+    await this.loadUsageFromDb();
+
     const quota = await this.getQuota(tenantId);
     const windowIndex = Math.floor(Date.now() / (quota.apiRateLimitWindowSeconds * 1000));
     const key = `${tenantId}:api_rate:${windowIndex}`;
@@ -245,9 +343,8 @@ export class TenantQuotaService extends EventEmitter {
     };
   }
 
-  /**
-   * 记录资源使用
-   */
+  // ─── 使用量记录方法 ──────────────────────────────────────────────────
+
   recordUsage(
     tenantId: number,
     resourceType: string,
@@ -266,11 +363,10 @@ export class TenantQuotaService extends EventEmitter {
       windowEnd,
     });
     this.emit('usage:recorded', { tenantId, resourceType, resourceKey, value });
+
+    this.persistTenantUsage(tenantId).catch(() => {});
   }
 
-  /**
-   * 增加资源使用计数
-   */
   incrementUsage(tenantId: number, resourceType: string, resourceKey: string): number {
     const key = `${tenantId}:${resourceType}:${resourceKey}`;
     const current = this.usage.get(key);
@@ -288,10 +384,9 @@ export class TenantQuotaService extends EventEmitter {
     return newValue;
   }
 
-  /**
-   * 获取当前使用量
-   */
   async getCurrentUsage(tenantId: number, resourceType: string): Promise<number> {
+    await this.loadUsageFromDb();
+
     switch (resourceType) {
       case 'pipelines':
         return this.countResource(tenantId, 'pipelines');
@@ -306,9 +401,6 @@ export class TenantQuotaService extends EventEmitter {
     }
   }
 
-  /**
-   * 统计资源数量
-   */
   private countResource(tenantId: number, resourceType: string): number {
     let count = 0;
     for (const [key, usage] of this.usage.entries()) {
@@ -319,9 +411,6 @@ export class TenantQuotaService extends EventEmitter {
     return count;
   }
 
-  /**
-   * 获取配额限制值
-   */
   private getQuotaLimit(quota: TenantQuota, resourceType: string): number {
     switch (resourceType) {
       case 'pipelines':
@@ -347,9 +436,6 @@ export class TenantQuotaService extends EventEmitter {
     }
   }
 
-  /**
-   * 发送配额告警
-   */
   private emitAlert(
     tenantId: number,
     resourceType: string,
@@ -367,26 +453,24 @@ export class TenantQuotaService extends EventEmitter {
     };
 
     this.emit('quota:alert', alert);
-    console.warn(`[TenantQuotaService] Quota alert: Tenant ${tenantId} ${resourceType} usage at ${thresholdPercent.toFixed(1)}% (${currentUsage}/${quotaLimit})`);
+    logger.warn({ traceId: getCurrentTraceId(), tenantId, resourceType, currentUsage, quotaLimit, thresholdPercent: thresholdPercent.toFixed(1) },
+      '[TenantQuotaService] Quota alert');
   }
 
-  /**
-   * 获取租户资源使用报告
-   */
   async getUsageReport(tenantId: number): Promise<{
     quota: TenantQuota;
     usage: Record<string, number>;
     alerts: QuotaAlert[];
   }> {
+    await this.loadUsageFromDb();
+
     const quota = await this.getQuota(tenantId);
     const usage: Record<string, number> = {};
 
-    // Calculate usage for each resource type
     for (const resourceType of ['pipelines', 'concurrent_runs', 'runners', 'namespaces']) {
       usage[resourceType] = this.countResource(tenantId, resourceType);
     }
 
-    // Calculate usage percentages and generate alerts
     const alerts: QuotaAlert[] = [];
     for (const [type, value] of Object.entries(usage)) {
       const limit = this.getQuotaLimit(quota, type);
@@ -406,34 +490,32 @@ export class TenantQuotaService extends EventEmitter {
     return { quota, usage, alerts };
   }
 
-  /**
-   * 设置告警阈值
-   */
   setAlertThreshold(percent: number): void {
     this.alertThreshold = percent;
   }
 
-  /**
-   * 清理过期使用记录
-   */
   cleanupExpiredUsage(): number {
     const now = new Date();
     let cleaned = 0;
+    const affectedTenants = new Set<number>();
 
     for (const [key, usage] of this.usage.entries()) {
       if (usage.windowEnd < now) {
         this.usage.delete(key);
+        affectedTenants.add(usage.tenantId);
         cleaned++;
       }
     }
 
     this.emit('usage:cleanup', cleaned);
+
+    if (affectedTenants.size > 0) {
+      this.cleanupExpiredUsageInDb(affectedTenants).catch(() => {});
+    }
+
     return cleaned;
   }
 
-  /**
-   * 重置租户使用量
-   */
   resetTenantUsage(tenantId: number): void {
     for (const [key] of this.usage.entries()) {
       if (key.startsWith(`${tenantId}:`)) {
@@ -441,8 +523,7 @@ export class TenantQuotaService extends EventEmitter {
       }
     }
     this.emit('usage:reset', tenantId);
+
+    this.resetTenantUsageInDb(tenantId).catch(() => {});
   }
 }
-
-// 导出单例实例
-export const tenantQuotaService = new TenantQuotaService();

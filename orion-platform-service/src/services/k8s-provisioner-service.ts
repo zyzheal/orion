@@ -6,11 +6,11 @@
  * MVP: 模拟实现，返回模拟结果。实际实现需要 @kubernetes/client-node
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { EphemeralEnvironment, EphemeralService } from '../models/EphemeralEnvironment';
 import { K8sNamespaceRepository } from '../repositories/K8sProvisionerRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('k8s-provisioner-service');
 
 export interface ProvisionResult {
   namespace: string;

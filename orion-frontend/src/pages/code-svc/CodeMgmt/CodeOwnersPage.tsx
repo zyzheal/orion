@@ -3,17 +3,18 @@
  * Editor for CODEOWNERS file with validate and save functionality
  */
 import React, { useState, useCallback } from 'react';
-import { Typography, Button, Space, Select, Input, message, Card, Alert } from 'antd';
+import { Typography, Button, Space, Select, Input, message, Card, Alert, Popconfirm } from 'antd';
 import {
   SaveOutlined,
   CheckCircleOutlined,
   ReloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  TeamOutlined,} from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import { Modal, Tag } from 'antd';
+import { Tag } from 'antd';
 import {
   getCodeOwners,
   registerCodeOwners,
@@ -66,14 +67,14 @@ const CodeOwnersPage: React.FC = () => {
     setLoading(true);
     try {
       const adaptersResp = await getCodeRepoAdapters();
-      const adapters = adaptersResp.data.data as Array<{ id: string; name: string; type: string }>;
+      const adapters = adaptersResp.data as Array<{ id: string; name: string; type: string }>;
       if (!Array.isArray(adapters)) return;
 
       const allRepos: RepoOption[] = [];
       for (const adapter of adapters) {
         try {
           const reposResp = await getCodeRepos(adapter.id);
-          const repos = reposResp.data.data as Array<{ id: string; name: string }>;
+          const repos = reposResp.data as Array<{ id: string; name: string }>;
           if (Array.isArray(repos)) {
             repos.forEach((repo) => allRepos.push({ ...repo, adapterId: adapter.id }));
           }
@@ -102,7 +103,7 @@ const CodeOwnersPage: React.FC = () => {
     setValidationResult(null);
     try {
       const response = await getCodeOwners(selectedRepoId);
-      const data = response.data.data as { content?: string } | null;
+      const data = response.data as { content?: string } | null;
       if (data?.content) {
         setContent(data.content);
         setSavedContent(data.content);
@@ -135,7 +136,7 @@ const CodeOwnersPage: React.FC = () => {
     setValidating(true);
     try {
       const response = await validateCodeOwners(content);
-      const data = response.data.data as { valid: boolean; message?: string };
+      const data = response.data as { valid: boolean; message?: string };
       setValidationResult({
         valid: data.valid ?? true,
         message: data.message || (data.valid ? 'CODEOWNERS 格式正确' : 'CODEOWNERS 格式错误'),
@@ -181,29 +182,21 @@ const CodeOwnersPage: React.FC = () => {
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selectedRepoId) return;
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除仓库 "${selectedRepoId}" 的 CODEOWNERS 配置吗？`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteCodeOwners(selectedRepoId);
-          message.success('CODEOWNERS 已删除');
-          setContent('');
-          setSavedContent('');
-          setValidationResult(null);
-        } catch (error: unknown) {
-          if (error instanceof Error) {
-            message.error(`删除 CODEOWNERS 失败：${error.message}`);
-          } else {
-            message.error('删除 CODEOWNERS 失败，请稍后重试');
-          }
-        }
-      },
-    });
+    try {
+      await deleteCodeOwners(selectedRepoId);
+      message.success('CODEOWNERS 已删除');
+      setContent('');
+      setSavedContent('');
+      setValidationResult(null);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        message.error(`删除 CODEOWNERS 失败：${error.message}`);
+      } else {
+        message.error('删除 CODEOWNERS 失败，请稍后重试');
+      }
+    }
   };
 
   const handleRecommend = async () => {
@@ -216,7 +209,7 @@ const CodeOwnersPage: React.FC = () => {
       // Recommend approvers for common paths
       const filePaths = ['src/', 'tests/', 'docs/'];
       const response = await recommendCodeOwnersApprovers(selectedRepoId, filePaths);
-      const data = response.data.data as any[];
+      const data = (response.data as CodeOwnerRecommendation[]) || [];
       if (Array.isArray(data)) {
         setRecommendations(data);
         message.success('推荐加载完成');
@@ -266,11 +259,12 @@ const CodeOwnersPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TeamOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             CODEOWNERS
           </Title>
           <Text type="secondary">配置代码仓库的 CODEOWNERS 文件，定义文件/目录的负责人</Text>
@@ -284,19 +278,27 @@ const CodeOwnersPage: React.FC = () => {
           >
             重新加载
           </Button>
-          <Button
-            icon={<DeleteOutlined />}
-            danger
-            onClick={handleDelete}
+          <Popconfirm
+            title="确定删除？"
+            description="删除后无法恢复"
+            onConfirm={handleDelete}
+            okText="确定"
+            cancelText="取消"
             disabled={!selectedRepoId || !savedContent}
           >
-            删除
-          </Button>
+            <Button
+              icon={<DeleteOutlined />}
+              danger
+              disabled={!selectedRepoId || !savedContent}
+            >
+              删除
+            </Button>
+          </Popconfirm>
         </Space>
       </div>
 
       {/* Repo selector */}
-      <Card style={{ marginBottom: 16 }} size="small">
+      <Card style={{ marginBottom: spacing.md }} size="small">
         <Space>
           <Text strong>选择仓库:</Text>
           <Select
@@ -358,7 +360,7 @@ const CodeOwnersPage: React.FC = () => {
       {/* Validation result */}
       {validationResult && (
         <Alert
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
           type={validationResult.valid ? 'success' : 'error'}
           message={validationResult.valid ? '验证通过' : '验证失败'}
           description={validationResult.message}
@@ -368,7 +370,7 @@ const CodeOwnersPage: React.FC = () => {
 
       {/* Recommendations table */}
       {recommendations.length > 0 && (
-        <Card title="推荐审批人" style={{ marginTop: 16 }}>
+        <Card title="推荐审批人" style={{ marginTop: spacing.md }}>
           <Table
             columns={recommendationColumns}
             dataSource={recommendations}

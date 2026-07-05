@@ -258,7 +258,7 @@ export class SelfHealingController {
     reply: FastifyReply
   ): Promise<void> {
     try {
-      const strategies = this.selfHealingService.getStrategies();
+      const strategies = await this.selfHealingService.getStrategies();
 
       await reply.send({
         data: strategies.map((s) => ({
@@ -294,7 +294,7 @@ export class SelfHealingController {
       const params = request.params as any;
       const { id } = params;
 
-      const strategy = this.selfHealingService.getStrategy(id);
+      const strategy = await this.selfHealingService.getStrategy(id);
       if (!strategy) {
         await reply.status(404).send({
           error: 'NOT_FOUND',
@@ -336,7 +336,7 @@ export class SelfHealingController {
         return;
       }
 
-      const strategy = this.selfHealingService.getStrategy(id);
+      const strategy = await this.selfHealingService.getStrategy(id);
       if (!strategy) {
         await reply.status(404).send({
           error: 'NOT_FOUND',
@@ -346,7 +346,7 @@ export class SelfHealingController {
         return;
       }
 
-      const success = this.selfHealingService.toggleStrategy(id, enabled);
+      const success = await this.selfHealingService.toggleStrategy(id, enabled);
       if (!success) {
         await reply.status(500).send({
           error: 'INTERNAL_ERROR',
@@ -412,7 +412,7 @@ export class SelfHealingController {
         maxRetries,
       };
 
-      this.selfHealingService.registerCustomStrategy(strategy);
+      await this.selfHealingService.registerCustomStrategy(strategy);
 
       await reply.status(201).send({
         id: strategy.id,

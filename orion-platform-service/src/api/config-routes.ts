@@ -8,16 +8,30 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { ConfigRepository } from '../services/config-mgmt/ConfigRepository';
 import { ConfigService } from '../services/config-mgmt/ConfigService';
 import { GitOpsService } from '../services/config-mgmt/GitOpsService';
 import { ConfigApprovalService } from '../services/config-mgmt/ConfigApprovalService';
 import { ConfigDiffService } from '../services/config-mgmt/ConfigDiffService';
+import { ConfigSnapshotService } from '../services/config-mgmt/ConfigSnapshotService';
+import { ConfigWebhookService } from '../services/config/ConfigWebhookService';
+import { ConfigWebhookRepository } from '../repositories/ConfigWebhookRepository';
+import { ConfigRepository } from '../services/config-mgmt/ConfigRepository';
+import { ConfigVersionRepository } from '../repositories/ConfigVersionRepository';
+import { ConfigApprovalRepository } from '../repositories/ConfigApprovalRepository';
+import { GitOpsRepository } from '../repositories/GitOpsRepository';
 import { ConfigController } from './controllers/ConfigController';
 import { DatabasePool } from '../services/database';
+import { RedisCache } from '../services/redis-cache';
+import { CacheService } from '../services/cache/CacheService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('config-routes');
 
 export interface ConfigRoutesOptions {
   database?: DatabasePool;
+  redis?: RedisCache;
 }
 
 export default async function configRoutes(
@@ -25,40 +39,55 @@ export default async function configRoutes(
   options: ConfigRoutesOptions
 ): Promise<void> {
   if (!options.database) {
-    throw new Error('Config routes require a database connection');
+    logger.warn('[ConfigRoutes] No database pool provided, config routes will not be functional');
+    return;
   }
   // Initialize repository with PostgreSQL connection
   const configRepo = new ConfigRepository(options.database);
 
   // Initialize services - all depend on ConfigService which now uses the repository
-  const configService = new ConfigService(configRepo);
-  const gitOpsService = new GitOpsService({ configService });
-  const approvalService = new ConfigApprovalService({ configService });
+  const cache = new CacheService(options.redis || null, 120);
+  const configService = new ConfigService(configRepo, cache);
+  const gitOpsRepo = new GitOpsRepository(options.database);
+  const gitOpsService = new GitOpsService({ configService, repository: gitOpsRepo });
+  const approvalRepo = new ConfigApprovalRepository(options.database);
+  const approvalService = new ConfigApprovalService({ configService, repository: approvalRepo });
   const diffService = new ConfigDiffService({ configService });
+  const snapshotService = new ConfigSnapshotService(new ConfigVersionRepository(options.database), configRepo, cache);
+  const webhookService = new ConfigWebhookService(new ConfigWebhookRepository(options.database), options.database);
 
   // Initialize controller
   const configController = new ConfigController(
     configService,
     gitOpsService,
     approvalService,
-    diffService
+    diffService,
+    snapshotService,
+    webhookService
   );
 
   // ==================== Config CRUD ====================
 
   // POST /configs - Create configuration item
-  app.post('/configs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/configs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.create(request, reply);
   });
 
   // GET /configs - List configurations
-  app.get('/configs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/configs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.list(request, reply);
   });
 
   // GET /configs/:configId - Get config detail
   app.get(
     '/configs/:configId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getById(request, reply);
     }
@@ -67,6 +96,9 @@ export default async function configRoutes(
   // PUT /configs/:configId - Update configuration
   app.put(
     '/configs/:configId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.update(request, reply);
     }
@@ -75,6 +107,9 @@ export default async function configRoutes(
   // DELETE /configs/:configId - Delete configuration (soft delete)
   app.delete(
     '/configs/:configId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.delete(request, reply);
     }
@@ -83,6 +118,9 @@ export default async function configRoutes(
   // GET /configs/:configId/versions - Get config version history
   app.get(
     '/configs/:configId/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getVersions(request, reply);
     }
@@ -91,6 +129,9 @@ export default async function configRoutes(
   // POST /configs/:configId/rollback - Rollback to a specific version
   app.post(
     '/configs/:configId/rollback',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.rollback(request, reply);
     }
@@ -99,6 +140,9 @@ export default async function configRoutes(
   // POST /configs/:configId/clone - Clone config to another environment
   app.post(
     '/configs/:configId/clone',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.clone(request, reply);
     }
@@ -107,18 +151,25 @@ export default async function configRoutes(
   // ==================== GitOps ====================
 
   // POST /gitops - Enable GitOps synchronization
-  app.post('/gitops', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/gitops', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.enableGitOps(request, reply);
   });
 
   // GET /gitops - List GitOps configurations
-  app.get('/gitops', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/gitops', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return configController.listGitOpsConfigs(request, reply);
   });
 
   // POST /gitops/:gitOpsConfigId/sync - Trigger manual sync
   app.post(
     '/gitops/:gitOpsConfigId/sync',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'execute' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.syncFromGit(request, reply);
     }
@@ -127,6 +178,9 @@ export default async function configRoutes(
   // POST /gitops/:gitOpsConfigId/disable - Disable GitOps
   app.post(
     '/gitops/:gitOpsConfigId/disable',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.disableGitOps(request, reply);
     }
@@ -135,6 +189,9 @@ export default async function configRoutes(
   // GET /gitops/drift - Detect configuration drift
   app.get(
     '/gitops/drift',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.detectDrift(request, reply);
     }
@@ -143,6 +200,9 @@ export default async function configRoutes(
   // GET /gitops/sync-status - Get sync status history
   app.get(
     '/gitops/sync-status',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getSyncStatus(request, reply);
     }
@@ -153,6 +213,9 @@ export default async function configRoutes(
   // POST /change-requests - Create a config change request
   app.post(
     '/change-requests',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.createChangeRequest(request, reply);
     }
@@ -161,6 +224,9 @@ export default async function configRoutes(
   // GET /change-requests - List change requests
   app.get(
     '/change-requests',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.listChangeRequests(request, reply);
     }
@@ -169,6 +235,9 @@ export default async function configRoutes(
   // GET /change-requests/:changeRequestId - Get change request detail
   app.get(
     '/change-requests/:changeRequestId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getChangeRequest(request, reply);
     }
@@ -177,6 +246,9 @@ export default async function configRoutes(
   // POST /change-requests/:changeRequestId/approve - Approve change request
   app.post(
     '/change-requests/:changeRequestId/approve',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'approve' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.approveChange(request, reply);
     }
@@ -185,6 +257,9 @@ export default async function configRoutes(
   // POST /change-requests/:changeRequestId/reject - Reject change request
   app.post(
     '/change-requests/:changeRequestId/reject',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'approve' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.rejectChange(request, reply);
     }
@@ -193,8 +268,170 @@ export default async function configRoutes(
   // GET /configs/:configId/audit - Get audit trail for a config
   app.get(
     '/configs/:configId/audit',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.getAuditTrail(request, reply);
+    }
+  );
+
+  // ==================== Config Templates ====================
+
+  // POST /templates - Create config template
+  app.post('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createTemplate(request, reply);
+  });
+
+  // GET /templates - List config templates
+  app.get('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.listTemplates(request, reply);
+  });
+
+  // GET /templates/:id - Get template detail
+  app.get(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.getTemplate(request, reply);
+    }
+  );
+
+  // PUT /templates/:id - Update template
+  app.put(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.updateTemplate(request, reply);
+    }
+  );
+
+  // DELETE /templates/:id - Delete template
+  app.delete(
+    '/templates/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.deleteTemplate(request, reply);
+    }
+  );
+
+  // POST /templates/:id/versions - Create template version
+  app.post(
+    '/templates/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.createTemplateVersion(request, reply);
+    }
+  );
+
+  // GET /templates/:id/versions - List template versions
+  app.get(
+    '/templates/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.listTemplateVersions(request, reply);
+    }
+  );
+
+  // ==================== Canary Deployment ====================
+
+  // POST /canary - Create canary deployment
+  app.post('/canary', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createCanary(request, reply);
+  });
+
+  // POST /canary/:id/promote - Promote canary deployment
+  app.post(
+    '/canary/:id/promote',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.promoteCanary(request, reply);
+    }
+  );
+
+  // POST /canary/:id/rollback - Rollback canary deployment
+  app.post(
+    '/canary/:id/rollback',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.rollbackCanary(request, reply);
+    }
+  );
+
+  // ==================== Config Snapshots ====================
+
+  // POST /configs/:configId/snapshots - Create snapshot
+  app.post(
+    '/configs/:configId/snapshots',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.createSnapshot(request, reply);
+    }
+  );
+
+  // GET /configs/:configId/snapshots - List snapshots
+  app.get(
+    '/configs/:configId/snapshots',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.listSnapshots(request, reply);
+    }
+  );
+
+  // GET /configs/:configId/snapshots/:snapshotId - Get snapshot detail
+  app.get(
+    '/configs/:configId/snapshots/:snapshotId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.getSnapshot(request, reply);
+    }
+  );
+
+  // POST /configs/:configId/snapshots/:snapshotId/restore - Restore snapshot
+  app.post(
+    '/configs/:configId/snapshots/:snapshotId/restore',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.restoreSnapshot(request, reply);
+    }
+  );
+
+  // DELETE /configs/:configId/snapshots/:snapshotId - Delete snapshot
+  app.delete(
+    '/configs/:configId/snapshots/:snapshotId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.deleteSnapshot(request, reply);
     }
   );
 
@@ -203,6 +440,9 @@ export default async function configRoutes(
   // GET /diff/:sourceEnv/:targetEnv - Compare environments
   app.get(
     '/diff/:sourceEnv/:targetEnv',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.compareEnvironments(request, reply);
     }
@@ -211,16 +451,59 @@ export default async function configRoutes(
   // GET /configs/:configId/versions/diff - Compare config versions
   app.get(
     '/configs/:configId/versions/diff',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       return configController.compareVersions(request, reply);
     }
   );
 
-  // GET /diff/report - Generate comprehensive diff report
+  // GET /configs/:configId/dependencies - Get dependency graph
   app.get(
-    '/diff/report',
+    '/configs/:configId/dependencies',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return configController.getDiffReport(request, reply);
+      return configController.getDependencyGraph(request, reply);
     }
   );
+
+  // ==================== Webhooks ====================
+
+  // POST /webhooks - Register a new webhook
+  app.post('/webhooks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createWebhook(request, reply);
+  });
+
+  // GET /webhooks - List webhooks
+  app.get('/webhooks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.listWebhooks(request, reply);
+  });
+
+  // GET /webhooks/:id - Get webhook detail
+  app.get('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.getWebhook(request, reply);
+  });
+
+  // PUT /webhooks/:id - Update webhook
+  app.put('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.updateWebhook(request, reply);
+  });
+
+  // DELETE /webhooks/:id - Delete webhook
+  app.delete('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.deleteWebhook(request, reply);
+  });
 }

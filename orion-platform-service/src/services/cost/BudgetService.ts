@@ -26,6 +26,10 @@ import {
 } from '../../models/CostRecord';
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 import { DatabasePool } from '../database';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('LBudget-LService');
 import {
   CostRecordRepository,
   AlertRuleRepository,
@@ -33,6 +37,7 @@ import {
   CostRecordFindFilter,
   CostSummaryParams,
 } from '../../repositories/CostRepositories';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface BudgetListFilter {
   type?: string;
@@ -245,7 +250,7 @@ export class BudgetService {
         if (input.projectId) await this._updateBudgetSpent('project', input.projectId, input.totalCost);
         if (input.userId) await this._updateBudgetSpent('user', input.userId, input.totalCost);
       } catch (err) {
-        console.error('[BudgetService] Budget update failed after cost record created:', err);
+        logger.error('[BudgetService] Budget update failed after cost record created:', err);
       }
       return this.mapCostRecordEntityToRecord(entity);
     }
@@ -335,7 +340,7 @@ export class BudgetService {
   }> {
     const budget = await this.getBudgetById(budgetId);
     if (!budget) {
-      throw new Error(`Budget ${budgetId} not found`);
+      throw new OrionError(`Budget ${budgetId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const usagePercent = budget.amount > 0 ? budget.spent / budget.amount : 0;

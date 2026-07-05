@@ -1,5 +1,7 @@
 import { DatabasePool } from '../services/database';
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
+import { decryptValue, encryptValue } from '../utils/encryption';
 
 // Entity types
 export interface ChatOpsCommandEntity {
@@ -87,7 +89,7 @@ export class ChatOpsCommandRepository extends BaseRepository<ChatOpsCommandEntit
       `INSERT INTO chatops_commands (name, subcommand, schema, aliases, permission_level, examples) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [data.name, data.subcommand, data.schema, data.aliases, data.permissionLevel, data.examples],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -168,8 +170,129 @@ export class ChatOpsExecutionRepository extends BaseRepository<ChatOpsExecutionE
         data.milestones,
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /** 按时间范围获取执行统计 */
+  async getStatsByTimeRange(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{ total: number; completed: number; failed: number; avgResponseTime: number }> {
+    const result = await this.db.query(
+      `SELECT
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE status = 'completed') as completed,
+         COUNT(*) FILTER (WHERE status = 'failed') as failed,
+         COALESCE(AVG(
+           EXTRACT(EPOCH FROM (end_time - start_time))
+         ) FILTER (WHERE status = 'completed' AND end_time IS NOT NULL), 0) as avg_response_time
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2`,
+      [startDate, endDate],
+    );
+    const row = result.rows[0];
+    return {
+      total: parseInt(row.total, 10),
+      completed: parseInt(row.completed, 10),
+      failed: parseInt(row.failed, 10),
+      avgResponseTime: parseFloat(row.avg_response_time),
+    };
+  }
+
+  /** 获取按日分组的执行趋势 */
+  async getDailyTrends(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ date: string; executions: number; successRate: number }>> {
+    const result = await this.db.query(
+      `SELECT
+         DATE(start_time) as day,
+         COUNT(*) as executions,
+         COALESCE(
+           ROUND(COUNT(*) FILTER (WHERE status = 'completed')::numeric / NULLIF(COUNT(*), 0) * 100, 1),
+           0
+         ) as success_rate
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY DATE(start_time)
+       ORDER BY day`,
+      [startDate, endDate],
+    );
+    return result.rows.map(row => ({
+      date: row.day,
+      executions: parseInt(row.executions, 10),
+      successRate: parseFloat(row.success_rate),
+    }));
+  }
+
+  /** 获取热门命令 TOP N */
+  async getTopCommands(
+    startDate: Date,
+    endDate: Date,
+    limit = 5,
+  ): Promise<Array<{ command: string; count: number; successRate: number }>> {
+    const result = await this.db.query(
+      `SELECT
+         command_id as command,
+         COUNT(*) as count,
+         COALESCE(
+           ROUND(COUNT(*) FILTER (WHERE status = 'completed')::numeric / NULLIF(COUNT(*), 0) * 100, 1),
+           0
+         ) as success_rate
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY command_id
+       ORDER BY count DESC
+       LIMIT $3`,
+      [startDate, endDate, limit],
+    );
+    return result.rows.map(row => ({
+      command: row.command,
+      count: parseInt(row.count, 10),
+      successRate: parseFloat(row.success_rate),
+    }));
+  }
+
+  /** 获取平台分布统计 */
+  async getPlatformDistribution(
+    startDate: Date,
+    endDate: Date,
+  ): Promise<Array<{ platform: string; count: number }>> {
+    const result = await this.db.query(
+      `SELECT platform, COUNT(*) as count
+       FROM chatops_executions
+       WHERE start_time >= $1 AND start_time <= $2
+       GROUP BY platform
+       ORDER BY count DESC`,
+      [startDate, endDate],
+    );
+    return result.rows.map(row => ({
+      platform: row.platform,
+      count: parseInt(row.count, 10),
+    }));
+  }
+
+  /** 获取最近执行记录 */
+  async getRecentExecutions(
+    limit = 5,
+  ): Promise<Array<{ id: string; commandId: string; userId: string; platform: string; status: string; startTime: Date; endTime: Date | null }>> {
+    const result = await this.db.query(
+      `SELECT id, command_id, user_id, platform, status, start_time, end_time
+       FROM chatops_executions
+       ORDER BY start_time DESC
+       LIMIT $1`,
+      [limit],
+    );
+    return result.rows.map(row => ({
+      id: row.id,
+      commandId: row.command_id,
+      userId: row.user_id,
+      platform: row.platform,
+      status: row.status,
+      startTime: row.start_time,
+      endTime: row.end_time,
+    }));
   }
 
   protected mapRowToEntity(row: any): ChatOpsExecutionEntity {
@@ -231,7 +354,7 @@ export class ChatOpsSessionRepository extends BaseRepository<ChatOpsSessionEntit
       `INSERT INTO chatops_sessions (key, user_id, channel_id, history, state) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [data.key, data.user_id, data.channel_id, data.history, data.state],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -288,7 +411,7 @@ export class ChatOpsAuditLogRepository extends BaseRepository<ChatOpsAuditLogEnt
       `INSERT INTO chatops_audit_logs (trace_id, actor, timestamp, action, result, context) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [data.trace_id, data.actor, data.timestamp, data.action, data.result, data.context],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -523,6 +646,150 @@ export class ChatOpsAlertStateRepository extends BaseRepository<ChatOpsAlertStat
       escalationStopped: row.escalation_stopped || false,
       escalationCurrentLevel: row.escalation_current_level || 0,
       createdAt: row.created_at,
+    };
+  }
+}
+
+// ==================== ChatOpsQuestionConfig Repository ====================
+
+export interface ChatOpsQuestionConfigEntity {
+  id: string;
+  userId: string;
+  key: string;
+  icon: string;
+  title: string;
+  description: string;
+  question: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ChatOpsQuestionConfigRepository extends BaseRepository<ChatOpsQuestionConfigEntity> {
+  constructor(db: DatabasePool) {
+    super(db, 'chatops_question_configs');
+  }
+
+  async findByUserId(userId: string): Promise<ChatOpsQuestionConfigEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM chatops_question_configs WHERE user_id = $1 ORDER BY sort_order, key',
+      [userId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async upsert(data: {
+    userId: string;
+    key: string;
+    icon: string;
+    title: string;
+    description: string;
+    question: string;
+    enabled: boolean;
+    sortOrder?: number;
+  }): Promise<ChatOpsQuestionConfigEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_question_configs (user_id, key, icon, title, description, question, enabled, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (user_id, key) DO UPDATE SET
+         icon = $3, title = $4, description = $5, question = $6, enabled = $7, sort_order = $8, updated_at = NOW()
+       RETURNING *`,
+      [data.userId, data.key, data.icon, data.title, data.description, data.question, data.enabled, data.sortOrder ?? 0],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async deleteByKey(userId: string, key: string): Promise<boolean> {
+    const result = await this.db.query(
+      'DELETE FROM chatops_question_configs WHERE user_id = $1 AND key = $2',
+      [userId, key],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  protected mapRowToEntity(row: any): ChatOpsQuestionConfigEntity {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      icon: row.icon || '',
+      title: row.title || '',
+      description: row.description || '',
+      question: row.question || '',
+      enabled: row.enabled ?? true,
+      sortOrder: row.sort_order ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+}
+
+// ==================== ChatOpsCommandConfig Repository ====================
+
+export interface ChatOpsCommandConfigEntity {
+  id: string;
+  userId: string;
+  key: string;
+  label: string;
+  command: string;
+  enabled: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export class ChatOpsCommandConfigRepository extends BaseRepository<ChatOpsCommandConfigEntity> {
+  constructor(db: DatabasePool) {
+    super(db, 'chatops_command_configs');
+  }
+
+  async findByUserId(userId: string): Promise<ChatOpsCommandConfigEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM chatops_command_configs WHERE user_id = $1 ORDER BY sort_order, key',
+      [userId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async upsert(data: {
+    userId: string;
+    key: string;
+    label: string;
+    command: string;
+    enabled: boolean;
+    sortOrder?: number;
+  }): Promise<ChatOpsCommandConfigEntity> {
+    const result = await this.db.query(
+      `INSERT INTO chatops_command_configs (user_id, key, label, command, enabled, sort_order)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, key) DO UPDATE SET
+         label = $3, command = $4, enabled = $5, sort_order = $6, updated_at = NOW()
+       RETURNING *`,
+      [data.userId, data.key, data.label, data.command, data.enabled, data.sortOrder ?? 0],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  async deleteByKey(userId: string, key: string): Promise<boolean> {
+    const result = await this.db.query(
+      'DELETE FROM chatops_command_configs WHERE user_id = $1 AND key = $2',
+      [userId, key],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  protected mapRowToEntity(row: any): ChatOpsCommandConfigEntity {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      key: row.key,
+      label: row.label || '',
+      command: row.command || '',
+      enabled: row.enabled ?? true,
+      sortOrder: row.sort_order ?? 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 }

@@ -95,7 +95,7 @@ export const ErrorCodeToHttpStatus: Record<ErrorCode, number> = {
 export class OrionError extends Error {
   constructor(
     message: string,
-    public code: ErrorCode,
+    public code: ErrorCode | string,
     public recoverable: boolean = false,
     public details?: Record<string, unknown>,
   ) {
@@ -107,7 +107,7 @@ export class OrionError extends Error {
    * 获取 HTTP 状态码
    */
   getHttpStatus(): number {
-    return ErrorCodeToHttpStatus[this.code] || 500;
+    return ErrorCodeToHttpStatus[this.code as ErrorCode] || 500;
   }
 
   /**
@@ -142,7 +142,7 @@ export interface ApiResponse<T = unknown> {
 export interface ApiErrorResponse {
   success: false;
   error: string;
-  code: ErrorCode;
+  code: ErrorCode | string;
   details?: Record<string, unknown>;
 }
 
@@ -359,7 +359,7 @@ export function createSuccessResponse<T>(
  */
 export function createErrorResponse(
   error: string,
-  code: ErrorCode,
+  code: ErrorCode | string,
   details?: Record<string, unknown>,
 ): ApiErrorResponse {
   return {

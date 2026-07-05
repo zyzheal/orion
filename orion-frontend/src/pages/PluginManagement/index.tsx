@@ -9,7 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Space, message } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, AppstoreOutlined } from '@ant-design/icons';
 import {
   getInstalledPlugins,
   getPlugin,
@@ -17,6 +17,7 @@ import {
   type PluginExecutionResult,
 } from '@/api/plugins';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import PluginList from './PluginList';
 import PluginDetailDrawer from './PluginDetail';
 import PluginCreateModal from './PluginCreateModal';
@@ -48,7 +49,7 @@ const PluginManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getInstalledPlugins({});
-      setPlugins(response.data.data || []);
+      setPlugins((response.data || []) as unknown as ApiPlugin[]);
     } catch (err: unknown) {
       if (err instanceof Error) {
         if (err.message.includes('401') || err.message.includes('403')) {
@@ -72,7 +73,7 @@ const PluginManagement: React.FC = () => {
     // Refresh plugin details
     try {
       const response = await getPlugin(plugin.id);
-      setSelectedPlugin(response.data.data as ApiPlugin);
+      setSelectedPlugin(response.data as unknown as ApiPlugin);
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载插件详情失败：${err.message}`);
@@ -104,7 +105,7 @@ const PluginManagement: React.FC = () => {
       message.success('配置保存成功');
       // Refresh plugin details
       const response = await getPlugin(selectedPlugin.id);
-      setSelectedPlugin(response.data.data as ApiPlugin);
+      setSelectedPlugin(response.data as unknown as ApiPlugin);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '保存配置失败';
       message.error(`保存配置失败：${msg}`);
@@ -134,7 +135,8 @@ const PluginManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             插件管理
           </Title>
           <Text type="secondary">共 {plugins.length} 个插件</Text>

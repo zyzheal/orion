@@ -2,7 +2,7 @@
  * IaC Module Registry - Module browser, search, version management
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import {
+import { 
   Typography,
   Button,
   Space,
@@ -16,7 +16,8 @@ import {
   Popconfirm,
 } from 'antd';
 import { spacing } from '@/tokens';
-import { PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
+import { colors } from '@/tokens';
+import { BlockOutlined, PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -55,7 +56,7 @@ const ModuleRegistry: React.FC = () => {
     setLoading(true);
     try {
       const res = await getModules();
-      setModules(Array.isArray(res.data.data) ? res.data.data : []);
+      setModules(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load modules：${error.message}`);
@@ -229,11 +230,12 @@ const ModuleRegistry: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BlockOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             模块注册
           </Title>
           <Text type="secondary">IaC 模块浏览与版本管理</Text>
@@ -253,7 +255,7 @@ const ModuleRegistry: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

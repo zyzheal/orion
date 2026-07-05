@@ -39,8 +39,11 @@ import {
   getEfficiencyDashboard,
   getTeamComparison,
   getTeams,
+  getDeveloperProfiles,
+  getBottlenecks,
 } from '@/api/efficiency';
-import type { TeamMetrics } from '@/api/efficiency';
+import type { TeamMetrics, DeveloperProfile, BottleneckItem } from '@/api/efficiency';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -66,8 +69,9 @@ const DORAMetricsTab: React.FC = () => {
         getEfficiencyDashboard(),
         getDoraBenchmarks(),
       ]);
-      setDashboardData(dashboardRes.data?.data || null);
-      setBenchmarks(benchmarksRes.data?.data || null);
+      // Response wraps in { dashboard: {...} }
+      setDashboardData((dashboardRes.data as any)?.dashboard || dashboardRes.data || null);
+      setBenchmarks(benchmarksRes.data || null);
     } catch (error: unknown) {
       message.error(`加载 DORA 指标失败: ${(error as Error).message}`);
     } finally {
@@ -102,13 +106,13 @@ const DORAMetricsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
         <Text type="secondary">DORA 四大核心指标</Text>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>刷新</Button>
       </div>
 
       {/* Metric Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -117,7 +121,7 @@ const DORAMetricsTab: React.FC = () => {
               suffix="次/周"
               prefix={<ThunderboltOutlined />}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')]}>
                 {getLevel(typeof dora.deploymentFrequency === 'string' ? parseFloat(dora.deploymentFrequency) : dora.deploymentFrequency, 'deploymentFrequency')}
               </Tag>
@@ -133,7 +137,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<ClockCircleOutlined />}
               valueStyle={{ color: (dora.leadTime || 0) <= 24 ? colors.success[500] : colors.warning[500] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.leadTime, 'leadTimeForChanges')]}>
                 {getLevel(dora.leadTime, 'leadTimeForChanges')}
               </Tag>
@@ -149,7 +153,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: (dora.mttr || 0) <= 60 ? colors.success[500] : colors.error[400] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.mttr, 'meanTimeToRecovery')]}>
                 {getLevel(dora.mttr, 'meanTimeToRecovery')}
               </Tag>
@@ -165,7 +169,7 @@ const DORAMetricsTab: React.FC = () => {
               prefix={<WarningOutlined />}
               valueStyle={{ color: (dora.changeFailureRate || 0) <= 5 ? colors.success[500] : colors.error[400] }}
             />
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Tag color={levelColorMap[getLevel(dora.changeFailureRate, 'changeFailureRate')]}>
                 {getLevel(dora.changeFailureRate, 'changeFailureRate')}
               </Tag>
@@ -189,7 +193,7 @@ const DORAMetricsTab: React.FC = () => {
             </Col>
           </Row>
           {dashboardData.summary.totalDeployments && dashboardData.summary.totalDeployments > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text type="secondary">成功率: </Text>
               <Progress
                 percent={Math.round(((dashboardData.summary.successfulDeployments || 0) / dashboardData.summary.totalDeployments) * 100)}
@@ -210,37 +214,28 @@ const DeveloperProfileTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [profiles, setProfiles] = useState<DeveloperProfile[]>([]);
 
-  interface DeveloperProfile {
-    id: string;
-    name: string;
-    team: string;
-    role: string;
-    commits: number;
-    prs: number;
-    reviews: number;
-    bugsFixed: number;
-    avgReviewTime: number; // minutes
-    avgPRSize: number; // lines
-    codeQuality: number; // 0-100
-    activeDays: number;
-    specialty: string[];
-  }
-
-  // Mock data until backend provides this
+  // Load developer profiles from API
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProfiles([
-        { id: 'dev-001', name: '张三', team: '前端组', role: '高级工程师', commits: 234, prs: 45, reviews: 67, bugsFixed: 23, avgReviewTime: 15, avgPRSize: 120, codeQuality: 92, activeDays: 22, specialty: ['React', 'TypeScript', '微前端'] },
-        { id: 'dev-002', name: '李四', team: '后端组', role: '中级工程师', commits: 189, prs: 38, reviews: 52, bugsFixed: 18, avgReviewTime: 22, avgPRSize: 200, codeQuality: 85, activeDays: 20, specialty: ['Go', 'gRPC', 'K8s'] },
-        { id: 'dev-003', name: '王五', team: '平台组', role: '高级工程师', commits: 156, prs: 32, reviews: 89, bugsFixed: 12, avgReviewTime: 8, avgPRSize: 80, codeQuality: 95, activeDays: 21, specialty: ['CI/CD', 'Terraform', 'Platform'] },
-        { id: 'dev-004', name: '赵六', team: 'QA组', role: '测试工程师', commits: 98, prs: 21, reviews: 134, bugsFixed: 45, avgReviewTime: 12, avgPRSize: 50, codeQuality: 88, activeDays: 22, specialty: ['自动化测试', '性能测试', 'Selenium'] },
-        { id: 'dev-005', name: '孙七', team: 'SRE组', role: 'SRE 工程师', commits: 145, prs: 28, reviews: 41, bugsFixed: 31, avgReviewTime: 18, avgPRSize: 150, codeQuality: 90, activeDays: 21, specialty: ['Prometheus', 'Grafana', 'Incident'] },
-        { id: 'dev-006', name: '周八', team: 'AI组', role: 'ML 工程师', commits: 112, prs: 19, reviews: 15, bugsFixed: 8, avgReviewTime: 30, avgPRSize: 350, codeQuality: 78, activeDays: 19, specialty: ['Python', 'TensorFlow', 'MLOps'] },
-      ]);
-      setLoading(false);
-    }, 300);
-    setLoading(true);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await getDeveloperProfiles();
+        if (!cancelled) {
+          setProfiles(res.data?.profiles || []);
+        }
+      } catch {
+        if (!cancelled) {
+          message.error('加载开发者画像失败');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   const columns = [
@@ -295,7 +290,7 @@ const DeveloperProfileTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Text type="secondary">开发者画像基于近期活动数据自动生成，用于识别效能瓶颈和优势</Text>
       </div>
       <Alert
@@ -303,7 +298,7 @@ const DeveloperProfileTab: React.FC = () => {
         description="开发者画像基于 Git 提交、PR 评审、Bug 修复等公开数据生成，仅用于团队效能分析，不作个人绩效考评依据"
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
       />
       <Table columns={columns} dataSource={profiles} rowKey="id" loading={loading} size="middle" pagination={{ pageSize: 10 }} />
     </div>
@@ -318,30 +313,27 @@ const BottleneckAnalysisTab: React.FC = () => {
   const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
 
-  interface BottleneckItem {
-    id: string;
-    category: string;
-    description: string;
-    impact: 'high' | 'medium' | 'low';
-    metric: string;
-    currentValue: string;
-    targetValue: string;
-    suggestion: string;
-  }
-
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBottlenecks([
-        { id: 'bn-001', category: '代码评审', description: 'PR 平均等待评审时间超过 4 小时', impact: 'high', metric: 'avg PR review wait time', currentValue: '4.2h', targetValue: '< 1h', suggestion: '增加 reviewer 数量或设置自动分配机制' },
-        { id: 'bn-002', category: 'CI/CD', description: '构建失败率较高，平均每天 3 次构建失败', impact: 'high', metric: 'build failure rate', currentValue: '12%', targetValue: '< 5%', suggestion: '分析失败模式，增加 flaky test 检测' },
-        { id: 'bn-003', category: '测试', description: '端到端测试耗时过长，阻塞部署流水线', impact: 'medium', metric: 'e2e test duration', currentValue: '45min', targetValue: '< 15min', suggestion: '拆分测试套件，并行执行' },
-        { id: 'bn-004', category: '部署', description: '部署窗口集中，导致排队等待', impact: 'medium', metric: 'deploy queue time', currentValue: '2.5h', targetValue: '< 30min', suggestion: '实施自动化部署，减少手动干预' },
-        { id: 'bn-005', category: '环境', description: '预发布环境不稳定，影响测试进度', impact: 'low', metric: 'env availability', currentValue: '85%', targetValue: '> 99%', suggestion: '使用临时环境 (Ephemeral Environments)' },
-      ]);
-      setLoading(false);
-    }, 300);
-    setLoading(true);
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await getBottlenecks();
+        if (!cancelled) {
+          setBottlenecks(res.data?.bottlenecks || []);
+        }
+      } catch {
+        if (!cancelled) {
+          message.error('加载瓶颈分析失败');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   // Load team comparison
@@ -352,9 +344,9 @@ const BottleneckAnalysisTab: React.FC = () => {
         getTeams(),
         getTeamComparison({ interval: 'weekly' }),
       ]);
-      const teamIds = teamsRes.data?.data?.teams?.map((t: { teamId: string }) => t.teamId) || [];
+      const teamIds = teamsRes.data?.teams?.map((t: { teamId: string }) => t.teamId) || [];
       if (teamIds.length > 0) {
-        setTeamComparison(comparisonRes.data?.data?.teams || []);
+        setTeamComparison(comparisonRes.data?.teams || []);
       }
     } catch {
       setTeamComparison([]);
@@ -460,9 +452,9 @@ const EfficiencyPage: React.FC = () => {
   return (
     <div>
       {/* Page Header */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <ThunderboltOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
           效能运营
         </Title>
         <Text type="secondary">DORA 指标面板、开发者画像和效能瓶颈分析</Text>

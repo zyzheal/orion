@@ -3,15 +3,17 @@
  * Displays repositories in a card grid with adapter filter buttons
  */
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Typography, Button, Space, Card, Row, Col, Tag, message, Modal } from 'antd';
+import { Typography, Button, Space, Card, Row, Col, Tag, message, Popconfirm } from 'antd';
 import {
   ReloadOutlined,
   EyeOutlined,
   DeleteOutlined,
   BranchesOutlined,
   MergeOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   getCodeRepoAdapters,
   getCodeRepos,
@@ -43,7 +45,7 @@ const RepoList: React.FC = () => {
   const loadAdapters = useCallback(async () => {
     try {
       const response = await getCodeRepoAdapters();
-      const data = response.data.data as AdapterOption[];
+      const data = response.data as AdapterOption[];
       setAdapters(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -58,7 +60,7 @@ const RepoList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getCodeRepos(adapterId);
-      const data = response.data.data as CodeRepo[];
+      const data = response.data as CodeRepo[];
       setRepos(Array.isArray(data) ? data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -85,7 +87,7 @@ const RepoList: React.FC = () => {
   const loadRepoDetails = useCallback(async (repo: CodeRepo) => {
     try {
       const branchesResp = await getCodeRepoBranches(repo.adapterId, repo.id);
-      const branches = branchesResp.data.data as any[];
+      const branches = branchesResp.data as Array<{ name?: string }>;
       if (Array.isArray(branches)) {
         setRepoBranchCounts((prev) => ({ ...prev, [repo.id]: branches.length }));
       }
@@ -94,7 +96,7 @@ const RepoList: React.FC = () => {
     }
     try {
       const prResp = await getPullRequests(repo.adapterId, repo.id);
-      const prs = prResp.data.data as any[];
+      const prs = prResp.data as Array<{ number?: string }>;
       if (Array.isArray(prs)) {
         setRepoPrCounts((prev) => ({ ...prev, [repo.id]: prs.length }));
       }
@@ -110,16 +112,8 @@ const RepoList: React.FC = () => {
     [selectedAdapter]
   );
 
-  const handleDeleteRepo = useCallback((repo: CodeRepo) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除仓库 "${repo.name}" 吗？此操作不可撤销。`,
-      okText: '删除',
-      okButtonProps: { danger: true },
-      onOk: () => {
-        message.info('删除功能需要后端支持');
-      },
-    });
+  const handleDeleteRepo = useCallback((_repo: CodeRepo) => {
+    message.info('删除功能需要后端支持');
   }, []);
 
   const filteredRepos = useMemo(() => {
@@ -140,11 +134,12 @@ const RepoList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CodeOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             代码仓库
           </Title>
           <Text type="secondary">管理所有代码仓库、分支和 Pull Request</Text>
@@ -156,7 +151,7 @@ const RepoList: React.FC = () => {
 
       {/* Adapter filter buttons */}
       {adapters.length > 0 && (
-        <Space wrap style={{ marginBottom: 24 }}>
+        <Space wrap style={{ marginBottom: spacing.lg }}>
           <Text strong>Adapter:</Text>
           {adapters.map((adapter) => (
             <Button
@@ -203,13 +198,20 @@ const RepoList: React.FC = () => {
                           navigate(`/code-mgmt/repos/${repo.id}`);
                         }}
                       />
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<DeleteOutlined />}
-                        danger
-                        onClick={() => handleDeleteRepo(repo)}
-                      />
+                      <Popconfirm
+                        title="确定删除？"
+                        description="删除后无法恢复"
+                        onConfirm={() => handleDeleteRepo(repo)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<DeleteOutlined />}
+                          danger
+                        />
+                      </Popconfirm>
                     </Space>
                   }
                   actions={[

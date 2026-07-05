@@ -9,11 +9,13 @@
  * - Status filtering
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Modal, message, Popconfirm } from 'antd';
+import { Typography, Button, Space, Tag, Modal, message, Popconfirm, Spin, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, BellOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
+import { PermissionActions } from '@/components/PermissionActions';
+import { usePermissionActions } from '@/hooks/usePermissionActions';
 import {
   getAlerts,
   acknowledgeAlert as apiAcknowledgeAlert,
@@ -43,6 +45,7 @@ const statusConfig: Record<AlertStatus, { color: string; label: string }> = {
 };
 
 const AlertList: React.FC = () => {
+  const { canExecute } = usePermissionActions('alert');
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
@@ -56,8 +59,8 @@ const AlertList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getAlerts();
-      const apiData = response.data.data;
-      setAlerts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setAlerts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载告警列表失败：${error.message}`);
@@ -370,57 +373,40 @@ const AlertList: React.FC = () => {
       render: (_, record) => {
         const isActive = record.status === 'active';
         const isAcknowledged = record.status === 'acknowledged';
-        return (
-          <Space size="small">
-            {isActive && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CheckOutlined />}
-                onClick={() => handleAcknowledge(record.id)}
-              >
-                确认
-              </Button>
-            )}
-            {(isActive || isAcknowledged) && (
-              <Button
-                type="link"
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={() => handleResolve(record.id)}
-              >
-                解决
-              </Button>
-            )}
-            <Button type="link" size="small" onClick={() => showDetail(record)}>
-              详情
-            </Button>
-          </Space>
-        );
+        const actions = [];
+        if (isActive) {
+          actions.push({ key: 'acknowledge', label: '确认', icon: <CheckOutlined />, onClick: () => handleAcknowledge(record.id) });
+        }
+        if (isActive || isAcknowledged) {
+          actions.push({ key: 'resolve', label: '解决', icon: <CloseOutlined />, onClick: () => handleResolve(record.id) });
+        }
+        actions.push({ key: 'read', label: '详情', onClick: () => showDetail(record) });
+        return <PermissionActions resource="alert" actions={actions} />;
       },
     },
   ];
 
   return (
     <div style={{ padding: 0 }}>
+      <Spin spinning={loading}>
       {/* Page header with severity summary */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             监控告警
           </Title>
           <Text type="secondary">共 {alerts.length} 条告警记录</Text>
           {/* Active alert summary */}
           {(severityCounts.critical > 0 || severityCounts.warning > 0) && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Space size={12}>
                 {severityCounts.critical > 0 && (
                   <Tag color="red" style={{ fontWeight: 600 }}>
@@ -441,12 +427,13 @@ const AlertList: React.FC = () => {
               <Popconfirm
                 title={`确认 ${selectedRowKeys.length} 条告警?`}
                 onConfirm={handleBatchAcknowledge}
+                disabled={!canExecute}
               >
-                <Button icon={<CheckOutlined />} type="primary" ghost>
+                <Button icon={<CheckOutlined />} type="primary" ghost disabled={!canExecute}>
                   批量确认 ({selectedRowKeys.length})
                 </Button>
               </Popconfirm>
-              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve}>
+              <Popconfirm title={`解决 ${batchableCount} 条告警?`} onConfirm={handleBatchResolve} disabled={!canExecute}>
                 <Button danger icon={<CloseOutlined />}>
                   批量解决
                 </Button>
@@ -460,7 +447,7 @@ const AlertList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -470,15 +457,19 @@ const AlertList: React.FC = () => {
       </div>
 
       {/* Alert table */}
-      <Table
-        columns={columns}
-        dataSource={filteredAlerts}
-        loading={loading}
-        rowKey="id"
-        size="middle"
-        striped
-        rowSelection={rowSelection}
-      />
+      {filteredAlerts.length > 0 ? (
+        <Table
+          columns={columns}
+          dataSource={filteredAlerts}
+          loading={loading}
+          rowKey="id"
+          size="middle"
+          striped
+          rowSelection={rowSelection}
+        />
+      ) : (
+        !loading && <Empty description="暂无告警数据" />
+      )}
 
       {/* Alert detail modal */}
       <Modal
@@ -526,7 +517,7 @@ const AlertList: React.FC = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 12,
+                gap: spacing[3],
                 padding: '12px 16px',
                 background:
                   selectedAlert.severity === 'critical'
@@ -649,6 +640,7 @@ const AlertList: React.FC = () => {
           </Space>
         )}
       </Modal>
+      </Spin>
     </div>
   );
 };

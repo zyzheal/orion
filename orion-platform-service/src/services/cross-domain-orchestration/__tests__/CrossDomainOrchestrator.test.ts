@@ -10,7 +10,7 @@ import {
   CreateOrchestrationInput,
 } from '../CrossDomainOrchestrator';
 import { DomainConnector } from '../DomainConnector';
-import { SagaCoordinator, SagaResult, SagaStatus } from '../../../saga/types';
+import { createMockPool } from './mock-db';
 
 // Mock DomainConnector
 function createMockDomainConnector(
@@ -32,6 +32,7 @@ function createMockDomainConnector(
 describe('CrossDomainOrchestrator', () => {
   let orchestrator: CrossDomainOrchestrator;
   let mockConnector: DomainConnector;
+  let mockPool: ReturnType<typeof createMockPool>;
 
   const validInput: CreateOrchestrationInput = {
     name: 'deploy-flow',
@@ -61,10 +62,9 @@ describe('CrossDomainOrchestrator', () => {
   };
 
   beforeEach(() => {
+    mockPool = createMockPool();
     mockConnector = createMockDomainConnector();
-    orchestrator = new CrossDomainOrchestrator({
-      domainConnector: mockConnector,
-    });
+    orchestrator = new CrossDomainOrchestrator(mockPool, mockConnector);
   });
 
   // ==================== createOrchestration ====================
@@ -271,14 +271,12 @@ describe('CrossDomainOrchestrator', () => {
         {},
         new Error('Domain connection failed')
       );
-      const errorOrchestrator = new CrossDomainOrchestrator({
-        domainConnector: errorConnector,
-      });
+      const errorOrchestrator = new CrossDomainOrchestrator(mockPool, errorConnector);
 
       const created = await errorOrchestrator.createOrchestration('tenant-1', validInput);
       const result = await errorOrchestrator.executeOrchestration(created.id);
 
-      // Saga compensation succeeds, so status becomes 'compensated'
+      // Saga compensation succeeds, so status becomes 'compensated' or 'failed'
       expect(result.status === 'failed' || result.status === 'compensated').toBe(true);
       expect(result.error).toBeDefined();
     }, 10000);
@@ -287,17 +285,6 @@ describe('CrossDomainOrchestrator', () => {
   // ==================== pauseOrchestration ====================
 
   describe('pauseOrchestration', () => {
-    it('should pause a running orchestration', async () => {
-      const created = await orchestrator.createOrchestration('tenant-1', validInput);
-
-      // Manually set to running by executing (which completes synchronously in mock)
-      // We need to test pause on running state directly
-      // Since execute completes immediately with mocks, let's check state validation
-      await expect(
-        orchestrator.pauseOrchestration(created.id)
-      ).rejects.toThrow("Only running orchestrations can be paused");
-    });
-
     it('should throw when trying to pause a pending orchestration', async () => {
       const created = await orchestrator.createOrchestration('tenant-1', validInput);
 

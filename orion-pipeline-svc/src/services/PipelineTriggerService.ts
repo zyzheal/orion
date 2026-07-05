@@ -159,8 +159,8 @@ export class PipelineTriggerService {
           type: entity.type as TriggerType,
           config: entity.config as TriggerConfig,
           status: entity.status as TriggerStatus,
-          createdAt: entity.createdAt,
-          updatedAt: entity.updatedAt,
+          createdAt: new Date(entity.createdAt),
+          updatedAt: new Date(entity.updatedAt),
         };
         this.triggers.set(trigger.id, trigger);
 
@@ -213,14 +213,11 @@ export class PipelineTriggerService {
     if (this.triggerRepository) {
       try {
         await this.triggerRepository.create({
-          id: trigger.id,
           tenantId: trigger.tenantId,
           pipelineId: trigger.pipelineId,
           type: trigger.type,
           config: trigger.config,
-          status: trigger.status,
-          createdAt: trigger.createdAt,
-          updatedAt: trigger.updatedAt,
+          enabled: trigger.status === 'active',
         });
       } catch (error) {
         logger.error(
@@ -329,7 +326,7 @@ export class PipelineTriggerService {
     // Persist to PostgreSQL if repository is available
     if (this.triggerRepository) {
       try {
-        await this.triggerRepository.updateTriggerConfig(triggerId, trigger.type, trigger.config);
+        await this.triggerRepository.updateTriggerConfig(triggerId, trigger.config);
       } catch (error) {
         logger.error(
           { triggerId, error },
@@ -646,14 +643,7 @@ export class PipelineTriggerService {
         if (record.message) {
           contextJson.message = record.message;
         }
-        await this.triggerRepository.saveExecutionRecord({
-          id: record.id,
-          triggerId: record.triggerId,
-          runId: record.runId ?? null,
-          status: record.status,
-          contextJson,
-          executedAt: record.executedAt,
-        });
+        await this.triggerRepository.saveExecutionRecord(record.triggerId, contextJson);
       } catch (error) {
         logger.error(
           { executionId: record.id, error },

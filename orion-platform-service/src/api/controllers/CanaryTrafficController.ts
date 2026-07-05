@@ -101,8 +101,14 @@ export class CanaryTrafficController {
     try {
       const params = request.params as any;
       const canaryId = params.id;
+      const tenantId = (request as any).user?.tenantId;
 
-      const deployment = await this.service.getCanaryDeployment(canaryId);
+      if (!tenantId) {
+        reply.status(400).send({ success: false, error: 'tenant_id is required' });
+        return;
+      }
+
+      const deployment = await this.service.getCanaryDeployment(canaryId, tenantId);
       if (!deployment) {
         reply.status(404).send({
           success: false,
@@ -131,6 +137,12 @@ export class CanaryTrafficController {
       const params = request.params as any;
       const body = request.body as any;
       const canaryId = params.id;
+      const tenantId = (request as any).user?.tenantId;
+
+      if (!tenantId) {
+        reply.status(400).send({ success: false, error: 'tenant_id is required' });
+        return;
+      }
 
       if (body.percent === undefined || body.percent === null) {
         reply.status(400).send({
@@ -150,7 +162,7 @@ export class CanaryTrafficController {
       }
 
       // Validate traffic health before applying
-      const healthStatus = await this.splitter.validateTrafficHealth(canaryId);
+      const healthStatus = await this.splitter.validateTrafficHealth(canaryId, tenantId);
       if (!healthStatus.healthy && percent > 0) {
         reply.status(400).send({
           success: false,
@@ -161,7 +173,7 @@ export class CanaryTrafficController {
         return;
       }
 
-      const split = await this.splitter.splitTraffic(canaryId, percent);
+      const split = await this.splitter.splitTraffic(canaryId, tenantId, percent);
 
       reply.send({
         success: true,
@@ -183,11 +195,17 @@ export class CanaryTrafficController {
     try {
       const params = request.params as any;
       const canaryId = params.id;
+      const tenantId = (request as any).user?.tenantId;
+
+      if (!tenantId) {
+        reply.status(400).send({ success: false, error: 'tenant_id is required' });
+        return;
+      }
 
       // Validate traffic health before promoting
-      const healthStatus = await this.splitter.validateTrafficHealth(canaryId);
+      const healthStatus = await this.splitter.validateTrafficHealth(canaryId, tenantId);
 
-      const deployment = await this.service.promoteCanary(canaryId);
+      const deployment = await this.service.promoteCanary(canaryId, tenantId);
 
       reply.send({
         success: true,
@@ -210,8 +228,14 @@ export class CanaryTrafficController {
     try {
       const params = request.params as any;
       const canaryId = params.id;
+      const tenantId = (request as any).user?.tenantId;
 
-      const deployment = await this.service.rollbackCanary(canaryId);
+      if (!tenantId) {
+        reply.status(400).send({ success: false, error: 'tenant_id is required' });
+        return;
+      }
+
+      const deployment = await this.service.rollbackCanary(canaryId, tenantId);
 
       reply.send({
         success: true,

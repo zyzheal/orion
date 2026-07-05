@@ -14,9 +14,11 @@
 
 import * as crypto from 'crypto';
 import { SecretRepository, SecretEntity, SecretScope, SecretCreateInput } from '../../repositories/SecretRepository';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'secrets-service' });
+const logger = createLogger('secrets-service');
 
 /**
  * Secret 引用语法正则: ${secrets.XXX} 或 ${secrets.XXX:default_value}
@@ -146,7 +148,7 @@ export class SecretsService {
    */
   decrypt(encryptedData: Buffer): string {
     if (encryptedData.length < 33) {
-      throw new Error('Invalid encrypted data: too short (need IV + authTag + ciphertext)');
+      throw new OrionError('Invalid encrypted data: too short (need IV + authTag + ciphertext)', ErrorCode.VALIDATION_ERROR);
     }
 
     const iv = encryptedData.subarray(0, 16);
@@ -198,10 +200,10 @@ export class SecretsService {
 
     try {
       const value = this.decrypt(entity.encryptedValue);
-      return this.toSecretValue({ ...entity, decryptedValue: value } as any);
+      return this.toSecretValue({ ...entity, decryptedValue: value });
     } catch (error) {
-      logger.error({ tenantId, name, error }, 'Failed to decrypt secret');
-      throw new Error(`Failed to decrypt secret "${name}": ${(error as Error).message}`);
+      logger.error({ traceId: getCurrentTraceId(), tenantId, name, error }, 'Failed to decrypt secret');
+      throw new OrionError(`Failed to decrypt secret "${name}": ${(error as Error).message}`, 'OPERATION_FAILED')
     }
   }
 
@@ -372,14 +374,14 @@ export class SecretsService {
             resolvedValue = resolvedValue.replace(ref, defaultValue);
           } else {
             unresolvedRefs.push(name);
-            logger.warn({ tenantId, secretName: name }, 'Secret reference not resolved');
+            logger.warn({ traceId: getCurrentTraceId(), tenantId, secretName: name }, 'Secret reference not resolved');
           }
         } catch (error) {
           if (defaultValue !== undefined) {
             resolvedValue = resolvedValue.replace(ref, defaultValue);
           } else {
             unresolvedRefs.push(name);
-            logger.error({ tenantId, secretName: name, error }, 'Error resolving secret reference');
+            logger.error({ traceId: getCurrentTraceId(), tenantId, secretName: name, error }, 'Error resolving secret reference');
           }
         }
       }
@@ -462,15 +464,13 @@ export class SecretsService {
    */
   private validateSecretName(name: string): void {
     if (!name || typeof name !== 'string') {
-      throw new Error('Secret name must be a non-empty string');
+      throw new OrionError('Secret name must be a non-empty string', ErrorCode.OPERATION_FAILED);
     }
     if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
-      throw new Error(
-        `Invalid secret name "${name}": must match [a-zA-Z_][a-zA-Z0-9_]*`,
-      );
+      throw new OrionError('Invalid secret name format', ErrorCode.VALIDATION_ERROR);
     }
     if (name.length > 255) {
-      throw new Error('Secret name must be 255 characters or less');
+      throw new OrionError('Secret name must be 255 characters or less', ErrorCode.OPERATION_FAILED);
     }
   }
 
@@ -484,9 +484,10 @@ export class SecretsService {
    */
   private deriveEncryptionKey(key?: string): Buffer {
     if (!key) {
-      // 开发/测试环境 fallback 密钥
-      // 生产环境必须设置 ORION_SECRET_ENCRYPTION_KEY
-      logger.warn('No encryption key provided, using fallback (INSECURE for production)');
+      if (process.env.NODE_ENV === 'production') {
+        throw new OrionError('ORION_SECRET_ENCRYPTION_KEY is required in production', ErrorCode.VALIDATION_ERROR);
+      }
+      logger.warn({ traceId: getCurrentTraceId() }, 'No encryption key provided, using fallback (development only)');
       return crypto.createHash('sha256').update('orion-dev-fallback-key-do-not-use-in-production').digest();
     }
 
@@ -502,7 +503,7 @@ export class SecretsService {
   private toSecretValue(entity: any): SecretValue {
     return {
       id: entity.id,
-      tenantId: entity.tenantId || 'default',
+      tenantId: entity.tenantId || getCurrentTenantId(),
       name: entity.name,
       value: entity.decryptedValue || entity.value || '',
       scope: entity.scope,

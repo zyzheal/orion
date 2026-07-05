@@ -9,7 +9,6 @@ export { WeeklyReportService } from './WeeklyReportService';
 export { ClickHouseSync, type ClickHouseConfig, type ClickHouseClient } from './ClickHouseSync';
 export {
   EfficiencyEventHandler,
-  InMemoryLocalStorage,
   type LocalStorage,
   type EfficiencyEventHandlerConfig,
 } from './EventHandler';

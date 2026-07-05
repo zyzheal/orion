@@ -40,7 +40,7 @@ export {
   PaginatedResult as DeployWindowPaginatedResult,
 } from './DeployWindowService';
 
-// Progressive Deploy
+// Progressive Deploy (Stage-based)
 export {
   ProgressiveDeployRepository,
   ProgressiveStage,

@@ -4,9 +4,10 @@
 // Architecture: In-process state snapshot + Promise wait.
 // Since the entire platform runs in one process, debug state can be held in memory.
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('DebugController');
 
 /**
  * Debug state for a running pipeline.
@@ -93,11 +94,11 @@ export class DebugController {
   async resume(runId: string): Promise<void> {
     const state = this.debugStates.get(runId);
     if (!state) {
-      throw new Error(`No debug state found for run ${runId}`);
+      throw new OrionError(`No debug state found for run ${runId}`, 'NOT_FOUND')
     }
 
     if (state.status !== 'paused') {
-      throw new Error(`Pipeline run ${runId} is not paused (status: ${state.status})`);
+      throw new OrionError(`Pipeline run ${runId} is not paused (status: ${state.status})`, 'OPERATION_FAILED')
     }
 
     state.status = 'running';
@@ -122,11 +123,11 @@ export class DebugController {
   async step(runId: string): Promise<DebugState> {
     const state = this.debugStates.get(runId);
     if (!state) {
-      throw new Error(`No debug state found for run ${runId}`);
+      throw new OrionError(`No debug state found for run ${runId}`, 'NOT_FOUND')
     }
 
     if (state.status !== 'paused') {
-      throw new Error(`Pipeline run ${runId} is not paused (status: ${state.status})`);
+      throw new OrionError(`Pipeline run ${runId} is not paused (status: ${state.status})`, 'OPERATION_FAILED')
     }
 
     // Unblock any executor waiting in waitForSignal

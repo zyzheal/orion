@@ -18,6 +18,9 @@ import {
   PullRequestStatus,
   Review,
   FileComment,
+  FileDiff,
+  DiffHunk,
+  PRComment,
   WebhookConfig,
   WebhookEventType,
   MergeStrategy,
@@ -702,5 +705,109 @@ export class GerritAdapter implements ICodeRepoAdapter {
     await this.client.delete(
       `/config/server/~webhooks~remote/${encodeURIComponent(webhookId)}`
     );
+  }
+
+  /**
+   * 更新 Webhook (Mock: Gerrit 无原生 Webhook API)
+   */
+  async updateWebhook(repoId: string, webhookId: string, input: {
+    url?: string;
+    events?: WebhookEventType[];
+    active?: boolean;
+    secret?: string;
+  }): Promise<WebhookConfig> {
+    return {
+      id: webhookId,
+      url: input.url || '',
+      events: input.events || [],
+      active: input.active ?? true,
+      secret: input.secret,
+    };
+  }
+
+  /**
+   * 列出标签 (Mock: Gerrit 无原生 Tags API)
+   */
+  async listTags(repoId: string): Promise<{ tags: string[]; total: number }> {
+    return { tags: [], total: 0 };
+  }
+
+  // ==================== Task 5.6: Diff 与评论 ====================
+
+  /**
+   * 获取文件 diff（Mock: Gerrit diff 通过 getChange 获取）
+   */
+  async getFileDiff(repoId: string, fromRef: string, toRef: string, options?: { path?: string }): Promise<FileDiff[]> {
+    // Gerrit: use change number as fromRef
+    const changeNum = fromRef;
+    const data: any = await this.client.get(
+      `/changes/${changeNum}/revisions/current/files`,
+      []
+    );
+
+    if (!Array.isArray(data)) return [];
+
+    return Object.entries(data).map(([path, fileData]: [string, any]) => ({
+      path,
+      oldBlobId: fileData?.old_path || undefined,
+      newBlobId: fileData?.lines || undefined,
+      isNew: !!fileData?.status && fileData.status === 'A',
+      isDeleted: !!fileData?.status && fileData.status === 'D',
+      isRenamed: !!fileData?.status && fileData.status === 'R',
+      hunks: [],
+      stats: {
+        additions: fileData?.lines_inserted || 0,
+        deletions: fileData?.lines_deleted || 0,
+        changes: (fileData?.lines_inserted || 0) + (fileData?.lines_deleted || 0),
+      },
+    }));
+  }
+
+  /**
+   * 列出 Change 的评论 (Gerrit 用 Change 代替 PR)
+   */
+  async listComments(repoId: string, prId: string): Promise<PRComment[]> {
+    const messages: any[] = await this.client.get(
+      `/changes/${prId}/messages`,
+      []
+    );
+
+    return messages.map((msg: any) => ({
+      id: String(msg.id || msg._number || Date.now()),
+      prId,
+      body: msg.message || '',
+      author: msg.author?.name || msg.author?.username || '',
+      createdAt: new Date(msg.date || Date.now()),
+      updatedAt: new Date(msg.date || Date.now()),
+    }));
+  }
+
+  /**
+   * 添加 Change 评论 (Gerrit 用 Change 代替 PR)
+   */
+  async addComment(repoId: string, prId: string, input: { body: string; path?: string; line?: number }): Promise<PRComment> {
+    const body: Record<string, any> = { message: input.body };
+    if (input.path) {
+      body.path = input.path;
+      if (input.line) body.line = input.line;
+      body.identity = { name: 'Orion Bot', email: 'orion-bot@orion.dev' };
+    }
+
+    const data: any = await this.client.post(
+      `/changes/${prId}/reviews/`,
+      body,
+      { id: `msg-${Date.now()}`, message: input.body, author: { name: 'current-user' }, date: new Date() }
+    );
+
+    return {
+      id: String(data.id || data._number || Date.now()),
+      prId,
+      path: input.path,
+      line: input.line,
+      body: data.message || input.body,
+      author: data.author?.name || 'current-user',
+      createdAt: new Date(data.date || Date.now()),
+      updatedAt: new Date(data.date || Date.now()),
+    };
   }
 }

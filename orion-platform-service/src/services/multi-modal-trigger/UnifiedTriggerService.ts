@@ -12,6 +12,7 @@ import {
   TriggerEntity,
   TriggerEventEntity,
 } from '../../repositories/Phase3Repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface TriggerConfig {
   conditions?: Record<string, any>;
@@ -62,11 +63,11 @@ export class UnifiedTriggerService {
   // ==================== Trigger CRUD ====================
 
   async registerTrigger(tenantId: string, type: string, config: TriggerInput): Promise<TriggerEntity> {
-    if (!this.triggerRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const validTypes = ['webhook', 'chat', 'schedule', 'event', 'manual'];
     if (!validTypes.includes(type)) {
-      throw new Error(`Invalid trigger type: ${type}. Must be one of: ${validTypes.join(', ')}`);
+      throw new OrionError(`Invalid trigger type: ${type}. Must be one of: ${validTypes.join(', ')}`, ErrorCode.NOT_FOUND);
     }
 
     const id = `trigger-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -89,12 +90,12 @@ export class UnifiedTriggerService {
   }
 
   async getTrigger(triggerId: string): Promise<TriggerEntity | undefined> {
-    if (!this.triggerRepo) throw new Error('Database not configured');
-    return this.triggerRepo.findById(triggerId);
+    if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
+    return await this.triggerRepo.findById(triggerId) ?? undefined;
   }
 
   async listTriggers(tenantId: string, type?: string): Promise<TriggerEntity[]> {
-    if (!this.triggerRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     if (type) {
       return this.triggerRepo.findByType(tenantId, type);
@@ -109,7 +110,7 @@ export class UnifiedTriggerService {
     pipelineId?: string;
     enabled?: boolean;
   }): Promise<TriggerEntity> {
-    if (!this.triggerRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const entity: any = {};
     if (updates.name !== undefined) entity.name = updates.name;
@@ -118,23 +119,27 @@ export class UnifiedTriggerService {
     if (updates.pipelineId !== undefined) entity.pipeline_id = updates.pipelineId;
     if (updates.enabled !== undefined) entity.enabled = updates.enabled;
 
-    return this.triggerRepo.update(triggerId, entity);
+    const updated = await this.triggerRepo.update(triggerId, entity);
+    if (!updated) {
+      throw new OrionError(`Trigger not found: ${triggerId}`, ErrorCode.NOT_FOUND);
+    }
+    return updated;
   }
 
   async deleteTrigger(triggerId: string): Promise<boolean> {
-    if (!this.triggerRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
     return this.triggerRepo.delete(triggerId);
   }
 
   // ==================== Trigger Evaluation ====================
 
   async evaluateTrigger(tenantId: string, triggerId: string, event: Record<string, any>): Promise<TriggerEvaluationResult> {
-    if (!this.triggerRepo || !this.eventRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo || !this.eventRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const trigger = await this.triggerRepo.findById(triggerId);
-    if (!trigger) throw new Error(`Trigger not found: ${triggerId}`);
-    if (trigger.tenant_id !== tenantId) throw new Error('Trigger does not belong to this tenant');
-    if (!trigger.enabled) throw new Error(`Trigger is disabled: ${triggerId}`);
+    if (!trigger) throw new OrionError(`Trigger not found: ${triggerId}`, ErrorCode.NOT_FOUND);
+    if (trigger.tenant_id !== tenantId) throw new OrionError('Trigger does not belong to this tenant', ErrorCode.VALIDATION_ERROR);
+    if (!trigger.enabled) throw new OrionError(`Trigger is disabled: ${triggerId}`, ErrorCode.NOT_FOUND);
 
     // Create event record
     const eventId = `event-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -177,13 +182,13 @@ export class UnifiedTriggerService {
   // ==================== Pipeline Execution ====================
 
   async executePipelineFromTrigger(tenantId: string, triggerId: string): Promise<{ success: boolean; pipelineRunId?: string; error?: string }> {
-    if (!this.triggerRepo || !this.eventRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo || !this.eventRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const trigger = await this.triggerRepo.findById(triggerId);
-    if (!trigger) throw new Error(`Trigger not found: ${triggerId}`);
-    if (trigger.tenant_id !== tenantId) throw new Error('Trigger does not belong to this tenant');
-    if (!trigger.enabled) throw new Error(`Trigger is disabled: ${triggerId}`);
-    if (!trigger.pipeline_id) throw new Error(`Trigger has no associated pipeline: ${triggerId}`);
+    if (!trigger) throw new OrionError(`Trigger not found: ${triggerId}`, ErrorCode.NOT_FOUND);
+    if (trigger.tenant_id !== tenantId) throw new OrionError('Trigger does not belong to this tenant', ErrorCode.VALIDATION_ERROR);
+    if (!trigger.enabled) throw new OrionError(`Trigger is disabled: ${triggerId}`, 'VALIDATION_ERROR');
+    if (!trigger.pipeline_id) throw new OrionError(`Trigger has no associated pipeline: ${triggerId}`, 'NOT_FOUND');
 
     // In production, this would call the pipeline engine to execute
     // For now, record the event and return success
@@ -213,7 +218,7 @@ export class UnifiedTriggerService {
   // ==================== Stats ====================
 
   async getTriggerStats(tenantId: string): Promise<TriggerStats> {
-    if (!this.triggerRepo || !this.eventRepo) throw new Error('Database not configured');
+    if (!this.triggerRepo || !this.eventRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const triggers = await this.triggerRepo.findByTenant(tenantId);
 
@@ -257,7 +262,7 @@ export class UnifiedTriggerService {
   // ==================== Event History ====================
 
   async getTriggerEvents(triggerId: string, limit: number = 50): Promise<TriggerEventEntity[]> {
-    if (!this.eventRepo) throw new Error('Database not configured');
+    if (!this.eventRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
     return this.eventRepo.findByTriggerId(triggerId, limit);
   }
 

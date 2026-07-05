@@ -14,8 +14,8 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   MinusOutlined,
-  TeamOutlined,
   SwapOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import CardPanel from '@/components/CardPanel';
 import DataState from '@/components/DataState';
@@ -84,55 +84,43 @@ const ManagerDashboard: React.FC = () => {
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
 
-  // Show empty state when no data available
-  if (!loading && !error && !apiData) {
-    return (
-      <div style={{ padding: 0 }}>
-        <Result
-          status="info"
-          title="暂无数据"
-          subTitle="经理效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
-        />
-      </div>
-    );
-  }
-
   // Cast API data to expected type
   const data = apiData as ManagerDashboardData | undefined;
 
-  if (!data) {
-    return null; // Will show loading/error via DataState
-  }
-
-  // Week-over-week metrics
+  // Week-over-week metrics (must be before early returns)
   const wowMetrics = useMemo(
-    () => [
-      {
-        label: '工单创建',
-        value: data.weekOverWeek.ticketsCreatedChange,
-        suffix: '%',
-      },
-      {
-        label: '已解决',
-        value: data.weekOverWeek.resolvedChange,
-        suffix: '%',
-      },
-      {
-        label: '平均解决时间',
-        value: data.weekOverWeek.avgResolutionTimeChange,
-        suffix: '%',
-      },
-      {
-        label: 'SLA合规率',
-        value: data.weekOverWeek.slaComplianceChange,
-        suffix: '%',
-      },
-    ],
+    () => {
+      if (!data?.weekOverWeek) {
+        return [];
+      }
+      return [
+        {
+          label: '工单创建',
+          value: data.weekOverWeek.ticketsCreatedChange,
+          suffix: '%',
+        },
+        {
+          label: '已解决',
+          value: data.weekOverWeek.resolvedChange,
+          suffix: '%',
+        },
+        {
+          label: '平均解决时间',
+          value: data.weekOverWeek.avgResolutionTimeChange,
+          suffix: '%',
+        },
+        {
+          label: 'SLA合规率',
+          value: data.weekOverWeek.slaComplianceChange,
+          suffix: '%',
+        },
+      ];
+    },
     [data]
   );
 
   // Member metrics table columns
-  const memberColumns: ColumnsType<(typeof data.memberMetrics)[0]> = [
+  const memberColumns: ColumnsType<NonNullable<typeof data>['memberMetrics'][number]> = [
     {
       title: '工程师',
       dataIndex: 'engineerName',
@@ -241,7 +229,7 @@ const ManagerDashboard: React.FC = () => {
   ];
 
   // Transfer reasons table columns
-  const transferColumns: ColumnsType<(typeof data.transferAnalysis.topTransferReasons)[0]> = [
+  const transferColumns: ColumnsType<NonNullable<typeof data>['transferAnalysis']['topTransferReasons'][number]> = [
     {
       title: '转派原因',
       dataIndex: 'reason',
@@ -260,6 +248,23 @@ const ManagerDashboard: React.FC = () => {
     },
   ];
 
+  // Show empty state when no data available
+  if (!loading && !error && !apiData) {
+    return (
+      <div style={{ padding: 0 }}>
+        <Result
+          status="info"
+          title="暂无数据"
+          subTitle="经理效能仪表盘 API 尚未返回数据，请确认后端服务已正确部署。"
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return null; // Will show loading/error via DataState
+  }
+
   return (
     <div style={{ padding: 0 }}>
       <DataState
@@ -270,16 +275,16 @@ const ManagerDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: 8, color: COLORS.info }} />
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BarChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             经理看板
           </Title>
           <Text type="secondary">团队管理与成员效能分析 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
 
       {/* Team Overview Cards */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} lg={8} xl={4}>
             <CardPanel>
@@ -333,7 +338,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Week-over-Week Comparison */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="环比变化（vs 上周）" extra={<Tag color="cyan">周环比</Tag>}>
           <Row gutter={[16, 16]}>
             {wowMetrics.map((metric) => {
@@ -359,7 +364,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Team Performance Chart */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="团队绩效分布"
           extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}
@@ -375,7 +380,7 @@ const ManagerDashboard: React.FC = () => {
       </div>
 
       {/* Member Metrics Table */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel
           title="成员效能明细"
           extra={<Tag color="blue">{data.memberMetrics.length} 人</Tag>}

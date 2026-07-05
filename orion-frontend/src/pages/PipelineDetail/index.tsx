@@ -2,18 +2,14 @@
  * Pipeline Detail Page (TASK-905)
  * Pipeline detail view with stages/timeline/logs and re-run actions.
  *
- * P0-3 Fix: Removed silent mock fallback. On API failure, displays error
- * message and allows retry instead of silently showing mock data.
- * Mock data is kept only in test files.
- *
  * Features:
- * - Pipeline info header
+ * - Pipeline info header with latest run data
  * - Stage timeline/progress visualization
  * - Log viewer section
  * - Re-run trigger button (full pipeline)
  * - Per-stage retry ("从该阶段重跑") for failed/completed runs
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
@@ -25,12 +21,23 @@ import {
   ArrowLeftOutlined,
   ApartmentOutlined,
   SwapOutlined,
+  HistoryOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
-import StatusBadge from '@/components/StatusBadge';
-import CardPanel from '@/components/CardPanel';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import { DAGGraph } from '@/components/DAGGraph';
-import { getPipelineRun, retryPipelineRun } from '@/api/pipelines';
-import { retryFromStage } from '@/api/pipelineRuns';
+import PipelineErrorDetail from '@/components/pipeline/PipelineErrorDetail';
+import {
+  getPipeline,
+  getPipelineRuns,
+  triggerPipeline,
+} from '@/api/pipelines';
+import {
+  getPipelineRunDetail,
+  getPipelineRunStages,
+  retryFromStage,
+  type PipelineRunSummary,
+} from '@/api/pipelineRuns';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -63,67 +70,11 @@ interface TaskOutput {
   propagatedTo: string[];
 }
 
-/**
- * Mock task outputs data.
- * TODO: Replace with real API integration once backend exposes
- * /v1/pipeline-runs/:runId/outputs or similar endpoint.
- */
-const mockTaskOutputs: TaskOutput[] = [
-  {
-    key: '1',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_OUTPUT_DIR',
-    variableValue: 'dist/',
-    propagatedTo: ['Test', 'Package'],
-  },
-  {
-    key: '2',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_VERSION',
-    variableValue: '1.2.3-abc1234',
-    propagatedTo: ['Test', 'Deploy'],
-  },
-  {
-    key: '3',
-    stageName: 'Test',
-    taskName: 'unit-test',
-    variableName: 'COVERAGE_PERCENT',
-    variableValue: '87.5',
-    propagatedTo: ['Quality Gate'],
-  },
-  {
-    key: '4',
-    stageName: 'Test',
-    taskName: 'integration-test',
-    variableName: 'TEST_REPORT_URL',
-    variableValue: 'https://reports.example.com/run-42',
-    propagatedTo: [],
-  },
-  {
-    key: '5',
-    stageName: 'Package',
-    taskName: 'docker-build',
-    variableName: 'IMAGE_TAG',
-    variableValue: 'registry.example.com/app:1.2.3-abc1234',
-    propagatedTo: ['Deploy'],
-  },
-  {
-    key: '6',
-    stageName: 'Deploy',
-    taskName: 'k8s-deploy',
-    variableName: 'DEPLOYED_NAMESPACE',
-    variableValue: 'production',
-    propagatedTo: [],
-  },
-];
+// TaskOutputs: backend API not yet available (requires /v1/pipeline-runs/:runId/outputs)
 
 /**
  * TaskOutputsTable — renders a table of task output variables
- * with propagation information.
- *
- * Currently uses mock data; ready for API integration.
+ * with propagation information. Shows empty state until backend API is available.
  */
 const TaskOutputsTable: React.FC = () => {
   const columns: ColumnsType<TaskOutput> = [
@@ -197,7 +148,7 @@ const TaskOutputsTable: React.FC = () => {
   return (
     <Table<TaskOutput>
       columns={columns}
-      dataSource={mockTaskOutputs}
+      dataSource={[]}
       size="middle"
       pagination={false}
       bordered
@@ -205,6 +156,53 @@ const TaskOutputsTable: React.FC = () => {
     />
   );
 };
+
+/**
+ * 统一解析 API 响应：兼容后端裸对象和 { data: ... } 包装两种格式
+ *
+ * Axios 响应结构：
+ *   response (AxiosResponse)
+ *     └── data = 后端实际响应（Fastify 不包 { code, message }）
+ *
+ * 后端返回格式：
+ *   - 列表接口: { data: [...], total: N }
+ *   - 详情接口: { id, name, ... } 或 { run, stages, tasks }
+ *   - 创建/更新: { id, name, ... }
+ */
+function extractData<T = unknown>(response: unknown): T | null {
+  const res = response as { data?: T } | T;
+  if (!res) return null;
+
+  // 第一层：AxiosResponse.data → 后端实际响应
+  const backendResponse = (typeof res === 'object' && res !== null && 'data' in res) ? (res as { data?: T }).data : res;
+
+  if (!backendResponse) return null;
+
+  // 如果后端返回的是 { data: X } 格式（X 可能是对象或数组），返回 X
+  if (backendResponse && typeof backendResponse === 'object' && 'data' in backendResponse) {
+    return (backendResponse as { data?: T }).data ?? null;
+  }
+
+  // 否则直接返回后端响应（详情接口直接返回对象，无 data 包装）
+  return backendResponse as T;
+}
+
+/**
+ * 统一解析列表 API 响应
+ */
+function extractList<T = unknown>(response: unknown): T[] {
+  const res = response as { data?: T[] } | T[] | { runs?: T[] } | { items?: T[] };
+  if (!res) return [];
+
+  // 第一层：AxiosResponse.data → 后端实际响应
+  const backendResponse = 'data' in res ? (res as { data?: T[] }).data : res;
+
+  // 后端列表格式: { data: [...], total: N }
+  if (Array.isArray(backendResponse)) return backendResponse;
+  if (Array.isArray((backendResponse as any)?.runs)) return (backendResponse as any).runs;
+  if (Array.isArray((backendResponse as any)?.items)) return (backendResponse as any).items;
+  return [];
+}
 
 const PipelineDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -215,42 +213,132 @@ const PipelineDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [pipeline, setPipeline] = useState<any>(null);
+  const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
+  const [runsLoading, setRunsLoading] = useState(false);
 
   // Load pipeline detail from API
-  useEffect(() => {
-    const loadPipeline = async () => {
-      setLoading(true);
-      setApiError(null);
-      try {
-        const response = await getPipelineRun(id!);
-        const apiData = response.data.data;
-        if (apiData) {
-          setPipeline(apiData);
-        } else {
-          setApiError('未找到该 Pipeline 运行记录');
-        }
-      } catch (error: unknown) {
-        const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
-        setApiError(errorMsg);
-        message.error(`加载 Pipeline 详情失败：${errorMsg}`);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadPipeline = useCallback(async (pipelineId?: string) => {
+    const pid = pipelineId || id;
+    if (!pid) return;
+    setLoading(true);
+    setApiError(null);
+    try {
+      // Fetch pipeline definition
+      const pipelineRes = await getPipeline(pid);
+      const pipelineData = extractData(pipelineRes);
 
+      if (!pipelineData) {
+        setApiError('未找到该 Pipeline');
+        return;
+      }
+
+      // Fetch latest runs for this pipeline
+      let latestRun: any = null;
+      let runStages: any[] = [];
+      let runsCount = 0;
+      try {
+        const runsRes = await getPipelineRuns(pid);
+        const runsData = extractList(runsRes);
+        runsCount = runsData.length;
+
+        if (runsData.length > 0) {
+          latestRun = runsData[0];
+
+          // Fetch full run detail including stages and tasks
+          // Backend returns: { run: {...}, stages: [...], tasks: [...] }
+          // Axios wraps: response.data = { code, message, data: { run, stages, tasks } }
+          try {
+            const runDetailRes = await getPipelineRunDetail(latestRun.id);
+            const runDetail = extractData(runDetailRes);
+
+            const rawStagesArr = (runDetail as any)?.stages || [];
+            const rawTasks = (runDetail as any)?.tasks || [];
+            const runInfo = (runDetail as any)?.run || {};
+
+            // Fallback: if stages are empty, try the dedicated stages endpoint
+            let stagesToProcess = rawStagesArr;
+            if (stagesToProcess.length === 0) {
+              try {
+                const stagesRes = await getPipelineRunStages(latestRun.id);
+                const stagesData = extractData(stagesRes);
+                const fallbackStages = (stagesData as any)?.data ?? (stagesData as any)?.stages ?? stagesData ?? [];
+                stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
+              } catch (stagesErr) {
+                console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
+              }
+            }
+
+            // Merge tasks into stages as steps
+            runStages = stagesToProcess.map((stage: any) => {
+              const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
+              const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
+              return {
+                ...stage,
+                duration: durationSec,
+                steps: stageTasks.map((t: any) => ({
+                  ...t,
+                  duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
+                })),
+                logs: stageTasks.flatMap((t: any) => t.logs || []),
+              };
+            });
+
+            // Merge run detail into latestRun
+            latestRun = { ...latestRun, ...runInfo, stages: runStages };
+          } catch (err) {
+            console.error('[PipelineDetail] Failed to get run detail:', err);
+          }
+        }
+      } catch (err) {
+        console.error('[PipelineDetail] Failed to get runs:', err);
+      }
+
+      setPipeline({
+        ...pipelineData,
+        // Merge latest run data for display
+        status: latestRun?.status || 'pending',
+        runNumber: runsCount || 1,
+        branch: latestRun?.branch || 'main',
+        commit: latestRun?.commit,
+        author: latestRun?.author || '-',
+        trigger: latestRun?.trigger || latestRun?.triggerType || 'manual',
+        startTime: latestRun?.startTime || latestRun?.startedAt,
+        endTime: latestRun?.endTime || latestRun?.completedAt,
+        duration: latestRun?.duration,
+        stages: runStages,
+      });
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : '加载失败，请稍后重试';
+      setApiError(errorMsg);
+      message.error(`加载 Pipeline 详情失败：${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [id, navigate]);
+
+  // Load pipeline on mount
+  useEffect(() => {
     if (id) {
       loadPipeline();
     }
-  }, [id]);
+  }, [id, loadPipeline]);
 
   // Calculate progress percentage
   const totalStages = pipeline?.stages?.length || 0;
   const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
-  // Format duration
-  const formatDuration = (seconds?: number) => {
-    if (!seconds || !pipeline) return '-';
+  // Format duration — handles both seconds (number) and durationMs (string)
+  const formatDuration = (value?: number | string) => {
+    if (!value || !pipeline) return '-';
+    // If it's a string (durationMs from backend), convert to seconds
+    let seconds: number;
+    if (typeof value === 'string') {
+      seconds = parseInt(value, 10) / 1000;
+    } else {
+      seconds = value;
+    }
+    if (!seconds) return '-';
     const dur = dayjs.duration(seconds, 'seconds');
     const minutes = Math.floor(dur.asMinutes());
     const secs = dur.seconds();
@@ -260,11 +348,19 @@ const PipelineDetail: React.FC = () => {
   // Handle re-run
   const handleRerun = async () => {
     try {
-      await retryPipelineRun(id!);
+      setIsRerunning(true);
+      await triggerPipeline(id!);
       message.success('Pipeline 重新运行成功');
-      // Reload pipeline detail after re-run
-      const response = await getPipelineRun(id!);
-      setPipeline(response.data.data);
+      // Reload pipeline runs
+      const runsRes = await getPipelineRuns(id!);
+      const runsData = extractList(runsRes);
+      const latestRun = runsData[0] || null;
+      setPipeline((prev: any) => ({
+        ...prev,
+        status: (latestRun as any)?.status || 'running',
+        runNumber: (latestRun as any)?.runNumber || (prev as any).runNumber + 1,
+        stages: (latestRun as any)?.stages || [],
+      }));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -276,8 +372,46 @@ const PipelineDetail: React.FC = () => {
     }
   };
 
+  // Handle reload from error detail retry
+  const handleReloadPipeline = async () => {
+    try {
+      const runsRes = await getPipelineRuns(id!);
+      const runsData = extractList(runsRes);
+      const latestRun = runsData[0] || null;
+      setPipeline((prev: any) => ({
+        ...prev,
+        status: (latestRun as any)?.status || (prev as any).status,
+        stages: (latestRun as any)?.stages || (prev as any).stages,
+      }));
+    } catch {
+      // Silent reload failure — the error detail component handles its own retry
+    }
+  };
+
+  // Load all runs for this pipeline
+  const loadRuns = useCallback(async () => {
+    if (!id) return;
+    setRunsLoading(true);
+    try {
+      const response = await getPipelineRuns(id, { pageSize: 50 });
+      const data = extractList(response);
+      setRuns(data as PipelineRunSummary[]);
+    } catch (error) {
+      console.error('Failed to load runs:', error);
+    } finally {
+      setRunsLoading(false);
+    }
+  }, [id]);
+
+  // Load runs when pipeline is loaded
+  useEffect(() => {
+    if (pipeline?.id) {
+      loadRuns();
+    }
+  }, [pipeline?.id, loadRuns]);
+
   // Handle retry from a specific stage
-  const handleRetryFromStage = (stageId: string, stageName: string) => {
+  const handleRetryFromStage = (_stageId: string, stageName: string) => {
     Modal.confirm({
       title: '从该阶段重跑',
       content: `确认从阶段「${stageName}」开始重新运行？已完成的前置阶段将不会重新执行。`,
@@ -285,23 +419,24 @@ const PipelineDetail: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          setRetryingStageId(stageId);
-          const response = await retryFromStage(id!, stageId);
-          const newRun = response.data.data as any;
+          setRetryingStageId(_stageId);
+          // 使用 retryFromStage 从指定阶段重试
+          const res = await retryFromStage(id!, _stageId);
+          const newRun = extractData(res) as { id?: string; pipelineId?: string } | undefined;
           message.success(`已从阶段「${stageName}」重新运行`);
-          // Redirect to the new run's detail page
-          if (newRun?.id) {
-            navigate(`/pipelines/runs/${newRun.id}`);
+          // 跳转到该 Pipeline 详情页（查看新运行的结果）
+          // 注意：navigate 到 pipelineId 而非 runId，因为详情页会自动加载最新运行
+          if (newRun?.pipelineId) {
+            navigate(`/pipelines/${newRun.pipelineId}`);
           } else {
-            // Fallback: reload current page to see updated status
-            const reloadResp = await getPipelineRun(id!);
-            setPipeline(reloadResp.data.data);
+            // 回退：刷新当前页面
+            await loadPipeline();
           }
         } catch (error: unknown) {
           if (error instanceof Error) {
-            message.error(`从阶段「${stageName}」重跑失败：${error.message}`);
+            message.error(`从阶段重跑失败：${error.message}`);
           } else {
-            message.error(`从阶段「${stageName}」重跑失败，请稍后重试`);
+            message.error('从阶段重跑失败，请稍后重试');
           }
         } finally {
           setRetryingStageId(null);
@@ -321,7 +456,7 @@ const PipelineDetail: React.FC = () => {
   if (loading) {
     return (
       <div style={{ padding: 0 }}>
-        <CardPanel>Loading...</CardPanel>
+      <Card style={{ padding: '12px 16px' }}>Loading...</Card>
       </div>
     );
   }
@@ -346,66 +481,65 @@ const PipelineDetail: React.FC = () => {
 
   return (
     <div style={{ padding: 0 }}>
-      {/* Back button and page title */}
+      {/* 页面头部 - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
         }}
       >
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/pipelines')}
-          disabled={loading}
-        >
-          返回列表
-        </Button>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            {pipeline.name} #{pipeline.runNumber}
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            {pipeline.name}
           </Title>
-          <Text type="secondary">
+          <Space size="middle" wrap>
+            <Tag color="default" style={{ fontSize: 12 }}>
+              #{pipeline.runNumber}
+            </Tag>
+            {pipeline && <StatusBadge status={pipeline.status} size="small" />}
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              分支: <Text code style={{ fontSize: 12 }}>{pipeline.branch}</Text>
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              触发: {triggerLabel[pipeline.trigger] || pipeline.trigger}
+            </Text>
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              由 {pipeline.author || '-'} 触发
+            </Text>
             {pipeline.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
-                {pipeline.commit}
-              </Tag>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                Commit: <Text code style={{ fontSize: 12 }}>{pipeline.commit.slice(0, 7)}</Text>
+              </Text>
             )}
-            分支: {pipeline.branch}
-          </Text>
-        </div>
-        <div style={{ marginLeft: 'auto' }}>
-          <Space>
-            {pipeline && <StatusBadge status={pipeline.status} size="medium" />}
-            <Button
-              type="primary"
-              icon={<ReloadOutlined />}
-              loading={isRerunning}
-              onClick={handleRerun}
-              disabled={!pipeline || pipeline.status === 'running' || loading}
-            >
-              {isRerunning ? '触发中...' : '重新运行'}
-            </Button>
           </Space>
         </div>
+        <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
+          <Button
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={isRerunning}
+            onClick={handleRerun}
+            disabled={!pipeline || pipeline.status === 'running' || loading}
+          >
+            {isRerunning ? '触发中...' : '重新运行'}
+          </Button>
+        </Space>
       </div>
 
       {/* Pipeline info card */}
-      <CardPanel>
-        <Descriptions column={4} size="small" bordered labelStyle={{ width: 120 }}>
+      <Card style={{ marginBottom: spacing.lg }}>
+        <Descriptions column={3} size="small" bordered labelStyle={{ width: 100 }}>
           <Descriptions.Item label="状态">
             <StatusBadge status={pipeline.status} size="small" />
-          </Descriptions.Item>
-          <Descriptions.Item label="分支">
-            <Tag color="blue">{pipeline.branch}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发人">
-            <Text code>{pipeline.author}</Text>
-          </Descriptions.Item>
-          <Descriptions.Item label="触发方式">
-            <Tag>{triggerLabel[pipeline.trigger] || pipeline.trigger}</Tag>
           </Descriptions.Item>
           <Descriptions.Item label="开始时间">
             <Space>
@@ -430,10 +564,15 @@ const PipelineDetail: React.FC = () => {
             </Space>
           </Descriptions.Item>
         </Descriptions>
-      </CardPanel>
+      </Card>
+
+      {/* Structured error detail for failed pipelines */}
+      {pipeline && pipeline.status === 'failed' && id && (
+        <PipelineErrorDetail runId={id} onRetry={handleReloadPipeline} />
+      )}
 
       {/* Tabbed content: Stages / Logs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab}>
         <TabPane
           tab={
             <Space>
@@ -444,7 +583,7 @@ const PipelineDetail: React.FC = () => {
           key="stages"
         >
           {/* Stage timeline visualization */}
-          <CardPanel title="执行阶段">
+          <Card style={{ marginBottom: spacing.lg }} title="执行阶段">
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               {/* Stage progress bar */}
               <div
@@ -534,12 +673,12 @@ const PipelineDetail: React.FC = () => {
 
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: spacing.sm }}>
                   {pipeline.stages.map((stage: any, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
-                      style={{ marginBottom: 8 }}
+                      style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
                           <StatusBadge status={stage.status} size="small" />
@@ -581,7 +720,7 @@ const PipelineDetail: React.FC = () => {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
+                                gap: spacing.sm,
                                 fontSize: spacing[3],
                               }}
                             >
@@ -604,7 +743,7 @@ const PipelineDetail: React.FC = () => {
                 </div>
               )}
             </Space>
-          </CardPanel>
+          </Card>
         </TabPane>
 
         <TabPane
@@ -617,12 +756,12 @@ const PipelineDetail: React.FC = () => {
           key="logs"
         >
           {/* Log viewer */}
-          <CardPanel title="日志输出">
+          <Card style={{ marginBottom: spacing.lg }} title="日志输出">
             <div
               style={{
                 background: colors.neutral[900],
                 borderRadius: 6,
-                padding: 16,
+                padding: spacing.md,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                 fontSize: spacing[3],
                 lineHeight: 1.6,
@@ -632,14 +771,14 @@ const PipelineDetail: React.FC = () => {
               }}
             >
               {pipeline.stages?.map((stage: any) => (
-                <div key={stage.name} style={{ marginBottom: 16 }}>
+                <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
                     style={{
                       color: stageStatusColors[stage.status],
                       fontWeight: 600,
-                      marginBottom: 8,
-                      borderBottom: '1px solid #333',
+                      marginBottom: spacing.sm,
+                      borderBottom: '1px solid colors.neutral[800]',
                       paddingBottom: 4,
                     }}
                   >
@@ -649,7 +788,7 @@ const PipelineDetail: React.FC = () => {
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
                     stage.logs.map((log: any, index: number) => (
-                      <div key={index} style={{ paddingLeft: 16 }}>
+                      <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') ||
@@ -662,7 +801,7 @@ const PipelineDetail: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
+                    <div style={{ paddingLeft: spacing.md, color: colors.neutral[500] }}>
                       {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
                     </div>
                   )}
@@ -681,7 +820,7 @@ const PipelineDetail: React.FC = () => {
                 />
               )}
             </div>
-          </CardPanel>
+          </Card>
         </TabPane>
 
         <TabPane
@@ -694,7 +833,7 @@ const PipelineDetail: React.FC = () => {
           key="dag"
         >
           {/* DAG visualization */}
-          <CardPanel title="依赖关系图">
+          <Card style={{ marginBottom: spacing.lg }} title="依赖关系图">
             {pipeline.stages && pipeline.stages.length > 0 ? (
               <DAGGraph
                 stages={pipeline.stages.map((stage: any, idx: number) => ({
@@ -719,7 +858,101 @@ const PipelineDetail: React.FC = () => {
                 <Text type="secondary">暂无阶段数据</Text>
               </div>
             )}
-          </CardPanel>
+          </Card>
+        </TabPane>
+
+        {/* 运行历史 Tab */}
+        <TabPane
+          tab={
+            <Space>
+              <HistoryOutlined />
+              运行历史
+              <Badge count={runs.length} style={{ backgroundColor: colors.primary[500] }} />
+            </Space>
+          }
+          key="runs"
+        >
+          <Card style={{ marginBottom: spacing.lg }} title={`运行历史 (${runs.length} 条)`}>
+            <Table
+              dataSource={runs}
+              loading={runsLoading}
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 10, showSizeChanger: true }}
+              columns={[
+                {
+                  title: 'Run ID',
+                  dataIndex: 'id',
+                  key: 'id',
+                  width: 100,
+                  render: (id: string) => (
+                    <Button type="link" size="small" onClick={() => navigate(`/pipelines/${id}/runs/${id}`)}>
+                      {id.slice(0, 8)}...
+                    </Button>
+                  ),
+                },
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 100,
+                  render: (status: string) => <StatusBadge status={status as StatusType} />,
+                },
+                {
+                  title: '触发方式',
+                  dataIndex: 'triggerType',
+                  key: 'triggerType',
+                  width: 100,
+                  render: (type: string) => {
+                    const triggerLabels: Record<string, string> = {
+                      manual: '手动',
+                      push: 'Push',
+                      schedule: '定时',
+                      api: 'API',
+                    };
+                    return <Tag color="blue">{triggerLabels[type] || type || '-'}</Tag>;
+                  },
+                },
+                {
+                  title: '开始时间',
+                  dataIndex: 'startTime',
+                  key: 'startTime',
+                  width: 160,
+                  render: (time: string) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'),
+                },
+                {
+                  title: '耗时',
+                  dataIndex: 'duration',
+                  key: 'duration',
+                  width: 100,
+                  render: (ms: number) => {
+                    if (!ms) return '-';
+                    const seconds = Math.floor(ms / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    return minutes > 0 ? `${minutes}m ${secs}s` : `${secs}s`;
+                  },
+                },
+                {
+                  title: '操作',
+                  key: 'action',
+                  width: 120,
+                  render: (_: any, record: PipelineRunSummary) => (
+                    <Space>
+                      <Button type="link" size="small" onClick={() => navigate(`/pipelines/${id}/runs/${record.id}`)}>
+                        查看
+                      </Button>
+                      {record.status === 'failed' && (
+                        <Button type="link" size="small" onClick={() => triggerPipeline(id!)}>
+                          重跑
+                        </Button>
+                      )}
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+          </Card>
         </TabPane>
 
         <TabPane
@@ -732,12 +965,12 @@ const PipelineDetail: React.FC = () => {
           key="outputs"
         >
           {/* Task outputs / variable propagation table */}
-          <CardPanel title="任务输出与变量传播">
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
+          <Card style={{ marginBottom: spacing.lg }} title="任务输出与变量传播">
+            <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
+              以下列出各阶段任务产生的输出变量及其传播目标。
             </Text>
             <TaskOutputsTable />
-          </CardPanel>
+          </Card>
         </TabPane>
       </Tabs>
     </div>

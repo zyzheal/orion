@@ -1,8 +1,8 @@
 import { createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'audit-repository' });
+const logger = createLogger('audit-repository');
 
 export interface AuditLogEntry {
   id: string;

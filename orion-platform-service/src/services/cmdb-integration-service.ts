@@ -7,15 +7,17 @@
  * 脚本执行能力
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { DatabasePool } from './database';
 import { EventBusService } from './event-bus-service';
 import { CmdbService } from './cmdb/CmdbService';
 import { K8sWatchClient, SyncStatus, WatchEvent, K8sResourceKind } from './cmdb/K8sWatchClient';
 import { K8sReconciliationService, ReconciliationResult } from './cmdb/K8sReconciliationService';
 import type { CI, CiType, CreateCIInput } from './cmdb/CmdbTypes';
+import { Client as SSHClient, ConnectConfig } from 'ssh2';
+import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('cmdb-integration-service');
 
 /**
  * K8s 资源信息
@@ -878,7 +880,7 @@ export class CmdbIntegrationService {
   }
 
   /**
-   * 在单个 CI 上执行脚本
+   * 在单个 CI 上执行脚本（真实 SSH 执行）
    */
   private async executeScriptOnCI(
     ciId: string,
@@ -892,13 +894,21 @@ export class CmdbIntegrationService {
 
     logger.info(
       { executionId, ciId, scriptType, timeout },
-      'Executing script on CI'
+      'Executing script on CI via SSH'
     );
 
-    // 实际场景中，这里会通过 SSH/WinRM/Agent 执行脚本
-    // 由于是模拟实现，我们返回一个模拟结果
+    // 获取目标主机信息
+    const ci = await this.cmdbService.getCIByCiId(ciId);
+    if (!ci) {
+      throw new OrionError(`CI ${ciId} not found`, ErrorCode.NOT_FOUND);
+    }
 
-    // 替换参数
+    const host = ci.attributes?.ip || ci.attributes?.hostname;
+    if (!host) {
+      throw new OrionError(`CI ${ciId} has no IP or hostname for SSH connection`, 'SERVICE_UNAVAILABLE')
+    }
+
+    // 替换脚本中的参数
     let processedScript = script;
     if (parameters) {
       for (const [key, value] of Object.entries(parameters)) {
@@ -909,20 +919,164 @@ export class CmdbIntegrationService {
       }
     }
 
-    // 模拟执行结果
-    const result: ScriptExecutionResult = {
-      executionId,
-      ciId,
-      status: 'success',
-      stdout: `Script executed successfully on ${ciId}\nOutput: ${processedScript.substring(0, 100)}...`,
-      stderr: undefined,
-      exitCode: 0,
-      duration: Date.now() - startTime,
-      executedAt: new Date(),
+    // 构建执行命令：通过 heredoc 安全传递脚本内容
+    const scriptCommand = this.buildScriptCommand(processedScript, scriptType);
+
+    // 构建 SSH 配置
+    const sshConfig = this.buildSSHConfig(ci);
+    if (!sshConfig) {
+      throw new OrionError(`CI ${ciId} has no SSH credentials configured`, 'OPERATION_FAILED')
+    }
+
+    // 执行 SSH 命令
+    return this.executeSSHCommand(sshConfig, scriptCommand, timeout, executionId, ciId, startTime);
+  }
+
+  /**
+   * 通过 heredoc 安全地传递脚本内容，防止命令注入
+   * 脚本通过 stdin 传输，避免 shell 解析注入
+   */
+  private buildScriptCommand(script: string, scriptType: 'bash' | 'python' | 'powershell'): string {
+    // 使用 heredoc 标记为随机字符串，降低冲突概率
+    const heredoc = 'SCRIPT_EOF_' + crypto.randomUUID().replace(/-/g, '').substring(0, 8);
+
+    switch (scriptType) {
+      case 'bash':
+        return `bash << '${heredoc}'\n${script}\n${heredoc}`;
+      case 'python':
+        return `python3 << '${heredoc}'\n${script}\n${heredoc}`;
+      case 'powershell':
+        return `pwsh -Command - << '${heredoc}'\n${script}\n${heredoc}`;
+      default:
+        return `bash << '${heredoc}'\n${script}\n${heredoc}`;
+    }
+  }
+
+  /**
+   * 从 CI 属性中构建 SSH 配置
+   */
+  private buildSSHConfig(ci: CI): ConnectConfig | null {
+    const attrs = ci.attributes || {};
+    const username = attrs.ssh_user || attrs.username || 'root';
+    const password = attrs.ssh_password || attrs.password;
+    const privateKey = attrs.ssh_private_key || attrs.private_key;
+    const port = parseInt(attrs.ssh_port || attrs.port) || 22;
+
+    if (!password && !privateKey) {
+      return null;
+    }
+
+    const config: ConnectConfig = {
+      host: attrs.ip || attrs.hostname,
+      port,
+      username,
+      readyTimeout: 10000,
     };
 
-    logger.info({ result }, 'Script execution completed');
+    if (privateKey) {
+      config.privateKey = privateKey;
+      if (attrs.ssh_passphrase) {
+        config.passphrase = attrs.ssh_passphrase;
+      }
+    } else if (password) {
+      config.password = password;
+    }
 
-    return result;
+    return config;
+  }
+
+  /**
+   * 通过 SSH 执行远程命令
+   */
+  private executeSSHCommand(
+    sshConfig: ConnectConfig,
+    command: string,
+    timeout: number,
+    executionId: string,
+    ciId: string,
+    startTime: number
+  ): Promise<ScriptExecutionResult> {
+    return new Promise((resolve) => {
+      const conn = new SSHClient();
+      let settled = false;
+
+      const settle = (result: ScriptExecutionResult) => {
+        if (!settled) {
+          settled = true;
+          conn.end();
+          resolve(result);
+        }
+      };
+
+      const timeoutTimer = setTimeout(() => {
+        settle({
+          executionId,
+          ciId,
+          status: 'timeout',
+          stderr: `Command timed out after ${timeout}ms`,
+          exitCode: -1,
+          duration: Date.now() - startTime,
+          executedAt: new Date(),
+        });
+      }, timeout);
+
+      conn.on('error', (err: Error) => {
+        clearTimeout(timeoutTimer);
+        settle({
+          executionId,
+          ciId,
+          status: 'failed',
+          stderr: `SSH connection error: ${err.message}`,
+          exitCode: -1,
+          duration: Date.now() - startTime,
+          executedAt: new Date(),
+        });
+      });
+
+      conn.connect(sshConfig);
+
+      conn.on('ready', () => {
+        conn.exec(command, (err: Error | undefined, stream: any) => {
+          if (err) {
+            clearTimeout(timeoutTimer);
+            settle({
+              executionId,
+              ciId,
+              status: 'failed',
+              stderr: `SSH exec error: ${err.message}`,
+              exitCode: -1,
+              duration: Date.now() - startTime,
+              executedAt: new Date(),
+            });
+            return;
+          }
+
+          let stdoutBuf = '';
+          let stderrBuf = '';
+
+          stream.on('close', (code: number) => {
+            clearTimeout(timeoutTimer);
+            settle({
+              executionId,
+              ciId,
+              status: code === 0 ? 'success' : 'failed',
+              stdout: stdoutBuf || undefined,
+              stderr: stderrBuf || undefined,
+              exitCode: code,
+              duration: Date.now() - startTime,
+              executedAt: new Date(),
+            });
+          });
+
+          stream.on('data', (data: Buffer) => {
+            stdoutBuf += data.toString();
+          });
+
+          stream.stderr.on('data', (data: Buffer) => {
+            stderrBuf += data.toString();
+          });
+        });
+      });
+    });
   }
 }

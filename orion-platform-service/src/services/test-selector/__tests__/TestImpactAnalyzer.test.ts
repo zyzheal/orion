@@ -12,12 +12,13 @@ jest.mock('../TestDependencyAnalyzer');
 describe('TestImpactAnalyzer', () => {
   let impactAnalyzer: TestImpactAnalyzer;
   let mockDependencyAnalyzer: jest.Mocked<TestDependencyAnalyzer>;
+  const mockDb = { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
 
   beforeEach(() => {
     mockDependencyAnalyzer = new TestDependencyAnalyzer({
       sourceRoot: '/project/src',
       testRoot: '/project/src',
-    }) as jest.Mocked<TestDependencyAnalyzer>;
+    }, mockDb as any) as jest.Mocked<TestDependencyAnalyzer>;
 
     mockDependencyAnalyzer.getTestsForSourceFile = jest.fn();
     mockDependencyAnalyzer.getSuites = jest.fn().mockReturnValue([]);

@@ -7,6 +7,7 @@
 
 import { DiagnosticSession, Symptom, Finding, RootCause } from './types';
 import { DatabasePool } from '../database';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 export interface DiagnosticRule {
   id: string;
@@ -30,7 +31,7 @@ export class DiagnosticRepository {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         session.id,
-        session.tenantId || 'default',
+        session.tenantId || getCurrentTenantId(),
         `${session.triggerType}: ${session.triggerId}`,
         session.status,
         null, // triggered_by (optional FK)

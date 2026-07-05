@@ -8,14 +8,25 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
 import ApkUploadHistoryService from '../services/pipeline/ApkUploadHistoryService';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
+
+interface ApkUploadHistoryRoutesOptions {
+  database?: DatabasePool;
+}
 
 // Global history service instance
 let globalHistoryService: ApkUploadHistoryService | null = null;
 
-export function getApkUploadHistoryService(): ApkUploadHistoryService {
+export function getApkUploadHistoryService(db?: DatabasePool): ApkUploadHistoryService {
   if (!globalHistoryService) {
-    globalHistoryService = new ApkUploadHistoryService();
+    if (!db) {
+      throw new OrionError('ApkUploadHistoryService requires a database connection', ErrorCode.INTERNAL_ERROR);
+    }
+    globalHistoryService = new ApkUploadHistoryService(db);
   }
   return globalHistoryService;
 }
@@ -56,8 +67,8 @@ function validatePagination(limit?: number, offset?: number): { limit: number; o
   return { limit: safeLimit, offset: safeOffset };
 }
 
-export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Promise<void> {
-  const historyService = getApkUploadHistoryService();
+export async function registerApkUploadHistoryRoutes(app: FastifyInstance, options: ApkUploadHistoryRoutesOptions = {}): Promise<void> {
+  const historyService = getApkUploadHistoryService(options.database);
 
   // Get tenant ID from request - only from authenticated user session
   // Security: Do not trust x-tenant-id header as it can be forged by clients
@@ -75,7 +86,9 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
 
   await app.register(async (instance: FastifyInstance) => {
     // GET /api/v1/apk-upload-history - 列出上传历史
-    instance.get('/api/v1/apk-upload-history', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/apk-upload-history', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const query = request.query as ListQuery;
@@ -106,15 +119,14 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
       } catch (error) {
         const tenantId = getTenantId(request);
         const query = request.query as ListQuery;
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: `Failed to list history for tenant ${tenantId}, market: ${query.market}`,
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
     // GET /api/v1/apk-upload-history/recent-failures - 获取最近的失败记录
-    instance.get('/api/v1/apk-upload-history/recent-failures', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/apk-upload-history/recent-failures', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const query = request.query as { limit?: number };
@@ -126,15 +138,14 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
           data: records,
         });
       } catch (error) {
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get recent failures',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
     // GET /api/v1/apk-upload-history/stats - 获取上传统计信息
-    instance.get('/api/v1/apk-upload-history/stats', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/apk-upload-history/stats', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const stats = await historyService.getStats(tenantId);
@@ -143,15 +154,14 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
           data: stats,
         });
       } catch (error) {
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: error instanceof Error ? error.message : 'Failed to get stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
 
     // GET /api/v1/apk-upload-history/:id - 获取单条记录（租户隔离）
-    instance.get('/api/v1/apk-upload-history/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/apk-upload-history/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'apk-upload', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const tenantId = getTenantId(request);
         const params = request.params as IdParams;
@@ -159,10 +169,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
         const record = await historyService.findByIdAndTenant(params.id, tenantId);
 
         if (!record) {
-          reply.status(404).send({
-            error: 'NOT_FOUND',
-            message: `Upload record '${params.id}' not found`,
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
@@ -172,10 +179,7 @@ export async function registerApkUploadHistoryRoutes(app: FastifyInstance): Prom
       } catch (error) {
         const tenantId = getTenantId(request);
         const params = request.params as IdParams;
-        reply.status(500).send({
-          error: 'INTERNAL_ERROR',
-          message: `Failed to get upload record ${params.id} for tenant ${tenantId}`,
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     });
   });

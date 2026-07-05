@@ -2789,8 +2789,8 @@ gantt
 | PIPL 官方文本 | https://www.npc.gov.cn/npc/c30834/202108/7c9af12f51334a73b56d7938f99a788a.shtml |
 | NIST SP 800-88 | https://csrc.nist.gov/publications/detail/sp/800-88/rev-1/final |
 | ISO 27001 | https://www.iso.org/standard/27001 |
-| Orion 认证授权与数据加密设计 | /Users/heal/orion-design/docs/security/认证授权与数据加密设计.md |
-| Orion Prompt 注入防护设计 | /Users/heal/orion-design/docs/security/ADR-009-Prompt 注入防护设计.md |
+| Orion 认证授权与数据加密设计 | docs/services/security/认证授权与数据加密设计.md |
+| Orion Prompt 注入防护设计 | docs/services/security/ADR-010-Prompt 注入防护设计.md |
 
 ### 9.3 变更记录
 

@@ -12,6 +12,7 @@ import {
 import Table, { type TableColumn } from '@/components/Table';
 import type { ArtifactVersion } from '@/api/artifactVersions';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -230,7 +231,7 @@ const VersionTable: React.FC<VersionTableProps> = ({
   return (
     <div>
       {/* Filter Bar */}
-      <Space wrap style={{ marginBottom: 16 }}>
+      <Space wrap style={{ marginBottom: spacing.md }}>
         <Select
           allowClear
           placeholder="按 Pipeline 筛选"

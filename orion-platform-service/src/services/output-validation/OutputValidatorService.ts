@@ -4,9 +4,10 @@ import addFormats from 'ajv-formats';
 import { PATCH_SCHEMA, SECURITY_BOUNDARY_SCHEMA } from './PatchSchemaDefinition';
 import { ASTValidator } from './ASTValidator';
 import { SecurityBoundaryValidator } from './SecurityBoundaryValidator';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('OutputValidatorService');
 
 export interface ValidationResult {
   valid: boolean;
@@ -70,14 +71,14 @@ export class OutputValidatorService {
 
       if (!valid) {
         const errors = validate.errors?.map(e => `${e.instancePath || 'root'}: ${e.message}`) || [];
-        logger.warn(`[OutputValidator] Schema validation failed: ${errors.join(', ')}`);
+        logger.warn({ errors, traceId: getCurrentTraceId() }, '[OutputValidator] Schema validation failed');
         return { valid: false, errors };
       }
 
       return { valid: true };
     } catch (error) {
       const message = (error as Error).message;
-      logger.error(`[OutputValidator] Schema validation error: ${message}`);
+      logger.error({ err: error, traceId: getCurrentTraceId() }, '[OutputValidator] Schema validation error');
       return { valid: false, errors: [message] };
     }
   }
@@ -219,7 +220,7 @@ export class OutputValidatorService {
     // Calculate overall result
     result.overallValid = result.schemaValid && result.astValid && result.securityValid;
 
-    logger.info(`[OutputValidator] Full validation: ${result.overallValid ? 'PASS' : 'FAIL'}`);
+    logger.info({ overallValid: result.overallValid, traceId: getCurrentTraceId() }, '[OutputValidator] Full validation completed');
 
     return result;
   }

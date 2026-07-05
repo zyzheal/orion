@@ -120,7 +120,7 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
         <Text type="secondary">加载成本数据...</Text>
       ) : cost ? (
         <>
-          <Descriptions column={1} bordered size="small" style={{ marginBottom: 24 }}>
+          <Descriptions column={1} bordered size="small" style={{ marginBottom: spacing.lg }}>
             <Descriptions.Item label="环境 ID">
               <Text code>{env.id}</Text>
             </Descriptions.Item>
@@ -148,8 +148,8 @@ const CostDrawer: React.FC<CostDrawerProps> = ({ env, open, onClose }) => {
 
           <div
             style={{
-              marginTop: 24,
-              padding: 16,
+              marginTop: spacing.lg,
+              padding: spacing.md,
               background: colors.success[50],
               borderRadius: 8,
               textAlign: 'center',
@@ -240,7 +240,7 @@ const CreateEnvModal: React.FC<CreateEnvModalProps> = ({ open, onCancel, onSucce
       width={600}
       data-testid="create-env-modal"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item label="PR ID" name="prId" rules={[{ required: true, message: '请输入 PR ID' }]}>
           <Input placeholder="例如：123" />
         </Form.Item>
@@ -582,11 +582,12 @@ const EphemeralEnvList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             临时开发环境
           </Title>
           <Text type="secondary">共 {filteredEnvs.length} 个环境</Text>
@@ -611,8 +612,8 @@ const EphemeralEnvList: React.FC = () => {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
         data-testid="env-summary-cards"
       >
@@ -647,7 +648,7 @@ const EphemeralEnvList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -658,8 +659,8 @@ const EphemeralEnvList: React.FC = () => {
 
       {/* Environment table */}
       <Table
-        columns={columns as any}
-        dataSource={filteredEnvs as any}
+        columns={columns}
+        dataSource={filteredEnvs}
         loading={loading}
         rowKey="id"
         size="middle"

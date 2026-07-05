@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { UserInfo } from '@/api/types';
-import { refreshAuthTokenApi } from '@/api/auth';
+import { refreshAuthTokenApi, logout as apiLogout } from '@/api/auth';
+import { injectAuthState } from '@/microfront/config';
+import { getDefaultChannel } from '@/microfront/eventBus';
 
 interface AuthState {
   user: UserInfo | null;
@@ -55,7 +57,11 @@ export const useAuthStore = create<AuthState>()(
     refreshToken: initRefreshToken,
     tokenExpiresAt: initExpiresAt,
 
-    setUser: (user) => set({ user }),
+    setUser: (user) => {
+      set({ user });
+      // 登录成功后注入认证状态到微前端
+      injectAuthState();
+    },
 
     setAuthenticated: (authenticated) => set({ isAuthenticated: authenticated }),
 
@@ -73,6 +79,8 @@ export const useAuthStore = create<AuthState>()(
       localStorage.setItem(TOKEN_KEY, accessToken);
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
       localStorage.setItem(TOKEN_EXPIRES_KEY, String(expires));
+      // 登录成功后注入认证状态到微前端
+      injectAuthState();
     },
 
     getToken: async (): Promise<string | null> => {
@@ -117,6 +125,9 @@ export const useAuthStore = create<AuthState>()(
         }
         localStorage.setItem(TOKEN_EXPIRES_KEY, String(expiresAt));
 
+        // Token刷新后同步到微前端
+        injectAuthState();
+
         return accessToken;
       } catch (error) {
         console.error('[Auth] Failed to refresh token:', error);
@@ -133,17 +144,39 @@ export const useAuthStore = create<AuthState>()(
       return tokenExpiresAt - Date.now() < 5 * 60 * 1000;
     },
 
-    logout: () => {
+    logout: async () => {
+      const { accessToken, refreshToken: rfToken } = get();
+
+      // Phase 3.8.4: 通知后端将 token 加入黑名单
+      try {
+        await apiLogout(accessToken || undefined, rfToken || undefined);
+      } catch (err) {
+        console.warn('[Auth] Logout API call failed, continuing local cleanup:', err);
+      }
+
+      // Phase 3.8.4: 广播登出事件通知子应用
+      try {
+        (getDefaultChannel() as any).emit('auth:logout', {
+          timestamp: new Date().toISOString(),
+          reason: 'user_logout',
+        });
+      } catch (err) {
+        console.warn('[Auth] Failed to broadcast logout event:', err);
+      }
+
       set({
         user: null,
         isAuthenticated: false,
         accessToken: null,
         refreshToken: null,
         tokenExpiresAt: null,
+        isLoading: false,
       });
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_TOKEN_KEY);
       localStorage.removeItem(TOKEN_EXPIRES_KEY);
+      // 通知子应用清理
+      injectAuthState();
     },
   }))
 );

@@ -18,6 +18,11 @@ import {
   TicketPriority,
 } from './types';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
+import { TicketRelationAnalysisRepository } from '../../repositories/TicketRelationAnalysisRepository';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LTicket-LRelation-LAnalyzer');
 
 /**
  * Ticket Relation Analyzer
@@ -31,14 +36,23 @@ export class TicketRelationAnalyzer {
   /** Repository for ticket data */
   private ticketingRepository?: TicketingRepository;
 
+  /** Repository for relation analysis data */
+  private relationAnalysisRepository?: TicketRelationAnalysisRepository;
+
   /** Stored relations (managed via Repository) */
-  private relations: TicketRelation[] = [];
+  private relations: TicketRelation[] = []; // in-memory cache
 
   /** Local ticket cache for similarity analysis */
   private ticketsCache: Map<string, Ticket> = new Map();
 
-  constructor(options: { ticketingRepository?: TicketingRepository }) {
+  constructor(options: {
+    ticketingRepository?: TicketingRepository;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  }) {
     this.ticketingRepository = options.ticketingRepository;
+    if (options.db) {
+      this.relationAnalysisRepository = new TicketRelationAnalysisRepository(options.db);
+    }
   }
 
   /**
@@ -71,7 +85,7 @@ export class TicketRelationAnalyzer {
         this.ticketsCache.set(record.id, this.mapRecordToTicket(record));
       }
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to load tickets from repository: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to load tickets from repository: ${err}`);
     }
   }
 
@@ -83,14 +97,14 @@ export class TicketRelationAnalyzer {
     if (cached) return cached;
 
     try {
-      const record = await this.ticketingRepository!.findById(ticketId);
+      const record = await this.ticketingRepository!.findById(ticketId, '');
       if (record) {
         const ticket = this.mapRecordToTicket(record);
         this.ticketsCache.set(ticketId, ticket);
         return ticket;
       }
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to fetch ticket: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to fetch ticket: ${err}`);
     }
     return undefined;
   }
@@ -128,9 +142,22 @@ export class TicketRelationAnalyzer {
         createdBy,
         description,
         confidence: confidence ?? 1.0,
-      });
+      }, '');
     } catch (err) {
-      console.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
+      logger.warn(`[TicketRelationAnalyzer] Failed to persist relation to repository: ${err}`);
+    }
+
+    // Persist to relation analysis repository
+    if (this.relationAnalysisRepository) {
+      this.relationAnalysisRepository.create({
+        id: relation.id,
+        ticketId,
+        relatedTicketId,
+        relationType,
+        createdBy,
+        description: description || null,
+        confidence: confidence ?? 1.0,
+      }).catch(() => {/* ignore */});
     }
 
     return relation;
@@ -441,6 +468,12 @@ export class TicketRelationAnalyzer {
     const idx = this.relations.findIndex(r => r.id === relationId);
     if (idx === -1) return false;
     this.relations.splice(idx, 1);
+
+    // Persist deletion to repository
+    if (this.relationAnalysisRepository) {
+      this.relationAnalysisRepository.delete(relationId).catch(() => {/* ignore */});
+    }
+
     return true;
   }
 

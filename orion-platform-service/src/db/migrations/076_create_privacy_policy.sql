@@ -4,7 +4,7 @@
 -- Tenant privacy policy configuration table
 CREATE TABLE IF NOT EXISTS tenant_privacy_policies (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER NOT NULL UNIQUE,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000' UNIQUE,
     policy_level VARCHAR(16) NOT NULL DEFAULT 'standard',
     secret_sanitization_enabled BOOLEAN DEFAULT true,
     pii_sanitization_enabled BOOLEAN DEFAULT true,
@@ -25,7 +25,7 @@ CREATE INDEX idx_tenant_privacy_policy_level ON tenant_privacy_policies(policy_l
 -- Sanitization audit log table
 CREATE TABLE IF NOT EXISTS sanitization_audit_logs (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     sanitization_type VARCHAR(16) NOT NULL,
     original_content_hash VARCHAR(128),
     sanitized_content_hash VARCHAR(128),

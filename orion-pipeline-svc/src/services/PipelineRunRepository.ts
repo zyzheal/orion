@@ -459,4 +459,234 @@ export class PipelineRunRepository {
 
     return result.rows[0] || null;
   }
+
+  // ==================== Pipeline Run State Persistence ====================
+
+  /**
+   * 保存 Pipeline 运行状态（用于重启恢复）
+   */
+  async saveState(input: {
+    id: string;
+    runId: string;
+    pipelineId: string;
+    tenantId?: string;
+    status: string;
+    currentStageId?: string;
+    stageResults?: Record<string, any>;
+    taskResults?: Record<string, any>;
+    stageStates?: Array<{
+      stageId: string;
+      name: string;
+      status: string;
+      dependsOn: string[];
+      startedAt?: string;
+      completedAt?: string;
+    }>;
+    executionModel?: any;
+    yamlContext?: any;
+    envOverrides?: Record<string, string>;
+    startedAt?: Date;
+    finishedAt?: Date;
+  }): Promise<void> {
+    const {
+      id, runId, pipelineId, tenantId, status, currentStageId,
+      stageResults, taskResults, stageStates, executionModel, yamlContext,
+      envOverrides, startedAt, finishedAt
+    } = input;
+
+    await this.pool.query(
+      `INSERT INTO pipeline_run_state (
+        id, run_id, pipeline_id, tenant_id, status, current_stage_id,
+        stage_results, task_results, stage_states, execution_model,
+        yaml_context, env_overrides, started_at, finished_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ON CONFLICT (run_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        current_stage_id = EXCLUDED.current_stage_id,
+        stage_results = EXCLUDED.stage_results,
+        task_results = EXCLUDED.task_results,
+        stage_states = EXCLUDED.stage_states,
+        execution_model = EXCLUDED.execution_model,
+        yaml_context = EXCLUDED.yaml_context,
+        env_overrides = EXCLUDED.env_overrides,
+        finished_at = EXCLUDED.finished_at,
+        updated_at = NOW(),
+        version = pipeline_run_state.version + 1`,
+      [
+        id, runId, pipelineId, tenantId || null, status, currentStageId || null,
+        JSON.stringify(stageResults || {}),
+        JSON.stringify(taskResults || {}),
+        JSON.stringify(stageStates || []),
+        executionModel ? JSON.stringify(executionModel) : null,
+        yamlContext ? JSON.stringify(yamlContext) : null,
+        JSON.stringify(envOverrides || {}),
+        startedAt || null, finishedAt || null
+      ]
+    );
+  }
+
+  /**
+   * 加载 Pipeline 运行状态（用于重启恢复）
+   */
+  async loadState(runId: string): Promise<{
+    id: string;
+    runId: string;
+    pipelineId: string;
+    tenantId?: string;
+    status: string;
+    currentStageId?: string;
+    stageResults: Record<string, any>;
+    taskResults: Record<string, any>;
+    stageStates: Array<{
+      stageId: string;
+      name: string;
+      status: string;
+      dependsOn: string[];
+      startedAt?: string;
+      completedAt?: string;
+    }>;
+    executionModel?: any;
+    yamlContext?: any;
+    envOverrides: Record<string, string>;
+    startedAt?: Date;
+    finishedAt?: Date;
+  } | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM pipeline_run_state WHERE run_id = $1',
+      [runId]
+    );
+
+    if (!result.rows[0]) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      runId: row.run_id,
+      pipelineId: row.pipeline_id,
+      tenantId: row.tenant_id,
+      status: row.status,
+      currentStageId: row.current_stage_id,
+      stageResults: row.stage_results || {},
+      taskResults: row.task_results || {},
+      stageStates: row.stage_states || [],
+      executionModel: row.execution_model,
+      yamlContext: row.yaml_context,
+      envOverrides: row.env_overrides || {},
+      startedAt: row.started_at,
+      finishedAt: row.finished_at,
+    };
+  }
+
+  /**
+   * 更新 Pipeline 运行状态
+   */
+  async updateState(
+    runId: string,
+    updates: {
+      status?: string;
+      currentStageId?: string;
+      stageResults?: Record<string, any>;
+      taskResults?: Record<string, any>;
+      stageStates?: Array<any>;
+      finishedAt?: Date;
+    }
+  ): Promise<void> {
+    const setClauses: string[] = ['updated_at = NOW()'];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (updates.status !== undefined) {
+      params.push(updates.status);
+      setClauses.push(`status = $${paramIndex++}`);
+    }
+
+    if (updates.currentStageId !== undefined) {
+      params.push(updates.currentStageId);
+      setClauses.push(`current_stage_id = $${paramIndex++}`);
+    }
+
+    if (updates.stageResults !== undefined) {
+      params.push(JSON.stringify(updates.stageResults));
+      setClauses.push(`stage_results = $${paramIndex++}`);
+    }
+
+    if (updates.taskResults !== undefined) {
+      params.push(JSON.stringify(updates.taskResults));
+      setClauses.push(`task_results = $${paramIndex++}`);
+    }
+
+    if (updates.stageStates !== undefined) {
+      params.push(JSON.stringify(updates.stageStates));
+      setClauses.push(`stage_states = $${paramIndex++}`);
+    }
+
+    if (updates.finishedAt) {
+      params.push(updates.finishedAt);
+      setClauses.push(`finished_at = $${paramIndex++}`);
+    }
+
+    params.push(runId);
+
+    await this.pool.query(
+      `UPDATE pipeline_run_state SET ${setClauses.join(', ')}
+       WHERE run_id = $${paramIndex}`,
+      params
+    );
+  }
+
+  /**
+   * 查找所有未完成的运行（用于启动时恢复）
+   */
+  async findUnfinishedRuns(): Promise<Array<{
+    id: string;
+    runId: string;
+    pipelineId: string;
+    tenantId?: string;
+    status: string;
+    currentStageId?: string;
+    stageResults: Record<string, any>;
+    taskResults: Record<string, any>;
+    stageStates: Array<any>;
+    executionModel?: any;
+    yamlContext?: any;
+    envOverrides: Record<string, string>;
+    startedAt?: Date;
+    finishedAt?: Date;
+  }>> {
+    const result = await this.pool.query(
+      `SELECT * FROM pipeline_run_state
+       WHERE status IN ('running', 'pending')
+       ORDER BY created_at DESC`
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      runId: row.run_id,
+      pipelineId: row.pipeline_id,
+      tenantId: row.tenant_id,
+      status: row.status,
+      currentStageId: row.current_stage_id,
+      stageResults: row.stage_results || {},
+      taskResults: row.task_results || {},
+      stageStates: row.stage_states || [],
+      executionModel: row.execution_model,
+      yamlContext: row.yaml_context,
+      envOverrides: row.env_overrides || {},
+      startedAt: row.started_at,
+      finishedAt: row.finished_at,
+    }));
+  }
+
+  /**
+   * 删除运行状态记录
+   */
+  async deleteState(runId: string): Promise<boolean> {
+    const result = await this.pool.query(
+      'DELETE FROM pipeline_run_state WHERE run_id = $1',
+      [runId]
+    );
+    return (result.rowCount || 0) > 0;
+  }
 }

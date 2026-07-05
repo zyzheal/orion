@@ -4,7 +4,7 @@
  * - Action bar: Assign, Escalate, Resolve, Close, Transfer (contextual based on status)
  * - Left column (main): Description, Tags, SLA, Relations, Transfer history
  * - Right column (sidebar): Info card, Assignment, Workflow history, Escalation
- * - Uses mock data from mockTicketData.ts
+ * - Uses real backend API via @/api/ticketing
  * - Ant Design: Card, Timeline, Tag, Badge, Button, Space, Descriptions, Progress, Modal, Form
  */
 import React, { useState, useMemo, useEffect } from 'react';
@@ -30,6 +30,7 @@ import {
 } from 'antd';
 import {
   ArrowLeftOutlined,
+  FileTextOutlined,
   UserOutlined,
   SwapOutlined,
   ArrowUpOutlined,
@@ -42,28 +43,10 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { getTicket, assignTicket, resolveTicket, closeTicket } from '@/api/ticketing';
+import { getTicket, assignTicket, resolveTicket, closeTicket, type Ticket } from '@/api/ticketing';
 import { listUsers, type User } from '@/api/users';
 import TicketComments from './TicketComments';
 import { colors, spacing } from '@/tokens';
-
-// Local Ticket type definition
-interface Ticket {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  category: string;
-  source: string;
-  reporter: string;
-  assignee: string | null;
-  tags: Record<string, string>;
-  createdAt: string;
-  updatedAt: string;
-  dueDate: string;
-  escalationLevel: number;
-}
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -127,12 +110,20 @@ function calculateSLA(ticket: Ticket): {
   status: 'normal' | 'warning' | 'danger';
   overdue: boolean;
 } {
+  if (!ticket.dueDate) {
+    return { percent: 0, elapsed: '-', total: '-', status: 'normal', overdue: false };
+  }
   const now = dayjs();
   const created = dayjs(ticket.createdAt);
   const due = dayjs(ticket.dueDate);
   const totalMs = due.diff(created);
   const elapsedMs = Math.max(0, now.diff(created));
   const remainingMs = due.diff(now);
+
+  if (totalMs <= 0) {
+    return { percent: 100, elapsed: formatDuration(elapsedMs), total: '-', status: 'danger', overdue: true };
+  }
+
   const percent = Math.min(100, Math.round((elapsedMs / totalMs) * 100));
 
   if (remainingMs <= 0) {
@@ -197,7 +188,7 @@ const TicketDetail: React.FC = () => {
     const loadEngineers = async () => {
       try {
         const res = await listUsers({ limit: 200 });
-        setEngineers(res.data?.data?.data || []);
+        setEngineers(res.data?.data || []);
       } catch {
         setEngineers([]);
       }
@@ -214,7 +205,7 @@ const TicketDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTicket(id!);
-      setTicket((response as any).data?.data || null);
+      setTicket((response as { data?: { data?: Ticket } })?.data?.data ?? null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         message.error(`加载工单详情失败：${err.message}`);
@@ -226,15 +217,15 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const history = useMemo(() => [] as any[], [id]);
+  const history = useMemo(() => [] as Array<{ id: string; action: string; status: string; timestamp: string; fromStatus?: string; toStatus?: string; reason?: string; performedBy?: string }>, [id]);
 
   const relations = useMemo(
-    () => [] as any[],
+    () => [] as Array<{ relationId: string; relationType: string; relatedTicketId: string; relatedTicketTitle: string }>,
     [id]
   );
 
   const transfers = useMemo(
-    () => [] as any[],
+    () => [] as Array<{ id: string; from: string; to: string; fromEngineer: string; toEngineer: string; timestamp: string; reason?: string }>,
     [id]
   );
 
@@ -379,21 +370,22 @@ const TicketDetail: React.FC = () => {
   return (
     <div style={{ padding: 0 }} data-testid="ticket-detail-page">
       {/* Top section: Back, Title, Badges */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <Button
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/tickets')}
-          style={{ padding: 0, marginBottom: 8 }}
+          style={{ padding: 0, marginBottom: spacing.sm }}
           data-testid="back-to-tickets"
         >
           返回工单列表
         </Button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <Title level={3} style={{ margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3], flexWrap: 'wrap' }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {ticket.id}
           </Title>
-          <Badge status={sConfig.color as any} text={sConfig.label} />
+          <Badge status={sConfig.color as 'success' | 'warning' | 'error' | 'processing' | 'default'} text={sConfig.label} />
           <Tag color={pConfig.color} style={{ fontWeight: 500, padding: '2px 12px' }}>
             {pConfig.label}
           </Tag>
@@ -407,7 +399,7 @@ const TicketDetail: React.FC = () => {
       </div>
 
       {/* Action bar */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" style={{ marginBottom: spacing.md }}>
         <Space wrap>
           {canAssign && (
             <Button
@@ -460,7 +452,7 @@ const TicketDetail: React.FC = () => {
         {/* Left column (main) */}
         <Col span={16}>
           {/* Description */}
-          <Card title="工单描述" size="small" style={{ marginBottom: 16 }}>
+          <Card title="工单描述" size="small" style={{ marginBottom: spacing.md }}>
             <Paragraph>{ticket.description}</Paragraph>
           </Card>
 
@@ -473,10 +465,10 @@ const TicketDetail: React.FC = () => {
               </Space>
             }
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Space wrap>
-              {Object.entries(ticket.tags).map(([key, value]) => (
+              {Object.entries(ticket.tags || {}).map(([key, value]) => (
                 <Tag key={key} color="blue">
                   {key}: {value}
                 </Tag>
@@ -489,10 +481,10 @@ const TicketDetail: React.FC = () => {
             <Card
               title="SLA 信息"
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
               data-testid="sla-section"
             >
-              <div style={{ marginBottom: 12 }}>
+              <div style={{ marginBottom: spacing[3] }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <Text>已用时间: {sla.elapsed}</Text>
                   <Text>总时限: {sla.total}</Text>
@@ -508,7 +500,7 @@ const TicketDetail: React.FC = () => {
                   {dayjs(ticket.createdAt).format('YYYY-MM-DD HH:mm')}
                 </Descriptions.Item>
                 <Descriptions.Item label="SLA 截止">
-                  {dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm')}
+                  {ticket.dueDate ? dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm') : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="SLA 状态">
                   <Tag color={slaStatusColors[sla.status]}>
@@ -541,7 +533,7 @@ const TicketDetail: React.FC = () => {
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             >
               {relations.map((rel) => (
                 <div
@@ -549,7 +541,7 @@ const TicketDetail: React.FC = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     padding: '8px 0',
                     borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
@@ -582,7 +574,7 @@ const TicketDetail: React.FC = () => {
                 </Space>
               }
               size="small"
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: spacing.md }}
             >
               {transfers.map((t) => (
                 <div
@@ -590,7 +582,7 @@ const TicketDetail: React.FC = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 8,
+                    gap: spacing.sm,
                     padding: '8px 0',
                     borderBottom: `1px solid ${colors.light.border.light}`,
                   }}
@@ -617,7 +609,7 @@ const TicketDetail: React.FC = () => {
         {/* Right column (sidebar) */}
         <Col span={8}>
           {/* Info card */}
-          <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
+          <Card title="基本信息" size="small" style={{ marginBottom: spacing.md }}>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="分类">
                 {categoryLabels[ticket.category] || ticket.category}
@@ -636,13 +628,13 @@ const TicketDetail: React.FC = () => {
                 {dayjs(ticket.updatedAt).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
               <Descriptions.Item label="截止时间">
-                {dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm')}
+                {ticket.dueDate ? dayjs(ticket.dueDate).format('YYYY-MM-DD HH:mm') : '-'}
               </Descriptions.Item>
             </Descriptions>
           </Card>
 
           {/* Assignment card */}
-          <Card title="负责人" size="small" style={{ marginBottom: 16 }}>
+          <Card title="负责人" size="small" style={{ marginBottom: spacing.md }}>
             {ticket.assignee ? (
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Space>
@@ -659,9 +651,9 @@ const TicketDetail: React.FC = () => {
 
           {/* Escalation info */}
           {ticket.escalationLevel > 0 && (
-            <Card title="升级信息" size="small" style={{ marginBottom: 16 }}>
+            <Card title="升级信息" size="small" style={{ marginBottom: spacing.md }}>
               <Space direction="vertical" style={{ width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
                   <ExclamationCircleOutlined style={{ color: colors.error[400] }} />
                   <Text strong>当前级别: L{ticket.escalationLevel}</Text>
                 </div>

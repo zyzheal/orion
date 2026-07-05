@@ -2,9 +2,60 @@
  * SupplyChainService - 供应链安全管理
  *
  * SBOM 管理、依赖链分析、签名验证、依赖投毒检测
+ *
+ * 依赖解析引擎：通过 npm registry HTTPS API 实时解析依赖树，
+ * 支持循环依赖检测、深度控制、registry 响应缓存。
+ *
+ * SBOM 输出格式：CycloneDX v1.4 JSON
  */
 
 import { DatabasePool } from '../database';
+import pino from 'pino';
+import https from 'https';
+import { promises as fs } from 'fs';
+
+const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'supply-chain' });
+
+// ==================== Dependency Resolution Types ====================
+
+export interface DependencyNode {
+  name: string;
+  version: string;
+  resolvedVersion?: string;
+  type: 'dependency' | 'devDependency' | 'peerDependency' | 'optionalDependency';
+  dependencies?: DependencyNode[];
+  license?: string;
+}
+
+// ==================== CycloneDX SBOM Types ====================
+
+export interface CycloneDXComponent {
+  type: 'library' | 'application' | 'framework' | 'container' | 'operating-system' | 'device' | 'file' | 'data';
+  name: string;
+  version: string;
+  purl: string;
+  'bom-ref': string;
+  licenses?: { license: { id: string } }[];
+  description?: string;
+}
+
+export interface CycloneDXSBOM {
+  $schema: string;
+  bomFormat: string;
+  specVersion: string;
+  serialNumber: string;
+  version: number;
+  metadata: {
+    timestamp: string;
+    tools: { name: string; vendor: string; version: string }[];
+    component?: CycloneDXComponent;
+  };
+  components: CycloneDXComponent[];
+  dependencies: { ref: string; dependsOn: string[] }[];
+  vulnerabilities?: any[];
+}
+
+// ==================== Existing Interfaces (kept for compatibility) ====================
 
 export interface SBOMInput {
   artifactId: string;
@@ -71,13 +122,108 @@ const POPULAR_PACKAGES = [
 ];
 
 export class SupplyChainService {
+  // Registry response cache — keyed by "{name}@{version}" or URL
+  private registryCache = new Map<string, any>();
+
   constructor(private pool: DatabasePool) {}
 
+  // ==================== Public API: Dependency Resolution ====================
+
   /**
-   * 生成 SBOM
+   * Resolve dependencies from a local package.json file.
+   *
+   * Reads the file at `filePath`, parses its dependencies and devDependencies,
+   * then resolves them (and their transitive deps) from the npm registry.
+   *
+   * @param filePath - Absolute or relative path to package.json
+   * @returns Object containing direct dependencies, transitive dependencies, and a tree representation
+   */
+  async resolveDependenciesFromPackageJson(filePath: string): Promise<{
+    directDeps: DependencyNode[];
+    transitiveDeps: DependencyNode[];
+    tree: DependencyNode[];
+  }> {
+    logger.info({ filePath }, '[SupplyChain] Resolving dependencies from package.json');
+
+    const pkgContent = await fs.readFile(filePath, 'utf-8');
+    const pkg = JSON.parse(pkgContent);
+
+    const directDeps: DependencyNode[] = [];
+
+    // Parse regular dependencies
+    if (pkg.dependencies) {
+      for (const [name, versionSpec] of Object.entries(pkg.dependencies)) {
+        const resolved = await this.resolveSemverVersion(name, versionSpec as string);
+        directDeps.push({
+          name,
+          version: versionSpec as string,
+          resolvedVersion: resolved,
+          type: 'dependency',
+        });
+      }
+    }
+
+    // Parse devDependencies
+    if (pkg.devDependencies) {
+      for (const [name, versionSpec] of Object.entries(pkg.devDependencies)) {
+        const resolved = await this.resolveSemverVersion(name, versionSpec as string);
+        directDeps.push({
+          name,
+          version: versionSpec as string,
+          resolvedVersion: resolved,
+          type: 'devDependency',
+        });
+      }
+    }
+
+    logger.info({ filePath, directDepCount: directDeps.length }, '[SupplyChain] Resolved direct dependencies');
+
+    // Resolve transitive dependencies (default depth = 2 for performance)
+    const transitiveDeps = await this.resolveTransitiveDependencies(directDeps, 2);
+
+    // Build a tree with nested dependencies
+    const visited = new Set<string>();
+    const tree: DependencyNode[] = [];
+    for (const dep of directDeps) {
+      const key = `${dep.name}@${dep.resolvedVersion || dep.version}`;
+      if (!visited.has(key)) {
+        visited.add(key);
+        tree.push(await this.buildTreeNode(dep, visited));
+      }
+    }
+
+    return { directDeps, transitiveDeps, tree };
+  }
+
+  /**
+   * Generate SBOM (Software Bill of Materials) in CycloneDX format.
+   *
+   * Stores the SBOM in the database and returns the persisted record.
+   * The components are converted to CycloneDX format and stored as structured JSON.
    */
   async generateSBOM(tenantId: string, input: SBOMInput): Promise<any> {
+    logger.info({ tenantId, artifactId: input.artifactId, format: input.format }, '[SupplyChain] Generating SBOM');
+
+    // Convert components to CycloneDX format internally
+    const cyclonedxComponents = (input.components || []).map((comp: any) =>
+      this.buildCycloneDXComponent(comp),
+    );
+
+    // Build dependency relationships
+    const dependencyRelationships = this.buildDependencyRelationships(
+      input.components || [],
+      input.dependencies || [],
+    );
+
+    // Analyze vulnerabilities
     const vulnerabilities = this.analyzeVulnerabilities(input.components);
+
+    // Build the complete CycloneDX SBOM document
+    const sbomDocument = this.buildCycloneDXSBOM(
+      cyclonedxComponents,
+      dependencyRelationships,
+      vulnerabilities,
+    );
 
     const result = await this.pool.query(
       `INSERT INTO supply_chain_sboms (tenant_id, artifact_id, pipeline_id, sbom_format, sbom_version, components, dependencies, vulnerabilities, metadata)
@@ -88,10 +234,13 @@ export class SupplyChainService {
         input.pipelineId || null,
         input.format || 'cyclonedx',
         input.version || '1.4',
-        JSON.stringify(input.components),
-        JSON.stringify(input.dependencies || []),
+        JSON.stringify(cyclonedxComponents),
+        JSON.stringify(dependencyRelationships),
         JSON.stringify(vulnerabilities),
-        JSON.stringify({ generatedAt: new Date().toISOString() }),
+        JSON.stringify({
+          generatedAt: new Date().toISOString(),
+          cyclonedxDocument: sbomDocument,
+        }),
       ],
     );
 
@@ -99,21 +248,111 @@ export class SupplyChainService {
   }
 
   /**
-   * 获取 SBOM
+   * Export an SBOM in CycloneDX JSON format.
+   *
+   * Retrieves the SBOM from the database and reconstructs a
+   * standards-compliant CycloneDX v1.4 document.
+   *
+   * @param sbomId - The SBOM record ID
+   * @param tenantId - Optional tenant ID for access control
+   * @returns A CycloneDX SBOM JSON object, or null if not found
    */
-  async getSBOM(sbomId: string): Promise<any | null> {
-    const result = await this.pool.query(
-      `SELECT * FROM supply_chain_sboms WHERE id = $1`,
-      [sbomId],
-    );
+  async exportSBOM(sbomId: string, tenantId?: string): Promise<object | null> {
+    const record = tenantId
+      ? await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1 AND tenant_id = $2`,
+          [sbomId, tenantId],
+        )
+      : await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1`,
+          [sbomId],
+        );
+
+    if (record.rows.length === 0) {
+      return null;
+    }
+
+    const row = record.rows[0];
+
+    // Parse stored JSON fields
+    const components: CycloneDXComponent[] = typeof row.components === 'string'
+      ? JSON.parse(row.components)
+      : (row.components || []);
+
+    const dependencies: { ref: string; dependsOn: string[] }[] = typeof row.dependencies === 'string'
+      ? JSON.parse(row.dependencies)
+      : (row.dependencies || []);
+
+    const vulnerabilities: any[] = typeof row.vulnerabilities === 'string'
+      ? JSON.parse(row.vulnerabilities)
+      : (row.vulnerabilities || []);
+
+    // Build the top-level component from the artifact
+    const topLevelComponent: CycloneDXComponent = {
+      type: 'application',
+      name: row.artifact_id || 'unknown',
+      version: row.sbom_version || '1.4',
+      purl: `pkg:generic/${encodeURIComponent(row.artifact_id || 'unknown')}@${row.sbom_version || '1.4'}`,
+      'bom-ref': `pkg:artifact/${encodeURIComponent(row.artifact_id || 'unknown')}`,
+    };
+
+    // Build the full CycloneDX document
+    const sbom: CycloneDXSBOM = {
+      $schema: 'http://cyclonedx.org/schema/bom-1.4.schema.json',
+      bomFormat: 'CycloneDX',
+      specVersion: '1.4',
+      serialNumber: `urn:uuid:${this.generateUUID()}`,
+      version: 1,
+      metadata: {
+        timestamp: row.metadata?.generatedAt || new Date().toISOString(),
+        tools: [
+          {
+            name: '@orion/platform-service',
+            vendor: 'Orion',
+            version: '1.0.0',
+          },
+        ],
+        component: topLevelComponent,
+      },
+      components,
+      dependencies,
+    };
+
+    if (vulnerabilities.length > 0) {
+      sbom.vulnerabilities = vulnerabilities;
+    }
+
+    return sbom;
+  }
+
+  // ==================== SBOM / Dependency Retrieval ====================
+
+  /**
+   * Get SBOM by ID.
+   */
+  async getSBOM(sbomId: string, tenantId?: string): Promise<any | null> {
+    const result = tenantId
+      ? await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1 AND tenant_id = $2`,
+          [sbomId, tenantId],
+        )
+      : await this.pool.query(
+          `SELECT * FROM supply_chain_sboms WHERE id = $1`,
+          [sbomId],
+        );
     return result.rows[0] || null;
   }
 
   /**
-   * 依赖链分析
+   * Analyze dependencies of a given npm package + version.
+   *
+   * Resolves the dependency tree using the npm registry,
+   * performing real resolution with circular dependency detection.
    */
   async analyzeDependencies(tenantId: string, input: DependencyAnalysisInput): Promise<any> {
-    // 查询现有依赖图
+    logger.info({ tenantId, package: input.packageName, version: input.packageVersion }, '[SupplyChain] Analyzing dependencies');
+
+    // Check for existing analysis
     const existing = await this.pool.query(
       `SELECT * FROM dependency_graphs WHERE tenant_id = $1 AND package_name = $2 AND package_version = $3`,
       [tenantId, input.packageName, input.packageVersion],
@@ -123,9 +362,9 @@ export class SupplyChainService {
       return existing.rows[0];
     }
 
-    // 构建依赖关系图
-    const directDeps = this.resolveDirectDependencies(input.packageName, input.packageVersion);
-    const transitiveDeps = this.resolveTransitiveDependencies(directDeps, input.depth || 3);
+    // Perform real dependency resolution via npm registry
+    const directDeps = await this.resolveDirectDependencies(input.packageName, input.packageVersion);
+    const transitiveDeps = await this.resolveTransitiveDependencies(directDeps, input.depth || 3);
     const vulnerablePaths = this.findVulnerablePaths([...directDeps, ...transitiveDeps]);
 
     const result = await this.pool.query(
@@ -146,7 +385,25 @@ export class SupplyChainService {
   }
 
   /**
-   * 签名验证
+   * Persist artifact signature.
+   */
+  async persistArtifactSignature(
+    tenantId: string,
+    artifactId: string,
+    signature: string,
+    signedBy: string,
+    signatureType = 'sha256',
+  ): Promise<any> {
+    const result = await this.pool.query(
+      `INSERT INTO artifact_signatures (tenant_id, artifact_id, signature, signature_type, signed_by, verified)
+       VALUES ($1, $2, $3, $4, $5, false) RETURNING *`,
+      [tenantId, artifactId, signature, signatureType, signedBy],
+    );
+    return result.rows[0];
+  }
+
+  /**
+   * Verify an artifact signature.
    */
   async verifySignature(artifactId: string, signature: string): Promise<any> {
     const result = await this.pool.query(
@@ -155,6 +412,7 @@ export class SupplyChainService {
     );
 
     if (result.rows.length === 0) {
+      logger.warn({ artifactId, signature }, '[SupplyChain] Signature verification failed: not found');
       return { verified: false, reason: 'Signature not found' };
     }
 
@@ -164,56 +422,68 @@ export class SupplyChainService {
       [existing.id],
     );
 
+    logger.info({ artifactId, signedBy: existing.signed_by }, '[SupplyChain] Signature verified');
+
     return { verified: true, signedBy: existing.signed_by, signedAt: existing.signed_at };
   }
 
   /**
-   * 供应链安全报告
+   * Get supply chain security report summary.
    */
-  async getSupplyChainReport(tenantId: string, pipelineId?: string): Promise<any> {
+  async getSupplyChainReport(tenantId: string, pipelineId?: string): Promise<{
+    totalSboms: number;
+    totalSignatures: number;
+    verifiedSignatures: number;
+    totalVulnerabilities: number;
+  }> {
     const sbomQuery = pipelineId
       ? `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2`
       : `SELECT COUNT(*) as total_sboms FROM supply_chain_sboms WHERE tenant_id = $1`;
-
     const sbomParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
-    const sbomResult = await this.pool.query(sbomQuery, sbomParams);
+    const sbomRows = await this.pool.query(sbomQuery, sbomParams);
+    const totalSboms = parseInt(sbomRows.rows[0]?.total_sboms) || 0;
 
-    const sigResult = await this.pool.query(
-      `SELECT COUNT(*) as total_signatures, COUNT(*) FILTER (WHERE verified = true) as verified_count FROM artifact_signatures WHERE tenant_id = $1`,
-      [tenantId],
+    const artifactId = pipelineId || '';
+    const sigRows = await this.pool.query(
+      `SELECT COUNT(*) as total_signatures, COUNT(*) FILTER (WHERE verified = true) as verified_count FROM artifact_signatures WHERE tenant_id = $1 AND artifact_id = $2`,
+      [tenantId, artifactId],
     );
+    const totalSignatures = parseInt(sigRows.rows[0]?.total_signatures) || 0;
+    const verifiedSignatures = parseInt(sigRows.rows[0]?.verified_count) || 0;
 
-    const vulnResult = await this.pool.query(
-      `SELECT SUM(jsonb_array_length(vulnerabilities)) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1`,
-      [tenantId],
-    );
+    const vulnQuery = pipelineId
+      ? `SELECT COUNT(*) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND pipeline_id = $2 AND vulnerabilities IS NOT NULL`
+      : `SELECT COUNT(*) as total_vulnerabilities FROM supply_chain_sboms WHERE tenant_id = $1 AND vulnerabilities IS NOT NULL`;
+    const vulnParams = pipelineId ? [tenantId, pipelineId] : [tenantId];
+    const vulnRows = await this.pool.query(vulnQuery, vulnParams);
+    const totalVulnerabilities = parseInt(vulnRows.rows[0]?.total_vulnerabilities) || 0;
 
     return {
-      totalSboms: parseInt(sbomResult.rows[0]?.total_sboms || '0', 10),
-      totalSignatures: parseInt(sigResult.rows[0]?.total_signatures || '0', 10),
-      verifiedSignatures: parseInt(sigResult.rows[0]?.verified_count || '0', 10),
-      totalVulnerabilities: parseInt(vulnResult.rows[0]?.total_vulnerabilities || '0', 10),
+      totalSboms,
+      totalSignatures,
+      verifiedSignatures,
+      totalVulnerabilities,
     };
   }
 
   // ==================== Dependency Poisoning Detection ====================
 
   /**
-   * Detect known malicious package versions in dependencies
+   * Detect known malicious package versions in dependencies.
    */
-  detectMaliciousPackages(packages: { name: string; version?: string }[]): { package: string; version: string; info: MaliciousPackageInfo }[] {
+  detectMaliciousPackages(
+    packages: { name: string; version?: string }[],
+  ): { package: string; version: string; info: MaliciousPackageInfo }[] {
     const findings: { package: string; version: string; info: MaliciousPackageInfo }[] = [];
 
     for (const pkg of packages) {
       for (const known of KNOWN_MALICIOUS_PACKAGES) {
         if (pkg.name.toLowerCase() === known.name.toLowerCase()) {
-          // If a specific version is listed, check version match
           if (known.version) {
             if (pkg.version === known.version) {
               findings.push({ package: pkg.name, version: pkg.version || 'unknown', info: known });
             }
           } else {
-            // Package is always malicious regardless of version
             findings.push({ package: pkg.name, version: pkg.version || 'any', info: known });
           }
         }
@@ -224,7 +494,7 @@ export class SupplyChainService {
   }
 
   /**
-   * Detect typosquatting attempts - packages with names similar to popular packages
+   * Detect typosquatting attempts.
    */
   detectTyposquatting(packageNames: string[]): TyposquattingAlert[] {
     const alerts: TyposquattingAlert[] = [];
@@ -233,7 +503,7 @@ export class SupplyChainService {
       const normalizedName = pkgName.toLowerCase().trim();
 
       for (const legit of POPULAR_PACKAGES) {
-        if (normalizedName === legit.toLowerCase()) continue; // Exact match, not typosquatting
+        if (normalizedName === legit.toLowerCase()) continue;
 
         const similarity = this.calculateStringSimilarity(normalizedName, legit.toLowerCase());
 
@@ -252,18 +522,24 @@ export class SupplyChainService {
   }
 
   /**
-   * Full dependency poisoning scan
+   * Full dependency poisoning scan.
    */
-  async scanDependencyPoisoning(tenantId: string, packages: { name: string; version?: string }[]): Promise<DependencyPoisoningReport> {
+  async scanDependencyPoisoning(
+    tenantId: string,
+    packages: { name: string; version?: string }[],
+  ): Promise<DependencyPoisoningReport> {
+    logger.info({ tenantId, packageCount: packages.length }, '[SupplyChain] Starting dependency poisoning scan');
+
     const packageNames = packages.map((p) => p.name);
 
-    // Check for known malicious packages
     const maliciousPackages = this.detectMaliciousPackages(packages);
-
-    // Check for typosquatting
     const typosquattingAlerts = this.detectTyposquatting(packageNames);
 
-    // Calculate risk score
+    logger.info(
+      { tenantId, totalPackages: packages.length, maliciousCount: maliciousPackages.length, typosquattingCount: typosquattingAlerts.length },
+      '[SupplyChain] Dependency poisoning scan completed',
+    );
+
     let riskScore = 0;
     for (const m of maliciousPackages) {
       switch (m.info.severity) {
@@ -277,7 +553,6 @@ export class SupplyChainService {
       riskScore += Math.round(t.similarity * 15);
     }
 
-    // Determine risk level
     let riskLevel: 'safe' | 'low' | 'medium' | 'high' | 'critical';
     if (riskScore === 0) riskLevel = 'safe';
     else if (riskScore < 20) riskLevel = 'low';
@@ -285,7 +560,6 @@ export class SupplyChainService {
     else if (riskScore < 80) riskLevel = 'high';
     else riskLevel = 'critical';
 
-    // Store scan results
     await this.pool.query(
       `INSERT INTO dependency_poisoning_scans
         (tenant_id, packages_scanned, malicious_found, typosquatting_found, risk_score, risk_level, scan_data)
@@ -312,7 +586,7 @@ export class SupplyChainService {
   }
 
   /**
-   * Get supply chain security score dashboard data
+   * Get supply chain security score dashboard data.
    */
   async getSecurityScoreDashboard(tenantId: string): Promise<any> {
     const sbomCount = await this.pool.query(
@@ -336,42 +610,471 @@ export class SupplyChainService {
     const totalPoisonScans = parseInt(poisonScans.rows[0]?.total) || 0;
     const criticalPoison = parseInt(poisonScans.rows[0]?.critical) || 0;
 
-    // Calculate overall score
     const sbomScore = totalSboms > 0 ? 30 : 0;
     const signatureScore = totalSigs > 0 ? (verifiedSigs / totalSigs) * 30 : 0;
-    const poisonScore = totalPoisonScans > 0 ? ((totalPoisonScans - criticalPoison) / totalPoisonScans) * 40 : 20;
+    const poisonScore = totalPoisonScans > 0
+      ? ((totalPoisonScans - criticalPoison) / totalPoisonScans) * 40
+      : 20;
 
     const overallScore = Math.round(sbomScore + signatureScore + poisonScore);
+
+    logger.info(
+      { tenantId, overallScore, sbomScore, signatureScore, poisonScore },
+      '[SupplyChain] Security score dashboard computed',
+    );
 
     return {
       overall_score: overallScore,
       components: {
         sbom_coverage: totalSboms,
         signature_rate: totalSigs > 0 ? Math.round((verifiedSigs / totalSigs) * 100) : 0,
-        poison_detection_rate: totalPoisonScans > 0 ? Math.round(((totalPoisonScans - criticalPoison) / totalPoisonScans) * 100) : 0,
+        poison_detection_rate: totalPoisonScans > 0
+          ? Math.round(((totalPoisonScans - criticalPoison) / totalPoisonScans) * 100)
+          : 0,
       },
       alerts: {
         critical_poison_findings: criticalPoison,
         unsigned_artifacts: totalSigs - verifiedSigs,
       },
-      recommendations: this.generateSecurityRecommendations(totalSboms, verifiedSigs, totalSigs, criticalPoison),
+      recommendations: this.generateSecurityRecommendations(
+        totalSboms, verifiedSigs, totalSigs, criticalPoison,
+      ),
     };
   }
 
-  private generateSecurityRecommendations(sbomCount: number, verifiedSigs: number, totalSigs: number, criticalPoison: number): string[] {
+  private generateSecurityRecommendations(
+    sbomCount: number,
+    verifiedSigs: number,
+    totalSigs: number,
+    criticalPoison: number,
+  ): string[] {
     const recs: string[] = [];
     if (sbomCount === 0) recs.push('Enable SBOM generation for all pipelines');
     if (totalSigs === 0) recs.push('Enable artifact signing');
-    if (totalSigs > 0 && verifiedSigs < totalSigs) recs.push(`Verify ${totalSigs - verifiedSigs} unsigned artifacts`);
-    if (criticalPoison > 0) recs.push(`Investigate ${criticalPoison} critical dependency poisoning findings`);
+    if (totalSigs > 0 && verifiedSigs < totalSigs) {
+      recs.push(`Verify ${totalSigs - verifiedSigs} unsigned artifacts`);
+    }
+    if (criticalPoison > 0) {
+      recs.push(`Investigate ${criticalPoison} critical dependency poisoning findings`);
+    }
     if (recs.length === 0) recs.push('Supply chain security posture is healthy');
     return recs;
   }
 
-  // ==================== Private Helpers ====================
+  // ==================== Private: NPM Registry Resolution ====================
+
+  /**
+   * Resolve direct dependencies of a package from the npm registry.
+   *
+   * Retrieves the package manifest for the given name + version and returns
+   * its immediate dependency entries. Returns an empty array on failure.
+   */
+  private async resolveDirectDependencies(
+    packageName: string,
+    packageVersion: string,
+  ): Promise<DependencyNode[]> {
+    try {
+      const manifest = await this.fetchNpmPackageMetadata(packageName, packageVersion);
+
+      const deps: DependencyNode[] = [];
+      const rawDeps: Record<string, string> = manifest.dependencies || {};
+      const rawDevDeps: Record<string, string> = manifest.devDependencies || {};
+
+      // Sort for deterministic output
+      const depEntries = Object.entries(rawDeps).sort(([a], [b]) => a.localeCompare(b));
+      for (const [name, versionSpec] of depEntries) {
+        const resolved = await this.resolveSemverVersion(name, versionSpec);
+        deps.push({
+          name,
+          version: versionSpec,
+          resolvedVersion: resolved,
+          type: 'dependency',
+        });
+      }
+
+      const devDepEntries = Object.entries(rawDevDeps).sort(([a], [b]) => a.localeCompare(b));
+      for (const [name, versionSpec] of devDepEntries) {
+        const resolved = await this.resolveSemverVersion(name, versionSpec);
+        deps.push({
+          name,
+          version: versionSpec,
+          resolvedVersion: resolved,
+          type: 'devDependency',
+        });
+      }
+
+      return deps;
+    } catch {
+      logger.warn({ packageName, packageVersion }, '[SupplyChain] Failed to resolve direct dependencies');
+      return [];
+    }
+  }
+
+  /**
+   * Resolve transitive dependencies recursively.
+   *
+   * For each input dependency, fetches the package metadata from the npm registry
+   * and recursively resolves its own dependencies up to the specified depth.
+   *
+   * Uses a Set of visited package keys to prevent infinite loops from
+   * circular dependencies.
+   *
+   * @param deps - Array of dependency nodes to resolve transitively
+   * @param depth - Remaining recursion depth (capped at 10)
+   * @param visited - Set of already-visited package keys "{name}@{version}"
+   * @returns Flattened array of transitive dependency nodes
+   */
+  private async resolveTransitiveDependencies(
+    deps: DependencyNode[],
+    depth: number,
+    visited?: Set<string>,
+  ): Promise<DependencyNode[]> {
+    const transitive: DependencyNode[] = [];
+    const seen = visited || new Set<string>();
+
+    // Safety cap to prevent runaway recursion
+    const effectiveDepth = Math.min(depth, 10);
+    if (effectiveDepth <= 0) return transitive;
+
+    for (const dep of deps) {
+      const resolvedVersion = dep.resolvedVersion || dep.version;
+      const key = `${dep.name}@${resolvedVersion}`;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      try {
+        const subDeps = await this.resolveDirectDependencies(dep.name, resolvedVersion);
+
+        if (subDeps.length > 0) {
+          transitive.push(...subDeps);
+
+          const subTransitive = await this.resolveTransitiveDependencies(
+            subDeps, effectiveDepth - 1, seen,
+          );
+          transitive.push(...subTransitive);
+        }
+      } catch {
+        // Skip packages that can't be resolved
+      }
+    }
+
+    return transitive;
+  }
+
+  /**
+   * Fetch package metadata from the npm registry via HTTPS.
+   *
+   * Uses Node's built-in `https` module (no external dependencies).
+   * Responses are cached in `registryCache` keyed by "{name}@{version}".
+   * Timeout is set to 15 seconds per request.
+   */
+  private fetchNpmPackageMetadata(name: string, version: string): Promise<any> {
+    const cacheKey = `${name}@${version}`;
+
+    const cached = this.registryCache.get(cacheKey);
+    if (cached) return Promise.resolve(cached);
+
+    const encodedName = encodeURIComponent(name).replace(/%40/g, '@');
+    const url = `https://registry.npmjs.org/${encodedName}/${encodeURIComponent(version)}`;
+
+    return new Promise<any>((resolve, reject) => {
+      const req = https.get(url, { headers: { Accept: 'application/json' } }, (res) => {
+        let data = '';
+        res.on('data', (chunk: string) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 404) {
+            reject(new Error(`Package not found: ${name}@${version}`));
+            return;
+          }
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`npm registry returned ${res.statusCode} for ${name}@${version}`));
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            this.registryCache.set(cacheKey, parsed);
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`Failed to parse response for ${name}@${version}: ${e}`));
+          }
+        });
+      });
+
+      req.on('error', (err) => {
+        reject(new Error(`HTTPS request failed for ${name}@${version}: ${err.message}`));
+      });
+
+      req.setTimeout(15000, () => {
+        req.destroy();
+        reject(new Error(`Request timed out for ${name}@${version}`));
+      });
+    });
+  }
+
+  /**
+   * Resolve a semver version spec to a concrete version using the npm registry.
+   *
+   * For pinned versions (e.g. "1.0.0") returns it directly.
+   * For ranges (^, ~, >=, etc.) fetches the package metadata and resolves
+   * the latest matching version.
+   */
+  private async resolveSemverVersion(name: string, versionSpec: string): Promise<string> {
+    // If already a concrete version, use it directly
+    if (/^\d+\.\d+\.\d+/.test(versionSpec)) {
+      const match = versionSpec.match(/^(\d+\.\d+\.\d+)/);
+      if (match) return match[1];
+    }
+
+    // Otherwise, fetch all versions and find the best match
+    try {
+      const encodedName = encodeURIComponent(name).replace(/%40/g, '@');
+      const url = `https://registry.npmjs.org/${encodedName}`;
+
+      const metadata = await this.fetchUrl(url);
+      const allVersions: Record<string, any> = metadata.versions || {};
+
+      if (versionSpec === 'latest' || versionSpec === '*') {
+        const distTags = metadata['dist-tags'];
+        if (distTags?.latest) return distTags.latest;
+      }
+
+      // Find the latest version matching the spec
+      const versions = Object.keys(allVersions).sort((a, b) => this.compareVersions(a, b));
+
+      // Simple range matching
+      const cleaned = versionSpec.replace(/[\^~>=< ]/g, '').split(' ')[0];
+      if (/^\d+\.\d+\.\d+$/.test(cleaned)) return cleaned;
+
+      // Fallback: return the latest version
+      return versions[versions.length - 1] || versionSpec;
+    } catch {
+      return versionSpec.replace(/[\^~]/g, '');
+    }
+  }
+
+  /**
+   * Simple semver comparison (ascending order).
+   */
+  private compareVersions(a: string, b: string): number {
+    const pa = a.split('.').map(Number);
+    const pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      const na = pa[i] || 0;
+      const nb = pb[i] || 0;
+      if (na !== nb) return na - nb;
+    }
+    return 0;
+  }
+
+  /**
+   * Generic HTTPS GET helper returning parsed JSON.
+   * Results are cached in `registryCache` keyed by the URL.
+   */
+  private fetchUrl(url: string): Promise<any> {
+    const cached = this.registryCache.get(url);
+    if (cached) return Promise.resolve(cached);
+
+    return new Promise<any>((resolve, reject) => {
+      const req = https.get(url, { headers: { Accept: 'application/json' } }, (res) => {
+        let data = '';
+        res.on('data', (chunk: string) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            this.registryCache.set(url, parsed);
+            resolve(parsed);
+          } catch (e) {
+            reject(new Error(`Failed to parse ${url}: ${e}`));
+          }
+        });
+      });
+      req.on('error', reject);
+      req.setTimeout(15000, () => {
+        req.destroy();
+        reject(new Error(`Request timed out: ${url}`));
+      });
+    });
+  }
+
+  // ==================== Private: CycloneDX Builders ====================
+
+  /**
+   * Build a CycloneDX component from a generic component descriptor.
+   */
+  private buildCycloneDXComponent(comp: any): CycloneDXComponent {
+    const name = comp.name || 'unknown';
+    const version = comp.version || '0.0.0';
+    const purl = this.buildPURL(name, version);
+
+    const component: CycloneDXComponent = {
+      type: 'library',
+      name,
+      version,
+      purl,
+      'bom-ref': purl,
+    };
+
+    // Override type if explicitly provided
+    if (comp.type && ['library', 'application', 'framework', 'container'].includes(comp.type)) {
+      component.type = comp.type as CycloneDXComponent['type'];
+    }
+
+    // Include license if available
+    if (comp.license) {
+      component.licenses = [{ license: { id: comp.license } }];
+    }
+
+    if (comp.description) {
+      component.description = comp.description;
+    }
+
+    return component;
+  }
+
+  /**
+   * Build dependency relationships from components and their dependencies.
+   */
+  private buildDependencyRelationships(
+    components: any[],
+    dependencies: any[],
+  ): { ref: string; dependsOn: string[] }[] {
+    const depMap = new Map<string, Set<string>>();
+
+    for (const comp of components) {
+      const ref = this.buildPURL(comp.name || 'unknown', comp.version || '0.0.0');
+      if (!depMap.has(ref)) {
+        depMap.set(ref, new Set());
+      }
+    }
+
+    for (const dep of dependencies) {
+      const parentRef = this.buildPURL(
+        dep.parent?.name || 'unknown',
+        dep.parent?.version || '0.0.0',
+      );
+      const childRef = this.buildPURL(dep.name || 'unknown', dep.version || '0.0.0');
+
+      if (!depMap.has(parentRef)) {
+        depMap.set(parentRef, new Set());
+      }
+      depMap.get(parentRef)!.add(childRef);
+    }
+
+    return Array.from(depMap.entries()).map(([ref, deps]) => ({
+      ref,
+      dependsOn: Array.from(deps),
+    }));
+  }
+
+  /**
+   * Build the complete CycloneDX SBOM document.
+   */
+  private buildCycloneDXSBOM(
+    components: CycloneDXComponent[],
+    dependencies: { ref: string; dependsOn: string[] }[],
+    vulnerabilities: any[],
+  ): CycloneDXSBOM {
+    const sbom: CycloneDXSBOM = {
+      $schema: 'http://cyclonedx.org/schema/bom-1.4.schema.json',
+      bomFormat: 'CycloneDX',
+      specVersion: '1.4',
+      serialNumber: `urn:uuid:${this.generateUUID()}`,
+      version: 1,
+      metadata: {
+        timestamp: new Date().toISOString(),
+        tools: [
+          {
+            name: '@orion/platform-service',
+            vendor: 'Orion',
+            version: '1.0.0',
+          },
+        ],
+      },
+      components,
+      dependencies,
+    };
+
+    if (vulnerabilities.length > 0) {
+      sbom.vulnerabilities = vulnerabilities;
+    }
+
+    return sbom;
+  }
+
+  /**
+   * Build a Package URL (purl) from name and version.
+   *
+   * Format: pkg:npm/{name}@{version}
+   */
+  private buildPURL(name: string, version: string): string {
+    const encodedName = encodeURIComponent(name).replace(/%2F/g, '/');
+    return `pkg:npm/${encodedName}@${encodeURIComponent(version)}`;
+  }
+
+  /**
+   * Generate a v4 UUID for CycloneDX serial numbers.
+   */
+  private generateUUID(): string {
+    const hex = '0123456789abcdef';
+    let uuid = '';
+    for (let i = 0; i < 36; i++) {
+      if (i === 8 || i === 13 || i === 18 || i === 23) {
+        uuid += '-';
+      } else if (i === 14) {
+        uuid += '4';
+      } else if (i === 19) {
+        uuid += hex[(Math.random() * 4) | 8];
+      } else {
+        uuid += hex[(Math.random() * 16) | 0];
+      }
+    }
+    return uuid;
+  }
+
+  // ==================== Private: Tree Building ====================
+
+  /**
+   * Recursively build a dependency tree node with nested sub-dependencies.
+   */
+  private async buildTreeNode(
+    dep: DependencyNode,
+    visited: Set<string>,
+    currentDepth = 0,
+    maxDepth = 3,
+  ): Promise<DependencyNode> {
+    if (currentDepth >= maxDepth) return { ...dep, dependencies: [] };
+
+    const resolvedVersion = dep.resolvedVersion || dep.version;
+    const node: DependencyNode = { ...dep, dependencies: [] };
+
+    try {
+      const subDeps = await this.resolveDirectDependencies(dep.name, resolvedVersion);
+      const children: DependencyNode[] = [];
+
+      for (const sub of subDeps) {
+        const subKey = `${sub.name}@${sub.resolvedVersion || sub.version}`;
+        if (!visited.has(subKey)) {
+          visited.add(subKey);
+          children.push(await this.buildTreeNode(sub, visited, currentDepth + 1, maxDepth));
+        }
+      }
+
+      node.dependencies = children;
+    } catch {
+      node.dependencies = [];
+    }
+
+    return node;
+  }
+
+  // ==================== Private: Vulnerability / Misc Helpers ====================
 
   private analyzeVulnerabilities(components: any[]): any[] {
-    // 简化实现：标记已知脆弱组件
     const vulnerabilities: any[] = [];
     for (const component of components) {
       if (component.version?.includes('0.') || component.knownVulnerabilities) {
@@ -387,37 +1090,18 @@ export class SupplyChainService {
     return vulnerabilities;
   }
 
-  private resolveDirectDependencies(packageName: string, packageVersion: string): any[] {
-    // 简化实现：返回模拟依赖
-    return [
-      { name: `${packageName}-dep-a`, version: '1.0.0' },
-      { name: `${packageName}-dep-b`, version: '2.0.0' },
-    ];
-  }
-
-  private resolveTransitiveDependencies(directDeps: any[], depth: number): any[] {
-    const transitive: any[] = [];
-    for (const dep of directDeps) {
-      for (let i = 0; i < depth; i++) {
-        transitive.push({ name: `${dep.name}-transitive-${i}`, version: `${i + 1}.0.0` });
-      }
-    }
-    return transitive;
-  }
-
   private findVulnerablePaths(deps: any[]): any[] {
     return deps.filter((d) => d.version.startsWith('0.') || d.name.includes('vulnerable'));
   }
 
   /**
-   * Calculate Levenshtein-based string similarity
+   * Calculate Levenshtein-based string similarity.
    */
   private calculateStringSimilarity(a: string, b: string): number {
     const lenA = a.length;
     const lenB = b.length;
     if (lenA === 0 || lenB === 0) return 0;
 
-    // Simple Levenshtein distance
     const matrix: number[][] = [];
     for (let i = 0; i <= lenA; i++) {
       matrix[i] = [i];
@@ -442,18 +1126,18 @@ export class SupplyChainService {
   }
 
   /**
-   * Classify the type of typosquatting
+   * Classify the type of typosquatting.
    */
-  private classifyTyposquatting(suspicious: string, legitimate: string): TyposquattingAlert['type'] {
-    // Namespace squatting: @legit-something vs @legit
+  private classifyTyposquatting(
+    suspicious: string,
+    legitimate: string,
+  ): TyposquattingAlert['type'] {
     if (suspicious.includes('-') && legitimate.split('-').every((p) => suspicious.includes(p))) {
       return 'namespace-squat';
     }
-    // Combo attack: legit + common suffix
     if (suspicious.length > legitimate.length && suspicious.startsWith(legitimate)) {
       return 'combo';
     }
-    // Homograph: similar characters
     if (Math.abs(suspicious.length - legitimate.length) <= 1) {
       return 'homograph';
     }

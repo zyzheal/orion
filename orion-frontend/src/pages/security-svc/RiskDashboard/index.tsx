@@ -70,9 +70,9 @@ const RiskDashboardPage: React.FC = () => {
         getRiskEvents('unacknowledged'),
         getRiskStatus(),
       ]);
-      setAssessments(assessmentsRes?.data?.data?.assessments || []);
-      setEvents(eventsRes?.data?.data?.events || []);
-      setStatus(statusRes?.data?.data ?? null);
+      setAssessments(assessmentsRes?.data?.assessments || []);
+      setEvents(eventsRes?.data?.events || []);
+      setStatus(statusRes?.data ?? null);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载风险数据失败：${error.message}`);
@@ -289,9 +289,9 @@ const RiskDashboardPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
             <Title level={2}>风险管理</Title>
             <Text type="secondary">风险评估、健康检查、风险事件监控</Text>
@@ -320,7 +320,7 @@ const RiskDashboardPage: React.FC = () => {
         </div>
 
         {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <StatCard title="总评估数" value={status?.totalAssessments || 0} />
           </Col>
@@ -336,7 +336,7 @@ const RiskDashboardPage: React.FC = () => {
         </Row>
 
         {/* Risk Status */}
-        <Card title="系统风险状态" style={{ marginBottom: 24 }}>
+        <Card title="系统风险状态" style={{ marginBottom: spacing.lg }}>
           <Space size="large">
             <div>
               <Text type="secondary">系统状态:</Text>{' '}
@@ -348,7 +348,7 @@ const RiskDashboardPage: React.FC = () => {
         </Card>
 
         {/* Charts Row */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={14}>
             <Card>
               <HeatmapChart
@@ -373,7 +373,7 @@ const RiskDashboardPage: React.FC = () => {
         </Row>
 
         {/* Assessment Table */}
-        <Card title="风险评估记录" style={{ marginBottom: 24 }}>
+        <Card title="风险评估记录" style={{ marginBottom: spacing.lg }}>
           <Table<RiskAssessment>
             columns={columns}
             dataSource={assessments}
@@ -454,7 +454,7 @@ const RiskDashboardPage: React.FC = () => {
                 </Descriptions.Item>
               </Descriptions>
 
-              <Title level={5} style={{ marginTop: 24 }}>
+              <Title level={5} style={{ marginTop: spacing.lg }}>
                 风险因素
               </Title>
               <Timeline>

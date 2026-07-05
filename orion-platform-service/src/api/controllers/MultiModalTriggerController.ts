@@ -5,6 +5,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { DatabasePool } from '../../services/database';
 import {
   UnifiedTriggerService,
@@ -20,12 +21,13 @@ import {
   ChatMessage,
 } from '../../services/multi-modal-trigger/ChatTriggerHandler';
 
-export class MultiModalTriggerController {
+export class MultiModalTriggerController extends BaseController {
   private triggerService: UnifiedTriggerService;
   private webhookHandler: WebhookTriggerHandler;
   private chatHandler: ChatTriggerHandler;
 
   constructor(db?: DatabasePool) {
+    super();
     this.triggerService = new UnifiedTriggerService(db);
     this.webhookHandler = new WebhookTriggerHandler(db, this.triggerService);
     this.chatHandler = new ChatTriggerHandler(db, this.triggerService);
@@ -39,7 +41,7 @@ export class MultiModalTriggerController {
    */
   async registerTrigger(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as any || {};
 
       const { name, type, config, conditionExpression, pipelineId, createdBy } = body;
@@ -88,7 +90,7 @@ export class MultiModalTriggerController {
    */
   async listTriggers(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
       const type = query?.type;
 
@@ -123,7 +125,7 @@ export class MultiModalTriggerController {
    */
   async evaluateTrigger(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as any;
       const { id } = params;
       const body = request.body as any || {};
@@ -164,7 +166,7 @@ export class MultiModalTriggerController {
    */
   async executePipeline(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as any;
       const { id } = params;
 
@@ -195,7 +197,7 @@ export class MultiModalTriggerController {
    */
   async registerWebhook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as any || {};
 
       const { triggerId, path, secret, allowedIps, method } = body;
@@ -283,7 +285,7 @@ export class MultiModalTriggerController {
    */
   async getWebhookHistory(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const history = await this.webhookHandler.getWebhookHistory(tenantId);
 
@@ -370,7 +372,7 @@ export class MultiModalTriggerController {
    */
   async getTriggerStats(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const stats = await this.triggerService.getTriggerStats(tenantId);
 

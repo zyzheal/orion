@@ -6,10 +6,11 @@
  * - Artifact 存储管理
  * - Artifact 过期清理
  *
- * 持久化方式：PostgreSQL Repository（BuildArtifactRepository）
+ * 持久化方式：PostgreSQL Repository (BuildArtifactRepository)
  */
 
 import { BuildArtifactRepository } from '../../repositories/BuildArtifactRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Build Architecture types for multi-architecture artifact support
@@ -99,34 +100,25 @@ import { v4 as uuidv4 } from 'uuid';
  * Artifact 服务类
  *
  * 使用 BuildArtifactRepository 进行 PostgreSQL 持久化。
- * 兼容无数据库连接的 fallback 模式（使用 Map 内存存储）。
  * 支持多架构构建产物管理。
  */
 export class ArtifactService {
-  private repository?: BuildArtifactRepository;
-  private fallbackArtifacts: Map<string, Artifact>;
-  private fallbackMultiArchManifests: Map<string, MultiArchArtifactCreateInput>;
+  private readonly repository: BuildArtifactRepository;
 
-  constructor(repository?: BuildArtifactRepository) {
+  constructor(repository: BuildArtifactRepository) {
+    if (!repository) {
+      throw new OrionError('BuildArtifactRepository is required for ArtifactService', ErrorCode.INTERNAL_ERROR);
+    }
     this.repository = repository;
-    this.fallbackArtifacts = new Map();
-    this.fallbackMultiArchManifests = new Map();
   }
 
   /**
    * 创建 Artifact
    */
   async createArtifact(input: ArtifactCreateInput): Promise<Artifact> {
-    if (this.repository) {
-      // 需要 tenantId，从 metadata 中获取或使用默认值
-      const tenantId = (input.metadata as any)?.tenantId || '00000000-0000-0000-0000-000000000000';
-      return this.repository.createArtifact({ ...input, tenantId });
-    }
-
-    // Fallback: in-memory storage
-    const artifact = createArtifact(input);
-    this.fallbackArtifacts.set(artifact.id, artifact);
-    return artifact;
+    // 需要 tenantId，从 metadata 中获取或使用默认值
+    const tenantId = (input.metadata as any)?.tenantId || '00000000-0000-0000-0000-000000000000';
+    return this.repository.createArtifact({ ...input, tenantId });
   }
 
   /**
@@ -263,113 +255,44 @@ export class ArtifactService {
    * 获取 Artifact
    */
   async getArtifact(id: string): Promise<Artifact | null> {
-    if (this.repository) {
-      const result = await this.repository.findById(id);
-      return result || null;
-    }
-
-    // Fallback
-    return this.fallbackArtifacts.get(id) || null;
+    const result = await this.repository.findById(id);
+    return result || null;
   }
 
   /**
    * 查询 Artifact 列表
    */
   async listArtifacts(options?: ArtifactQueryOptions): Promise<Artifact[]> {
-    if (this.repository) {
-      const result = await this.repository.findAll(options);
-      return result.entities;
-    }
-
-    // Fallback: in-memory
-    let result = Array.from(this.fallbackArtifacts.values());
-
-    if (options?.runId) {
-      result = result.filter(a => a.runId === options.runId);
-    }
-    if (options?.stageId) {
-      result = result.filter(a => a.stageId === options.stageId);
-    }
-    if (options?.type) {
-      result = result.filter(a => a.type === options.type);
-    }
-
-    const now = new Date();
-    result = result.filter(a => !a.expiresAt || a.expiresAt > now);
-    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    const offset = options?.offset || 0;
-    const limit = options?.limit || 100;
-    return result.slice(offset, offset + limit);
+    const result = await this.repository.findAll(options);
+    return result.entities;
   }
 
   /**
    * 记录下载
    */
   async recordDownload(id: string): Promise<Artifact | null> {
-    if (this.repository) {
-      const result = await this.repository.recordDownload(id);
-      return result || null;
-    }
-
-    // Fallback
-    const artifact = this.fallbackArtifacts.get(id);
-    if (!artifact) return null;
-    const updated = recordArtifactDownload(artifact);
-    this.fallbackArtifacts.set(id, updated);
-    return updated;
+    const result = await this.repository.recordDownload(id);
+    return result || null;
   }
 
   /**
    * 删除 Artifact
    */
   async deleteArtifact(id: string): Promise<boolean> {
-    if (this.repository) {
-      return this.repository.deleteArtifact(id);
-    }
-
-    // Fallback
-    return this.fallbackArtifacts.delete(id);
+    return this.repository.deleteArtifact(id);
   }
 
   /**
    * 清理过期的 Artifact
    */
   async cleanupExpired(): Promise<number> {
-    if (this.repository) {
-      return this.repository.cleanupExpired();
-    }
-
-    // Fallback
-    const now = new Date();
-    let count = 0;
-    for (const [id, artifact] of this.fallbackArtifacts.entries()) {
-      if (artifact.expiresAt && artifact.expiresAt <= now) {
-        this.fallbackArtifacts.delete(id);
-        count++;
-      }
-    }
-    return count;
+    return this.repository.cleanupExpired();
   }
 
   /**
    * 按 Run 清理 Artifact
    */
   async cleanupByRun(runId: string): Promise<number> {
-    if (this.repository) {
-      return this.repository.cleanupByRun(runId);
-    }
-
-    // Fallback
-    let count = 0;
-    for (const [id, artifact] of this.fallbackArtifacts.entries()) {
-      if (artifact.runId === runId) {
-        this.fallbackArtifacts.delete(id);
-        count++;
-      }
-    }
-    return count;
+    return this.repository.cleanupByRun(runId);
   }
 }
-
-export const artifactService = new ArtifactService();

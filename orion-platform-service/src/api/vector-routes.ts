@@ -14,6 +14,8 @@
  */
 
 import { FastifyInstance } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { VectorController, VectorRoutesOptions } from './controllers/VectorController';
 
 export async function vectorRoutes(
@@ -28,7 +30,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/embed-code
    * Embed a single code chunk or entire file
    */
-  fastify.post('/embed-code', async (request, reply) => {
+  fastify.post('/embed-code', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.embedCode(request as any, reply);
   });
 
@@ -36,7 +40,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/search-code
    * Search for similar code
    */
-  fastify.post('/search-code', async (request, reply) => {
+  fastify.post('/search-code', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.searchCode(request as any, reply);
   });
 
@@ -44,7 +50,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/similar-code
    * Find similar code by code snippet
    */
-  fastify.post('/similar-code', async (request, reply) => {
+  fastify.post('/similar-code', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.findSimilarCode(request as any, reply);
   });
 
@@ -54,7 +62,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/embed-doc
    * Embed a document
    */
-  fastify.post('/embed-doc', async (request, reply) => {
+  fastify.post('/embed-doc', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.embedDoc(request as any, reply);
   });
 
@@ -62,7 +72,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/search-doc
    * Search for documents
    */
-  fastify.post('/search-doc', async (request, reply) => {
+  fastify.post('/search-doc', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.searchDoc(request as any, reply);
   });
 
@@ -72,7 +84,9 @@ export async function vectorRoutes(
    * POST /api/v1/vector/batch-embed
    * Batch embed multiple items
    */
-  fastify.post('/batch-embed', async (request, reply) => {
+  fastify.post('/batch-embed', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+  }, async (request, reply) => {
     return controller.batchEmbed(request as any, reply);
   });
 
@@ -82,7 +96,9 @@ export async function vectorRoutes(
    * GET /api/v1/vector/status
    * Get embedding status and statistics
    */
-  fastify.get('/status', async (request, reply) => {
+  fastify.get('/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'read' })],
+  }, async (request, reply) => {
     return controller.getStatus(request as any, reply);
   });
 }

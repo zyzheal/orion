@@ -4,11 +4,12 @@
  * Phase 2: 提供紧急审批通道，支持快速审批和自动批准。
  * 用于生产事故修复、紧急变更等场景。
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EmergencyApprovalService');
 
 export enum EmergencyReason {
   PRODUCTION_INCIDENT = 'production_incident',
@@ -120,14 +121,14 @@ export class EmergencyApprovalService {
    */
   async autoApproveIfEmergency(requestId: string): Promise<EmergencyApprovalResult> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new Error(`Approval request not found: ${requestId}`);
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
     if (entity.status !== 'pending') {
-      throw new Error(`Approval request is not pending (current status: ${entity.status})`);
+      throw new OrionError(`Approval request is not pending (current status: ${entity.status})`, ErrorCode.NOT_FOUND);
     }
 
     const result = entity.result;
     if (!result?.isEmergency) {
-      throw new Error('This is not an emergency approval request');
+      throw new OrionError('This is not an emergency approval request', ErrorCode.OPERATION_FAILED);
     }
 
     const timeoutMs = result.autoApproveTimeoutMs ?? this.autoApproveTimeoutMs;
@@ -173,17 +174,17 @@ export class EmergencyApprovalService {
     comment?: string,
   ): Promise<EmergencyApprovalResult> {
     const entity = await this.repository.findById(requestId);
-    if (!entity) throw new Error(`Approval request not found: ${requestId}`);
-    if (entity.status !== 'pending') throw new Error('Approval request is not pending');
+    if (!entity) throw new OrionError(`Approval request not found: ${requestId}`, ErrorCode.NOT_FOUND);
+    if (entity.status !== 'pending') throw new OrionError('Approval request is not pending', ErrorCode.OPERATION_FAILED);
 
     const result = entity.result;
     if (!result?.isEmergency) {
-      throw new Error('This is not an emergency approval request');
+      throw new OrionError('This is not an emergency approval request', ErrorCode.OPERATION_FAILED);
     }
 
     const steps = await this.repository.findStepsByApproval(requestId);
     const matchingStep = steps.find(s => s.approverId === reviewerId);
-    if (!matchingStep) throw new Error('Not authorized to approve');
+    if (!matchingStep) throw new OrionError('Not authorized to approve', ErrorCode.OPERATION_FAILED);
 
     await this.repository.updateStepStatus(matchingStep.id, 'approved', comment, new Date());
     await this.repository.updateStatus(requestId, 'approved', new Date());

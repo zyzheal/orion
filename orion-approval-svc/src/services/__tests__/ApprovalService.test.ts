@@ -1,4 +1,4 @@
-import { ApprovalService, ApprovalStatus } from '../ApprovalService';
+import { ApprovalService, ApprovalStatus } from '../approval/ApprovalService';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { v4 as uuidv4 } from 'uuid';
 

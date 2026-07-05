@@ -1,95 +1,176 @@
 /**
  * AI Cost Optimization API Routes
  *
- * Routes under /api/v1/ai-cost
+ * Routes under /api/v1/ai/cost
+ *
+ * Provides cost optimization analysis, savings history, summary, and alerts
+ * via the CostOptimizerService.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { CostOptimizerService } from '../services/ai/CostOptimizerService';
 import { DatabasePool } from '../services/database';
-import { BudgetService } from '../services/cost/BudgetService';
-import { CostCalculator } from '../services/cost/CostCalculator';
-import { CostController } from './controllers/CostController';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode, handleError } from '../errors';
 
-interface AiCostRoutesOptions {
+const logger = createLogger('ai-cost-routes');
+
+export interface AICostRoutesOptions {
   database?: DatabasePool;
+  costOptimizerService?: CostOptimizerService;
 }
 
-export default async function aiCostRoutes(app: FastifyInstance, options: AiCostRoutesOptions = {}): Promise<void> {
-  const budgetService = new BudgetService(options.database);
-  const calculator = new CostCalculator(budgetService);
-  const controller = new CostController(budgetService, calculator);
+export default async function aiCostRoutes(
+  app: FastifyInstance,
+  options: AICostRoutesOptions
+): Promise<void> {
+  const service = options.costOptimizerService || new CostOptimizerService(options.database);
 
-  // ==================== Budgets ====================
+  // ==================== Cost Optimization ====================
 
-  // GET /api/v1/ai-cost/budgets — list budgets
-  app.get('/budgets', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listBudgets(request, reply);
-  });
+  /**
+   * POST /api/v1/ai/cost/optimize
+   * Run cost optimization analysis and get recommendations
+   */
+  app.post(
+    '/optimize',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-cost', action: 'write' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as { tenantId?: string };
+        const tenantId = body.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
-  // GET /api/v1/ai-cost/budgets/:id — budget detail
-  app.get('/budgets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getBudget(request, reply);
-  });
+        const analysis = service.analyzeCostSavings(tenantId);
+        const recommendations = await service.recommendOptimization(tenantId);
 
-  // POST /api/v1/ai-cost/budgets — create budget
-  app.post('/budgets', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.createBudget(request, reply);
-  });
+        return reply.status(201).send({
+          data: {
+            analysis,
+            recommendations,
+          },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Cost optimization failed');
+        return handleError(reply, new OrionError('OPTIMIZATION_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
 
-  // PUT /api/v1/ai-cost/budgets/:id — update budget
-  app.put('/budgets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.updateBudget(request, reply);
-  });
+  // ==================== Savings History ====================
 
-  // POST /api/v1/ai-cost/budgets/:id/restore — emergency restore
-  app.post('/budgets/:id/restore', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.restoreBudget(request, reply);
-  });
+  /**
+   * GET /api/v1/ai/cost/history
+   * Get savings tracking history for a tenant
+   */
+  app.get(
+    '/history',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-cost', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as { tenantId?: string };
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
-  // ==================== Costs ====================
+        const history = await service.getSavingsHistory(tenantId);
 
-  // GET /api/v1/ai-cost/costs — query costs
-  app.get('/costs', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.queryCosts(request, reply);
-  });
+        return reply.send({
+          data: history,
+          meta: { total: history.length },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get savings history');
+        return handleError(reply, new OrionError('HISTORY_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
 
-  // GET /api/v1/ai-cost/costs/summary — aggregated summary
-  app.get('/costs/summary', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getCostSummary(request, reply);
-  });
+  // ==================== Cost Summary ====================
 
-  // POST /api/v1/ai-cost/costs/record — record a cost entry
-  app.post('/costs/record', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.recordCost(request, reply);
-  });
+  /**
+   * GET /api/v1/ai/cost/summary
+   * Get cost analysis summary for a tenant
+   */
+  app.get(
+    '/summary',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-cost', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as { tenantId?: string };
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
-  // ==================== Dashboard ====================
+        const analysis = service.analyzeCostSavings(tenantId);
+        const totalSavings = await service.getTotalSavings(tenantId);
 
-  // GET /api/v1/ai-cost/dashboard — real-time dashboard data
-  app.get('/dashboard', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDashboard(request, reply);
-  });
+        return reply.send({
+          data: {
+            ...analysis,
+            totalSavingsToDate: totalSavings,
+          },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get cost summary');
+        return handleError(reply, new OrionError('SUMMARY_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
 
-  // ==================== Alerts ====================
+  // ==================== Cost Alerts ====================
 
-  // GET /api/v1/ai-cost/alerts — active alerts
-  app.get('/alerts', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getAlerts(request, reply);
-  });
+  /**
+   * GET /api/v1/ai/cost/alerts
+   * Get cost-related alerts (high-spending opportunities, applied recommendations status)
+   */
+  app.get(
+    '/alerts',
+    {
+      onRequest: [
+        authenticateUser,
+        requirePermission({ resource: 'ai-cost', action: 'read' }),
+      ],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const query = request.query as { tenantId?: string };
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
-  // ==================== Model Pricing ====================
+        const analysis = service.analyzeCostSavings(tenantId);
 
-  // GET /api/v1/ai-cost/pricing — pricing table
-  // P1-2 Fix: Changed from /models/pricing to /pricing to match frontend
-  app.get('/pricing', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getPricing(request, reply);
-  });
+        // Generate alerts from high-priority opportunities
+        const alerts = analysis.opportunities
+          .filter((opp) => opp.estimatedMonthlySavings > 500)
+          .map((opp) => ({
+            type: 'high_savings_opportunity',
+            category: opp.category,
+            resourceName: opp.resourceName,
+            estimatedMonthlySavings: opp.estimatedMonthlySavings,
+            riskLevel: opp.riskLevel,
+            description: opp.description,
+          }));
 
-  // ==================== ROI Reports ====================
-
-  // GET /api/v1/ai-cost/roi — ROI report
-  // P1-2 Fix: Added missing /roi route that frontend calls
-  app.get('/roi', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getROIReport(request, reply);
-  });
+        return reply.send({
+          data: alerts,
+          meta: { total: alerts.length },
+        });
+      } catch (error: any) {
+        logger.error({ error }, 'Failed to get cost alerts');
+        return handleError(reply, new OrionError('ALERTS_FETCH_FAILED', ErrorCode.INTERNAL_ERROR))
+      }
+    }
+  );
 }

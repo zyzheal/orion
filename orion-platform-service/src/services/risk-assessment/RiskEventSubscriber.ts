@@ -12,6 +12,9 @@ import { CloudEvent, EventContext, Subscription } from '@orion/event-bus';
 import {
   RiskAssessmentService,
 } from './RiskAssessmentService';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('risk-event-subscriber');
 import {
   PipelineCompletedForRiskData,
   CodePRMergedData,
@@ -59,11 +62,11 @@ export class RiskEventSubscriber {
    */
   async subscribeToEvents(): Promise<void> {
     if (!this.eventBus) {
-      console.warn('[RiskEventSubscriber] EventBus not configured, skipping subscription');
+      logger.warn('[RiskEventSubscriber] EventBus not configured, skipping subscription');
       return;
     }
 
-    console.log('[RiskEventSubscriber] Subscribing to risk-related events...');
+    logger.info('[RiskEventSubscriber] Subscribing to risk-related events...');
 
     // 订阅 pipeline.run.completed 事件
     await this.subscribe('pipeline.run.completed', this.handlePipelineEvent.bind(this));
@@ -78,7 +81,7 @@ export class RiskEventSubscriber {
     await this.subscribe('deployment.started', this.handleDeploymentEvent.bind(this));
 
     this.isRunning = true;
-    console.log('[RiskEventSubscriber] Event subscriptions active');
+    logger.info('[RiskEventSubscriber] Event subscriptions active');
   }
 
   /**
@@ -89,12 +92,12 @@ export class RiskEventSubscriber {
       try {
         await subscription.unsubscribe();
       } catch (error) {
-        console.error('[RiskEventSubscriber] Error unsubscribing:', error);
+        logger.error('[RiskEventSubscriber] Error unsubscribing:', error);
       }
     }
     this.subscriptions = [];
     this.isRunning = false;
-    console.log('[RiskEventSubscriber] Event subscriptions removed');
+    logger.info('[RiskEventSubscriber] Event subscriptions removed');
   }
 
   /**
@@ -104,10 +107,10 @@ export class RiskEventSubscriber {
     event: CloudEvent<PipelineCompletedForRiskData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[RiskEventSubscriber] Processing pipeline.run.completed:', event.data.runId);
+    logger.info('[RiskEventSubscriber] Processing pipeline.run.completed:', event.data.runId);
 
     if (!this.autoAssessEnabled) {
-      console.log('[RiskEventSubscriber] Auto-assessment disabled, skipping');
+      logger.info('[RiskEventSubscriber] Auto-assessment disabled, skipping');
       return;
     }
 
@@ -148,12 +151,12 @@ export class RiskEventSubscriber {
         },
       });
 
-      console.log(
+      logger.info(
         `[RiskEventSubscriber] Risk assessment completed for ${event.data.runId}: ` +
         `Score=${assessment.riskScore}, Level=${assessment.riskLevel}`
       );
     } catch (error) {
-      console.error('[RiskEventSubscriber] Failed to process pipeline event:', error);
+      logger.error('[RiskEventSubscriber] Failed to process pipeline event:', error);
     }
   }
 
@@ -164,7 +167,7 @@ export class RiskEventSubscriber {
     event: CloudEvent<PipelineCompletedForRiskData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[RiskEventSubscriber] Processing pipeline.run.failed:', event.data.runId);
+    logger.info('[RiskEventSubscriber] Processing pipeline.run.failed:', event.data.runId);
 
     // Pipeline 失败时自动触发风险评估（标记为高风险）
     try {
@@ -186,12 +189,12 @@ export class RiskEventSubscriber {
         tenantId: event.tenantId,
       });
 
-      console.log(
+      logger.info(
         `[RiskEventSubscriber] Risk assessment for failed pipeline ${event.data.runId}: ` +
         `Score=${assessment.riskScore}, Level=${assessment.riskLevel}`
       );
     } catch (error) {
-      console.error('[RiskEventSubscriber] Failed to process pipeline failed event:', error);
+      logger.error('[RiskEventSubscriber] Failed to process pipeline failed event:', error);
     }
   }
 
@@ -202,7 +205,7 @@ export class RiskEventSubscriber {
     event: CloudEvent<CodePRMergedData>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[RiskEventSubscriber] Processing code.pr.merged:', event.data.prId);
+    logger.info('[RiskEventSubscriber] Processing code.pr.merged:', event.data.prId);
 
     if (!this.autoAssessEnabled) {
       return;
@@ -237,12 +240,12 @@ export class RiskEventSubscriber {
         tenantId: event.tenantId,
       });
 
-      console.log(
+      logger.info(
         `[RiskEventSubscriber] Change risk assessment for PR ${event.data.prId}: ` +
         `Score=${assessment.riskScore}, Level=${assessment.riskLevel}`
       );
     } catch (error) {
-      console.error('[RiskEventSubscriber] Failed to process code.pr.merged event:', error);
+      logger.error('[RiskEventSubscriber] Failed to process code.pr.merged event:', error);
     }
   }
 
@@ -253,7 +256,7 @@ export class RiskEventSubscriber {
     event: CloudEvent<any>,
     _context: EventContext
   ): Promise<void> {
-    console.log('[RiskEventSubscriber] Processing deployment.started:', event.data.deploymentId);
+    logger.info('[RiskEventSubscriber] Processing deployment.started:', event.data.deploymentId);
 
     if (!this.autoAssessEnabled) {
       return;
@@ -288,12 +291,12 @@ export class RiskEventSubscriber {
         tenantId: event.tenantId,
       });
 
-      console.log(
+      logger.info(
         `[RiskEventSubscriber] Deployment risk assessment for ${event.data.deploymentId}: ` +
         `Score=${assessment.riskScore}, Level=${assessment.riskLevel}`
       );
     } catch (error) {
-      console.error('[RiskEventSubscriber] Failed to process deployment event:', error);
+      logger.error('[RiskEventSubscriber] Failed to process deployment event:', error);
     }
   }
 
@@ -321,7 +324,7 @@ export class RiskEventSubscriber {
     handler: (event: CloudEvent<any>, context: EventContext) => Promise<void>
   ): Promise<void> {
     if (!this.eventBus) {
-      console.warn(`[RiskEventSubscriber] EventBus not configured, cannot subscribe to ${eventType}`);
+      logger.warn(`[RiskEventSubscriber] EventBus not configured, cannot subscribe to ${eventType}`);
       return;
     }
 
@@ -336,9 +339,9 @@ export class RiskEventSubscriber {
         }
       );
       this.subscriptions.push(subscription);
-      console.log(`[RiskEventSubscriber] Subscribed to ${eventType}`);
+      logger.info(`[RiskEventSubscriber] Subscribed to ${eventType}`);
     } catch (error) {
-      console.error(`[RiskEventSubscriber] Failed to subscribe to ${eventType}:`, error);
+      logger.error(`[RiskEventSubscriber] Failed to subscribe to ${eventType}:`, error);
     }
   }
 

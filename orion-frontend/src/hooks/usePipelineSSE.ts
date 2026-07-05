@@ -28,11 +28,6 @@ interface PipelineStatusEvent {
   timestamp: Date;
 }
 
-interface SSEEvent {
-  type: 'connected' | 'log' | 'status' | 'stage_start' | 'stage_end' | 'step_start' | 'step_end';
-  data: PipelineLogEvent | PipelineStatusEvent | { message: string; timestamp: Date };
-}
-
 interface UsePipelineSSEOptions {
   pipelineId: string;
   runId: string;

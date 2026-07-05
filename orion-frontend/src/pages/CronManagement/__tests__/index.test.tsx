@@ -45,8 +45,8 @@ describe('CronManagement', () => {
   });
 
   it('renders loading state then displays data', async () => {
-    vi.mocked(cronApi.getCronJobs).mockResolvedValue({ data: { data: { jobs: mockJobs } } } as any);
-    vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: { data: mockStats } } as any);
+    vi.mocked(cronApi.getCronJobs).mockResolvedValue({ data: { jobs: mockJobs } } as any);
+    vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: mockStats } as any);
 
     render(<CronManagement />);
 
@@ -60,9 +60,9 @@ describe('CronManagement', () => {
   });
 
   it('opens create modal and submits form', async () => {
-    vi.mocked(cronApi.getCronJobs).mockResolvedValue({ data: { data: { jobs: [] } } } as any);
-    vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: { data: mockStats } } as any);
-    vi.mocked(cronApi.createCronJob).mockResolvedValue({ data: { data: {} } } as any);
+    vi.mocked(cronApi.getCronJobs).mockResolvedValue({ data: { jobs: [] } } as any);
+    vi.mocked(cronApi.getCronStatus).mockResolvedValue({ data: mockStats } as any);
+    vi.mocked(cronApi.createCronJob).mockResolvedValue({ data: {} } as any);
 
     render(<CronManagement />);
 

@@ -13,7 +13,7 @@
  * - Platform -> Runner: POST {runnerEndpoint}/execute (HTTP)
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   Runner,
   RunnerCreateInput,
@@ -25,8 +25,10 @@ import {
 import { RunnerJob, RunnerJobCreateInput } from '../../models/RunnerJob';
 import { PostgresRunnerRepository, RunnerRepository } from '../../repositories/RunnerRepository';
 import { PostgresRunnerJobRepository, RunnerJobRepository } from '../../repositories/RunnerJobRepository';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'runner-pool-service' });
+const logger = createLogger('runner-pool-service');
 
 export interface TaskExecutionPayload {
   id: string;
@@ -67,7 +69,7 @@ export class RunnerPoolService {
    */
   async registerRunner(input: RunnerCreateInput): Promise<Runner> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const runner = await this.runnerRepo.create(input);
@@ -80,7 +82,7 @@ export class RunnerPoolService {
    */
   async deregisterRunner(runnerId: string): Promise<void> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.runnerRepo.delete(runnerId);
@@ -93,12 +95,12 @@ export class RunnerPoolService {
    */
   async heartbeat(runnerId: string): Promise<boolean> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const updated = await this.runnerRepo.updateHeartbeat(runnerId);
     if (!updated) {
-      logger.warn({ runnerId }, 'Heartbeat received for unknown runner');
+      logger.warn({ traceId: getCurrentTraceId(), runnerId }, 'Heartbeat received for unknown runner');
       return false;
     }
 
@@ -111,7 +113,7 @@ export class RunnerPoolService {
    */
   async updateRunnerStatus(runnerId: string, status: Runner['status']): Promise<void> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.runnerRepo.update(runnerId, { status });
@@ -135,7 +137,7 @@ export class RunnerPoolService {
    */
   async selectRunner(requiredLabels: string[], tenantId: string): Promise<Runner | null> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // Find all runners matching ALL required labels for this tenant
@@ -185,7 +187,7 @@ export class RunnerPoolService {
     runnerEndpoint: string
   ): Promise<RunnerExecutionResult> {
     if (!this.jobRepo || !this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // Create job record
@@ -220,12 +222,12 @@ export class RunnerPoolService {
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
         const errorMsg = `Runner HTTP ${response.status}: ${errorText || response.statusText}`;
-        logger.error({ runnerId, jobId: job.id, status: response.status }, errorMsg);
+        logger.error({ traceId: getCurrentTraceId(), runnerId, jobId: job.id, status: response.status }, errorMsg);
 
         // Mark job as failed
         await this.jobRepo.markFailed(job.id, errorMsg);
 
-        throw new Error(`Runner HTTP ${response.status}: ${response.statusText}`);
+        throw new OrionError(`Runner HTTP ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
       }
 
       const result = await response.json() as Record<string, unknown> | undefined;
@@ -246,7 +248,7 @@ export class RunnerPoolService {
       // Mark job as failed
       await this.jobRepo.markFailed(job.id, errorMessage);
 
-      logger.error({ runnerId, jobId: job.id, error }, 'Failed to dispatch task to runner');
+      logger.error({ traceId: getCurrentTraceId(), runnerId, jobId: job.id, error }, 'Failed to dispatch task to runner');
       throw error;
     }
   }
@@ -260,7 +262,7 @@ export class RunnerPoolService {
    */
   async releaseRunner(runnerId: string): Promise<void> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.runnerRepo.decrementJobs(runnerId);
@@ -277,7 +279,7 @@ export class RunnerPoolService {
     runnerId: string
   ): Promise<void> {
     if (!this.jobRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.jobRepo.markComplete(jobId, result);
@@ -291,13 +293,13 @@ export class RunnerPoolService {
    */
   async markJobFailed(jobId: string, error: string, runnerId: string): Promise<void> {
     if (!this.jobRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     await this.jobRepo.markFailed(jobId, error);
     await this.releaseRunner(runnerId);
 
-    logger.error({ jobId, runnerId, error }, 'Job failed and runner released');
+    logger.error({ traceId: getCurrentTraceId(), jobId, runnerId, error }, 'Job failed and runner released');
   }
 
   // ==================== Monitoring ====================
@@ -309,7 +311,7 @@ export class RunnerPoolService {
    */
   async getStaleRunners(timeoutMinutes = 5): Promise<Runner[]> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // Find all online/busy runners
@@ -335,7 +337,7 @@ export class RunnerPoolService {
     }
 
     if (count > 0) {
-      logger.warn({ count }, 'Marked stale runners as offline');
+      logger.warn({ traceId: getCurrentTraceId(), count }, 'Marked stale runners as offline');
     }
 
     return count;
@@ -346,7 +348,7 @@ export class RunnerPoolService {
    */
   async listRunners(tenantId: string): Promise<Runner[]> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     return this.runnerRepo.findByTenant(tenantId);
@@ -357,7 +359,7 @@ export class RunnerPoolService {
    */
   async getRunner(runnerId: string): Promise<Runner | undefined> {
     if (!this.runnerRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     return this.runnerRepo.findById(runnerId);
@@ -368,7 +370,7 @@ export class RunnerPoolService {
    */
   async getRunnerJobs(runnerId: string): Promise<RunnerJob[]> {
     if (!this.jobRepo) {
-      throw new Error('Database not available');
+      throw new OrionError('Database not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     return this.jobRepo.findByRunnerId(runnerId);

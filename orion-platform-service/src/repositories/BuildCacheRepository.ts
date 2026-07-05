@@ -14,6 +14,7 @@ import {
   CacheCleanupPolicy,
   CacheStorageType,
 } from '../models/BuildCache';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Config Repository ====================
 
@@ -113,7 +114,7 @@ export class BuildCacheConfigRepository extends BaseRepository<BuildCacheConfig>
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into build_cache_configs returned no rows');
+      throw new OrionError('INSERT into build_cache_configs returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -161,14 +162,14 @@ export class BuildCacheConfigRepository extends BaseRepository<BuildCacheConfig>
     }
 
     if (columns.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     values.push(id);
     const query = `UPDATE build_cache_configs SET ${columns.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
     const result = await this.db.query(query, values);
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on build_cache_configs affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on build_cache_configs affected no rows (id: ${id})`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -310,7 +311,7 @@ export class BuildCacheEntryRepository extends BaseRepository<CacheEntry> {
       [id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Cache entry '${id}' not found`);
+      throw new OrionError(`Cache entry '${id}' not found`, 'NOT_FOUND')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -345,7 +346,7 @@ export class BuildCacheEntryRepository extends BaseRepository<CacheEntry> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into build_cache_entries returned no rows');
+      throw new OrionError('INSERT into build_cache_entries returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

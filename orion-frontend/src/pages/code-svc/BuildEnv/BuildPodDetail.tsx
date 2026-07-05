@@ -4,12 +4,13 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Button, Descriptions, Spin, message, Space } from 'antd';
-import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
-import StatusBadge from '@/components/StatusBadge';
+import { ArrowLeftOutlined, ReloadOutlined, CloudServerOutlined,} from '@ant-design/icons';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import BuildLogViewer from './BuildLogViewer';
 import { getBuildPod, getBuildPodLogs, cancelBuildPod, type BuildPod } from '@/api/build-env';
 import { useNavigate, useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -25,7 +26,7 @@ const BuildPodDetail: React.FC = () => {
     setLoading(true);
     try {
       const response = await getBuildPod(id);
-      const podData = response.data.data as BuildPod | null;
+      const podData = response.data as BuildPod | null;
       setPod(podData);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -42,9 +43,9 @@ const BuildPodDetail: React.FC = () => {
     if (!id) return;
     try {
       const response = await getBuildPodLogs(id);
-      const logsData = response.data.data as any[];
+      const logsData = response.data as Array<{ id?: string }> | null;
       const logs = Array.isArray(logsData) ? logsData : [];
-      setLogIds(logs.map((log: any) => log.id));
+      setLogIds(logs.map((log) => log.id || '').filter(Boolean));
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 Pod 日志失败：${error.message}`);
@@ -79,7 +80,7 @@ const BuildPodDetail: React.FC = () => {
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/console/build-env/pods')}
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         >
           Back to Pods
         </Button>
@@ -96,10 +97,10 @@ const BuildPodDetail: React.FC = () => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: 24,
+            marginBottom: spacing.lg,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing[3] }}>
             <Button
               type="link"
               icon={<ArrowLeftOutlined />}
@@ -107,10 +108,11 @@ const BuildPodDetail: React.FC = () => {
             >
               Back
             </Button>
-            <Title level={3} style={{ margin: 0 }}>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudServerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
               {pod?.name || 'Build Pod'}
             </Title>
-            {pod && <StatusBadge status={pod.status as any} size="small" />}
+            {pod && <StatusBadge status={pod.status as StatusType} size="small" />}
           </div>
           <Space>
             <Button
@@ -132,13 +134,13 @@ const BuildPodDetail: React.FC = () => {
         </div>
 
         {pod && (
-          <Descriptions bordered column={2} style={{ marginBottom: 24 }}>
+          <Descriptions bordered column={2} style={{ marginBottom: spacing.lg }}>
             <Descriptions.Item label="Pod ID">{pod.id}</Descriptions.Item>
             <Descriptions.Item label="Namespace">{pod.namespace}</Descriptions.Item>
             <Descriptions.Item label="Run ID">{pod.runId}</Descriptions.Item>
             <Descriptions.Item label="Stage ID">{pod.stageId}</Descriptions.Item>
             <Descriptions.Item label="Status">
-              <StatusBadge status={pod.status as any} size="small" />
+              <StatusBadge status={pod.status as 'running' | 'success' | 'failed' | 'pending'} size="small" />
             </Descriptions.Item>
             <Descriptions.Item label="Created">
               {dayjs(pod.createdAt).format('YYYY-MM-DD HH:mm:ss')}
@@ -152,7 +154,7 @@ const BuildPodDetail: React.FC = () => {
           </Descriptions>
         )}
 
-        <div style={{ marginTop: 16 }}>
+        <div style={{ marginTop: spacing.md }}>
           <Title level={4}>Build Logs</Title>
           {logIds.length > 0 ? (
             <Space direction="vertical" style={{ width: '100%' }}>

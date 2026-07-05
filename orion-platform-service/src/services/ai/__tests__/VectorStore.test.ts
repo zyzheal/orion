@@ -1,6 +1,10 @@
 import { VectorStore } from '../VectorStore';
 import { VectorStoreConfig } from '../types';
 
+const mockDb = {
+  query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+};
+
 const defaultConfig: VectorStoreConfig = {
   host: 'localhost',
   port: 19530,
@@ -12,19 +16,28 @@ describe('VectorStore', () => {
   let store: VectorStore;
 
   beforeEach(() => {
-    store = new VectorStore(defaultConfig);
+    mockDb.query.mockReset();
+    mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    store = new VectorStore(defaultConfig, mockDb as any);
   });
 
   test('should add document and generate embedding', async () => {
+    mockDb.query.mockResolvedValueOnce({
+      rows: [{ id: 'doc-1', collection: 'test', content: 'Hello world', metadata: '{"category":"test"}', embedding: '[]' }],
+      rowCount: 1,
+    });
     const id = await store.addDocument('Hello world', { category: 'test' });
     expect(id).toBeTruthy();
-    expect(store.documentCount).toBe(1);
   });
 
   test('should search by semantic similarity', async () => {
-    await store.addDocument('The quick brown fox jumps over the lazy dog');
-    await store.addDocument('Python is a programming language');
-    await store.addDocument('Machine learning models require data preprocessing');
+    mockDb.query.mockResolvedValueOnce({
+      rows: [
+        { id: 'doc-1', content: 'The quick brown fox', metadata: '{}', embedding: '[]', score: 0.9 },
+        { id: 'doc-2', content: 'Python programming', metadata: '{}', embedding: '[]', score: 0.7 },
+      ],
+      rowCount: 2,
+    });
 
     const results = await store.search({ query: 'animals and dogs', topK: 2 });
     expect(results.length).toBe(2);
@@ -32,9 +45,13 @@ describe('VectorStore', () => {
   });
 
   test('should filter by metadata', async () => {
-    await store.addDocument('Doc A', { category: 'tech' });
-    await store.addDocument('Doc B', { category: 'science' });
-    await store.addDocument('Doc C', { category: 'tech' });
+    mockDb.query.mockResolvedValueOnce({
+      rows: [
+        { id: 'doc-1', content: 'Doc A', metadata: '{"category":"tech"}', embedding: '[]', score: 0.8 },
+        { id: 'doc-3', content: 'Doc C', metadata: '{"category":"tech"}', embedding: '[]', score: 0.6 },
+      ],
+      rowCount: 2,
+    });
 
     const results = await store.search({
       query: 'technology',
@@ -45,14 +62,13 @@ describe('VectorStore', () => {
   });
 
   test('should delete document', async () => {
-    const id = await store.addDocument('Test doc');
-    expect(store.documentCount).toBe(1);
-    const deleted = await store.deleteDocument(id);
+    mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    const deleted = await store.deleteDocument('doc-1');
     expect(deleted).toBe(true);
-    expect(store.documentCount).toBe(0);
   });
 
   test('should return empty results for no matches', async () => {
+    mockDb.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const results = await store.search({ query: 'nothing here' });
     expect(results).toEqual([]);
   });

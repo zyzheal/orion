@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-skill-svc-config
+  namespace: orion
+  labels:
+    app: orion-skill-svc
+data:
+  database.host: "postgres.orion.svc.cluster.local"
+  database.port: "5432"
+  database.name: "orion_skills"
+  log.level: "info"
+  cors.origin: "https://orion.example.com"
+  rateLimit.max: "100"
+  rateLimit.window: "60000"

@@ -26,7 +26,7 @@ describe('PluginAuditLogger', () => {
   });
 
   describe('Execution Logging', () => {
-    it('should log execution start', () => {
+    it('should log execution start', async () => {
       const context = createMockContext();
       const input = { param: 'value' };
 
@@ -34,13 +34,13 @@ describe('PluginAuditLogger', () => {
 
       expect(entryId).toBeDefined();
 
-      const logs = auditLogger.getLogs({ taskId: context.taskId });
+      const logs = await auditLogger.getLogs({ taskId: context.taskId });
       expect(logs.length).toBe(1);
       expect(logs[0].action).toBe('EXECUTION_START');
       expect(logs[0].input).toEqual(input);
     });
 
-    it('should log execution complete', () => {
+    it('should log execution complete', async () => {
       const context = createMockContext();
       const output = { result: 'success' };
 
@@ -49,13 +49,13 @@ describe('PluginAuditLogger', () => {
 
       expect(entryId).toBeDefined();
 
-      const logs = auditLogger.getLogs({ taskId: context.taskId, action: 'EXECUTION_COMPLETE' });
+      const logs = await auditLogger.getLogs({ taskId: context.taskId, action: 'EXECUTION_COMPLETE' });
       expect(logs.length).toBe(1);
       expect(logs[0].output).toEqual(output);
       expect(logs[0].durationMs).toBe(100);
     });
 
-    it('should log execution error', () => {
+    it('should log execution error', async () => {
       const context = createMockContext();
       const error = new Error('Test error');
 
@@ -64,7 +64,7 @@ describe('PluginAuditLogger', () => {
 
       expect(entryId).toBeDefined();
 
-      const logs = auditLogger.getLogs({ taskId: context.taskId, level: 'ERROR' });
+      const logs = await auditLogger.getLogs({ taskId: context.taskId, level: 'ERROR' });
       expect(logs.length).toBe(1);
       expect(logs[0].message).toContain('Test error');
     });
@@ -190,37 +190,37 @@ describe('PluginAuditLogger', () => {
   });
 
   describe('Query Functions', () => {
-    it('should filter logs by taskId', () => {
+    it('should filter logs by taskId', async () => {
       const context1 = createMockContext('task-1');
       const context2 = createMockContext('task-2');
 
       auditLogger.logExecutionStart(context1);
       auditLogger.logExecutionStart(context2);
 
-      const logs = auditLogger.getLogs({ taskId: 'task-1' });
+      const logs = await auditLogger.getLogs({ taskId: 'task-1' });
       expect(logs.length).toBe(1);
       expect(logs[0].taskId).toBe('task-1');
     });
 
-    it('should filter logs by level', () => {
+    it('should filter logs by level', async () => {
       const context = createMockContext();
 
       auditLogger.logExecutionStart(context);
       auditLogger.logExecutionError(context, new Error('Test'));
 
-      const errorLogs = auditLogger.getLogs({ level: 'ERROR' });
+      const errorLogs = await auditLogger.getLogs({ level: 'ERROR' });
       expect(errorLogs.length).toBe(1);
 
-      const infoLogs = auditLogger.getLogs({ level: 'INFO' });
+      const infoLogs = await auditLogger.getLogs({ level: 'INFO' });
       expect(infoLogs.length).toBe(1);
     });
 
-    it('should limit results', () => {
+    it('should limit results', async () => {
       for (let i = 0; i < 5; i++) {
         auditLogger.logExecutionStart(createMockContext(`task-${i}`));
       }
 
-      const logs = auditLogger.getLogs({ limit: 3 });
+      const logs = await auditLogger.getLogs({ limit: 3 });
       expect(logs.length).toBe(3);
     });
 
@@ -264,7 +264,7 @@ describe('PluginAuditLogger', () => {
       // 等待过期
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      const removedCount = auditLogger.cleanupExpiredLogs();
+      const removedCount = await auditLogger.cleanupExpiredLogs();
       expect(removedCount).toBeGreaterThanOrEqual(1);
     });
   });

@@ -205,8 +205,8 @@ const AISecurityPage: React.FC = () => {
     setLoading(true);
     try {
       const [policiesRes, evaluationsRes] = await Promise.all([getPolicies(), getEvaluations()]);
-      setPolicies(policiesRes.data.data.policies.map(mapApiPolicyToUI));
-      setEvaluations(evaluationsRes.data.data.evaluations.map(mapApiEvalToUI));
+      setPolicies((policiesRes.data as any).policies.map(mapApiPolicyToUI));
+      setEvaluations((evaluationsRes.data as any).evaluations.map(mapApiEvalToUI));
     } catch (error: unknown) {
       message.error(`Failed to load security data: ${(error as Error).message}`);
     } finally {
@@ -217,7 +217,7 @@ const AISecurityPage: React.FC = () => {
   const loadStats = async () => {
     try {
       const response = await getSecurityStats();
-      const apiStats = response.data.data.stats;
+      const apiStats = (response.data as any).stats;
       setStats({
         policiesActive: apiStats.policiesActive,
         requestsBlocked: apiStats.requestsBlocked,
@@ -538,8 +538,8 @@ const AISecurityPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <SafetyOutlined style={{ marginRight: spacing[3], color: colors.success[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SecurityScanOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             AI Security
           </Title>
           <Text type="secondary">AI 安全策略</Text>
@@ -762,7 +762,7 @@ const AISecurityPage: React.FC = () => {
           description="策略评估将运行预定义的测试用例，验证每个安全策略是否按预期工作。评估过程可能需要几分钟。"
           type="info"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: spacing.md }}
         />
         <Title level={5}>最近评估结果</Title>
         <AntTable

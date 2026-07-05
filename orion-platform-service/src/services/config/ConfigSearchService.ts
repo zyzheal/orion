@@ -1,13 +1,16 @@
 /**
  * Configuration Search & UI Schema Service
- * 
+ *
  * 配置智能搜索 + UI Schema 生成
+ *
+ * 迁移: Map() mock → PostgreSQL Repository (migration 364)
+ * 降级: DB 失败时自动回退到内存数组
  */
 
 import Fuse from 'fuse.js';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'ConfigSearch' });
+const logger = createLogger('ConfigSearch');
 
 // ==================== 配置元数据 ====================
 
@@ -42,13 +45,59 @@ export interface ConfigMetadata {
 class ConfigSearchIndex {
   private fuse: Fuse<ConfigMetadata> | null = null;
   private metadata: ConfigMetadata[] = [];
+  private readonly fallbackSource: ConfigMetadata[];
+
+  constructor(fallbackSource: ConfigMetadata[]) {
+    this.fallbackSource = fallbackSource;
+  }
 
   /**
-   * 初始化搜索索引
+   * Initialize from PostgreSQL; falls back to in-memory array on failure.
    */
-  initialize(configs: ConfigMetadata[]): void {
+  async initializeFromDatabase(db?: {
+    query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+  }): Promise<void> {
+    if (!db) {
+      logger.warn('No DB pool provided — using in-memory fallback');
+      this._loadFromFallback();
+      return;
+    }
+
+    try {
+      const result = await db.query(
+        `SELECT domain, "key", type, description, example, default_value,
+                sensitivity, tags, validations, ui_config
+         FROM config_metadata ORDER BY domain, "key"`,
+      );
+
+      const configs: ConfigMetadata[] = result.rows.map((row: any) => ({
+        domain: row.domain,
+        key: row.key,
+        type: row.type,
+        description: row.description,
+        example: row.example,
+        defaultValue: row.default_value,
+        sensitivity: (row.sensitivity ?? 'internal') as ConfigMetadata['sensitivity'],
+        tags: Array.isArray(row.tags) ? row.tags : (typeof row.tags === 'string' ? JSON.parse(row.tags) : []),
+        validations: typeof row.validations === 'string' ? JSON.parse(row.validations) : row.validations,
+        ui: typeof row.ui_config === 'string' ? JSON.parse(row.ui_config) : row.ui_config,
+      }));
+
+      this._rebuildIndex(configs);
+      logger.info({ count: configs.length, source: 'database' }, 'Search index loaded from DB');
+    } catch (err) {
+      logger.warn({ error: String(err) }, 'DB load failed — falling back to in-memory metadata');
+      this._loadFromFallback();
+    }
+  }
+
+  private _loadFromFallback(): void {
+    this._rebuildIndex(this.fallbackSource);
+  }
+
+  private _rebuildIndex(configs: ConfigMetadata[]): void {
     this.metadata = configs;
-    
+
     this.fuse = new Fuse(configs, {
       keys: [
         { name: 'key', weight: 0.4 },
@@ -62,12 +111,12 @@ class ConfigSearchIndex {
       minMatchCharLength: 2,
       ignoreLocation: true,
     });
-    
-    logger.info({ count: configs.length }, 'Search index initialized');
+
+    logger.info({ count: configs.length }, 'Search index rebuilt');
   }
 
   /**
-   * 搜索配置
+   * Search configuration metadata using Fuse.js fuzzy search with filters.
    */
   search(query: string, options?: {
     limit?: number;
@@ -81,24 +130,23 @@ class ConfigSearchIndex {
 
     let results = this.fuse.search(query);
 
-    // 应用过滤
+    // Apply filters (Fuse doesn't support our custom multi-field filters)
     if (options?.domain) {
       results = results.filter(r => r.item.domain === options.domain);
     }
-    
+
     if (options?.sensitivity?.length) {
       results = results.filter(r => options.sensitivity!.includes(r.item.sensitivity));
     }
-    
+
     if (options?.tags?.length) {
-      results = results.filter(r => 
+      results = results.filter(r =>
         r.item.tags.some(t => options.tags!.includes(t))
       );
     }
 
-    // 限制结果数
     const limit = options?.limit || 20;
-    
+
     return results.slice(0, limit).map(r => ({
       ...r.item,
       score: r.score || 0,
@@ -107,7 +155,7 @@ class ConfigSearchIndex {
   }
 
   /**
-   * 获取域列表
+   * Get unique domain list.
    */
   getDomains(): string[] {
     const domains = this.metadata.map(c => c.domain);
@@ -115,7 +163,7 @@ class ConfigSearchIndex {
   }
 
   /**
-   * 获取标签列表
+   * Get unique tag list.
    */
   getTags(): string[] {
     const tags = this.metadata.flatMap(c => c.tags);
@@ -123,18 +171,25 @@ class ConfigSearchIndex {
   }
 
   /**
-   * 按域分组
+   * Group configurations by domain.
    */
   groupByDomain(): Map<string, ConfigMetadata[]> {
     const groups = new Map<string, ConfigMetadata[]>();
-    
+
     for (const config of this.metadata) {
       const existing = groups.get(config.domain) || [];
       existing.push(config);
       groups.set(config.domain, existing);
     }
-    
+
     return groups;
+  }
+
+  /**
+   * Return all metadata (from index or fallback).
+   */
+  getAll(): ConfigMetadata[] {
+    return this.metadata.length > 0 ? this.metadata : this.fallbackSource;
   }
 }
 
@@ -150,7 +205,7 @@ export class ConfigUISchemaGenerator {
 
     for (const config of configs) {
       properties[config.key] = this.fieldToJsonSchema(config);
-      
+
       if (config.ui?.widget === 'select' && config.validations?.enum) {
         properties[config.key].enum = config.validations.enum;
       }
@@ -179,7 +234,7 @@ export class ConfigUISchemaGenerator {
 
     for (const config of configs) {
       const groupName = config.ui?.group || 'general';
-      
+
       if (!groups[groupName]) {
         groups[groupName] = [];
       }
@@ -195,7 +250,7 @@ export class ConfigUISchemaGenerator {
       });
     }
 
-    // 按 order 排序
+    // Sort by order within each group
     for (const group of Object.values(groups)) {
       group.sort((a, b) => a.order - b.order);
     }
@@ -208,8 +263,8 @@ export class ConfigUISchemaGenerator {
    */
   static generateMarkdown(configs: ConfigMetadata[]): string {
     let md = '# Orion 配置参考\n\n';
-    
-    // 按域分组
+
+    // Group by domain
     const byDomain = new Map<string, ConfigMetadata[]>();
     for (const config of configs) {
       const existing = byDomain.get(config.domain) || [];
@@ -219,31 +274,31 @@ export class ConfigUISchemaGenerator {
 
     for (const [domain, domainConfigs] of Array.from(byDomain.entries())) {
       md += `## ${domain}\n\n`;
-      
+
       for (const config of domainConfigs) {
         md += `### \`${config.key}\`\n\n`;
-        
+
         if (config.description) {
           md += `${config.description}\n\n`;
         }
-        
-        md += `| 属性 | 值 |\n`;
-        md += `|------|-----|\n`;
+
+        md += '| 属性 | 值 |\n';
+        md += '|------|-----|\n';
         md += `| 类型 | \`${config.type}\` |\n`;
         md += `| 敏感度 | ${config.sensitivity} |\n`;
-        
+
         if (config.defaultValue !== undefined) {
           md += `| 默认值 | \`${JSON.stringify(config.defaultValue)}\` |\n`;
         }
-        
+
         if (config.example) {
           md += `| 示例 | \`${JSON.stringify(config.example)}\` |\n`;
         }
-        
+
         if (config.tags.length > 0) {
           md += `| 标签 | ${config.tags.join(', ')} |\n`;
         }
-        
+
         md += '\n';
       }
     }
@@ -254,12 +309,12 @@ export class ConfigUISchemaGenerator {
   // ==================== 私有方法 ====================
 
   private static fieldToJsonSchema(config: ConfigMetadata): any {
-    let schema: any = {
+    const schema: any = {
       type: config.type,
       description: config.description,
     };
 
-    // 验证规则
+    // Validation rules
     if (config.validations) {
       if (config.validations.min !== undefined) {
         schema.minimum = config.validations.min;
@@ -272,7 +327,7 @@ export class ConfigUISchemaGenerator {
       }
     }
 
-    // 示例值
+    // Example value
     if (config.example) {
       schema.example = config.example;
     } else if (config.defaultValue !== undefined) {
@@ -315,7 +370,7 @@ export class ConfigUISchemaGenerator {
 // ==================== 预定义配置元数据 ====================
 
 export const CONFIG_METADATA: ConfigMetadata[] = [
-  // Pipeline 配置
+  // Pipeline config
   {
     domain: 'pipeline',
     key: 'maxConcurrentRuns',
@@ -352,8 +407,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     validations: { min: 0, max: 10 },
     ui: { label: '重试次数', group: 'pipeline', order: 3, widget: 'input' },
   },
-  
-  // 安全配置
+
+  // Security config
   {
     domain: 'security',
     key: 'jwtSecret',
@@ -375,8 +430,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     validations: { min: 1, max: 168 },
     ui: { label: 'JWT 过期时间', group: 'security', order: 2, widget: 'input' },
   },
-  
-  // 部署配置
+
+  // Deploy config
   {
     domain: 'deploy',
     key: 'defaultStrategy',
@@ -400,8 +455,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     tags: ['deploy', 'rollback'],
     ui: { label: '自动回滚', group: 'deploy', order: 2, widget: 'toggle' },
   },
-  
-  // 告警配置
+
+  // Alert config
   {
     domain: 'alert',
     key: 'deduplicationWindowMs',
@@ -414,8 +469,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     validations: { min: 60000, max: 3600000 },
     ui: { label: '去重窗口', group: 'alert', order: 1, widget: 'input', helpText: '默认 5 分钟' },
   },
-  
-  // 发布窗口
+
+  // Deployment window
   {
     domain: 'deploymentWindow',
     key: 'enabled',
@@ -449,8 +504,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     tags: ['deploy', 'window', 'schedule'],
     ui: { label: '允许小时', group: 'window', order: 3, widget: 'slider', helpText: 'UTC 时区' },
   },
-  
-  // 通知配置
+
+  // Notification config
   {
     domain: 'notification',
     key: 'defaultChannel',
@@ -463,8 +518,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     validations: { enum: ['dingtalk', 'wechat', 'email', 'sms', 'slack'] },
     ui: { label: '默认渠道', group: 'notification', order: 1, widget: 'select' },
   },
-  
-  // 监控配置
+
+  // Monitoring config
   {
     domain: 'monitoring',
     key: 'sampleRate',
@@ -477,8 +532,8 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
     validations: { min: 0, max: 1 },
     ui: { label: '采样率', group: 'monitoring', order: 1, widget: 'slider', helpText: '0-1 之间的小数' },
   },
-  
-  // 租户配置
+
+  // Tenant config
   {
     domain: 'tenant',
     key: 'maxTenants',
@@ -509,9 +564,16 @@ export const CONFIG_METADATA: ConfigMetadata[] = [
 class ConfigSearchService {
   private searchIndex: ConfigSearchIndex;
 
-  constructor() {
-    this.searchIndex = new ConfigSearchIndex();
-    this.searchIndex.initialize(CONFIG_METADATA);
+  constructor(
+    private readonly dbPool?: {
+      query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+    },
+  ) {
+    this.searchIndex = new ConfigSearchIndex(CONFIG_METADATA);
+    // Async init — fire-and-forget so constructor stays synchronous
+    this.searchIndex.initializeFromDatabase(dbPool).catch(err => {
+      logger.error({ error: String(err) }, 'Failed to initialize search index from DB');
+    });
   }
 
   /**
@@ -552,23 +614,25 @@ class ConfigSearchService {
    * 获取所有配置元数据
    */
   getAllMetadata(): ConfigMetadata[] {
-    return CONFIG_METADATA;
+    return this.searchIndex.getAll();
   }
 
   /**
    * 获取指定域的配置
    */
   getByDomain(domain: string): ConfigMetadata[] {
-    return CONFIG_METADATA.filter(c => c.domain === domain);
+    const all = this.searchIndex.getAll();
+    return all.filter(c => c.domain === domain);
   }
 
   /**
    * 生成 UI Schema
    */
   generateUISchema() {
+    const configs = this.searchIndex.getAll();
     return {
-      jsonSchema: ConfigUISchemaGenerator.generateJsonSchema(CONFIG_METADATA),
-      formLayout: ConfigUISchemaGenerator.generateFormLayout(CONFIG_METADATA),
+      jsonSchema: ConfigUISchemaGenerator.generateJsonSchema(configs),
+      formLayout: ConfigUISchemaGenerator.generateFormLayout(configs),
     };
   }
 
@@ -576,11 +640,37 @@ class ConfigSearchService {
    * 生成配置文档
    */
   generateDocs(): string {
-    return ConfigUISchemaGenerator.generateMarkdown(CONFIG_METADATA);
+    const configs = this.searchIndex.getAll();
+    return ConfigUISchemaGenerator.generateMarkdown(configs);
   }
 }
 
-// 单例
+// 单例 — 传入 dbPool 使搜索服务使用数据库持久化
+// dbPool 通常在应用启动时通过依赖注入传入
+let _dbPool: {
+  query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }>;
+} | undefined;
+
+export function setConfigSearchDbPool(pool: typeof _dbPool): void {
+  _dbPool = pool;
+  // Replace singleton with DB-backed instance
+  _instance = new ConfigSearchService(_dbPool);
+}
+
+let _instance: ConfigSearchService;
+
+/**
+ * 获取全局单例。
+ * 如果在调用 setConfigSearchDbPool 之前调用，则使用内存模式。
+ */
+export function getConfigSearchService(): ConfigSearchService {
+  if (!_instance) {
+    _instance = new ConfigSearchService(_dbPool);
+  }
+  return _instance;
+}
+
+// 向后兼容：默认导出为无参构造（内存模式）
 export const configSearchService = new ConfigSearchService();
 
 export default configSearchService;

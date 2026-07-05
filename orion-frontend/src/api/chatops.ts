@@ -100,37 +100,37 @@ export interface AuditStatsParams {
 // ---- Commands ----
 
 export function getCommands(params?: CommandListParams) {
-  return api.get('/v1/chatops/commands', { params });
+  return api.get('/api/v1/chatops/commands', { params });
 }
 
 export function getCommandHelp(name: string) {
-  return api.get(`/v1/chatops/commands/${name}/help`);
+  return api.get(`/api/v1/chatops/commands/${name}/help`);
 }
 
 export function executeCommand(data: CommandExecutionInput) {
-  return api.post('/v1/chatops/execute', data);
+  return api.post('/api/v1/chatops/execute', data);
 }
 
 export function getCommandStatus(id: string) {
-  return api.get(`/v1/chatops/status/${id}`);
+  return api.get(`/api/v1/chatops/status/${id}`);
 }
 
 export function getExecutions(params?: ExecutionListParams) {
-  return api.get('/v1/chatops/executions', { params });
+  return api.get('/api/v1/chatops/executions', { params });
 }
 
 // ---- Audit ----
 
 export function getAuditLogs(params?: AuditLogListParams) {
-  return api.get('/v1/chatops/audit/logs', { params });
+  return api.get('/api/v1/chatops/audit/logs', { params });
 }
 
 export function getAuditStats(params?: AuditStatsParams) {
-  return api.get('/v1/chatops/audit/stats', { params });
+  return api.get('/api/v1/chatops/audit/stats', { params });
 }
 
 export function exportAuditLogs(data: { startDate: string; endDate: string; format?: string }) {
-  return api.post('/v1/chatops/audit/export', data);
+  return api.post('/api/v1/chatops/audit/export', data);
 }
 
 // ---- Recommendations ----
@@ -144,10 +144,13 @@ export interface Recommendation {
   actions: Array<{ label: string; command: string; params: Record<string, unknown> }>;
   createdAt: string;
   source: string;
+  // 扩展字段：用于前端处理状态
+  status?: 'pending' | 'dismissed' | 'resolved' | 'archived';
+  assignee?: string;
 }
 
 export function fetchRecommendations(context?: { currentPage?: string; resourceId?: string }) {
-  return api.post('/v1/chatops/recommendations', { context });
+  return api.post('/api/v1/chatops/recommendations', { context });
 }
 
 // ---- Sessions / Messages ----
@@ -165,7 +168,7 @@ export function getSessionMessages(
   sessionId: string,
   params?: { limit?: number; cursor?: string }
 ) {
-  return api.get(`/v1/chatops/sessions/${sessionId}/messages`, { params });
+  return api.get(`/api/v1/chatops/sessions/${sessionId}/messages`, { params });
 }
 
 // ---- Notification Preferences ----
@@ -182,7 +185,7 @@ export interface NotificationPreference {
 }
 
 export function getNotificationPreferences() {
-  return api.get('/v1/chatops/settings/notification-preferences');
+  return api.get('/api/v1/chatops/settings/notification-preferences');
 }
 
 export function updateNotificationPreferences(data: {
@@ -193,7 +196,7 @@ export function updateNotificationPreferences(data: {
   channelFeishu?: boolean;
   channelDingtalk?: boolean;
 }) {
-  return api.put('/v1/chatops/settings/notification-preferences', data);
+  return api.put('/api/v1/chatops/settings/notification-preferences', data);
 }
 
 // ---- DND Settings ----
@@ -209,7 +212,7 @@ export interface DNDSettings {
 }
 
 export function getDNDSettings() {
-  return api.get('/v1/chatops/settings/dnd');
+  return api.get('/api/v1/chatops/settings/dnd');
 }
 
 export function updateDNDSettings(
@@ -221,11 +224,11 @@ export function updateDNDSettings(
     allowCritical: boolean;
   }>
 ) {
-  return api.put('/v1/chatops/settings/dnd', data);
+  return api.put('/api/v1/chatops/settings/dnd', data);
 }
 
 export function toggleDND(enabled: boolean) {
-  return api.patch('/v1/chatops/settings/dnd/toggle', { enabled });
+  return api.patch('/api/v1/chatops/settings/dnd/toggle', { enabled });
 }
 
 // ---- Platform Config ----
@@ -238,11 +241,11 @@ export interface PlatformConfig {
 }
 
 export function getPlatformConfigs() {
-  return api.get('/v1/chatops/settings/platforms');
+  return api.get('/api/v1/chatops/settings/platforms');
 }
 
 export function updatePlatformConfigs(platforms: PlatformConfig[]) {
-  return api.put('/v1/chatops/settings/platforms', { platforms });
+  return api.put('/api/v1/chatops/settings/platforms', { platforms });
 }
 
 // ---- Alert States ----
@@ -259,19 +262,19 @@ export interface AlertState {
 }
 
 export function getAlertStates() {
-  return api.get('/v1/chatops/alerts/states');
+  return api.get('/api/v1/chatops/alerts/states');
 }
 
 export function markAlertRead(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/read`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/read`);
 }
 
 export function markAlertAcknowledged(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/acknowledge`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/acknowledge`);
 }
 
 export function markAlertDismissed(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/dismiss`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/dismiss`);
 }
 
 // ---- SSE Stream ----
@@ -530,3 +533,136 @@ export function getSSEState(): {
     backendFallback: sseState.backendFallback,
   };
 }
+
+// ---- ChatOps 对话工作台 (Phase 3) ----
+
+export interface ChatRequest {
+  message: string;
+  context?: Record<string, string>;
+}
+
+export interface ChatResponse {
+  message: string;
+  intent: string;
+  confidence: number;
+  toolCalls?: Array<{
+    tool: string;
+    params: Record<string, unknown>;
+    status: string;
+    result?: unknown;
+  }>;
+  suggestions?: string[];
+}
+
+export interface ToolInfo {
+  name: string;
+  version: string;
+  description: string;
+  parameters: Array<{ name: string; type: string; required: boolean; description: string }>;
+  requiresApproval: boolean;
+}
+
+export function sendChatMessage(data: ChatRequest) {
+  return api.post('/api/v1/chatops/chat', data);
+}
+
+export function getAvailableTools() {
+  return api.get('/api/v1/chatops/tools');
+}
+
+// ---- Dashboard Stats ----
+
+export interface DashboardMetrics {
+  totalExecutions: number;
+  successRate: number;
+  failedCount: number;
+  avgResponseTime: number;
+}
+
+export interface DashboardTrend {
+  date: string;
+  executions: number;
+  successRate: number;
+}
+
+export interface TopCommand {
+  command: string;
+  count: number;
+  successRate: number;
+}
+
+export interface PlatformDist {
+  platform: string;
+  count: number;
+}
+
+export interface DashboardRecentExecution {
+  id: string;
+  commandId: string;
+  userId: string;
+  platform: string;
+  status: string;
+  startTime: string;
+  endTime: string | null;
+}
+
+export interface MetricsComparison {
+  totalExecutions: number;
+  successRate: number;
+  failedCount: number;
+  avgResponseTime: number;
+}
+
+export interface DashboardStats {
+  metrics: DashboardMetrics;
+  trends: DashboardTrend[];
+  topCommands: TopCommand[];
+  platformDistribution: PlatformDist[];
+  recentExecutions: DashboardRecentExecution[];
+  comparison: MetricsComparison;
+}
+
+export type TimeRangeType = '7d' | '30d' | 'month' | 'custom';
+
+export function getDashboardStats(params?: {
+  range?: TimeRangeType;
+  startDate?: string;
+  endDate?: string;
+}) {
+  return api.get('/api/v1/chatops/dashboard/stats', { params });
+}
+
+// ---- Chat Config (Questions & Commands) ----
+
+export interface ChatQuestionConfig {
+  key: string;
+  icon: string;
+  title: string;
+  desc: string;
+  question: string;
+  enabled: boolean;
+}
+
+export interface ChatCommandConfig {
+  key: string;
+  label: string;
+  command: string;
+  enabled: boolean;
+}
+
+export function getQuestionConfigs() {
+  return api.get('/api/v1/chatops/settings/questions');
+}
+
+export function updateQuestionConfigs(data: { configs: ChatQuestionConfig[] }) {
+  return api.put('/api/v1/chatops/settings/questions', data);
+}
+
+export function getCommandConfigs() {
+  return api.get('/api/v1/chatops/settings/commands');
+}
+
+export function updateCommandConfigs(data: { configs: ChatCommandConfig[] }) {
+  return api.put('/api/v1/chatops/settings/commands', data);
+}
+

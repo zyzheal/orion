@@ -384,10 +384,8 @@ spec:
       expect(pipelines.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('should return empty list when no repository', async () => {
-      const emptyService = new PipelineService(null);
-      const pipelines = await emptyService.list('tenant-001');
-      expect(pipelines.length).toBe(0);
+    it('should throw when no repository for list', () => {
+      expect(() => new PipelineService(null as any)).toThrow('PipelineRepository is required');
     });
   });
 

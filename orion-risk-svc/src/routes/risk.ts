@@ -101,6 +101,40 @@ export async function riskRoutes(
     reply.send({ success: true, data: score });
   });
 
+  /**
+   * 执行完整风险评估
+   * POST /api/v1/risk/assess
+   */
+  fastify.post('/risk/assess', async (request, reply) => {
+    const body = request.body as Record<string, unknown>;
+    const entityType = String(body.entityType || '');
+    const entityId = String(body.entityId || '');
+    const tenantId = String(body.tenantId || '');
+
+    if (!entityType || !entityId) {
+      return reply.code(400).send({
+        success: false,
+        error: { code: 'INVALID_PARAMS', message: 'entityType and entityId are required' },
+      });
+    }
+
+    const result = await riskService.performRiskAssessment(entityType, entityId, tenantId);
+    reply.send({ success: true, data: result });
+  });
+
+  /**
+   * 获取风险趋势
+   * GET /api/v1/risk/trend/:entityType/:entityId
+   */
+  fastify.get('/risk/trend/:entityType/:entityId', async (request, reply) => {
+    const params = request.params as { entityType: string; entityId: string };
+    const query = request.query as { days?: string };
+    const days = query.days ? parseInt(query.days, 10) : 30;
+
+    const trend = await riskService.getRiskTrend(params.entityType, params.entityId, days);
+    reply.send({ success: true, data: trend });
+  });
+
   // ========== 风险事件 ==========
 
   /**

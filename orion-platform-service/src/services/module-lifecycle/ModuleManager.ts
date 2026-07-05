@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { ModuleRegistry } from './ModuleRegistry';
 import {
   ModuleDescriptor,
@@ -9,8 +9,9 @@ import {
   ModuleManagerConfig,
   DomainConfig,
 } from './types';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ModuleManager');
 
 export { ModuleLifecycle } from './types';
 export { ModuleDescriptor } from './types';
@@ -20,17 +21,17 @@ export class ModuleManager {
   private registrations: Map<string, ModuleRegistration> = new Map();
   private configGetter: () => ModuleManagerConfig;
 
-  constructor(configGetter: () => ModuleManagerConfig) {
-    this.registry = new ModuleRegistry();
+  constructor(configGetter: () => ModuleManagerConfig, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.registry = new ModuleRegistry(db);
     this.configGetter = configGetter;
   }
 
-  loadFromConfig(): void {
+  async loadFromConfig(): Promise<void> {
     const config = this.configGetter();
 
     if (config.core) {
       for (const [id, cfg] of Object.entries(config.core)) {
-        this.registerModule({
+        await this.registerModule({
           id: `core:${id}`,
           name: id,
           description: `Core module: ${id}`,
@@ -56,15 +57,16 @@ export class ModuleManager {
             priority: 50,
           },
         };
-        this.registry.register(domainModule);
+        await this.registry.register(domainModule);
 
         if (domainConfig.services) {
           for (const [serviceId, serviceConfig] of Object.entries(domainConfig.services)) {
-            if (this.registry.get(`service:${serviceId}`)) {
+            const existing = await this.registry.get(`service:${serviceId}`);
+            if (existing) {
               logger.warn(`[ModuleManager] Service ${serviceId} already registered (possibly from another domain), skipping duplicate`);
               continue;
             }
-            this.registerModule({
+            await this.registerModule({
               id: `service:${serviceId}`,
               name: serviceId,
               description: `Service: ${serviceId} (domain: ${domainId})`,
@@ -87,12 +89,13 @@ export class ModuleManager {
 
     if (config.services) {
       for (const [serviceId, rawServiceConfig] of Object.entries(config.services)) {
-        if (this.registry.get(`service:${serviceId}`)) {
+        const existing = await this.registry.get(`service:${serviceId}`);
+        if (existing) {
           logger.warn(`[ModuleManager] Service ${serviceId} already registered (possibly from another domain), skipping duplicate`);
           continue;
         }
         const serviceConfig = rawServiceConfig as ModuleConfig;
-        this.registerModule({
+        await this.registerModule({
           id: `service:${serviceId}`,
           name: serviceId,
           description: `Service: ${serviceId}`,
@@ -105,7 +108,7 @@ export class ModuleManager {
 
     if (config.features) {
       for (const [featureId, featureConfig] of Object.entries(config.features)) {
-        this.registerModule({
+        await this.registerModule({
           id: `feature:${featureId}`,
           name: featureId,
           description: `Feature: ${featureId}`,
@@ -116,22 +119,23 @@ export class ModuleManager {
       }
     }
 
-    logger.info(`[ModuleManager] Loaded ${this.registry.size} modules from configuration`);
+    const size = await this.registry.getSize();
+    logger.info(`[ModuleManager] Loaded ${size} modules from configuration`);
   }
 
-  registerModule(descriptor: ModuleDescriptor, lifecycle?: ModuleLifecycle, routeRegistrar?: ModuleRegistration['routeRegistrar']): void {
-    const existing = this.registry.get(descriptor.id);
+  async registerModule(descriptor: ModuleDescriptor, lifecycle?: ModuleLifecycle, routeRegistrar?: ModuleRegistration['routeRegistrar']): Promise<void> {
+    const existing = await this.registry.get(descriptor.id);
     if (existing) {
       this.registrations.set(descriptor.id, { descriptor, lifecycle, routeRegistrar });
       return;
     }
 
-    this.registry.register(descriptor);
+    await this.registry.register(descriptor);
     this.registrations.set(descriptor.id, { descriptor, lifecycle, routeRegistrar });
   }
 
   async startAll(): Promise<void> {
-    const validation = this.registry.validateDependencies();
+    const validation = await this.registry.validateDependencies();
     if (!validation.valid) {
       const issues = [
         ...validation.missingDependencies.map(d => `Missing dependency: ${d}`),
@@ -140,10 +144,10 @@ export class ModuleManager {
       logger.warn(`[ModuleManager] Dependency issues: ${issues.join(', ')}`);
     }
 
-    const startupOrder = this.registry.getStartupOrder();
+    const startupOrder = await this.registry.getStartupOrder();
 
     for (const moduleId of startupOrder) {
-      const mod = this.registry.get(moduleId);
+      const mod = await this.registry.get(moduleId);
       if (!mod || !mod.config.enabled) {
         continue;
       }
@@ -151,18 +155,19 @@ export class ModuleManager {
         await this.startModule(moduleId);
       } catch (error: any) {
         logger.error(`[ModuleManager] Failed to start ${moduleId}: ${error.message}`);
-        this.registry.setFailed(moduleId, error);
+        await this.registry.setFailed(moduleId, error);
       }
     }
 
-    const active = this.registry.getActiveModules();
-    logger.info(`[ModuleManager] Started ${active.length}/${this.registry.size} modules`);
+    const active = await this.registry.getActiveModules();
+    const size = await this.registry.getSize();
+    logger.info(`[ModuleManager] Started ${active.length}/${size} modules`);
   }
 
   async startModule(id: string): Promise<void> {
-    const mod = this.registry.get(id);
+    const mod = await this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (!mod.config.enabled) {
@@ -172,9 +177,9 @@ export class ModuleManager {
 
     const deps = mod.config.dependencies || [];
     for (const dep of deps) {
-      const depMod = this.registry.get(dep);
+      const depMod = await this.registry.get(dep);
       if (!depMod) {
-        throw new Error(`Dependency ${dep} not found for module ${id}`);
+        throw new OrionError(`Dependency ${dep} not found for module ${id}`, ErrorCode.NOT_FOUND);
       }
       // Skip disabled dependencies
       if (!depMod.config.enabled) {
@@ -182,11 +187,11 @@ export class ModuleManager {
         continue;
       }
       if (depMod.state !== 'active') {
-        throw new Error(`Dependency ${dep} is not active for module ${id}`);
+        throw new OrionError(`Dependency ${dep} is not active for module ${id}`, ErrorCode.NOT_FOUND);
       }
     }
 
-    this.registry.setState(id, 'starting');
+    await this.registry.setState(id, 'starting');
 
     const registration = this.registrations.get(id);
     if (registration?.lifecycle) {
@@ -194,42 +199,43 @@ export class ModuleManager {
       await registration.lifecycle.start?.();
     }
 
-    this.registry.setState(id, 'active');
+    await this.registry.setState(id, 'active');
     logger.info(`[ModuleManager] Module ${id} started`);
   }
 
   async stopModule(id: string): Promise<void> {
-    const mod = this.registry.get(id);
+    const mod = await this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
 
-    const dependents = this.registry.getAll().filter(m =>
+    const allModules = await this.registry.getAll();
+    const dependents = allModules.filter(m =>
       m.state === 'active' &&
       m.config.dependencies?.includes(id)
     );
     if (dependents.length > 0) {
-      throw new Error(`Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`);
+      throw new OrionError(`Cannot stop ${id}: ${dependents.map(d => d.id).join(', ')} depend on it`, ErrorCode.NOT_FOUND);
     }
 
-    this.registry.setState(id, 'stopping');
+    await this.registry.setState(id, 'stopping');
 
     const registration = this.registrations.get(id);
     if (registration?.lifecycle) {
       await registration.lifecycle.stop?.();
     }
 
-    this.registry.setState(id, 'stopped');
+    await this.registry.setState(id, 'stopped');
     logger.info(`[ModuleManager] Module ${id} stopped`);
   }
 
-  isModuleEnabled(id: string): boolean {
-    const mod = this.registry.get(id);
+  async isModuleEnabled(id: string): Promise<boolean> {
+    const mod = await this.registry.get(id);
     return mod?.config.enabled ?? false;
   }
 
-  getModuleStatus(): { modules: ModuleDescriptor[]; total: number; active: number; failed: number } {
-    const modules = this.registry.getAll();
+  async getModuleStatus(): Promise<{ modules: ModuleDescriptor[]; total: number; active: number; failed: number }> {
+    const modules = await this.registry.getAll();
     return {
       modules,
       total: modules.length,
@@ -243,12 +249,12 @@ export class ModuleManager {
   }
 
   async toggleModule(id: string, enabled: boolean): Promise<void> {
-    const mod = this.registry.get(id);
+    const mod = await this.registry.get(id);
     if (!mod) {
-      throw new Error(`Module ${id} not found`);
+      throw new OrionError(`Module ${id} not found`, ErrorCode.NOT_FOUND);
     }
     if (mod.level === 'core' && !enabled) {
-      throw new Error(`Core module ${id} cannot be disabled`);
+      throw new OrionError(`Core module ${id} cannot be disabled`, 'VALIDATION_ERROR')
     }
     mod.config.enabled = enabled;
     if (enabled && mod.state !== 'active') {

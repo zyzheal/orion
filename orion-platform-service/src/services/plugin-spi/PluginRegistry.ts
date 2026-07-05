@@ -1,3 +1,4 @@
+import { ErrorCode } from '../../errors';
 /**
  * Plugin Registry
  *
@@ -9,9 +10,10 @@
  * - Plugin lookup and listing
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import { OrionError } from '../../errors';
 import {
   PluginManifest,
   PluginInfo,
@@ -20,8 +22,10 @@ import {
   PluginEventType,
   PluginSecurityLevel,
 } from './types';
+import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginRegistry');
 
 /**
  * Plugin Registry
@@ -29,11 +33,14 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
  * Central registry for plugin metadata and lifecycle tracking.
  */
 export class PluginRegistry {
-  private plugins: Map<string, PluginInfo> = new Map();
+  private plugins: Map<string, PluginInfo> = new Map(); // in-memory cache
   private pluginDirectory: string;
   private listeners: Map<PluginEventType, Array<(data: any) => void>> = new Map();
+  private repository: PluginRegistryRepository;
 
-  constructor(options?: { pluginDirectory?: string }) {
+  constructor(repository: PluginRegistryRepository, options?: { pluginDirectory?: string }) {
+    if (!repository) throw new OrionError('PluginRegistryRepository is required', ErrorCode.INTERNAL_ERROR);
+    this.repository = repository;
     this.pluginDirectory = options?.pluginDirectory || path.join(process.cwd(), 'plugins');
   }
 
@@ -48,12 +55,24 @@ export class PluginRegistry {
 
     const pluginInfo: PluginInfo = {
       manifest,
+      version: manifest.version,
       status: 'installed',
       installDate: new Date(),
       config,
     };
 
     this.plugins.set(manifest.name, pluginInfo);
+
+    // Persist to repository
+    await this.repository.create({
+      name: manifest.name,
+      version: manifest.version,
+      description: manifest.description,
+      author: manifest.author,
+      status: 'installed',
+      config: config || {},
+      manifest: manifest as any,
+    });
 
     logger.info({ pluginId: manifest.name, version: manifest.version }, 'Plugin registered');
     this.emit('plugin:registered', { pluginId: manifest.name, version: manifest.version });
@@ -112,6 +131,7 @@ export class PluginRegistry {
 
         const pluginInfo: PluginInfo = {
           manifest,
+          version: manifest.version,
           status: 'installed',
           installDate: new Date(),
         };
@@ -176,7 +196,7 @@ export class PluginRegistry {
   /**
    * Update plugin status
    */
-  updateStatus(name: string, status: PluginStatus, error?: string): PluginInfo | undefined {
+  async updateStatus(name: string, status: PluginStatus, error?: string): Promise<PluginInfo | undefined> {
     const plugin = this.plugins.get(name);
     if (!plugin) {
       return undefined;
@@ -190,28 +210,46 @@ export class PluginRegistry {
       plugin.enabledDate = new Date();
     }
 
+    // Persist to repository
+    const entity = await this.repository.findByName(name);
+    if (entity) {
+      await this.repository.updateStatus(entity.id, status, error);
+    }
+
     return plugin;
   }
 
   /**
    * Update plugin configuration
    */
-  updateConfig(name: string, config: Record<string, any>): PluginInfo | undefined {
+  async updateConfig(name: string, config: Record<string, any>): Promise<PluginInfo | undefined> {
     const plugin = this.plugins.get(name);
     if (!plugin) {
       return undefined;
     }
 
     plugin.config = { ...plugin.config, ...config };
+
+    // Persist to repository
+    const entity = await this.repository.findByName(name);
+    if (entity) {
+      await this.repository.updateConfig(entity.id, config);
+    }
+
     return plugin;
   }
 
   /**
    * Remove a plugin from the registry
    */
-  remove(name: string): boolean {
+  async remove(name: string): Promise<boolean> {
     const existed = this.plugins.delete(name);
     if (existed) {
+      // Remove from repository
+      const entity = await this.repository.findByName(name);
+      if (entity) {
+        await this.repository.delete(entity.id);
+      }
       logger.info({ pluginId: name }, 'Plugin removed from registry');
     }
     return existed;
@@ -281,7 +319,7 @@ export class PluginRegistry {
     }
 
     if (errors.length > 0) {
-      throw new Error(`Invalid plugin manifest: ${errors.join(', ')}`);
+      throw new OrionError(`Invalid plugin manifest: ${errors.join(', ')}`, 'VALIDATION_ERROR')
     }
   }
 
@@ -291,17 +329,13 @@ export class PluginRegistry {
   private checkPlatformCompatibility(manifest: PluginManifest): void {
     if (manifest.minPlatformVersion) {
       if (!this.isVersionGte(PLATFORM_VERSION, manifest.minPlatformVersion)) {
-        throw new Error(
-          `Plugin "${manifest.name}" requires platform version >= ${manifest.minPlatformVersion}, current: ${PLATFORM_VERSION}`
-        );
+        throw new OrionError('Platform version below minimum required', ErrorCode.VALIDATION_ERROR);
       }
     }
 
     if (manifest.maxPlatformVersion) {
       if (!this.isVersionLte(PLATFORM_VERSION, manifest.maxPlatformVersion)) {
-        throw new Error(
-          `Plugin "${manifest.name}" requires platform version <= ${manifest.maxPlatformVersion}, current: ${PLATFORM_VERSION}`
-        );
+        throw new OrionError('Platform version above maximum supported', ErrorCode.VALIDATION_ERROR);
       }
     }
   }
@@ -375,7 +409,7 @@ export class PluginRegistry {
         try {
           handler(data);
         } catch (error) {
-          logger.error({ event, error }, 'Error in event handler');
+          logger.error({ traceId: getCurrentTraceId(), event, error }, 'Error in event handler');
         }
       }
     }

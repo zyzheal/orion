@@ -6,6 +6,10 @@
 
 import Redis, { RedisOptions } from 'ioredis';
 import { EventEmitter } from 'events';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode } from '../errors';
+
+const logger = createLogger('redis-cache');
 
 export interface RedisConfig {
   host: string;
@@ -66,23 +70,23 @@ export class RedisCache extends EventEmitter {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.emit('connect');
-      console.log('[RedisCache] Connected to Redis');
+      logger.info('[RedisCache] Connected to Redis');
     });
 
     this.client.on('close', () => {
       this.isConnected = false;
       this.emit('close');
-      console.log('[RedisCache] Connection closed');
+      logger.info('[RedisCache] Connection closed');
     });
 
     this.client.on('error', (error) => {
       this.emit('error', error);
-      console.error('[RedisCache] Error:', error.message);
+      logger.error('[RedisCache] Error:', error.message);
     });
 
     this.client.on('reconnecting', (delay: number) => {
       this.emit('reconnecting', { delay });
-      console.log(`[RedisCache] Reconnecting in ${delay}ms`);
+      logger.info(`[RedisCache] Reconnecting in ${delay}ms`);
     });
 
     // 等待连接建立
@@ -108,7 +112,7 @@ export class RedisCache extends EventEmitter {
    */
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const serialized = JSON.stringify(value);
@@ -127,7 +131,7 @@ export class RedisCache extends EventEmitter {
    */
   async get<T>(key: string): Promise<T | null> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const value = await this.client.get(key);
@@ -147,7 +151,7 @@ export class RedisCache extends EventEmitter {
    */
   async delete(key: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const result = await this.client.del(key);
@@ -160,7 +164,7 @@ export class RedisCache extends EventEmitter {
    */
   async exists(key: string): Promise<boolean> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const result = await this.client.exists(key);
@@ -172,7 +176,7 @@ export class RedisCache extends EventEmitter {
    */
   async ttl(key: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return await this.client.ttl(key);
@@ -183,7 +187,7 @@ export class RedisCache extends EventEmitter {
    */
   async incr(key: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return await this.client.incr(key);
@@ -194,22 +198,28 @@ export class RedisCache extends EventEmitter {
    */
   async decr(key: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return await this.client.decr(key);
   }
 
   /**
-   * 设置哈希字段
+   * 设置哈希字段 - 支持 (key, field, value) 和 (key, object) 两种调用方式
    */
-  async hset(key: string, field: string, value: any): Promise<number> {
+  async hset(key: string, fieldOrObj: string | Record<string, any>, value?: any): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
-
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-    return await this.client.hset(key, field, serialized);
+    if (typeof fieldOrObj === 'object' && value === undefined) {
+      const serialized: Record<string, string> = {};
+      for (const [k, v] of Object.entries(fieldOrObj)) {
+        serialized[k] = typeof v === 'string' ? v : JSON.stringify(v);
+      }
+      return await this.client.hset(key, serialized);
+    }
+    const serialized = typeof fieldOrObj === 'string' ? fieldOrObj : JSON.stringify(fieldOrObj);
+    return await this.client.hset(key, fieldOrObj as string, serialized);
   }
 
   /**
@@ -217,7 +227,7 @@ export class RedisCache extends EventEmitter {
    */
   async hget<T>(key: string, field: string): Promise<T | null> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const value = await this.client.hget(key, field);
@@ -237,7 +247,7 @@ export class RedisCache extends EventEmitter {
    */
   async hgetall<T>(key: string): Promise<Record<string, T> | null> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const result = await this.client.hgetall(key);
@@ -262,7 +272,7 @@ export class RedisCache extends EventEmitter {
    */
   async lpush<T>(key: string, ...values: T[]): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const serialized = values.map((v) =>
@@ -276,7 +286,7 @@ export class RedisCache extends EventEmitter {
    */
   async rpop<T>(key: string): Promise<T | null> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const value = await this.client.rpop(key);
@@ -296,10 +306,39 @@ export class RedisCache extends EventEmitter {
    */
   async llen(key: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return await this.client.llen(key);
+  }
+
+  /**
+   * 获取列表范围
+   */
+  async lrange<T>(key: string, start: number, end: number): Promise<T[]> {
+    if (!this.client) {
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
+    }
+
+    const values = await this.client.lrange(key, start, end);
+    return values.map((v) => {
+      try {
+        return JSON.parse(v) as T;
+      } catch {
+        return v as unknown as T;
+      }
+    });
+  }
+
+  /**
+   * 设置 key 过期时间（返回 1 表示成功，0 表示 key 不存在）
+   */
+  async expire(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.client) {
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
+    }
+
+    return await this.client.expire(key, ttlSeconds);
   }
 
   /**
@@ -307,7 +346,7 @@ export class RedisCache extends EventEmitter {
    */
   async publish(channel: string, message: string): Promise<number> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return await this.client.publish(channel, message);
@@ -318,7 +357,7 @@ export class RedisCache extends EventEmitter {
    */
   async subscribe(channel: string, callback: (message: string) => void): Promise<void> {
     if (!this.client) {
-      throw new Error('Redis not connected');
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
 
     const subscriber = new Redis({

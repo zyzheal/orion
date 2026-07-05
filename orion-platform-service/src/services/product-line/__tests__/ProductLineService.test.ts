@@ -716,4 +716,122 @@ describe('ProductLineService', () => {
       expect(result).toBe(false);
     });
   });
+
+  // ==================== Fallback paths (no repo) ====================
+
+  describe('fallback paths without repository', () => {
+    test('getById should return undefined when no repo', async () => {
+      const noRepoService = new ProductLineService(undefined);
+      const result = await noRepoService.getById('pl-001');
+      expect(result).toBeUndefined();
+    });
+
+    test('getByName should return undefined when no repo', async () => {
+      const noRepoService = new ProductLineService(undefined);
+      const result = await noRepoService.getByName('test');
+      expect(result).toBeUndefined();
+    });
+
+    test('list should return empty array when no repo', async () => {
+      const noRepoService = new ProductLineService(undefined);
+      const result = await noRepoService.list();
+      expect(result).toEqual([]);
+    });
+
+    test('delete should return false when no repo', async () => {
+      const noRepoService = new ProductLineService(undefined);
+      const result = await noRepoService.delete('pl-001');
+      expect(result).toBe(false);
+    });
+  });
+
+  // ==================== Update with complex inputs ====================
+
+  describe('update with complex inputs', () => {
+    const existingEntity = {
+      id: 'pl-001',
+      name: 'payment',
+      displayName: 'Payment',
+      gitUrl: 'url',
+      branchMode: 'gitflow',
+      protectedBranches: [],
+      codeOwnership: {},
+      namingConvention: {},
+      mergeStrategy: {},
+      defaultEnvironment: 'dev',
+      environmentMappings: [],
+      promotionConfig: {},
+      environments: [],
+      defaultPipelineTemplate: null,
+      pipelineTemplates: [],
+      teamBindings: [],
+      resourceQuotas: {},
+      notifications: {},
+      labels: {},
+      annotations: {},
+      phase: 'Active',
+      conditions: [],
+      statistics: {},
+      gitStatus: {},
+      environmentStatuses: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    test('should update branchPolicies', async () => {
+      mockProductLineRepo.findById.mockResolvedValue(existingEntity);
+      mockProductLineRepo.update.mockResolvedValue({ ...existingEntity, branchMode: 'github-flow' });
+
+      const result = await service.update('pl-001', {
+        branchPolicies: {
+          mode: 'github-flow',
+          protectedBranches: ['main'],
+          namingConvention: { pattern: 'feature/*' },
+        },
+      });
+
+      expect(result).not.toBeNull();
+      expect(mockProductLineRepo.update).toHaveBeenCalledWith('pl-001', expect.objectContaining({
+        branchMode: 'github-flow',
+      }));
+    });
+
+    test('should update environmentMappings', async () => {
+      mockProductLineRepo.findById.mockResolvedValue(existingEntity);
+      mockProductLineRepo.update.mockResolvedValue(existingEntity);
+
+      await service.update('pl-001', {
+        environmentMappings: {
+          defaultEnvironment: 'staging',
+          mappings: [{ branch: 'main', environment: 'prod' }],
+        },
+      });
+
+      expect(mockProductLineRepo.update).toHaveBeenCalledWith('pl-001', expect.objectContaining({
+        defaultEnvironment: 'staging',
+      }));
+    });
+
+    test('should update pipelineTemplates', async () => {
+      mockProductLineRepo.findById.mockResolvedValue(existingEntity);
+      mockProductLineRepo.update.mockResolvedValue(existingEntity);
+
+      await service.update('pl-001', {
+        pipelineTemplates: {
+          defaultTemplate: 'nodejs-build',
+          templates: ['nodejs-build', 'docker-build'],
+        },
+      });
+
+      expect(mockProductLineRepo.update).toHaveBeenCalledWith('pl-001', expect.objectContaining({
+        defaultPipelineTemplate: 'nodejs-build',
+      }));
+    });
+
+    test('should return null when no repo', async () => {
+      const noRepoService = new ProductLineService(undefined);
+      const result = await noRepoService.update('pl-001', { displayName: 'New' });
+      expect(result).toBeNull();
+    });
+  });
 });

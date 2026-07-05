@@ -10,6 +10,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { CronSchedulerService, CronJobExecution } from '../services/scheduler/CronSchedulerService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 interface CronRoutesOptions {
   database?: DatabasePool;
@@ -24,12 +27,14 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   // ==================== Cron Job 管理路由 ====================
 
   // POST /cron/jobs - 添加定时任务
-  app.post('/jobs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/jobs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const job = request.body as any;
 
     // 验证必填字段
     if (!job.id || !job.name || !job.schedule || !job.task) {
-      reply.code(400).send({ error: 'Missing required fields: id, name, schedule, task' });
+handleError(reply, new ValidationError('Missing required fields: id, name, schedule, task'));
       return;
     }
 
@@ -43,7 +48,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // GET /cron/jobs - 获取定时任务列表
-  app.get('/jobs', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jobs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const jobs = await cronSchedulerService.getJobs();
 
     reply.send({
@@ -53,12 +60,14 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // GET /cron/jobs/:id - 获取定时任务详情
-  app.get('/jobs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/jobs/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const job = cronSchedulerService.getJob(id);
 
     if (!job) {
-      reply.code(404).send({ error: 'Cron job not found' });
+handleError(reply, new NotFoundError('Cron job not found'));
       return;
     }
 
@@ -69,13 +78,15 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // PUT /cron/jobs/:id - 更新定时任务
-  app.put('/jobs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/jobs/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const updates = request.body as any;
 
     const job = cronSchedulerService.getJob(id);
     if (!job) {
-      reply.code(404).send({ error: 'Cron job not found' });
+handleError(reply, new NotFoundError('Cron job not found'));
       return;
     }
 
@@ -90,7 +101,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // DELETE /cron/jobs/:id - 删除定时任务
-  app.delete('/jobs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/jobs/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'delete', extractResourceId: (req) => (req.params as { id: string }).id, requiredImpact: 'high' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     cronSchedulerService.removeJob(id);
@@ -102,7 +115,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // POST /cron/jobs/:id/enable - 启用定时任务
-  app.post('/jobs/:id/enable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/jobs/:id/enable', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'execute', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     cronSchedulerService.enableJob(id);
@@ -114,7 +129,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // POST /cron/jobs/:id/disable - 禁用定时任务
-  app.post('/jobs/:id/disable', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/jobs/:id/disable', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'execute', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     cronSchedulerService.disableJob(id);
@@ -126,7 +143,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // POST /cron/jobs/:id/execute - 手动执行定时任务
-  app.post('/jobs/:id/execute', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/jobs/:id/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'execute', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
 
     try {
@@ -137,17 +156,16 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
         data: execution
       });
     } catch (error) {
-      reply.code(500).send({
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      });
+handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
   // ==================== 执行历史路由 ====================
 
   // GET /cron/executions - 获取执行历史
-  app.get('/executions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/executions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { jobId } = request.query as { jobId?: string };
 
     const executions = cronSchedulerService.getExecutionHistory(jobId);
@@ -159,14 +177,16 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // GET /cron/executions/:executionId - 获取执行详情
-  app.get('/executions/:executionId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/executions/:executionId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { executionId } = request.params as { executionId: string };
 
     const executions = await cronSchedulerService.getExecutionHistory();
     const execution = executions.find((exec: CronJobExecution) => exec.executionId === executionId);
 
     if (!execution) {
-      reply.code(404).send({ error: 'Execution not found' });
+handleError(reply, new NotFoundError('Execution not found'));
       return;
     }
 
@@ -179,7 +199,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   // ==================== 运行状态路由 ====================
 
   // GET /cron/running - 获取正在运行的任务
-  app.get('/running', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/running', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const runningJobs = cronSchedulerService.getRunningJobs();
 
     reply.send({
@@ -189,7 +211,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // GET /cron/status - 获取调度器状态
-  app.get('/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const runningJobs = cronSchedulerService.getRunningJobs();
     const jobs = await cronSchedulerService.getJobs();
 
@@ -206,7 +230,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   // ==================== 调度器控制路由 ====================
 
   // POST /cron/start - 启动调度器
-  app.post('/start', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/start', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     cronSchedulerService.start();
 
     reply.send({
@@ -216,7 +242,9 @@ export default async function cronRoutes(app: FastifyInstance, options: CronRout
   });
 
   // POST /cron/stop - 停止调度器
-  app.post('/stop', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/stop', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'cron', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     cronSchedulerService.stop();
 
     reply.send({

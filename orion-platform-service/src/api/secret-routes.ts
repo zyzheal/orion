@@ -12,9 +12,13 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { SecretsController } from './controllers/SecretsController';
 import { SecretsService } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('secret-routes');
 
 // Global secrets service instance shared across the application
 let globalSecretsService: SecretsService | null = null;
@@ -26,7 +30,7 @@ export interface SecretRouteDeps {
 
 export async function registerSecretRoutes(app: FastifyInstance, deps: SecretRouteDeps): Promise<void> {
   if (!deps.database) {
-    console.warn('[SecretRoutes] Database not available, secret routes will not be registered');
+    logger.warn('[SecretRoutes] Database not available, secret routes will not be registered');
     return;
   }
 
@@ -41,37 +45,51 @@ export async function registerSecretRoutes(app: FastifyInstance, deps: SecretRou
     instance.addHook('onRequest', authenticateUser);
 
     // POST /v1/tenants/:tenantId/secrets - 创建 secret
-    instance.post('/v1/tenants/:tenantId/secrets', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.post('/v1/tenants/:tenantId/secrets', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'write' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.create(request, reply);
     });
 
     // GET /v1/tenants/:tenantId/secrets - 列出 secret
-    instance.get('/v1/tenants/:tenantId/secrets', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/v1/tenants/:tenantId/secrets', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.list(request, reply);
     });
 
     // GET /v1/tenants/:tenantId/secrets/resolve - 解析 secret 引用
-    instance.post('/v1/tenants/:tenantId/secrets/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.post('/v1/tenants/:tenantId/secrets/resolve', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.resolve(request, reply);
     });
 
     // GET /v1/tenants/:tenantId/secrets/:id - 获取 secret 详情
-    instance.get('/v1/tenants/:tenantId/secrets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/v1/tenants/:tenantId/secrets/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.getById(request, reply);
     });
 
     // PUT /v1/tenants/:tenantId/secrets/:id - 更新 secret
-    instance.put('/v1/tenants/:tenantId/secrets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.put('/v1/tenants/:tenantId/secrets/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.update(request, reply);
     });
 
     // DELETE /v1/tenants/:tenantId/secrets/:id - 删除 secret
-    instance.delete('/v1/tenants/:tenantId/secrets/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.delete('/v1/tenants/:tenantId/secrets/:id', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'delete', extractResourceId: (req) => (req.params as { id: string }).id, requiredImpact: 'high' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.delete(request, reply);
     });
 
     // GET /v1/tenants/:tenantId/secrets/:id/references - 查看 Secret 引用
-    instance.get('/v1/tenants/:tenantId/secrets/:id/references', async (request: FastifyRequest, reply: FastifyReply) => {
+    instance.get('/v1/tenants/:tenantId/secrets/:id/references', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'secret', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
       return controller.getReferences(request, reply);
     });
   });

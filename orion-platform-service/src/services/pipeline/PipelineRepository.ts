@@ -126,6 +126,15 @@ export class PipelineRepository extends BaseRepository<Pipeline> {
     super(db, 'pipelines');
   }
 
+  // @ts-ignore
+  async findAll(options?: any): Promise<any> {
+    const result = await this.db.query(
+      `SELECT * FROM pipelines ORDER BY created_at DESC`,
+    );
+    const entities = result.rows.map(row => this.mapRowToEntity(row));
+    return { entities, total: entities.length };
+  }
+
   async findByTenant(tenantId: string): Promise<Pipeline[]> {
     const result = await this.db.query(
       `SELECT * FROM pipelines WHERE tenant_id = $1 ORDER BY created_at DESC`,

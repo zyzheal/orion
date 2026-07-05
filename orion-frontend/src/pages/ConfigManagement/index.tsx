@@ -26,7 +26,7 @@ import {
   List,
   Empty,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   PlusOutlined,
@@ -38,11 +38,14 @@ import {
   ScanOutlined,
   RocketOutlined,
   ArrowRightOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
-import DashboardLayout from '@/components/DashboardLayout';
 import {
   getConfigs,
   createConfig,
+  updateConfig,
+  deleteConfig,
   getGitOpsConfig,
   syncFromGit,
   submitForApproval,
@@ -86,7 +89,7 @@ const renderChangeItem = (change: {
       key={change.path}
       style={{
         padding: '8px 12px',
-        marginBottom: 8,
+        marginBottom: spacing.sm,
         borderRadius: 4,
         background: colors.neutral[50],
         borderLeft: `3px solid ${colorMap[change.operation] || colors.neutral[400]}`,
@@ -130,6 +133,7 @@ const ConfigManagementPage: React.FC = () => {
   const [gitOpsConfig, setGitOpsConfig] = useState<GitOpsConfig | null>(null);
   const [selectedConfig, setSelectedConfig] = useState<ConfigItem | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -174,8 +178,8 @@ const ConfigManagementPage: React.FC = () => {
         getConfigs({ pageSize: 50 }),
         getGitOpsConfig(),
       ]);
-      setConfigs(configsRes.data.data.configs || []);
-      setGitOpsConfig(gitOpsRes.data.data);
+      setConfigs(configsRes.data.configs || []);
+      setGitOpsConfig(gitOpsRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载配置失败：${error.message}`);
@@ -193,17 +197,61 @@ const ConfigManagementPage: React.FC = () => {
 
   const handleCreate = async (values: any) => {
     try {
-      await createConfig(values);
-      message.success('配置创建成功');
+      if (editingConfig) {
+        await updateConfig(editingConfig.id, values);
+        message.success('配置更新成功');
+      } else {
+        await createConfig(values);
+        message.success('配置创建成功');
+      }
       setCreateModalOpen(false);
+      setEditingConfig(null);
+      form.resetFields();
       loadData();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`创建配置失败：${error.message}`);
+        message.error(`${editingConfig ? '更新' : '创建'}配置失败：${error.message}`);
       } else {
-        message.error('创建配置失败，请稍后重试');
+        message.error(`${editingConfig ? '更新' : '创建'}配置失败，请稍后重试`);
       }
     }
+  };
+
+  const handleEdit = (record: ConfigItem) => {
+    setEditingConfig(record);
+    form.setFieldsValue({
+      key: record.key,
+      value: record.value,
+      environment: record.environment,
+      category: record.category,
+      sensitive: record.sensitive,
+      encrypted: record.encrypted,
+      description: record.description,
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    Modal.confirm({
+      title: '删除配置',
+      content: '确定要删除此配置项吗？此操作不可撤销。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await deleteConfig(id);
+          message.success('配置已删除');
+          loadData();
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`删除失败：${error.message}`);
+          } else {
+            message.error('删除失败');
+          }
+        }
+      },
+    });
   };
 
   const handleSync = async () => {
@@ -246,7 +294,7 @@ const ConfigManagementPage: React.FC = () => {
     setEnvDiffLoading(true);
     try {
       const res = await compareEnvironments(sourceEnv, targetEnv);
-      setEnvDiffResult(res.data.data);
+      setEnvDiffResult(res.data);
       message.success('环境对比完成');
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -276,7 +324,7 @@ const ConfigManagementPage: React.FC = () => {
     setVersionDiffLoading(true);
     try {
       const res = await compareConfigs(versionDiffConfigId, versionA, versionB);
-      setVersionDiffResult(res.data.data);
+      setVersionDiffResult(res.data);
       message.success('版本对比完成');
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -294,7 +342,7 @@ const ConfigManagementPage: React.FC = () => {
     setReportLoading(true);
     try {
       const res = await getDiffReport();
-      const data = res.data.data;
+      const data = res.data;
       setDiffReport({
         totalConfigs: data.totalConfigs,
         totalDifferences: data.summary.totalDifferences,
@@ -321,9 +369,9 @@ const ConfigManagementPage: React.FC = () => {
     setDriftLoading(true);
     try {
       const res = await detectDrift();
-      setDriftResult(res.data.data);
-      if (res.data.data.driftDetected) {
-        message.warning(`发现 ${res.data.data.itemCount} 处配置漂移`);
+      setDriftResult(res.data);
+      if (res.data.driftDetected) {
+        message.warning(`发现 ${res.data.itemCount} 处配置漂移`);
       } else {
         message.success('未检测到配置漂移');
       }
@@ -416,6 +464,23 @@ const ConfigManagementPage: React.FC = () => {
           >
             详情
           </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEdit(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record.id)}
+          >
+            删除
+          </Button>
           {record.status === 'draft' && (
             <Button type="link" size="small" onClick={() => handleApproval(record.id)}>
               提交审批
@@ -451,7 +516,7 @@ const ConfigManagementPage: React.FC = () => {
       children: (
         <>
           {/* Summary Cards */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={4}>
               <Card>
                 <Statistic title="配置总数" value={configs.length} />
@@ -517,7 +582,7 @@ const ConfigManagementPage: React.FC = () => {
           </Row>
 
           {/* GitOps Status */}
-          <Card title="GitOps 同步状态" style={{ marginBottom: 24 }}>
+          <Card title="GitOps 同步状态" style={{ marginBottom: spacing.lg }}>
             <Row gutter={16}>
               <Col span={6}>
                 <Text type="secondary">状态:</Text>{' '}
@@ -585,7 +650,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={sourceEnv}
                   onChange={setSourceEnv}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
                 />
               </Col>
@@ -597,15 +662,15 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={targetEnv}
                   onChange={setTargetEnv}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={ENVIRONMENTS.map((e) => ({ label: e, value: e }))}
                 />
               </Col>
             </Row>
 
             {envDiffResult && (
-              <div style={{ marginTop: 16 }}>
-                <Row gutter={16} style={{ marginBottom: 16 }}>
+              <div style={{ marginTop: spacing.md }}>
+                <Row gutter={16} style={{ marginBottom: spacing.md }}>
                   <Col span={6}>
                     <Statistic
                       title="配置总数"
@@ -641,17 +706,29 @@ const ConfigManagementPage: React.FC = () => {
 
                 {envDiffResult.differences.length > 0 && (
                   <>
-                    <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                    <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
                       差异详情 ({envDiffResult.differences.length} 项)
                     </Text>
-                    {envDiffResult.differences.map((change) => renderChangeItem(change as any))}
+                    {envDiffResult.differences.map((change) =>
+                      renderChangeItem(
+                        change as {
+                          path: string;
+                          operation: 'add' | 'remove' | 'update';
+                          oldValue?: unknown;
+                          newValue?: unknown;
+                        }
+                      )
+                    )}
                   </>
                 )}
 
                 {(envDiffResult.onlyInSource?.length > 0 ||
                   envDiffResult.onlyInTarget?.length > 0) && (
                   <>
-                    <Text strong style={{ display: 'block', marginTop: 16, marginBottom: 8 }}>
+                    <Text
+                      strong
+                      style={{ display: 'block', marginTop: spacing.md, marginBottom: spacing.sm }}
+                    >
                       仅存在于一侧的配置项
                     </Text>
                     {envDiffResult.onlyInSource?.map((key) => (
@@ -679,14 +756,14 @@ const ConfigManagementPage: React.FC = () => {
                       message="两个环境的配置完全一致"
                       type="success"
                       showIcon
-                      style={{ marginTop: 8 }}
+                      style={{ marginTop: spacing.sm }}
                     />
                   )}
               </div>
             )}
 
             {!envDiffResult && (
-              <Empty description="请选择环境并点击对比" style={{ marginTop: 16 }} />
+              <Empty description="请选择环境并点击对比" style={{ marginTop: spacing.md }} />
             )}
           </Card>
 
@@ -710,7 +787,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionDiffConfigId || undefined}
                   onChange={setVersionDiffConfigId}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={configSelectOptions}
                   placeholder="选择配置项"
                   showSearch
@@ -724,7 +801,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionA}
                   onChange={setVersionA}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={versionOptions}
                 />
               </Col>
@@ -733,7 +810,7 @@ const ConfigManagementPage: React.FC = () => {
                 <Select
                   value={versionB}
                   onChange={setVersionB}
-                  style={{ width: '100%', marginTop: 8 }}
+                  style={{ width: '100%', marginTop: spacing.sm }}
                   options={versionOptions}
                 />
               </Col>
@@ -742,8 +819,8 @@ const ConfigManagementPage: React.FC = () => {
             {versionDiffResult &&
               versionDiffResult.changes &&
               versionDiffResult.changes.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                <div style={{ marginTop: spacing.md }}>
+                  <Text strong style={{ display: 'block', marginBottom: spacing.sm }}>
                     变更项 ({versionDiffResult.changes.length} 项)
                   </Text>
                   {versionDiffResult.changes.map((change) => renderChangeItem(change))}
@@ -755,11 +832,11 @@ const ConfigManagementPage: React.FC = () => {
                   message="两个版本的配置完全一致"
                   type="success"
                   showIcon
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: spacing.md }}
                 />
               )}
             {!versionDiffResult && (
-              <Empty description="请选择配置项和版本并点击对比" style={{ marginTop: 16 }} />
+              <Empty description="请选择配置项和版本并点击对比" style={{ marginTop: spacing.md }} />
             )}
           </Card>
 
@@ -779,7 +856,7 @@ const ConfigManagementPage: React.FC = () => {
           >
             {diffReport && (
               <>
-                <Row gutter={16} style={{ marginBottom: 16 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.md }}>
                   <Col span={8}>
                     <Statistic
                       title="配置总数"
@@ -885,7 +962,7 @@ const ConfigManagementPage: React.FC = () => {
                 }
                 type={driftResult.driftDetected ? 'warning' : 'success'}
                 showIcon
-                style={{ marginBottom: 16 }}
+                style={{ marginBottom: spacing.md }}
               />
 
               {driftResult.driftDetected && driftResult.items && driftResult.items.length > 0 && (
@@ -959,128 +1036,130 @@ const ConfigManagementPage: React.FC = () => {
   ];
 
   return (
-    <DashboardLayout>
-      <div style={{ padding: 24 }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <Title level={2}>配置管理</Title>
-            <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>
-          </div>
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
-            <Button icon={<CloudSyncOutlined />} onClick={handleSync} loading={loading}>
-              Git 同步
-            </Button>
-            <Button icon={<ScanOutlined />} onClick={handleDriftDetect} loading={driftLoading}>
-              漂移检测
-            </Button>
-            <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalOpen(true)}>
-              新建配置
-            </Button>
-          </Space>
+    <div style={{ padding: spacing.lg, background: colors.neutral[0], minHeight: '100vh' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={2}>配置管理</Title>
+          <Text type="secondary">GitOps 工作流、变更审批、差异分析、漂移检测</Text>
         </div>
-
-        {/* Tabbed Content */}
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
-
-        {/* Create Modal */}
-        <Modal
-          title="新建配置"
-          open={createModalOpen}
-          onCancel={() => setCreateModalOpen(false)}
-          onOk={() => form.submit()}
-          width={600}
-        >
-          <Form form={form} layout="vertical" onFinish={handleCreate}>
-            <Form.Item label="配置键" name="key" rules={[{ required: true }]}>
-              <Input placeholder="例如：app.name" />
-            </Form.Item>
-            <Form.Item label="配置值" name="value" rules={[{ required: true }]}>
-              <TextArea placeholder='例如：{"key": "value"}' rows={3} />
-            </Form.Item>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
-                  <Select>
-                    <Select.Option value="development">development</Select.Option>
-                    <Select.Option value="testing">testing</Select.Option>
-                    <Select.Option value="staging">staging</Select.Option>
-                    <Select.Option value="production">production</Select.Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="分类" name="category" rules={[{ required: true }]}>
-                  <Select>
-                    <Select.Option value="application">application</Select.Option>
-                    <Select.Option value="database">database</Select.Option>
-                    <Select.Option value="cache">cache</Select.Option>
-                    <Select.Option value="feature">feature</Select.Option>
-                  </Select>
-                </Form.Item>
-              </Col>
-            </Row>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item label="敏感的配置" name="sensitive" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item label="加密存储" name="encrypted" valuePropName="checked">
-                  <Switch />
-                </Form.Item>
-              </Col>
-            </Row>
-            <Form.Item label="描述" name="description">
-              <TextArea rows={2} />
-            </Form.Item>
-          </Form>
-        </Modal>
-
-        {/* Detail Drawer */}
-        <Drawer
-          title="配置详情"
-          placement="right"
-          width={700}
-          open={detailDrawerOpen}
-          onClose={() => setDetailDrawerOpen(false)}
-        >
-          {selectedConfig && (
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="ID">{selectedConfig.id}</Descriptions.Item>
-              <Descriptions.Item label="配置键">{selectedConfig.key}</Descriptions.Item>
-              <Descriptions.Item label="配置值">
-                <pre>{JSON.stringify(selectedConfig.value, null, 2)}</pre>
-              </Descriptions.Item>
-              <Descriptions.Item label="版本">{selectedConfig.version}</Descriptions.Item>
-              <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
-              <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={statusColorMap[selectedConfig.status]}>{selectedConfig.status}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="敏感">
-                {selectedConfig.sensitive ? '是' : '否'}
-              </Descriptions.Item>
-              <Descriptions.Item label="加密">
-                {selectedConfig.encrypted ? '是' : '否'}
-              </Descriptions.Item>
-              <Descriptions.Item label="创建者">{selectedConfig.createdBy}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {new Date(selectedConfig.createdAt).toLocaleString()}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新者">{selectedConfig.updatedBy}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {new Date(selectedConfig.updatedAt).toLocaleString()}
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-        </Drawer>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+            刷新
+          </Button>
+          <Button icon={<CloudSyncOutlined />} onClick={handleSync} loading={loading}>
+            Git 同步
+          </Button>
+          <Button icon={<ScanOutlined />} onClick={handleDriftDetect} loading={driftLoading}>
+            漂移检测
+          </Button>
+          <Button icon={<PlusOutlined />} type="primary" onClick={() => setCreateModalOpen(true)}>
+            新建配置
+          </Button>
+        </Space>
       </div>
-    </DashboardLayout>
+
+      {/* Tabbed Content */}
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
+
+      {/* Create/Edit Modal */}
+      <Modal
+        title={editingConfig ? '编辑配置' : '新建配置'}
+        open={createModalOpen || !!editingConfig}
+        onCancel={() => {
+          setCreateModalOpen(false);
+          setEditingConfig(null);
+          form.resetFields();
+        }}
+        onOk={() => form.submit()}
+        width={600}
+      >
+        <Form form={form} layout="vertical" onFinish={handleCreate}>
+          <Form.Item label="配置键" name="key" rules={[{ required: true }]}>
+            <Input placeholder="例如：app.name" />
+          </Form.Item>
+          <Form.Item label="配置值" name="value" rules={[{ required: true }]}>
+            <TextArea placeholder='例如：{"key": "value"}' rows={3} />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="环境" name="environment" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="development">development</Select.Option>
+                  <Select.Option value="testing">testing</Select.Option>
+                  <Select.Option value="staging">staging</Select.Option>
+                  <Select.Option value="production">production</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="分类" name="category" rules={[{ required: true }]}>
+                <Select>
+                  <Select.Option value="application">application</Select.Option>
+                  <Select.Option value="database">database</Select.Option>
+                  <Select.Option value="cache">cache</Select.Option>
+                  <Select.Option value="feature">feature</Select.Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="敏感的配置" name="sensitive" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="加密存储" name="encrypted" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="描述" name="description">
+            <TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Detail Drawer */}
+      <Drawer
+        title="配置详情"
+        placement="right"
+        width={700}
+        open={detailDrawerOpen}
+        onClose={() => setDetailDrawerOpen(false)}
+      >
+        {selectedConfig && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="ID">{selectedConfig.id}</Descriptions.Item>
+            <Descriptions.Item label="配置键">{selectedConfig.key}</Descriptions.Item>
+            <Descriptions.Item label="配置值">
+              <pre>{JSON.stringify(selectedConfig.value, null, 2)}</pre>
+            </Descriptions.Item>
+            <Descriptions.Item label="版本">{selectedConfig.version}</Descriptions.Item>
+            <Descriptions.Item label="环境">{selectedConfig.environment}</Descriptions.Item>
+            <Descriptions.Item label="分类">{selectedConfig.category}</Descriptions.Item>
+            <Descriptions.Item label="状态">
+              <Tag color={statusColorMap[selectedConfig.status]}>{selectedConfig.status}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="敏感">
+              {selectedConfig.sensitive ? '是' : '否'}
+            </Descriptions.Item>
+            <Descriptions.Item label="加密">
+              {selectedConfig.encrypted ? '是' : '否'}
+            </Descriptions.Item>
+            <Descriptions.Item label="创建者">{selectedConfig.createdBy}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">
+              {new Date(selectedConfig.createdAt).toLocaleString()}
+            </Descriptions.Item>
+            <Descriptions.Item label="更新者">{selectedConfig.updatedBy}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">
+              {new Date(selectedConfig.updatedAt).toLocaleString()}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Drawer>
+    </div>
   );
 };
 

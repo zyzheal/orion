@@ -1,7 +1,7 @@
 /**
- * MultiCloud Repository - Stub Implementation
+ * MultiCloud Repository - PostgreSQL Implementation
  *
- * In-memory stub for cloud account and resource repositories.
+ * Cloud account and resource repositories using PostgreSQL.
  * Used by MultiCloudManagerService and CloudProviderService.
  */
 
@@ -39,10 +39,7 @@ export interface CloudResourceEntity {
 }
 
 export class MultiCloudRepository {
-  private accounts = new Map<string, CloudAccountEntity>();
-  private resources = new Map<string, CloudResourceEntity>();
-
-  constructor(_pool: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {}
+  constructor(private pool: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {}
 
   async createCloudAccount(data: {
     tenant_id: string;
@@ -54,41 +51,46 @@ export class MultiCloudRepository {
     provider_id?: string;
     tags: Record<string, any>;
   }): Promise<CloudAccountEntity> {
-    const entity: CloudAccountEntity = {
-      id: `mcr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      tenant_id: data.tenant_id,
-      account_id: data.account_id,
-      account_name: data.account_name,
-      credential_type: data.credential_type,
-      credential_ref: data.credential_ref,
-      region: data.region,
-      status: 'active',
-      tags: data.tags,
-      created_at: new Date(),
-    };
-    this.accounts.set(entity.id, entity);
-    return entity;
+    const result = await this.pool.query(
+      `INSERT INTO federation_cloud_accounts (tenant_id, account_id, account_name, credential_type, credential_ref, region, status, provider_id, tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        data.tenant_id,
+        data.account_id,
+        data.account_name,
+        data.credential_type,
+        data.credential_ref,
+        data.region,
+        'active',
+        data.provider_id || null,
+        JSON.stringify(data.tags),
+      ]
+    );
+    return this.mapAccountRow(result.rows[0]);
   }
 
   async deleteCloudAccount(accountId: string, _tenantId: string): Promise<boolean> {
-    for (const [key, val] of this.accounts.entries()) {
-      if (val.account_id === accountId) {
-        this.accounts.delete(key);
-        return true;
-      }
-    }
-    return false;
+    const result = await this.pool.query(
+      'DELETE FROM federation_cloud_accounts WHERE account_id = $1',
+      [accountId]
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async findAccountsByTenant(tenantId: string): Promise<CloudAccountEntity[]> {
-    return Array.from(this.accounts.values()).filter(a => a.tenant_id === tenantId);
+    const result = await this.pool.query(
+      'SELECT * FROM federation_cloud_accounts WHERE tenant_id = $1',
+      [tenantId]
+    );
+    return result.rows.map(this.mapAccountRow);
   }
 
   async findAccountById(accountId: string): Promise<CloudAccountEntity | null> {
-    for (const a of this.accounts.values()) {
-      if (a.account_id === accountId) return a;
-    }
-    return null;
+    const result = await this.pool.query(
+      'SELECT * FROM federation_cloud_accounts WHERE account_id = $1',
+      [accountId]
+    );
+    return result.rows[0] ? this.mapAccountRow(result.rows[0]) : null;
   }
 
   async createResource(data: {
@@ -103,28 +105,73 @@ export class MultiCloudRepository {
     monthly_cost?: number;
     tags: Record<string, any>;
   }): Promise<CloudResourceEntity> {
-    const entity: CloudResourceEntity = {
-      id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      ...data,
-      monthly_cost: data.monthly_cost ?? 0,
-      created_at: new Date(),
-    };
-    this.resources.set(entity.id, entity);
-    return entity;
+    const result = await this.pool.query(
+      `INSERT INTO federation_cloud_resources (tenant_id, account_id, resource_type, resource_id, resource_name, region, state, spec, monthly_cost, tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [
+        data.tenant_id,
+        data.account_id,
+        data.resource_type,
+        data.resource_id,
+        data.resource_name,
+        data.region,
+        data.state,
+        JSON.stringify(data.spec),
+        data.monthly_cost ?? 0,
+        JSON.stringify(data.tags),
+      ]
+    );
+    return this.mapResourceRow(result.rows[0]);
   }
 
   async deleteResourcesByAccount(accountId: string, _tenantId: string): Promise<boolean> {
-    let deleted = false;
-    for (const [key, val] of this.resources.entries()) {
-      if (val.account_id === accountId) {
-        this.resources.delete(key);
-        deleted = true;
-      }
-    }
-    return deleted;
+    const result = await this.pool.query(
+      'DELETE FROM federation_cloud_resources WHERE account_id = $1',
+      [accountId]
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async findResourcesByTenant(tenantId: string, _accountId?: string): Promise<CloudResourceEntity[]> {
-    return Array.from(this.resources.values()).filter(r => r.tenant_id === tenantId);
+    const result = await this.pool.query(
+      'SELECT * FROM federation_cloud_resources WHERE tenant_id = $1',
+      [tenantId]
+    );
+    return result.rows.map(this.mapResourceRow);
+  }
+
+  private mapAccountRow(row: Record<string, unknown>): CloudAccountEntity {
+    return {
+      id: row.id as string,
+      tenant_id: row.tenant_id as string,
+      account_id: row.account_id as string,
+      account_name: row.account_name as string,
+      credential_type: row.credential_type as string,
+      credential_ref: row.credential_ref as string,
+      region: row.region as string,
+      status: row.status as string,
+      provider_id: row.provider_id as string | undefined,
+      tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : (row.tags || {}),
+      created_at: new Date(row.created_at as string),
+      updated_at: row.updated_at ? new Date(row.updated_at as string) : undefined,
+    };
+  }
+
+  private mapResourceRow(row: Record<string, unknown>): CloudResourceEntity {
+    return {
+      id: row.id as string,
+      tenant_id: row.tenant_id as string,
+      account_id: row.account_id as string,
+      resource_type: row.resource_type as string,
+      resource_id: row.resource_id as string,
+      resource_name: row.resource_name as string,
+      region: row.region as string,
+      state: row.state as string,
+      spec: typeof row.spec === 'string' ? JSON.parse(row.spec) : (row.spec || {}),
+      monthly_cost: Number(row.monthly_cost) || 0,
+      discovered_at: row.discovered_at ? new Date(row.discovered_at as string) : undefined,
+      tags: typeof row.tags === 'string' ? JSON.parse(row.tags) : (row.tags || {}),
+      created_at: new Date(row.created_at as string),
+    };
   }
 }

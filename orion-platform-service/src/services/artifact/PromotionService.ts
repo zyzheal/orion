@@ -1,12 +1,27 @@
 /**
  * Artifact Promotion Service - 5-stage state machine
  * development -> testing -> staging -> production -> released
+ *
+ * Task 2.38: 统一 FallbackStorageService
+ *   - 移除 deprecated 内存 Map/promotionHistory
+ *   - 使用 FallbackStorageService 做 fallback 存储
+ *   - 添加 start() / stop() 生命周期方法
+ *   - 错误统一使用 OrionError
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ArtifactPromotionRepository } from '../../repositories/ArtifactPromotionRepository';
+import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PromotionService');
+
+// ==================== Storage Key Prefixes ====================
+
+const CURRENT_STAGE_PREFIX = 'promotion:stage';
+const HISTORY_PREFIX = 'promotion:history';
+
+// ==================== Domain Types ====================
 
 export enum PromotionStage {
   DEVELOPMENT = 'development',
@@ -40,39 +55,98 @@ export interface PromotionServiceError extends Error {
   code: string;
 }
 
+// ==================== PromotionService ====================
+
 export class PromotionService {
-  /**
-   * @deprecated In-memory fallback — use repository-backed persistence instead.
-   */
-  private currentStages: Map<string, PromotionStage> = new Map();
-
-  /**
-   * @deprecated In-memory fallback — use repository-backed persistence instead.
-   */
-  private promotionHistory: PromotionRecord[] = [];
-
+  /** Repository-backed persistence (primary, when DB is available) */
   private promotionRepository?: ArtifactPromotionRepository;
+
+  /** FallbackStorageService instance for in-memory / DB-backed fallback */
+  private storage: FallbackStorageService | null = null;
 
   /** Whether the service is using persistent storage */
   get isPersistent(): boolean {
     return this.promotionRepository !== undefined;
   }
 
+  /**
+   * @param db - Optional DatabasePool or query interface. When provided, enables
+   *             repository-backed persistence AND FallbackStorageService with
+   *             persistToDb=true.
+   */
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.promotionRepository = new ArtifactPromotionRepository(db);
+      // Create FallbackStorageService with DB persistence for cross-restart survival
+      this.storage = new FallbackStorageService({
+        prefix: CURRENT_STAGE_PREFIX,
+        maxSize: 1000,
+        ttlMs: 0, // Promotions are permanent until superseded
+        persistToDb: true,
+        tenantId: 'global', // Promotion data is cross-tenant (artifact-level)
+      });
+      this.storage.start(new (require('../../repositories/FallbackStorageRepository').FallbackStorageRepository)(db as any));
     } else {
+      // In-memory fallback mode: FallbackStorageService without DB persistence
+      this.storage = new FallbackStorageService({
+        prefix: CURRENT_STAGE_PREFIX,
+        maxSize: 1000,
+        ttlMs: 0,
+        persistToDb: false,
+      });
+      this.storage.start();
       logger.warn('No DB provided — PromotionService running in in-memory fallback mode (data lost on restart)');
     }
   }
 
+  // ==================== Lifecycle ====================
+
+  /**
+   * start() — 初始化 FallbackStorageService 并从 DB 预热（如需要）。
+   * 在服务初始化完成后调用。
+   */
+  async start(): Promise<void> {
+    if (this.storage) {
+      await this.storage.loadFromDb();
+    }
+  }
+
+  /**
+   * stop() — 停止服务，将 FallbackStorageService 数据 flush 到 DB 并清理。
+   */
+  async stop(): Promise<void> {
+    if (this.storage) {
+      await this.storage.flushToDb();
+      this.storage.stop();
+    }
+  }
+
+  // ==================== Stage Management ====================
+
   /**
    * @deprecated Stage is now managed through promote() and persisted.
-   * This method exists only for backward compatibility with in-memory mode.
+   * This method exists only for backward compatibility.
    */
-  setStage(artifactId: string, stage: PromotionStage): void {
-    this.currentStages.set(artifactId, stage);
-    logger.warn('setStage() is deprecated and only affects in-memory fallback');
+  async setStage(artifactId: string, stage: PromotionStage): Promise<void> {
+    await this.storage!.set(`${artifactId}:current`, stage);
+    if (this.promotionRepository) {
+      try {
+        await this.promotionRepository.create({
+          artifactId,
+          fromEnv: stage,
+          toEnv: stage,
+          status: 'completed',
+          promotedBy: 'system',
+          approvedBy: null,
+          approvedAt: null,
+          reason: 'Initial stage set',
+          createdAt: new Date(),
+        });
+      } catch (error) {
+        logger.warn({ error }, 'Failed to persist initial stage');
+      }
+    }
+    logger.warn('setStage() is deprecated and only affects fallback storage');
   }
 
   /**
@@ -80,13 +154,19 @@ export class PromotionService {
    */
   async promote(artifactId: string, promotedBy: string, reason?: string): Promise<PromotionRecord> {
     const currentStage = await this.getCurrentStage(artifactId);
+
     if (currentStage === undefined) {
-      throw Object.assign(new Error('Unknown stage: undefined'), { code: 'UNKNOWN_STAGE' }) as PromotionServiceError;
+      throw new OrionError('Unknown stage: undefined', ErrorCode.BUSINESS_ERROR, false, { artifactId });
     }
+
     const currentIndex = PROMOTION_ORDER.indexOf(currentStage);
 
-    if (currentIndex === -1) throw Object.assign(new Error(`Unknown stage: ${currentStage}`), { code: 'UNKNOWN_STAGE' }) as PromotionServiceError;
-    if (currentIndex >= PROMOTION_ORDER.length - 1) throw Object.assign(new Error('Already at final stage'), { code: 'FINAL_STAGE' }) as PromotionServiceError;
+    if (currentIndex === -1) {
+      throw new OrionError(`Unknown stage: ${currentStage}`, ErrorCode.BUSINESS_ERROR, false, { artifactId, stage: currentStage });
+    }
+    if (currentIndex >= PROMOTION_ORDER.length - 1) {
+      throw new OrionError('Already at final stage', ErrorCode.STATE_CONFLICT, false, { artifactId, currentStage });
+    }
 
     const nextStage = PROMOTION_ORDER[currentIndex + 1];
 
@@ -100,23 +180,32 @@ export class PromotionService {
       timestamp: new Date(),
     };
 
-    // Persist to repository
+    // Update current stage in storage
+    await this.storage!.set(`${artifactId}:current`, nextStage);
+
+    // Append to history in storage
+    const historyKey = `${artifactId}:history`;
+    const existingHistory = (await this.storage!.get<PromotionRecord[]>(historyKey)) ?? [];
+    existingHistory.push(record);
+    await this.storage!.set(historyKey, existingHistory);
+
+    // Persist to repository if available
     if (this.promotionRepository) {
-      await this.promotionRepository.create({
-        artifactId,
-        fromEnv: currentStage,
-        toEnv: nextStage,
-        status: 'completed',
-        promotedBy,
-        approvedBy: null,
-        approvedAt: null,
-        reason: reason ?? null,
-        createdAt: record.timestamp,
-      });
-    } else {
-      // Deprecated in-memory fallback
-      this.currentStages.set(artifactId, nextStage);
-      this.promotionHistory.push(record);
+      try {
+        await this.promotionRepository.create({
+          artifactId,
+          fromEnv: currentStage,
+          toEnv: nextStage,
+          status: 'completed',
+          promotedBy,
+          approvedBy: null,
+          approvedAt: null,
+          reason: reason ?? null,
+          createdAt: record.timestamp,
+        });
+      } catch (error) {
+        logger.warn({ error, artifactId }, 'Failed to persist promotion to repository');
+      }
     }
 
     logger.info({ artifactId, from: currentStage, to: nextStage }, 'Artifact promoted');
@@ -133,7 +222,11 @@ export class PromotionService {
 
     // Update repository with approval info
     if (this.promotionRepository) {
-      await this.promotionRepository.approve(record.id, approvedBy);
+      try {
+        await this.promotionRepository.approve(record.id, approvedBy);
+      } catch (error) {
+        logger.warn({ error, recordId: record.id }, 'Failed to persist approval');
+      }
     }
 
     return record;
@@ -141,43 +234,70 @@ export class PromotionService {
 
   /**
    * Get current stage
-   * Queries the repository for the latest promotion record when persistent.
+   * Queries storage for the latest promotion record.
    */
   async getCurrentStage(artifactId: string): Promise<PromotionStage | undefined> {
-    if (this.promotionRepository) {
-      const entities = await this.promotionRepository.findByArtifact(artifactId);
-      if (entities.length > 0) {
-        // The latest record's toEnv is the current stage
-        return entities[0].toEnv as PromotionStage;
-      }
-      // No promotions yet — artifact starts at DEVELOPMENT
-      return PromotionStage.DEVELOPMENT;
+    // Try storage first
+    const stored = await this.storage!.get<PromotionStage>(`${artifactId}:current`);
+    if (stored !== null) {
+      return stored as PromotionStage;
     }
-    // Deprecated in-memory fallback
-    return this.currentStages.get(artifactId);
+
+    // Try repository if available
+    if (this.promotionRepository) {
+      try {
+        const entities = await this.promotionRepository.findByArtifact(artifactId);
+        if (entities.length > 0) {
+          const latestStage = entities[0].toEnv as PromotionStage;
+          // Cache in storage for next read
+          await this.storage!.set(`${artifactId}:current`, latestStage);
+          return latestStage;
+        }
+        // No promotions yet — artifact starts at DEVELOPMENT
+        await this.storage!.set(`${artifactId}:current`, PromotionStage.DEVELOPMENT);
+        return PromotionStage.DEVELOPMENT;
+      } catch (error) {
+        logger.warn({ error, artifactId }, 'Failed to get current stage from repository');
+      }
+    }
+
+    return undefined;
   }
 
   /**
    * Get promotion history
    */
   async getHistory(artifactId: string): Promise<PromotionRecord[]> {
-    // Load from repository if available
-    if (this.promotionRepository) {
-      const entities = await this.promotionRepository.findByArtifact(artifactId);
-      return entities.map(e => ({
-        id: e.id,
-        artifactId: e.artifactId,
-        fromStage: e.fromEnv as PromotionStage,
-        toStage: e.toEnv as PromotionStage,
-        promotedBy: e.promotedBy,
-        approvedBy: e.approvedBy ?? undefined,
-        approvedAt: e.approvedAt ?? undefined,
-        reason: e.reason ?? undefined,
-        timestamp: e.createdAt,
-      }));
+    // Try storage first
+    const storedHistory = await this.storage!.get<PromotionRecord[]>(`${artifactId}:history`);
+    if (storedHistory !== null) {
+      return storedHistory;
     }
-    // Deprecated in-memory fallback
-    return this.promotionHistory.filter(r => r.artifactId === artifactId);
+
+    // Fallback to repository
+    if (this.promotionRepository) {
+      try {
+        const entities = await this.promotionRepository.findByArtifact(artifactId);
+        const records = entities.map((e) => ({
+          id: e.id,
+          artifactId: e.artifactId,
+          fromStage: e.fromEnv as PromotionStage,
+          toStage: e.toEnv as PromotionStage,
+          promotedBy: e.promotedBy,
+          approvedBy: e.approvedBy ?? undefined,
+          approvedAt: e.approvedAt ?? undefined,
+          reason: e.reason ?? undefined,
+          timestamp: e.createdAt,
+        }));
+        // Cache in storage
+        await this.storage!.set(`${artifactId}:history`, records);
+        return records;
+      } catch (error) {
+        logger.warn({ error, artifactId }, 'Failed to get history from repository');
+      }
+    }
+
+    return [];
   }
 
   /**
@@ -193,3 +313,5 @@ export class PromotionService {
     return toIndex === currentIndex + 1;
   }
 }
+
+export default PromotionService;

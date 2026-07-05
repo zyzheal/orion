@@ -6,13 +6,21 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
+import { CloudCostResourceRepository } from '../../repositories/CloudCostResourceRepository';
+import { CloudCostScheduleRepository } from '../../repositories/CloudCostScheduleRepository';
 import {
   CloudResource,
   CloudProvider,
   CloudResourceType,
   ICloudCostAdapter,
   CostCollectionSchedule,
+  CustomCostModel,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('CloudCostCollector');
 
 /**
  * AWS Cost Explorer 适配器（Mock 实现）
@@ -198,11 +206,17 @@ export class TencentCloudCostAdapter implements ICloudCostAdapter {
  * 管理多云适配器，统一采集和标准化成本数据
  */
 export class CloudCostCollector {
+  /** 适配器注册表（运行时状态，保留内存） */
   private adapters: Map<CloudProvider, ICloudCostAdapter> = new Map();
-  private schedules: Map<CloudProvider, CostCollectionSchedule> = new Map();
-  private collectedData: CloudResource[] = [];
+  /** 自定义成本模型注册表 */
+  private customModels: Map<string, CustomCostModel> = new Map();
+  private resourceRepo: CloudCostResourceRepository;
+  private scheduleRepo: CloudCostScheduleRepository;
 
-  constructor() {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.resourceRepo = new CloudCostResourceRepository(db);
+    this.scheduleRepo = new CloudCostScheduleRepository(db);
+
     // 注册默认适配器
     this.registerAdapter(new AWSCostAdapter());
     this.registerAdapter(new AliCloudCostAdapter());
@@ -231,6 +245,38 @@ export class CloudCostCollector {
   }
 
   /**
+   * 注册自定义成本模型
+   */
+  registerCustomModel(model: CustomCostModel): void {
+    this.customModels.set(model.name, model);
+    logger.info({ modelName: model.name }, '[CloudCostCollector] Registered custom cost model');
+  }
+
+  /**
+   * 获取自定义成本模型
+   */
+  getCustomModel(name: string): CustomCostModel | undefined {
+    return this.customModels.get(name);
+  }
+
+  /**
+   * 应用自定义成本模型计算成本
+   */
+  applyCustomModel(name: string, resource: CloudResource): CloudResource {
+    const model = this.customModels.get(name);
+    if (!model) {
+      logger.warn({ modelName: name }, '[CloudCostCollector] Custom cost model not found, returning original resource');
+      return resource;
+    }
+    const calculatedCost = model.calculateCost(resource);
+    logger.debug(
+      { modelName: name, resourceId: resource.resourceId, originalCost: resource.cost, calculatedCost },
+      '[CloudCostCollector] Applied custom cost model'
+    );
+    return { ...resource, cost: calculatedCost };
+  }
+
+  /**
    * 采集指定厂商的成本数据
    */
   async collectFromProvider(
@@ -240,18 +286,31 @@ export class CloudCostCollector {
   ): Promise<CloudResource[]> {
     const adapter = this.getAdapter(provider);
     if (!adapter) {
-      throw new Error(`No adapter registered for provider: ${provider}`);
+      throw new OrionError(`No adapter registered for provider: ${provider}`, 'OPERATION_FAILED')
     }
 
     const resources = await adapter.collectCosts(startDate, endDate);
-    this.collectedData.push(...resources);
+
+    // 持久化采集到的资源数据
+    for (const resource of resources) {
+      await this.resourceRepo.create({
+        id: resource.id,
+        provider: resource.provider,
+        resourceType: resource.resourceType,
+        resourceId: resource.resourceId,
+        resourceName: resource.resourceName || null,
+        region: resource.region,
+        cost: resource.cost,
+        currency: resource.currency,
+        tags: resource.tags,
+        timestamp: resource.timestamp,
+        environment: resource.environment || null,
+        billingPeriod: resource.billingPeriod || null,
+      });
+    }
 
     // 更新调度状态
-    const schedule = this.schedules.get(provider);
-    if (schedule) {
-      schedule.lastCollectedAt = new Date();
-      schedule.lastStatus = 'success';
-    }
+    await this.scheduleRepo.updateLastCollected(provider, 'success');
 
     return resources;
   }
@@ -264,18 +323,20 @@ export class CloudCostCollector {
     const providers = this.getRegisteredProviders();
 
     for (const provider of providers) {
-      const schedule = this.schedules.get(provider);
-      if (schedule && !schedule.enabled) {
-        continue;
-      }
       try {
+        const schedule = await this.scheduleRepo.findByProvider(provider);
+        if (schedule && !schedule.enabled) {
+          continue;
+        }
+
         const resources = await this.collectFromProvider(provider, startDate, endDate);
         allResources.push(...resources);
       } catch (error) {
-        console.error(`[CloudCostCollector] Failed to collect from ${provider}:`, error);
-        const schedule = this.schedules.get(provider);
-        if (schedule) {
-          schedule.lastStatus = 'failed';
+        logger.error(`[CloudCostCollector] Failed to collect from ${provider}:`, error);
+        try {
+          await this.scheduleRepo.updateLastCollected(provider, 'failed');
+        } catch (scheduleError) {
+          logger.error(`[CloudCostCollector] Failed to update schedule status for ${provider}:`, scheduleError);
         }
       }
     }
@@ -346,44 +407,85 @@ export class CloudCostCollector {
   /**
    * 设置采集调度配置
    */
-  setSchedule(provider: CloudProvider, schedule: CostCollectionSchedule): void {
-    this.schedules.set(provider, schedule);
+  async setSchedule(provider: CloudProvider, schedule: CostCollectionSchedule): Promise<void> {
+    const existing = await this.scheduleRepo.findByProvider(provider);
+
+    if (existing) {
+      await this.scheduleRepo.update(existing.id, {
+        cron_expression: schedule.cronExpression,
+        enabled: schedule.enabled,
+      });
+    } else {
+      await this.scheduleRepo.create({
+        id: uuidv4(),
+        provider,
+        cronExpression: schedule.cronExpression,
+        enabled: schedule.enabled,
+      });
+    }
   }
 
   /**
    * 获取调度配置
    */
-  getSchedule(provider: CloudProvider): CostCollectionSchedule | undefined {
-    return this.schedules.get(provider);
+  async getSchedule(provider: CloudProvider): Promise<CostCollectionSchedule | undefined> {
+    const entity = await this.scheduleRepo.findByProvider(provider);
+    if (!entity) return undefined;
+
+    return {
+      provider: entity.provider as CloudProvider,
+      cronExpression: entity.cronExpression,
+      enabled: entity.enabled,
+      lastCollectedAt: entity.lastCollectedAt || undefined,
+      lastStatus: (entity.lastStatus as 'success' | 'failed') || undefined,
+    };
   }
 
   /**
    * 获取已采集的数据
    */
-  getCollectedData(): CloudResource[] {
-    return [...this.collectedData];
+  async getCollectedData(): Promise<CloudResource[]> {
+    const { entities } = await this.resourceRepo.findAll({ limit: 10000 });
+    return entities.map((e) => ({
+      id: e.id,
+      provider: e.provider as CloudProvider,
+      resourceType: e.resourceType as CloudResourceType,
+      resourceId: e.resourceId,
+      resourceName: e.resourceName || undefined,
+      region: e.region,
+      cost: e.cost,
+      currency: e.currency,
+      tags: e.tags,
+      timestamp: e.timestamp,
+      tenantId: e.tenantId || undefined,
+      environment: e.environment || undefined,
+      billingPeriod: e.billingPeriod || undefined,
+    }));
   }
 
   /**
    * 清空已采集的数据
    */
-  clearCollectedData(): void {
-    this.collectedData = [];
+  async clearCollectedData(): Promise<void> {
+    const { entities } = await this.resourceRepo.findAll({ limit: 10000 });
+    for (const entity of entities) {
+      await this.resourceRepo.delete(entity.id);
+    }
   }
 
   /**
    * 获取采集状态摘要
    */
-  getStatusSummary(): Record<CloudProvider, { connected: boolean; lastSync?: Date }> {
+  async getStatusSummary(): Promise<Record<CloudProvider, { connected: boolean; lastSync?: Date }>> {
     const summary: Record<string, { connected: boolean; lastSync?: Date }> = {};
 
     for (const [provider, adapter] of this.adapters) {
-      summary[provider] = { connected: false };
-      adapter.getStatus().then((status) => {
+      try {
+        const status = await adapter.getStatus();
         summary[provider] = status;
-      }).catch(() => {
+      } catch {
         summary[provider] = { connected: false };
-      });
+      }
     }
 
     return summary as Record<CloudProvider, { connected: boolean; lastSync?: Date }>;

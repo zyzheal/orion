@@ -4,13 +4,16 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
-import { PipelineEngine } from '../../engine/PipelineEngine';
+import { PipelineEngine } from '../../services/pipeline';
 import { PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/DynamicParamsResolver';
 import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
 import { PipelineTenantIsolationService } from '../../services/pipeline/PipelineTenantIsolationService';
 import { PipelineRBACService } from '../../services/pipeline/PipelineRBACService';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LPipeline-LRun-LController');
 
 export class PipelineRunController {
   private runService: PipelineRunService;
@@ -112,7 +115,7 @@ export class PipelineRunController {
           dynamicStages = resolved.dynamicStages;
         } catch (resolveError) {
           // Log but don't fail - params resolution is optional
-          console.warn('[PipelineRun] Dynamic param resolution failed:', resolveError);
+          logger.warn('[PipelineRun] Dynamic param resolution failed:', resolveError);
         }
 
         // Budget estimation
@@ -130,13 +133,29 @@ export class PipelineRunController {
       }
 
       // Build enhanced context with injected params and tenantId
-      const enhancedContext = {
+      const enhancedContext: Record<string, unknown> = {
         ...(context as any || {}),
         injectedParams,
         branch,
         commitSha,
         tenantId, // P4 Security: include tenantId in context
       };
+
+      // SCM bidirectional: build proper git context for status write-back
+      if (branch || commitSha) {
+        enhancedContext.git = {
+          ref: branch || '',
+          sha: commitSha || '',
+          repo: (context as any)?.repository || '',
+        };
+        // Pass through PR info if provided
+        if ((context as any)?.prNumber) {
+          enhancedContext.prNumber = (context as any).prNumber;
+        }
+        if ((context as any)?.scmProvider) {
+          enhancedContext.scmProvider = (context as any).scmProvider;
+        }
+      }
 
       const run = await this.engine.execute(
         pipelineId,

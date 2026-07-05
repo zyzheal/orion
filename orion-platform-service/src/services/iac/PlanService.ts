@@ -11,6 +11,7 @@ import {
 } from '../../models/IacWorkspace';
 import { WorkspaceService } from './WorkspaceService';
 import { IaCPlanRepository, IaCPlanEntity } from '../../repositories/IaCPlanRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface IaCPlanListFilter {
   workspaceId?: string;
@@ -71,7 +72,7 @@ export class PlanService {
         resourcesToChange: plan.resourceChanges?.change ?? 0,
         resourcesToDestroy: plan.resourceChanges?.destroy ?? 0,
         applied: false,
-      } as any);
+      });
     }
 
     await this.eventBus?.publish('iac.plan.created', {
@@ -84,7 +85,7 @@ export class PlanService {
 
   async getById(id: string): Promise<IaCPlanEntity | undefined> {
     if (this.planRepository) {
-      return await this.planRepository.findById(id);
+      return await this.planRepository.findById(id) ?? undefined;
     }
     return undefined;
   }
@@ -134,7 +135,7 @@ export class PlanService {
     const entity = await this.planRepository.findById(planId);
     if (!entity) return undefined;
     if (entity.applied) {
-      throw new Error(`Plan already applied`);
+      throw new OrionError(`Plan already applied`, 'OPERATION_FAILED')
     }
 
     await this.planRepository.markApplied(planId, 'system');
@@ -142,6 +143,6 @@ export class PlanService {
     await this.eventBus?.publish('iac.plan.applied', {
       planId,
     });
-    return await this.planRepository.findById(planId);
+    return await this.planRepository.findById(planId) ?? undefined;
   }
 }

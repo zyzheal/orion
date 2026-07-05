@@ -1,3 +1,6 @@
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+const logger = createLogger('Metrics');
 /**
  * ChatOps Metrics - Prometheus 监控指标
  *
@@ -183,7 +186,7 @@ export class ChatOpsMetrics {
   incrementCounter(name: string, labels?: Record<string, string>, amount: number = 1): void {
     const counter = this.counters.get(name);
     if (!counter) {
-      console.warn(`[ChatOpsMetrics] Counter ${name} not found`);
+      logger.warn({ counterName: name }, '[ChatOpsMetrics] Counter not found');
       return;
     }
 
@@ -204,6 +207,13 @@ export class ChatOpsMetrics {
     } else {
       this.incrementCounter('chatops_command_executions_failed', { command, platform });
     }
+  }
+
+  /**
+   * 记录命令超时
+   */
+  recordCommandTimeout(command: string, platform: string): void {
+    this.incrementCounter('chatops_command_executions_failed', { command, platform, reason: 'timeout' });
   }
 
   /**
@@ -270,7 +280,7 @@ export class ChatOpsMetrics {
   setGauge(name: string, value: number, labels?: Record<string, string>): void {
     const gauge = this.gauges.get(name);
     if (!gauge) {
-      console.warn(`[ChatOpsMetrics] Gauge ${name} not found`);
+      logger.warn({ gaugeName: name }, '[ChatOpsMetrics] Gauge not found');
       return;
     }
 

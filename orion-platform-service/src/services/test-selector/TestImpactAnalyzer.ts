@@ -59,7 +59,7 @@ export class TestImpactAnalyzer {
       if (affectedTests.length > 0) {
         const impactScore = this.calculateImpactScore(changedFile, affectedTests);
         const priority = this.assessPriority(impactScore, changedFile);
-        const estimatedDuration = this.estimateDuration(affectedTests);
+        const estimatedDuration = await this.estimateDuration(affectedTests);
 
         impacts.push({
           changedFile: changedFile.path,
@@ -97,8 +97,8 @@ export class TestImpactAnalyzer {
     cases: TestCase[];
   }> {
     const testIds = this.dependencyAnalyzer.getTestsForSourceFile(sourceFilePath);
-    const allSuites = this.dependencyAnalyzer.getSuites();
-    const allCases = this.dependencyAnalyzer.getCases();
+    const allSuites = await this.dependencyAnalyzer.getSuites();
+    const allCases = await this.dependencyAnalyzer.getCases();
 
     const affectedSuites = allSuites.filter(s => testIds.includes(s.id));
     const affectedCases = allCases.filter(c => testIds.includes(c.id));
@@ -217,9 +217,9 @@ export class TestImpactAnalyzer {
   /**
    * 预估测试执行总时长
    */
-  private estimateDuration(affectedTestIds: string[]): number {
-    const allSuites = this.dependencyAnalyzer.getSuites();
-    const allCases = this.dependencyAnalyzer.getCases();
+  private async estimateDuration(affectedTestIds: string[]): Promise<number> {
+    const allSuites = await this.dependencyAnalyzer.getSuites();
+    const allCases = await this.dependencyAnalyzer.getCases();
     let totalDuration = 0;
 
     for (const testId of affectedTestIds) {

@@ -6,6 +6,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface PortalDocumentEntity {
   id: string;
@@ -133,7 +134,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error('INSERT into portal_documents returned no rows');
+      throw new OrionError('INSERT into portal_documents returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -195,7 +196,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     if (updates.length === 0) {
       const existing = await this.findById(id);
       if (!existing) {
-        throw new Error(`Document not found: ${id}`);
+        throw new OrionError(`Document not found: ${id}`, ErrorCode.NOT_FOUND);
       }
       return existing;
     }
@@ -205,7 +206,7 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
     const result = await this.db.query(query, params);
 
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on portal_documents affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on portal_documents affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -266,7 +267,9 @@ export class PortalDocumentRepository extends BaseRepository<PortalDocumentEntit
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const query = `SELECT * FROM portal_documents ${whereClause} ORDER BY ${orderBy} ${orderDir === 'ASC' ? 'ASC' : 'DESC'} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const allowedOrderBy = ['created_at', 'updated_at', 'title', 'view_count', 'helpful_count', 'sort_order'];
+    const safeOrderBy = allowedOrderBy.includes(orderBy) ? orderBy : 'created_at';
+    const query = `SELECT * FROM portal_documents ${whereClause} ORDER BY ${safeOrderBy} ${orderDir === 'ASC' ? 'ASC' : 'DESC'} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const result = await this.db.query(query, params);

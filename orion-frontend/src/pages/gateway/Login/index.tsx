@@ -4,6 +4,7 @@ import { colors } from '@/tokens/colors';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { spacing } from '@/tokens';
 
 const { Title } = Typography;
 
@@ -55,7 +56,7 @@ const Login: React.FC = () => {
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ textAlign: 'center', marginBottom: spacing.xl }}>
           <Title level={2}>Orion Platform</Title>
           <Typography.Text type="secondary">欢迎登录</Typography.Text>
         </div>

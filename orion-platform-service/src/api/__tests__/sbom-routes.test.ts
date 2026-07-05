@@ -2,7 +2,16 @@ import Fastify from 'fastify';
 import { FastifyInstance } from 'fastify';
 import sbomRoutes from '../sbom-routes';
 
-describe('SBOM Compliance & Provenance Endpoints', () => {
+jest.mock('../../middleware/authMiddleware', () => ({
+  authenticateUser: async (req: any, _reply: any) => {
+    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenantId: '1' };
+  },
+}));
+jest.mock('../../middleware/requirePermission', () => ({
+  requirePermission: () => async (_req: any, _reply: any) => {},
+}));
+
+describe('SBOM Document & Vulnerability Endpoints', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -15,92 +24,76 @@ describe('SBOM Compliance & Provenance Endpoints', () => {
     await app.close();
   });
 
-  describe('GET /v1/sbom/compliance/report', () => {
-    it('returns compliance data with 200', async () => {
-      const response = await app.inject({ method: 'GET', url: '/v1/sbom/compliance/report' });
+  describe('GET /v1/sbom/documents', () => {
+    it('returns SBOM documents list', async () => {
+      const response = await app.inject({ method: 'GET', url: '/v1/sbom/documents' });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.code).toBe(200);
-      expect(body.data).toHaveProperty('totalSboms');
-      expect(body.data).toHaveProperty('complianceRate');
+      expect(body.success).toBe(true);
+      expect(body.data).toBeDefined();
     });
   });
 
-  describe('GET /v1/sbom/compliance/eo14028', () => {
-    it('returns EO 14028 compliance status', async () => {
-      const response = await app.inject({ method: 'GET', url: '/v1/sbom/compliance/eo14028' });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('compliant');
-      expect(body.data).toHaveProperty('details');
-    });
-  });
-
-  describe('GET /v1/sbom/compliance/eu-cra', () => {
-    it('returns EU CRA compliance status', async () => {
-      const response = await app.inject({ method: 'GET', url: '/v1/sbom/compliance/eu-cra' });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('compliant');
-    });
-  });
-
-  describe('POST /v1/sbom/provenance', () => {
-    it('creates a provenance record with 201', async () => {
+  describe('POST /v1/sbom/documents', () => {
+    it('creates an SBOM document with 201', async () => {
       const response = await app.inject({
         method: 'POST',
-        url: '/v1/sbom/provenance',
+        url: '/v1/sbom/documents',
         payload: {
           buildId: 'build-123',
-          provenanceType: 'slsa',
-          content: { builder: { id: 'builder-1' } },
-          signature: 'sig-abc123def456',
-          builderId: 'builder-1',
-          buildTrigger: 'push',
-          sourceUri: 'https://github.com/org/repo',
+          format: 'spdx-json',
+          specVersion: '2.3',
+          documentId: 'doc-001',
+          content: { packages: [] },
+          packageCount: 0,
         },
       });
       expect(response.statusCode).toBe(201);
       const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
       expect(body.data).toHaveProperty('id');
       expect(body.data.buildId).toBe('build-123');
     });
   });
 
-  describe('GET /v1/sbom/provenance', () => {
-    it('lists provenance records', async () => {
-      const response = await app.inject({ method: 'GET', url: '/v1/sbom/provenance' });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(Array.isArray(body.data)).toBe(true);
+  describe('GET /v1/sbom/documents/:id', () => {
+    it('returns 404 for unknown document', async () => {
+      const response = await app.inject({ method: 'GET', url: '/v1/sbom/documents/nonexistent' });
+      expect(response.statusCode).toBe(404);
     });
   });
 
-  describe('POST /v1/sbom/gate/evaluate', () => {
-    it('evaluates gate for a build', async () => {
+  describe('GET /v1/sbom/vulnerabilities', () => {
+    it('returns vulnerabilities list', async () => {
+      const response = await app.inject({ method: 'GET', url: '/v1/sbom/vulnerabilities' });
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.data).toBeDefined();
+    });
+  });
+
+  describe('GET /v1/sbom/waivers', () => {
+    it('returns waivers list', async () => {
+      const response = await app.inject({ method: 'GET', url: '/v1/sbom/waivers' });
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.data).toHaveProperty('waivers');
+    });
+  });
+
+  describe('POST /v1/sbom/generate', () => {
+    it('returns 503 when no database is configured', async () => {
       const response = await app.inject({
         method: 'POST',
-        url: '/v1/sbom/gate/evaluate',
-        query: { buildId: 'build-123' },
+        url: '/v1/sbom/generate',
+        payload: {
+          artifactId: 'art-123',
+          format: 'spdx-json',
+        },
       });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.data).toHaveProperty('passed');
-      expect(body.data).toHaveProperty('checks');
-    });
-
-    it('returns 400 when buildId is missing', async () => {
-      const response = await app.inject({ method: 'POST', url: '/v1/sbom/gate/evaluate' });
-      expect(response.statusCode).toBe(400);
-    });
-  });
-
-  describe('GET /v1/sbom/gate/history', () => {
-    it('returns gate evaluation history', async () => {
-      const response = await app.inject({ method: 'GET', url: '/v1/sbom/gate/history' });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(Array.isArray(body.data)).toBe(true);
+      expect(response.statusCode).toBe(503);
     });
   });
 });

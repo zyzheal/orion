@@ -33,6 +33,7 @@ import {
   RocketOutlined,
   FireOutlined,
   SearchOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
@@ -63,6 +64,7 @@ import {
 } from '@/api/product-lines';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { colors, spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -130,9 +132,9 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         isHotfix(plId, branch).catch(() => null),
       ]);
       setResult({
-        env: envRes?.data?.data ? String(envRes.data.data) : undefined,
-        needsApproval: approvalRes?.data?.data?.requiresApproval,
-        isHotfixBranch: hotfixRes?.data?.data?.isHotfix,
+        env: envRes?.data ? String(envRes.data) : undefined,
+        needsApproval: approvalRes?.data?.requiresApproval,
+        isHotfixBranch: hotfixRes?.data?.isHotfix,
       });
     } catch (error: unknown) {
       // Try mock: find matching env mapping
@@ -172,7 +174,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
           <BranchesOutlined /> 分支环境解析工具
         </Space>
       }
-      style={{ marginBottom: 16 }}
+      style={{ marginBottom: spacing.md }}
     >
       <Space wrap>
         <Select
@@ -194,7 +196,7 @@ const BranchResolver: React.FC<{ productLines: ProductLine[] }> = ({ productLine
         </Button>
       </Space>
       {result && (
-        <Descriptions size="small" style={{ marginTop: 12 }} column={3} bordered>
+        <Descriptions size="small" style={{ marginTop: spacing[3] }} column={3} bordered>
           <Descriptions.Item label="目标环境">
             {result.env ? (
               <Tag color="blue">{result.env}</Tag>
@@ -258,7 +260,7 @@ const ProductLineManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getProductLines();
-      setProductLines(Array.isArray(res.data?.data) ? res.data.data : []);
+      setProductLines(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setProductLines([]);
       message.error(`加载产品线数据失败: ${(error as Error).message}`);
@@ -444,8 +446,8 @@ const ProductLineManagement: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const [rtRes, hfRes] = await Promise.all([getReleaseTrains(pl.id), getHotfixChannels(pl.id)]);
-      setReleaseTrains(rtRes?.data?.data || []);
-      setHotfixChannels(hfRes?.data?.data || []);
+      setReleaseTrains(rtRes?.data || []);
+      setHotfixChannels(hfRes?.data || []);
     } catch (error: unknown) {
       setReleaseTrains([]);
       setHotfixChannels([]);
@@ -476,7 +478,7 @@ const ProductLineManagement: React.FC = () => {
       // Reload
       try {
         const res = await getReleaseTrains(selectedPL.id);
-        setReleaseTrains(res.data?.data || []);
+        setReleaseTrains(res.data || []);
       } catch {
         /* optional reload, ignore */
       }
@@ -516,7 +518,7 @@ const ProductLineManagement: React.FC = () => {
       hfForm.resetFields();
       try {
         const res = await getHotfixChannels(selectedPL.id);
-        setHotfixChannels(res.data?.data || []);
+        setHotfixChannels(res.data || []);
       } catch {
         /* optional reload, ignore */
       }
@@ -844,7 +846,7 @@ const ProductLineManagement: React.FC = () => {
         label: '发布列车',
         children: (
           <div>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary">管理定时发布列车</Text>
               <Button
                 type="primary"
@@ -870,7 +872,7 @@ const ProductLineManagement: React.FC = () => {
         label: 'Hotfix 通道',
         children: (
           <div>
-            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginBottom: spacing[3], display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary">管理紧急修复通道</Text>
               <Button
                 type="primary"
@@ -910,11 +912,12 @@ const ProductLineManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 多分支产品线
               </Title>
               <Text type="secondary">管理产品线的分支策略、环境映射、发布列车和紧急修复通道</Text>
@@ -938,7 +941,7 @@ const ProductLineManagement: React.FC = () => {
 
           {/* Product Line List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}

@@ -8,7 +8,7 @@
  * - 配额回收机制
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import {
   ResourceQuota,
@@ -17,8 +17,10 @@ import {
   ResourceUsage,
   ExecutionContext,
 } from './types';
+import { PluginResourceQuotaRepository } from '../../repositories/PluginResourceQuotaRepository';
+import { PluginTenantQuotaRepository } from '../../repositories/PluginTenantQuotaRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginResourceManager');
 
 /**
  * 配额分配记录
@@ -50,13 +52,20 @@ export class PluginResourceManager extends EventEmitter {
   private allocations: Map<string, QuotaAllocation> = new Map();
   private globalQuota: ResourceQuota;
   private stats: ResourceStats;
-  private pluginQuotas: Map<string, ResourceQuota> = new Map();
+
+  /** Plugin quotas - migrated to repository */
+  private quotaRepository?: PluginResourceQuotaRepository;
+  private pluginQuotas: Map<string, ResourceQuota> = new Map(); // in-memory cache
+
   // Per-tenant quota tracking
-  private tenantAllocations: Map<string, number> = new Map(); // tenantId -> active count
-  private tenantQuotas: Map<string, ResourceQuota> = new Map(); // tenantId -> quota
+  private tenantAllocations: Map<string, number> = new Map(); // tenantId -> active count (runtime)
+
+  /** Tenant quotas - migrated to repository */
+  private tenantQuotaRepository?: PluginTenantQuotaRepository;
+  private tenantQuotas: Map<string, ResourceQuota> = new Map(); // in-memory cache
   private defaultTenantQuota: ResourceQuota;
 
-  constructor(options?: { globalQuota?: ResourceQuota; defaultTenantQuota?: ResourceQuota }) {
+  constructor(options?: { globalQuota?: ResourceQuota; defaultTenantQuota?: ResourceQuota; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     super();
     this.globalQuota = options?.globalQuota || {
       cpuCores: 8,
@@ -77,6 +86,10 @@ export class PluginResourceManager extends EventEmitter {
       activeExecutions: 0,
       peakConcurrency: 0,
     };
+    if (options?.db) {
+      this.quotaRepository = new PluginResourceQuotaRepository(options.db);
+      this.tenantQuotaRepository = new PluginTenantQuotaRepository(options.db);
+    }
   }
 
   /**
@@ -113,6 +126,17 @@ export class PluginResourceManager extends EventEmitter {
    */
   setPluginQuota(pluginId: string, quota: ResourceQuota): void {
     this.pluginQuotas.set(pluginId, quota);
+
+    // Persist to repository
+    if (this.quotaRepository) {
+      this.quotaRepository.upsertQuota('plugin', pluginId, {
+        cpuCores: quota.cpuCores,
+        memoryBytes: quota.memoryBytes,
+        timeoutMs: quota.timeoutMs,
+        maxConcurrent: quota.maxConcurrent,
+      }).catch(() => {/* ignore */});
+    }
+
     logger.info({ pluginId, quota }, 'Plugin quota configured');
   }
 
@@ -139,25 +163,72 @@ export class PluginResourceManager extends EventEmitter {
    */
   setTenantQuota(tenantId: string, quota: ResourceQuota): void {
     this.tenantQuotas.set(tenantId, quota);
+
+    // Persist to repository
+    if (this.tenantQuotaRepository) {
+      this.tenantQuotaRepository.upsertQuota(tenantId, {
+        cpuCores: quota.cpuCores,
+        memoryBytes: quota.memoryBytes,
+        timeoutMs: quota.timeoutMs,
+        maxConcurrent: quota.maxConcurrent,
+      }).catch(err => {
+        logger.warn({ tenantId, error: err }, 'Failed to persist tenant quota to repository');
+      });
+    } else if (this.quotaRepository) {
+      // Fallback to generic quota repository
+      this.quotaRepository.upsertQuota('tenant', tenantId, {
+        cpuCores: quota.cpuCores,
+        memoryBytes: quota.memoryBytes,
+        timeoutMs: quota.timeoutMs,
+        maxConcurrent: quota.maxConcurrent,
+      }).catch(() => {/* ignore */});
+    }
+
     logger.info({ tenantId, quota }, 'Tenant quota configured');
   }
 
   /**
    * 获取租户配额
    */
-  getTenantQuota(tenantId: string): ResourceQuota {
-    return this.tenantQuotas.get(tenantId) || { ...this.defaultTenantQuota };
+  async getTenantQuota(tenantId: string): Promise<ResourceQuota> {
+    // Check in-memory cache first
+    const cached = this.tenantQuotas.get(tenantId);
+    if (cached) {
+      return { ...cached };
+    }
+
+    // Read from repository
+    if (this.tenantQuotaRepository) {
+      try {
+        const entity = await this.tenantQuotaRepository.findByTenantId(tenantId);
+        if (entity) {
+          const quota: ResourceQuota = {
+            cpuCores: entity.cpuCores,
+            memoryBytes: entity.memoryBytes,
+            timeoutMs: entity.timeoutMs,
+            maxConcurrent: entity.maxConcurrent,
+          };
+          // Update in-memory cache
+          this.tenantQuotas.set(tenantId, quota);
+          return { ...quota };
+        }
+      } catch (err) {
+        logger.warn({ tenantId, error: err }, 'Failed to read tenant quota from repository');
+      }
+    }
+
+    return { ...this.defaultTenantQuota };
   }
 
   /**
    * 获取租户可用资源
    */
-  getTenantAvailableResources(tenantId: string): {
+  async getTenantAvailableResources(tenantId: string): Promise<{
     cpuCores: number;
     memoryBytes: number;
     concurrencySlots: number;
-  } {
-    const tenantQuota = this.getTenantQuota(tenantId);
+  }> {
+    const tenantQuota = await this.getTenantQuota(tenantId);
     const tenantActive = this.tenantAllocations.get(tenantId) || 0;
     return {
       cpuCores: tenantQuota.cpuCores,
@@ -169,13 +240,14 @@ export class PluginResourceManager extends EventEmitter {
   /**
    * 检查租户配额
    */
-  canAllocateForTenant(tenantId: string, quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
-    const tenantAvailable = this.getTenantAvailableResources(tenantId);
+  async canAllocateForTenant(tenantId: string, quota: ResourceQuota): Promise<{ canAllocate: boolean; reason?: string }> {
+    const tenantQuota = await this.getTenantQuota(tenantId);
+    const tenantAvailable = await this.getTenantAvailableResources(tenantId);
 
     if (tenantAvailable.concurrencySlots <= 0) {
       return {
         canAllocate: false,
-        reason: `Tenant ${tenantId} reached max concurrent executions (${this.getTenantQuota(tenantId).maxConcurrent})`,
+        reason: `Tenant ${tenantId} reached max concurrent executions (${tenantQuota.maxConcurrent})`,
       };
     }
 
@@ -191,16 +263,16 @@ export class PluginResourceManager extends EventEmitter {
   /**
    * 分配资源配额（带租户隔离）
    */
-  allocateQuotaForTenant(
+  async allocateQuotaForTenant(
     taskId: string,
     pluginId: string,
     tenantId: string,
     securityLevel?: string
-  ): ExecutionContext | null {
+  ): Promise<ExecutionContext | null> {
     const quota = this.getPluginQuota(pluginId, securityLevel);
 
     // Check tenant quota
-    const tenantCheck = this.canAllocateForTenant(tenantId, quota);
+    const tenantCheck = await this.canAllocateForTenant(tenantId, quota);
     if (!tenantCheck.canAllocate) {
       logger.warn(
         { taskId, pluginId, tenantId, reason: tenantCheck.reason },
@@ -228,9 +300,9 @@ export class PluginResourceManager extends EventEmitter {
   }
 
   /**
-   * 检查是否可以分配资源
+   * 内部资源检查（不发射事件）
    */
-  canAllocate(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
+  private checkAllocation(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
     const available = this.getAvailableResources();
 
     if (available.concurrencySlots <= 0) {
@@ -258,6 +330,13 @@ export class PluginResourceManager extends EventEmitter {
   }
 
   /**
+   * 检查是否可以分配资源
+   */
+  canAllocate(quota: ResourceQuota): { canAllocate: boolean; reason?: string } {
+    return this.checkAllocation(quota);
+  }
+
+  /**
    * 分配资源配额
    */
   allocateQuota(
@@ -269,7 +348,7 @@ export class PluginResourceManager extends EventEmitter {
     const quota = this.getPluginQuota(pluginId, securityLevel);
 
     // 检查是否可以分配
-    const check = this.canAllocate(quota);
+    const check = this.checkAllocation(quota);
     if (!check.canAllocate) {
       logger.warn(
         { taskId, pluginId, reason: check.reason },

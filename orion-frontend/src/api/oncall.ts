@@ -83,29 +83,29 @@ export interface ScheduleListResponse {
 // ---- Schedule CRUD ----
 
 export function getSchedules() {
-  return api.get<ScheduleListResponse>('/v1/oncall/schedules');
+  return api.get<ScheduleListResponse>('/api/v1/oncall/schedules');
 }
 
 export function getSchedule(id: string) {
-  return api.get<OnCallSchedule>(`/v1/oncall/schedules/${id}`);
+  return api.get<OnCallSchedule>(`/api/v1/oncall/schedules/${id}`);
 }
 
 export function createSchedule(data: CreateScheduleInput) {
-  return api.post<OnCallSchedule>('/v1/oncall/schedules', data);
+  return api.post<OnCallSchedule>('/api/v1/oncall/schedules', data);
 }
 
 export function deleteSchedule(id: string) {
-  return api.delete(`/v1/oncall/schedules/${id}`);
+  return api.delete(`/api/v1/oncall/schedules/${id}`);
 }
 
 // ---- Current On-Call ----
 
 export function getCurrentOnCall(scheduleId: string) {
-  return api.get<CurrentOnCallResult>(`/v1/oncall/schedules/${scheduleId}/current`);
+  return api.get<CurrentOnCallResult>(`/api/v1/oncall/schedules/${scheduleId}/current`);
 }
 
 // ---- Overrides ----
 
 export function createOverride(data: CreateOverrideInput) {
-  return api.post<OnCallOverride>('/v1/oncall/overrides', data);
+  return api.post<OnCallOverride>('/api/v1/oncall/overrides', data);
 }

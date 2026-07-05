@@ -5,11 +5,11 @@
  * in SBOM documents.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { SbomWaiverRepository, SbomWaiverEntity } from '../../repositories/SbomWaiverRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SbomWaiverService');
 
 // ==================== Input Interfaces ====================
 
@@ -65,6 +65,7 @@ export class SbomWaiverService {
       const mockId = this.generateId();
       return {
         id: mockId,
+        tenantId: 'system',
         cveId: input.cveId,
         packageName: input.packageName,
         packageVersion: input.packageVersion,
@@ -88,7 +89,7 @@ export class SbomWaiverService {
       expires_at: input.expiresAt,
       scope: input.scope,
       scope_target: input.scopeTarget,
-    } as any);
+    });
 
     logger.info({ waiverId: entity.id, cveId: input.cveId, package: input.packageName }, '[SbomWaiver] Waiver created');
     return entity;
@@ -101,7 +102,8 @@ export class SbomWaiverService {
     if (!this.waiverRepo) {
       return null;
     }
-    return this.waiverRepo.findById(id) ?? null;
+    const result = await this.waiverRepo.findById(id);
+    return result ?? null;
   }
 
   /**
@@ -177,7 +179,8 @@ export class SbomWaiverService {
     }
 
     logger.info({ waiverId: id }, '[SbomWaiver] Waiver updated');
-    return this.waiverRepo.findById(id) ?? null;
+    const result = await this.waiverRepo.findById(id);
+    return result ?? null;
   }
 
   /**

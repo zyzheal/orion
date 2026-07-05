@@ -14,7 +14,7 @@ import {
   ClockCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import { colors, spacing } from '@/tokens';
+import { colors, spacing, radius } from '@/tokens';
 
 const { Text } = Typography;
 
@@ -39,17 +39,32 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = 
   skipped: { icon: <PlayCircleOutlined style={{ transform: 'rotate(180deg)' }} />, color: colors.neutral[400] },
 };
 
+// Typed node data for ReactFlow NodeProps
+interface StageNodeData {
+  label?: string;
+  stageType?: string;
+  status?: string;
+  config?: Record<string, unknown>;
+  index?: number;
+  hasApproval?: boolean;
+  timeout?: number;
+  hasQualityGate?: boolean;
+}
 // Stage Node Component
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
+const StageNode: React.FC<NodeProps<StageNodeData>> = (props) => {
+  const data = (props as any).data as StageNodeData || {};
+  const selected = (props as any).selected as boolean;
   const label = data?.label || '';
   const stageType = data?.stageType || 'custom';
   const status = data?.status || 'pending';
   const config = data?.config;
   const index = data?.index;
+  const hasApproval = data?.hasApproval;
+  const timeout = data?.timeout;
+  const hasQualityGate = data?.hasQualityGate;
 
   const typeConfig = useMemo(
-    () => STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom,
+    () => (STAGE_TYPE_CONFIG[stageType] || STAGE_TYPE_CONFIG.custom) as { icon: string; color: string; label: string },
     [stageType]
   );
 
@@ -75,7 +90,7 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
     return (
       <Space direction="vertical" size={4}>
         {lines.map((line, i) => (
-          <Text key={i} style={{ color: '#fff' }}>
+          <Text key={i} style={{ color: colors.neutral[0] }}>
             {line}
           </Text>
         ))}
@@ -134,12 +149,11 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
               fontSize: 12,
             }}
           >
-            {index + 1}
+            {(index ?? 0) + 1}
           </div>
-          <span style={{ fontSize: 12, color: statusConfig.color }}>{statusConfig.icon}</span>
+          <span style={{ fontSize: 12, color: statusConfig.color }}>{statusConfig.icon as React.ReactNode}</span>
         </div>
 
-        {/* Node Label */}
         <div style={{
           display: 'block',
           fontSize: 13,
@@ -149,7 +163,7 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
         }}>
-          <span>{typeConfig.icon}</span> {String(label)}
+          <span>{typeConfig.icon as React.ReactNode}</span> {String(label)}
         </div>
 
         {/* Type Tag */}
@@ -168,7 +182,7 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
         </div>
 
         {/* Config Info (if available) */}
-        {config && (config.imageName || config.containerImage) && (
+        {config && (config.imageName || config.containerImage) ? (
           <div
             style={{
               marginTop: spacing[1],
@@ -179,6 +193,15 @@ const StageNode: React.FC<NodeProps<any>> = ({ data, selected }) => {
             <Text type="secondary" style={{ fontSize: 10 }}>
               {String(config.imageName || config.containerImage || '')}
             </Text>
+          </div>
+        ) : null}
+
+        {/* Indicator Badges (Approval, Timeout, Quality Gate) */}
+        {(hasApproval || timeout || hasQualityGate) && (
+          <div style={{ display: 'flex', gap: 4, marginTop: spacing.sm, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {hasApproval && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.purple[500]}14`, color: colors.purple[500] }}>审批</span>}
+            {timeout && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.warning[500]}14`, color: colors.warning[500] }}>{timeout}s</span>}
+            {hasQualityGate && <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: radius.xs, background: `${colors.success[500]}14`, color: colors.success[500] }}>门禁</span>}
           </div>
         )}
 

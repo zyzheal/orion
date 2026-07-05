@@ -8,7 +8,7 @@
  * - 计算覆盖率统计
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { TestReportRepository } from '../../repositories/TestReportRepository';
 import {
   TestReport,
@@ -20,8 +20,9 @@ import {
 } from '../../models/TestReport';
 import { JUnitXmlParser, JUnitTestResult } from './test-parsers/JUnitXmlParser';
 import { JestJsonParser, JestTestResult } from './test-parsers/JestJsonParser';
+import { OrionError } from '../../errors';
 
-const logger = pino({ name: 'test-report-service' });
+const logger = createLogger('test-report-service');
 
 export type ReportFormat = 'junit' | 'jest';
 
@@ -93,7 +94,7 @@ export class TestReportService {
         result = this.jestParser.parse(content);
         break;
       default:
-        throw new Error(`Unsupported report format: ${format}`);
+        throw new OrionError(`Unsupported report format: ${format}`, 'VALIDATION_ERROR')
     }
 
     const report: TestReportCreateInput = {

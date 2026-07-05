@@ -24,6 +24,7 @@ import {
   MergeCheckBlock,
   ApprovalRule,
 } from './types';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class BranchPolicyService {
   private repository: BranchPolicyRepository | null;
@@ -55,7 +56,7 @@ export class BranchPolicyService {
    */
   async create(input: CreateBranchPolicyInput): Promise<BranchPolicy> {
     if (!this.repository) {
-      throw new Error('BranchPolicyRepository not configured');
+      throw new OrionError('BranchPolicyRepository not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // Generate IDs for approval rules

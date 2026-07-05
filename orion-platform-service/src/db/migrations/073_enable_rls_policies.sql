@@ -10,7 +10,7 @@
 -- ============================================================
 -- 1. SESSIONS Table RLS
 -- ============================================================
--- Note: sessions.tenant_id is VARCHAR(255), needs cast handling
+-- Note: sessions.tenant_id is UUID, direct comparison with session variable
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions FORCE ROW LEVEL SECURITY;
 
@@ -222,7 +222,7 @@ COMMENT ON POLICY tenant_isolation_agent_runs ON agent_runs IS
 -- ============================================================
 -- chatops_messages stores AI conversation history
 -- Add tenant_id column for proper tenant isolation
-ALTER TABLE chatops_messages ADD COLUMN IF NOT EXISTS tenant_id INTEGER;
+ALTER TABLE chatops_messages ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
 
 ALTER TABLE chatops_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chatops_messages FORCE ROW LEVEL SECURITY;
@@ -242,7 +242,7 @@ COMMENT ON POLICY tenant_isolation_chatops_messages ON chatops_messages IS
 -- ============================================================
 -- Summary: Tables with RLS Enabled
 -- ============================================================
--- 1. sessions (tenant_id VARCHAR)
+-- 1. sessions (tenant_id UUID)
 -- 2. audit_logs (tenant_id UUID)
 -- 3. deployments (tenant_id UUID)
 -- 4. pipeline_runs (tenant_id UUID)
@@ -253,7 +253,7 @@ COMMENT ON POLICY tenant_isolation_chatops_messages ON chatops_messages IS
 -- 9. knowledge_articles (tenant_id UUID)
 -- 10. knowledge_categories (tenant_id UUID)
 -- 11. agent_runs (tenant_id UUID)
--- 12. chatops_messages (tenant_id INTEGER)
+-- 12. chatops_messages (tenant_id UUID)
 --
 -- FORCE ROW LEVEL SECURITY ensures RLS applies even to superusers
 -- app.current_tenant_id session variable must be set before queries

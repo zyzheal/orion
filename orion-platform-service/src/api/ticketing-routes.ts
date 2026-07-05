@@ -1,413 +1,562 @@
 /**
  * TASK-801: Smart Ticketing API Routes
  *
- * Provides endpoints for ticket CRUD, workflow management,
- * assignment, relations, SLA-tracking, and reporting.
- * Registered under /api/v1/tickets prefix.
- *
- * P0-5 Fix: Changed all hardcoded `/tickets/` paths to relative paths
- * to avoid double prefix issue (/tickets/tickets).
- *
- * Migrated to PostgreSQL Repository pattern:
- * - Core ticket CRUD uses TicketingRepository + TicketingService
- * - Advanced features (workflow, dispatch, BI) still use TicketService (Map-based)
+ * Routes under /api/v1/ticketing and /api/v1/tickets
+ * Handles ticket CRUD, workflow management, assignment, relations, dispatch, and reporting
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { TicketingController } from './controllers/ticketing/TicketingController';
-import { TicketingRepository } from '../services/ticketing/TicketingRepository';
-import { TicketingService } from '../services/ticketing/TicketingService';
+import { TicketDispatchController } from './controllers/ticketing/TicketDispatchController';
+import { TicketingBIController } from './controllers/ticketing/TicketingBIController';
+import { SLAController } from './controllers/ticketing/SLAController';
+import { AutomationRuleController } from './controllers/ticketing/AutomationRuleController';
 import { TicketService } from '../services/ticketing/TicketService';
+import { TicketingService } from '../services/ticketing/TicketingService';
+import { TicketingRepository } from '../services/ticketing/TicketingRepository';
+import { SlaService } from '../services/ticketing/SlaService';
+import { SlaRepository } from '../repositories/SlaRepository';
+import { AutomationRuleService } from '../services/ticketing/AutomationRuleService';
+import { AutomationRuleRepository } from '../repositories/AutomationRuleRepository';
 
-interface TicketingRoutesOptions {
-  database?: DatabasePool;
-}
+export default async function ticketingRoutes(app: FastifyInstance): Promise<void> {
+  // Initialize services with real db connection from Fastify instance
+  const db = (app as any).db;
+  const ticketingRepo = new TicketingRepository(db);
+  const ticketingService = new TicketingService(ticketingRepo);
+  const ticketService = new TicketService(undefined, ticketingRepo);
+  const controller = new TicketingController(ticketService, ticketingService);
+  const dispatchController = new TicketDispatchController(ticketService);
+  const biController = new TicketingBIController(ticketService);
 
-export default async function ticketingRoutes(
-  app: FastifyInstance,
-  options: TicketingRoutesOptions
-): Promise<void> {
-  if (!options.database) {
-    throw new Error('Ticketing routes require a database connection');
-  }
+  // Initialize SLA and Automation services
+  const slaRepo = new SlaRepository(db);
+  const slaService = new SlaService(slaRepo);
+  const slaController = new SLAController(slaService);
 
-  // Initialize Repository and Service with database pool
-  const repository = new TicketingRepository(options.database);
-  const ticketingService = new TicketingService(repository);
-
-  // Initialize controller with both services
-  // - TicketService (PostgreSQL-backed via TicketingRepository)
-  // - TicketingService (PostgreSQL-backed, for core CRUD)
-  const controller = new TicketingController(
-    new TicketService({}, repository),
-    ticketingService
-  );
+  const automationRuleRepo = new AutomationRuleRepository(db);
+  const automationRuleService = new AutomationRuleService(automationRuleRepo);
+  const automationRuleController = new AutomationRuleController(automationRuleService);
 
   // ==================== Service Control ====================
 
-  // POST /start - Start ticketing service
-  app.post('/start', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ticketing/start', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.startService(request, reply);
   });
 
-  // POST /stop - Stop ticketing service
-  app.post('/stop', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ticketing/stop', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.stopService(request, reply);
   });
 
-  // GET /health - Health check
-  app.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/ticketing/health', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.healthCheck(request, reply);
   });
 
   // ==================== Ticket CRUD ====================
 
-  // POST / - Create a ticket
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicket(request, reply);
   });
 
-  // POST /from-alert - Create ticket from alert
-  app.post('/from-alert', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/from-alert', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicketFromAlert(request, reply);
   });
 
-  // POST /from-incident - Create ticket from incident
-  app.post('/from-incident', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/from-incident', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.createTicketFromIncident(request, reply);
   });
 
-  // GET / - List tickets
-  app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listTickets(request, reply);
+  app.get('/tickets/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getTicket(request, reply);
   });
 
-  // GET /:id - Get a ticket
-  app.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTicket(request, reply);
+  app.get('/tickets', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.listTickets(request, reply);
   });
 
   // ==================== Workflow ====================
 
-  // POST /:id/transition - Transition ticket status
-  app.post('/:id/transition', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/transition', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.transitionStatus(request, reply);
   });
 
-  // POST /:id/assign - Assign a ticket
-  app.post('/:id/assign', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/assign', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.assignTicket(request, reply);
   });
 
-  // POST /:id/escalate - Escalate a ticket
-  app.post('/:id/escalate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/escalate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.escalateTicket(request, reply);
   });
 
-  // POST /:id/resolve - Resolve a ticket
-  app.post('/:id/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/resolve', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.resolveTicket(request, reply);
   });
 
-  // POST /:id/close - Close a ticket
-  app.post('/:id/close', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/close', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.closeTicket(request, reply);
   });
 
-  // GET /:id/history - Get workflow history
-  app.get('/:id/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/:id/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getWorkflowHistory(request, reply);
   });
 
   // ==================== Assignment Rules ====================
 
-  // POST /rules - Add assignment rule
-  app.post('/rules', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ticketing/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.addAssignmentRule(request, reply);
   });
 
-  // GET /rules - Get assignment rules
-  app.get('/rules', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/ticketing/rules', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAssignmentRules(request, reply);
   });
 
-  // DELETE /rules/:id - Remove assignment rule
-  app.delete('/rules/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/ticketing/rules/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.removeAssignmentRule(request, reply);
   });
 
   // ==================== Relations ====================
 
-  // POST /:id/relations - Add ticket relation
-  app.post('/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/:id/relations', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.addRelation(request, reply);
   });
 
-  // GET /:id/relations - Get relations for a ticket
-  app.get('/:id/relations', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/:id/relations', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getRelations(request, reply);
   });
 
-  // GET /:id/related - Find related tickets
-  app.get('/:id/related', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/:id/related', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.findRelatedTickets(request, reply);
   });
 
-  // GET /:id/duplicates - Detect duplicates
-  app.get('/:id/duplicates', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/:id/duplicates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.detectDuplicates(request, reply);
   });
 
-  // POST /correlate - Correlate root cause
-  app.post('/correlate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/tickets/correlate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.correlateRootCause(request, reply);
   });
 
   // ==================== SLA ====================
 
-  // POST /sla - Add SLA target
-  app.post('/sla', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ticketing/sla', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.addSLATarget(request, reply);
   });
 
-  // GET /:id/sla - Get SLA for a ticket
-  app.get('/:id/sla', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/:id/sla', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getTicketSLA(request, reply);
   });
 
   // ==================== Reports ====================
 
-  // GET /reports/sla - SLA compliance report
-  app.get('/reports/sla', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/reports/sla', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getSLACompliance(request, reply);
   });
 
-  // GET /reports/resolution - Resolution time statistics
-  app.get('/reports/resolution', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/reports/resolution', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getResolutionStats(request, reply);
   });
 
-  // GET /reports/backlog - Backlog analysis
-  app.get('/reports/backlog', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/reports/backlog', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getBacklogAnalysis(request, reply);
   });
 
-  // GET /reports/trends - Trend report
-  app.get('/reports/trends', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/reports/trends', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getTrendReport(request, reply);
   });
 
-  // GET /reports/statistics - Overall statistics
-  app.get('/reports/statistics', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/tickets/reports/statistics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getStatistics(request, reply);
   });
 
-  // ==================== TASK-802: Dispatch Endpoints ====================
+  // ==================== Dispatch ====================
 
-  // POST /dispatch/engineers - Register engineer
-  app.post('/dispatch/engineers', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.registerEngineer(request, reply);
+  app.post('/tickets/dispatch/engineers', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.registerEngineer(request, reply);
   });
 
-  // GET /dispatch/engineers - List engineers
-  app.get('/dispatch/engineers', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listEngineers(request, reply);
+  app.get('/tickets/dispatch/engineers', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.listEngineers(request, reply);
   });
 
-  // GET /dispatch/engineers/:id - Get engineer
-  app.get('/dispatch/engineers/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineer(request, reply);
+  app.get('/tickets/dispatch/engineers/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getEngineer(request, reply);
   });
 
-  // POST /dispatch/auto/:ticketId - Auto-dispatch
-  app.post('/dispatch/auto/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.autoDispatch(request, reply);
+  app.post('/tickets/dispatch/auto/:ticketId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.autoDispatch(request, reply);
   });
 
-  // POST /dispatch/manual/:ticketId - Manual dispatch
-  app.post('/dispatch/manual/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.manualDispatch(request, reply);
+  app.post('/tickets/dispatch/manual/:ticketId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.manualDispatch(request, reply);
   });
 
-  // GET /dispatch/best-match/:ticketId - Find best engineer
-  app.get('/dispatch/best-match/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.findBestMatch(request, reply);
+  app.get('/tickets/dispatch/best-match/:ticketId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getBestMatch(request, reply);
   });
 
-  // POST /dispatch/score - Calculate dispatch score
-  app.post('/dispatch/score', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.calculateDispatchScore(request, reply);
+  app.post('/tickets/dispatch/score', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.calculateDispatchScore(request, reply);
   });
 
-  // GET /dispatch/queue/status - Queue status
-  app.get('/dispatch/queue/status', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDispatchQueueStatus(request, reply);
+  app.get('/tickets/dispatch/queue/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getDispatchQueueStatus(request, reply);
   });
 
-  // GET /dispatch/queue/entries - Queue entries
-  app.get('/dispatch/queue/entries', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDispatchQueueEntries(request, reply);
+  app.get('/tickets/dispatch/queue/entries', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getDispatchQueueEntries(request, reply);
   });
 
-  // GET /dispatch/sla-alerts - SLA alerts
-  app.get('/dispatch/sla-alerts', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getSLAAlerts(request, reply);
+  app.get('/tickets/dispatch/sla-alerts', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getSLAAlerts(request, reply);
   });
 
-  // POST /dispatch/rules - Add dispatch rule
-  app.post('/dispatch/rules', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.addDispatchRule(request, reply);
+  app.post('/tickets/dispatch/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.addDispatchRule(request, reply);
   });
 
-  // GET /dispatch/rules - Get dispatch rules
-  app.get('/dispatch/rules', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDispatchRules(request, reply);
+  app.get('/tickets/dispatch/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getDispatchRules(request, reply);
   });
 
-  // GET /dispatch/load-balance/report - Load balance report
-  app.get('/dispatch/load-balance/report', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getLoadBalanceReport(request, reply);
+  app.get('/tickets/dispatch/load-balance/report', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getLoadBalanceReport(request, reply);
   });
 
-  // GET /dispatch/load-balance/suggestions - Reassignment suggestions
-  app.get('/dispatch/load-balance/suggestions', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getReassignmentSuggestions(request, reply);
+  app.get('/tickets/dispatch/load-balance/suggestions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getReassignmentSuggestions(request, reply);
   });
 
-  // GET /dispatch/reports/metrics - Dispatch metrics
-  app.get('/dispatch/reports/metrics', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDispatchMetrics(request, reply);
+  app.get('/tickets/dispatch/reports/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getDispatchMetrics(request, reply);
   });
 
-  // GET /dispatch/reports/assignment-success - Assignment success
-  app.get('/dispatch/reports/assignment-success', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getAssignmentSuccessMetrics(request, reply);
+  app.get('/tickets/dispatch/reports/assignment-success', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getAssignmentSuccessMetrics(request, reply);
   });
 
-  // GET /dispatch/reports/time-to-assignment - Time to assignment
-  app.get('/dispatch/reports/time-to-assignment', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTimeToAssignmentStats(request, reply);
+  app.get('/tickets/dispatch/reports/time-to-assignment', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getTimeToAssignmentStats(request, reply);
   });
 
-  // GET /dispatch/reports/performance - All performances
-  app.get('/dispatch/reports/performance', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getAllEngineerPerformances(request, reply);
+  app.get('/tickets/dispatch/reports/performance/:engineerId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getEngineerPerformance(request, reply);
   });
 
-  // GET /dispatch/reports/performance/:engineerId - Engineer performance
-  app.get('/dispatch/reports/performance/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineerPerformance(request, reply);
+  app.get('/tickets/dispatch/reports/performance', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getAllEngineerPerformances(request, reply);
   });
 
-  // PUT /dispatch/weights - Update dispatch weights
-  app.put('/dispatch/weights', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.updateDispatchWeights(request, reply);
+  app.put('/tickets/dispatch/weights', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.updateDispatchWeights(request, reply);
   });
 
-  // GET /dispatch/weights - Get dispatch weights
-  app.get('/dispatch/weights', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getDispatchWeights(request, reply);
+  app.get('/tickets/dispatch/weights', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return dispatchController.getDispatchWeights(request, reply);
   });
 
-  // ==================== TASK-TICKET-XFER: Transfer Endpoints ====================
+  // ==================== Transfer ====================
 
-  // POST /transfer/:ticketId - Transfer a ticket
-  app.post('/transfer/:ticketId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.transferTicket(request, reply);
+  app.post('/tickets/transfer/:ticketId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.transferTicket(request, reply);
   });
 
-  // GET /transfer/:ticketId/history - Get transfer history
-  app.get('/transfer/:ticketId/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTransferHistory(request, reply);
+  app.get('/tickets/transfer/:ticketId/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticket', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getTransferHistory(request, reply);
   });
 
-  // GET /transfer/stats - Get transfer statistics
-  app.get('/transfer/stats', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTransferStats(request, reply);
+  app.get('/tickets/transfer/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getTransferStats(request, reply);
   });
 
-  // ==================== TASK-TICKET-XFER: Suspend Endpoints ====================
+  // ==================== Suspend ====================
 
-  // POST /suspend - Create a suspension
-  app.post('/suspend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.createSuspend(request, reply);
+  app.post('/tickets/suspend', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.createSuspend(request, reply);
   });
 
-  // POST /suspend/:id/activate - Activate a suspension
-  app.post('/suspend/:id/activate', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.activateSuspend(request, reply);
+  app.post('/tickets/suspend/:id/activate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.activateSuspend(request, reply);
   });
 
-  // POST /suspend/:id/end - End a suspension
-  app.post('/suspend/:id/end', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.endSuspend(request, reply);
+  app.post('/tickets/suspend/:id/end', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.endSuspend(request, reply);
   });
 
-  // POST /suspend/:id/cancel - Cancel a suspension
-  app.post('/suspend/:id/cancel', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.cancelSuspend(request, reply);
+  app.post('/tickets/suspend/:id/cancel', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.cancelSuspend(request, reply);
   });
 
-  // GET /suspend - List suspensions
-  app.get('/suspend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listSuspensions(request, reply);
+  app.get('/tickets/suspend', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.listSuspensions(request, reply);
   });
 
-  // GET /suspend/:id - Get suspension by ID
-  app.get('/suspend/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getSuspend(request, reply);
+  app.get('/tickets/suspend/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getSuspend(request, reply);
   });
 
-  // GET /suspend/engineer/:engineerId - Get suspensions for an engineer
-  app.get('/suspend/engineer/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineerSuspensions(request, reply);
+  app.get('/tickets/suspend/engineer/:engineerId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getEngineerSuspensions(request, reply);
   });
 
-  // GET /suspend/engineer/:engineerId/impact - Get suspension impact
-  app.get('/suspend/engineer/:engineerId/impact', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineerSuspendImpact(request, reply);
+  app.get('/tickets/suspend/engineer/:engineerId/impact', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getEngineerSuspendImpact(request, reply);
   });
 
-  // ==================== TASK-TICKET-BI: BI Analytics Endpoints ====================
+  // ==================== BI Analytics ====================
 
-  // GET /bi/dashboard/executive - Executive dashboard
-  app.get('/bi/dashboard/executive', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getExecutiveDashboard(request, reply);
+  app.get('/tickets/bi/dashboard/executive', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getExecutiveDashboard(request, reply);
   });
 
-  // GET /bi/dashboard/manager - Manager dashboard
-  app.get('/bi/dashboard/manager', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getManagerDashboard(request, reply);
+  app.get('/tickets/bi/dashboard/manager', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getManagerDashboard(request, reply);
   });
 
-  // GET /bi/dashboard/engineer/:engineerId - Engineer dashboard
-  app.get('/bi/dashboard/engineer/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineerDashboard(request, reply);
+  app.get('/tickets/bi/dashboard/engineer/:engineerId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getEngineerDashboard(request, reply);
   });
 
-  // GET /bi/efficiency/:engineerId - Engineer efficiency metrics
-  app.get('/bi/efficiency/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEngineerEfficiency(request, reply);
+  app.get('/tickets/bi/efficiency/:engineerId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getEngineerEfficiency(request, reply);
   });
 
-  // GET /bi/score/:engineerId - Engineer efficiency score
-  app.get('/bi/score/:engineerId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEfficiencyScore(request, reply);
+  app.get('/tickets/bi/score/:engineerId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getEfficiencyScore(request, reply);
   });
 
-  // GET /bi/compare - Compare periods
-  app.get('/bi/compare', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.comparePeriods(request, reply);
+  app.get('/tickets/bi/compare', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.comparePeriods(request, reply);
   });
 
-  // POST /bi/export - Export BI data
-  app.post('/bi/export', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.exportBIData(request, reply);
+  app.post('/tickets/bi/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.exportBIData(request, reply);
   });
 
-  // GET /bi/trend - Time trend
-  app.get('/bi/trend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getTimeTrend(request, reply);
+  app.get('/tickets/bi/trend', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return biController.getTimeTrend(request, reply);
+  });
+
+  // ==================== SLA Policies ====================
+
+  app.post('/ticketing/sla/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.createPolicy(request, reply);
+  });
+
+  app.get('/ticketing/sla/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.listPolicies(request, reply);
+  });
+
+  app.get('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getPolicy(request, reply);
+  });
+
+  app.put('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.updatePolicy(request, reply);
+  });
+
+  app.delete('/ticketing/sla/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.deletePolicy(request, reply);
+  });
+
+  // ==================== SLA Tracking ====================
+
+  app.get('/ticketing/sla/tickets/:ticketId/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getTicketSLAStatus(request, reply);
+  });
+
+  app.get('/ticketing/sla/breaches', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getBreaches(request, reply);
+  });
+
+  app.get('/ticketing/sla/compliance/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return slaController.getCompliance(request, reply);
+  });
+
+  // ==================== Automation Rules ====================
+
+  app.post('/ticketing/automation/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.createRule(request, reply);
+  });
+
+  app.get('/ticketing/automation/rules', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.listRules(request, reply);
+  });
+
+  app.put('/ticketing/automation/rules/:ruleId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.updateRule(request, reply);
+  });
+
+  app.delete('/ticketing/automation/rules/:ruleId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.deleteRule(request, reply);
+  });
+
+  app.post('/ticketing/automation/rules/:ruleId/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ticketing', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return automationRuleController.executeRule(request, reply);
   });
 }

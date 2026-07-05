@@ -20,7 +20,7 @@ export interface AuditLog {
   resource_type: string;
   resource_id: string;
   request_body?: Record<string, unknown>;
-  created_at: Date;
+  created_at?: Date;
 }
 
 export class AuditRepository {

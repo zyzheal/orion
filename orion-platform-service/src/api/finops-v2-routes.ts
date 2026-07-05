@@ -1,194 +1,378 @@
 /**
- * TASK-502: FinOps 成本追踪与 ROI API 路由
+ * FinOps V2 API Routes - 完整 FinOps 成本管理
  *
- * 提供成本追踪、ROI 分析、预算管理、成本优化等端点
- * 注册在 /api/v1/finops 前缀下
- *
- * Uses PostgreSQL Repository pattern via FinOpsService
+ * Routes under /api/v1/finops
+ * Cost tracking, budget management, forecasting, optimization recommendations
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { FinOpsRepository } from '../services/finops/FinOpsRepository';
-import { FinOpsService } from '../services/finops/FinOpsService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { FinOpsV2Controller } from './controllers/finops/FinOpsV2Controller';
+import { FinOpsService } from '../services/finops/FinOpsService';
+import { FinOpsRepository } from '../services/finops/FinOpsRepository';
+import { CloudCostCollector, CloudProvider } from '../services/finops';
+import { createLogger } from '../utils/logger';
+import { NotFoundError, handleError } from '../errors';
 
-export default async function finopsV2Routes(
+const logger = createLogger('finops-v2-routes');
+
+interface FinOpsRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function finOpsV2Routes(
   app: FastifyInstance,
-  options?: { database?: DatabasePool }
+  options: FinOpsRoutesOptions
 ): Promise<void> {
-  // Create repository with database pool (falls back to undefined for dev/testing)
-  const repository = options?.database
+  // Initialize Repository and Service with database pool
+  const repository = options.database
     ? new FinOpsRepository(options.database)
     : undefined;
 
-  // If no database, create a minimal in-memory fallback repository is not available
-  // In production, database should always be provided
-  const service = repository
-    ? new FinOpsService(repository)
-    : undefined;
-
-  if (!service) {
-    // Fallback: register routes that return 503 Service Unavailable
-    app.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
-      await reply.status(503).send({
-        success: false,
-        error: 'DATABASE_NOT_CONFIGURED',
-        message: 'FinOps service requires PostgreSQL database connection',
-      });
-    });
+  if (!repository) {
+    logger.warn('[FinOpsRoutes] No database pool provided, FinOps routes will not be functional');
     return;
   }
 
-  const controller = new FinOpsV2Controller(service);
+  const finOpsService = new FinOpsService(repository);
+  const controller = new FinOpsV2Controller(finOpsService);
 
-  // ==================== 成本追踪 ====================
+  // Task 5.8: CloudCostCollector for auto-collection
+  const cloudCollector = options.database ? new CloudCostCollector(options.database) : undefined;
 
-  // POST /track/project - 记录项目成本
-  app.post('/track/project', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.trackProjectCost(request, reply);
+  // ============================================================================
+  // Cost Tracking
+  // ============================================================================
+
+  app.post('/finops/track/project', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.trackProjectCost(request, reply));
+
+  app.post('/finops/track/tenant', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.trackTenantCost(request, reply));
+
+  app.post('/finops/track/team', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.trackTeamCost(request, reply));
+
+  app.get('/finops/track/:entityType/:entityId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getCostByEntity(request, reply));
+
+  app.get('/finops/track/:entityType/:entityId/trend', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getEntityCostTrend(request, reply));
+
+  // ============================================================================
+  // Cost Overview & Breakdown
+  // ============================================================================
+
+  app.get('/finops/cost-overview', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const summary = await finOpsService.getCostSummary(
+      (query.period as any) || 'monthly',
+      { tenantId: query.tenantId }
+    );
+    return reply.send({ success: true, data: { summary } });
   });
 
-  // POST /track/tenant - 记录租户成本
-  app.post('/track/tenant', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.trackTenantCost(request, reply);
+  app.get('/finops/cost-breakdown', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const dimension = query.dimension || 'category';
+    const breakdown = await finOpsService.getCostBreakdown(dimension, { tenantId: query.tenantId });
+    return reply.send({ success: true, data: { breakdown } });
   });
 
-  // POST /track/team - 记录团队成本
-  app.post('/track/team', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.trackTeamCost(request, reply);
+  app.get('/finops/chargeback', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getChargebackReport(request, reply));
+
+  // ============================================================================
+  // Budget Management (Full CRUD)
+  // ============================================================================
+
+  app.get('/finops/budgets', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.listBudgets(request, reply));
+
+  app.post('/finops/budgets', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.createBudget(request, reply));
+
+  app.put('/finops/budgets/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.updateBudget(request, reply));
+
+  app.delete('/finops/budgets/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.deleteBudget(request, reply));
+
+  app.get('/finops/budgets/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as any;
+    const budget = await finOpsService.getBudget(params.id);
+    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return reply.send({ success: true, data: { budget } });
   });
 
-  // GET /track/:entityType/:entityId - 获取实体成本汇总
-  app.get('/track/:entityType/:entityId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getCostByEntity(request, reply);
+  app.get('/finops/budgets/:id/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getBudgetStatus(request, reply));
+
+  app.get('/finops/budgets/:id/forecast', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.forecastBudget(request, reply));
+
+  // ============================================================================
+  // Budget Alerts
+  // ============================================================================
+
+  app.post('/finops/budgets/check-alerts', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.checkBudgetAlerts(request, reply));
+
+  app.get('/finops/budgets/alert-triggers', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getAlertTriggers(request, reply));
+
+  // ============================================================================
+  // Cost Forecasts
+  // ============================================================================
+
+  app.get('/finops/forecasts', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const entityType = (query.entityType as any) || 'project';
+    const entityId = query.entityId || 'default';
+    const period = (query.period as any) || 'monthly';
+
+    // Get trend forecast for the entity
+    const trend = await finOpsService.getCostTrend(entityType, entityId, period);
+    const forecast = {
+      points: trend.points,
+      overallChangeRate: trend.overallChangeRate,
+      averageCost: trend.averageCost,
+      maxCost: trend.maxCost,
+      minCost: trend.minCost,
+      // Simple linear extrapolation for next period
+      nextPeriodForecast: trend.points.length > 0
+        ? trend.points[trend.points.length - 1].cost * (1 + trend.overallChangeRate / 100)
+        : 0,
+    };
+
+    return reply.send({ success: true, data: { forecasts: [forecast], count: 1 } });
   });
 
-  // GET /track/:entityType/:entityId/trend - 获取实体成本趋势
-  app.get('/track/:entityType/:entityId/trend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getEntityCostTrend(request, reply);
+  // ============================================================================
+  // Optimization Recommendations
+  // ============================================================================
+
+  app.get('/finops/recommendations', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getOptimizations(request, reply));
+
+  app.patch('/finops/recommendations/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.updateOptimizationStatus(request, reply));
+
+  app.delete('/finops/recommendations/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.deleteOptimization(request, reply));
+
+  app.get('/finops/recommendations/right-sizing', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getRightSizingRecommendations(request, reply));
+
+  app.get('/finops/recommendations/unused', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.detectUnusedResources(request, reply));
+
+  app.get('/finops/recommendations/savings', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.estimateSavings(request, reply));
+
+  // ============================================================================
+  // Reports
+  // ============================================================================
+
+  app.get('/finops/reports', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const tenantId = query.tenantId || (request as any).user?.tenantId;
+    const reports = await finOpsService.getReportHistory(tenantId);
+    return reply.send({ success: true, data: { reports } });
   });
 
-  // GET /chargeback - 获取成本分摊报告
-  app.get('/chargeback', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getChargebackReport(request, reply);
+  // ============================================================================
+  // ROI
+  // ============================================================================
+
+  app.get('/finops/roi/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getROIHistory(request, reply));
+
+  app.get('/finops/roi/summary', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.getROISummary(request, reply));
+
+  // ============================================================================
+  // Metrics (FinOps KPIs)
+  // ============================================================================
+
+  app.get('/finops/metrics', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const [summary, roiSummary, savings] = await Promise.all([
+      finOpsService.getCostSummary('monthly'),
+      finOpsService.getROISummary(),
+      finOpsService.estimateSavings(),
+    ]);
+
+    return reply.send({
+      success: true,
+      data: {
+        costMetrics: summary,
+        roiMetrics: roiSummary,
+        savingsMetrics: savings,
+      },
+    });
   });
 
-  // ==================== ROI 分析 ====================
+  // ============================================================================
+  // Health Check
+  // ============================================================================
 
-  // POST /roi/calculate - 计算 ROI
-  app.post('/roi/calculate', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.calculateROI(request, reply);
-  });
+  app.get('/finops/health', {
+    onRequest: [authenticateUser],
+  }, async (request: FastifyRequest, reply: FastifyReply) => controller.healthCheck(request, reply));
 
-  // POST /roi/automation - 分析自动化节省
-  app.post('/roi/automation', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.analyzeAutomationSavings(request, reply);
-  });
+  // ============================================================================
+  // Cost Auto-Collection (Task 5.8)
+  // ============================================================================
 
-  // POST /roi/compare - 对比前后周期成本
-  app.post('/roi/compare', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.comparePeriods(request, reply);
-  });
+  if (cloudCollector) {
+    // POST /finops/collect - Trigger cloud cost collection
+    app.post('/finops/collect', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as any || {};
+        const { provider, days = 30 } = body;
 
-  // GET /roi/history - 获取 ROI 历史
-  app.get('/roi/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getROIHistory(request, reply);
-  });
+        const endDate = new Date();
+        const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
 
-  // GET /roi/summary - 获取 ROI 汇总
-  app.get('/roi/summary', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getROISummary(request, reply);
-  });
+        let resources;
+        if (provider) {
+          resources = await cloudCollector.collectFromProvider(provider, startDate, endDate);
+        } else {
+          resources = await cloudCollector.collectAll(startDate, endDate);
+        }
 
-  // ==================== 预算管理 ====================
+        const totalCost = resources.reduce((sum: number, r: any) => sum + r.cost, 0);
 
-  // POST /budget - 创建预算
-  app.post('/budget', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.createBudget(request, reply);
-  });
+        return reply.send({
+          success: true,
+          data: {
+            collected: resources.length,
+            totalCost: Math.round(totalCost * 100) / 100,
+            provider: provider || 'all',
+            periodStart: startDate.toISOString(),
+            periodEnd: endDate.toISOString(),
+          },
+        });
+      } catch (error: any) {
+        logger.error('[FinOpsV2] Collection error:', error);
+        return reply.status(500).send({
+          success: false,
+          error: 'COLLECTION_ERROR',
+          message: error.message,
+        });
+      }
+    });
 
-  // GET /budget - 获取预算列表
-  app.get('/budget', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listBudgets(request, reply);
-  });
+    // GET /finops/collect/providers - List registered cloud providers
+    app.get('/finops/collect/providers', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const providers = cloudCollector.getRegisteredProviders();
+        return reply.send({ success: true, data: { providers } });
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          error: 'PROVIDER_LIST_ERROR',
+          message: error.message,
+        });
+      }
+    });
 
-  // PUT /budget/:id - 更新预算
-  app.put('/budget/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.updateBudget(request, reply);
-  });
+    // POST /finops/collect/schedule - Set collection schedule for a provider
+    app.post('/finops/collect/schedule', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as any || {};
+        const { provider, cronExpression, enabled = true } = body;
 
-  // DELETE /budget/:id - 删除预算
-  app.delete('/budget/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.deleteBudget(request, reply);
-  });
+        if (!provider || !cronExpression) {
+          return reply.status(400).send({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'provider and cronExpression are required',
+          });
+        }
 
-  // POST /budget/:id/spend - 更新实体花费
-  app.post('/budget/:id/spend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.updateSpend(request, reply);
-  });
+        await cloudCollector.setSchedule(provider, { provider: provider as CloudProvider, cronExpression, enabled });
 
-  // POST /budget/check-alerts - 检查预算告警
-  app.post('/budget/check-alerts', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.checkBudgetAlerts(request, reply);
-  });
+        return reply.send({
+          success: true,
+          message: `Collection schedule updated for ${provider}`,
+        });
+      } catch (error: any) {
+        logger.error('[FinOpsV2] Schedule error:', error);
+        return reply.status(500).send({
+          success: false,
+          error: 'SCHEDULE_ERROR',
+          message: error.message,
+        });
+      }
+    });
 
-  // GET /budget/:id/status - 获取预算状态
-  app.get('/budget/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getBudgetStatus(request, reply);
-  });
+    // GET /finops/collect/schedule/:provider - Get collection schedule
+    app.get('/finops/collect/schedule/:provider', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const params = request.params as { provider: string };
+        const schedule = await cloudCollector.getSchedule(params.provider as any);
 
-  // GET /budget/:id/forecast - 预算预测
-  app.get('/budget/:id/forecast', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.forecastBudget(request, reply);
-  });
+        if (!schedule) {
+          return reply.status(404).send({
+            success: false,
+            error: 'SCHEDULE_NOT_FOUND',
+            message: `No schedule found for provider: ${params.provider}`,
+          });
+        }
 
-  // GET /budget/alert-triggers - 获取告警触发记录
-  app.get('/budget/alert-triggers', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getAlertTriggers(request, reply);
-  });
-
-  // ==================== 成本优化 ====================
-
-  // POST /optimize/analyze - 分析优化机会
-  app.post('/optimize/analyze', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.analyzeOptimization(request, reply);
-  });
-
-  // GET /optimize/right-sizing - 获取资源调整大小建议
-  app.get('/optimize/right-sizing', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getRightSizingRecommendations(request, reply);
-  });
-
-  // GET /optimize/unused - 检测闲置资源
-  app.get('/optimize/unused', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.detectUnusedResources(request, reply);
-  });
-
-  // GET /optimize/savings - 预估节省金额
-  app.get('/optimize/savings', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.estimateSavings(request, reply);
-  });
-
-  // GET /optimize/suggestions - 获取优化建议列表
-  app.get('/optimize/suggestions', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getOptimizations(request, reply);
-  });
-
-  // PATCH /optimize/:id/status - 更新优化建议状态
-  app.patch('/optimize/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.updateOptimizationStatus(request, reply);
-  });
-
-  // DELETE /optimize/:id - 删除优化建议
-  app.delete('/optimize/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.deleteOptimization(request, reply);
-  });
-
-  // ==================== 健康检查 ====================
-
-  // GET /health - 健康检查
-  app.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.healthCheck(request, reply);
-  });
+        return reply.send({ success: true, data: schedule });
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          error: 'SCHEDULE_GET_ERROR',
+          message: error.message,
+        });
+      }
+    });
+  }
 }

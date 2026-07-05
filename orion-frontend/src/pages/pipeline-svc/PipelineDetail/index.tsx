@@ -14,8 +14,7 @@
  * - Per-stage retry ("从该阶段重跑") for failed/completed runs
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Table, Modal } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { Typography, Button, Space, Tag, Card, Descriptions, Tabs, Badge, message, Result, Modal, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
@@ -25,6 +24,7 @@ import {
   ArrowLeftOutlined,
   ApartmentOutlined,
   SwapOutlined,
+  ApiOutlined,
 } from '@ant-design/icons';
 import StatusBadge from '@/components/StatusBadge';
 import CardPanel from '@/components/CardPanel';
@@ -50,161 +50,7 @@ const stageStatusColors: Record<string, string> = {
   cancelled: colors.neutral[400],
 };
 
-/**
- * Task output variable — represents a variable produced by a task/stage
- * and optionally propagated to downstream stages.
- */
-interface TaskOutput {
-  key: string;
-  stageName: string;
-  taskName: string;
-  variableName: string;
-  variableValue: string;
-  propagatedTo: string[];
-}
-
-/**
- * Mock task outputs data.
- * TODO: Replace with real API integration once backend exposes
- * /v1/pipeline-runs/:runId/outputs or similar endpoint.
- */
-const mockTaskOutputs: TaskOutput[] = [
-  {
-    key: '1',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_OUTPUT_DIR',
-    variableValue: 'dist/',
-    propagatedTo: ['Test', 'Package'],
-  },
-  {
-    key: '2',
-    stageName: 'Build',
-    taskName: 'npm-build',
-    variableName: 'BUILD_VERSION',
-    variableValue: '1.2.3-abc1234',
-    propagatedTo: ['Test', 'Deploy'],
-  },
-  {
-    key: '3',
-    stageName: 'Test',
-    taskName: 'unit-test',
-    variableName: 'COVERAGE_PERCENT',
-    variableValue: '87.5',
-    propagatedTo: ['Quality Gate'],
-  },
-  {
-    key: '4',
-    stageName: 'Test',
-    taskName: 'integration-test',
-    variableName: 'TEST_REPORT_URL',
-    variableValue: 'https://reports.example.com/run-42',
-    propagatedTo: [],
-  },
-  {
-    key: '5',
-    stageName: 'Package',
-    taskName: 'docker-build',
-    variableName: 'IMAGE_TAG',
-    variableValue: 'registry.example.com/app:1.2.3-abc1234',
-    propagatedTo: ['Deploy'],
-  },
-  {
-    key: '6',
-    stageName: 'Deploy',
-    taskName: 'k8s-deploy',
-    variableName: 'DEPLOYED_NAMESPACE',
-    variableValue: 'production',
-    propagatedTo: [],
-  },
-];
-
-/**
- * TaskOutputsTable — renders a table of task output variables
- * with propagation information.
- *
- * Currently uses mock data; ready for API integration.
- */
-const TaskOutputsTable: React.FC = () => {
-  const columns: ColumnsType<TaskOutput> = [
-    {
-      title: '所属阶段',
-      dataIndex: 'stageName',
-      key: 'stageName',
-      width: 140,
-      render: (text: string) => <Tag color="blue">{text}</Tag>,
-    },
-    {
-      title: '任务名称',
-      dataIndex: 'taskName',
-      key: 'taskName',
-      width: 160,
-      render: (text: string) => <Text code>{text}</Text>,
-    },
-    {
-      title: '变量名',
-      dataIndex: 'variableName',
-      key: 'variableName',
-      width: 200,
-      render: (text: string) => (
-        <Tag color="geekblue" style={{ fontFamily: 'monospace' }}>
-          {text}
-        </Tag>
-      ),
-    },
-    {
-      title: '变量值',
-      dataIndex: 'variableValue',
-      key: 'variableValue',
-      ellipsis: true,
-      render: (text: string) => (
-        <Text
-          code
-          style={{
-            maxWidth: 300,
-            display: 'inline-block',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            verticalAlign: 'middle',
-          }}
-          title={text}
-        >
-          {text}
-        </Text>
-      ),
-    },
-    {
-      title: '传播至',
-      dataIndex: 'propagatedTo',
-      key: 'propagatedTo',
-      width: 220,
-      render: (targets: string[]) =>
-        targets.length > 0 ? (
-          <Space wrap>
-            {targets.map((t) => (
-              <Tag key={t} color="green">
-                {t}
-              </Tag>
-            ))}
-          </Space>
-        ) : (
-          <Text type="secondary">无</Text>
-        ),
-    },
-  ];
-
-  return (
-    <Table<TaskOutput>
-      columns={columns}
-      dataSource={mockTaskOutputs}
-      size="middle"
-      pagination={false}
-      bordered
-      rowKey="key"
-    />
-  );
-};
+// TaskOutputsTable removed - outputs tab now shows Empty state pending API integration
 
 const PipelineDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -223,9 +69,19 @@ const PipelineDetail: React.FC = () => {
       setApiError(null);
       try {
         const response = await getPipelineRun(id!);
-        const apiData = response.data.data;
-        if (apiData) {
-          setPipeline(apiData);
+        // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
+        const wrapperData = response.data as { data?: unknown };
+        const apiData = wrapperData?.data ?? wrapperData;
+        if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+          const run = (apiData as any).run || apiData;
+          const flattened = {
+            ...run,
+            branch: run.context?.branch || run.branch || 'main',
+            commit: run.context?.commitSha || run.commit || '-',
+            version: run.context?.version || run.pipelineVersion,
+            stages: (apiData as any).stages || [],
+          };
+          setPipeline(flattened);
         } else {
           setApiError('未找到该 Pipeline 运行记录');
         }
@@ -264,7 +120,19 @@ const PipelineDetail: React.FC = () => {
       message.success('Pipeline 重新运行成功');
       // Reload pipeline detail after re-run
       const response = await getPipelineRun(id!);
-      setPipeline(response.data.data);
+      const wrapperData = response.data as { data?: unknown };
+      const apiData = wrapperData?.data ?? wrapperData;
+      if (apiData && ((apiData as any).run || (apiData as any).stages)) {
+        const run = (apiData as any).run || apiData;
+        const flattened = {
+          ...run,
+          branch: run.context?.branch || run.branch || 'main',
+          commit: run.context?.commitSha || run.commit || '-',
+          version: run.context?.version || run.pipelineVersion,
+          stages: (apiData as any).stages || [],
+        };
+        setPipeline(flattened);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`重新运行 Pipeline 失败：${error.message}`);
@@ -287,15 +155,23 @@ const PipelineDetail: React.FC = () => {
         try {
           setRetryingStageId(stageId);
           const response = await retryFromStage(id!, stageId);
-          const newRun = response.data.data as any;
+          const newRun = response.data as { id?: string; run?: { id?: string } };
           message.success(`已从阶段「${stageName}」重新运行`);
           // Redirect to the new run's detail page
-          if (newRun?.id) {
-            navigate(`/pipelines/runs/${newRun.id}`);
+          if (newRun?.id || newRun?.run?.id) {
+            const runId = newRun.id || newRun.run?.id;
+            navigate(`/pipelines/runs/${runId}`);
           } else {
             // Fallback: reload current page to see updated status
             const reloadResp = await getPipelineRun(id!);
-            setPipeline(reloadResp.data.data);
+            const reloaded = reloadResp.data as { run?: unknown; stages?: unknown };
+            const run = reloaded?.run as { id?: string; context?: { branch?: string; commitSha?: string }; branch?: string; commit?: string; pipelineVersion?: string };
+            setPipeline({
+              ...run,
+              branch: run.context?.branch || run.branch || 'main',
+              commit: run.context?.commitSha || run.commit || '-',
+              stages: reloaded?.stages as unknown[],
+            });
           }
         } catch (error: unknown) {
           if (error instanceof Error) {
@@ -351,8 +227,8 @@ const PipelineDetail: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          gap: spacing.md,
+          marginBottom: spacing.lg,
         }}
       >
         <Button
@@ -364,12 +240,13 @@ const PipelineDetail: React.FC = () => {
           返回列表
         </Button>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <ApiOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {pipeline.name} #{pipeline.runNumber}
           </Title>
           <Text type="secondary">
             {pipeline.commit && (
-              <Tag color="default" style={{ marginRight: 8 }}>
+              <Tag color="default" style={{ marginRight: spacing.sm }}>
                 {pipeline.commit}
               </Tag>
             )}
@@ -433,7 +310,7 @@ const PipelineDetail: React.FC = () => {
       </CardPanel>
 
       {/* Tabbed content: Stages / Logs */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: 16 }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ marginBottom: spacing.md }}>
         <TabPane
           tab={
             <Space>
@@ -534,12 +411,12 @@ const PipelineDetail: React.FC = () => {
 
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
-                <div style={{ marginTop: 8 }}>
+                <div style={{ marginTop: spacing.sm }}>
                   {pipeline.stages.map((stage: any, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
-                      style={{ marginBottom: 8 }}
+                      style={{ marginBottom: spacing.sm }}
                       title={
                         <Space>
                           <StatusBadge status={stage.status} size="small" />
@@ -581,7 +458,7 @@ const PipelineDetail: React.FC = () => {
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: 8,
+                                gap: spacing.sm,
                                 fontSize: spacing[3],
                               }}
                             >
@@ -622,7 +499,7 @@ const PipelineDetail: React.FC = () => {
               style={{
                 background: colors.neutral[900],
                 borderRadius: 6,
-                padding: 16,
+                padding: spacing.md,
                 fontFamily: 'Menlo, Monaco, "Courier New", monospace',
                 fontSize: spacing[3],
                 lineHeight: 1.6,
@@ -632,14 +509,14 @@ const PipelineDetail: React.FC = () => {
               }}
             >
               {pipeline.stages?.map((stage: any) => (
-                <div key={stage.name} style={{ marginBottom: 16 }}>
+                <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
                     style={{
                       color: stageStatusColors[stage.status],
                       fontWeight: 600,
-                      marginBottom: 8,
-                      borderBottom: '1px solid #333',
+                      marginBottom: spacing.sm,
+                      borderBottom: '1px solid colors.neutral[800]',
                       paddingBottom: 4,
                     }}
                   >
@@ -649,7 +526,7 @@ const PipelineDetail: React.FC = () => {
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
                     stage.logs.map((log: any, index: number) => (
-                      <div key={index} style={{ paddingLeft: 16 }}>
+                      <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
                         ) : log.includes('passed') ||
@@ -662,7 +539,7 @@ const PipelineDetail: React.FC = () => {
                       </div>
                     ))
                   ) : (
-                    <div style={{ paddingLeft: 16, color: colors.neutral[500] }}>
+                    <div style={{ paddingLeft: spacing.md, color: colors.neutral[500] }}>
                       {stage.status === 'pending' ? '[Waiting to start...]' : '[No logs available]'}
                     </div>
                   )}
@@ -733,10 +610,7 @@ const PipelineDetail: React.FC = () => {
         >
           {/* Task outputs / variable propagation table */}
           <CardPanel title="任务输出与变量传播">
-            <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-              以下列出各阶段任务产生的输出变量及其传播目标。当前为演示数据，后续将接入真实 API。
-            </Text>
-            <TaskOutputsTable />
+            <Empty description="任务输出变量传播功能即将上线" />
           </CardPanel>
         </TabPane>
       </Tabs>

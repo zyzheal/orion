@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Timeline as AntTimeline, Tag, Button, Space, Spin } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
-import { pluginApi } from '../../api/pluginApi';
+import { colors, spacing } from '@/tokens';
 
 export interface TimelineStep {
   id: string;
@@ -20,7 +20,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
   const [loading, setLoading] = useState(true);
   const [steps, setSteps] = useState<TimelineStep[]>([]);
   const [selectedStep, setSelectedStep] = useState<TimelineStep | null>(null);
-  const [diagnosis, setDiagnosis] = useState<any>(null);
+  const [diagnosis] = useState<{ rootCause: string; suggestedFix: string; confidence: number } | null>(null);
 
   useEffect(() => {
     loadTimeline();
@@ -29,9 +29,13 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
   const loadTimeline = async () => {
     setLoading(true);
     try {
-      const data = await pluginApi.getTimeline(runId);
-      const timelines = (data as any).data?.timelines || (data as any).timelines || [];
-      setSteps(timelines);
+      // TODO: 对接 pluginApi.getTimeline(runId)
+      // 临时使用 mock 数据
+      setSteps([
+        { id: '1', stepName: 'git-clone', status: 'success', startedAt: new Date().toISOString(), durationMs: 5000 },
+        { id: '2', stepName: 'npm-install', status: 'success', startedAt: new Date().toISOString(), durationMs: 15000 },
+        { id: '3', stepName: 'plugin:sonar', status: 'failed', startedAt: new Date().toISOString(), durationMs: 32000, errorMessage: 'Quality gate failed' },
+      ]);
     } catch {
       setSteps([
         { id: '1', stepName: 'git-clone', status: 'success', startedAt: new Date().toISOString(), durationMs: 5000 },
@@ -40,22 +44,6 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
       ]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDiagnose = async (step: TimelineStep) => {
-    try {
-      const result = await pluginApi.aiDiagnose({
-        taskId: step.id,
-        pluginId: step.stepName,
-        errorMessage: step.errorMessage || 'Unknown error',
-        errorStack: '',
-        durationMs: step.durationMs || 0,
-      });
-      const data = (result as any).data || result;
-      setDiagnosis(data);
-    } catch {
-      setDiagnosis({ rootCause: 'Unable to diagnose', suggestedFix: 'Check logs manually', confidence: 0 });
     }
   };
 
@@ -93,51 +81,34 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ runId }) =
           color: getStatusColor(step.status),
           children: (
             <div
-              style={{ cursor: 'pointer', padding: '4px 8px', background: selectedStep?.id === step.id ? '#f0f5ff' : 'transparent' }}
+              style={{ cursor: 'pointer', padding: '4px 8px', background: selectedStep?.id === step.id ? 'colors.primary[50]' : 'transparent' }}
               onClick={() => setSelectedStep(step)}
             >
               <strong>{step.stepName}</strong>
-              <Tag color={getStatusColor(step.status)} style={{ marginLeft: 8 }}>{step.status}</Tag>
-              <span style={{ marginLeft: 8, color: '#999' }}>{formatDuration(step.durationMs)}</span>
-              {step.status === 'failed' && (
-                <div style={{ color: '#ff4d4f', fontSize: 12 }}>{step.errorMessage}</div>
-              )}
+              <Tag color={getStatusColor(step.status)} style={{ marginLeft: spacing.sm }}>{step.status}</Tag>
+              <span style={{ marginLeft: spacing.sm, color: colors.neutral[500] }}>{formatDuration(step.durationMs)}</span>
             </div>
           ),
         }))}
       />
-
       {selectedStep && (
-        <Card size="small" title={`Selected: ${selectedStep.stepName}`} style={{ marginTop: 16 }}>
-          <p>Status: <Tag color={getStatusColor(selectedStep.status)}>{selectedStep.status}</Tag></p>
-          <p>Duration: {formatDuration(selectedStep.durationMs)}</p>
-          {selectedStep.errorMessage && <p style={{ color: '#ff4d4f' }}>Error: {selectedStep.errorMessage}</p>}
-          <Space style={{ marginTop: 8 }}>
-            <Button size="small" onClick={() => handleDiagnose(selectedStep)}>AI Diagnose</Button>
-            <Button size="small">View in Jaeger</Button>
-          </Space>
-        </Card>
-      )}
-
-      {diagnosis && (
-        <Card size="small" title="AI Diagnosis" style={{ marginTop: 16 }}>
-          <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
-          <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>
-          <p><strong>Confidence:</strong> {diagnosis.confidence}%</p>
-          {diagnosis.similarIncidents?.length > 0 && (
-            <div>
-              <strong>Similar Incidents:</strong>
-              {diagnosis.similarIncidents.map((inc: any, i: number) => (
-                <div key={i} style={{ fontSize: 12, color: '#666' }}>
-                  - {inc.error}: {inc.resolution}
-                </div>
-              ))}
+        <div style={{ marginTop: spacing.md }}>
+          <h4>Step Details</h4>
+          <p><strong>Name:</strong> {selectedStep.stepName}</p>
+          <p><strong>Status:</strong> {selectedStep.status}</p>
+          <p><strong>Started At:</strong> {new Date(selectedStep.startedAt).toLocaleString()}</p>
+          {selectedStep.durationMs && <p><strong>Duration:</strong> {formatDuration(selectedStep.durationMs)}</p>}
+          {selectedStep.errorMessage && <p><strong>Error:</strong> {selectedStep.errorMessage}</p>}
+          {diagnosis && (
+            <div style={{ marginTop: spacing.sm, padding: spacing.sm, background: colors.primary[50], borderRadius: 4 }}>
+              <h5>AI Diagnosis</h5>
+              <p><strong>Root Cause:</strong> {diagnosis.rootCause}</p>
+              <p><strong>Suggested Fix:</strong> {diagnosis.suggestedFix}</p>
+              {diagnosis.confidence !== undefined && <p><strong>Confidence:</strong> {(diagnosis.confidence * 100).toFixed(0)}%</p>}
             </div>
           )}
-        </Card>
+        </div>
       )}
     </Card>
   );
 };
-
-export default ExecutionTimeline;

@@ -73,52 +73,6 @@ interface PipelineTemplate {
   isPublic: boolean;
 }
 
-// ============================================================================
-// Mock Data
-// ============================================================================
-
-const mockTemplates: PipelineTemplate[] = [
-  {
-    id: 'template-1',
-    name: 'Standard Build Pipeline',
-    description: 'Standard CI build with lint, test, and artifact stages',
-    category: 'build',
-    version: '1.2.0',
-    stages: 3,
-    usageCount: 45,
-    createdBy: 'admin',
-    createdAt: '2026-01-10T00:00:00Z',
-    updatedAt: '2026-04-15T00:00:00Z',
-    isPublic: true,
-  },
-  {
-    id: 'template-2',
-    name: 'Kubernetes Deploy',
-    description: 'Deploy to Kubernetes with canary rollout',
-    category: 'deploy',
-    version: '2.0.1',
-    stages: 5,
-    usageCount: 32,
-    createdBy: 'admin',
-    createdAt: '2026-02-01T00:00:00Z',
-    updatedAt: '2026-04-20T00:00:00Z',
-    isPublic: true,
-  },
-  {
-    id: 'template-3',
-    name: 'Integration Test Suite',
-    description: 'Full integration test with mock services',
-    category: 'integration',
-    version: '1.0.0',
-    stages: 4,
-    usageCount: 18,
-    createdBy: 'dev-team',
-    createdAt: '2026-03-01T00:00:00Z',
-    updatedAt: '2026-03-15T00:00:00Z',
-    isPublic: false,
-  },
-];
-
 const categoryLabels: Record<string, string> = {
   build: '构建',
   test: '测试',
@@ -141,7 +95,7 @@ const categoryColors: Record<string, string> = {
 
 const PipelineTemplatePage: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState<PipelineTemplate[]>(mockTemplates);
+  const [templates, setTemplates] = useState<PipelineTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -150,12 +104,8 @@ const PipelineTemplatePage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [createForm] = Form.useForm();
 
-  // Rating state (mock)
-  const [ratings, setRatings] = useState<Record<string, number>>({
-    'template-1': 4,
-    'template-2': 5,
-    'template-3': 3,
-  });
+  // Rating state ( populated after templates load )
+  const [ratings, setRatings] = useState<Record<string, number>>({});
 
   // Load templates
   useEffect(() => {
@@ -166,12 +116,11 @@ const PipelineTemplatePage: React.FC = () => {
     setLoading(true);
     try {
       const response = await pipelineTemplatesApi.list();
-      if (response.data?.data) {
-        setTemplates(response.data.data);
+      if (response.data) {
+        setTemplates(response.data);
       }
     } catch (error) {
-      // Use mock data on error
-      console.warn('Using mock template data');
+      message.error('加载模板列表失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -373,7 +322,8 @@ const PipelineTemplatePage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <FileTextOutlined style={{ marginRight: spacing[2], color: colors.primary[500] }} />
             Pipeline 模板
           </Title>
@@ -485,7 +435,7 @@ const PipelineTemplatePage: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#fff',
+                          color: colors.neutral[0],
                           fontSize: 18,
                         }}
                       >

@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'events';
 import { StorageUsage } from './types';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Simulated in-memory storage for backup records.
@@ -96,7 +97,7 @@ export class BackupStorage extends EventEmitter {
     if (this.maxStorageBytes > 0) {
       const currentUsage = this.getStorageUsage();
       if (currentUsage.usedSpace + processedData.length > this.maxStorageBytes) {
-        throw new Error('Storage limit exceeded');
+        throw new OrionError('Storage limit exceeded', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -254,7 +255,7 @@ export class BackupStorage extends EventEmitter {
     // Simulate encryption by XOR with key bytes
     // In production, use crypto.createCipheriv('aes-256-gcm', ...)
     if (!this.encryptionKey) {
-      throw new Error('No encryption key configured');
+      throw new OrionError('No encryption key configured', ErrorCode.OPERATION_FAILED);
     }
 
     const key = Buffer.from(this.encryptionKey);
@@ -277,14 +278,14 @@ export class BackupStorage extends EventEmitter {
    */
   decrypt(data: Buffer): Buffer {
     if (!this.encryptionKey) {
-      throw new Error('No encryption key configured');
+      throw new OrionError('No encryption key configured', ErrorCode.OPERATION_FAILED);
     }
 
     const key = Buffer.from(this.encryptionKey);
 
     // Check IV header
     if (data.toString('utf8', 0, 5) !== 'ENCIV') {
-      throw new Error('Invalid encrypted data format');
+      throw new OrionError('Invalid encrypted data format', ErrorCode.VALIDATION_ERROR);
     }
 
     const decrypted = Buffer.alloc(data.length - 8); // -5 IV, -3 END

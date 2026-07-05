@@ -394,6 +394,42 @@ export class SCMWebhookService {
   }
 
   /**
+   * Unified webhook handler — dispatches based on scmType and event headers.
+   * Supports 'github' and 'gitlab' providers.
+   */
+  async handleWebhook(
+    scmType: string,
+    payload: Record<string, unknown>,
+    headers: Record<string, string>
+  ): Promise<SCMWebhookEvent> {
+    const normalized = scmType.toLowerCase();
+
+    if (normalized === 'github') {
+      const eventHeader = headers['x-github-event'] || headers['X-GitHub-Event'] || '';
+      const signature = headers['x-hub-signature-256'] || headers['X-Hub-Signature-256'] || '';
+
+      if (eventHeader === 'pull_request') {
+        return this.handleGitHubPullRequest(payload, signature || undefined);
+      }
+      // Default to push for GitHub
+      return this.handleGitHubPush(payload, signature || undefined);
+    }
+
+    if (normalized === 'gitlab') {
+      const eventHeader = headers['x-gitlab-event'] || headers['X-Gitlab-Event'] || '';
+      const token = headers['x-gitlab-token'] || headers['X-Gitlab-Token'] || '';
+
+      if (eventHeader.includes('Merge Request') || eventHeader.includes('merge_request')) {
+        return this.handleGitLabMergeRequest(payload, token || undefined);
+      }
+      // Default to push for GitLab
+      return this.handleGitLabPush(payload, token || undefined);
+    }
+
+    throw new Error(`Unsupported SCM type: ${scmType}. Supported: github, gitlab`);
+  }
+
+  /**
    * Get stored webhook events.
    */
   getEvents(limit: number = 20): SCMWebhookEvent[] {

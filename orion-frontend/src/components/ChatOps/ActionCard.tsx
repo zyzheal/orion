@@ -5,6 +5,7 @@ import { colors } from '@/tokens/colors';
 import { useActionHandler } from './useActionHandler';
 import type { ExtendedAction } from './types';
 import { getActionIcon } from './actionIcons';
+import { spacing } from '@/tokens';
 
 const statusIcons = {
   success: <CheckCircleOutlined style={{ color: colors.success[500] }} />,
@@ -19,7 +20,7 @@ export const ActionCard: React.FC<{
   const handleAction = useActionHandler();
 
   return (
-    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ marginTop: spacing.sm, display: 'flex', flexDirection: 'column', gap: 6 }}>
       {status && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
           {statusIcons[status]} {status}

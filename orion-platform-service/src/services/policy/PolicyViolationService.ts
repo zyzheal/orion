@@ -5,11 +5,12 @@
  * policy violations in the system.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 import { PolicyViolationRepository, PolicyViolationEntity, PolicyViolationCreateInput } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyViolationService');
 
 // ==================== Input Interfaces ====================
 
@@ -69,7 +70,7 @@ export class PolicyViolationService {
    */
   async recordViolation(input: RecordViolationInput): Promise<PolicyViolationEntity> {
     if (!this.violationRepo) {
-      // Mock mode
+      const now = new Date();
       return {
         id: this.generateId(),
         evaluation_id: input.evaluationId ?? null,
@@ -79,8 +80,8 @@ export class PolicyViolationService {
         resource_type: input.resourceType ?? null,
         resource_id: input.resourceId ?? null,
         status: 'open',
-        created_at: new Date(),
-      };
+        created_at: now,
+      } as PolicyViolationEntity;
     }
 
     const createInput: PolicyViolationCreateInput = {

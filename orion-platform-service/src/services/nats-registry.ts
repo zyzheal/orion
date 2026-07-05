@@ -44,6 +44,14 @@ export class NatsServiceRegistry extends EventEmitter {
   }
 
   /**
+   * Initialize registry and mark as connected
+   */
+  async init(): Promise<void> {
+    this.isConnected = true;
+    this.startHeartbeat();
+  }
+
+  /**
    * Register service instance
    */
   async register(instance: Omit<ServiceInstance, 'id' | 'registeredAt' | 'lastHeartbeat' | 'status'>): Promise<ServiceInstance> {

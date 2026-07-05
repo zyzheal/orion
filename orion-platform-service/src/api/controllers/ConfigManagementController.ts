@@ -6,14 +6,16 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { ConfigChangeService } from '../../services/config-mgmt/ConfigChangeService';
 import { ConfigDriftDetector } from '../../services/config-mgmt/ConfigDriftDetector';
 
-export class ConfigManagementController {
+export class ConfigManagementController extends BaseController {
   private changeService: ConfigChangeService;
   private driftDetector: ConfigDriftDetector;
 
   constructor(changeService: ConfigChangeService, driftDetector: ConfigDriftDetector) {
+    super();
     this.changeService = changeService;
     this.driftDetector = driftDetector;
   }
@@ -23,7 +25,7 @@ export class ConfigManagementController {
   async createChangeRequest(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const requester = (request.headers['x-user-id'] as string) || body.requester || 'system';
 
       const {
@@ -88,7 +90,7 @@ export class ConfigManagementController {
 
   async listChangeRequests(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
 
       const filter = {
@@ -276,7 +278,7 @@ export class ConfigManagementController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
 
       const filter = {
@@ -314,7 +316,7 @@ export class ConfigManagementController {
 
   async detectDrift(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as any;
       const configGroup = body?.configGroup;
 
@@ -370,7 +372,7 @@ export class ConfigManagementController {
 
   async getDriftReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
       const configGroup = query?.configGroup;
 

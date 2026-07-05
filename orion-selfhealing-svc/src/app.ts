@@ -7,7 +7,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { errorHandler } from './middleware/errorHandler';
-import { selfhealingRoutes } from './routes/selfhealing';
+import { selfhealingRoutes } from './routes/selfhealing-routes';
 import { getConfig } from './config';
 
 async function buildApp() {

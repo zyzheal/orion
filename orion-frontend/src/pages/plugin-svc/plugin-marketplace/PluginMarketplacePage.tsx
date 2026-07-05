@@ -1,3 +1,5 @@
+import { colors, spacing } from '@/tokens';
+
 /**
  * Plugin Marketplace Page
  * Phase 3 - Browse, install, and manage plugins from the marketplace
@@ -21,7 +23,7 @@ import {
   ReloadOutlined,
   DownloadOutlined,
   SearchOutlined,
-} from '@ant-design/icons';
+  ShopOutlined,} from '@ant-design/icons';
 import {
   getAvailablePlugins,
   getInstalledPlugins,
@@ -51,8 +53,8 @@ const PluginMarketplacePage: React.FC = () => {
         getAvailablePlugins(),
         getInstalledPlugins(),
       ]);
-      setAvailablePlugins((availRes.data as any) || []);
-      setInstalledPlugins((instRes.data as any) || []);
+      setAvailablePlugins((availRes.data as { data?: Plugin[] })?.data ?? []);
+      setInstalledPlugins((instRes.data as { data?: Plugin[] })?.data ?? []);
     } catch {
       message.error('Failed to load plugin data');
     } finally {
@@ -149,10 +151,11 @@ const PluginMarketplacePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ShopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <AppstoreOutlined /> Plugin Marketplace
           </Title>
           <Text type="secondary">Browse and install plugins to extend platform capabilities</Text>

@@ -27,34 +27,57 @@ describe('Plugin SPI API', () => {
   });
 
   it('should get SPI stats', async () => {
-    vi.mocked(api.get).mockResolvedValue({
-      data: {
-        data: { stats: { totalExtensionPoints: 12, activePoints: 8, totalRegistrations: 34 } },
-      },
-    } as any);
+    const mockResponse: any = {
+      data: { totalPlugins: 12, enabledPlugins: 8, disabledPlugins: 3, errorPlugins: 1, activeExecutions: 5 },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    };
+    vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getSPIStats();
-    expect(api.get).toHaveBeenCalledWith('/v1/plugin-spi/stats');
-    expect(result.data.data.stats.activePoints).toBe(8);
+    expect(api.get).toHaveBeenCalledWith('/v1/plugins-spi/stats');
+    expect(result.totalPlugins).toBe(12);
   });
 
   it('should get extension points', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { extensionPoints: [] } } } as any);
+    const mockResponse: any = {
+      data: [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    };
+    vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getExtensionPoints();
-    expect(api.get).toHaveBeenCalledWith('/v1/plugin-spi/extension-points');
-    expect(Array.isArray(result.data.data.extensionPoints)).toBe(true);
+    expect(api.get).toHaveBeenCalledWith('/v1/plugins-spi/plugins');
+    expect(Array.isArray(result)).toBe(true);
   });
 
   it('should get plugin registrations', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { registrations: [] } } } as any);
+    const mockResponse: any = {
+      data: [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    };
+    vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getPluginRegistrations();
-    expect(api.get).toHaveBeenCalledWith('/v1/plugin-spi/registrations');
-    expect(Array.isArray(result.data.data.registrations)).toBe(true);
+    expect(api.get).toHaveBeenCalledWith('/v1/plugins-spi/plugins');
+    expect(Array.isArray(result)).toBe(true);
   });
 
   it('should get SPI configs', async () => {
-    vi.mocked(api.get).mockResolvedValue({ data: { data: { configs: [] } } } as any);
+    const mockResponse: any = {
+      data: [],
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: {},
+    };
+    vi.mocked(api.get).mockResolvedValue(mockResponse);
     const result = await getSPIConfigs();
-    expect(api.get).toHaveBeenCalledWith('/v1/plugin-spi/configs');
-    expect(Array.isArray(result.data.data.configs)).toBe(true);
+    expect(Array.isArray(result)).toBe(true);
   });
 });

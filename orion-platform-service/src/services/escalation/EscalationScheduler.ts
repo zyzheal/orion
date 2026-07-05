@@ -9,9 +9,10 @@ import { DatabasePool } from '../database';
 import { EscalationConfigService, EscalationPolicy } from './EscalationConfigService';
 import { TicketingRepository } from '../ticketing/TicketingRepository';
 import { EventBusService } from '../event-bus-service';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EscalationScheduler');
 
 export class EscalationScheduler {
   private db?: DatabasePool;
@@ -180,7 +181,7 @@ export class EscalationScheduler {
 
     // 更新工单级别
     if (this.ticketRepo) {
-      await this.ticketRepo.update(ticketId, { escalation_level: newLevel } as any);
+      await this.ticketRepo.update(ticketId, { escalation_level: newLevel } as any, '');
     }
 
     // 发送通知
@@ -284,7 +285,7 @@ export class EscalationScheduler {
 /**
  * Factory function for creating an EscalationScheduler with proper dependencies.
  */
-let _instance: EscalationScheduler | null = null;
+const _instance: EscalationScheduler | null = null;
 
 export function createEscalationScheduler(
   database?: DatabasePool,
@@ -327,7 +328,7 @@ export const escalationScheduler = {
     targetLevel?: number
   ): Promise<{ success: boolean; message: string }> {
     if (!this._scheduler) {
-      throw new Error('EscalationScheduler not initialized');
+      throw new OrionError('EscalationScheduler not initialized', ErrorCode.OPERATION_FAILED);
     }
     return this._scheduler.manualEscalate(entityType, entityId, targetLevel);
   },

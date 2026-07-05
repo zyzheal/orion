@@ -31,7 +31,7 @@ export interface PipelineExecution {
   id: string;
   pipelineId: string;
   tenantId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt?: string;
   completedAt?: string;
   stagesResults: StageResult[];
@@ -40,7 +40,7 @@ export interface PipelineExecution {
 export interface StageResult {
   stageId: string;
   stageName: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   recordsProcessed: number;
   startedAt?: string;
   completedAt?: string;
@@ -64,4 +64,23 @@ export interface DataLineage {
   pipelineId: string;
   nodes: DataLineageNode[];
   edges: DataLineageEdge[];
+}
+
+// ==================== Version Management ====================
+
+export interface PipelineVersion {
+  id: string;
+  pipelineId: string;
+  tenantId: string;
+  versionNumber: number;
+  name: string;
+  description?: string;
+  stages: PipelineStage[];
+  schedule?: string;
+  inputConfig: Record<string, unknown>;
+  processors: unknown[];
+  outputConfig: Record<string, unknown>;
+  createdBy: string;
+  changeSummary?: string;
+  createdAt: string;
 }

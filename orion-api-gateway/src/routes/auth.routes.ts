@@ -12,6 +12,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { tokenBlacklistChecker } from '../services/token-blacklist-checker';
 
 const PLATFORM_SERVICE_URL = process.env.PLATFORM_SERVICE_URL || 'http://localhost:3001';
 
@@ -89,6 +90,12 @@ export class AuthRoutes {
         });
 
         const data = await response.json();
+
+        // Phase 4.4: Clear Gateway blacklist cache on successful logout
+        // This ensures the revoked token is immediately rejected by this Gateway instance
+        if (response.ok) {
+          tokenBlacklistChecker.clearCache();
+        }
         return reply.code(response.status).send(data);
       } catch (error) {
         this.app.log.error({ err: error instanceof Error ? error.message : String(error) }, 'Auth proxy: logout failed');

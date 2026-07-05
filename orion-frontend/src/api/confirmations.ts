@@ -67,37 +67,37 @@ export interface AuditListParams {
 // ---- Confirmations ----
 
 export function getConfirmations(params?: ConfirmationListParams) {
-  return api.get('/v1/confirmations', { params });
+  return api.get('/api/v1/confirmations', { params });
 }
 
 export function getConfirmation(id: string) {
-  return api.get(`/v1/confirmations/${id}`);
+  return api.get(`/api/v1/confirmations/${id}`);
 }
 
 export function approveConfirmation(id: string, data?: ConfirmationInput) {
-  return api.post(`/v1/confirmations/${id}/approve`, data);
+  return api.post(`/api/v1/confirmations/${id}/approve`, data);
 }
 
 export function rejectConfirmation(id: string, data?: ConfirmationInput) {
-  return api.post(`/v1/confirmations/${id}/reject`, data);
+  return api.post(`/api/v1/confirmations/${id}/reject`, data);
 }
 
 export function batchApprove(data: BatchApproveInput) {
-  return api.post('/v1/confirmations/batch-approve', data);
+  return api.post('/api/v1/confirmations/batch-approve', data);
 }
 
 // ---- Audit ----
 
 export function getConfirmationAudit(params?: AuditListParams) {
-  return api.get('/v1/confirmations/audit', { params });
+  return api.get('/api/v1/confirmations/audit', { params });
 }
 
 // ---- Notification Settings ----
 
 export function getNotificationSettings() {
-  return api.get('/v1/confirmations/settings');
+  return api.get('/api/v1/confirmations/settings');
 }
 
 export function updateNotificationSettings(data: Partial<NotificationSettings>) {
-  return api.put('/v1/confirmations/settings', data);
+  return api.put('/api/v1/confirmations/settings', data);
 }

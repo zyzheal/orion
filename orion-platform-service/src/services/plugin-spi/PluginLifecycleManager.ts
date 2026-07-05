@@ -13,7 +13,7 @@
  *   any -> error (on failure)
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { PluginRegistry } from './PluginRegistry';
 import {
@@ -25,8 +25,10 @@ import {
   PluginDependency,
 } from './types';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginLifecycleManager');
 
 /**
  * Valid state transitions
@@ -97,9 +99,7 @@ export class PluginLifecycleManager extends EventEmitter {
     // Check if already installed and enabled
     const existing = this.registry.getPlugin(manifest.name);
     if (existing && existing.status === 'enabled') {
-      throw new Error(
-        `Plugin "${manifest.name}" is already installed and enabled. Disable it first to reinstall.`
-      );
+      throw new OrionError('Plugin is already installed and enabled', ErrorCode.VALIDATION_ERROR);
     }
 
     // Resolve and validate dependencies
@@ -125,7 +125,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found. Install it first.`);
+      throw new OrionError(`Plugin "${pluginId}" not found. Install it first.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -144,16 +144,14 @@ export class PluginLifecycleManager extends EventEmitter {
         await activationHook(pluginId, plugin.config);
       } catch (error) {
         this.handleError(pluginId, error);
-        throw new Error(
-          `Activation hook failed for plugin "${pluginId}": ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw error;
       }
     }
 
     // Update status
-    const updated = this.registry.updateStatus(pluginId, 'enabled');
+    const updated = await this.registry.updateStatus(pluginId, 'enabled');
     if (!updated) {
-      throw new Error(`Plugin "${pluginId}" not found during enable`);
+      throw new OrionError(`Plugin "${pluginId}" not found during enable`, ErrorCode.NOT_FOUND);
     }
 
     // Run after-enable hooks
@@ -162,7 +160,7 @@ export class PluginLifecycleManager extends EventEmitter {
     logger.info({ pluginId }, 'Plugin enabled successfully');
     this.emit('plugin:enabled', { pluginId });
 
-    return updated;
+    return updated as PluginInfo;
   }
 
   /**
@@ -176,7 +174,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found.`);
+      throw new OrionError(`Plugin "${pluginId}" not found.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -202,9 +200,9 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     // Update status
-    const updated = this.registry.updateStatus(pluginId, 'disabled');
+    const updated = await this.registry.updateStatus(pluginId, 'disabled');
     if (!updated) {
-      throw new Error(`Plugin "${pluginId}" not found during disable`);
+      throw new OrionError(`Plugin "${pluginId}" not found during disable`, ErrorCode.NOT_FOUND);
     }
 
     // Run after-disable hooks
@@ -213,7 +211,7 @@ export class PluginLifecycleManager extends EventEmitter {
     logger.info({ pluginId }, 'Plugin disabled successfully');
     this.emit('plugin:disabled', { pluginId });
 
-    return updated;
+    return updated as PluginInfo;
   }
 
   /**
@@ -227,7 +225,7 @@ export class PluginLifecycleManager extends EventEmitter {
 
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found.`);
+      throw new OrionError(`Plugin "${pluginId}" not found.`, ErrorCode.NOT_FOUND);
     }
 
     // Validate state transition
@@ -317,9 +315,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private validateTransition(pluginId: string, from: PluginStatus, to: PluginStatus): void {
     const allowed = VALID_TRANSITIONS[from];
     if (!allowed.includes(to)) {
-      throw new Error(
-        `Invalid state transition for plugin "${pluginId}": ${from} -> ${to}. Allowed: ${allowed.join(', ')}`
-      );
+      throw new OrionError(`Invalid state transition from '${from}' to '${to}'`, ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -350,7 +346,7 @@ export class PluginLifecycleManager extends EventEmitter {
         issues.push(`Circular dependency detected: ${cycle.join(' -> ')}`);
       }
 
-      throw new Error(`Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`);
+      throw new OrionError(`Dependency resolution failed for "${manifest.name}": ${issues.join('; ')}`, 'OPERATION_FAILED')
     }
   }
 
@@ -368,17 +364,14 @@ export class PluginLifecycleManager extends EventEmitter {
 
       const depPlugin = this.registry.getPlugin(dep.name);
       if (!depPlugin) {
-        throw new Error(
-          `Required dependency "${dep.name}" is not installed for plugin "${pluginId}"`
-        );
+        throw new OrionError(`Dependency ${dep.name} not found`, 'VALIDATION_ERROR');
       }
 
       // Enable dependency if not already enabled
       if (depPlugin.status !== 'enabled') {
         logger.info(
           { pluginId, dependency: dep.name },
-          'Enabling plugin dependency'
-        );
+          'Enabling plugin dependency')
         await this.enablePlugin(dep.name);
       }
     }
@@ -404,9 +397,7 @@ export class PluginLifecycleManager extends EventEmitter {
     }
 
     if (dependents.length > 0) {
-      throw new Error(
-        `Cannot modify plugin "${pluginId}": the following enabled plugins depend on it: ${dependents.join(', ')}`
-      );
+      throw new OrionError('Plugin is already enabled', ErrorCode.VALIDATION_ERROR);
     }
   }
 
@@ -436,7 +427,7 @@ export class PluginLifecycleManager extends EventEmitter {
   private handleError(pluginId: string, error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
     this.registry.updateStatus(pluginId, 'error', message);
-    logger.error({ pluginId, error: message }, 'Plugin lifecycle error');
+    logger.error({ traceId: getCurrentTraceId(), pluginId, error: message }, 'Plugin lifecycle error');
     this.emit('plugin:error', { pluginId, error: message });
   }
 }

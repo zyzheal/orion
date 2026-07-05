@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   ProductLine,
   ProductLineCreateInput,
@@ -21,8 +21,9 @@ import {
   ReleaseTrainRepository,
   HotfixChannelRepository,
 } from '../../repositories/ProductLineRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProductLineService');
 
 export class ProductLineService {
   private productLineRepo?: ProductLineRepository;
@@ -86,7 +87,7 @@ export class ProductLineService {
     }
 
     // Fallback - 不应该到达这里
-    throw new Error('Database not configured');
+    throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
   /**
@@ -274,7 +275,7 @@ export class ProductLineService {
     preChecks?: any[];
     postActions?: any[];
   }): Promise<ReleaseTrain> {
-    if (!this.releaseTrainRepo) throw new Error('Database not configured');
+    if (!this.releaseTrainRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const entity = await this.releaseTrainRepo.create({
       productLineId,
@@ -357,7 +358,7 @@ export class ProductLineService {
     notifyOnCall?: boolean;
     maxDuration?: number;
   }): Promise<HotfixChannel> {
-    if (!this.hotfixChannelRepo) throw new Error('Database not configured');
+    if (!this.hotfixChannelRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
 
     const entity = await this.hotfixChannelRepo.create({
       productLineId,

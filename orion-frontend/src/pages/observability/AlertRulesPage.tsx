@@ -7,6 +7,7 @@ import {
   Typography, Card, Table, Tag, Space, Button, Modal, Form, Input,
   Select, message, Row, Col, Switch, Drawer,
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   BellOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
   ReloadOutlined, FileTextOutlined,
@@ -52,7 +53,7 @@ const TemplatesDrawer: React.FC<{
     setLoading(true);
     try {
       const res = await getAlertRuleTemplates(cat ? { category: cat } : undefined);
-      const rawData = res.data?.data;
+      const rawData = (res.data as any)?.data;
       setTemplates(Array.isArray(rawData) ? rawData : (rawData?.data as AlertRuleTemplate[]) || []);
     } catch (error: unknown) {
       message.error(`加载模板失败: ${(error as Error).message}`);
@@ -100,7 +101,7 @@ const TemplatesDrawer: React.FC<{
       onClose={onClose}
       width={800}
     >
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: spacing.md }}>
         <Text>按类别筛选：</Text>
         <Select
           style={{ width: 120 }}
@@ -134,7 +135,7 @@ const AlertRulesPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getAlertRules();
-      setRules(res.data?.data?.rules || []);
+      setRules(res.data?.rules || []);
     } catch (error: unknown) {
       message.error(`加载告警规则失败: ${(error as Error).message}`);
     } finally {
@@ -285,16 +286,16 @@ const AlertRulesPage: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          <BellOutlined style={{ marginRight: 8 }} />
+      <div style={{ marginBottom: spacing.lg }}>
+        <Title level={2} style={{ marginBottom: spacing.sm }}>
+          <BellOutlined style={{ marginRight: spacing.sm }} />
           告警规则管理
         </Title>
         <Text type="secondary">管理和配置自定义告警规则，支持从模板快速创建</Text>
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between' }}>
           <Space>
             <Text type="secondary">共 {rules.length} 条规则</Text>
           </Space>

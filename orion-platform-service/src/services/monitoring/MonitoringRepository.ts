@@ -182,7 +182,11 @@ export class MonitoringRepository {
 
   // ==================== Monitoring Configs ====================
 
-  async findConfigById(id: string): Promise<MonitoringConfig | null> {
+  async findConfigById(id: string, tenantId?: string): Promise<MonitoringConfig | null> {
+    if (tenantId) {
+      const result = await this.pool.query('SELECT * FROM monitoring_configs WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+      return result.rows[0] || null;
+    }
     const result = await this.pool.query('SELECT * FROM monitoring_configs WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
@@ -214,7 +218,7 @@ export class MonitoringRepository {
     return result.rows[0];
   }
 
-  async updateConfig(id: string, input: Partial<CreateMonitoringConfigInput>): Promise<MonitoringConfig | null> {
+  async updateConfig(id: string, input: Partial<CreateMonitoringConfigInput>, tenantId?: string): Promise<MonitoringConfig | null> {
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -224,24 +228,35 @@ export class MonitoringRepository {
     if (input.threshold !== undefined) { params.push(JSON.stringify(input.threshold)); updates.push(`threshold = $${paramIndex++}`); }
     if (input.notification_channels !== undefined) { params.push(input.notification_channels); updates.push(`notification_channels = $${paramIndex++}`); }
 
-    if (updates.length === 0) return this.findConfigById(id);
+    if (updates.length === 0) return this.findConfigById(id, tenantId!);
 
+    const whereClause = tenantId ? `WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}` : `WHERE id = $${paramIndex}`;
+    if (tenantId) params.push(tenantId);
     params.push(id);
+
     const result = await this.pool.query(
-      `UPDATE monitoring_configs SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE monitoring_configs SET ${updates.join(', ')}, updated_at = NOW() ${whereClause} RETURNING *`,
       params
     );
     return result.rows[0] || null;
   }
 
-  async deleteConfig(id: string): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM monitoring_configs WHERE id = $1', [id]);
+  async deleteConfig(id: string, tenantId?: string): Promise<boolean> {
+    const query = tenantId
+      ? 'DELETE FROM monitoring_configs WHERE id = $1 AND tenant_id = $2'
+      : 'DELETE FROM monitoring_configs WHERE id = $1';
+    const params = tenantId ? [id, tenantId] : [id];
+    const result = await this.pool.query(query, params);
     return result.rowCount > 0;
   }
 
   // ==================== Alerts ====================
 
-  async findAlertById(id: string): Promise<Alert | null> {
+  async findAlertById(id: string, tenantId?: string): Promise<Alert | null> {
+    if (tenantId) {
+      const result = await this.pool.query('SELECT * FROM alerts WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+      return result.rows[0] || null;
+    }
     const result = await this.pool.query('SELECT * FROM alerts WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
@@ -293,42 +308,45 @@ export class MonitoringRepository {
     return result.rows[0];
   }
 
-  async updateAlert(id: string, input: UpdateAlertInput): Promise<Alert | null> {
+  async updateAlert(id: string, input: UpdateAlertInput, tenantId?: string): Promise<Alert | null> {
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
 
-    if (input.status !== undefined) { 
-      params.push(input.status); 
-      updates.push(`status = $${paramIndex++}`); 
+    if (input.status !== undefined) {
+      params.push(input.status);
+      updates.push(`status = $${paramIndex++}`);
       if (input.status === 'resolved') {
         params.push(new Date());
         updates.push(`resolved_at = $${paramIndex++}`);
       }
     }
-    if (input.acknowledged_by !== undefined) { 
-      params.push(input.acknowledged_by); 
-      updates.push(`acknowledged_by = $${paramIndex++}`); 
+    if (input.acknowledged_by !== undefined) {
+      params.push(input.acknowledged_by);
+      updates.push(`acknowledged_by = $${paramIndex++}`);
       params.push(new Date());
       updates.push(`acknowledged_at = $${paramIndex++}`);
     }
 
-    if (updates.length === 0) return this.findAlertById(id);
+    if (updates.length === 0) return this.findAlertById(id, tenantId!);
 
+    const whereClause = tenantId ? `WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}` : `WHERE id = $${paramIndex}`;
+    if (tenantId) params.push(tenantId);
     params.push(id);
+
     const result = await this.pool.query(
-      `UPDATE alerts SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE alerts SET ${updates.join(', ')} ${whereClause} RETURNING *`,
       params
     );
     return result.rows[0] || null;
   }
 
-  async acknowledgeAlert(id: string, userId: string): Promise<Alert | null> {
-    return this.updateAlert(id, { status: 'acknowledged', acknowledged_by: userId });
+  async acknowledgeAlert(id: string, userId: string, tenantId?: string): Promise<Alert | null> {
+    return this.updateAlert(id, { status: 'acknowledged', acknowledged_by: userId }, tenantId);
   }
 
-  async resolveAlert(id: string): Promise<Alert | null> {
-    return this.updateAlert(id, { status: 'resolved' });
+  async resolveAlert(id: string, tenantId?: string): Promise<Alert | null> {
+    return this.updateAlert(id, { status: 'resolved' }, tenantId);
   }
 
   // ==================== Alert Rules ====================
@@ -347,7 +365,11 @@ export class MonitoringRepository {
     return result.rows;
   }
 
-  async findRuleById(id: string): Promise<AlertRuleRecord | null> {
+  async findRuleById(id: string, tenantId?: string): Promise<AlertRuleRecord | null> {
+    if (tenantId) {
+      const result = await this.pool.query('SELECT * FROM monitoring_alert_rules WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+      return result.rows[0] || null;
+    }
     const result = await this.pool.query('SELECT * FROM monitoring_alert_rules WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
@@ -365,7 +387,7 @@ export class MonitoringRepository {
     return result.rows[0];
   }
 
-  async updateRule(id: string, input: Partial<CreateAlertRuleInput>): Promise<AlertRuleRecord | null> {
+  async updateRule(id: string, input: Partial<CreateAlertRuleInput>, tenantId?: string): Promise<AlertRuleRecord | null> {
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -382,41 +404,54 @@ export class MonitoringRepository {
     if (input.description !== undefined) { params.push(input.description); updates.push(`description = $${paramIndex++}`); }
     if (input.evaluation_window_ms !== undefined) { params.push(input.evaluation_window_ms); updates.push(`evaluation_window_ms = $${paramIndex++}`); }
 
-    if (updates.length === 0) return this.findRuleById(id);
+    if (updates.length === 0) return this.findRuleById(id, tenantId!);
 
+    const whereClause = tenantId ? `WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}` : `WHERE id = $${paramIndex}`;
+    if (tenantId) params.push(tenantId);
     params.push(id);
+
     const result = await this.pool.query(
-      `UPDATE monitoring_alert_rules SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`,
+      `UPDATE monitoring_alert_rules SET ${updates.join(', ')}, updated_at = NOW() ${whereClause} RETURNING *`,
       params
     );
     return result.rows[0] || null;
   }
 
-  async deleteRule(id: string): Promise<boolean> {
-    const result = await this.pool.query('DELETE FROM monitoring_alert_rules WHERE id = $1', [id]);
+  async deleteRule(id: string, tenantId?: string): Promise<boolean> {
+    const query = tenantId
+      ? 'DELETE FROM monitoring_alert_rules WHERE id = $1 AND tenant_id = $2'
+      : 'DELETE FROM monitoring_alert_rules WHERE id = $1';
+    const params = tenantId ? [id, tenantId] : [id];
+    const result = await this.pool.query(query, params);
     return result.rowCount > 0;
   }
 
-  async toggleRule(id: string, enabled: boolean): Promise<AlertRuleRecord | null> {
+  async toggleRule(id: string, enabled: boolean, tenantId?: string): Promise<AlertRuleRecord | null> {
+    const whereClause = tenantId ? 'WHERE id = $1 AND tenant_id = $2' : 'WHERE id = $1';
+    const params = tenantId ? [enabled, id, tenantId] : [enabled, id];
     const result = await this.pool.query(
-      'UPDATE monitoring_alert_rules SET enabled = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      [enabled, id]
+      `UPDATE monitoring_alert_rules SET enabled = $1, updated_at = NOW() ${whereClause} RETURNING *`,
+      params
     );
     return result.rows[0] || null;
   }
 
-  async suppressRule(id: string): Promise<AlertRuleRecord | null> {
+  async suppressRule(id: string, tenantId?: string): Promise<AlertRuleRecord | null> {
+    const whereClause = tenantId ? 'WHERE id = $1 AND tenant_id = $2' : 'WHERE id = $1';
+    const params = tenantId ? [id, tenantId] : [id];
     const result = await this.pool.query(
-      'UPDATE monitoring_alert_rules SET suppressed = true, updated_at = NOW() WHERE id = $1 RETURNING *',
-      [id]
+      `UPDATE monitoring_alert_rules SET suppressed = true, updated_at = NOW() ${whereClause} RETURNING *`,
+      params
     );
     return result.rows[0] || null;
   }
 
-  async unsuppressRule(id: string): Promise<AlertRuleRecord | null> {
+  async unsuppressRule(id: string, tenantId?: string): Promise<AlertRuleRecord | null> {
+    const whereClause = tenantId ? 'WHERE id = $1 AND tenant_id = $2' : 'WHERE id = $1';
+    const params = tenantId ? [id, tenantId] : [id];
     const result = await this.pool.query(
-      'UPDATE monitoring_alert_rules SET suppressed = false, updated_at = NOW() WHERE id = $1 RETURNING *',
-      [id]
+      `UPDATE monitoring_alert_rules SET suppressed = false, updated_at = NOW() ${whereClause} RETURNING *`,
+      params
     );
     return result.rows[0] || null;
   }
@@ -437,7 +472,11 @@ export class MonitoringRepository {
     return result.rows;
   }
 
-  async findChannelById(id: string): Promise<NotificationChannelRecord | null> {
+  async findChannelById(id: string, tenantId?: string): Promise<NotificationChannelRecord | null> {
+    if (tenantId) {
+      const result = await this.pool.query('SELECT * FROM monitoring_notification_channels WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+      return result.rows[0] || null;
+    }
     const result = await this.pool.query('SELECT * FROM monitoring_notification_channels WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
@@ -455,10 +494,12 @@ export class MonitoringRepository {
     return result.rows[0];
   }
 
-  async toggleChannel(id: string, enabled: boolean): Promise<NotificationChannelRecord | null> {
+  async toggleChannel(id: string, enabled: boolean, tenantId?: string): Promise<NotificationChannelRecord | null> {
+    const whereClause = tenantId ? 'WHERE id = $1 AND tenant_id = $2' : 'WHERE id = $1';
+    const params = tenantId ? [enabled, id, tenantId] : [enabled, id];
     const result = await this.pool.query(
-      'UPDATE monitoring_notification_channels SET enabled = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-      [enabled, id]
+      `UPDATE monitoring_notification_channels SET enabled = $1, updated_at = NOW() ${whereClause} RETURNING *`,
+      params
     );
     return result.rows[0] || null;
   }
@@ -479,7 +520,11 @@ export class MonitoringRepository {
     return result.rows;
   }
 
-  async findPolicyById(id: string): Promise<EscalationPolicyRecord | null> {
+  async findPolicyById(id: string, tenantId?: string): Promise<EscalationPolicyRecord | null> {
+    if (tenantId) {
+      const result = await this.pool.query('SELECT * FROM monitoring_escalation_policies WHERE id = $1 AND tenant_id = $2', [id, tenantId]);
+      return result.rows[0] || null;
+    }
     const result = await this.pool.query('SELECT * FROM monitoring_escalation_policies WHERE id = $1', [id]);
     return result.rows[0] || null;
   }

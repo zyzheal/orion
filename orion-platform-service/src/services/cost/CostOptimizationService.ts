@@ -8,15 +8,16 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   CostRecordRepository,
   CostRecordEntity,
   CostSummaryParams,
 } from '../../repositories/CostRepositories';
 import type { DatabasePool } from '../database';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CostOptimizationService');
 
 // ==================== Domain Types ====================
 
@@ -394,7 +395,7 @@ export class CostOptimizationService {
         costByModule: summary.costByModule,
       };
     } catch (error) {
-      logger.warn({ error }, '[CostOptimization] Failed to get cost metrics');
+      logger.warn({ traceId: getCurrentTraceId(), error }, '[CostOptimization] Failed to get cost metrics');
       return {
         totalCost: 0,
         totalInputTokens: 0,
@@ -422,6 +423,13 @@ export class CostOptimizationService {
    */
   async clearUtilizationRecords(tenantId: string): Promise<void> {
     utilizationRecords.delete(tenantId);
+  }
+
+  /**
+   * Clear optimization suggestions for a tenant (for testing or data reset).
+   */
+  async clearOptimizationSuggestions(tenantId: string): Promise<void> {
+    optimizationSuggestions.delete(tenantId);
   }
 }
 

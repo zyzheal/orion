@@ -42,6 +42,18 @@ export {
   PipelineRunService,
 } from './PipelineRunService';
 
+// Pipeline Engine - re-exported via barrel to reduce direct engine imports
+export { PipelineEngine } from '../../engine/PipelineEngine';
+export { StageExecutor } from '../../engine/StageExecutor';
+export { TaskRunner } from '../../engine/TaskRunner';
+export { PipelineServiceRegistry } from '../../engine/PipelineServiceRegistry';
+
+// Pipeline Debug Controller (engine module, re-exported via pipeline barrel)
+export { DebugController } from '../../engine/DebugController';
+
+// PipelineStep type from engine (used by SharedActionService)
+export type { PipelineStep } from '../../engine/YamlPreprocessor';
+
 // Pipeline Trigger Service
 export {
   PipelineTriggerService,

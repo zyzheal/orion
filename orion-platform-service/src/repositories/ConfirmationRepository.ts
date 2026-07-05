@@ -57,6 +57,7 @@ export class ConfirmationRepository {
   // ==================== Confirmation Requests ====================
 
   async insert(data: {
+    id?: string;
     sceneType: string;
     priority: string;
     aiSuggestion: string;
@@ -65,13 +66,14 @@ export class ConfirmationRepository {
     tenantId?: string;
   }): Promise<ConfirmationEntity> {
     const now = new Date();
+    const id = data.id || `conf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.db.query(
       `INSERT INTO confirmation_requests
         (id, scene_type, priority, ai_suggestion, ai_confidence, status, push_time, context, tenant_id, created_at)
        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)
        RETURNING *`,
       [
-        `conf_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id,
         data.sceneType,
         data.priority,
         data.aiSuggestion,

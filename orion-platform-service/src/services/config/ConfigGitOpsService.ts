@@ -7,9 +7,10 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'ConfigGitOps' });
+const logger = createLogger('ConfigGitOps');
 
 // ==================== 配置 ====================
 
@@ -118,7 +119,7 @@ export class ConfigGitOpsService {
     errors: string[];
   }> {
     if (!this.git) {
-      throw new Error('GitOps not initialized');
+      throw new OrionError('GitOps not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     const result = {

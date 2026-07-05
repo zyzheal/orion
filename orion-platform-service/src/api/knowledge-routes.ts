@@ -14,6 +14,12 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { KnowledgeRepository } from '../services/knowledge/KnowledgeRepository';
 import { KnowledgeService, KnowledgeServiceError } from '../services/knowledge/KnowledgeService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, handleError} from '../errors';
+
+const logger = createLogger('knowledge-routes');
 
 interface KnowledgeRoutesOptions {
   database?: DatabasePool;
@@ -27,8 +33,8 @@ interface KnowledgeRoutesOptions {
 function getTenantId(request: FastifyRequest, reply: FastifyReply): string {
   const tenantId = (request.headers as any)['x-tenant-id'];
   if (!tenantId) {
-    reply.status(400).send({ error: 'MISSING_TENANT', message: 'x-tenant-id header is required' });
-    throw new Error('Tenant missing'); // to satisfy return type
+handleError(reply, new ValidationError('MISSING_TENANT'));
+    throw new OrionError('Tenant missing', ErrorCode.NOT_FOUND); // to satisfy return type
   }
   return tenantId;
 }
@@ -43,7 +49,7 @@ export default async function knowledgeRoutes(
     : undefined;
 
   if (!repository) {
-    console.warn('[KnowledgeRoutes] No database pool provided, knowledge routes will not be functional');
+    logger.warn('[KnowledgeRoutes] No database pool provided, knowledge routes will not be functional');
     return;
   }
 
@@ -54,19 +60,22 @@ export default async function knowledgeRoutes(
   // ============================================================================
 
   /**
-   * GET /api/v1/knowledge/v1/spaces
+   * GET /api/v1/knowledge/spaces
    * List/search knowledge spaces
    */
   app.get(
-    '/v1/spaces',
+    '/spaces',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Querystring: { type?: string; search?: string; page?: string; perPage?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { type, search, page, perPage } = request.query;
+      const {   type, search, page, perPage   } = request.query as any as any as {
+        type?: string; search?: string; page?: string; perPage?: string
+      };
       const p = page ? parseInt(page, 10) : 1;
       const pp = perPage ? parseInt(perPage, 10) : 50;
 
@@ -85,22 +94,23 @@ export default async function knowledgeRoutes(
   );
 
   /**
-   * POST /api/v1/knowledge/v1/spaces
+   * POST /api/v1/knowledge/spaces
    * Create a new knowledge space
    */
   app.post(
-    '/v1/spaces',
+    '/spaces',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{
-        Body: { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { name, type, description, teamId, ownerId } = request.body;
+      const {   name, type, description, teamId, ownerId   } = request.body as any as any as { name: string; type: 'public' | 'internal' | 'private'; description?: string; teamId?: string; ownerId?: string };
 
       if (!name) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'Space name is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -114,7 +124,7 @@ export default async function knowledgeRoutes(
         return reply.status(201).send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -122,18 +132,21 @@ export default async function knowledgeRoutes(
   );
 
   /**
-   * GET /api/v1/knowledge/v1/spaces/:id
+   * GET /api/v1/knowledge/spaces/:id
    * Get space detail
    */
   app.get(
-    '/v1/spaces/:id',
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    '/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const space = await service.getSpace(request.params.id);
+        const space = await service.getSpace((request.params as any).id);
         return reply.send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -145,16 +158,16 @@ export default async function knowledgeRoutes(
    * Update a space
    */
   app.put(
-    '/v1/spaces/:id',
+    '/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: { name?: string; type?: 'public' | 'internal' | 'private'; description?: string; teamId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const space = await service.updateSpace(request.params.id, request.body);
+        const space = await service.updateSpace((request.params as any).id, request.body as any);
         return reply.send({ data: space });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -170,10 +183,13 @@ export default async function knowledgeRoutes(
    * Delete a space (cascades to docs)
    */
   app.delete(
-    '/v1/spaces/:id',
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    '/spaces/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        await service.deleteSpace(request.params.id);
+        await service.deleteSpace((request.params as any).id);
         return reply.status(204).send();
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -191,19 +207,36 @@ export default async function knowledgeRoutes(
   /**
    * GET /api/v1/knowledge/v1/docs
    * List/search documents
+   * Supports type='docs' for document center filtering
    */
   app.get(
-    '/v1/docs',
+    '/docs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Querystring: { spaceId?: string; page?: string; pageSize?: string; status?: string; tag?: string; search?: string; perPage?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { spaceId, status, tag, search, page, pageSize, perPage } = request.query;
+      const {   spaceId, status, tag, search, page, pageSize, perPage, type   } = request.query as any as any;
       const p = page ? parseInt(page, 10) : 1;
       const pp = pageSize || perPage ? parseInt(pageSize || perPage || '50', 10) : 50;
+
+      // If type='docs', use document center specific listing
+      if (type === 'docs') {
+        const docs = await service.listDocsByType(tenantId, {
+          tag,
+          search,
+          limit: pp,
+          offset: (p - 1) * pp,
+        });
+
+        return reply.send({
+          data: docs,
+          meta: { total: docs.length, page: p, perPage: pp, type: 'docs' },
+        });
+      }
 
       const docs = await service.listDocs(tenantId, {
         spaceId,
@@ -222,22 +255,104 @@ export default async function knowledgeRoutes(
   );
 
   /**
+   * GET /api/v1/knowledge/v1/docs/tags
+   * Get document center tags (for type=docs)
+   */
+  app.get(
+    '/docs/tags',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenantId = getTenantId(request, reply);
+      const tags = await service.getDocTags(tenantId);
+      return reply.send({ data: tags });
+    }
+  );
+
+  /**
+   * GET /api/v1/knowledge/v1/docs/toc
+   * Get document center table of contents (for type=docs)
+   */
+  app.get(
+    '/docs/toc',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const tenantId = getTenantId(request, reply);
+      const toc = await service.getDocToc(tenantId);
+      return reply.send({ data: toc });
+    }
+  );
+
+  /**
+   * POST /api/v1/knowledge/v1/sync
+   * Trigger document center sync
+   */
+  app.post(
+    '/sync',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
+    async (
+      request: FastifyRequest,
+      reply: FastifyReply
+    ) => {
+      const tenantId = getTenantId(request, reply);
+      const {   source   } = request.body as any as any || {};
+
+      try {
+        const syncLog = await service.triggerSync(tenantId, source);
+        return reply.status(200).send({ data: syncLog });
+      } catch (err: any) {
+        if (err instanceof KnowledgeServiceError) {
+          return handleError(reply, new ValidationError(err.message));
+        }
+        throw err;
+      }
+    }
+  );
+
+  /**
+   * GET /api/v1/knowledge/v1/sync/logs
+   * Get document center sync logs
+   */
+  app.get(
+    '/sync/logs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (
+      request: FastifyRequest,
+      reply: FastifyReply
+    ) => {
+      const tenantId = getTenantId(request, reply);
+      const limit = (request.query as any).limit ? parseInt((request.query as any).limit, 10) : 10;
+
+      const logs = await service.getSyncLogs(tenantId, limit);
+      return reply.send({ data: logs });
+    }
+  );
+
+  /**
    * POST /api/v1/knowledge/v1/docs
    * Create a document
    */
   app.post(
-    '/v1/docs',
+    '/docs',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{
-        Body: { title: string; content: string; spaceId: string; tags?: string[]; status?: string; authorId?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { title, content, spaceId, tags, status, authorId } = request.body;
+      const {   title, content, spaceId, tags, status, authorId   } = request.body as any as any;
 
       if (!title || !content || !spaceId) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'title, content, and spaceId are required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -264,14 +379,17 @@ export default async function knowledgeRoutes(
    * Get document detail
    */
   app.get(
-    '/v1/docs/:id',
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    '/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const doc = await service.getDoc(request.params.id);
+        const doc = await service.getDoc((request.params as any).id);
         return reply.send({ data: doc });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -283,20 +401,20 @@ export default async function knowledgeRoutes(
    * Update a document
    */
   app.put(
-    '/v1/docs/:id',
+    '/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'write' })],
+    },
     async (
-      request: FastifyRequest<{
-        Params: { id: string };
-        Body: { title?: string; content?: string; tags?: string[]; status?: string };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       try {
-        const doc = await service.updateDoc(request.params.id, {
-          title: request.body.title,
-          content: request.body.content,
-          tags: request.body.tags,
-          status: request.body.status as any,
+        const doc = await service.updateDoc((request.params as any).id, {
+          title: (request.body as any).title,
+          content: (request.body as any).content,
+          tags: (request.body as any).tags,
+          status: (request.body as any).status as any,
         });
         return reply.send({ data: doc });
       } catch (err: any) {
@@ -313,10 +431,13 @@ export default async function knowledgeRoutes(
    * Delete a document
    */
   app.delete(
-    '/v1/docs/:id',
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    '/docs/:id',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        await service.deleteDoc(request.params.id);
+        await service.deleteDoc((request.params as any).id);
         return reply.status(204).send();
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
@@ -332,14 +453,17 @@ export default async function knowledgeRoutes(
    * Get document version history
    */
   app.get(
-    '/v1/docs/:id/versions',
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    '/docs/:id/versions',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
       try {
-        const versions = await service.getDocVersions(request.params.id);
+        const versions = await service.getDocVersions((request.params as any).id);
         return reply.send({ data: versions });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }
@@ -355,18 +479,19 @@ export default async function knowledgeRoutes(
    * Semantic/text retrieve for RAG
    */
   app.post(
-    '/v1/rag/retrieve',
+    '/rag/retrieve',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Body: { query: string; spaceId?: string; topK?: number };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { query, spaceId, topK } = request.body;
+      const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -384,7 +509,7 @@ export default async function knowledgeRoutes(
         });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -396,18 +521,19 @@ export default async function knowledgeRoutes(
    * RAG query with source attribution
    */
   app.post(
-    '/v1/rag/query',
+    '/rag/query',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{
-        Body: { query: string; spaceId?: string; topK?: number };
-      }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { query, spaceId, topK } = request.body;
+      const {   query, spaceId, topK   } = request.body as any as any;
 
       if (!query) {
-        return reply.status(400).send({ error: 'INVALID_INPUT', message: 'query is required' });
+        return handleError(reply, new ValidationError('INVALID_INPUT'));
       }
 
       try {
@@ -441,7 +567,7 @@ export default async function knowledgeRoutes(
         });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError) {
-          return reply.status(400).send({ error: err.code, message: err.message });
+          return handleError(reply, new ValidationError(err.message));
         }
         throw err;
       }
@@ -457,13 +583,16 @@ export default async function knowledgeRoutes(
    * Get knowledge graph (space -> doc -> tag relationships)
    */
   app.get(
-    '/v1/graph',
+    '/graph',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'knowledge', action: 'read' })],
+    },
     async (
-      request: FastifyRequest<{ Querystring: { spaceId?: string } }>,
+      request: FastifyRequest,
       reply: FastifyReply
     ) => {
       const tenantId = getTenantId(request, reply);
-      const { spaceId } = request.query;
+      const {   spaceId   } = request.query as any as any;
 
       try {
         const spaces = spaceId
@@ -494,7 +623,7 @@ export default async function knowledgeRoutes(
         return reply.send({ data: { nodes, edges } });
       } catch (err: any) {
         if (err instanceof KnowledgeServiceError && err.code === 'NOT_FOUND') {
-          return reply.status(404).send({ error: 'NOT_FOUND', message: err.message });
+          return handleError(reply, new NotFoundError('NOT_FOUND'));
         }
         throw err;
       }

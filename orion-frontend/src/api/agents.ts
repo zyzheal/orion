@@ -70,23 +70,23 @@ export interface AgentApproval {
 // ============================================================================
 
 export function getAgentProfiles() {
-  return api.get<AgentProfile[]>('/v1/agents');
+  return api.get<AgentProfile[]>('/api/v1/agents');
 }
 
 export function createAgentProfile(data: Omit<AgentProfile, 'id' | 'createdAt' | 'updatedAt'>) {
-  return api.post<AgentProfile>('/v1/agents', data);
+  return api.post<AgentProfile>('/api/v1/agents', data);
 }
 
 export function updateAgentProfile(id: string, data: Partial<AgentProfile>) {
-  return api.put<AgentProfile>(`/v1/agents/${id}`, data);
+  return api.put<AgentProfile>(`/api/v1/agents/${id}`, data);
 }
 
 export function deleteAgentProfile(id: string) {
-  return api.delete<void>(`/v1/agents/${id}`);
+  return api.delete<void>(`/api/v1/agents/${id}`);
 }
 
 export function toggleAgentProfile(id: string) {
-  return api.patch<AgentProfile>(`/v1/agents/${id}/toggle`);
+  return api.patch<AgentProfile>(`/api/v1/agents/${id}/toggle`);
 }
 
 // ============================================================================
@@ -101,15 +101,15 @@ export interface AgentRunParams {
 }
 
 export function getAgentRuns(params?: AgentRunParams) {
-  return api.get<AgentRun[]>('/v1/agent-runs', { params });
+  return api.get<AgentRun[]>('/api/v1/agent-runs', { params });
 }
 
 export function getAgentRun(id: string) {
-  return api.get<AgentRun>(`/v1/agent-runs/${id}`);
+  return api.get<AgentRun>(`/api/v1/agent-runs/${id}`);
 }
 
 export function getAgentRunDecisions(runId: string) {
-  return api.get<AgentDecision[]>(`/v1/agent-runs/${runId}/decisions`);
+  return api.get<AgentDecision[]>(`/api/v1/agent-runs/${runId}/decisions`);
 }
 
 export interface TriggerAgentRunInput {
@@ -119,15 +119,15 @@ export interface TriggerAgentRunInput {
 }
 
 export function triggerAgentRun(data: TriggerAgentRunInput) {
-  return api.post<AgentRun>('/v1/agent-runs', data);
+  return api.post<AgentRun>('/api/v1/agent-runs', data);
 }
 
 export function cancelAgentRun(id: string) {
-  return api.post<AgentRun>(`/v1/agent-runs/${id}/cancel`);
+  return api.post<AgentRun>(`/api/v1/agent-runs/${id}/cancel`);
 }
 
 export function retryAgentRun(id: string) {
-  return api.post<AgentRun>(`/v1/agent-runs/${id}/retry`);
+  return api.post<AgentRun>(`/api/v1/agent-runs/${id}/retry`);
 }
 
 // ============================================================================

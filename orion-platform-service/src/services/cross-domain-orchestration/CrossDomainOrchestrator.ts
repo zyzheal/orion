@@ -7,7 +7,7 @@
  * - 状态查询
  * - 跨域事务补偿
  *
- * 复用 saga/ 目录下的 SagaCoordinator、TransactionLog、IdempotencyChecker
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -19,11 +19,13 @@ import {
   SagaDefinition,
   SagaStep,
   SagaContext,
-  SagaStatus,
-  SagaStepStatus,
   createSagaContext,
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('LCross-LDomain-LOrchestrator');
 
 // ============================================================
 // Types
@@ -154,23 +156,15 @@ interface OrchestrationStepRow {
 }
 
 class OrchestrationRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, CrossDomainOrchestRATION>();
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
+    this.pool = pool;
   }
 
   async save(orchestration: CrossDomainOrchestRATION): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(orchestration.id, orchestration);
-      return;
-    }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO cross_domain_orchestrations (
         id, tenant_id, name, description, status, input, output, error,
         domains, current_step, step_count, completed_steps, created_by,
@@ -209,11 +203,8 @@ class OrchestrationRepository {
   }
 
   async findById(id: string): Promise<CrossDomainOrchestRATION | null> {
-    if (!this.isDbAvailable()) {
-      return this.memory.get(id) || null;
-    }
     const rows = (
-      await this.pool!.query(
+      await this.pool.query(
         'SELECT * FROM cross_domain_orchestrations WHERE id = $1',
         [id]
       )
@@ -223,21 +214,6 @@ class OrchestrationRepository {
   }
 
   async findByTenant(tenantId: string, filter?: OrchestrationListFilter): Promise<CrossDomainOrchestRATION[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter((o) => o.tenantId === tenantId);
-      if (filter?.status) {
-        const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
-        results = results.filter((o) => statuses.includes(o.status));
-      }
-      if (filter?.domain) {
-        results = results.filter((o) => o.domains.includes(filter.domain!));
-      }
-      results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-      const offset = filter?.offset || 0;
-      const limit = filter?.limit || 100;
-      return results.slice(offset, offset + limit);
-    }
-
     let query = 'SELECT * FROM cross_domain_orchestrations WHERE tenant_id = $1';
     const params: unknown[] = [tenantId];
     let paramIdx = 2;
@@ -265,24 +241,12 @@ class OrchestrationRepository {
       params.push(filter.offset);
     }
 
-    const rows = (await this.pool!.query(query, params)).rows;
+    const rows = (await this.pool.query(query, params)).rows;
     return rows.map((r: OrchestrationRow) => this.rowToOrchestration(r));
   }
 
   async saveStep(step: OrchestrationStep, orchestrationId: string): Promise<void> {
-    if (!this.isDbAvailable()) {
-      const orch = this.memory.get(orchestrationId);
-      if (orch) {
-        const idx = orch.steps.findIndex((s) => s.stepName === step.stepName && s.sequence === step.sequence);
-        if (idx >= 0) {
-          orch.steps[idx] = step;
-        } else {
-          orch.steps.push(step);
-        }
-      }
-      return;
-    }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO cross_domain_orchestration_steps (
         id, orchestration_id, step_name, domain_name, sequence, status,
         input, output, error, retry_count, max_retries,
@@ -318,12 +282,8 @@ class OrchestrationRepository {
   }
 
   async findStepsByOrchestrationId(orchestrationId: string): Promise<OrchestrationStep[]> {
-    if (!this.isDbAvailable()) {
-      const orch = this.memory.get(orchestrationId);
-      return orch ? [...orch.steps] : [];
-    }
     const rows = (
-      await this.pool!.query(
+      await this.pool.query(
         'SELECT * FROM cross_domain_orchestration_steps WHERE orchestration_id = $1 ORDER BY sequence',
         [orchestrationId]
       )
@@ -378,14 +338,11 @@ export class CrossDomainOrchestrator {
   private repository: OrchestrationRepository;
   private sagaCoordinator: SagaCoordinator;
   private domainConnector: DomainConnector;
-  private orchestrations = new Map<string, CrossDomainOrchestRATION>();
 
-  constructor(options: {
-    database?: DatabasePool;
-    domainConnector?: DomainConnector;
-  } = {}) {
-    this.repository = new OrchestrationRepository(options.database);
-    this.domainConnector = options.domainConnector || new DomainConnector(options.database);
+  constructor(database: DatabasePool, domainConnector?: DomainConnector) {
+    if (!database) throw new OrionError('DatabasePool is required for CrossDomainOrchestrator', ErrorCode.INTERNAL_ERROR);
+    this.repository = new OrchestrationRepository(database);
+    this.domainConnector = domainConnector || new DomainConnector(database);
 
     const transactionLog = new TransactionLog();
     const idempotencyChecker = new IdempotencyChecker();
@@ -448,7 +405,6 @@ export class CrossDomainOrchestrator {
     for (const step of orchestration.steps) {
       await this.repository.saveStep(step, orchestration.id);
     }
-    this.orchestrations.set(id, orchestration);
 
     return { ...orchestration };
   }
@@ -459,13 +415,11 @@ export class CrossDomainOrchestrator {
   async executeOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(`Orchestration '${orchestrationId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (orchestration.status !== 'pending' && orchestration.status !== 'paused') {
-      throw new Error(
-        `Orchestration cannot be executed in '${orchestration.status}' state. Must be 'pending' or 'paused'.`
-      );
+      throw new OrionError(`Orchestration cannot be executed in '${orchestration.status}' state. Must be 'pending' or 'paused'.`, 'VALIDATION_ERROR');
     }
 
     orchestration.status = 'running';
@@ -512,11 +466,11 @@ export class CrossDomainOrchestrator {
   async pauseOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(`Orchestration '${orchestrationId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (orchestration.status !== 'running') {
-      throw new Error(`Only running orchestrations can be paused (current: ${orchestration.status})`);
+      throw new OrionError(`Only running orchestrations can be paused (current: ${orchestration.status})`, ErrorCode.NOT_FOUND);
     }
 
     orchestration.status = 'paused';
@@ -532,11 +486,11 @@ export class CrossDomainOrchestrator {
   async resumeOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(`Orchestration '${orchestrationId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (orchestration.status !== 'paused') {
-      throw new Error(`Only paused orchestrations can be resumed (current: ${orchestration.status})`);
+      throw new OrionError(`Only paused orchestrations can be resumed (current: ${orchestration.status})`, ErrorCode.NOT_FOUND);
     }
 
     // Resume execution
@@ -549,11 +503,11 @@ export class CrossDomainOrchestrator {
   async abortOrchestration(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(`Orchestration '${orchestrationId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (orchestration.status === 'completed' || orchestration.status === 'aborted') {
-      throw new Error(`Cannot abort orchestrations in '${orchestration.status}' state`);
+      throw new OrionError(`Cannot abort orchestrations in '${orchestration.status}' state`, ErrorCode.NOT_FOUND);
     }
 
     orchestration.status = 'aborted';
@@ -571,7 +525,7 @@ export class CrossDomainOrchestrator {
   async getOrchestrationStatus(orchestrationId: string): Promise<CrossDomainOrchestRATION> {
     const orchestration = await this.getOrchestrationById(orchestrationId);
     if (!orchestration) {
-      throw new Error(`Orchestration '${orchestrationId}' not found`);
+      throw new OrionError(`Orchestration '${orchestrationId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     // Reload steps
@@ -663,7 +617,7 @@ export class CrossDomainOrchestrator {
           await connector.compensateTransaction(orchId);
         } catch (error) {
           // Log compensation failure but don't throw - saga handles this
-          console.error(
+          logger.error(
             `[CrossDomainOrchestrator] Compensation failed for step ${step.stepName}:`,
             error
           );

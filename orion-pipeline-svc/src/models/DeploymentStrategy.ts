@@ -1,4 +1,6 @@
-// Stub - TODO: implement with PostgreSQL
+/**
+ * Deployment Strategy types — Canary, Blue-Green, Rolling
+ */
 export type DeploymentStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'healthy' | 'unhealthy' | 'rolledback';
 
 export interface CanaryStep {

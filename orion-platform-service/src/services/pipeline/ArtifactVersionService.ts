@@ -9,11 +9,12 @@
  * - 循环引用保护（BFS 遍历检测）
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'artifact-version-service' });
+const logger = createLogger('artifact-version-service');
 
 export interface VersionLineageResult {
   version: ArtifactVersion;
@@ -41,9 +42,7 @@ export class ArtifactVersionService {
     // 检查是否已存在同名同版本
     const existing = await this.repository.findByVersion(input.pipelineId, input.version);
     if (existing) {
-      throw new Error(
-        `Version ${input.version} already exists for pipeline ${input.pipelineId}`
-      );
+      throw new OrionError(`Version ${input.version} already exists for pipeline ${input.pipelineId}`, 'VALIDATION_ERROR');
     }
 
     const version = await this.repository.createVersion(input);
@@ -68,7 +67,7 @@ export class ArtifactVersionService {
     // 获取当前版本
     const currentVersion = await this.repository.findById(fromVersionId);
     if (!currentVersion) {
-      throw new Error(`Version not found: ${fromVersionId}`);
+      throw new OrionError(`Version not found: ${fromVersionId}`, ErrorCode.NOT_FOUND);
     }
 
     // 防重复晋升：检查是否已在目标环境中存在相同版本
@@ -77,9 +76,7 @@ export class ArtifactVersionService {
       currentVersion.version
     );
     if (existing && existing.metadata?.promotedTo === targetEnvironment) {
-      throw new Error(
-        `Version ${currentVersion.version} is already promoted to ${targetEnvironment}`
-      );
+      throw new OrionError(`Version ${currentVersion.version} is already promoted to ${targetEnvironment}`, 'OPERATION_FAILED');
     }
 
     // 创建新版本（继承原版本信息，设置 promoted_from 追溯链）
@@ -127,7 +124,7 @@ export class ArtifactVersionService {
   async getVersionLineage(versionId: string): Promise<VersionLineageResult> {
     const version = await this.repository.findById(versionId);
     if (!version) {
-      throw new Error(`Version not found: ${versionId}`);
+      throw new OrionError(`Version not found: ${versionId}`, ErrorCode.NOT_FOUND);
     }
 
     const ancestors = await this.repository.getAncestors(versionId, this.maxLineageDepth);
@@ -142,7 +139,7 @@ export class ArtifactVersionService {
   async addTag(versionId: string, tag: string): Promise<ArtifactVersion> {
     const version = await this.repository.findById(versionId);
     if (!version) {
-      throw new Error(`Version not found: ${versionId}`);
+      throw new OrionError(`Version not found: ${versionId}`, ErrorCode.NOT_FOUND);
     }
 
     await this.repository.addTag(versionId, tag);

@@ -17,6 +17,8 @@ import { YamlConverter } from '../services/pipeline/YamlConverter';
 import { PipelineValidator } from '../services/pipeline/PipelineValidator';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 export interface PipelineGraphRouteDeps {
   pipelineService: PipelineService;
@@ -37,25 +39,20 @@ export async function registerPipelineGraphRoutes(
     // Build graph from a saved pipeline's yamlDefinition
     instance.get(
       '/v1/pipelines/:id/graph',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'read' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const params = request.params as { id: string };
           const pipeline = await deps.pipelineService.getById(params.id);
 
           if (!pipeline) {
-            return reply.status(404).send({
-              error: 'NOT_FOUND',
-              code: '30201',
-              message: `Pipeline '${params.id}' not found`,
-            });
+            return handleError(reply, new NotFoundError('NOT_FOUND'))
           }
 
           if (!pipeline.yamlDefinition) {
-            return reply.status(400).send({
-              error: 'NO_YAML_DEFINITION',
-              code: '30105',
-              message: 'Pipeline has no YAML definition',
-            });
+            return handleError(reply, new ValidationError('NO_YAML_DEFINITION'))
           }
 
           const graph = graphBuilder.buildGraph(params.id, pipeline.yamlDefinition);
@@ -66,11 +63,7 @@ export async function registerPipelineGraphRoutes(
             graph,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to build pipeline graph',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -79,16 +72,15 @@ export async function registerPipelineGraphRoutes(
     // Convert YAML to JSON graph format
     instance.post(
       '/v1/pipelines/parse-yaml',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;
 
           if (!body?.yamlDefinition) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'Missing yamlDefinition in request body',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const result = yamlConverter.yamlToJson(body.yamlDefinition);
@@ -100,11 +92,7 @@ export async function registerPipelineGraphRoutes(
             warnings: result.validation.warnings,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to parse YAML',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -113,26 +101,21 @@ export async function registerPipelineGraphRoutes(
     // Convert JSON graph back to YAML pipeline spec
     instance.post(
       '/v1/pipelines/to-yaml',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;
 
           if (!body?.graph) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'Missing graph in request body',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const { pipelineId, nodes, edges } = body.graph;
 
           if (!nodes || !Array.isArray(nodes)) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'graph.nodes must be an array',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const result = yamlConverter.jsonToYaml({
@@ -148,11 +131,7 @@ export async function registerPipelineGraphRoutes(
             warnings: result.validation.warnings,
           });
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to convert to YAML',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );
@@ -161,27 +140,22 @@ export async function registerPipelineGraphRoutes(
     // Validate a pipeline YAML spec (enhanced validation)
     instance.post(
       '/v1/pipelines/validate',
+      {
+        onRequest: [requirePermission({ resource: 'pipeline', action: 'write' })],
+      },
       async (request: FastifyRequest, reply: FastifyReply) => {
         try {
           const body = request.body as any;
 
           if (!body?.yamlDefinition) {
-            return reply.status(400).send({
-              error: 'VALIDATION_ERROR',
-              code: '30101',
-              message: 'Missing yamlDefinition in request body',
-            });
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'))
           }
 
           const result = validator.validate(body.yamlDefinition);
 
           return reply.send(result);
         } catch (error: any) {
-          return reply.status(500).send({
-            error: 'INTERNAL_ERROR',
-            code: '50000',
-            message: error.message || 'Failed to validate YAML',
-          });
+          return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
         }
       }
     );

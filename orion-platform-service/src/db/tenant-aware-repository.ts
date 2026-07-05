@@ -14,9 +14,7 @@
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import { tenantContext } from '../services/tenant/TenantContext';
-import pino from 'pino';
-
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * 租户感知查询选项
@@ -100,7 +98,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
   /**
    * 按ID查询（自动添加 tenant_id 过滤）
    */
-  async findById(id: string, options?: TenantAwareFindOptions): Promise<T | undefined> {
+  async findById(id: string, options?: TenantAwareFindOptions): Promise<T | null> {
     const tenantId = options?.forceTenantId ?? this.getCurrentTenantId();
 
     // 系统租户模式或租户隔离禁用时，不添加 tenant_id 过滤
@@ -114,7 +112,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
       [id, tenantId],
     );
 
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -134,7 +132,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     // 验证标识符
     const validIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
     if (!validIdentifier.test(orderBy)) {
-      throw new Error(`Invalid order by column: ${orderBy}`);
+      throw new OrionError(`Invalid order by column: ${orderBy}`, 'VALIDATION_ERROR')
     }
     const validatedOrderDir = orderDir === 'ASC' ? 'ASC' : 'DESC';
 
@@ -145,7 +143,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     // 添加其他 WHERE 条件
     for (const [key, value] of Object.entries(where)) {
       if (!validIdentifier.test(key)) {
-        throw new Error(`Invalid where column: ${key}`);
+        throw new OrionError(`Invalid where column: ${key}`, 'VALIDATION_ERROR')
       }
       if (value !== undefined && value !== null) {
         query += ` AND ${key} = $${paramIndex}`;
@@ -189,7 +187,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
   /**
    * 更新记录（自动验证 tenant_id）
    */
-  async update(id: string, data: Partial<Omit<T, 'id' | 'created_at'>>, options?: TenantAwareFindOptions): Promise<T> {
+  async update(id: string, data: Partial<Omit<T, 'id' | 'created_at'>>, options?: TenantAwareFindOptions): Promise<T | null> {
     const tenantId = options?.forceTenantId ?? this.getCurrentTenantId();
 
     // 系统租户模式或租户隔离禁用时，不添加 tenant_id 过滤
@@ -201,14 +199,14 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const values = Object.values(data);
 
     if (columns.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     // 验证列名
     const validIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
     for (const col of columns) {
       if (!validIdentifier.test(col)) {
-        throw new Error(`Invalid column name: ${col}`);
+        throw new OrionError(`Invalid column name: ${col}`, 'VALIDATION_ERROR')
       }
     }
 
@@ -217,7 +215,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const result = await this.db.query(query, [...values, id, tenantId]);
 
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on ${this.tableName} affected no rows (id: ${id}, tenant_id: ${tenantId}) - possible tenant mismatch`);
+      return null;
     }
 
     return this.mapRowToEntity(result.rows[0]);

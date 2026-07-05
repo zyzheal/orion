@@ -13,6 +13,9 @@ import {
   TriggerEventEntity,
 } from '../../repositories/Phase3Repository';
 import { UnifiedTriggerService } from './UnifiedTriggerService';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LChat-LTrigger-LHandler');
 
 export interface ChatCommand {
   command: string;
@@ -138,10 +141,10 @@ export class ChatTriggerHandler {
     // For now, log the notification
     const platform = options?.platform || 'unknown';
 
-    console.log(`[ChatTrigger] Notifying channel ${channel} on ${platform}: ${message}`);
+    logger.info(`[ChatTrigger] Notifying channel ${channel} on ${platform}: ${message}`);
 
     if (options?.attachments) {
-      console.log(`[ChatTrigger] Attachments: ${JSON.stringify(options.attachments)}`);
+      logger.info(`[ChatTrigger] Attachments: ${JSON.stringify(options.attachments)}`);
     }
 
     return {
@@ -162,13 +165,13 @@ export class ChatTriggerHandler {
     const title = options.title || 'Notification';
     const text = options.text || '';
 
-    console.log(`[ChatTrigger] Rich notification to ${channel} on ${platform}`);
-    console.log(`[ChatTrigger] Title: ${title}`);
-    console.log(`[ChatTrigger] Text: ${text}`);
+    logger.info(`[ChatTrigger] Rich notification to ${channel} on ${platform}`);
+    logger.info(`[ChatTrigger] Title: ${title}`);
+    logger.info(`[ChatTrigger] Text: ${text}`);
 
     if (options.fields) {
       for (const field of options.fields) {
-        console.log(`[ChatTrigger]   ${field.name}: ${field.value}`);
+        logger.info(`[ChatTrigger]   ${field.name}: ${field.value}`);
       }
     }
 

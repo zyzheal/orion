@@ -58,6 +58,11 @@ func NewLLMUsecase(config *config.Config, rag rag.RAGService, conversationRepo *
 	}
 }
 
+// ModelKit 返回内部的 ModelKit 实例
+func (u *LLMUsecase) ModelKit() *modelkit.ModelKit {
+	return u.modelkit
+}
+
 func (u *LLMUsecase) BuildConversationMessageWithRAG(
 	ctx context.Context,
 	conversationID string,

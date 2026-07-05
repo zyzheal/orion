@@ -6,6 +6,9 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LPerformance-LProfile-LService');
 import {
   PerformanceProfileRepository,
   PerformanceProfileEntity,
@@ -106,7 +109,7 @@ export class PerformanceProfileService {
 
     // Execute profile asynchronously
     this.executeProfileAsync(record).catch(err => {
-      console.error(`[PerformanceProfile] Profile ${id} execution failed:`, err);
+      logger.error(`[PerformanceProfile] Profile ${id} execution failed:`, err);
     });
 
     return record;

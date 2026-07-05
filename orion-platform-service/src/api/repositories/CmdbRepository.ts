@@ -43,17 +43,17 @@ export class CmdbRepository {
   }
 
   /**
-   * 通过 ID 获取配置项
+   * 通过 ID 获取配置项（含租户隔离）
    */
-  async getCIById(id: string): Promise<CI | null> {
+  async getCIById(id: string, tenantId: bigint): Promise<CI | null> {
     const query = `
       SELECT id, ci_id, tenant_id, ci_type, name, description, status,
-             environment, tags, attributes, version, created_by, created_at, updated_at, deleted_at
+             environment, tags, attributes, version, created_by, created_at, updated_at, deleted_at, archived_at
       FROM cmdb_ci
-      WHERE id = $1 AND deleted_at IS NULL
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `;
 
-    const result = await this.database.query(query, [id]);
+    const result = await this.database.query(query, [id, tenantId.toString()]);
     if (result.rowCount === 0) {
       return null;
     }
@@ -62,12 +62,12 @@ export class CmdbRepository {
   }
 
   /**
-   * 通过 ciId 获取配置项
+   * 通过 ciId 获取配置项（含租户隔离）
    */
   async getCIByCiId(ciId: string, tenantId: bigint): Promise<CI | null> {
     const query = `
       SELECT id, ci_id, tenant_id, ci_type, name, description, status,
-             environment, tags, attributes, version, created_by, created_at, updated_at, deleted_at
+             environment, tags, attributes, version, created_by, created_at, updated_at, deleted_at, archived_at
       FROM cmdb_ci
       WHERE ci_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `;
@@ -81,9 +81,9 @@ export class CmdbRepository {
   }
 
   /**
-   * 更新配置项
+   * 更新配置项（含租户隔离）
    */
-  async updateCI(id: string, input: UpdateCIInput, user: string): Promise<CI | null> {
+  async updateCI(id: string, input: UpdateCIInput, user: string, tenantId: bigint): Promise<CI | null> {
     const updates: string[] = [];
     const params: any[] = [];
     let paramIndex = 1;
@@ -110,20 +110,20 @@ export class CmdbRepository {
     }
 
     if (updates.length === 0) {
-      return this.getCIById(id);
+      return this.getCIById(id, tenantId);
     }
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`);
     updates.push(`version = version + 1`);
 
-    params.push(id);
+    params.push(id, tenantId.toString());
 
     const query = `
       UPDATE cmdb_ci
       SET ${updates.join(', ')}
-      WHERE id = $${paramIndex} AND deleted_at IS NULL
+      WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex++} AND deleted_at IS NULL
       RETURNING id, ci_id, tenant_id, ci_type, name, description, status,
-                environment, tags, attributes, version, created_by, created_at, updated_at
+                environment, tags, attributes, version, created_by, created_at, updated_at, archived_at
     `;
 
     const result = await this.database.query(query, params);
@@ -135,16 +135,16 @@ export class CmdbRepository {
   }
 
   /**
-   * 删除配置项（软删除）
+   * 删除配置项（软删除，含租户隔离）
    */
-  async deleteCI(id: string): Promise<boolean> {
+  async deleteCI(id: string, tenantId: bigint): Promise<boolean> {
     const query = `
       UPDATE cmdb_ci
       SET deleted_at = CURRENT_TIMESTAMP, status = 'DECOMMISSIONED'
-      WHERE id = $1 AND deleted_at IS NULL
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `;
 
-    const result = await this.database.query(query, [id]);
+    const result = await this.database.query(query, [id, tenantId.toString()]);
     return result.rowCount !== null && result.rowCount > 0;
   }
 
@@ -196,7 +196,7 @@ export class CmdbRepository {
     const offset = filters.offset || 0;
     const dataQuery = `
       SELECT id, ci_id, tenant_id, ci_type, name, description, status,
-             environment, tags, attributes, version, created_by, created_at, updated_at
+             environment, tags, attributes, version, created_by, created_at, updated_at, archived_at
       FROM cmdb_ci
       WHERE ${whereClause}
       ORDER BY ${orderBy} ${order}
@@ -211,7 +211,7 @@ export class CmdbRepository {
   }
 
   /**
-   * 检查 CI 是否存在
+   * 检查 CI 是否存在（含租户隔离）
    */
   async ciExists(ciId: string, tenantId: bigint): Promise<boolean> {
     const query = `
@@ -221,6 +221,51 @@ export class CmdbRepository {
 
     const result = await this.database.query(query, [ciId, tenantId.toString()]);
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  /**
+   * 归档配置项（含租户隔离）
+   */
+  async archiveCI(id: string, tenantId: bigint): Promise<boolean> {
+    const query = `
+      UPDATE cmdb_ci
+      SET archived_at = CURRENT_TIMESTAMP, status = 'ARCHIVED', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND archived_at IS NULL
+    `;
+
+    const result = await this.database.query(query, [id, tenantId.toString()]);
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  /**
+   * 恢复已归档的配置项（含租户隔离）
+   */
+  async restoreCI(id: string, tenantId: bigint): Promise<boolean> {
+    const query = `
+      UPDATE cmdb_ci
+      SET archived_at = NULL, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND archived_at IS NOT NULL
+    `;
+
+    const result = await this.database.query(query, [id, tenantId.toString()]);
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  /**
+   * 获取已归档的配置项列表（含租户隔离）
+   */
+  async getArchivedCIs(tenantId: bigint, limit = 100, offset = 0): Promise<CI[]> {
+    const query = `
+      SELECT id, ci_id, tenant_id, ci_type, name, description, status,
+             environment, tags, attributes, version, created_by, created_at, updated_at, deleted_at, archived_at
+      FROM cmdb_ci
+      WHERE tenant_id = $1 AND archived_at IS NOT NULL AND deleted_at IS NULL
+      ORDER BY archived_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+
+    const result = await this.database.query(query, [tenantId.toString(), limit, offset]);
+    return result.rows.map((row: any) => this.mapRowToCI(row));
   }
 
   /**
@@ -243,6 +288,7 @@ export class CmdbRepository {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       deletedAt: row.deleted_at ? new Date(row.deleted_at) : undefined,
+      archivedAt: row.archived_at ? new Date(row.archived_at) : undefined,
     };
   }
 }

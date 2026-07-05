@@ -1,9 +1,13 @@
 // orion-platform-service/src/services/observability/ExecutionTimelineService.ts
 // Execution Timeline Service - manages execution timeline snapshots for visual replay
+//
+// Migrated from in-memory Map() storage to PostgreSQL via ExecutionTimelineRepository.
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { ExecutionTimelineRepository } from '../../repositories/ExecutionTimelineRepository';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ExecutionTimelineService');
 
 export interface TimelineEntry {
   id: string;
@@ -32,66 +36,103 @@ export interface TimelineEvent {
 }
 
 /**
- * Repository interface for timeline persistence
+ * ExecutionTimelineService - manages execution timeline data
+ *
+ * All persistence is delegated to ExecutionTimelineRepository (PostgreSQL).
+ * No in-memory Maps — the database is the single source of truth.
  */
-export interface TimelineEventRepository {
-  saveTimeline(timeline: TimelineEntry): Promise<void>;
-  saveEvent(event: TimelineEvent): Promise<void>;
-  findByRunId(runId: string): Promise<TimelineEntry[]>;
-  findByTimelineId(timelineId: string): Promise<TimelineEvent[]>;
-}
+export class ExecutionTimelineService {
+  private repository: ExecutionTimelineRepository;
+  private tenantId: string;
 
-/**
- * PostgreSQL implementation of TimelineEventRepository
- */
-export class PostgresTimelineRepository implements TimelineEventRepository {
-  constructor(private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }> }) {}
-
-  async saveTimeline(timeline: TimelineEntry): Promise<void> {
-    await this.db.query(
-      `INSERT INTO execution_timelines (id, run_id, task_id, plugin_id, step_name, started_at, ended_at, duration_ms, status, isolation_tier, trace_id, error_message)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       ON CONFLICT (id) DO UPDATE SET status = $9, ended_at = $7, duration_ms = $8, error_message = $12`,
-      [
-        timeline.id,
-        timeline.runId,
-        timeline.taskId,
-        timeline.pluginId,
-        timeline.stepName,
-        timeline.startedAt,
-        timeline.endedAt || null,
-        timeline.durationMs || null,
-        timeline.status,
-        timeline.isolationTier || null,
-        timeline.traceId || null,
-        timeline.errorMessage || null,
-      ]
-    );
+  constructor(options: { repository: ExecutionTimelineRepository; tenantId?: string }) {
+    this.repository = options.repository;
+    this.tenantId = options.tenantId || getCurrentTenantId();
   }
 
-  async saveEvent(event: TimelineEvent): Promise<void> {
-    await this.db.query(
-      `INSERT INTO execution_events (id, timeline_id, event_type, timestamp, level, message, metadata, sequence_num)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        event.id,
-        event.timelineId,
-        event.eventType,
-        event.timestamp,
-        event.level,
-        event.message || null,
-        event.metadata ? JSON.stringify(event.metadata) : null,
-        event.sequenceNum,
-      ]
-    );
+  async createTimeline(entry: Omit<TimelineEntry, 'id'>): Promise<TimelineEntry> {
+    const id = `timeline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    await this.repository.saveTimeline({
+      id,
+      runId: entry.runId,
+      taskId: entry.taskId,
+      pluginId: entry.pluginId,
+      stepName: entry.stepName,
+      startedAt: entry.startedAt,
+      endedAt: entry.endedAt,
+      durationMs: entry.durationMs,
+      status: entry.status,
+      isolationTier: entry.isolationTier,
+      traceId: entry.traceId,
+      errorMessage: entry.errorMessage,
+      tenantId: this.tenantId,
+    });
+
+    logger.info({ id, runId: entry.runId, taskId: entry.taskId }, 'Timeline created');
+
+    return { ...entry, id };
   }
 
-  async findByRunId(runId: string): Promise<TimelineEntry[]> {
-    const result = await this.db.query(
-      `SELECT * FROM execution_timelines WHERE run_id = $1 ORDER BY started_at ASC`,
-      [runId]
-    );
-    return result.rows.map(row => ({
+  async addEvent(timelineId: string, event: Omit<TimelineEvent, 'id' | 'sequenceNum'>): Promise<TimelineEvent> {
+    const seqNum = await this.repository.getNextSequenceNum(timelineId);
+    const id = `event-${seqNum}`;
+
+    await this.repository.saveEvent({
+      id,
+      timelineId,
+      eventType: event.eventType,
+      timestamp: event.timestamp,
+      level: event.level,
+      message: event.message,
+      metadata: event.metadata,
+      sequenceNum: seqNum,
+    });
+
+    return {
+      ...event,
+      id,
+      timelineId,
+      sequenceNum: seqNum,
+    };
+  }
+
+  async updateTimelineStatus(
+    timelineId: string,
+    status: TimelineEntry['status'],
+    endedAt?: Date
+  ): Promise<void> {
+    const existing = await this.repository.findById(timelineId);
+    if (!existing) {
+      logger.warn({ timelineId }, 'Timeline not found for status update');
+      return;
+    }
+
+    const resolvedEndedAt = endedAt || new Date();
+    const durationMs = existing.started_at
+      ? resolvedEndedAt.getTime() - new Date(existing.started_at).getTime()
+      : undefined;
+
+    await this.repository.saveTimeline({
+      id: existing.id,
+      runId: existing.run_id,
+      taskId: existing.task_id,
+      pluginId: existing.plugin_id,
+      stepName: existing.step_name,
+      startedAt: new Date(existing.started_at),
+      endedAt: resolvedEndedAt,
+      durationMs,
+      status,
+      isolationTier: existing.isolation_tier || undefined,
+      traceId: existing.trace_id || undefined,
+      errorMessage: existing.error_message || undefined,
+      tenantId: existing.tenant_id,
+    });
+  }
+
+  async getTimelineByRunId(runId: string): Promise<TimelineEntry[]> {
+    const rows = await this.repository.findByRunId(runId);
+    return rows.map(row => ({
       id: row.id,
       runId: row.run_id,
       taskId: row.task_id,
@@ -99,190 +140,45 @@ export class PostgresTimelineRepository implements TimelineEventRepository {
       stepName: row.step_name,
       startedAt: new Date(row.started_at),
       endedAt: row.ended_at ? new Date(row.ended_at) : undefined,
-      durationMs: row.duration_ms,
-      status: row.status,
-      isolationTier: row.isolation_tier,
-      traceId: row.trace_id,
-      errorMessage: row.error_message,
+      durationMs: row.duration_ms ?? undefined,
+      status: row.status as TimelineEntry['status'],
+      isolationTier: row.isolation_tier || undefined,
+      traceId: row.trace_id || undefined,
+      errorMessage: row.error_message || undefined,
     }));
   }
 
-  async findByTimelineId(timelineId: string): Promise<TimelineEvent[]> {
-    const result = await this.db.query(
-      `SELECT * FROM execution_events WHERE timeline_id = $1 ORDER BY sequence_num ASC`,
-      [timelineId]
-    );
-    return result.rows.map(row => ({
+  async getEvents(timelineId: string): Promise<TimelineEvent[]> {
+    const rows = await this.repository.findByTimelineId(timelineId);
+    return rows.map(row => ({
       id: row.id,
       timelineId: row.timeline_id,
-      eventType: row.event_type,
+      eventType: row.event_type as TimelineEvent['eventType'],
       timestamp: new Date(row.timestamp),
-      level: row.level,
-      message: row.message,
-      metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : undefined,
+      level: row.level as TimelineEvent['level'],
+      message: row.message || undefined,
+      metadata: row.metadata || undefined,
       sequenceNum: row.sequence_num,
     }));
-  }
-}
-
-/**
- * ExecutionTimelineService - manages execution timeline data
- * Supports both in-memory and PostgreSQL persistence
- */
-export class ExecutionTimelineService {
-  private timelines: Map<string, TimelineEntry> = new Map();
-  private events: Map<string, TimelineEvent[]> = new Map();
-  private sequenceCounter: Map<string, number> = new Map();
-  private repository?: TimelineEventRepository;
-  private cleanupTimer?: NodeJS.Timeout;
-
-  constructor(options?: { repository?: TimelineEventRepository }) {
-    this.repository = options?.repository;
-    this.startCleanupInterval();
-  }
-
-  async createTimeline(entry: Omit<TimelineEntry, 'id'>): Promise<TimelineEntry> {
-    const id = `timeline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const timeline: TimelineEntry = { ...entry, id };
-    this.timelines.set(id, timeline);
-    this.events.set(id, []);
-    this.sequenceCounter.set(id, 0);
-
-    // Persist to database if available
-    if (this.repository) {
-      try {
-        await this.repository.saveTimeline(timeline);
-      } catch (error) {
-        logger.error({ error }, 'Failed to persist timeline');
-      }
-    }
-
-    logger.info({ id, runId: entry.runId, taskId: entry.taskId }, 'Timeline created');
-    return timeline;
-  }
-
-  async addEvent(timelineId: string, event: Omit<TimelineEvent, 'id' | 'sequenceNum'>): Promise<TimelineEvent> {
-    const seqNum = (this.sequenceCounter.get(timelineId) || 0) + 1;
-    this.sequenceCounter.set(timelineId, seqNum);
-
-    const fullEvent: TimelineEvent = {
-      ...event,
-      id: `event-${seqNum}`,
-      timelineId,
-      sequenceNum: seqNum,
-    };
-
-    const events = this.events.get(timelineId) || [];
-    events.push(fullEvent);
-    this.events.set(timelineId, events);
-
-    // Persist to database if available
-    if (this.repository) {
-      try {
-        await this.repository.saveEvent(fullEvent);
-      } catch (error) {
-        logger.error({ error }, 'Failed to persist timeline event');
-      }
-    }
-
-    return fullEvent;
-  }
-
-  updateTimelineStatus(
-    timelineId: string,
-    status: TimelineEntry['status'],
-    endedAt?: Date
-  ): void {
-    const timeline = this.timelines.get(timelineId);
-    if (timeline) {
-      timeline.status = status;
-      timeline.endedAt = endedAt || new Date();
-      if (timeline.startedAt && timeline.endedAt) {
-        timeline.durationMs = timeline.endedAt.getTime() - timeline.startedAt.getTime();
-      }
-
-      // Update in database
-      if (this.repository) {
-        this.repository.saveTimeline(timeline).catch(error =>
-          logger.error({ error }, 'Failed to update timeline status')
-        );
-      }
-    }
-  }
-
-  getTimelineByRunId(runId: string): TimelineEntry[] {
-    return Array.from(this.timelines.values())
-      .filter((t) => t.runId === runId)
-      .sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
-  }
-
-  getEvents(timelineId: string): TimelineEvent[] {
-    return (this.events.get(timelineId) || []).sort((a, b) => a.sequenceNum - b.sequenceNum);
   }
 
   async getReplayData(runId: string): Promise<{
     timelines: TimelineEntry[];
     events: Record<string, TimelineEvent[]>;
   }> {
-    // Try database first
-    if (this.repository) {
-      try {
-        const timelines = await this.repository.findByRunId(runId);
-        const events: Record<string, TimelineEvent[]> = {};
-        for (const timeline of timelines) {
-          events[timeline.id] = await this.repository.findByTimelineId(timeline.id);
-        }
-        return { timelines, events };
-      } catch (error) {
-        logger.error({ error }, 'Failed to load replay data from DB, falling back to memory');
-      }
-    }
-
-    // Fallback to memory
-    const timelines = this.getTimelineByRunId(runId);
+    const timelines = await this.getTimelineByRunId(runId);
     const events: Record<string, TimelineEvent[]> = {};
     for (const timeline of timelines) {
-      events[timeline.id] = this.getEvents(timeline.id);
+      events[timeline.id] = await this.getEvents(timeline.id);
     }
     return { timelines, events };
   }
 
   /**
-   * SRE: TTL-based cleanup of stale in-memory timelines.
-   * Prevents unbounded memory growth when PostgreSQL is unavailable.
-   */
-  private startCleanupInterval(): void {
-    const TTL_MS = 30 * 60 * 1000; // 30 minutes
-    const INTERVAL_MS = 5 * 60 * 1000; // every 5 minutes
-
-    this.cleanupTimer = setInterval(() => {
-      const now = Date.now();
-      let cleaned = 0;
-      for (const [id, timeline] of this.timelines) {
-        const age = now - timeline.startedAt.getTime();
-        if (age > TTL_MS) {
-          this.timelines.delete(id);
-          this.events.delete(id);
-          this.sequenceCounter.delete(id);
-          cleaned++;
-        }
-      }
-      if (cleaned > 0) {
-        logger.debug({ cleaned, remaining: this.timelines.size }, 'Evicted stale timeline entries');
-      }
-    }, INTERVAL_MS).unref();
-  }
-
-  /**
-   * Shutdown the timeline service, cleaning up the eviction timer.
+   * Shutdown the timeline service. No-op when backed by PostgreSQL
+   * (no in-memory state to clean up).
    */
   shutdown(): void {
-    if (this.cleanupTimer) {
-      clearInterval(this.cleanupTimer);
-    }
-    this.timelines.clear();
-    this.events.clear();
-    this.sequenceCounter.clear();
     logger.info('ExecutionTimelineService shutdown complete');
   }
 }

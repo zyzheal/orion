@@ -6,45 +6,33 @@
  * - Variant management
  * - Traffic splitting
  * - Experiment results tracking
+ *
+ * Persistence: PostgreSQL via ABExperimentRepository
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
+import { ABExperimentRepository, ABExperiment, ExperimentVariant } from '../../repositories/ABExperimentRepository';
+import { createLogger } from '../../utils/logger';
 
+// Re-export for backward compatibility
 export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'cancelled';
-
-export interface ExperimentVariant {
-  id: string;
-  name: string;
-  description?: string;
-  trafficPercentage: number;
-  config: Record<string, unknown>;
-  isControl: boolean;
-}
-
+export { ExperimentVariant };
 export interface ExperimentMetric {
   name: string;
   type: 'conversion' | 'engagement' | 'revenue' | 'custom';
   target: number;
 }
-
-export interface ABExperiment {
-  id: string;
-  tenantId: string;
-  name: string;
-  description?: string;
-  hypothesis?: string;
-  status: ExperimentStatus;
-  variants: ExperimentVariant[];
-  metrics: ExperimentMetric[];
-  startDate?: Date;
-  endDate?: Date;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  results?: Record<string, unknown>;
+export interface ExperimentResult {
+  experimentId: string;
+  variantName: string;
+  sampleSize: number;
+  conversionRate: number;
+  confidence?: number;
+  isWinner?: boolean;
 }
 
+// Local input type (variant-specific fields without id/status/createdAt/etc)
 export interface CreateExperimentInput {
   name: string;
   description?: string;
@@ -59,116 +47,32 @@ export interface CreateExperimentInput {
   metrics?: ExperimentMetric[];
 }
 
-export interface ExperimentResult {
-  experimentId: string;
-  variantName: string;
-  sampleSize: number;
-  conversionRate: number;
-  confidence?: number;
-  isWinner?: boolean;
-}
-
-// ============================================================
-// Repository
-// ============================================================
-
-class ExperimentRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, ABExperiment>();
-
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
-  }
-
-  async save(exp: ABExperiment): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(exp.id, exp);
-      return;
-    }
-    await this.pool!.query(
-      `INSERT INTO ab_experiments (
-        id, tenant_id, name, description, hypothesis, status, variants,
-        metrics, start_date, end_date, created_by, created_at, updated_at, results
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name, description = EXCLUDED.description,
-        hypothesis = EXCLUDED.hypothesis, status = EXCLUDED.status,
-        variants = EXCLUDED.variants, metrics = EXCLUDED.metrics,
-        start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-        updated_at = EXCLUDED.updated_at, results = EXCLUDED.results`,
-      [
-        exp.id, exp.tenantId, exp.name, exp.description || null,
-        exp.hypothesis || null, exp.status, JSON.stringify(exp.variants),
-        JSON.stringify(exp.metrics), exp.startDate || null, exp.endDate || null,
-        exp.createdBy, exp.createdAt, exp.updatedAt, exp.results ? JSON.stringify(exp.results) : null,
-      ]
-    );
-  }
-
-  async findById(id: string): Promise<ABExperiment | null> {
-    if (!this.isDbAvailable()) return this.memory.get(id) || null;
-    const rows = (await this.pool!.query('SELECT * FROM ab_experiments WHERE id = $1', [id])).rows;
-    if (rows.length === 0) return null;
-    return this.rowToExp(rows[0]);
-  }
-
-  async findByTenant(tenantId: string, status?: string): Promise<ABExperiment[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter(e => e.tenantId === tenantId);
-      if (status) results = results.filter(e => e.status === status);
-      return results;
-    }
-    let query = 'SELECT * FROM ab_experiments WHERE tenant_id = $1';
-    const params: unknown[] = [tenantId];
-    if (status) { query += ' AND status = $2'; params.push(status); }
-    query += ' ORDER BY created_at DESC';
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: any) => this.rowToExp(r));
-  }
-
-  async deleteById(id: string): Promise<boolean> {
-    if (!this.isDbAvailable()) return this.memory.delete(id);
-    const result = await this.pool!.query('DELETE FROM ab_experiments WHERE id = $1', [id]);
-    return (result as any).rowCount > 0;
-  }
-
-  private rowToExp(row: any): ABExperiment {
-    return {
-      id: row.id, tenantId: row.tenant_id, name: row.name,
-      description: row.description || undefined, hypothesis: row.hypothesis || undefined,
-      status: row.status as ExperimentStatus,
-      variants: (row.variants as ExperimentVariant[]) || [],
-      metrics: (row.metrics as ExperimentMetric[]) || [],
-      startDate: row.start_date || undefined, endDate: row.end_date || undefined,
-      createdBy: row.created_by, createdAt: row.created_at, updatedAt: row.updated_at,
-      results: row.results || undefined,
-    };
-  }
-}
+const logger = createLogger('ABExperimentService');
 
 // ============================================================
 // Service
 // ============================================================
 
 export class ABExperimentService {
-  private repository: ExperimentRepository;
+  private repository: ABExperimentRepository;
 
-  constructor(database?: DatabasePool) {
-    this.repository = new ExperimentRepository(database);
+  constructor(repo?: ABExperimentRepository) {
+    if (!repo) {
+      throw new OrionError('ABExperimentRepository is required', ErrorCode.INTERNAL_ERROR);
+    }
+    this.repository = repo;
   }
+
+  // ---- public CRUD ----
 
   async createExperiment(
     tenantId: string,
     input: CreateExperimentInput,
-    createdBy: string
+    createdBy: string,
   ): Promise<ABExperiment> {
     const totalTraffic = input.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
     if (totalTraffic !== 100) {
-      throw new Error(`Total traffic percentage must be 100 (got ${totalTraffic})`);
+      throw new OrionError(`Total traffic percentage must be 100 (got ${totalTraffic})`, ErrorCode.VALIDATION_ERROR);
     }
 
     const now = new Date();
@@ -196,51 +100,14 @@ export class ABExperimentService {
       updatedAt: now,
     };
 
-    await this.repository.save(exp);
-    return exp;
-  }
-
-  async startExperiment(id: string): Promise<ABExperiment> {
-    const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'draft') throw new Error(`Experiment cannot be started from '${exp.status}' state`);
-
-    exp.status = 'running';
-    exp.startDate = new Date();
-    exp.updatedAt = new Date();
-    await this.repository.save(exp);
-    return exp;
-  }
-
-  async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
-    const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'running') throw new Error(`Experiment is not running`);
-
-    exp.status = 'completed';
-    exp.endDate = new Date();
-    exp.updatedAt = new Date();
-
-    // Generate results
-    exp.results = this.generateResults(exp, winnerVariant);
-    await this.repository.save(exp);
-    return exp;
-  }
-
-  async cancelExperiment(id: string): Promise<ABExperiment> {
-    const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status === 'completed') throw new Error(`Cannot cancel completed experiment`);
-
-    exp.status = 'cancelled';
-    exp.endDate = new Date();
-    exp.updatedAt = new Date();
-    await this.repository.save(exp);
-    return exp;
+    const created = await this.repository.create(exp);
+    logger.info({ experimentId: created.id, tenantId }, 'Experiment created');
+    return created;
   }
 
   async getExperiment(id: string): Promise<ABExperiment | null> {
-    return this.repository.findById(id);
+    const exp = await this.repository.findById(id);
+    return exp ?? null;
   }
 
   async listExperiments(tenantId: string, status?: string): Promise<ABExperiment[]> {
@@ -249,9 +116,58 @@ export class ABExperimentService {
 
   async deleteExperiment(id: string): Promise<boolean> {
     const exp = await this.repository.findById(id);
-    if (exp && exp.status === 'running') throw new Error('Cannot delete running experiment');
-    return this.repository.deleteById(id);
+    if (exp && exp.status === 'running') {
+      throw new OrionError('Cannot delete running experiment', ErrorCode.INTERNAL_ERROR);
+    }
+    return this.repository.delete(id);
   }
+
+  // ---- lifecycle ----
+
+  async startExperiment(id: string): Promise<ABExperiment> {
+    const exp = await this.repository.findById(id);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'draft') throw new OrionError(`Experiment cannot be started from '${exp.status}' state`, ErrorCode.INTERNAL_ERROR);
+
+    exp.status = 'running';
+    exp.startDate = new Date();
+    exp.updatedAt = new Date();
+
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment started');
+    return updated!;
+  }
+
+  async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
+    const exp = await this.repository.findById(id);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'running') throw new OrionError(`Experiment is not running`, ErrorCode.INTERNAL_ERROR);
+
+    exp.status = 'completed';
+    exp.endDate = new Date();
+    exp.updatedAt = new Date();
+    exp.results = this.generateResults(exp, winnerVariant);
+
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment stopped');
+    return updated!;
+  }
+
+  async cancelExperiment(id: string): Promise<ABExperiment> {
+    const exp = await this.repository.findById(id);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status === 'completed') throw new OrionError('Cannot cancel completed experiment', ErrorCode.INTERNAL_ERROR);
+
+    exp.status = 'cancelled';
+    exp.endDate = new Date();
+    exp.updatedAt = new Date();
+
+    const updated = await this.repository.updateById(id, exp);
+    logger.info({ experimentId: id }, 'Experiment cancelled');
+    return updated!;
+  }
+
+  // ---- traffic assignment ----
 
   async getAssignedVariant(experimentId: string, userId: string): Promise<ExperimentVariant | null> {
     const exp = await this.repository.findById(experimentId);
@@ -265,6 +181,8 @@ export class ABExperimentService {
     }
     return exp.variants[exp.variants.length - 1];
   }
+
+  // ---- helpers ----
 
   private generateResults(exp: ABExperiment, winnerVariant?: string): Record<string, unknown> {
     return {

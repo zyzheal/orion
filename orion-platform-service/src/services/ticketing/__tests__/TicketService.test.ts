@@ -2,6 +2,11 @@
  * TASK-801: TicketService Integration Tests
  */
 
+// Mock NATS to avoid connection timeouts in test environment
+jest.mock('nats', () => ({
+  connect: jest.fn().mockRejectedValue(new Error('NATS not available in test')),
+}));
+
 import { TicketService } from '../TicketService';
 import { TicketingRepository } from '../TicketingRepository';
 
@@ -84,6 +89,7 @@ const mockTicketingRepository = {
   getAvailableEngineers: jest.fn().mockResolvedValue([]),
   findEngineerProfileById: jest.fn().mockResolvedValue(null),
   count: jest.fn().mockImplementation(() => Promise.resolve(mockTickets.length)),
+  getDb: jest.fn().mockReturnValue(undefined),
 };
 
 function clearMockTickets() {

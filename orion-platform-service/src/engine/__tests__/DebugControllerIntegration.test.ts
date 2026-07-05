@@ -130,12 +130,12 @@ describe('DebugController Integration with StageExecutor', () => {
   let mockPublisher: jest.Mocked<PipelineEventPublisher>;
   let executor: StageExecutor;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     DebugController.resetForTesting();
     debugController = DebugController.getInstance();
     mockRunner = new MockTaskRunner();
     mockPublisher = createMockEventPublisher();
-    executor = new StageExecutor(mockRunner, mockPublisher, undefined, undefined, debugController);
+    executor = new StageExecutor(mockRunner, mockPublisher, undefined, undefined, undefined, debugController);
   });
 
   // ==================== 1. No DebugController (production mode) ====================
@@ -143,7 +143,7 @@ describe('DebugController Integration with StageExecutor', () => {
   describe('production mode (no DebugController)', () => {
     let prodExecutor: StageExecutor;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       // Create executor WITHOUT DebugController — this is production mode
       prodExecutor = new StageExecutor(mockRunner, mockPublisher);
     });
@@ -152,7 +152,7 @@ describe('DebugController Integration with StageExecutor', () => {
       const stage = createTestStage();
       const tasks = createTestTasks(3, 'run-prod', 'stage-prod');
 
-      const result = await prodExecutor.executeStage('run-prod', stage, tasks);
+      const result = await prodExecutor.executeStage('test-pipeline', 'run-prod', stage, tasks);
 
       expect(result.success).toBe(true);
       expect(mockRunner.executeCount).toBe(3);
@@ -165,7 +165,7 @@ describe('DebugController Integration with StageExecutor', () => {
       // Spy on DebugController to verify it's never called
       const spy = jest.spyOn(debugController, 'shouldPause');
 
-      await prodExecutor.executeStage('run-prod2', stage, tasks);
+      await prodExecutor.executeStage('test-pipeline', 'run-prod2', stage, tasks);
 
       expect(spy).not.toHaveBeenCalled();
     });
@@ -184,7 +184,7 @@ describe('DebugController Integration with StageExecutor', () => {
 
       // Start executing stage — this will run all 3 tasks sequentially
       // We use a promise to track when execution completes
-      const executionPromise = executor.executeStage(runId, stage, tasks);
+      const executionPromise = executor.executeStage('test-pipeline', runId, stage, tasks);
 
       // Give the first task a moment to start
       await new Promise(r => setTimeout(r, 10));
@@ -218,7 +218,7 @@ describe('DebugController Integration with StageExecutor', () => {
       // Register with running status — should not pause
       debugController.registerRun(runId, { status: 'running' });
 
-      const result = await executor.executeStage(runId, stage, tasks);
+      const result = await executor.executeStage('test-pipeline', runId, stage, tasks);
 
       expect(result.success).toBe(true);
       expect(mockRunner.executeCount).toBe(2);
@@ -246,7 +246,7 @@ describe('DebugController Integration with StageExecutor', () => {
 
       // The first task should execute (step mode allows one), then the second
       // task should see paused status and block
-      const executionPromise = executor.executeStage(runId, stage, tasks);
+      const executionPromise = executor.executeStage('test-pipeline', runId, stage, tasks);
 
       // Wait for step execution to complete and second task to pause
       await new Promise(r => setTimeout(r, 100));
@@ -277,7 +277,7 @@ describe('DebugController Integration with StageExecutor', () => {
 
       // Step 1: execute first task
       await debugController.step(runId);
-      const execPromise = executor.executeStage(runId, stage, tasks);
+      const execPromise = executor.executeStage('test-pipeline', runId, stage, tasks);
 
       await waitForCondition(() => mockRunner.executeCount === 1, 500);
       expect(mockRunner.executeCount).toBe(1);
@@ -314,13 +314,14 @@ describe('DebugController Integration with StageExecutor', () => {
         mockRunner,
         mockPublisher,
         undefined,
+        undefined,
         variableCtx,
         debugController
       );
 
       debugController.registerRun(runId, { status: 'running' });
 
-      const result = await executorWithBoth.executeStage(runId, stage, tasks);
+      const result = await executorWithBoth.executeStage('test-pipeline', runId, stage, tasks);
 
       expect(result.success).toBe(true);
       expect(mockRunner.executeCount).toBe(2);
@@ -357,7 +358,7 @@ describe('DebugController Integration with StageExecutor', () => {
 
       // executeTask wraps the runner in try/catch and returns a failed task
       // executeStage returns { success: false } when a task fails
-      const result = await executor.executeStage(runId, stage, tasks);
+      const result = await executor.executeStage('test-pipeline', runId, stage, tasks);
 
       expect(result.success).toBe(false);
       expect(mockRunner.executeCount).toBe(2);

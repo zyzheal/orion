@@ -12,9 +12,12 @@
  * 6. 执行审计日志
  */
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { HookChainDefinitionRepository } from '../../repositories/HookChainDefinitionRepository';
+import { HookChainExecutionRepository } from '../../repositories/HookChainExecutionRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('HookChainService');
 
 // ==================== Types ====================
 
@@ -111,7 +114,7 @@ class WebhookExecutor implements HookExecutor {
     });
 
     if (!response.ok) {
-      throw new Error(`Webhook call failed: ${response.status} ${response.statusText}`);
+      throw new OrionError(`Webhook call failed: ${response.status} ${response.statusText}`, ErrorCode.NOT_FOUND);
     }
 
     return response.json() as Promise<Record<string, any>>;
@@ -154,7 +157,7 @@ class PipelineTriggerExecutor implements HookExecutor {
     const { pipelineId, parameters = {} } = config;
 
     if (!this.pipelineService) {
-      throw new Error('Pipeline service not configured');
+      throw new OrionError('Pipeline service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 触发 Pipeline
@@ -183,7 +186,7 @@ class ApprovalExecutor implements HookExecutor {
     const { approvalType, approvers, timeoutMinutes = 30 } = config;
 
     if (!this.approvalService) {
-      throw new Error('Approval service not configured');
+      throw new OrionError('Approval service not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     // 创建审批请求
@@ -214,13 +217,20 @@ export class HookChainService extends EventEmitter {
   private executors: Map<string, HookExecutor> = new Map();
   private executionHistory: Map<string, ChainExecutionResult[]> = new Map();
   private pendingExecutions: Map<string, HookExecutionContext> = new Map();
+  private chainRepo?: HookChainDefinitionRepository;
+  private executionRepo?: HookChainExecutionRepository;
 
   constructor(options?: {
     eventBus?: EventEmitter;
     pipelineService?: any;
     approvalService?: any;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     super();
+    if (options?.db) {
+      this.chainRepo = new HookChainDefinitionRepository(options.db);
+      this.executionRepo = new HookChainExecutionRepository(options.db);
+    }
 
     const eventBus = options?.eventBus || new EventEmitter();
 
@@ -242,6 +252,20 @@ export class HookChainService extends EventEmitter {
 
     // 存储
     this.chains.set(definition.id, definition);
+
+    // Persist to DB
+    if (this.chainRepo) {
+      this.chainRepo.create({
+        id: definition.id,
+        name: definition.name,
+        description: definition.description || null,
+        hooks: definition.hooks,
+        executionMode: definition.executionMode || 'sequential',
+        stopOnFailure: definition.stopOnFailure !== false,
+        inputTransform: definition.inputTransform || null,
+        outputTransform: definition.outputTransform || null,
+      }).catch((err) => logger.warn({ err, chainId: definition.id }, 'Failed to persist hook chain'));
+    }
 
     logger.info({ chainId: definition.id, hooksCount: definition.hooks.length }, 'Hook chain created');
     this.emit('chain:created', { chainId: definition.id, definition });
@@ -302,7 +326,7 @@ export class HookChainService extends EventEmitter {
   ): Promise<ChainExecutionResult> {
     const chain = this.chains.get(chainId);
     if (!chain) {
-      throw new Error(`Hook chain "${chainId}" not found`);
+      throw new OrionError(`Hook chain "${chainId}" not found`, ErrorCode.NOT_FOUND);
     }
 
     const executionId = `exec-${chainId}-${Date.now()}`;
@@ -464,7 +488,7 @@ export class HookChainService extends EventEmitter {
 
     const executor = this.executors.get(hook.type);
     if (!executor) {
-      throw new Error(`No executor registered for hook type "${hook.type}"`);
+      throw new OrionError(`No executor registered for hook type "${hook.type}"`, 'OPERATION_FAILED')
     }
 
     const maxRetries = hook.retryPolicy?.maxRetries || 0;
@@ -559,12 +583,12 @@ export class HookChainService extends EventEmitter {
   // ==================== Helpers ====================
 
   private validateChainDefinition(definition: HookChainDefinition): void {
-    if (!definition.id) throw new Error('Chain id is required');
-    if (!definition.hooks || definition.hooks.length === 0) throw new Error('Chain must have at least one hook');
+    if (!definition.id) throw new OrionError('Chain id is required', ErrorCode.VALIDATION_ERROR);
+    if (!definition.hooks || definition.hooks.length === 0) throw new OrionError('Chain must have at least one hook', ErrorCode.OPERATION_FAILED);
 
     for (const hook of definition.hooks) {
-      if (!hook.id) throw new Error('Hook id is required');
-      if (!hook.type) throw new Error('Hook type is required');
+      if (!hook.id) throw new OrionError('Hook id is required', ErrorCode.VALIDATION_ERROR);
+      if (!hook.type) throw new OrionError('Hook type is required', ErrorCode.VALIDATION_ERROR);
       if (!this.executors.has(hook.type)) {
         logger.warn({ hookType: hook.type }, 'Unknown hook type, execution may fail');
       }
@@ -603,6 +627,22 @@ export class HookChainService extends EventEmitter {
       history = history.slice(-100);
     }
     this.executionHistory.set(chainId, history);
+
+    // Persist to DB
+    if (this.executionRepo) {
+      this.executionRepo.create({
+        id: result.executionId,
+        chainId,
+        executionId: result.executionId,
+        triggerSource: null,
+        success: result.success,
+        hookResults: result.hookResults,
+        totalDurationMs: result.totalDurationMs,
+        finalOutput: result.finalOutput || null,
+        error: result.error || null,
+        executedAt: result.timestamp,
+      }).catch((err) => logger.warn({ err, chainId: result.chainId }, 'Failed to persist chain execution result'));
+    }
   }
 
   // ==================== Query Methods ====================

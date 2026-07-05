@@ -51,30 +51,67 @@ export interface UpdateStatusInput {
   status: EnvironmentStatus;
 }
 
+export interface LockEnvironmentInput {
+  reason: string;
+  lockedBy?: string;
+}
+
+export interface EnvironmentLockInfo {
+  locked: boolean;
+  lockedBy?: string;
+  lockedAt?: string;
+  reason?: string;
+}
+
+export interface EnvironmentWithLock extends Environment {
+  locked?: boolean;
+  locked_by?: string;
+  locked_at?: string;
+  locked_reason?: string;
+}
+
 // ---- CRUD ----
 
 export function getEnvironments(params?: { projectId?: string }) {
-  return api.get<Environment[]>('/v1/environments', { params });
+  return api.get<Environment[]>('/api/v1/environments', { params });
 }
 
 export function getEnvironment(id: string) {
-  return api.get<Environment>(`/v1/environments/${id}`);
+  return api.get<Environment>(`/api/v1/environments/${id}`);
 }
 
 export function createEnvironment(data: CreateEnvironmentInput) {
-  return api.post<Environment>('/v1/environments', data);
+  return api.post<Environment>('/api/v1/environments', data);
 }
 
 export function updateEnvironment(id: string, data: UpdateEnvironmentInput) {
-  return api.put<Environment>(`/v1/environments/${id}`, data);
+  return api.put<Environment>(`/api/v1/environments/${id}`, data);
 }
 
 export function deleteEnvironment(id: string) {
-  return api.delete(`/v1/environments/${id}`);
+  return api.delete(`/api/v1/environments/${id}`);
 }
 
 // ---- Status ----
 
 export function updateEnvironmentStatus(id: string, data: UpdateStatusInput) {
-  return api.post<Environment>(`/v1/environments/${id}/status`, data);
+  return api.post<Environment>(`/api/v1/environments/${id}/status`, data);
+}
+
+// ---- Lock ----
+
+export function lockEnvironment(id: string, data: LockEnvironmentInput) {
+  return api.post<EnvironmentLockInfo>(`/api/v1/environments/${id}/lock`, data);
+}
+
+export function unlockEnvironment(id: string) {
+  return api.post<EnvironmentLockInfo>(`/api/v1/environments/${id}/unlock`);
+}
+
+export function getEnvironmentLockStatus(id: string) {
+  return api.get<EnvironmentLockInfo>(`/api/v1/environments/${id}/lock-status`);
+}
+
+export function checkDeploymentAllowed(id: string) {
+  return api.get<{ allowed: boolean; reason?: string }>(`/api/v1/environments/${id}/deployment-allowed`);
 }

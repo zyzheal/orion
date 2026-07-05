@@ -6,6 +6,7 @@
  */
 
 // ==================== Environment ====================
+import type { JsonSchema } from './ConfigValidationService';
 
 export type ConfigEnvironment = 'dev' | 'staging' | 'prod';
 
@@ -220,4 +221,186 @@ export interface IEventPublisher {
     data: T,
     options?: { source?: string; extensions?: Record<string, any> }
   ): Promise<string>;
+}
+
+// ==================== Config Schema ====================
+
+export type SchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null';
+
+export type SchemaFormat = 'email' | 'url' | 'uuid' | 'date-time' | 'date' | 'time' | 'ipv4' | 'ipv6' | 'uri';
+
+export interface ConfigSchema {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  schema: JsonSchema;
+  config_key?: string;
+  version: number;
+  is_active: boolean;
+  created_by: string;
+  updated_by?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CreateConfigSchemaInput {
+  name: string;
+  description?: string;
+  schema: JsonSchema;
+  configKey?: string;
+  createdBy: string;
+}
+
+export interface UpdateConfigSchemaInput {
+  name?: string;
+  description?: string;
+  schema?: JsonSchema;
+  configKey?: string;
+  isActive?: boolean;
+  updatedBy: string;
+}
+
+export interface ListConfigSchemasFilter {
+  configKey?: string;
+  isActive?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+// ==================== Config Template ====================
+
+export interface ConfigTemplate {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  configData: Record<string, any>;
+  targetEnvironment: ConfigEnvironment;
+  isActive: boolean;
+  createdBy: string;
+  updatedBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateConfigTemplateInput {
+  name: string;
+  description?: string;
+  category?: string;
+  configData: Record<string, any>;
+  targetEnvironment?: ConfigEnvironment;
+  createdBy: string;
+}
+
+export interface UpdateConfigTemplateInput {
+  name?: string;
+  description?: string;
+  category?: string;
+  configData?: Record<string, any>;
+  targetEnvironment?: ConfigEnvironment;
+  isActive?: boolean;
+  updatedBy: string;
+}
+
+// ==================== Config Template Version ====================
+
+export interface ConfigTemplateVersion {
+  id: string;
+  templateId: string;
+  tenant_id: string;
+  configData: Record<string, any>;
+  version: number;
+  changeLog?: string;
+  createdBy: string;
+  createdAt: Date;
+}
+
+export interface CreateConfigTemplateVersionInput {
+  templateId: string;
+  configData: Record<string, any>;
+  changeLog?: string;
+  createdBy: string;
+}
+
+// ==================== Canary Deployment ====================
+
+export type CanaryDeploymentStatus = 'pending' | 'running' | 'promoted' | 'rolled_back' | 'failed';
+
+export interface CanaryDeployment {
+  id: string;
+  tenant_id: string;
+  configId: string;
+  configKey: string;
+  environment: ConfigEnvironment;
+  percentage: number;
+  status: CanaryDeploymentStatus;
+  oldValue?: Record<string, any>;
+  canaryValue: Record<string, any>;
+  targetValue: Record<string, any>;
+  promotedAt?: Date;
+  rolledBackAt?: Date;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateCanaryDeploymentInput {
+  configId: string;
+  configKey: string;
+  environment: ConfigEnvironment;
+  percentage: number;
+  canaryValue: Record<string, any>;
+  targetValue: Record<string, any>;
+  createdBy: string;
+}
+
+export interface UpdateCanaryPercentageInput {
+  percentage: number;
+}
+
+// ==================== Canary Deployment History ====================
+
+export interface CanaryDeploymentHistory {
+  id: string;
+  deploymentId: string;
+  tenant_id: string;
+  oldPercentage: number;
+  newPercentage: number;
+  action: string;
+  performedBy: string;
+  createdAt: Date;
+}
+
+// ==================== Config Dependency ====================
+
+export type DependencyType = 'hard' | 'soft';
+
+export interface ConfigDependency {
+  id: string;
+  tenant_id: string;
+  configId: string;
+  dependsOnConfigId: string;
+  dependencyType: DependencyType;
+  description?: string;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CreateConfigDependencyInput {
+  configId: string;
+  dependsOnConfigId: string;
+  dependencyType?: DependencyType;
+  description?: string;
+  createdBy: string;
+}
+
+export interface DependencyGraphNode {
+  configId: string;
+  configKey: string;
+  dependencies: DependencyGraphNode[];
+  dependents: DependencyGraphNode[];
 }

@@ -9,7 +9,7 @@ describe('NotificationService', () => {
   let mockRepository: jest.Mocked<NotificationRepository>;
   let service: NotificationService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockRepository = {
       findById: jest.fn(),
       findAll: jest.fn(),
@@ -17,6 +17,7 @@ describe('NotificationService', () => {
       markAsSent: jest.fn(),
       markAsRead: jest.fn(),
       getUnreadCount: jest.fn(),
+      count: jest.fn(),
     } as unknown as jest.Mocked<NotificationRepository>;
 
     service = new NotificationService(mockRepository);
@@ -80,20 +81,24 @@ describe('NotificationService', () => {
         { id: 'n1', tenant_id: 't1', user_id: 'u1', type: 'alert', title: 'A', message: 'M', channel: 'in-app', status: 'sent', sent_at: new Date(), read_at: null, created_at: new Date() },
         { id: 'n2', tenant_id: 't1', user_id: 'u1', type: 'info', title: 'B', message: 'M', channel: 'email', status: 'sent', sent_at: new Date(), read_at: null, created_at: new Date() },
       ];
+      mockRepository.count.mockResolvedValue(2);
       mockRepository.findAll.mockResolvedValue(mockNotifications);
 
       const result = await service.getNotifications('u1', 10);
 
-      expect(result).toEqual(mockNotifications);
-      expect(mockRepository.findAll).toHaveBeenCalledWith({ userId: 'u1', limit: 10 });
+      expect(result.data).toEqual(mockNotifications);
+      expect(result.total).toBe(2);
+      expect(mockRepository.findAll).toHaveBeenCalledWith({ userId: 'u1', limit: 10, offset: 0 });
     });
 
     it('should return empty array when no notifications', async () => {
+      mockRepository.count.mockResolvedValue(0);
       mockRepository.findAll.mockResolvedValue([]);
 
       const result = await service.getNotifications('u1');
 
-      expect(result).toEqual([]);
+      expect(result.data).toEqual([]);
+      expect(result.total).toBe(0);
     });
   });
 
@@ -170,7 +175,7 @@ describe('NotificationRepository', () => {
   let mockDb: { query: jest.Mock };
   let repository: NotificationRepository;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockDb = { query: jest.fn() };
     repository = new NotificationRepository(mockDb as any);
   });

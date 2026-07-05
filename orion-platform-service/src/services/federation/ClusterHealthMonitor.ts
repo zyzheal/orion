@@ -3,9 +3,19 @@
  *
  * Provides health checking, metrics collection, and anomaly detection
  * for federated clusters.
- * Uses in-memory Map storage (can migrate to Repository later).
+ * Uses PostgreSQL Repository as primary storage. In-memory Maps serve as
+ * optional read-through cache for hot data.
  */
 import { v4 as uuidv4 } from 'uuid';
+import {
+  ClusterRecordRepository,
+  ClusterHealthCheckRepository,
+  ClusterMetricsRepository,
+  ClusterAnomalyRepository,
+} from '../../repositories/ClusterHealthRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('cluster-health-monitor');
 
 export interface ClusterRecord {
   id: string;
@@ -64,19 +74,75 @@ export interface AnomalyDetectionResult {
 }
 
 export class ClusterHealthMonitor {
-  private clusters: Map<string, ClusterRecord> = new Map();
-  private healthChecks: Map<string, HealthCheckResult[]> = new Map();
-  private metrics: Map<string, ClusterMetrics[]> = new Map();
-  private anomalies: Map<string, AnomalyDetectionResult[]> = new Map();
-  private clustersByTenant: Map<string, string[]> = new Map();
+  // In-memory read-through cache (optional, populated lazily from repository)
+  private clusterCache: Map<string, ClusterRecord> = new Map();
+  private healthCheckCache: Map<string, HealthCheckResult[]> = new Map();
+  private metricsCache: Map<string, ClusterMetrics[]> = new Map();
+  private anomalyCache: Map<string, AnomalyDetectionResult[]> = new Map();
+  private tenantClusterCache: Map<string, string[]> = new Map();
+
+  // PostgreSQL Repositories (primary storage)
+  private clusterRepo?: ClusterRecordRepository;
+  private healthCheckRepo?: ClusterHealthCheckRepository;
+  private metricsRepo?: ClusterMetricsRepository;
+  private anomalyRepo?: ClusterAnomalyRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.clusterRepo = new ClusterRecordRepository(db);
+      this.healthCheckRepo = new ClusterHealthCheckRepository(db);
+      this.metricsRepo = new ClusterMetricsRepository(db);
+      this.anomalyRepo = new ClusterAnomalyRepository(db);
+    }
+  }
+
+  /** Whether repository (PostgreSQL) is available */
+  private get hasRepository(): boolean {
+    return this.clusterRepo !== undefined;
+  }
 
   /**
-   * Register a cluster
+   * Load all cluster data from repository into cache on startup
    */
-  registerCluster(
+  async loadFromRepository(): Promise<void> {
+    if (!this.hasRepository || !this.clusterRepo) return;
+
+    try {
+      const allClusters = await this.clusterRepo.findAll({ limit: 1000 });
+      for (const entity of allClusters.entities) {
+        const cluster: ClusterRecord = {
+          id: entity.id,
+          tenantId: entity.tenantId,
+          name: entity.name,
+          endpoint: entity.endpoint,
+          region: entity.region,
+          status: entity.status as ClusterRecord['status'],
+          nodeCount: entity.nodeCount,
+          createdAt: entity.createdAt,
+          lastHealthCheck: entity.lastHealthCheck || undefined,
+        };
+        this.clusterCache.set(cluster.id, cluster);
+
+        const tenantClusters = this.tenantClusterCache.get(cluster.tenantId) ?? [];
+        if (!tenantClusters.includes(cluster.id)) {
+          tenantClusters.push(cluster.id);
+        }
+        this.tenantClusterCache.set(cluster.tenantId, tenantClusters);
+      }
+      logger.info({ clusterCount: allClusters.entities.length }, 'ClusterHealthMonitor loaded clusters from repository');
+    } catch (err) {
+      logger.warn({ err }, '[ClusterHealthMonitor] Failed to load from repository');
+    }
+  }
+
+  /**
+   * Register a cluster.
+   * Writes to PostgreSQL first (when available), then updates cache.
+   */
+  async registerCluster(
     tenantId: string,
     input: { name: string; endpoint: string; region: string; nodeCount?: number }
-  ): ClusterRecord {
+  ): Promise<ClusterRecord> {
     const id = uuidv4();
     const cluster: ClusterRecord = {
       id,
@@ -89,23 +155,35 @@ export class ClusterHealthMonitor {
       createdAt: new Date(),
     };
 
-    this.clusters.set(id, cluster);
-    this.healthChecks.set(id, []);
-    this.metrics.set(id, []);
-    this.anomalies.set(id, []);
+    // Persist to repository first (primary storage)
+    if (this.hasRepository && this.clusterRepo) {
+      await this.clusterRepo.create({
+        id,
+        tenant_id: tenantId,
+        name: input.name,
+        endpoint: input.endpoint,
+        region: input.region,
+        status: 'online',
+        node_count: input.nodeCount ?? 3,
+        last_health_check: null,
+      });
+    }
 
-    const tenantClusters = this.clustersByTenant.get(tenantId) ?? [];
+    // Update cache
+    this.clusterCache.set(id, cluster);
+    const tenantClusters = this.tenantClusterCache.get(tenantId) ?? [];
     tenantClusters.push(id);
-    this.clustersByTenant.set(tenantId, tenantClusters);
+    this.tenantClusterCache.set(tenantId, tenantClusters);
 
     return cluster;
   }
 
   /**
-   * Perform health check on a cluster
+   * Perform health check on a cluster.
+   * Writes result to PostgreSQL first, then updates cache.
    */
-  checkClusterHealth(clusterId: string): HealthCheckResult | null {
-    const cluster = this.clusters.get(clusterId);
+  async checkClusterHealth(clusterId: string): Promise<HealthCheckResult | null> {
+    const cluster = await this.getClusterById(clusterId);
     if (!cluster) {
       return null;
     }
@@ -151,33 +229,91 @@ export class ClusterHealthMonitor {
       checkedAt: new Date(),
     };
 
-    cluster.lastHealthCheck = new Date();
+    // Persist to repository first
+    if (this.hasRepository && this.healthCheckRepo) {
+      await this.healthCheckRepo.create({
+        id: `${clusterId}-${Date.now()}`,
+        cluster_id: clusterId,
+        cluster_name: cluster.name,
+        status,
+        api_server_reachable: apiServerReachable,
+        api_server_latency_ms: apiServerLatencyMs,
+        node_count: cluster.nodeCount,
+        node_ready_count: nodeReadyCount,
+        pod_count: result.podCount,
+        cpu_usage_pct: cpuUsage,
+        memory_usage_pct: memoryUsage,
+        disk_usage_pct: diskUsage,
+        anomalies,
+        checked_at: new Date(),
+      });
+    }
 
-    // Store health check history
-    const history = this.healthChecks.get(clusterId) ?? [];
+    // Update cluster lastHealthCheck in repository
+    if (this.hasRepository && this.clusterRepo) {
+      await this.clusterRepo.updateLastHealthCheck(clusterId);
+    }
+
+    // Update cache
+    cluster.lastHealthCheck = new Date();
+    this.clusterCache.set(clusterId, cluster);
+
+    const history = this.healthCheckCache.get(clusterId) ?? [];
     history.push(result);
-    // Keep last 100 entries
     if (history.length > 100) {
       history.splice(0, history.length - 100);
     }
-    this.healthChecks.set(clusterId, history);
+    this.healthCheckCache.set(clusterId, history);
 
     return result;
   }
 
   /**
-   * Get cluster metrics for a given time window
+   * Get cluster metrics for a given time window.
+   * Tries cache first, then repository, then generates simulated data.
    */
-  getClusterMetrics(clusterId: string, timeWindow: string = '1h'): ClusterMetrics | null {
-    const cluster = this.clusters.get(clusterId);
+  async getClusterMetrics(clusterId: string, timeWindow: string = '1h'): Promise<ClusterMetrics | null> {
+    const cluster = await this.getClusterById(clusterId);
     if (!cluster) {
       return null;
     }
 
-    const allMetrics = this.metrics.get(clusterId) ?? [];
-    const matching = allMetrics.filter((m) => m.timeWindow === timeWindow);
+    // Check cache first
+    const cached = this.metricsCache.get(clusterId) ?? [];
+    const matching = cached.filter((m) => m.timeWindow === timeWindow);
     if (matching.length > 0) {
       return matching[matching.length - 1];
+    }
+
+    // Check repository for existing metrics
+    if (this.hasRepository && this.metricsRepo) {
+      try {
+        const entity = await this.metricsRepo.getLatestByClusterId(clusterId, timeWindow);
+        if (entity) {
+          const metrics: ClusterMetrics = {
+            clusterId: entity.clusterId,
+            clusterName: entity.clusterName || cluster.name,
+            timeWindow: entity.timeWindow,
+            cpuUsageAvg: entity.cpuUsageAvg,
+            cpuUsageMax: entity.cpuUsageMax,
+            memoryUsageAvg: entity.memoryUsageAvg,
+            memoryUsageMax: entity.memoryUsageMax,
+            networkInBytes: entity.networkInBytes,
+            networkOutBytes: entity.networkOutBytes,
+            podCountAvg: entity.podCountAvg,
+            podRestartCount: entity.podRestartCount,
+            errorCount: entity.errorCount,
+            latencyP50Ms: entity.latencyP50Ms,
+            latencyP99Ms: entity.latencyP99Ms,
+            collectedAt: entity.collectedAt,
+          };
+          // Populate cache
+          this.metricsCache.set(clusterId, [...cached, metrics]);
+          return metrics;
+        }
+      } catch {
+        // Fall through to generate simulated data
+      }
     }
 
     // Generate simulated metrics
@@ -199,30 +335,81 @@ export class ClusterHealthMonitor {
       collectedAt: new Date(),
     };
 
-    allMetrics.push(generated);
-    if (allMetrics.length > 200) {
-      allMetrics.splice(0, allMetrics.length - 200);
+    // Persist to repository first
+    if (this.hasRepository && this.metricsRepo) {
+      await this.metricsRepo.create({
+        id: `${clusterId}-${timeWindow}-${Date.now()}`,
+        cluster_id: clusterId,
+        cluster_name: cluster.name,
+        time_window: timeWindow,
+        cpu_usage_avg: generated.cpuUsageAvg,
+        cpu_usage_max: generated.cpuUsageMax,
+        memory_usage_avg: generated.memoryUsageAvg,
+        memory_usage_max: generated.memoryUsageMax,
+        network_in_bytes: generated.networkInBytes,
+        network_out_bytes: generated.networkOutBytes,
+        pod_count_avg: generated.podCountAvg,
+        pod_restart_count: generated.podRestartCount,
+        error_count: generated.errorCount,
+        latency_p50_ms: generated.latencyP50Ms,
+        latency_p99_ms: generated.latencyP99Ms,
+        collected_at: generated.collectedAt,
+      });
     }
-    this.metrics.set(clusterId, allMetrics);
+
+    // Update cache
+    cached.push(generated);
+    if (cached.length > 200) {
+      cached.splice(0, cached.length - 200);
+    }
+    this.metricsCache.set(clusterId, cached);
 
     return generated;
   }
 
   /**
-   * Detect anomalies for a cluster based on health data
+   * Detect anomalies for a cluster based on health data.
+   * Reads latest health check from cache or repository.
    */
-  detectClusterAnomalies(clusterId: string): AnomalyDetectionResult[] {
-    const cluster = this.clusters.get(clusterId);
+  async detectClusterAnomalies(clusterId: string): Promise<AnomalyDetectionResult[]> {
+    const cluster = await this.getClusterById(clusterId);
     if (!cluster) {
       return [];
     }
 
     const anomalies: AnomalyDetectionResult[] = [];
-    const history = this.healthChecks.get(clusterId) ?? [];
-    const latest = history.length > 0 ? history[history.length - 1] : null;
+
+    // Get latest health check from cache or repository
+    let latest: HealthCheckResult | null = null;
+    const history = this.healthCheckCache.get(clusterId) ?? [];
+    if (history.length > 0) {
+      latest = history[history.length - 1];
+    } else if (this.hasRepository && this.healthCheckRepo) {
+      try {
+        const entity = await this.healthCheckRepo.getLatestByClusterId(clusterId);
+        if (entity) {
+          latest = {
+            clusterId: entity.clusterId,
+            clusterName: entity.clusterName || '',
+            status: entity.status as HealthCheckResult['status'],
+            apiServerReachable: entity.apiServerReachable,
+            apiServerLatencyMs: entity.apiServerLatencyMs,
+            nodeCount: entity.nodeCount,
+            nodeReadyCount: entity.nodeReadyCount,
+            podCount: entity.podCount,
+            cpuUsagePct: entity.cpuUsagePct,
+            memoryUsagePct: entity.memoryUsagePct,
+            diskUsagePct: entity.diskUsagePct,
+            anomalies: entity.anomalies,
+            checkedAt: entity.checkedAt,
+          };
+        }
+      } catch {
+        // Fall through - latest stays null
+      }
+    }
 
     if (!latest) {
-      // No data available
       anomalies.push({
         clusterId,
         clusterName: cluster.name,
@@ -232,7 +419,7 @@ export class ClusterHealthMonitor {
         detectedAt: new Date(),
         metricsSnapshot: {},
       });
-      this.recordAnomalies(clusterId, anomalies);
+      await this.recordAnomalies(clusterId, anomalies);
       return anomalies;
     }
 
@@ -302,33 +489,80 @@ export class ClusterHealthMonitor {
       });
     }
 
-    this.recordAnomalies(clusterId, anomalies);
+    await this.recordAnomalies(clusterId, anomalies);
     return anomalies;
   }
 
   /**
-   * Get recent anomalies for a cluster
+   * Get recent anomalies for a cluster.
+   * Checks cache first, then falls back to repository.
    */
-  getRecentAnomalies(clusterId: string, limit: number = 10): AnomalyDetectionResult[] {
-    const allAnomalies = this.anomalies.get(clusterId) ?? [];
-    return allAnomalies.slice(-limit).reverse();
+  async getRecentAnomalies(clusterId: string, limit: number = 10): Promise<AnomalyDetectionResult[]> {
+    // Try in-memory cache first
+    const cached = this.anomalyCache.get(clusterId) ?? [];
+    if (cached.length > 0) {
+      return cached.slice(-limit).reverse();
+    }
+
+    // Fall back to repository
+    if (this.hasRepository && this.anomalyRepo) {
+      try {
+        const entities = await this.anomalyRepo.findByClusterId(clusterId, limit);
+        return entities.map(e => ({
+          clusterId: e.clusterId,
+          clusterName: e.clusterName || '',
+          anomalyType: e.anomalyType,
+          severity: e.severity as AnomalyDetectionResult['severity'],
+          description: e.description || '',
+          detectedAt: e.detectedAt,
+          metricsSnapshot: e.metricsSnapshot,
+        }));
+      } catch {
+        // Silently fall through
+      }
+    }
+
+    return [];
   }
 
   /**
-   * List clusters for a tenant
+   * List clusters for a tenant.
+   * Queries repository when available, falls back to cache.
    */
-  listClusters(tenantId: string): ClusterRecord[] {
-    const clusterIds = this.clustersByTenant.get(tenantId) ?? [];
+  async listClusters(tenantId: string): Promise<ClusterRecord[]> {
+    // If repository available, query it directly (source of truth)
+    if (this.hasRepository && this.clusterRepo) {
+      try {
+        const entities = await this.clusterRepo.findByTenantId(tenantId);
+        return entities.map(e => ({
+          id: e.id,
+          tenantId: e.tenantId,
+          name: e.name,
+          endpoint: e.endpoint,
+          region: e.region,
+          status: e.status as ClusterRecord['status'],
+          nodeCount: e.nodeCount,
+          createdAt: e.createdAt,
+          lastHealthCheck: e.lastHealthCheck || undefined,
+        }));
+      } catch {
+        // Fall through to cache
+      }
+    }
+
+    // Fallback: cache-only mode
+    const clusterIds = this.tenantClusterCache.get(tenantId) ?? [];
     return clusterIds
-      .map((id) => this.clusters.get(id))
+      .map((id) => this.clusterCache.get(id))
       .filter((c): c is ClusterRecord => c !== undefined);
   }
 
   /**
-   * Get cluster by ID
+   * Get cluster by ID with tenant isolation.
+   * Queries repository when available, falls back to cache.
    */
-  getCluster(clusterId: string, tenantId: string): ClusterRecord | null {
-    const cluster = this.clusters.get(clusterId);
+  async getCluster(clusterId: string, tenantId: string): Promise<ClusterRecord | null> {
+    const cluster = await this.getClusterById(clusterId);
     if (!cluster || cluster.tenantId !== tenantId) {
       return null;
     }
@@ -336,23 +570,100 @@ export class ClusterHealthMonitor {
   }
 
   /**
-   * Get latest health check for a cluster
+   * Get latest health check for a cluster.
+   * Checks cache first, then falls back to repository.
    */
-  getLatestHealthCheck(clusterId: string): HealthCheckResult | null {
-    const history = this.healthChecks.get(clusterId) ?? [];
-    return history.length > 0 ? history[history.length - 1] : null;
+  async getLatestHealthCheck(clusterId: string): Promise<HealthCheckResult | null> {
+    // Try in-memory cache first
+    const history = this.healthCheckCache.get(clusterId) ?? [];
+    if (history.length > 0) {
+      return history[history.length - 1];
+    }
+
+    // Fall back to repository
+    if (this.hasRepository && this.healthCheckRepo) {
+      try {
+        const entity = await this.healthCheckRepo.getLatestByClusterId(clusterId);
+        if (entity) {
+          return {
+            clusterId: entity.clusterId,
+            clusterName: entity.clusterName || '',
+            status: entity.status as HealthCheckResult['status'],
+            apiServerReachable: entity.apiServerReachable,
+            apiServerLatencyMs: entity.apiServerLatencyMs,
+            nodeCount: entity.nodeCount,
+            nodeReadyCount: entity.nodeReadyCount,
+            podCount: entity.podCount,
+            cpuUsagePct: entity.cpuUsagePct,
+            memoryUsagePct: entity.memoryUsagePct,
+            diskUsagePct: entity.diskUsagePct,
+            anomalies: entity.anomalies,
+            checkedAt: entity.checkedAt,
+          };
+        }
+      } catch {
+        // Silently fall through
+      }
+    }
+
+    return null;
   }
 
   // ==================== Internal methods ====================
 
-  private recordAnomalies(clusterId: string, anomalies: AnomalyDetectionResult[]): void {
-    const existing = this.anomalies.get(clusterId) ?? [];
+  /**
+   * Look up a cluster by ID. Checks cache first, then repository.
+   * Populates cache on repository hit.
+   */
+  private async getClusterById(clusterId: string): Promise<ClusterRecord | null> {
+    // Cache hit
+    const cached = this.clusterCache.get(clusterId);
+    if (cached) return cached;
+
+    // Repository lookup
+    if (this.hasRepository && this.clusterRepo) {
+      try {
+        const entity = await this.clusterRepo.findById(clusterId);
+        if (entity) {
+          const cluster: ClusterRecord = {
+            id: entity.id,
+            tenantId: entity.tenantId,
+            name: entity.name,
+            endpoint: entity.endpoint,
+            region: entity.region,
+            status: entity.status as ClusterRecord['status'],
+            nodeCount: entity.nodeCount,
+            createdAt: entity.createdAt,
+            lastHealthCheck: entity.lastHealthCheck || undefined,
+          };
+          // Populate cache
+          this.clusterCache.set(clusterId, cluster);
+          return cluster;
+        }
+      } catch {
+        // Fall through
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Record anomalies to repository and cache.
+   */
+  private async recordAnomalies(clusterId: string, anomalies: AnomalyDetectionResult[]): Promise<void> {
+    // Persist to repository first
+    if (this.hasRepository && this.anomalyRepo) {
+      await this.anomalyRepo.createBatch(anomalies);
+    }
+
+    // Update cache
+    const existing = this.anomalyCache.get(clusterId) ?? [];
     existing.push(...anomalies);
-    // Keep last 500 entries
     if (existing.length > 500) {
       existing.splice(0, existing.length - 500);
     }
-    this.anomalies.set(clusterId, existing);
+    this.anomalyCache.set(clusterId, existing);
   }
 }
 

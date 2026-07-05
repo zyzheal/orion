@@ -101,25 +101,25 @@ export interface ChangeTrendsParams {
 // ---- API Functions ----
 
 export function analyzeChange(data: ChangeAnalyzeInput) {
-  return api.post('/v1/change-intelligence/analyze', data);
+  return api.post('/api/v1/change-intelligence/analyze', data);
 }
 
 export function getChangeReports(params?: ChangeReportListParams) {
-  return api.get('/v1/change-intelligence/reports', { params });
+  return api.get('/api/v1/change-intelligence/reports', { params });
 }
 
 export function getChangeReportDetail(id: string) {
-  return api.get(`/v1/change-intelligence/reports/${id}`);
+  return api.get(`/api/v1/change-intelligence/reports/${id}`);
 }
 
 export function getBlastRadius(reportId: string) {
-  return api.get(`/v1/change-intelligence/reports/${reportId}/blast-radius`);
+  return api.get(`/api/v1/change-intelligence/reports/${reportId}/blast-radius`);
 }
 
 export function queryBlastRadius(data: BlastRadiusQueryInput) {
-  return api.post('/v1/change-intelligence/blast-radius/query', data);
+  return api.post('/api/v1/change-intelligence/blast-radius/query', data);
 }
 
 export function getChangeTrends(params?: ChangeTrendsParams) {
-  return api.get('/v1/change-intelligence/trends', { params });
+  return api.get('/api/v1/change-intelligence/trends', { params });
 }

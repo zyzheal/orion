@@ -6,9 +6,13 @@ export interface MaintenanceWindowEntity {
   name: string;
   startTime: Date;
   endTime: Date;
+  timezone: string;
+  description: string | null;
   affectedServices: string[];
+  scope?: Record<string, any>;
   createdBy: string | null;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export class MaintenanceWindowRepository extends BaseRepository<MaintenanceWindowEntity> {
@@ -58,9 +62,13 @@ export class MaintenanceWindowRepository extends BaseRepository<MaintenanceWindo
       name: row.name,
       startTime: row.start_time,
       endTime: row.end_time,
+      timezone: row.timezone ?? 'UTC',
+      description: row.description ?? null,
       affectedServices: row.affected_services ?? [],
+      scope: row.scope ?? undefined,
       createdBy: row.created_by,
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
   }
 }

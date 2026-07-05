@@ -1,19 +1,17 @@
 /**
  * Artifact Operations API Routes
- *
- * Routes under /v1/artifact-ops
- * PostgreSQL Repository pattern: receives database pool, creates repositories and services.
+ * 制品运维 API 路由 — 操作追踪、扫描、保留策略
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { ArtifactOperationRepository } from '../repositories/ArtifactOperationRepository';
-import { RetentionPolicyRepository, RetentionEvaluationRepository } from '../repositories/ArtifactRetentionRepository';
-import { ScanReportRepository, ScanFindingRepository, MaliciousDetectionRepository } from '../repositories/ArtifactScanRepository';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { ArtifactOpsController } from './controllers/ArtifactOpsController';
 import { ArtifactOperationService } from '../services/artifact-ops/ArtifactOperationService';
 import { ArtifactScanService } from '../services/artifact-ops/ArtifactScanService';
 import { ArtifactRetentionService } from '../services/artifact-ops/ArtifactRetentionService';
-import { ArtifactOpsController, ArtifactOpsServices } from './controllers/ArtifactOpsController';
+import { ServiceUnavailableError, handleError } from '../errors';
 
 interface ArtifactOpsRoutesOptions {
   database?: DatabasePool;
@@ -21,95 +19,110 @@ interface ArtifactOpsRoutesOptions {
 
 export default async function artifactOpsRoutes(
   app: FastifyInstance,
-  opts: ArtifactOpsRoutesOptions = {},
+  options: ArtifactOpsRoutesOptions
 ): Promise<void> {
-  if (!opts.database) {
-    // Graceful degradation: register stub health route when database unavailable
-    app.get('/health', async () => ({ status: 'degraded', reason: 'database unavailable' }));
+  const db = options.database;
+
+  if (!db) {
+    const unavailable = async (_req: FastifyRequest, reply: FastifyReply) => {
+      return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+    };
+    app.post('/track', unavailable);
+    app.get('/history/:artifactId', unavailable);
+    app.get('/stats', unavailable);
+    app.post('/retention', unavailable);
+    app.post('/cleanup', unavailable);
+    app.post('/scan/:artifactId', unavailable);
+    app.get('/scan/report/:scanId', unavailable);
+    app.get('/scan/:artifactId/reports', unavailable);
+    app.post('/scan/detect', unavailable);
+    app.post('/retention/evaluate', unavailable);
+    app.post('/retention/report', unavailable);
+    app.get('/retention/policies', unavailable);
+    app.delete('/retention/policies/:policyId', unavailable);
     return;
   }
 
-  const db = opts.database;
-
-  // Create repositories
-  const operationRepo = new ArtifactOperationRepository(db);
-  const policyRepo = new RetentionPolicyRepository(db);
-  const evaluationRepo = new RetentionEvaluationRepository(db);
-  const scanReportRepo = new ScanReportRepository(db);
-  const scanFindingRepo = new ScanFindingRepository(db);
-  const maliciousDetectionRepo = new MaliciousDetectionRepository(db);
-
-  // Create services
   const operationService = new ArtifactOperationService(db);
   const scanService = new ArtifactScanService(db);
   const retentionService = new ArtifactRetentionService(db);
 
-  // Create controller
-  const services: ArtifactOpsServices = { operationService, scanService, retentionService };
-  const controller = new ArtifactOpsController(services);
-
-  // POST /v1/artifact-ops/track - Track operation
-  app.post('/track', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.trackOperation(request, reply);
+  const controller = new ArtifactOpsController({
+    operationService,
+    scanService,
+    retentionService,
   });
 
-  // GET /v1/artifact-ops/history/:artifactId - Get operation history
-  app.get('/history/:artifactId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getOperationHistory(request, reply);
-  });
+  // ==================== 操作追踪 ====================
 
-  // GET /v1/artifact-ops/stats/:tenantId - Get artifact stats
-  app.get('/stats/:tenantId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getArtifactStats(request, reply);
-  });
+  // POST /artifact-ops/track - 追踪操作
+  app.post('/track', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.trackOperation(req, reply));
 
-  // POST /v1/artifact-ops/retention - Define retention policy
-  app.post('/retention', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.defineRetentionPolicy(request, reply);
-  });
+  // GET /artifact-ops/history/:artifactId - 操作历史
+  app.get('/history/:artifactId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'read' })],
+  }, (req, reply) => controller.getOperationHistory(req, reply));
 
-  // POST /v1/artifact-ops/cleanup - Cleanup artifacts
-  app.post('/cleanup', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.cleanup(request, reply);
-  });
+  // GET /artifact-ops/stats - 统计信息
+  app.get('/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'read' })],
+  }, (req, reply) => controller.getArtifactStats(req, reply));
 
-  // POST /v1/artifact-ops/scan/:artifactId - Scan artifact
-  app.post('/scan/:artifactId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.scanArtifact(request, reply);
-  });
+  // ==================== 扫描 ====================
 
-  // GET /v1/artifact-ops/scan-report/:scanId - Get scan report
-  app.get('/scan-report/:scanId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getScanReport(request, reply);
-  });
+  // POST /artifact-ops/scan/:artifactId - 扫描制品
+  app.post('/scan/:artifactId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.scanArtifact(req, reply));
 
-  // GET /v1/artifact-ops/scans/:artifactId - Get artifact scan reports
-  app.get('/scans/:artifactId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getArtifactScanReports(request, reply);
-  });
+  // GET /artifact-ops/scan/report/:scanId - 获取扫描报告
+  app.get('/scan/report/:scanId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'read' })],
+  }, (req, reply) => controller.getScanReport(req, reply));
 
-  // POST /v1/artifact-ops/detect - Detect malicious artifact
-  app.post('/detect', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.detectMalicious(request, reply);
-  });
+  // GET /artifact-ops/scan/:artifactId/reports - 制品扫描报告列表
+  app.get('/scan/:artifactId/reports', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'read' })],
+  }, (req, reply) => controller.getArtifactScanReports(req, reply));
 
-  // POST /v1/artifact-ops/retention/evaluate - Evaluate retention
-  app.post('/retention/evaluate', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.evaluateRetention(request, reply);
-  });
+  // POST /artifact-ops/scan/detect - 恶意检测
+  app.post('/scan/detect', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.detectMalicious(req, reply));
 
-  // GET /v1/artifact-ops/retention/report - Get retention report
-  app.get('/retention/report', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getRetentionReport(request, reply);
-  });
+  // ==================== 保留策略 ====================
 
-  // GET /v1/artifact-ops/retention/policies - List retention policies
-  app.get('/retention/policies', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.listPolicies(request, reply);
-  });
+  // POST /artifact-ops/retention - 定义保留策略
+  app.post('/retention', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.defineRetentionPolicy(req, reply));
 
-  // DELETE /v1/artifact-ops/retention/policies/:policyId - Delete retention policy
-  app.delete('/retention/policies/:policyId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.deletePolicy(request, reply);
-  });
+  // POST /artifact-ops/retention/evaluate - 评估保留策略
+  app.post('/retention/evaluate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.evaluateRetention(req, reply));
+
+  // POST /artifact-ops/retention/report - 保留报告
+  app.post('/retention/report', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.getRetentionReport(req, reply));
+
+  // GET /artifact-ops/retention/policies - 策略列表
+  app.get('/retention/policies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'read' })],
+  }, (req, reply) => controller.listPolicies(req, reply));
+
+  // DELETE /artifact-ops/retention/policies/:policyId - 删除策略
+  app.delete('/retention/policies/:policyId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.deletePolicy(req, reply));
+
+  // ==================== 清理 ====================
+
+  // POST /artifact-ops/cleanup - 清理操作记录
+  app.post('/cleanup', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'artifact-ops', action: 'write' })],
+  }, (req, reply) => controller.cleanup(req, reply));
 }

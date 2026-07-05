@@ -103,7 +103,7 @@ describe('ArtifactScanService', () => {
     reportRepo = new MockScanReportRepository();
     findingRepo = new MockScanFindingRepository();
     detectionRepo = new MockMaliciousDetectionRepository();
-    service = new ArtifactScanService(reportRepo, findingRepo, detectionRepo);
+    service = new ArtifactScanService({ scanReportRepository: reportRepo, scanFindingRepository: findingRepo, maliciousDetectionRepository: detectionRepo });
   });
 
   afterEach(() => {

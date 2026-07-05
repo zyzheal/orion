@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/privacy/NERModelService.ts
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('NERModelService');
 
 export interface NEREntity {
   type: 'name' | 'organization' | 'location' | 'date' | 'email' | 'phone' | 'id_card';

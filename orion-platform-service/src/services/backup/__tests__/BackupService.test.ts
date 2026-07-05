@@ -664,8 +664,8 @@ describe('BackupService', () => {
   // ==================== Recovery ====================
 
   describe('createRecoveryPlan', () => {
-    it('should create a recovery plan', () => {
-      const plan = service.createRecoveryPlan({
+    it('should create a recovery plan', async () => {
+      const plan = await service.createRecoveryPlan({
         id: 'rp-1',
         name: 'Test Recovery',
         rto: 3600000,
@@ -683,8 +683,8 @@ describe('BackupService', () => {
   });
 
   describe('getAllRecoveryPlans', () => {
-    it('should return all recovery plans', () => {
-      service.createRecoveryPlan({
+    it('should return all recovery plans', async () => {
+      await service.createRecoveryPlan({
         id: 'rp-1',
         name: 'Plan 1',
         rto: 3600000,
@@ -693,7 +693,7 @@ describe('BackupService', () => {
         enabled: true,
       });
 
-      service.createRecoveryPlan({
+      await service.createRecoveryPlan({
         id: 'rp-2',
         name: 'Plan 2',
         rto: 7200000,
@@ -709,7 +709,7 @@ describe('BackupService', () => {
 
   describe('initiateRecovery', () => {
     it('should initiate a recovery', async () => {
-      service.createRecoveryPlan({
+      await service.createRecoveryPlan({
         id: 'rp-1',
         name: 'Test Recovery',
         rto: 3600000,
@@ -729,7 +729,7 @@ describe('BackupService', () => {
 
   describe('executeRecoveryPlan', () => {
     it('should execute a recovery plan', async () => {
-      service.createRecoveryPlan({
+      await service.createRecoveryPlan({
         id: 'rp-1',
         name: 'Test Recovery',
         rto: 3600000,
@@ -818,7 +818,7 @@ describe('BackupService', () => {
         encrypt: false,
       });
 
-      service.createRecoveryPlan({
+      await service.createRecoveryPlan({
         id: 'rp-1',
         name: 'Test Recovery',
         rto: 3600000,

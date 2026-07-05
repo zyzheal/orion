@@ -42,8 +42,8 @@ const ApiKeyManagement: React.FC = () => {
     setError(null);
     try {
       const [keysRes, statsRes] = await Promise.all([getApiKeys(), getApiKeyStats()]);
-      setKeys(keysRes.data.data?.keys ?? []);
-      setStats(statsRes.data.data?.stats ?? null);
+      setKeys(((keysRes.data as any)?.keys ?? []) as unknown as ApiKey[]);
+      setStats((statsRes.data as any)?.stats ?? null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('加载 API Key 列表失败'));
     } finally {
@@ -56,7 +56,7 @@ const ApiKeyManagement: React.FC = () => {
   const handleCreate = async (values: ApiKeyInput) => {
     try {
       const res = await createApiKey(values);
-      const newKey = res.data.data?.key?.key ?? '';
+      const newKey = (res.data as any)?.key?.key ?? '';
       setCreatedKey(newKey);
       message.success('API Key 已创建，请妥善保存');
       form.resetFields();
@@ -155,8 +155,8 @@ const ApiKeyManagement: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <KeyOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <KeyOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             API Key 管理
           </Title>
           <Text type="secondary">API Key Management</Text>

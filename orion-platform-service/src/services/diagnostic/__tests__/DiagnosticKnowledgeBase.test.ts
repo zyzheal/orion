@@ -19,8 +19,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== addPattern ====================
 
   describe('addPattern', () => {
-    it('should add a new pattern', () => {
-      const pattern = kb.addPattern({
+    it('should add a new pattern', async () => {
+      const pattern = await kb.addPattern({
         name: 'Test Pattern',
         symptoms: [
           {
@@ -39,8 +39,8 @@ describe('DiagnosticKnowledgeBase', () => {
       expect(pattern.createdAt).toBeInstanceOf(Date);
     });
 
-    it('should add multiple patterns', () => {
-      kb.addPattern({
+    it('should add multiple patterns', async () => {
+      await kb.addPattern({
         name: 'Pattern 1',
         symptoms: [{ type: 'error' }],
         rootCause: 'Cause 1',
@@ -48,7 +48,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'application',
       });
 
-      kb.addPattern({
+      await kb.addPattern({
         name: 'Pattern 2',
         symptoms: [{ type: 'warning' }],
         rootCause: 'Cause 2',
@@ -56,7 +56,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'infrastructure',
       });
 
-      const patterns = kb.getAllPatterns();
+      const patterns = await kb.getAllPatterns();
       expect(patterns.length).toBe(2);
     });
   });
@@ -64,8 +64,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== getPattern ====================
 
   describe('getPattern', () => {
-    it('should return pattern by ID', () => {
-      const pattern = kb.addPattern({
+    it('should return pattern by ID', async () => {
+      const pattern = await kb.addPattern({
         name: 'Test Pattern',
         symptoms: [{ type: 'error' }],
         rootCause: 'Test cause',
@@ -73,13 +73,13 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'application',
       });
 
-      const found = kb.getPattern(pattern.id);
+      const found = await kb.getPattern(pattern.id);
       expect(found).toBeDefined();
       expect(found!.id).toBe(pattern.id);
     });
 
-    it('should return undefined for non-existent ID', () => {
-      const found = kb.getPattern('non-existent');
+    it('should return undefined for non-existent ID', async () => {
+      const found = await kb.getPattern('non-existent');
       expect(found).toBeUndefined();
     });
   });
@@ -87,8 +87,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== searchPatterns ====================
 
   describe('searchPatterns', () => {
-    beforeEach(() => {
-      kb.addPattern({
+    beforeEach(async () => {
+      await kb.addPattern({
         name: 'Database Connection Issue',
         symptoms: [{ type: 'database_error' }],
         rootCause: 'Connection pool exhausted',
@@ -96,7 +96,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'database',
       });
 
-      kb.addPattern({
+      await kb.addPattern({
         name: 'Deployment Failure',
         symptoms: [{ type: 'deployment_failure' }],
         rootCause: 'Image not found',
@@ -104,7 +104,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'deployment',
       });
 
-      kb.addPattern({
+      await kb.addPattern({
         name: 'Network Timeout',
         symptoms: [{ type: 'network_issue' }],
         rootCause: 'Network latency',
@@ -113,39 +113,39 @@ describe('DiagnosticKnowledgeBase', () => {
       });
     });
 
-    it('should return all patterns by default', () => {
-      const results = kb.searchPatterns({});
+    it('should return all patterns by default', async () => {
+      const results = await kb.searchPatterns({});
       expect(results.length).toBe(3);
     });
 
-    it('should filter by category', () => {
-      const results = kb.searchPatterns({ category: 'database' });
+    it('should filter by category', async () => {
+      const results = await kb.searchPatterns({ category: 'database' });
       expect(results.length).toBe(1);
       expect(results[0].category).toBe('database');
     });
 
-    it('should filter by keyword', () => {
-      const results = kb.searchPatterns({ keyword: 'connection' });
+    it('should filter by keyword', async () => {
+      const results = await kb.searchPatterns({ keyword: 'connection' });
       expect(results.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should filter by minFrequency', () => {
-      const results = kb.searchPatterns({ minFrequency: 1 });
+    it('should filter by minFrequency', async () => {
+      const results = await kb.searchPatterns({ minFrequency: 1 });
       expect(results.length).toBe(0); // All have frequency 0
     });
 
-    it('should limit results', () => {
-      const results = kb.searchPatterns({ limit: 2 });
+    it('should limit results', async () => {
+      const results = await kb.searchPatterns({ limit: 2 });
       expect(results.length).toBe(2);
     });
 
-    it('should sort by frequency descending', () => {
+    it('should sort by frequency descending', async () => {
       // Update frequency on one pattern
-      const patterns = kb.getAllPatterns();
-      kb.updatePattern(patterns[1].id, { frequency: 5 });
-      kb.updatePattern(patterns[2].id, { frequency: 3 });
+      const patterns = await kb.getAllPatterns();
+      await kb.updatePattern(patterns[1].id, { frequency: 5 });
+      await kb.updatePattern(patterns[2].id, { frequency: 3 });
 
-      const results = kb.searchPatterns({});
+      const results = await kb.searchPatterns({});
       expect(results[0].frequency).toBeGreaterThanOrEqual(results[1].frequency);
     });
   });
@@ -153,8 +153,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== matchSymptoms ====================
 
   describe('matchSymptoms', () => {
-    beforeEach(() => {
-      kb.addPattern({
+    beforeEach(async () => {
+      await kb.addPattern({
         name: 'Database Connection Pattern',
         symptoms: [
           {
@@ -169,7 +169,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'database',
       });
 
-      kb.addPattern({
+      await kb.addPattern({
         name: 'Deployment Failure Pattern',
         symptoms: [
           {
@@ -185,7 +185,7 @@ describe('DiagnosticKnowledgeBase', () => {
       });
     });
 
-    it('should match symptoms to patterns', () => {
+    it('should match symptoms to patterns', async () => {
       const symptoms: Symptom[] = [
         {
           type: 'database_error',
@@ -196,13 +196,13 @@ describe('DiagnosticKnowledgeBase', () => {
         },
       ];
 
-      const results = kb.matchSymptoms(symptoms);
+      const results = await kb.matchSymptoms(symptoms);
       expect(results.length).toBeGreaterThan(0);
       expect(results[0].pattern.category).toBe('database');
       expect(results[0].matchScore).toBeGreaterThan(0);
     });
 
-    it('should return sorted results by match score', () => {
+    it('should return sorted results by match score', async () => {
       const symptoms: Symptom[] = [
         {
           type: 'database_error',
@@ -220,12 +220,12 @@ describe('DiagnosticKnowledgeBase', () => {
         },
       ];
 
-      const results = kb.matchSymptoms(symptoms);
+      const results = await kb.matchSymptoms(symptoms);
       expect(results.length).toBe(2);
       expect(results[0].matchScore).toBeGreaterThanOrEqual(results[1].matchScore);
     });
 
-    it('should return empty for non-matching symptoms', () => {
+    it('should return empty for non-matching symptoms', async () => {
       const symptoms: Symptom[] = [
         {
           type: 'unknown_type',
@@ -236,7 +236,7 @@ describe('DiagnosticKnowledgeBase', () => {
         },
       ];
 
-      const results = kb.matchSymptoms(symptoms);
+      const results = await kb.matchSymptoms(symptoms);
       expect(results.length).toBe(0);
     });
   });
@@ -246,8 +246,8 @@ describe('DiagnosticKnowledgeBase', () => {
   describe('recordOutcome', () => {
     let patternId: string;
 
-    beforeEach(() => {
-      const pattern = kb.addPattern({
+    beforeEach(async () => {
+      const pattern = await kb.addPattern({
         name: 'Test Pattern',
         symptoms: [{ type: 'error' }],
         rootCause: 'Test cause',
@@ -257,8 +257,8 @@ describe('DiagnosticKnowledgeBase', () => {
       patternId = pattern.id;
     });
 
-    it('should record a confirmed outcome', () => {
-      const outcome = kb.recordOutcome({
+    it('should record a confirmed outcome', async () => {
+      const outcome = await kb.recordOutcome({
         sessionId: 'session-1',
         patternId,
         confirmed: true,
@@ -271,24 +271,24 @@ describe('DiagnosticKnowledgeBase', () => {
       expect(outcome.recordedAt).toBeInstanceOf(Date);
     });
 
-    it('should update pattern frequency on outcome', () => {
-      kb.recordOutcome({
+    it('should update pattern frequency on outcome', async () => {
+      await kb.recordOutcome({
         sessionId: 'session-1',
         patternId,
         confirmed: true,
       });
 
-      const pattern = kb.getPattern(patternId);
+      const pattern = await kb.getPattern(patternId);
       expect(pattern!.frequency).toBe(1);
       expect(pattern!.lastMatched).toBeDefined();
     });
 
-    it('should update average confidence based on outcomes', () => {
-      kb.recordOutcome({ sessionId: 's1', patternId, confirmed: true });
-      kb.recordOutcome({ sessionId: 's2', patternId, confirmed: true });
-      kb.recordOutcome({ sessionId: 's3', patternId, confirmed: false });
+    it('should update average confidence based on outcomes', async () => {
+      await kb.recordOutcome({ sessionId: 's1', patternId, confirmed: true });
+      await kb.recordOutcome({ sessionId: 's2', patternId, confirmed: true });
+      await kb.recordOutcome({ sessionId: 's3', patternId, confirmed: false });
 
-      const pattern = kb.getPattern(patternId);
+      const pattern = await kb.getPattern(patternId);
       expect(pattern!.frequency).toBe(3);
       expect(pattern!.averageConfidence).toBe(67); // 2/3 = 67%
     });
@@ -297,7 +297,7 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== learnFromSession ====================
 
   describe('learnFromSession', () => {
-    it('should create a new pattern from session data', () => {
+    it('should create a new pattern from session data', async () => {
       const symptoms: Symptom[] = [
         {
           type: 'database_error',
@@ -308,7 +308,7 @@ describe('DiagnosticKnowledgeBase', () => {
         },
       ];
 
-      const pattern = kb.learnFromSession({
+      const pattern = await kb.learnFromSession({
         name: 'Learned DB Issue',
         symptoms,
         rootCause: {
@@ -332,8 +332,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== getStats ====================
 
   describe('getStats', () => {
-    it('should return correct statistics', () => {
-      const p1 = kb.addPattern({
+    it('should return correct statistics', async () => {
+      const p1 = await kb.addPattern({
         name: 'Pattern 1',
         symptoms: [{ type: 'error' }],
         rootCause: 'Cause 1',
@@ -341,7 +341,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'database',
       });
 
-      const p2 = kb.addPattern({
+      const p2 = await kb.addPattern({
         name: 'Pattern 2',
         symptoms: [{ type: 'warning' }],
         rootCause: 'Cause 2',
@@ -349,10 +349,10 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'database',
       });
 
-      kb.recordOutcome({ sessionId: 's1', patternId: p1.id, confirmed: true });
-      kb.recordOutcome({ sessionId: 's2', patternId: p2.id, confirmed: false });
+      await kb.recordOutcome({ sessionId: 's1', patternId: p1.id, confirmed: true });
+      await kb.recordOutcome({ sessionId: 's2', patternId: p2.id, confirmed: false });
 
-      const stats = kb.getStats();
+      const stats = await kb.getStats();
 
       expect(stats.totalPatterns).toBe(2);
       expect(stats.totalOutcomes).toBe(2);
@@ -361,8 +361,8 @@ describe('DiagnosticKnowledgeBase', () => {
       expect(stats.averageConfirmationRate).toBe(50);
     });
 
-    it('should return zero stats for empty KB', () => {
-      const stats = kb.getStats();
+    it('should return zero stats for empty KB', async () => {
+      const stats = await kb.getStats();
 
       expect(stats.totalPatterns).toBe(0);
       expect(stats.totalOutcomes).toBe(0);
@@ -373,8 +373,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== updatePattern ====================
 
   describe('updatePattern', () => {
-    it('should update pattern fields', () => {
-      const pattern = kb.addPattern({
+    it('should update pattern fields', async () => {
+      const pattern = await kb.addPattern({
         name: 'Original Name',
         symptoms: [{ type: 'error' }],
         rootCause: 'Original cause',
@@ -382,7 +382,7 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'application',
       });
 
-      const updated = kb.updatePattern(pattern.id, {
+      const updated = await kb.updatePattern(pattern.id, {
         name: 'Updated Name',
         frequency: 10,
       });
@@ -392,8 +392,8 @@ describe('DiagnosticKnowledgeBase', () => {
       expect(updated!.frequency).toBe(10);
     });
 
-    it('should return null for non-existent pattern', () => {
-      const updated = kb.updatePattern('non-existent', { name: 'New Name' });
+    it('should return null for non-existent pattern', async () => {
+      const updated = await kb.updatePattern('non-existent', { name: 'New Name' });
       expect(updated).toBeNull();
     });
   });
@@ -401,8 +401,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== deletePattern ====================
 
   describe('deletePattern', () => {
-    it('should delete a pattern', () => {
-      const pattern = kb.addPattern({
+    it('should delete a pattern', async () => {
+      const pattern = await kb.addPattern({
         name: 'To Delete',
         symptoms: [{ type: 'error' }],
         rootCause: 'Cause',
@@ -410,13 +410,13 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'application',
       });
 
-      const deleted = kb.deletePattern(pattern.id);
+      const deleted = await kb.deletePattern(pattern.id);
       expect(deleted).toBe(true);
-      expect(kb.getPattern(pattern.id)).toBeUndefined();
+      expect(await kb.getPattern(pattern.id)).toBeUndefined();
     });
 
-    it('should return false for non-existent pattern', () => {
-      const deleted = kb.deletePattern('non-existent');
+    it('should return false for non-existent pattern', async () => {
+      const deleted = await kb.deletePattern('non-existent');
       expect(deleted).toBe(false);
     });
   });
@@ -424,8 +424,8 @@ describe('DiagnosticKnowledgeBase', () => {
   // ==================== getOutcome ====================
 
   describe('getOutcome', () => {
-    it('should return outcome by session ID', () => {
-      const pattern = kb.addPattern({
+    it('should return outcome by session ID', async () => {
+      const pattern = await kb.addPattern({
         name: 'Test',
         symptoms: [{ type: 'error' }],
         rootCause: 'Cause',
@@ -433,19 +433,19 @@ describe('DiagnosticKnowledgeBase', () => {
         category: 'application',
       });
 
-      kb.recordOutcome({
+      await kb.recordOutcome({
         sessionId: 'session-1',
         patternId: pattern.id,
         confirmed: true,
       });
 
-      const outcome = kb.getOutcome('session-1');
+      const outcome = await kb.getOutcome('session-1');
       expect(outcome).toBeDefined();
       expect(outcome!.sessionId).toBe('session-1');
     });
 
-    it('should return undefined for non-existent session', () => {
-      const outcome = kb.getOutcome('non-existent');
+    it('should return undefined for non-existent session', async () => {
+      const outcome = await kb.getOutcome('non-existent');
       expect(outcome).toBeUndefined();
     });
   });

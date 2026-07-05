@@ -11,13 +11,15 @@
  * detects cycles and produces a valid installation order.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
 import {
   PluginManifest,
   DependencyResolutionResult,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginDependencyResolver');
 
 /**
  * Adjacency list representation of the dependency graph
@@ -123,9 +125,7 @@ export class PluginDependencyResolver {
     const cycles = this.detectCycles(graph);
 
     if (cycles.length > 0) {
-      throw new Error(
-        `Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`
-      );
+      throw new OrionError(`Cannot determine install order: circular dependency detected: ${cycles[0].join(' -> ')}`, 'OPERATION_FAILED');
     }
 
     return this.topologicalSort(graph);

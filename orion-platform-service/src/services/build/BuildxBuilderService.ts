@@ -3,14 +3,16 @@
  * Docker Buildx 多架构构建服务
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService';
 import { ArtifactRegistryService } from '../../models/Artifact';
 import { ArtifactType } from '../../models/Artifact';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('BuildxBuilderService');
 const execAsync = promisify(exec);
 
 export interface BuildOptions {
@@ -129,7 +131,7 @@ export class BuildxBuilderService {
       }
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         options
       }, 'Multi-arch build failed');
@@ -224,7 +226,7 @@ export class BuildxBuilderService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errors.push(errorMessage);
 
-      logger.error({ error: errorMessage }, 'Native multi-arch build failed');
+      logger.error({ traceId: getCurrentTraceId(), error: errorMessage }, 'Native multi-arch build failed');
 
       return {
         success: false,
@@ -356,7 +358,7 @@ export class BuildxBuilderService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       errors.push(errorMessage);
       
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         platform: options.platform
       }, 'Platform build failed');
@@ -399,7 +401,7 @@ export class BuildxBuilderService {
       }, 'Images pushed successfully');
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         imageName: options.imageName
       }, 'Failed to push images');
@@ -445,7 +447,7 @@ export class BuildxBuilderService {
       }, 'Artifacts saved to registry');
 
     } catch (error) {
-      logger.error({
+      logger.error({ traceId: getCurrentTraceId(),
         error,
         imageName: options.imageName
       }, 'Failed to save artifacts to registry');
@@ -460,7 +462,7 @@ export class BuildxBuilderService {
     try {
       await execAsync('docker buildx version');
     } catch (error) {
-      throw new Error('Docker buildx is not available. Please install Docker buildx.');
+      throw new OrionError('Docker buildx is not available. Please install Docker buildx.', ErrorCode.SERVICE_UNAVAILABLE);
     }
   }
 
@@ -472,7 +474,7 @@ export class BuildxBuilderService {
       await execAsync(`docker buildx create --name ${name} --use`);
       logger.info({ name }, 'Buildx builder created');
     } catch (error) {
-      throw new Error(`Failed to create buildx builder: ${error}`);
+      throw new OrionError(`Failed to create buildx builder: ${error}`, 'OPERATION_FAILED')
     }
   }
 
@@ -484,7 +486,7 @@ export class BuildxBuilderService {
       await execAsync(`docker buildx rm ${name} --force`);
       logger.info({ name }, 'Buildx builder cleaned up');
     } catch (error) {
-      logger.warn({
+      logger.warn({ traceId: getCurrentTraceId(),
         error,
         name
       }, 'Failed to cleanup buildx builder');
@@ -603,7 +605,7 @@ export class BuildxBuilderService {
       const { stdout } = await execAsync('docker buildx ls');
       return this.parseBuildersList(stdout);
     } catch (error) {
-      logger.error({ error }, 'Failed to get builders');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to get builders');
       throw error;
     }
   }
@@ -617,7 +619,7 @@ export class BuildxBuilderService {
       const match = stdout.match(/(?<=Name: )\S+/);
       return match ? match[0] : null;
     } catch (error) {
-      logger.error({ error }, 'Failed to get current builder');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Failed to get current builder');
       return null;
     }
   }

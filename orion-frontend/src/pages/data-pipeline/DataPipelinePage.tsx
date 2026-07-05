@@ -36,13 +36,14 @@ import {
   PauseCircleOutlined,
   ApiOutlined,
   ShareAltOutlined,
-} from '@ant-design/icons';
+  ApartmentOutlined,} from '@ant-design/icons';
 import {
   dataPipelineApi,
   type DataPipeline,
   type PipelineStatus,
   type DataLineage,
 } from '@/api/data-pipeline';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -313,12 +314,13 @@ const DataPipelinePage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <DatabaseOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ApartmentOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <DatabaseOutlined style={{ marginRight: spacing.sm }} />
             数据管道
           </Title>
           <Text type="secondary">ETL 管道管理、数据流监控和转换规则</Text>
@@ -334,7 +336,7 @@ const DataPipelinePage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="管道总数" value={stats.total} />
@@ -342,12 +344,12 @@ const DataPipelinePage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="运行中" value={stats.running} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="运行中" value={stats.running} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -355,7 +357,7 @@ const DataPipelinePage: React.FC = () => {
             <Statistic
               title="失败"
               value={stats.failed}
-              valueStyle={{ color: stats.failed > 0 ? '#ff4d4f' : undefined }}
+              valueStyle={{ color: stats.failed > 0 ? colors.error[400] : undefined }}
             />
           </Card>
         </Col>
@@ -457,15 +459,15 @@ const DataPipelinePage: React.FC = () => {
               <Descriptions.Item label="目标">{selectedPipeline.destination?.type}</Descriptions.Item>
             </Descriptions>
 
-            <Card title="血缘关系" size="small" style={{ marginTop: 16 }}>
+            <Card title="血缘关系" size="small" style={{ marginTop: spacing.md }}>
               {lineageLoading ? (
                 <div style={{ textAlign: 'center', padding: '48px 0' }}>加载中...</div>
               ) : lineageData ? (
                 <div>
                   {/* Source Node */}
-                  <Card size="small" style={{ marginBottom: 8, borderColor: '#1677ff' }}>
+                  <Card size="small" style={{ marginBottom: spacing.sm, borderColor: colors.primary[500] }}>
                     <Space>
-                      <DatabaseOutlined style={{ color: '#1677ff' }} />
+                      <DatabaseOutlined style={{ color: colors.primary[500] }} />
                       <Text strong>Source: {lineageData.nodes.find((n) => n.type === 'source')?.name || '-'}</Text>
                     </Space>
                   </Card>
@@ -474,12 +476,12 @@ const DataPipelinePage: React.FC = () => {
                   {lineageData.nodes.filter((n) => n.type === 'transform').length > 0 && (
                     <>
                       <div style={{ textAlign: 'center', margin: '8px 0' }}>
-                        <ApiOutlined style={{ color: '#faad14' }} />
+                        <ApiOutlined style={{ color: colors.warning[500] }} />
                       </div>
                       {lineageData.nodes.filter((n) => n.type === 'transform').map((node) => (
-                        <Card key={node.id} size="small" style={{ marginBottom: 8, marginLeft: 24, borderColor: '#faad14' }}>
+                        <Card key={node.id} size="small" style={{ marginBottom: spacing.sm, marginLeft: 24, borderColor: colors.warning[500] }}>
                           <Space>
-                            <ApiOutlined style={{ color: '#faad14' }} />
+                            <ApiOutlined style={{ color: colors.warning[500] }} />
                             <Text>{node.name}</Text>
                           </Space>
                         </Card>
@@ -489,23 +491,23 @@ const DataPipelinePage: React.FC = () => {
 
                   {/* Destination Node */}
                   <div style={{ textAlign: 'center', margin: '8px 0' }}>
-                    <ApiOutlined style={{ color: '#52c41a' }} />
+                    <ApiOutlined style={{ color: colors.success[500] }} />
                   </div>
-                  <Card size="small" style={{ borderColor: '#52c41a' }}>
+                  <Card size="small" style={{ borderColor: colors.success[500] }}>
                     <Space>
-                      <DatabaseOutlined style={{ color: '#52c41a' }} />
+                      <DatabaseOutlined style={{ color: colors.success[500] }} />
                       <Text strong>Destination: {lineageData.nodes.find((n) => n.type === 'destination')?.name || '-'}</Text>
                     </Space>
                   </Card>
 
                   {/* Edges */}
                   {lineageData.edges.length > 0 && (
-                    <Card title="连接关系" size="small" style={{ marginTop: 16 }}>
+                    <Card title="连接关系" size="small" style={{ marginTop: spacing.md }}>
                       {lineageData.edges.map((edge, idx) => (
                         <div key={idx} style={{ marginBottom: 4 }}>
                           <Text type="secondary">
                             {edge.from} → {edge.to}
-                            <Tag style={{ marginLeft: 8 }}>{edge.dataType}</Tag>
+                            <Tag style={{ marginLeft: spacing.sm }}>{edge.dataType}</Tag>
                           </Text>
                         </div>
                       ))}

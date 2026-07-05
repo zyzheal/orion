@@ -81,13 +81,18 @@ export class PipelineRunRepository {
   // ==================== Pipeline Runs ====================
 
   /**
-   * Find run by ID
+   * Find run by ID — tenantId required for multi-tenancy isolation
    */
-  async findById(id: string): Promise<PipelineRunRecord | null> {
-    const result = await this.pool.query(
-      'SELECT * FROM pipeline_runs WHERE id = $1',
-      [id]
-    );
+  async findById(id: string, tenantId?: string): Promise<PipelineRunRecord | null> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        'SELECT * FROM pipeline_runs WHERE id = $1 AND tenant_id = $2',
+        [id, tenantId]
+      );
+      return result.rows[0] || null;
+    }
+    // Fallback: no tenant filtering (tests, non-multi-tenant contexts)
+    const result = await this.pool.query('SELECT * FROM pipeline_runs WHERE id = $1', [id]);
     return result.rows[0] || null;
   }
 
@@ -194,14 +199,15 @@ export class PipelineRunRepository {
   }
 
   /**
-   * Update run status
+   * Update run status — requires tenantId for multi-tenancy isolation
    */
   async updateStatus(
     id: string,
     status: string,
     startedAt?: Date,
     completedAt?: Date,
-    errorMessage?: string
+    errorMessage?: string,
+    tenantId?: string
   ): Promise<PipelineRunRecord | null> {
     const updates: string[] = ['status = $1'];
     const params: any[] = [status];
@@ -227,11 +233,17 @@ export class PipelineRunRepository {
       updates.push(`error_message = $${paramIndex++}`);
     }
 
+    // Add tenant_id filter if provided
+    if (tenantId) {
+      params.push(tenantId);
+      updates.push(`tenant_id = $${paramIndex++}`);
+    }
+
     params.push(id);
 
     const result = await this.pool.query(
       `UPDATE pipeline_runs SET ${updates.join(', ')}
-       WHERE id = $${paramIndex}
+       WHERE id = $${paramIndex}${tenantId ? ` AND tenant_id = $${paramIndex - 1}` : ''}
        RETURNING *`,
       params
     );
@@ -251,25 +263,32 @@ export class PipelineRunRepository {
   }
 
   /**
-   * Delete a run (hard delete)
+   * Delete a run (hard delete) — tenantId required for multi-tenancy isolation
    */
-  async delete(id: string): Promise<boolean> {
-    const result = await this.pool.query(
-      'DELETE FROM pipeline_runs WHERE id = $1',
-      [id]
-    );
+  async delete(id: string, tenantId?: string): Promise<boolean> {
+    if (tenantId) {
+      const result = await this.pool.query(
+        'DELETE FROM pipeline_runs WHERE id = $1 AND tenant_id = $2',
+        [id, tenantId]
+      );
+      return (result.rowCount || 0) > 0;
+    }
+    const result = await this.pool.query('DELETE FROM pipeline_runs WHERE id = $1', [id]);
     return (result.rowCount || 0) > 0;
   }
 
   // ==================== Stage Executions ====================
 
   /**
-   * Find stage executions by run ID
+   * Find stage executions by run ID — requires tenantId to verify run ownership via JOIN
    */
-  async findStageExecutionsByRun(runId: string): Promise<StageExecutionRecord[]> {
+  async findStageExecutionsByRun(runId: string, tenantId: string): Promise<StageExecutionRecord[]> {
     const result = await this.pool.query(
-      'SELECT * FROM stage_executions WHERE run_id = $1 ORDER BY created_at',
-      [runId]
+      `SELECT se.* FROM stage_executions se
+       JOIN pipeline_runs pr ON se.run_id = pr.id
+       WHERE se.run_id = $1 AND pr.tenant_id = $2
+       ORDER BY se.created_at`,
+      [runId, tenantId]
     );
     return result.rows;
   }
@@ -357,12 +376,17 @@ export class PipelineRunRepository {
   // ==================== Task Executions ====================
 
   /**
-   * Find task executions by stage execution ID
+   * Find task executions by stage execution ID — requires tenantId to verify via JOIN chain
+   * task_executions → stage_executions → pipeline_runs
    */
-  async findTaskExecutionsByExecution(executionId: string): Promise<TaskExecutionRecord[]> {
+  async findTaskExecutionsByExecution(executionId: string, tenantId: string): Promise<TaskExecutionRecord[]> {
     const result = await this.pool.query(
-      'SELECT * FROM task_executions WHERE execution_id = $1 ORDER BY created_at',
-      [executionId]
+      `SELECT te.* FROM task_executions te
+       JOIN stage_executions se ON te.execution_id = se.id
+       JOIN pipeline_runs pr ON se.run_id = pr.id
+       WHERE te.execution_id = $1 AND pr.tenant_id = $2
+       ORDER BY te.created_at`,
+      [executionId, tenantId]
     );
     return result.rows;
   }

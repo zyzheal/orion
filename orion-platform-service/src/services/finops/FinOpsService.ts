@@ -7,6 +7,7 @@
 import { FinOpsRepository, FinOpsReport, ResourceCost, EntityCostRecord, BudgetRecord, AlertTriggerRecord, ROIAnalysisRecord, CostComparisonRecord, CostOptimizationRecord, SpendRecord, CloudCostRecord, K8sCostRecord, SaaSCostRecord, LegacyBudgetAlertRecord } from './FinOpsRepository';
 import { CostEntityType, CostPeriod, OptimizationCategory, OptimizationPriority, OptimizationStatus, ResourceUtilization, RightSizingRecommendation, CloudProvider, CloudResourceType, BillingCycle, CostSummary, CostBreakdown } from './types';
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
 
 export class FinOpsServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'FinOpsServiceError'; }
@@ -198,6 +199,7 @@ export interface LegacyBudgetAlertInput {
 
 export class FinOpsService {
   private repository: FinOpsRepository;
+  private readonly logger = createLogger('finops-service');
 
   constructor(repository: FinOpsRepository) {
     this.repository = repository;
@@ -286,6 +288,18 @@ export class FinOpsService {
       .sort((a, b) => a.date.getTime() - b.date.getTime());
 
     return this.computeTrend(dataPoints);
+  }
+
+  /**
+   * 获取服务成本趋势（简化版，默认 entityType 为 'project'）
+   * @param serviceId 服务 ID
+   * @param period 统计周期
+   * @param category 可选的类别过滤
+   * @returns 成本趋势
+   */
+  async getServiceCostTrend(serviceId: string, period: CostPeriod, category?: string): Promise<CostTrend> {
+    this.logger.debug({ serviceId, period, category }, '[FinOpsService] Getting service cost trend');
+    return this.getCostTrend('project', serviceId, period, category);
   }
 
   async getChargebackReport(period: CostPeriod = 'monthly'): Promise<ChargebackReport> {
@@ -563,6 +577,51 @@ export class FinOpsService {
     });
   }
 
+  // ==================== Cost Comparison ====================
+
+  /**
+   * 对比两个服务的成本
+   * @param tenantId 租户 ID
+   * @param serviceA 服务 A 的 ID
+   * @param serviceB 服务 B 的 ID
+   * @param period 统计周期
+   * @returns 成本对比记录
+   */
+  async compareCosts(tenantId: string, serviceA: string, serviceB: string, period: CostPeriod): Promise<CostComparisonRecord> {
+    this.logger.info({ tenantId, serviceA, serviceB, period }, '[FinOpsService] Comparing costs between two services');
+
+    const { startDate, endDate } = this.getPeriodDates(period);
+
+    // 从云成本记录中获取两个服务的成本
+    const costsA = await this.repository.getCloudCosts({ tenantId, startDate, endDate });
+    const costsB = await this.repository.getCloudCosts({ tenantId, startDate, endDate });
+
+    // 按 resource_id（服务 ID）聚合成本
+    const sumCosts = (records: CloudCostRecord[], serviceId: string): number => {
+      return records
+        .filter(r => r.resource_id === serviceId)
+        .reduce((sum, r) => sum + r.cost, 0);
+    };
+
+    const costA = sumCosts(costsA, serviceA);
+    const costB = sumCosts(costsB, serviceB);
+
+    const savings = costA - costB;
+    const savingsPercent = costA > 0 ? (savings / costA) * 100 : 0;
+    const description = `Cost comparison between ${serviceA} and ${serviceB} for ${period} period`;
+
+    this.logger.info({ tenantId, serviceA, serviceB, costA, costB, savings, savingsPercent }, '[FinOpsService] Cost comparison completed');
+
+    return this.repository.insertCostComparison({
+      description,
+      beforeCost: Math.round(costA * 100) / 100,
+      afterCost: Math.round(costB * 100) / 100,
+      savings: Math.round(savings * 100) / 100,
+      savingsPercent: Math.round(savingsPercent * 100) / 100,
+      period,
+    });
+  }
+
   async getROIHistory(filter?: { investmentType?: string; minROI?: number }): Promise<ROIAnalysisRecord[]> {
     return this.repository.getROIHistory(filter);
   }
@@ -680,6 +739,17 @@ export class FinOpsService {
     entityId?: string;
   }): Promise<CostOptimizationRecord[]> {
     return this.repository.getOptimizations(query);
+  }
+
+  /**
+   * 获取服务的优化建议（简化版）
+   * @param serviceId 服务 ID
+   * @param entityType 实体类型，默认为 'project'
+   * @returns 优化建议列表
+   */
+  async getServiceOptimizationSuggestions(serviceId: string, entityType: CostEntityType = 'project'): Promise<CostOptimizationRecord[]> {
+    this.logger.debug({ serviceId, entityType }, '[FinOpsService] Getting service optimization suggestions');
+    return this.getOptimizations({ entityType, entityId: serviceId });
   }
 
   async updateOptimizationStatus(optimizationId: string, status: OptimizationStatus): Promise<CostOptimizationRecord | null> {

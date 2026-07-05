@@ -6,7 +6,7 @@
 -- Artifact Operations Table
 CREATE TABLE IF NOT EXISTS artifact_operations (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     artifact_id VARCHAR(128) NOT NULL,
     operation VARCHAR(32) NOT NULL,          -- build, publish, deploy, scan, promote, delete, rollback
     source VARCHAR(256),
@@ -30,7 +30,7 @@ COMMENT ON TABLE artifact_operations IS 'Tracks all operations performed on arti
 -- Retention Policies Table
 CREATE TABLE IF NOT EXISTS retention_policies (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(128) NOT NULL,
     max_age_days INTEGER NOT NULL DEFAULT 90,
     max_versions INTEGER,
@@ -51,7 +51,7 @@ COMMENT ON TABLE retention_policies IS 'Retention policies for artifact lifecycl
 CREATE TABLE IF NOT EXISTS retention_evaluations (
     id VARCHAR(64) PRIMARY KEY,
     policy_id VARCHAR(64) NOT NULL REFERENCES retention_policies(id) ON DELETE CASCADE,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     evaluated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     total_artifacts INTEGER NOT NULL DEFAULT 0,
     expired_count INTEGER NOT NULL DEFAULT 0,
@@ -69,7 +69,7 @@ COMMENT ON TABLE retention_evaluations IS 'Results of retention policy evaluatio
 -- Scan Reports Table
 CREATE TABLE IF NOT EXISTS scan_reports (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     artifact_id VARCHAR(128) NOT NULL,
     scan_id VARCHAR(64) NOT NULL,
     scan_type VARCHAR(32) NOT NULL DEFAULT 'full',
@@ -111,7 +111,7 @@ COMMENT ON TABLE scan_findings IS 'Individual vulnerability findings from scan r
 -- Malicious Detections Table
 CREATE TABLE IF NOT EXISTS malicious_detections (
     id SERIAL PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     artifact_id VARCHAR(128) NOT NULL,
     detected BOOLEAN NOT NULL DEFAULT false,
     risk_level VARCHAR(16) NOT NULL DEFAULT 'safe',  -- safe, suspicious, malicious

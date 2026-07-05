@@ -18,12 +18,14 @@ describe('TestExecutionOptimizer', () => {
   let mockImpactAnalyzer: jest.Mocked<TestImpactAnalyzer>;
   let mockPredictor: jest.Mocked<TestFailurePredictor>;
 
+  const mockDb = { query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
+
   beforeEach(() => {
     // 创建模拟依赖分析器
     const mockDepAnalyzer = new TestDependencyAnalyzer({
       sourceRoot: '/src',
       testRoot: '/src',
-    }) as jest.Mocked<TestDependencyAnalyzer>;
+    }, mockDb as any) as jest.Mocked<TestDependencyAnalyzer>;
     mockDepAnalyzer.getSuites = jest.fn().mockReturnValue([
       { id: 'suite-001', name: 'UserService.test', avgDuration: 2000 },
       { id: 'suite-002', name: 'OrderService.test', avgDuration: 3000 },
@@ -39,7 +41,7 @@ describe('TestExecutionOptimizer', () => {
     mockImpactAnalyzer['dependencyAnalyzer'] = mockDepAnalyzer;
 
     // 创建模拟预测器
-    mockPredictor = new TestFailurePredictor() as jest.Mocked<TestFailurePredictor>;
+    mockPredictor = new TestFailurePredictor(mockDb as any) as jest.Mocked<TestFailurePredictor>;
     mockPredictor.predictFailure = jest.fn().mockResolvedValue({
       testId: '',
       failureProbability: 0.1,

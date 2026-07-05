@@ -5,10 +5,10 @@
  * for canary deployments.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { CanaryTrafficService, TrafficSplitConfig } from './CanaryTrafficService';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TrafficSplitter');
 
 export interface TrafficSplitResult {
   canaryId: string;
@@ -50,8 +50,8 @@ export class TrafficSplitter {
   /**
    * Split traffic between baseline and canary
    */
-  async splitTraffic(canaryId: string, percent: number): Promise<TrafficSplitResult> {
-    const config = await this.canaryService?.getTrafficConfig(canaryId);
+  async splitTraffic(canaryId: string, tenantId: string, percent: number): Promise<TrafficSplitResult> {
+    const config = await this.canaryService?.getTrafficConfig(canaryId, tenantId);
 
     const result: TrafficSplitResult = {
       canaryId,
@@ -121,9 +121,9 @@ export class TrafficSplitter {
   /**
    * Validate traffic health before applying split or promoting
    */
-  async validateTrafficHealth(canaryId: string): Promise<HealthCheckResult> {
+  async validateTrafficHealth(canaryId: string, tenantId: string): Promise<HealthCheckResult> {
     const checks: HealthCheckResult['checks'] = [];
-    const config = await this.canaryService?.getTrafficConfig(canaryId);
+    const config = await this.canaryService?.getTrafficConfig(canaryId, tenantId);
 
     // Check 1: Config exists
     if (!config) {

@@ -100,7 +100,7 @@ describe('Approvals Page', { timeout: 15000 }, () => {
     };
 
     vi.mocked(approvalApi.getApprovals).mockResolvedValue({
-      data: { code: 200, message: 'success', data: mockApprovals },
+      data: { code: 200, message: 'success', data: mockApprovals } as any,
       status: 200,
       statusText: 'OK',
       headers: {},

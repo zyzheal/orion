@@ -9,7 +9,8 @@
  * 5. JUnit (Java)
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { TestTemplateRepository } from '../../repositories/TestTemplateRepository';
 
 import {
   TestTemplate,
@@ -21,7 +22,7 @@ import {
   ParameterInfo,
 } from './types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TestTemplateEngine');
 
 /**
  * 模板渲染上下文
@@ -43,8 +44,12 @@ interface TemplateContext {
  */
 export class TestTemplateEngine {
   private templates: Map<string, TestTemplate> = new Map();
+  private templateRepo?: TestTemplateRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.templateRepo = new TestTemplateRepository(db);
+    }
     this.initializeTemplates();
   }
 

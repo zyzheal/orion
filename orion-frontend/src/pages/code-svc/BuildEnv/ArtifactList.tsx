@@ -5,12 +5,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Popconfirm, message } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   ReloadOutlined,
   DownloadOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
-} from '@ant-design/icons';
+  ContainerOutlined,} from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
@@ -28,14 +29,14 @@ const ArtifactList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [loading, setLoading] = useState(false);
-  const [artifacts, setArtifacts] = useState<any[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
 
   const loadArtifacts = async () => {
     setLoading(true);
     try {
       const response = await getArtifacts();
-      const apiData = response.data.data;
-      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setArtifacts(Array.isArray(apiData) ? apiData : (apiData as { items?: unknown[] })?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载构建产物失败：${error.message}`);
@@ -265,11 +266,12 @@ const ArtifactList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ContainerOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Artifacts
           </Title>
           <Text type="secondary">{filteredArtifacts.length} artifacts</Text>
@@ -284,7 +286,7 @@ const ArtifactList: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

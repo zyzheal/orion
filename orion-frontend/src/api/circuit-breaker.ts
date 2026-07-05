@@ -48,37 +48,37 @@ export interface CircuitBreakerStats {
 }
 
 export async function getCircuitBreakers() {
-  return api.get<CircuitBreakerConfig[]>('/v1/circuit-breakers');
+  return api.get<CircuitBreakerConfig[]>('/api/v1/circuit-breakers');
 }
 
 export async function getCircuitBreaker(id: string) {
-  return api.get<CircuitBreakerConfig>(`/v1/circuit-breakers/${id}`);
+  return api.get<CircuitBreakerConfig>(`/api/v1/circuit-breakers/${id}`);
 }
 
 export async function getCircuitBreakerStatus(id: string) {
   return api.get<{ state: CircuitState; failureCount: number; successCount: number }>(
-    `/v1/circuit-breakers/${id}/status`
+    `/api/v1/circuit-breakers/${id}/status`
   );
 }
 
 export async function createCircuitBreaker(
   data: Omit<CircuitBreakerConfig, 'id' | 'createdAt' | 'updatedAt' | 'failureCount' | 'successCount' | 'totalRequests' | 'totalFailures'>
 ) {
-  return api.post<CircuitBreakerConfig>('/v1/circuit-breakers', data);
+  return api.post<CircuitBreakerConfig>('/api/v1/circuit-breakers', data);
 }
 
 export async function updateCircuitBreaker(id: string, data: Partial<CircuitBreakerConfig>) {
-  return api.put<CircuitBreakerConfig>(`/v1/circuit-breakers/${id}`, data);
+  return api.put<CircuitBreakerConfig>(`/api/v1/circuit-breakers/${id}`, data);
 }
 
 export async function deleteCircuitBreaker(id: string) {
-  return api.delete<void>(`/v1/circuit-breakers/${id}`);
+  return api.delete<void>(`/api/v1/circuit-breakers/${id}`);
 }
 
 export async function resetCircuitBreaker(id: string) {
-  return api.post<CircuitBreakerConfig>(`/v1/circuit-breakers/${id}/reset`);
+  return api.post<CircuitBreakerConfig>(`/api/v1/circuit-breakers/${id}/reset`);
 }
 
 export async function getCircuitBreakerStats() {
-  return api.get<CircuitBreakerStats>('/v1/circuit-breakers/stats');
+  return api.get<CircuitBreakerStats>('/api/v1/circuit-breakers/stats');
 }

@@ -10,6 +10,7 @@
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Spin } from 'antd';
+import { colors } from '@/tokens';
 
 export interface VirtualListItem<T = any> {
   id: string | number;
@@ -137,7 +138,7 @@ export const VirtualList = <T = any,>({
           justifyContent: 'center',
         }}
       >
-        <span style={{ color: '#999' }}>{emptyText}</span>
+        <span style={{ color: colors.neutral[500] }}>{emptyText}</span>
       </div>
     );
   }

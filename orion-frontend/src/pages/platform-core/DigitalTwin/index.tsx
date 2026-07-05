@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { digitalTwinApi, TwinSnapshot, TrafficRecording } from '../../../api/digital-twin';
 import { Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs, message } from 'antd';
 import { CameraOutlined, ControlOutlined } from '@ant-design/icons';
+import { spacing } from '@/tokens';
 
 const DigitalTwin: React.FC = () => {
   const [snapshots, setSnapshots] = useState<TwinSnapshot[]>([]);
@@ -112,7 +113,7 @@ const DigitalTwin: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs items={[
         {
           key: 'snapshots',

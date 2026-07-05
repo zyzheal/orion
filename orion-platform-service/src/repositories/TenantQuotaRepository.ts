@@ -1,27 +1,21 @@
-/**
- * TenantQuotaRepository
- * 租户配额数据访问层
- */
-
 import { BaseRepository } from '../db/base-repository';
 
 export interface TenantQuotaEntity {
   id: string;
   tenantId: string;
-  maxUsers: number;
-  maxProjects: number;
   maxPipelines: number;
-  maxStorageMb: number;
-  maxApiCallsPerHour: number;
+  maxPipelineRunsPerDay: number;
   maxConcurrentBuilds: number;
-  maxCpuCores: number;
-  maxMemoryGb: number;
   maxTasksPerPipeline: number;
   maxRunners: number;
+  maxCpuCores: number;
+  maxMemoryGb: number;
+  maxStorageMb: number;
+  maxProjects: number;
+  maxUsers: number;
   apiRateLimit: number;
   apiRateLimitWindowSeconds: number;
-  maxPipelineRunsPerDay: number;
-  usage: Record<string, number>;
+  usage: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,42 +25,55 @@ export class TenantQuotaRepository extends BaseRepository<TenantQuotaEntity> {
     super(db, 'tenant_quotas');
   }
 
-  async findByTenantId(tenantId: string): Promise<TenantQuotaEntity | undefined> {
-    const result = await this.db.query(
-      `SELECT * FROM tenant_quotas WHERE tenant_id = $1`,
-      [tenantId],
-    );
-    if (result.rows.length === 0) return undefined;
-    return this.mapRowToEntity(result.rows[0]);
-  }
-
-  async updateUsage(id: string, usage: Record<string, number>): Promise<void> {
-    await this.db.query(
-      `UPDATE tenant_quotas SET usage = $1, updated_at = NOW() WHERE id = $2`,
-      [JSON.stringify(usage), id],
-    );
-  }
-
   protected mapRowToEntity(row: any): TenantQuotaEntity {
     return {
-      id: row.id,
+      id: String(row.id),
       tenantId: row.tenant_id,
-      maxUsers: row.max_users ?? 100,
-      maxProjects: row.max_projects ?? 50,
-      maxPipelines: row.max_pipelines ?? 200,
-      maxStorageMb: row.max_storage_mb ?? 10240,
-      maxApiCallsPerHour: row.max_api_calls_per_hour ?? 10000,
-      maxConcurrentBuilds: row.max_concurrent_builds ?? 10,
-      maxCpuCores: row.max_cpu_cores ?? 16,
-      maxMemoryGb: row.max_memory_gb ?? 32,
+      maxPipelines: row.max_pipelines ?? 10,
+      maxPipelineRunsPerDay: row.max_pipeline_runs_per_day ?? 100,
+      maxConcurrentBuilds: row.max_concurrent_builds ?? 5,
       maxTasksPerPipeline: row.max_tasks_per_pipeline ?? 50,
-      maxRunners: row.max_runners ?? 5,
-      apiRateLimit: Number(row.api_rate_limit ?? 1000),
+      maxRunners: row.max_runners ?? 10,
+      maxCpuCores: row.max_cpu_cores ?? 8,
+      maxMemoryGb: row.max_memory_gb ?? 16,
+      maxStorageMb: row.max_storage_mb ?? 10240,
+      maxProjects: row.max_projects ?? 5,
+      maxUsers: row.max_users ?? 100,
+      apiRateLimit: row.api_rate_limit ?? 1000,
       apiRateLimitWindowSeconds: row.api_rate_limit_window_seconds ?? 60,
-      maxPipelineRunsPerDay: Number(row.max_pipeline_runs_per_day ?? 1000),
       usage: row.usage ?? {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  async findByTenantId(tenantId: string): Promise<TenantQuotaEntity | undefined> {
+    const result = await this.db.query(
+      'SELECT * FROM tenant_quotas WHERE tenant_id = $1',
+      [tenantId]
+    );
+    return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : undefined;
+  }
+
+  async findByTenantAndType(tenantId: string, quotaType: string): Promise<TenantQuotaEntity | undefined> {
+    const result = await this.db.query(
+      'SELECT * FROM tenant_quotas WHERE tenant_id = $1 AND quota_type = $2',
+      [tenantId, quotaType]
+    );
+    return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : undefined;
+  }
+
+  async incrementUsage(tenantId: string, quotaType: string, amount: number): Promise<void> {
+    await this.db.query(
+      'UPDATE tenant_quotas SET current_usage = current_usage + $1, updated_at = NOW() WHERE tenant_id = $2 AND quota_type = $3',
+      [amount, tenantId, quotaType]
+    );
+  }
+
+  async resetUsage(tenantId: string, quotaType: string): Promise<void> {
+    await this.db.query(
+      'UPDATE tenant_quotas SET current_usage = 0, updated_at = NOW() WHERE tenant_id = $1 AND quota_type = $2',
+      [tenantId, quotaType]
+    );
   }
 }

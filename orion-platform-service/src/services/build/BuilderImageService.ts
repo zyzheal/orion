@@ -6,6 +6,8 @@
  * - 自定义镜像注册
  * - 镜像版本管理
  * - 镜像拉取策略管理
+ *
+ * Uses PostgreSQL Repository with graceful degradation to in-memory Map.
  */
 
 import {
@@ -20,6 +22,8 @@ import {
   updateBuilderImage,
   isImageAvailable,
 } from '../../models/BuilderImage';
+import { OrionError, ErrorCode } from '../../errors';
+import { BuilderImageRepository, type BuilderImageEntity } from '../../repositories/BuilderImageRepository';
 
 /**
  * 预置镜像定义
@@ -38,108 +42,45 @@ interface PresetImageDef {
  * 常用预置构建镜像
  */
 const PRESET_IMAGES: PresetImageDef[] = [
-  {
-    name: 'node-20',
-    displayName: 'Node.js 20 Builder',
-    image: 'node:20-slim',
-    type: PresetImageType.NODE,
-    version: '20-slim',
-    description: 'Node.js 20 精简版构建镜像',
-    env: { NODE_ENV: 'production' },
-  },
-  {
-    name: 'node-18',
-    displayName: 'Node.js 18 Builder',
-    image: 'node:18-slim',
-    type: PresetImageType.NODE,
-    version: '18-slim',
-    description: 'Node.js 18 精简版构建镜像',
-    env: { NODE_ENV: 'production' },
-  },
-  {
-    name: 'python-312',
-    displayName: 'Python 3.12 Builder',
-    image: 'python:3.12-slim',
-    type: PresetImageType.PYTHON,
-    version: '3.12-slim',
-    description: 'Python 3.12 精简版构建镜像',
-  },
-  {
-    name: 'python-311',
-    displayName: 'Python 3.11 Builder',
-    image: 'python:3.11-slim',
-    type: PresetImageType.PYTHON,
-    version: '3.11-slim',
-    description: 'Python 3.11 精简版构建镜像',
-  },
-  {
-    name: 'go-122',
-    displayName: 'Go 1.22 Builder',
-    image: 'golang:1.22-slim',
-    type: PresetImageType.GO,
-    version: '1.22-alpine',
-    description: 'Go 1.22 Alpine 构建镜像',
-    env: { GOPATH: '/go', GONOSUMCHECK: '*' },
-  },
-  {
-    name: 'go-121',
-    displayName: 'Go 1.21 Builder',
-    image: 'golang:1.21-slim',
-    type: PresetImageType.GO,
-    version: '1.21-alpine',
-    description: 'Go 1.21 Alpine 构建镜像',
-    env: { GOPATH: '/go', GONOSUMCHECK: '*' },
-  },
-  {
-    name: 'java-21',
-    displayName: 'Java 21 Builder',
-    image: 'eclipse-temurin:21-jdk-slim',
-    type: PresetImageType.JAVA,
-    version: '21-jdk-alpine',
-    description: 'Java 21 (Temurin) Alpine 构建镜像',
-    env: { JAVA_HOME: '/opt/java/openjdk' },
-  },
-  {
-    name: 'java-17',
-    displayName: 'Java 17 Builder',
-    image: 'eclipse-temurin:17-jdk-slim',
-    type: PresetImageType.JAVA,
-    version: '17-jdk-alpine',
-    description: 'Java 17 (Temurin) Alpine 构建镜像',
-    env: { JAVA_HOME: '/opt/java/openjdk' },
-  },
-  {
-    name: 'dotnet-8',
-    displayName: '.NET 8 Builder',
-    image: 'mcr.microsoft.com/dotnet/sdk:8.0-slim',
-    type: PresetImageType.DOTNET,
-    version: '8.0-alpine',
-    description: '.NET 8 SDK Alpine 构建镜像',
-  },
-  {
-    name: 'rust-177',
-    displayName: 'Rust 1.77 Builder',
-    image: 'rust:1.77-slim',
-    type: PresetImageType.RUST,
-    version: '1.77-slim',
-    description: 'Rust 1.77 精简版构建镜像',
-  },
+  { name: 'node-20', displayName: 'Node.js 20 Builder', image: 'node:20-slim', type: PresetImageType.NODE, version: '20-slim', description: 'Node.js 20 精简版构建镜像', env: { NODE_ENV: 'production' } },
+  { name: 'node-18', displayName: 'Node.js 18 Builder', image: 'node:18-slim', type: PresetImageType.NODE, version: '18-slim', description: 'Node.js 18 精简版构建镜像', env: { NODE_ENV: 'production' } },
+  { name: 'python-312', displayName: 'Python 3.12 Builder', image: 'python:3.12-slim', type: PresetImageType.PYTHON, version: '3.12-slim', description: 'Python 3.12 精简版构建镜像' },
+  { name: 'python-311', displayName: 'Python 3.11 Builder', image: 'python:3.11-slim', type: PresetImageType.PYTHON, version: '3.11-slim', description: 'Python 3.11 精简版构建镜像' },
+  { name: 'go-122', displayName: 'Go 1.22 Builder', image: 'golang:1.22-slim', type: PresetImageType.GO, version: '1.22-alpine', description: 'Go 1.22 Alpine 构建镜像', env: { GOPATH: '/go', GONOSUMCHECK: '*' } },
+  { name: 'go-121', displayName: 'Go 1.21 Builder', image: 'golang:1.21-slim', type: PresetImageType.GO, version: '1.21-alpine', description: 'Go 1.21 Alpine 构建镜像', env: { GOPATH: '/go', GONOSUMCHECK: '*' } },
+  { name: 'java-21', displayName: 'Java 21 Builder', image: 'eclipse-temurin:21-jdk-slim', type: PresetImageType.JAVA, version: '21-jdk-alpine', description: 'Java 21 (Temurin) Alpine 构建镜像', env: { JAVA_HOME: '/opt/java/openjdk' } },
+  { name: 'java-17', displayName: 'Java 17 Builder', image: 'eclipse-temurin:17-jdk-slim', type: PresetImageType.JAVA, version: '17-jdk-alpine', description: 'Java 17 (Temurin) Alpine 构建镜像', env: { JAVA_HOME: '/opt/java/openjdk' } },
+  { name: 'dotnet-8', displayName: '.NET 8 Builder', image: 'mcr.microsoft.com/dotnet/sdk:8.0-slim', type: PresetImageType.DOTNET, version: '8.0-alpine', description: '.NET 8 SDK Alpine 构建镜像' },
+  { name: 'rust-177', displayName: 'Rust 1.77 Builder', image: 'rust:1.77-slim', type: PresetImageType.RUST, version: '1.77-slim', description: 'Rust 1.77 精简版构建镜像' },
 ];
 
-/**
- * 内存存储
- */
+// In-memory fallback storage
 const images = new Map<string, BuilderImage>();
 
+/** Convert entity to API response */
+function entityToImage(e: BuilderImageEntity): BuilderImage {
+  return {
+    id: e.id, name: e.name, displayName: e.displayName, image: e.image,
+    type: e.type as PresetImageType, version: e.version,
+    description: e.description, pullPolicy: e.pullPolicy as ImagePullPolicy,
+    status: e.status as BuilderImageStatus, isPreset: e.isPreset,
+    env: e.env, labels: e.labels, createdBy: e.createdBy,
+    createdAt: e.createdAt, updatedAt: e.updatedAt,
+  };
+}
+
 export class BuilderImageService {
-  constructor() {
-    // 初始化预置镜像
-    this.initializePresets();
+  private repo?: BuilderImageRepository;
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.repo = new BuilderImageRepository(db);
+    } else {
+      // Initialize presets in in-memory mode
+      this.initializePresets();
+    }
   }
 
-  /**
-   * 初始化预置镜像
-   */
   private initializePresets(): void {
     for (const preset of PRESET_IMAGES) {
       const image = createBuilderImage({
@@ -152,188 +93,251 @@ export class BuilderImageService {
         pullPolicy: ImagePullPolicy.IF_NOT_PRESENT,
         env: preset.env,
       });
-      // 标记为预置
       (image as any).isPreset = true;
       images.set(image.id, image);
     }
   }
 
   /**
-   * 注册新的构建镜像
+   * Register a new builder image
    */
   async register(input: BuilderImageCreateInput): Promise<BuilderImage> {
-    // 检查名称是否已存在
-    const existing = Array.from(images.values()).find(
-      img => img.name === input.name && img.status !== BuilderImageStatus.DISABLED
-    );
-    if (existing) {
-      throw new Error(`Builder image '${input.name}' already exists`);
+    // Check for duplicate name
+    if (this.repo) {
+      const existing = await this.repo.findByName(input.name);
+      if (existing && existing.status !== BuilderImageStatus.DISABLED) {
+        throw new OrionError(`Builder image '${input.name}' already exists`, 'VALIDATION_ERROR');
+      }
+    } else {
+      const existing = Array.from(images.values()).find(
+        img => img.name === input.name && img.status !== BuilderImageStatus.DISABLED,
+      );
+      if (existing) {
+        throw new OrionError(`Builder image '${input.name}' already exists`, 'VALIDATION_ERROR');
+      }
     }
 
     const image = createBuilderImage(input);
+    if (this.repo) {
+      const saved = await this.repo.create(image);
+      return entityToImage(saved);
+    }
     images.set(image.id, image);
     return image;
   }
 
   /**
-   * 获取镜像详情
+   * Get image by ID
    */
   async getById(id: string): Promise<BuilderImage | null> {
-    return images.get(id) || null;
+    if (this.repo) {
+      const entity = await this.repo.findById(id);
+      return entity ? entityToImage(entity) : null;
+    }
+    const img = images.get(id);
+    return img ? entityToImage({
+      id: img.id, name: img.name, displayName: img.displayName, image: img.image,
+      type: img.type, version: img.version, description: img.description,
+      pullPolicy: img.pullPolicy, status: img.status, isPreset: (img as any).isPreset,
+      env: img.env, labels: img.labels, createdBy: img.createdBy,
+      createdAt: img.createdAt, updatedAt: img.updatedAt,
+    }) : null;
   }
 
   /**
-   * 按名称获取镜像
+   * Get image by name
    */
   async getByName(name: string): Promise<BuilderImage | null> {
-    return Array.from(images.values()).find(
-      img => img.name === name
-    ) || null;
+    if (this.repo) {
+      const entity = await this.repo.findByName(name);
+      return entity ? entityToImage(entity) : null;
+    }
+    const img = Array.from(images.values()).find(i => i.name === name);
+    return img ? entityToImage({
+      id: img.id, name: img.name, displayName: img.displayName, image: img.image,
+      type: img.type, version: img.version, description: img.description,
+      pullPolicy: img.pullPolicy, status: img.status, isPreset: (img as any).isPreset,
+      env: img.env, labels: img.labels, createdBy: img.createdBy,
+      createdAt: img.createdAt, updatedAt: img.updatedAt,
+    }) : null;
   }
 
   /**
-   * 查询镜像列表
+   * List images with optional filters
    */
   async list(options?: BuilderImageQueryOptions): Promise<BuilderImage[]> {
-    let result = Array.from(images.values());
+    let result: BuilderImage[] = [];
+
+    if (this.repo) {
+      let entities: BuilderImageEntity[] = [];
+      if (options?.isPreset !== undefined) {
+        entities = await this.repo.listByIsPreset(options.isPreset);
+      } else if (options?.type) {
+        entities = await this.repo.listByType(options.type);
+      } else if (options?.status) {
+        entities = await this.repo.listByStatus(options.status);
+      } else {
+        entities = (await this.repo.findAll({ limit: options?.limit ?? 100 })).entities;
+      }
+      result = entities.map(entityToImage);
+    } else {
+      result = Array.from(images.values()).map(entityToImage);
+    }
 
     if (options?.type) {
       result = result.filter(img => img.type === options.type);
     }
-
     if (options?.status) {
       result = result.filter(img => img.status === options.status);
     }
-
     if (options?.isPreset !== undefined) {
-      result = result.filter(img => img.isPreset === options.isPreset);
+      result = result.filter(img => (img as any).isPreset === options.isPreset);
     }
 
-    // 排序
     result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
-    // 分页
     const offset = options?.offset || 0;
     const limit = options?.limit || 100;
     return result.slice(offset, offset + limit);
   }
 
   /**
-   * 更新镜像
+   * Update image
    */
   async update(id: string, input: BuilderImageUpdateInput): Promise<BuilderImage | null> {
-    const image = images.get(id);
-    if (!image) {
-      return null;
+    if (this.repo) {
+      const current = await this.repo.findById(id);
+      if (!current) return null;
+      const updated = updateBuilderImage(entityToImage(current), input);
+      const saved = await this.repo.update(id, updated);
+      if (!saved) throw new OrionError('Failed to update builder image', ErrorCode.OPERATION_FAILED);
+      return entityToImage(saved);
     }
-
-    // 预置镜像不允许删除，但可以修改部分属性
+    const image = images.get(id);
+    if (!image) return null;
     const updated = updateBuilderImage(image, input);
     images.set(id, updated);
     return updated;
   }
 
   /**
-   * 禁用镜像（软删除）
+   * Disable image (soft delete)
    */
   async disable(id: string): Promise<boolean> {
+    if (this.repo) {
+      const current = await this.repo.findById(id);
+      if (!current) return false;
+      if (current.isPreset) {
+        throw new OrionError('Cannot disable preset images. Use deprecate instead.', ErrorCode.OPERATION_FAILED);
+      }
+      await this.repo.updateStatus(id, BuilderImageStatus.DISABLED);
+      return true;
+    }
     const image = images.get(id);
-    if (!image) {
-      return false;
+    if (!image) return false;
+    if ((image as any).isPreset) {
+      throw new OrionError('Cannot disable preset images. Use deprecate instead.', ErrorCode.OPERATION_FAILED);
     }
-
-    // 预置镜像不能禁用，只能标记为 deprecated
-    if (image.isPreset) {
-      throw new Error('Cannot disable preset images. Use deprecate instead.');
-    }
-
-    const updated = updateBuilderImage(image, {
-      status: BuilderImageStatus.DISABLED,
-    });
+    const updated = updateBuilderImage(image, { status: BuilderImageStatus.DISABLED });
     images.set(id, updated);
     return true;
   }
 
   /**
-   * 弃用镜像
+   * Deprecate image
    */
   async deprecate(id: string): Promise<BuilderImage | null> {
-    const image = images.get(id);
-    if (!image) {
-      return null;
+    if (this.repo) {
+      const updated = await this.repo.updateStatus(id, BuilderImageStatus.DEPRECATED);
+      return updated ? entityToImage(updated) : null;
     }
-
-    const updated = updateBuilderImage(image, {
-      status: BuilderImageStatus.DEPRECATED,
-    });
+    const image = images.get(id);
+    if (!image) return null;
+    const updated = updateBuilderImage(image, { status: BuilderImageStatus.DEPRECATED });
     images.set(id, updated);
     return updated;
   }
 
   /**
-   * 恢复镜像
+   * Restore image
    */
   async restore(id: string): Promise<BuilderImage | null> {
-    const image = images.get(id);
-    if (!image) {
-      return null;
+    if (this.repo) {
+      const updated = await this.repo.updateStatus(id, BuilderImageStatus.ACTIVE);
+      return updated ? entityToImage(updated) : null;
     }
-
-    const updated = updateBuilderImage(image, {
-      status: BuilderImageStatus.ACTIVE,
-    });
+    const image = images.get(id);
+    if (!image) return null;
+    const updated = updateBuilderImage(image, { status: BuilderImageStatus.ACTIVE });
     images.set(id, updated);
     return updated;
   }
 
   /**
-   * 获取所有预置镜像
+   * Get all preset images
    */
   async getPresets(): Promise<BuilderImage[]> {
     return this.list({ isPreset: true });
   }
 
   /**
-   * 获取可用的镜像（Active 状态）
+   * Get available images (active status)
    */
   async getAvailable(): Promise<BuilderImage[]> {
+    if (this.repo) {
+      const entities = await this.repo.findActive();
+      return entities.map(entityToImage);
+    }
     return Array.from(images.values()).filter(isImageAvailable);
   }
 
   /**
-   * 按类型获取可用镜像
+   * Get available images by type
    */
   async getByType(type: PresetImageType): Promise<BuilderImage[]> {
+    if (this.repo) {
+      const entities = await this.repo.findByTypeAndActive(type);
+      return entities.map(entityToImage);
+    }
     return Array.from(images.values()).filter(
-      img => img.type === type && img.status === BuilderImageStatus.ACTIVE
+      img => img.type === type && img.status === BuilderImageStatus.ACTIVE,
     );
   }
 
   /**
-   * 获取镜像拉取策略
+   * Get image pull policy
    */
   getPullPolicy(imageName: string): ImagePullPolicy {
-    const image = images.get(imageName) ||
-      Array.from(images.values()).find(img => img.name === imageName);
+    if (this.repo) {
+      // Fall back to in-memory for now since we don't have a name-based query in the repo
+      const img = images.get(imageName) || Array.from(images.values()).find(i => i.name === imageName);
+      return img?.pullPolicy || ImagePullPolicy.IF_NOT_PRESENT;
+    }
+    const image = images.get(imageName) || Array.from(images.values()).find(img => img.name === imageName);
     return image?.pullPolicy || ImagePullPolicy.IF_NOT_PRESENT;
   }
 
   /**
-   * 删除镜像（仅限自定义镜像）
+   * Delete image (custom images only)
    */
   async delete(id: string): Promise<boolean> {
+    if (this.repo) {
+      const current = await this.repo.findById(id);
+      if (!current) return false;
+      if (current.isPreset) {
+        throw new OrionError('Cannot delete preset images', ErrorCode.OPERATION_FAILED);
+      }
+      return await this.repo.delete(id);
+    }
     const image = images.get(id);
-    if (!image) {
-      return false;
+    if (!image) return false;
+    if ((image as any).isPreset) {
+      throw new OrionError('Cannot delete preset images', ErrorCode.OPERATION_FAILED);
     }
-
-    if (image.isPreset) {
-      throw new Error('Cannot delete preset images');
-    }
-
     images.delete(id);
     return true;
   }
 }
 
+// Singleton with no DB (routes will inject DB when available)
 export const builderImageService = new BuilderImageService();

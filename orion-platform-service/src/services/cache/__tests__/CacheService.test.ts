@@ -1,228 +1,209 @@
 /**
- * CacheService Tests - Test cache read/write, TTL, invalidation
+ * CacheService Tests - Test Redis-backed cache operations
  */
 
-import { CacheService, CacheServiceError } from '../CacheService';
-import { CacheRepository, CacheEntry } from '../CacheRepository';
+import { CacheService } from '../CacheService';
+import { RedisCache } from '../../redis-cache';
 
 describe('CacheService', () => {
-  let mockRepository: jest.Mocked<CacheRepository>;
+  let mockRedis: jest.Mocked<RedisCache>;
   let service: CacheService;
 
   beforeEach(() => {
-    mockRepository = {
-      set: jest.fn(),
+    mockRedis = {
+      isHealthy: jest.fn(),
       get: jest.fn(),
+      set: jest.fn(),
       delete: jest.fn(),
-      cleanup: jest.fn(),
-    } as unknown as jest.Mocked<CacheRepository>;
+      getClient: jest.fn(),
+    } as unknown as jest.Mocked<RedisCache>;
 
-    service = new CacheService(mockRepository);
-  });
-
-  describe('set', () => {
-    it('should set a cache entry with default TTL', async () => {
-      const mockEntry: CacheEntry = {
-        id: 'cache-1',
-        tenant_id: 'tenant-1',
-        key: 'test-key',
-        value: { data: 'test' },
-        ttl: 3600,
-        created_at: new Date(),
-        expires_at: new Date(Date.now() + 3600000),
-      };
-      mockRepository.set.mockResolvedValue(mockEntry);
-
-      const result = await service.set('tenant-1', 'test-key', { data: 'test' });
-
-      expect(result).toEqual(mockEntry);
-      expect(mockRepository.set).toHaveBeenCalledWith('tenant-1', 'test-key', { data: 'test' }, undefined);
-    });
-
-    it('should set a cache entry with custom TTL', async () => {
-      const mockEntry: CacheEntry = {
-        id: 'cache-2',
-        tenant_id: 'tenant-1',
-        key: 'ttl-key',
-        value: { data: 'test' },
-        ttl: 7200,
-        created_at: new Date(),
-        expires_at: new Date(Date.now() + 7200000),
-      };
-      mockRepository.set.mockResolvedValue(mockEntry);
-
-      const result = await service.set('tenant-1', 'ttl-key', { data: 'test' }, 7200);
-
-      expect(result).toEqual(mockEntry);
-      expect(mockRepository.set).toHaveBeenCalledWith('tenant-1', 'ttl-key', { data: 'test' }, 7200);
-    });
+    service = new CacheService(mockRedis, 300);
   });
 
   describe('get', () => {
-    it('should return cache entry when key exists', async () => {
-      const mockEntry: CacheEntry = {
-        id: 'cache-1',
-        tenant_id: 'tenant-1',
-        key: 'existing-key',
-        value: { result: 'found' },
-        ttl: 3600,
-        created_at: new Date(),
-        expires_at: new Date(Date.now() + 3600000),
-      };
-      mockRepository.get.mockResolvedValue(mockEntry);
+    it('should return parsed value when Redis has data', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.get.mockResolvedValue(JSON.stringify({ name: 'test', value: 42 }));
 
-      const result = await service.get('tenant-1', 'existing-key');
+      const result = await service.get<{ name: string; value: number }>('test-key');
 
-      expect(result).toEqual(mockEntry);
-      expect(mockRepository.get).toHaveBeenCalledWith('tenant-1', 'existing-key');
+      expect(result).toEqual({ name: 'test', value: 42 });
+      expect(mockRedis.get).toHaveBeenCalledWith('test-key');
+    });
+
+    it('should return null when Redis is not healthy', async () => {
+      mockRedis.isHealthy.mockReturnValue(false);
+
+      const result = await service.get('test-key');
+
+      expect(result).toBeNull();
+      expect(mockRedis.get).not.toHaveBeenCalled();
     });
 
     it('should return null when key does not exist', async () => {
-      mockRepository.get.mockResolvedValue(null);
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.get.mockResolvedValue(null);
 
-      const result = await service.get('tenant-1', 'missing-key');
+      const result = await service.get('missing-key');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null on JSON parse error', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.get.mockResolvedValue('not-valid-json{{{');
+
+      const result = await service.get('corrupt-key');
 
       expect(result).toBeNull();
     });
   });
 
-  describe('delete', () => {
-    it('should delete a cache entry and return true', async () => {
-      mockRepository.delete.mockResolvedValue(true);
+  describe('set', () => {
+    it('should set JSON-serialized value with TTL', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
 
-      const result = await service.delete('tenant-1', 'to-delete');
+      await service.set('test-key', { name: 'test' }, 60);
 
-      expect(result).toBe(true);
-      expect(mockRepository.delete).toHaveBeenCalledWith('tenant-1', 'to-delete');
+      expect(mockRedis.set).toHaveBeenCalledWith('test-key', JSON.stringify({ name: 'test' }), 60);
     });
 
-    it('should return false when key does not exist', async () => {
-      mockRepository.delete.mockResolvedValue(false);
+    it('should use default TTL when not provided', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
 
-      const result = await service.delete('tenant-1', 'non-existent');
+      await service.set('test-key', { data: 123 });
 
-      expect(result).toBe(false);
+      expect(mockRedis.set).toHaveBeenCalledWith('test-key', JSON.stringify({ data: 123 }), 300);
+    });
+
+    it('should be a no-op when Redis is not healthy', async () => {
+      mockRedis.isHealthy.mockReturnValue(false);
+
+      await service.set('test-key', { data: 123 });
+
+      expect(mockRedis.set).not.toHaveBeenCalled();
+    });
+
+    it('should not throw on Redis error', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.set.mockRejectedValue(new Error('Redis error'));
+
+      // Should not throw
+      await expect(service.set('test-key', {})).resolves.toBeUndefined();
     });
   });
 
-  describe('clearExpired', () => {
-    it('should return count of cleaned up entries', async () => {
-      mockRepository.cleanup.mockResolvedValue(5);
+  describe('del', () => {
+    it('should delete a key', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
 
-      const result = await service.clearExpired();
+      await service.del('test-key');
 
-      expect(result).toBe(5);
-      expect(mockRepository.cleanup).toHaveBeenCalled();
+      expect(mockRedis.delete).toHaveBeenCalledWith('test-key');
     });
 
-    it('should return 0 when no expired entries', async () => {
-      mockRepository.cleanup.mockResolvedValue(0);
+    it('should be a no-op when Redis is not healthy', async () => {
+      mockRedis.isHealthy.mockReturnValue(false);
 
-      const result = await service.clearExpired();
+      await service.del('test-key');
 
-      expect(result).toBe(0);
+      expect(mockRedis.delete).not.toHaveBeenCalled();
+    });
+
+    it('should not throw on delete error', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.delete.mockRejectedValue(new Error('Delete failed'));
+
+      await expect(service.del('test-key')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('getOrLoad', () => {
+    it('should return cached value when available', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.get.mockResolvedValue(JSON.stringify({ cached: true }));
+      const loader = jest.fn().mockResolvedValue({ fromLoader: true });
+
+      const result = await service.getOrLoad('key', loader);
+
+      expect(result).toEqual({ cached: true });
+      expect(loader).not.toHaveBeenCalled();
+    });
+
+    it('should call loader and cache result when cache miss', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.get.mockResolvedValue(null);
+      const loader = jest.fn().mockResolvedValue({ fromLoader: true });
+
+      const result = await service.getOrLoad('key', loader, 120);
+
+      expect(result).toEqual({ fromLoader: true });
+      expect(loader).toHaveBeenCalledTimes(1);
+      expect(mockRedis.set).toHaveBeenCalledWith('key', JSON.stringify({ fromLoader: true }), 120);
+    });
+  });
+
+  describe('invalidate', () => {
+    it('should delete keys matching pattern', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      const mockClient = {
+        keys: jest.fn().mockResolvedValue(['key1', 'key2', 'key3']),
+        del: jest.fn().mockResolvedValue(3),
+      };
+      mockRedis.getClient.mockReturnValue(mockClient as any);
+
+      await service.invalidate('config:*');
+
+      expect(mockClient.keys).toHaveBeenCalledWith('config:*');
+      expect(mockClient.del).toHaveBeenCalledWith('key1', 'key2', 'key3');
+    });
+
+    it('should be a no-op when Redis is not healthy', async () => {
+      mockRedis.isHealthy.mockReturnValue(false);
+
+      await expect(service.invalidate('config:*')).resolves.toBeUndefined();
+    });
+
+    it('should not throw on error', async () => {
+      mockRedis.isHealthy.mockReturnValue(true);
+      mockRedis.getClient.mockReturnValue({
+        keys: jest.fn().mockRejectedValue(new Error('Keys failed')),
+      } as any);
+
+      await expect(service.invalidate('config:*')).resolves.toBeUndefined();
     });
   });
 });
 
-describe('CacheRepository', () => {
-  let mockDb: { query: jest.Mock };
-  let repository: CacheRepository;
+describe('CacheService with null Redis', () => {
+  let service: CacheService;
 
   beforeEach(() => {
-    mockDb = { query: jest.fn() };
-    repository = new CacheRepository(mockDb as any);
+    service = new CacheService(null);
   });
 
-  describe('set', () => {
-    it('should insert a cache entry with ON CONFLICT upsert', async () => {
-      const mockRow = {
-        id: 'cache-1',
-        tenant_id: 'tenant-1',
-        key: 'test-key',
-        value: { data: 'value' },
-        ttl: 3600,
-        created_at: new Date(),
-        expires_at: new Date(),
-      };
-      mockDb.query.mockResolvedValue({ rows: [mockRow] });
-
-      const result = await repository.set('tenant-1', 'test-key', { data: 'value' });
-
-      expect(result).toEqual(mockRow);
-      const callArgs = mockDb.query.mock.calls[0];
-      expect(callArgs[0]).toContain('ON CONFLICT');
-      expect(callArgs[1][0]).toBe('tenant-1');
-      expect(callArgs[1][1]).toBe('test-key');
-    });
-
-    it('should use default TTL of 3600 when not provided', async () => {
-      mockDb.query.mockResolvedValue({ rows: [{ id: 'cache-1' }] });
-
-      await repository.set('tenant-1', 'key', {});
-
-      const params = mockDb.query.mock.calls[0][1];
-      expect(params[3]).toBe(3600); // default TTL
-    });
-
-    it('should use custom TTL when provided', async () => {
-      mockDb.query.mockResolvedValue({ rows: [{ id: 'cache-1' }] });
-
-      await repository.set('tenant-1', 'key', {}, 7200);
-
-      const params = mockDb.query.mock.calls[0][1];
-      expect(params[3]).toBe(7200);
-    });
+  it('should return null for get', async () => {
+    const result = await service.get('key');
+    expect(result).toBeNull();
   });
 
-  describe('get', () => {
-    it('should return entry when not expired', async () => {
-      const mockRow = { id: 'cache-1', key: 'test', value: { data: 'ok' } };
-      mockDb.query.mockResolvedValue({ rows: [mockRow] });
-
-      const result = await repository.get('tenant-1', 'test');
-
-      expect(result).toEqual(mockRow);
-      const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('expires_at > NOW()');
-    });
-
-    it('should return null when no entry found', async () => {
-      mockDb.query.mockResolvedValue({ rows: [] });
-
-      const result = await repository.get('tenant-1', 'missing');
-
-      expect(result).toBeNull();
-    });
+  it('should be a no-op for set', async () => {
+    await expect(service.set('key', {})).resolves.toBeUndefined();
   });
 
-  describe('delete', () => {
-    it('should return true when entry deleted', async () => {
-      mockDb.query.mockResolvedValue({ rowCount: 1 });
-
-      const result = await repository.delete('tenant-1', 'key');
-
-      expect(result).toBe(true);
-    });
-
-    it('should return false when no entry found', async () => {
-      mockDb.query.mockResolvedValue({ rowCount: 0 });
-
-      const result = await repository.delete('tenant-1', 'missing');
-
-      expect(result).toBe(false);
-    });
+  it('should be a no-op for del', async () => {
+    await expect(service.del('key')).resolves.toBeUndefined();
   });
 
-  describe('cleanup', () => {
-    it('should delete expired entries and return count', async () => {
-      mockDb.query.mockResolvedValue({ rowCount: 10 });
+  it('should call loader for getOrLoad', async () => {
+    const loader = jest.fn().mockResolvedValue({ loaded: true });
+    const result = await service.getOrLoad('key', loader);
+    expect(result).toEqual({ loaded: true });
+    expect(loader).toHaveBeenCalledTimes(1);
+  });
 
-      const result = await repository.cleanup();
-
-      expect(result).toBe(10);
-      const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('expires_at < NOW()');
-    });
+  it('should be a no-op for invalidate', async () => {
+    await expect(service.invalidate('pattern:*')).resolves.toBeUndefined();
   });
 });

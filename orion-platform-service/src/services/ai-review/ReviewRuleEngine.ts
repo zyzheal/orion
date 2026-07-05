@@ -18,6 +18,10 @@ import {
   ChangedLine,
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
+import { ReviewRuleRepository, ReviewRuleEntity } from '../../repositories/ReviewRuleRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LReview-LRule-LEngine');
 
 /** 默认配置 */
 const DEFAULT_RULES: ReviewRule[] = [
@@ -285,17 +289,26 @@ const DEFAULT_RULES: ReviewRule[] = [
 export class ReviewRuleEngine {
   private rules: Map<string, ReviewRule>;
   private diffAnalyzer: DiffAnalyzer;
+  private repository?: ReviewRuleRepository;
 
-  constructor(customRules?: ReviewRule[]) {
+  constructor(repository?: ReviewRuleRepository, customRules?: ReviewRule[]) {
     this.rules = new Map();
     this.diffAnalyzer = new DiffAnalyzer();
+    this.repository = repository;
 
     // 加载内置规则
     for (const rule of DEFAULT_RULES) {
       this.rules.set(rule.id, { ...rule });
     }
 
-    // 加载自定义规则
+    // 从 Repository 加载持久化的自定义规则
+    if (repository) {
+      this.loadFromRepository().catch(() => {
+        // Repository load failed, continue with default rules only
+      });
+    }
+
+    // 加载传入的自定义规则
     if (customRules) {
       for (const rule of customRules) {
         this.rules.set(rule.id, { ...rule });
@@ -304,17 +317,116 @@ export class ReviewRuleEngine {
   }
 
   /**
-   * 注册规则
+   * 从 Repository 加载持久化的自定义规则
    */
-  registerRule(rule: ReviewRule): void {
-    this.rules.set(rule.id, { ...rule });
+  private async loadFromRepository(): Promise<void> {
+    try {
+      const entities = await this.repository!.findAll();
+      for (const entity of entities.entities) {
+        const rule = this.mapEntityToRule(entity);
+        this.rules.set(rule.id, rule);
+      }
+    } catch {
+      // Silently ignore load errors - default rules still available
+    }
   }
 
   /**
-   * 移除规则
+   * 将 Repository entity 转换为 ReviewRule
    */
-  removeRule(ruleId: string): boolean {
-    return this.rules.delete(ruleId);
+  private mapEntityToRule(entity: ReviewRuleEntity): ReviewRule {
+    return {
+      id: entity.id,
+      name: entity.name,
+      category: entity.category as RuleCategory,
+      severity: entity.severity as Severity,
+      pattern: entity.pattern,
+      description: entity.description,
+      suggestion: entity.suggestion ?? undefined,
+      enabled: entity.enabled,
+      fileExtensions: entity.fileExtensions,
+      metadata: entity.metadata as ReviewRule['metadata'],
+    };
+  }
+
+  /**
+   * 将 ReviewRule 转换为 Repository entity
+   */
+  private mapRuleToEntity(rule: ReviewRule): Partial<ReviewRuleEntity> & { id: string } {
+    return {
+      id: rule.id,
+      name: rule.name,
+      category: rule.category,
+      severity: rule.severity,
+      pattern: rule.pattern,
+      description: rule.description,
+      suggestion: rule.suggestion ?? null,
+      enabled: rule.enabled,
+      fileExtensions: rule.fileExtensions ?? [],
+      metadata: rule.metadata ?? {},
+    };
+  }
+
+  /**
+   * 注册规则 (持久化到 Repository)
+   */
+  async registerRule(rule: ReviewRule): Promise<void> {
+    this.rules.set(rule.id, { ...rule });
+
+    if (this.repository) {
+      try {
+        await this.repository.upsert(this.mapRuleToEntity(rule));
+      } catch {
+        // Persistence failed, but rule is registered in memory
+      }
+    }
+  }
+
+  /**
+   * 移除规则 (从 Repository 删除)
+   */
+  async removeRule(ruleId: string): Promise<boolean> {
+    const removed = this.rules.delete(ruleId);
+
+    if (removed && this.repository) {
+      try {
+        await this.repository.delete(ruleId);
+      } catch {
+        // Deletion from repository failed, but removed from memory
+      }
+    }
+
+    return removed;
+  }
+
+  /**
+   * 更新规则 (持久化到 Repository)
+   */
+  async updateRule(ruleId: string, updates: Partial<ReviewRule>): Promise<ReviewRule | undefined> {
+    const existing = this.rules.get(ruleId);
+    if (!existing) return undefined;
+
+    const updated: ReviewRule = {
+      ...existing,
+      ...updates,
+      metadata: {
+        ...existing.metadata,
+        createdAt: existing.metadata?.createdAt ?? new Date(),
+        updatedAt: new Date(),
+      },
+    };
+
+    this.rules.set(ruleId, updated);
+
+    if (this.repository) {
+      try {
+        await this.repository.upsert(this.mapRuleToEntity(updated));
+      } catch {
+        // Update failed in repository, but memory is updated
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -339,26 +451,6 @@ export class ReviewRuleEngine {
   }
 
   /**
-   * 更新规则
-   */
-  updateRule(ruleId: string, updates: Partial<ReviewRule>): ReviewRule | undefined {
-    const existing = this.rules.get(ruleId);
-    if (!existing) return undefined;
-
-    const updated: ReviewRule = {
-      ...existing,
-      ...updates,
-      metadata: {
-        ...existing.metadata,
-        createdAt: existing.metadata?.createdAt ?? new Date(),
-        updatedAt: new Date(),
-      },
-    };
-    this.rules.set(ruleId, updated);
-    return updated;
-  }
-
-  /**
    * 评估单行代码与规则的匹配
    */
   evaluateLine(line: ChangedLine, rules?: ReviewRule[]): ReviewComment[] {
@@ -376,26 +468,24 @@ export class ReviewRuleEngine {
         }
       }
 
-      // 匹配规则
-      try {
-        const regex = new RegExp(rule.pattern, 'i');
-        if (regex.test(line.content)) {
-          comments.push({
-            id: uuidv4(),
-            ruleId: rule.id,
-            filePath: line.filePath,
-            lineNumber: line.lineNumber,
-            severity: rule.severity,
-            message: `[${rule.name}] ${rule.description}`,
-            suggestion: rule.suggestion,
-            codeSnippet: line.content.trim(),
-            source: 'rule',
-            createdAt: new Date(),
-          });
-        }
-      } catch {
-        // 忽略无效的正则表达式
-        continue;
+      // 匹配规则（含 ReDoS 保护）
+      const matchResult = this.safeRegexTest(rule.pattern, line.content);
+      if (matchResult.matched) {
+        comments.push({
+          id: uuidv4(),
+          ruleId: rule.id,
+          filePath: line.filePath,
+          lineNumber: line.lineNumber,
+          severity: rule.severity,
+          message: `[${rule.name}] ${rule.description}`,
+          suggestion: rule.suggestion,
+          codeSnippet: line.content.trim(),
+          source: 'rule',
+          createdAt: new Date(),
+        });
+      }
+      if (!matchResult.safe) {
+        logger.warn({ ruleId: rule.id, pattern: rule.pattern }, 'Regex pattern flagged as potentially unsafe, skipped');
       }
     }
 
@@ -417,12 +507,12 @@ export class ReviewRuleEngine {
     const targetRules = rules || this.getEnabledRules();
     return targetRules.filter((rule) => {
       if (!rule.enabled) return false;
-      try {
-        const regex = new RegExp(rule.pattern, 'i');
-        return regex.test(code);
-      } catch {
+      const matchResult = this.safeRegexTest(rule.pattern, code);
+      if (!matchResult.safe) {
+        logger.warn({ ruleId: rule.id, pattern: rule.pattern }, 'Regex pattern flagged as potentially unsafe, skipped');
         return false;
       }
+      return matchResult.matched;
     });
   }
 
@@ -477,5 +567,39 @@ export class ReviewRuleEngine {
   private getFileExtension(filePath: string): string {
     const parts = filePath.split('.');
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+  }
+
+  /**
+   * 安全正则匹配：检测潜在 ReDoS 风险并限制执行时间
+   *
+   * 策略：
+   * 1. 检测嵌套量词（如 (a+)+ ）—— 经典的 ReDoS 模式
+   * 2. 执行超时保护（默认 50ms）
+   */
+  private safeRegexTest(pattern: string, text: string): { matched: boolean; safe: boolean } {
+    try {
+      // 检测潜在 ReDoS：嵌套量词模式
+      const nestedQuantifier =
+        /(?:[^\\]\([^)]*[+*][^)]*\)[+*]|\(\?:[^)]*[+*][^)]*\)[+*]|\[[^\]]*[+*][^\]]*\][+*])/;
+      if (nestedQuantifier.test(pattern)) {
+        return { matched: false, safe: false };
+      }
+
+      const regex = new RegExp(pattern, 'i');
+
+      // 超时保护
+      const startTime = Date.now();
+      const result = regex.test(text);
+      const elapsed = Date.now() - startTime;
+
+      if (elapsed > 50) {
+        logger.warn({ pattern, elapsed }, 'Regex execution exceeded safety threshold');
+        return { matched: false, safe: false };
+      }
+
+      return { matched: result, safe: true };
+    } catch {
+      return { matched: false, safe: true };
+    }
   }
 }

@@ -24,6 +24,8 @@ const useAuth = (hasAuth: boolean) => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const kb_id = useAppSelector(state => state.config.kb_id);
+  const isOrionChild = (window as any).__POWERED_BY_ORION__;
+
   const getModel = () => {
     return getApiV1ModelList().then(res => {
       // @ts-expect-error 类型不匹配
@@ -60,6 +62,20 @@ const useAuth = (hasAuth: boolean) => {
   };
 
   const initData = () => {
+    // 子应用模式下使用主应用传递的用户信息，不调用 getUser
+    // 但仍需调用 getKbList() 获取知识库列表（API 走主应用 Vite 代理）
+    if (isOrionChild) {
+      const orionUser = (window as any).$orion?.user;
+      if (orionUser) {
+        dispatch(setUser(orionUser));
+      }
+      // 子应用模式下仍需要获取知识库列表
+      getKbList().catch(() => {
+        // API 调用失败时静默处理
+      });
+      return;
+    }
+
     getUser().then(user => {
       Promise.all([
         user.role === ConstsUserRole.UserRoleAdmin
@@ -74,7 +90,11 @@ const useAuth = (hasAuth: boolean) => {
         ) {
           navigate('401');
         }
+      }).catch(() => {
+        // API 调用失败时静默处理（后端未启动时不影响页面展示）
       });
+    }).catch(() => {
+      // getUser 失败时静默处理
     });
   };
 

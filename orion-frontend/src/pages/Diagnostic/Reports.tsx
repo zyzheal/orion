@@ -3,7 +3,7 @@
  * List and view diagnostic reports with pattern matches and confidence scores
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message, Drawer, Card } from 'antd';
+import { Typography, Button, Space, Tag, message, Drawer, Card, Empty } from 'antd';
 import { colors, spacing } from '@/tokens';
 import { ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
@@ -25,7 +25,7 @@ const DiagnosticReports: React.FC = () => {
     setLoading(true);
     try {
       const response = await getReports();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setReports(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -60,7 +60,7 @@ const DiagnosticReports: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const res = await getReport(report.id);
-      setSelectedReport(res.data.data);
+      setSelectedReport(res.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载报告详情失败：${error.message}`);
@@ -155,12 +155,13 @@ const DiagnosticReports: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <FileTextOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <FileTextOutlined style={{ marginRight: spacing.sm }} />
             诊断报告
           </Title>
           <Text type="secondary">共 {reports.length} 份报告</Text>
@@ -170,7 +171,7 @@ const DiagnosticReports: React.FC = () => {
         </Button>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           filters={filterDefs}
@@ -186,6 +187,13 @@ const DiagnosticReports: React.FC = () => {
         size="middle"
         striped
       />
+
+      {filteredReports.length === 0 && !loading && (
+        <Empty
+          description="暂无诊断报告"
+          style={{ marginTop: 48 }}
+        />
+      )}
 
       {/* Report Detail Drawer */}
       <Drawer

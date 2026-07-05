@@ -6,7 +6,101 @@
 
 import { GitOpsService, MockGitClient } from '../GitOpsService';
 import { ConfigService } from '../ConfigService';
-import { IEventPublisher, CreateGitOpsInput } from '../../types';
+import { IEventPublisher, CreateGitOpsInput, GitOpsConfig, SyncStatus } from '../../types';
+
+// ==================== Mock GitOpsRepository ====================
+
+const gitOpsConfigStore = new Map<string, GitOpsConfig>();
+const syncHistoryStore: SyncStatus[] = [];
+
+const mockGitOpsRepo = {
+  createGitOpsConfig: jest.fn(async (config: GitOpsConfig) => {
+    gitOpsConfigStore.set(config.id, { ...config });
+    return { ...config };
+  }),
+  findById: jest.fn(async (id: string) => {
+    const c = gitOpsConfigStore.get(id);
+    return c ? { ...c } : null;
+  }),
+  findAll: jest.fn(async () => {
+    return Array.from(gitOpsConfigStore.values()).map(c => ({ ...c }));
+  }),
+  findByStatus: jest.fn(async (status: string) => {
+    return Array.from(gitOpsConfigStore.values()).filter(c => c.status === status).map(c => ({ ...c }));
+  }),
+  update: jest.fn(async (id: string, data: Partial<GitOpsConfig>) => {
+    const existing = gitOpsConfigStore.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...data };
+    gitOpsConfigStore.set(id, updated);
+    return updated;
+  }),
+  delete: jest.fn(async (id: string) => {
+    return gitOpsConfigStore.delete(id);
+  }),
+  createSyncStatus: jest.fn(async (syncStatus: SyncStatus) => {
+    syncHistoryStore.push({ ...syncStatus });
+    return { ...syncStatus };
+  }),
+  findSyncHistory: jest.fn(async (gitOpsConfigId: string, limit?: number) => {
+    let results = syncHistoryStore.filter(s => s.gitOpsConfigId === gitOpsConfigId);
+    results = results.reverse();
+    if (limit) results = results.slice(0, limit);
+    return results;
+  }),
+  findLatestSyncStatus: jest.fn(async (gitOpsConfigId: string) => {
+    const filtered = syncHistoryStore.filter(s => s.gitOpsConfigId === gitOpsConfigId);
+    return filtered.length > 0 ? { ...filtered[filtered.length - 1] } : null;
+  }),
+};
+
+// ==================== Mock ConfigRepository ====================
+
+const configStore = new Map<string, any>();
+let configIdCounter = 0;
+
+const mockConfigRepo = {
+  set: jest.fn(async (tenantId: string, key: string, value: any, changedBy?: string) => {
+    for (const [, entry] of configStore) {
+      if (entry.tenant_id === tenantId && entry.key === key) {
+        entry.value = value;
+        entry.version = (entry.version || 1) + 1;
+        entry.updatedBy = changedBy;
+        entry.updatedAt = new Date();
+        configStore.set(entry.id, entry);
+        return { ...entry };
+      }
+    }
+    const id = `config-${++configIdCounter}`;
+    const entry = {
+      id, tenant_id: tenantId, key, value,
+      version: 1, environment: value.environment || 'dev',
+      status: 'active', description: value.description,
+      encrypted: value.encrypted || false, tags: value.tags || [],
+      createdBy: changedBy, createdAt: new Date(),
+      updatedBy: changedBy, updatedAt: new Date(),
+    };
+    configStore.set(id, entry);
+    return { ...entry };
+  }),
+  findById: jest.fn(async (id: string) => configStore.get(id) ? { ...configStore.get(id) } : null),
+  findByKey: jest.fn(async (tenantId: string, key: string) => {
+    for (const [, e] of configStore) {
+      if (e.tenant_id === tenantId && e.key === key) return { ...e };
+    }
+    return null;
+  }),
+  findAll: jest.fn(async (tenantId: string) => Array.from(configStore.values()).filter(e => e.tenant_id === tenantId)),
+  delete: jest.fn(async (tenantId: string, key: string) => {
+    for (const [id, e] of configStore) {
+      if (e.tenant_id === tenantId && e.key === key) { configStore.delete(id); return true; }
+    }
+    return false;
+  }),
+  getHistory: jest.fn(async () => []),
+  getHistoryByConfigId: jest.fn(async () => []),
+  updateByKey: jest.fn(async () => null),
+};
 
 describe('GitOpsService', () => {
   let configService: ConfigService;
@@ -15,13 +109,97 @@ describe('GitOpsService', () => {
   let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
   beforeEach(() => {
-    configService = new ConfigService();
+    // Clear stores
+    gitOpsConfigStore.clear();
+    syncHistoryStore.length = 0;
+    configStore.clear();
+    configIdCounter = 0;
+
+    jest.clearAllMocks();
+
+    // Re-assign mock implementations (since clearAllMocks clears them)
+    mockGitOpsRepo.createGitOpsConfig.mockImplementation(async (config: GitOpsConfig) => {
+      gitOpsConfigStore.set(config.id, { ...config });
+      return { ...config };
+    });
+    mockGitOpsRepo.findById.mockImplementation(async (id: string) => {
+      const c = gitOpsConfigStore.get(id);
+      return c ? { ...c } : null;
+    });
+    mockGitOpsRepo.findAll.mockImplementation(async () => {
+      return Array.from(gitOpsConfigStore.values()).map(c => ({ ...c }));
+    });
+    mockGitOpsRepo.findByStatus.mockImplementation(async (status: string) => {
+      return Array.from(gitOpsConfigStore.values()).filter(c => c.status === status).map(c => ({ ...c }));
+    });
+    mockGitOpsRepo.update.mockImplementation(async (id: string, data: Partial<GitOpsConfig>) => {
+      const existing = gitOpsConfigStore.get(id);
+      if (!existing) return null;
+      const updated = { ...existing, ...data };
+      gitOpsConfigStore.set(id, updated);
+      return updated;
+    });
+    mockGitOpsRepo.createSyncStatus.mockImplementation(async (syncStatus: SyncStatus) => {
+      syncHistoryStore.push({ ...syncStatus });
+      return { ...syncStatus };
+    });
+    mockGitOpsRepo.findSyncHistory.mockImplementation(async (gitOpsConfigId: string, limit?: number) => {
+      let results = syncHistoryStore.filter(s => s.gitOpsConfigId === gitOpsConfigId);
+      results = results.reverse();
+      if (limit) results = results.slice(0, limit);
+      return results;
+    });
+    mockGitOpsRepo.findLatestSyncStatus.mockImplementation(async (gitOpsConfigId: string) => {
+      const filtered = syncHistoryStore.filter(s => s.gitOpsConfigId === gitOpsConfigId);
+      return filtered.length > 0 ? { ...filtered[filtered.length - 1] } : null;
+    });
+
+    mockConfigRepo.set.mockImplementation(async (tenantId: string, key: string, value: any, changedBy?: string) => {
+      for (const [, entry] of configStore) {
+        if (entry.tenant_id === tenantId && entry.key === key) {
+          entry.value = value;
+          entry.version = (entry.version || 1) + 1;
+          entry.updatedBy = changedBy;
+          entry.updatedAt = new Date();
+          configStore.set(entry.id, entry);
+          return { ...entry };
+        }
+      }
+      const id = `config-${++configIdCounter}`;
+      const entry = {
+        id, tenant_id: tenantId, key, value,
+        version: 1, environment: value.environment || 'dev',
+        status: 'active', description: value.description,
+        encrypted: value.encrypted || false, tags: value.tags || [],
+        createdBy: changedBy, createdAt: new Date(),
+        updatedBy: changedBy, updatedAt: new Date(),
+      };
+      configStore.set(id, entry);
+      return { ...entry };
+    });
+    mockConfigRepo.findById.mockImplementation(async (id: string) => configStore.get(id) ? { ...configStore.get(id) } : null);
+    mockConfigRepo.findByKey.mockImplementation(async (tenantId: string, key: string) => {
+      for (const [, e] of configStore) {
+        if (e.tenant_id === tenantId && e.key === key) return { ...e };
+      }
+      return null;
+    });
+    mockConfigRepo.findAll.mockImplementation(async (tenantId: string) => Array.from(configStore.values()).filter(e => e.tenant_id === tenantId));
+    mockConfigRepo.delete.mockImplementation(async (tenantId: string, key: string) => {
+      for (const [id, e] of configStore) {
+        if (e.tenant_id === tenantId && e.key === key) { configStore.delete(id); return true; }
+      }
+      return false;
+    });
+
+    configService = new ConfigService(mockConfigRepo as any);
     mockGitClient = new MockGitClient();
     mockEventPublisher = {
       publish: jest.fn().mockResolvedValue('event-id'),
     };
     gitOpsService = new GitOpsService({
       configService,
+      repository: mockGitOpsRepo as any,
       eventPublisher: mockEventPublisher,
       gitClient: mockGitClient,
     });
@@ -29,6 +207,12 @@ describe('GitOpsService', () => {
 
   afterEach(() => {
     // Clear any sync timers
+  });
+
+  describe('constructor', () => {
+    it('should throw if repository is not provided', () => {
+      expect(() => new GitOpsService({ configService } as any)).toThrow('GitOpsRepository is required');
+    });
   });
 
   describe('enableGitOps', () => {
@@ -47,6 +231,9 @@ describe('GitOpsService', () => {
       expect(result.status).toBe('enabled');
       expect(result.syncInterval).toBe(300); // Default 5 minutes
       expect(result.autoApply).toBe(true);
+      expect(mockGitOpsRepo.createGitOpsConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ id: result.id })
+      );
     });
 
     it('should use custom sync interval', async () => {
@@ -97,6 +284,10 @@ describe('GitOpsService', () => {
       const result = await gitOpsService.disableGitOps(gitOpsConfig.id);
 
       expect(result.status).toBe('disabled');
+      expect(mockGitOpsRepo.update).toHaveBeenCalledWith(
+        gitOpsConfig.id,
+        { status: 'disabled' }
+      );
     });
 
     it('should throw error for non-existent config', async () => {
@@ -168,6 +359,9 @@ prod:
       expect(result.itemsSynced).toBe(4);
       // No drift on first sync - configs only in Git are not considered drift
       expect(result.driftDetected).toBe(false);
+      expect(mockGitOpsRepo.createSyncStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'success' })
+      );
     });
 
     it('should sync configs from Git (JSON format)', async () => {
@@ -346,7 +540,7 @@ dev:
 
   describe('getSyncStatus', () => {
     it('should return sync history', async () => {
-      await gitOpsService.enableGitOps({
+      const config = await gitOpsService.enableGitOps({
         repoUrl: 'https://github.com/org/configs',
         branch: 'main',
         createdBy: 'admin',
@@ -355,12 +549,12 @@ dev:
       await gitOpsService.syncFromGit();
       await gitOpsService.syncFromGit();
 
-      const statuses = await gitOpsService.getSyncStatus();
+      const statuses = await gitOpsService.getSyncStatus({ gitOpsConfigId: config.id });
       expect(statuses.length).toBe(2);
     });
 
     it('should respect limit parameter', async () => {
-      await gitOpsService.enableGitOps({
+      const config = await gitOpsService.enableGitOps({
         repoUrl: 'https://github.com/org/configs',
         branch: 'main',
         createdBy: 'admin',
@@ -370,7 +564,7 @@ dev:
         await gitOpsService.syncFromGit();
       }
 
-      const statuses = await gitOpsService.getSyncStatus({ limit: 2 });
+      const statuses = await gitOpsService.getSyncStatus({ gitOpsConfigId: config.id, limit: 2 });
       expect(statuses.length).toBeLessThanOrEqual(2);
     });
 
@@ -399,7 +593,7 @@ dev:
 
   describe('getLatestSyncStatus', () => {
     it('should return the most recent sync status', async () => {
-      await gitOpsService.enableGitOps({
+      const config = await gitOpsService.enableGitOps({
         repoUrl: 'https://github.com/org/configs',
         branch: 'main',
         createdBy: 'admin',
@@ -407,13 +601,13 @@ dev:
 
       await gitOpsService.syncFromGit();
 
-      const latest = await gitOpsService.getLatestSyncStatus();
+      const latest = await gitOpsService.getLatestSyncStatus(config.id);
       expect(latest).not.toBeNull();
       expect(latest?.status).toBe('success');
     });
 
     it('should return null if no sync has occurred', async () => {
-      const latest = await gitOpsService.getLatestSyncStatus();
+      const latest = await gitOpsService.getLatestSyncStatus('non-existent-id');
       expect(latest).toBeNull();
     });
   });

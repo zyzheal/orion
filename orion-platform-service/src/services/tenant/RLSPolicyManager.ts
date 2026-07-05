@@ -8,9 +8,11 @@
  * - 提供策略状态报告
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RLSPolicyManager');
 
 /**
  * RLS 策略配置
@@ -273,7 +275,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       // 启用 RLS
@@ -328,7 +330,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       await this.db.query(`ALTER TABLE ${tableName} DISABLE ROW LEVEL SECURITY`);
@@ -347,7 +349,7 @@ export class RLSPolicyManager {
     try {
       // Validate table name to prevent SQL injection (DDL/DML statements cannot use parameterized queries)
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tableName)) {
-        throw new Error(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`);
+        throw new OrionError(`Invalid table name: ${tableName}. Must match /^[a-zA-Z_][a-zA-Z0-9_]*$/`, 'VALIDATION_ERROR')
       }
 
       // 设置 session 变量
@@ -389,7 +391,7 @@ export class RLSPolicyManager {
    */
   disable(): void {
     this.enabled = false;
-    logger.warn('[RLSPolicyManager] Disabled');
+    logger.warn({ traceId: getCurrentTraceId() }, '[RLSPolicyManager] Disabled');
   }
 
   /**

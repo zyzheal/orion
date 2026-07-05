@@ -91,33 +91,63 @@ export class DecisionExplanationRepository {
 
   constructor(private pool: DatabasePool) {}
 
-  async findExplanation(decisionId: string): Promise<DecisionExplanation | null> {
+  async findExplanation(
+    decisionId: string,
+    tenantId?: string
+  ): Promise<DecisionExplanation | null> {
+    const whereClause = tenantId
+      ? 'WHERE decision_id = $1 AND tenant_id = $2'
+      : 'WHERE decision_id = $1';
+    const params = tenantId ? [decisionId, tenantId] : [decisionId];
+
     const result = await this.pool.query(
-      `SELECT * FROM ai_decision_feedback WHERE decision_id = $1`,
-      [decisionId]
+      `SELECT * FROM ai_decision_explanations ${whereClause} LIMIT 1`,
+      params
     );
 
-    // For now, return placeholder - actual implementation would query ai_decisions table
     if (!result.rows[0]) {
       return null;
     }
 
+    const row = result.rows[0];
+    const explanationData = row.explanation || {};
+    const featureImportance = row.feature_importance || [];
+
     return {
-      decision_id: decisionId,
-      scenario: result.rows[0].scenario,
-      model_id: result.rows[0].model_id,
-      model_version: 'v2.1.0', // Would get from model
-      confidence: 0.85,
+      decision_id: row.decision_id,
+      scenario: row.decision_type,
+      model_id: null,
+      model_version: 'unknown',
+      confidence: parseFloat(row.confidence_score) || 0,
       explanation: {
-        summary: 'Decision based on risk assessment factors',
-        topFactors: [
-          { feature: 'commit_size', value: 150, contribution: 0.25, direction: 'positive' },
-          { feature: 'test_coverage', value: 0.75, contribution: -0.15, direction: 'negative' },
-          { feature: 'days_since_last_failure', value: 30, contribution: -0.10, direction: 'negative' },
-        ],
+        summary: explanationData.summary || '',
+        topFactors: featureImportance.map((f: ShapFactor) => ({
+          feature: f.feature,
+          value: f.value,
+          contribution: f.contribution,
+          direction: f.direction,
+        })),
+        ruleMatchPath: explanationData.ruleMatchPath,
+        alternativeOutcomes: explanationData.alternativeOutcomes,
       },
-      evaluated_at: result.rows[0].created_at,
+      evaluated_at: new Date(row.created_at),
     };
+  }
+
+  async saveExplanation(
+    decisionId: string,
+    tenantId: string,
+    decisionType: string,
+    explanation: Record<string, unknown>,
+    featureImportance: ShapFactor[],
+    confidenceScore: number
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO ai_decision_explanations
+        (decision_id, tenant_id, decision_type, explanation, feature_importance, confidence_score)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [decisionId, tenantId, decisionType, explanation, featureImportance, confidenceScore]
+    );
   }
 
   async submitFeedback(input: SubmitFeedbackInput): Promise<DecisionFeedback> {
@@ -133,15 +163,17 @@ export class DecisionExplanationRepository {
 
   async getQualityStats(scenario: string, days: number): Promise<DecisionQualityStats> {
     const result = await this.pool.query(
-      `SELECT 
-        scenario,
+      `SELECT
+        f.scenario,
         COUNT(*) as total_decisions,
-        COUNT(*) FILTER (WHERE rating = 'correct') as correct_count,
-        COUNT(*) FILTER (WHERE rating = 'incorrect') as incorrect_count,
-        COUNT(*) FILTER (WHERE rating = 'partially') as partially_count
-       FROM ai_decision_feedback
-       WHERE scenario = $1 AND created_at >= now() - ($2 || ' days')::interval
-       GROUP BY scenario`,
+        COUNT(*) FILTER (WHERE f.rating = 'correct') as correct_count,
+        COUNT(*) FILTER (WHERE f.rating = 'incorrect') as incorrect_count,
+        COUNT(*) FILTER (WHERE f.rating = 'partially') as partially_count,
+        COALESCE(AVG(e.confidence_score), 0) as avg_confidence
+       FROM ai_decision_feedback f
+       LEFT JOIN ai_decision_explanations e ON f.decision_id = e.decision_id::text
+       WHERE f.scenario = $1 AND f.created_at >= now() - ($2 || ' days')::interval
+       GROUP BY f.scenario`,
       [scenario, days]
     );
 
@@ -168,7 +200,7 @@ export class DecisionExplanationRepository {
       incorrect_count: parseInt(row.incorrect_count),
       partially_count: parseInt(row.partially_count),
       accuracy: total > 0 ? correct / total : 0,
-      avg_confidence: 0.85, // Placeholder
+      avg_confidence: parseFloat(row.avg_confidence) || 0,
     };
   }
 
@@ -213,8 +245,8 @@ export class DecisionExplanationService {
   /**
    * Get explanation for a decision
    */
-  async getExplanation(decisionId: string): Promise<DecisionExplanation> {
-    const explanation = await this.repository.findExplanation(decisionId);
+  async getExplanation(decisionId: string, tenantId?: string): Promise<DecisionExplanation> {
+    const explanation = await this.repository.findExplanation(decisionId, tenantId);
     if (!explanation) {
       throw new DecisionExplanationServiceError(
         `Decision explanation not found: ${decisionId}`,
@@ -225,7 +257,7 @@ export class DecisionExplanationService {
   }
 
   /**
-   * Generate explanation for a new decision (called by AI service)
+   * Generate explanation for a new decision (called by AI service) and persist to database
    */
   async generateExplanation(
     decisionId: string,
@@ -234,7 +266,8 @@ export class DecisionExplanationService {
     inputFeatures: Record<string, number | string>,
     output: Record<string, unknown>,
     shapValues?: Record<string, number>,
-    ruleMatchPath?: RulePathStep[]
+    ruleMatchPath?: RulePathStep[],
+    tenantId?: string
   ): Promise<DecisionExplanation> {
     // Calculate confidence from output or SHAP values
     const confidence = (output.confidence as number) || this.calculateConfidence(shapValues);
@@ -259,11 +292,11 @@ export class DecisionExplanationService {
     // Generate summary
     const summary = this.generateSummary(scenario, topFactors, output);
 
-    return {
+    const explanation: DecisionExplanation = {
       decision_id: decisionId,
       scenario,
       model_id: modelId,
-      model_version: 'v2.1.0', // Would get from model lookup
+      model_version: 'v2.1.0',
       confidence,
       explanation: {
         summary,
@@ -272,6 +305,25 @@ export class DecisionExplanationService {
       },
       evaluated_at: new Date(),
     };
+
+    // Persist to database if tenantId is provided
+    if (tenantId) {
+      const explanationData = {
+        summary,
+        ruleMatchPath,
+        alternativeOutcomes: output.alternative_outcomes as string[] | undefined,
+      };
+      await this.repository.saveExplanation(
+        decisionId,
+        tenantId,
+        scenario,
+        explanationData,
+        topFactors,
+        confidence
+      );
+    }
+
+    return explanation;
   }
 
   /**

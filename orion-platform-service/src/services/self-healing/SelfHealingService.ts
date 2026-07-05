@@ -31,6 +31,10 @@ import {
   RiskLevel,
 } from './types';
 import { SelfHealingEventPublisher } from '../../events/SelfHealingEventPublisher';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('self-healing-service');
 
 // ==================== Options ====================
 
@@ -70,11 +74,12 @@ export class SelfHealingService {
 
   constructor(
     repository: SelfHealingRepository,
-    options?: SelfHealingServiceOptions
+    options?: SelfHealingServiceOptions,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
   ) {
     this.repository = repository;
-    this.strategyEngine = new HealingStrategyEngine();
-    this.actionExecutor = new HealingActionExecutor();
+    this.strategyEngine = new HealingStrategyEngine(db as any);
+    this.actionExecutor = new HealingActionExecutor(db as any);
     this.guardian = new SelfHealingGuardian({
       stormRules: options?.stormRules,
       dualApprovalConfig: options?.dualApprovalConfig,
@@ -119,7 +124,7 @@ export class SelfHealingService {
     });
 
     if (shouldSuppress) {
-      console.log(
+      logger.info(
         `[SelfHealingService] Storm suppressed alert: ${alert.metric} in ${alert.tags.app} (${alert.tags.env})`
       );
       // Still create the incident but mark as suppressed
@@ -149,10 +154,10 @@ export class SelfHealingService {
           type: this.mapMetricToIncidentType(alert.metric) as any,
           status: 'escalated',
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_escalated event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish incident_escalated event:', err));
       }
 
-      return this.mapRowToIncident(row);
+      return await this.mapRowToIncident(row);
     }
 
     const incidentId = uuidv4();
@@ -184,12 +189,12 @@ export class SelfHealingService {
         severity: alert.severity as any,
         tags: alert.tags,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish incident_detected event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish incident_detected event:', err));
     }
 
     // Match to a strategy (include severity in context for condition matching)
     const matchContext = { ...alert.tags, severity: alert.severity };
-    const strategy = this.strategyEngine.selectBestStrategy(
+    const strategy = await this.strategyEngine.selectBestStrategy(
       incidentType as IncidentType,
       matchContext
     );
@@ -201,7 +206,7 @@ export class SelfHealingService {
         error: 'No matching healing strategy found',
         completed_at: now,
       });
-      return this.mapRowToIncident(failed!);
+      return await this.mapRowToIncident(failed!);
     }
 
     // Determine if auto-heal or manual approval needed
@@ -252,11 +257,11 @@ export class SelfHealingService {
           recommendedActions: strategy.actions.map(a => ({ type: a.type as any, description: a.description })),
           expiresAt: new Date(now.getTime() + this.options.approvalExpirationMs).toISOString(),
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_requested event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish approval_requested event:', err));
       }
 
       const final = await this.repository.findIncidentById(row.id);
-      return this.mapRowToIncident(final!);
+      return await this.mapRowToIncident(final!);
     }
 
     // Publish healing_started event before auto-heal
@@ -271,7 +276,7 @@ export class SelfHealingService {
         requiresApproval: false,
         confidence: strategy.confidence,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_started event:', err));
     }
 
     // Auto-heal: execute actions
@@ -286,7 +291,7 @@ export class SelfHealingService {
   async getIncident(id: string): Promise<HealingIncident | undefined> {
     const row = await this.repository.findIncidentById(id);
     if (!row) return undefined;
-    return this.mapRowToIncident(row);
+    return await this.mapRowToIncident(row);
   }
 
   /**
@@ -309,7 +314,7 @@ export class SelfHealingService {
     });
 
     return {
-      data: result.rows.map((r) => this.mapRowToIncident(r)),
+      data: await Promise.all(result.rows.map((r) => this.mapRowToIncident(r))),
       total: result.total,
       limit: query.limit ?? 50,
       offset: query.offset ?? 0,
@@ -333,7 +338,7 @@ export class SelfHealingService {
       limit: 10000, // Large limit for metrics
     });
 
-    const incidents = result.rows.map((r) => this.mapRowToIncident(r));
+    const incidents = await Promise.all(result.rows.map((r) => this.mapRowToIncident(r)));
     const total = incidents.length;
     const healed = incidents.filter((i) => i.status === 'healed').length;
     const failed = incidents.filter((i) => i.status === 'failed').length;
@@ -434,19 +439,19 @@ export class SelfHealingService {
 
   // ==================== Strategy Management ====================
 
-  getStrategies(): HealingStrategy[] {
+  async getStrategies(): Promise<HealingStrategy[]> {
     return this.strategyEngine.getAllStrategies();
   }
 
-  getStrategy(id: string): HealingStrategy | undefined {
+  async getStrategy(id: string): Promise<HealingStrategy | undefined> {
     return this.strategyEngine.getStrategy(id);
   }
 
-  registerCustomStrategy(strategy: HealingStrategy): void {
-    this.strategyEngine.registerStrategy(strategy);
+  async registerCustomStrategy(strategy: HealingStrategy): Promise<void> {
+    await this.strategyEngine.registerStrategy(strategy);
   }
 
-  toggleStrategy(id: string, enabled: boolean): boolean {
+  async toggleStrategy(id: string, enabled: boolean): Promise<boolean> {
     if (enabled) {
       return this.strategyEngine.enableStrategy(id);
     }
@@ -478,17 +483,17 @@ export class SelfHealingService {
 
     const approvalRow = await this.repository.findApprovalById(id);
     if (!approvalRow) {
-      throw new Error(`Approval request '${id}' not found`);
+      throw new OrionError(`Approval request '${id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (approvalRow.status !== 'pending') {
-      throw new Error(`Approval request '${id}' is already ${approvalRow.status}`);
+      throw new OrionError(`Approval request '${id}' is already ${approvalRow.status}`, ErrorCode.NOT_FOUND);
     }
 
     // Check expiration
     if (approvalRow.expires_at && new Date() > approvalRow.expires_at) {
       await this.repository.updateApprovalRequest(id, { status: 'expired' });
-      throw new Error(`Approval request '${id}' has expired`);
+      throw new OrionError(`Approval request '${id}' has expired`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -504,7 +509,7 @@ export class SelfHealingService {
     // Update associated incident
     const incident = await this.repository.findIncidentById(approvalRow.incident_id);
     if (!incident) {
-      throw new Error(`Associated incident not found`);
+      throw new OrionError(`Associated incident not found`, 'NOT_FOUND')
     }
 
     // Publish approval_responded event
@@ -516,12 +521,12 @@ export class SelfHealingService {
         respondedBy: response.respondedBy,
         reason: response.reason,
         timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[SelfHealingService] Failed to publish approval_responded event:', err));
+      }).catch(err => logger.warn('[SelfHealingService] Failed to publish approval_responded event:', err));
     }
 
     if (response.approved) {
       // Publish healing_started event before executing actions
-      const strategy = this.strategyEngine.getStrategy(incident.strategy_id || '');
+      const strategy = await this.strategyEngine.getStrategy(incident.strategy_id || '');
       if (strategy && this.eventPublisher) {
         await this.eventPublisher.publishHealingStarted({
           incidentId: incident.id,
@@ -533,7 +538,7 @@ export class SelfHealingService {
           requiresApproval: true,
           confidence: strategy.confidence,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_started event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_started event:', err));
       }
 
       // Execute healing actions with approver info
@@ -552,7 +557,7 @@ export class SelfHealingService {
         status: 'healed',
         completed_at: now,
       });
-      return this.mapRowToIncident(
+      return await this.mapRowToIncident(
         (await this.repository.findIncidentById(incident.id))!
       );
     }
@@ -565,7 +570,7 @@ export class SelfHealingService {
       completed_at: now,
     });
 
-    return this.mapRowToIncident(
+    return await this.mapRowToIncident(
       (await this.repository.findIncidentById(incident.id))!
     );
   }
@@ -614,7 +619,7 @@ export class SelfHealingService {
           rollbackNeeded: result.rollbackNeeded,
           rollbackSuccess: result.rollbackSuccess,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish action_executed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish action_executed event:', err));
       }
 
       // Update audit entry with result
@@ -672,7 +677,7 @@ export class SelfHealingService {
           actionsExecuted: actionResults.length,
           effectiveness: healingResult.effectiveness,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_completed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_completed event:', err));
       } else {
         await this.eventPublisher.publishHealingFailed({
           incidentId: incidentRow.id,
@@ -682,11 +687,11 @@ export class SelfHealingService {
           attempts: incidentRow.attempts,
           lastAction: actionResults[actionResults.length - 1]?.type as any,
           timestamp: new Date().toISOString(),
-        }).catch(err => console.warn('[SelfHealingService] Failed to publish healing_failed event:', err));
+        }).catch(err => logger.warn('[SelfHealingService] Failed to publish healing_failed event:', err));
       }
     }
 
-    return this.mapRowToIncident(
+    return await this.mapRowToIncident(
       (await this.repository.findIncidentById(incidentRow.id))!
     );
   }
@@ -694,9 +699,9 @@ export class SelfHealingService {
   /**
    * Map database row to HealingIncident type
    */
-  private mapRowToIncident(row: HealingIncidentRow): HealingIncident {
+  private async mapRowToIncident(row: HealingIncidentRow): Promise<HealingIncident> {
     const strategy = row.strategy_id
-      ? this.strategyEngine.getStrategy(row.strategy_id)
+      ? await this.strategyEngine.getStrategy(row.strategy_id)
       : undefined;
 
     return {

@@ -9,13 +9,13 @@
  *   - CMDB扩展属性：以CMDB为准
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import * as k8s from '@kubernetes/client-node';
 import { CmdbService } from './CmdbService';
 import { CI, CiType, CreateCIInput, UpdateCIInput } from './CmdbTypes';
 import { SyncStatus } from './K8sWatchClient';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('K8sReconciliationService');
 
 /**
  * 对账配置

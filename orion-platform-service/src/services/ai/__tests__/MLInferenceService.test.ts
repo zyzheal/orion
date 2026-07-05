@@ -7,14 +7,14 @@ import { MLInferenceService } from '../MLInferenceService';
 describe('MLInferenceService', () => {
   let service: MLInferenceService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     service = new MLInferenceService();
   });
 
   // ==================== loadModel ====================
 
   describe('loadModel', () => {
-    it('should load a default model', () => {
+    it('should load a default model', async () => {
       const model = service.loadModel('pipeline-failure-predictor');
 
       expect(model.modelId).toBe('pipeline-failure-predictor');
@@ -23,7 +23,7 @@ describe('MLInferenceService', () => {
       expect(model.loadedAt).toBeDefined();
     });
 
-    it('should return existing model if already loaded', () => {
+    it('should return existing model if already loaded', async () => {
       const first = service.loadModel('pipeline-failure-predictor');
       const second = service.loadModel('pipeline-failure-predictor');
 
@@ -31,7 +31,7 @@ describe('MLInferenceService', () => {
       expect(second.status).toBe('loaded');
     });
 
-    it('should create a new model for unknown modelId', () => {
+    it('should create a new model for unknown modelId', async () => {
       const model = service.loadModel('custom-model-123');
 
       expect(model.modelId).toBe('custom-model-123');
@@ -43,7 +43,7 @@ describe('MLInferenceService', () => {
   // ==================== unloadModel ====================
 
   describe('unloadModel', () => {
-    it('should unload a loaded model', () => {
+    it('should unload a loaded model', async () => {
       service.loadModel('pipeline-failure-predictor');
 
       const result = service.unloadModel('pipeline-failure-predictor');
@@ -53,7 +53,7 @@ describe('MLInferenceService', () => {
       expect(model!.status).toBe('unloaded');
     });
 
-    it('should return false for non-existent model', () => {
+    it('should return false for non-existent model', async () => {
       const result = service.unloadModel('non-existent');
       expect(result).toBe(false);
     });
@@ -62,7 +62,7 @@ describe('MLInferenceService', () => {
   // ==================== getModel ====================
 
   describe('getModel', () => {
-    it('should return model info', () => {
+    it('should return model info', async () => {
       service.loadModel('cost-estimator');
 
       const model = service.getModel('cost-estimator');
@@ -71,7 +71,7 @@ describe('MLInferenceService', () => {
       expect(model!.modelType).toBe('regression');
     });
 
-    it('should return undefined for non-existent model', () => {
+    it('should return undefined for non-existent model', async () => {
       const model = service.getModel('non-existent');
       expect(model).toBeUndefined();
     });
@@ -80,7 +80,7 @@ describe('MLInferenceService', () => {
   // ==================== listLoadedModels ====================
 
   describe('listLoadedModels', () => {
-    it('should list only loaded models', () => {
+    it('should list only loaded models', async () => {
       service.loadModel('pipeline-failure-predictor');
       service.loadModel('cost-estimator');
 
@@ -89,7 +89,7 @@ describe('MLInferenceService', () => {
       expect(models.every((m) => m.status === 'loaded')).toBe(true);
     });
 
-    it('should return empty list when no models loaded', () => {
+    it('should return empty list when no models loaded', async () => {
       const models = service.listLoadedModels();
       expect(models).toHaveLength(0);
     });
@@ -98,10 +98,10 @@ describe('MLInferenceService', () => {
   // ==================== predict ====================
 
   describe('predict', () => {
-    it('should predict with classification model', () => {
+    it('should predict with classification model', async () => {
       service.loadModel('pipeline-failure-predictor');
 
-      const result = service.predict(
+      const result = await service.predict(
         { build_duration: 300, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
         'pipeline-failure-predictor'
       );
@@ -112,10 +112,10 @@ describe('MLInferenceService', () => {
       expect(['positive', 'negative']).toContain(result.value);
     });
 
-    it('should predict with regression model', () => {
+    it('should predict with regression model', async () => {
       service.loadModel('cost-estimator');
 
-      const result = service.predict(
+      const result = await service.predict(
         { cpu_cores: 4, memory_gb: 16, disk_gb: 100, duration_hours: 8 },
         'cost-estimator'
       );
@@ -125,10 +125,10 @@ describe('MLInferenceService', () => {
       expect(result.confidence).toBeGreaterThanOrEqual(0);
     });
 
-    it('should predict with anomaly detection model', () => {
+    it('should predict with anomaly detection model', async () => {
       service.loadModel('anomaly-detector');
 
-      const result = service.predict(
+      const result = await service.predict(
         { error_rate: 0.05, latency_p99: 500, cpu_usage: 80, memory_usage: 70, request_rate: 1000 },
         'anomaly-detector'
       );
@@ -137,35 +137,39 @@ describe('MLInferenceService', () => {
       expect(['anomaly', 'normal']).toContain(result.value);
     });
 
-    it('should throw error for unloaded model', () => {
-      expect(() =>
+    it('should throw error for unloaded model', async () => {
+      await expect(
         service.predict({ feature_0: 1, feature_1: 2 }, 'non-existent')
-      ).toThrow('Model non-existent is not loaded');
+      ).rejects.toThrow('Model non-existent is not loaded');
     });
 
-    it('should throw error for empty features', () => {
+    it('should throw error for empty features', async () => {
       service.loadModel('pipeline-failure-predictor');
 
-      expect(() =>
+      await expect(
         service.predict({}, 'pipeline-failure-predictor')
-      ).toThrow('Features cannot be empty');
+      ).rejects.toThrow('Features cannot be empty');
     });
 
-    it('should save prediction to history', () => {
+    it('should return prediction result with correct fields', async () => {
       service.loadModel('pipeline-failure-predictor');
 
-      service.predict({ feature_0: 1, feature_1: 2, feature_2: 3, feature_3: 4 }, 'pipeline-failure-predictor');
+      const result = await service.predict(
+        { build_duration: 300, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
+        'pipeline-failure-predictor'
+      );
 
-      const history = service.getPredictionHistory('pipeline-failure-predictor');
-      expect(history).toHaveLength(1);
-      expect(history[0].modelId).toBe('pipeline-failure-predictor');
+      expect(result.modelId).toBe('pipeline-failure-predictor');
+      expect(result.predictedAt).toBeDefined();
+      expect(result.inputFeatures).toBeDefined();
+      expect(result.confidence).toBeGreaterThanOrEqual(0);
     });
   });
 
   // ==================== batchPredict ====================
 
   describe('batchPredict', () => {
-    it('should batch predict successfully', () => {
+    it('should batch predict successfully', async () => {
       service.loadModel('pipeline-failure-predictor');
 
       const featureSets = [
@@ -174,7 +178,7 @@ describe('MLInferenceService', () => {
         { build_duration: 100, test_count: 100, code_changes: 2, history_failure_rate: 0.05 },
       ];
 
-      const result = service.batchPredict(featureSets, 'pipeline-failure-predictor');
+      const result = await service.batchPredict(featureSets, 'pipeline-failure-predictor');
 
       expect(result.successCount).toBe(3);
       expect(result.failureCount).toBe(0);
@@ -182,7 +186,7 @@ describe('MLInferenceService', () => {
       expect(result.totalDurationMs).toBeGreaterThanOrEqual(0);
     });
 
-    it('should handle partial failures', () => {
+    it('should handle partial failures', async () => {
       service.loadModel('pipeline-failure-predictor');
 
       const featureSets = [
@@ -191,7 +195,7 @@ describe('MLInferenceService', () => {
         { build_duration: 100, test_count: 100, code_changes: 2, history_failure_rate: 0.05 },
       ];
 
-      const result = service.batchPredict(featureSets, 'pipeline-failure-predictor');
+      const result = await service.batchPredict(featureSets, 'pipeline-failure-predictor');
 
       expect(result.successCount).toBe(2);
       expect(result.failureCount).toBe(1);
@@ -201,36 +205,13 @@ describe('MLInferenceService', () => {
   // ==================== getPredictionHistory ====================
 
   describe('getPredictionHistory', () => {
-    it('should return prediction history', () => {
-      service.loadModel('pipeline-failure-predictor');
-
-      for (let i = 0; i < 5; i++) {
-        service.predict(
-          { build_duration: 300 + i, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
-          'pipeline-failure-predictor'
-        );
-      }
-
-      const history = service.getPredictionHistory('pipeline-failure-predictor');
-      expect(history).toHaveLength(5);
+    it('should return empty array without database', async () => {
+      const history = await service.getPredictionHistory('pipeline-failure-predictor');
+      expect(history).toHaveLength(0);
     });
 
-    it('should respect limit parameter', () => {
-      service.loadModel('pipeline-failure-predictor');
-
-      for (let i = 0; i < 10; i++) {
-        service.predict(
-          { build_duration: 300 + i, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
-          'pipeline-failure-predictor'
-        );
-      }
-
-      const history = service.getPredictionHistory('pipeline-failure-predictor', 3);
-      expect(history).toHaveLength(3);
-    });
-
-    it('should return empty array for no history', () => {
-      const history = service.getPredictionHistory('non-existent');
+    it('should return empty array for non-existent model', async () => {
+      const history = await service.getPredictionHistory('non-existent');
       expect(history).toHaveLength(0);
     });
   });
@@ -238,34 +219,13 @@ describe('MLInferenceService', () => {
   // ==================== getModelPerformance ====================
 
   describe('getModelPerformance', () => {
-    it('should return performance stats for a model with predictions', () => {
+    it('should return zero stats for model without database', async () => {
       service.loadModel('pipeline-failure-predictor');
 
-      for (let i = 0; i < 5; i++) {
-        service.predict(
-          { build_duration: 300 + i * 100, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
-          'pipeline-failure-predictor'
-        );
-      }
-
-      const perf = service.getModelPerformance('pipeline-failure-predictor');
+      const perf = await service.getModelPerformance('pipeline-failure-predictor');
 
       expect(perf).not.toBeNull();
       expect(perf!.modelId).toBe('pipeline-failure-predictor');
-      expect(perf!.totalPredictions).toBe(5);
-      expect(perf!.averageConfidence).toBeGreaterThanOrEqual(0);
-      expect(perf!.averageConfidence).toBeLessThanOrEqual(1);
-      expect(perf!.minConfidence).toBeGreaterThanOrEqual(0);
-      expect(perf!.maxConfidence).toBeLessThanOrEqual(1);
-      expect(perf!.lastPredictionAt).toBeDefined();
-    });
-
-    it('should return zero stats for model with no predictions', () => {
-      service.loadModel('cost-estimator');
-
-      const perf = service.getModelPerformance('cost-estimator');
-
-      expect(perf).not.toBeNull();
       expect(perf!.totalPredictions).toBe(0);
       expect(perf!.averageConfidence).toBe(0);
       expect(perf!.minConfidence).toBe(0);
@@ -273,51 +233,28 @@ describe('MLInferenceService', () => {
       expect(perf!.lastPredictionAt).toBeUndefined();
     });
 
-    it('should return null for non-existent model', () => {
-      const perf = service.getModelPerformance('non-existent');
-      expect(perf).toBeNull();
-    });
-
-    it('should return correct model name and type', () => {
+    it('should return correct model name and type', async () => {
       service.loadModel('anomaly-detector');
-      service.predict(
-        { error_rate: 0.05, latency_p99: 500, cpu_usage: 80, memory_usage: 70, request_rate: 1000 },
-        'anomaly-detector'
-      );
 
-      const perf = service.getModelPerformance('anomaly-detector');
+      const perf = await service.getModelPerformance('anomaly-detector');
 
       expect(perf!.modelName).toBe('Deployment Anomaly Detector');
       expect(perf!.modelType).toBe('anomaly_detection');
     });
 
-    it('should update stats after more predictions', () => {
-      service.loadModel('pipeline-failure-predictor');
-
-      service.predict(
-        { build_duration: 300, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
-        'pipeline-failure-predictor'
-      );
-      const first = service.getModelPerformance('pipeline-failure-predictor');
-
-      service.predict(
-        { build_duration: 600, test_count: 20, code_changes: 5, history_failure_rate: 0.3 },
-        'pipeline-failure-predictor'
-      );
-      const second = service.getModelPerformance('pipeline-failure-predictor');
-
-      expect(second!.totalPredictions).toBe(2);
-      expect(second!.totalPredictions).toBeGreaterThan(first!.totalPredictions);
+    it('should return null for non-existent model', async () => {
+      const perf = await service.getModelPerformance('non-existent');
+      expect(perf).toBeNull();
     });
   });
 
   // ==================== getPredictionConfidence ====================
 
   describe('getPredictionConfidence', () => {
-    it('should return confidence from prediction result', () => {
+    it('should return confidence from prediction result', async () => {
       service.loadModel('pipeline-failure-predictor');
 
-      const prediction = service.predict(
+      const prediction = await service.predict(
         { build_duration: 300, test_count: 50, code_changes: 10, history_failure_rate: 0.1 },
         'pipeline-failure-predictor'
       );

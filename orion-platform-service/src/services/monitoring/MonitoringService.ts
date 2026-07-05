@@ -22,10 +22,20 @@ import {
   CreateEscalationPolicyInput,
 } from './MonitoringRepository';
 import { MetricCollector } from './MetricCollector';
+import { PostgresMetricStorageRepository } from './MetricStorageRepository';
 import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
+import { AlertService } from '../alert/AlertService';
 import { MonitoringDashboard } from './MonitoringDashboard';
+import { MonitoringAlertEscalationRepository } from '../../repositories/MonitoringAlertEscalationRepository';
 import { AlertRule, AlertChannel, EscalationPolicy } from './types';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LMonitoring-LService');
+
+/** Default evaluation window in milliseconds (5 minutes), overridable via env var */
+const DEFAULT_EVALUATION_WINDOW_MS = parseInt(process.env.MONITORING_DEFAULT_EVALUATION_WINDOW_MS || '300000', 10);
 
 export interface ListAlertsOptions {
   page?: number;
@@ -59,24 +69,39 @@ export class MonitoringService {
   readonly notificationService: AlertNotificationService;
   readonly dashboard: MonitoringDashboard;
 
+  // Escalation persistence (PostgreSQL)
+  private escalationRepository?: MonitoringAlertEscalationRepository;
+
   // Service state
   private running = false;
   private collectionTimer?: NodeJS.Timeout;
   private evaluationTimer?: NodeJS.Timeout;
 
-  constructor(repository?: MonitoringRepository) {
+  constructor(repository?: MonitoringRepository, dbPool?: any) {
     this.repository = repository;
 
+    // Create metric storage repository if database is available
+    const metricRepo = dbPool ? new PostgresMetricStorageRepository(dbPool) : undefined;
+
+    // Create escalation persistence repository if database is available
+    if (dbPool) {
+      this.escalationRepository = new MonitoringAlertEscalationRepository(dbPool);
+    }
+
     // Initialize sub-services
-    this.metricCollector = new MetricCollector();
-    this.alertRuleEngine = new AlertRuleEngine(this.metricCollector);
-    this.notificationService = new AlertNotificationService();
+    this.metricCollector = new MetricCollector({
+      repository: metricRepo,
+    });
+    this.alertRuleEngine = new AlertRuleEngine(this.metricCollector, dbPool);
+    this.notificationService = new AlertNotificationService(dbPool);
     this.dashboard = new MonitoringDashboard(this.metricCollector);
 
-    // Wire alert callbacks
+    // Auto-trigger notifications when alerts fire (Task 4.44)
+    const alertService = new AlertService(null, this.notificationService);
     this.alertRuleEngine.onAlert = (alert) => {
-      // Auto-send notifications for new alerts via registered channels
-      // In production, this would trigger the notification pipeline
+      alertService.onAlert(alert).catch((err) => {
+        logger.warn({ err, alertId: alert.id }, '[MonitoringService] Alert notification failed');
+      });
     };
   }
 
@@ -136,7 +161,7 @@ export class MonitoringService {
 
   async getConfig(id: string): Promise<MonitoringConfig> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const config = await this.repository.findConfigById(id);
+    const config = await this.repository.findConfigById(id, getCurrentTenantId());
     if (!config) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
     return config;
   }
@@ -155,18 +180,18 @@ export class MonitoringService {
 
   async updateConfig(id: string, input: Partial<CreateMonitoringConfigInput>): Promise<MonitoringConfig> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const existing = await this.repository.findConfigById(id);
+    const existing = await this.repository.findConfigById(id, getCurrentTenantId());
     if (!existing) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
-    const updated = await this.repository.updateConfig(id, input);
+    const updated = await this.repository.updateConfig(id, input, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Failed to update config: ${id}`, 'UPDATE_FAILED');
     return updated;
   }
 
   async deleteConfig(id: string): Promise<boolean> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const existing = await this.repository.findConfigById(id);
+    const existing = await this.repository.findConfigById(id, getCurrentTenantId());
     if (!existing) throw new MonitoringServiceError(`Config not found: ${id}`, 'CONFIG_NOT_FOUND');
-    return this.repository.deleteConfig(id);
+    return this.repository.deleteConfig(id, getCurrentTenantId());
   }
 
   async enableConfig(id: string): Promise<MonitoringConfig> {
@@ -181,7 +206,7 @@ export class MonitoringService {
 
   async getAlert(id: string): Promise<Alert> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const alert = await this.repository.findAlertById(id);
+    const alert = await this.repository.findAlertById(id, getCurrentTenantId());
     if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
     return alert;
   }
@@ -217,9 +242,9 @@ export class MonitoringService {
       alert.acknowledgedAt = new Date();
       return alert as unknown as Alert;
     }
-    const alert = await this.repository.findAlertById(id);
+    const alert = await this.repository.findAlertById(id, getCurrentTenantId());
     if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
-    const updated = await this.repository.acknowledgeAlert(id, userId);
+    const updated = await this.repository.acknowledgeAlert(id, userId, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Failed to acknowledge: ${id}`, 'UPDATE_FAILED');
     return updated;
   }
@@ -234,9 +259,9 @@ export class MonitoringService {
       alert.resolvedAt = new Date();
       return alert as unknown as Alert;
     }
-    const alert = await this.repository.findAlertById(id);
+    const alert = await this.repository.findAlertById(id, getCurrentTenantId());
     if (!alert) throw new MonitoringServiceError(`Alert not found: ${id}`, 'ALERT_NOT_FOUND');
-    const updated = await this.repository.resolveAlert(id);
+    const updated = await this.repository.resolveAlert(id, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Failed to resolve: ${id}`, 'UPDATE_FAILED');
     return updated;
   }
@@ -250,7 +275,7 @@ export class MonitoringService {
 
   async getRule(id: string): Promise<AlertRuleRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const rule = await this.repository.findRuleById(id);
+    const rule = await this.repository.findRuleById(id, getCurrentTenantId());
     if (!rule) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
     return rule;
   }
@@ -273,9 +298,9 @@ export class MonitoringService {
 
   async updateRule(id: string, input: Partial<CreateAlertRuleInput>): Promise<AlertRuleRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const existing = await this.repository.findRuleById(id);
+    const existing = await this.repository.findRuleById(id, getCurrentTenantId());
     if (!existing) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
-    const updated = await this.repository.updateRule(id, input);
+    const updated = await this.repository.updateRule(id, input, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Failed to update rule: ${id}`, 'UPDATE_FAILED');
 
     // Update in-memory engine
@@ -286,18 +311,18 @@ export class MonitoringService {
 
   async deleteRule(id: string): Promise<boolean> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const existing = await this.repository.findRuleById(id);
+    const existing = await this.repository.findRuleById(id, getCurrentTenantId());
     if (!existing) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
 
     // Remove from in-memory engine
     this.alertRuleEngine.removeRule(id);
 
-    return this.repository.deleteRule(id);
+    return this.repository.deleteRule(id, getCurrentTenantId());
   }
 
   async toggleRule(id: string, enabled: boolean): Promise<AlertRuleRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const updated = await this.repository.toggleRule(id, enabled);
+    const updated = await this.repository.toggleRule(id, enabled, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
     this.alertRuleEngine.toggleRule(id, enabled);
     return updated;
@@ -305,14 +330,14 @@ export class MonitoringService {
 
   async suppressRule(id: string): Promise<AlertRuleRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const updated = await this.repository.suppressRule(id);
+    const updated = await this.repository.suppressRule(id, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
     return updated;
   }
 
   async unsuppressRule(id: string): Promise<AlertRuleRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const updated = await this.repository.unsuppressRule(id);
+    const updated = await this.repository.unsuppressRule(id, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Rule not found: ${id}`, 'RULE_NOT_FOUND');
     return updated;
   }
@@ -346,7 +371,7 @@ export class MonitoringService {
 
   async toggleChannel(id: string, enabled: boolean): Promise<NotificationChannelRecord> {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
-    const updated = await this.repository.toggleChannel(id, enabled);
+    const updated = await this.repository.toggleChannel(id, enabled, getCurrentTenantId());
     if (!updated) throw new MonitoringServiceError(`Channel not found: ${id}`, 'CHANNEL_NOT_FOUND');
     this.notificationService.toggleChannel(id, enabled);
     return updated;
@@ -387,9 +412,47 @@ export class MonitoringService {
     return this.repository.getAlertStats(tenantId);
   }
 
+  // ==================== ChatOps Integration (Task 5.4) ====================
+
+  /**
+   * Get system status for ChatOps /status command
+   */
+  async getStatus(tenantId?: string): Promise<Record<string, unknown>> {
+    const health = this.getHealthStatus();
+    const activeAlerts = this.getActiveAlerts();
+    const metrics = this.getMetrics();
+    return {
+      status: health.status || 'healthy',
+      running: health.running,
+      uptime: health.uptime,
+      metricsCount: health.metricsCount,
+      rulesCount: health.rulesCount,
+      activeAlerts: activeAlerts.length,
+      alerts: activeAlerts.slice(0, 10),
+      metrics: Array.isArray(metrics) ? metrics.slice(0, 20) : (metrics.dataPoints || []).slice(0, 20),
+    };
+  }
+
+  /**
+   * Get recent logs for ChatOps /logs command
+   */
+  async getLogs(params: { service?: string; lines?: number; tenantId?: string }): Promise<Record<string, unknown>> {
+    const lines = params.lines || 100;
+    const serviceName = params.service || 'all';
+    // Return metric collector data as log substitute
+    const metrics = this.metricCollector.getRegisteredMetrics();
+    return {
+      service: serviceName,
+      lines: Math.min(lines, 500),
+      output: `Showing ${Math.min(lines, metrics.length)} metric data points`,
+      metrics: metrics.slice(0, lines),
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   // ==================== Dashboard ====================
 
-  getDashboardData() {
+  async getDashboardData() {
     const activeAlerts = this.alertRuleEngine.getAlertCountsBySeverity();
     return this.dashboard.getDashboardData(activeAlerts as any);
   }
@@ -447,7 +510,7 @@ export class MonitoringService {
         this.alertRuleEngine.addRule(this.ruleRecordToRule(record));
       }
     } catch (error) {
-      console.warn('[MonitoringService] Failed to load persisted rules:', error);
+      logger.warn('[MonitoringService] Failed to load persisted rules:', error);
     }
   }
 
@@ -459,7 +522,7 @@ export class MonitoringService {
         this.notificationService.addChannel(this.channelRecordToChannel(record));
       }
     } catch (error) {
-      console.warn('[MonitoringService] Failed to load persisted channels:', error);
+      logger.warn('[MonitoringService] Failed to load persisted channels:', error);
     }
   }
 

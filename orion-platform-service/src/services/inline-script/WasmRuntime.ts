@@ -1,9 +1,10 @@
 // orion-platform-service/src/services/inline-script/WasmRuntime.ts
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { getQuickJS, QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('WasmRuntime');
 
 export interface WasmExecutionRequest {
   code: string;
@@ -60,7 +61,7 @@ export class WasmRuntime {
     const deadline = Date.now() + request.timeout;
     rt.setInterruptHandler(() => {
       if (Date.now() > deadline) {
-        throw new Error('Execution timeout: exceeded CPU time limit');
+        throw new OrionError('Execution timeout: exceeded CPU time limit', ErrorCode.SERVICE_UNAVAILABLE);
       }
     });
 

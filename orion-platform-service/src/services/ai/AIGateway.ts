@@ -27,9 +27,14 @@ import { AIDegradationRouter } from './AIDegradationRouter';
 import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjectionDetector';
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
 import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { AIGatewayMetricsRepository } from '../../repositories/AIGatewayMetricsRepository';
+import { AIGatewayCircuitStateRepository } from '../../repositories/AIGatewayCircuitStateRepository';
+import { AIGatewayRequestHistoryRepository } from '../../repositories/AIGatewayRequestHistoryRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AIGateway');
 
 // 默认配置
 const DEFAULT_CONFIG: AIGatewayConfig = {
@@ -79,14 +84,19 @@ export class AIGateway {
   private promptSanitizer: PromptSanitizer;
   private circuitBreakerManager: CircuitBreakerManager;
 
-  // 每个场景的指标
+  // 每个场景的指标（in-memory cache, backed by DB）
   private metrics: Map<AIScenario, AIMetrics> = new Map();
 
-  // 每个场景的熔断器状态
+  // 每个场景的熔断器状态（in-memory cache, backed by DB）
   private circuitStates: Map<AIScenario, CircuitBreakerState> = new Map();
 
-  // 请求历史（用于计算 P95）
+  // 请求历史（用于计算 P95，in-memory cache, backed by DB）
   private requestHistory: Map<AIScenario, Array<{ latency: number; success: boolean; timestamp: Date }>> = new Map();
+
+  // Repositories (optional, for PostgreSQL persistence)
+  private metricsRepo: AIGatewayMetricsRepository | null = null;
+  private circuitStateRepo: AIGatewayCircuitStateRepository | null = null;
+  private requestHistoryRepo: AIGatewayRequestHistoryRepository | null = null;
 
   // LLM 调用函数（由外部注入）
   private llmCaller?: (request: AIRequest) => Promise<AIResponse<unknown>>;
@@ -101,18 +111,26 @@ export class AIGateway {
     config: Partial<AIGatewayConfig> = {},
     degradationRouter?: AIDegradationRouter,
     promptSecurityConfig?: Partial<PromptSecurityConfig>,
-    circuitBreakerManager?: CircuitBreakerManager
+    circuitBreakerManager?: CircuitBreakerManager,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.degradationRouter = degradationRouter || new AIDegradationRouter();
+    this.degradationRouter = degradationRouter || new AIDegradationRouter(undefined, db);
     this.promptSecurityConfig = { ...DEFAULT_PROMPT_SECURITY_CONFIG, ...promptSecurityConfig };
     this.promptDetector = new PromptInjectionDetector({
       riskThresholdHigh: this.promptSecurityConfig.riskThresholdHigh,
       riskThresholdMedium: this.promptSecurityConfig.riskThresholdMedium,
     });
     this.promptSanitizer = new PromptSanitizer();
-    this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager();
+    this.circuitBreakerManager = circuitBreakerManager || new CircuitBreakerManager({}, db);
     this.currentProvider = 'openai'; // 默认 Provider
+
+    // Initialize repositories if db is provided
+    if (db) {
+      this.metricsRepo = new AIGatewayMetricsRepository(db);
+      this.circuitStateRepo = new AIGatewayCircuitStateRepository(db);
+      this.requestHistoryRepo = new AIGatewayRequestHistoryRepository(db);
+    }
 
     // 监听双层熔断事件
     this.circuitBreakerManager.on('dual:circuit:event', (event) => {
@@ -130,6 +148,62 @@ export class AIGateway {
         data: event.data,
       });
     });
+  }
+
+  /**
+   * 从数据库恢复状态（启动时调用）
+   */
+  async restoreState(): Promise<void> {
+    if (!this.metricsRepo || !this.circuitStateRepo || !this.requestHistoryRepo) return;
+
+    try {
+      // Restore metrics
+      const metricsEntities = await this.metricsRepo.listAll();
+      for (const entity of metricsEntities) {
+        this.metrics.set(entity.scenario as AIScenario, {
+          scenario: entity.scenario,
+          totalRequests: entity.total_requests,
+          failedRequests: entity.failed_requests,
+          totalLatency: entity.total_latency,
+          avgLatency: entity.avg_latency,
+          p95Latency: entity.p95_latency,
+          errorRate: entity.error_rate,
+          lastErrorTime: entity.last_error_time || undefined,
+        });
+      }
+
+      // Restore circuit states
+      const circuitEntities = await this.circuitStateRepo.listAll();
+      for (const entity of circuitEntities) {
+        this.circuitStates.set(entity.scenario as AIScenario, {
+          scenario: entity.scenario,
+          state: entity.state as CircuitState,
+          failureCount: entity.failure_count,
+          successCount: entity.success_count,
+          lastFailureTime: entity.last_failure_time || undefined,
+          lastStateChangeTime: entity.last_state_change_time,
+          halfOpenAttempts: entity.half_open_attempts,
+        });
+      }
+
+      // Restore request history
+      for (const entity of circuitEntities) {
+        const historyEntities = await this.requestHistoryRepo.findByScenario(entity.scenario, this.config.windowSize);
+        this.requestHistory.set(entity.scenario as AIScenario, historyEntities.map(h => ({
+          latency: h.latency,
+          success: h.success,
+          timestamp: h.request_time,
+        })));
+      }
+
+      logger.info({ msg: 'AIGateway state restored from DB', metricsCount: metricsEntities.length, circuitCount: circuitEntities.length });
+
+      // Restore sub-component states
+      await this.degradationRouter.restoreState();
+      await this.circuitBreakerManager.restoreState();
+    } catch (error) {
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore AIGateway state from DB', error });
+    }
   }
 
   /**
@@ -154,7 +228,7 @@ export class AIGateway {
       try {
         handler(event);
       } catch (error) {
-        console.error('Event handler error:', error);
+        logger.error('Event handler error:', error);
       }
     }
   }
@@ -186,7 +260,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, dualCircuitState.degradationReason || 'dual_circuit_triggered');
       }
-      throw new Error(`Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`);
+      throw new OrionError(`Dual circuit breaker triggered: ${dualCircuitState.degradationReason}`, 'OPERATION_FAILED')
     }
 
     // 如果有建议的 Provider（Provider 级熔断后自动降级）
@@ -213,7 +287,7 @@ export class AIGateway {
         if (request.options?.fallbackEnabled !== false) {
           return this.handleDegradation<T>(request, 'no_available_provider');
         }
-        throw new Error('No available provider');
+        throw new OrionError('No available provider', ErrorCode.OPERATION_FAILED);
       }
     }
 
@@ -225,7 +299,7 @@ export class AIGateway {
 
         // 记录安全事件
         if (this.promptSecurityConfig.logSecurityEvents && securityAnalysis.threats.length > 0) {
-          logger.warn({
+          logger.warn({ traceId: getCurrentTraceId(),
             msg: 'Prompt security threat detected',
             scenario,
             userId: request.context?.userId,
@@ -240,7 +314,7 @@ export class AIGateway {
         // 高风险：拒绝请求
         if (securityAnalysis.riskScore >= this.promptSecurityConfig.riskThresholdHigh) {
           if (this.promptSecurityConfig.rejectOnHighRisk) {
-            logger.error({
+            logger.error({ traceId: getCurrentTraceId(),
               msg: 'Prompt rejected due to high security risk',
               scenario,
               riskScore: securityAnalysis.riskScore,
@@ -295,7 +369,7 @@ export class AIGateway {
       if (request.options?.fallbackEnabled !== false) {
         return this.handleDegradation<T>(request, 'circuit_breaker_open');
       }
-      throw new Error('Circuit breaker open, degradation disabled');
+      throw new OrionError('Circuit breaker open, degradation disabled', ErrorCode.OPERATION_FAILED);
     }
 
     // 检查健康状态
@@ -307,7 +381,7 @@ export class AIGateway {
         return this.handleDegradation<T>(request, 'health_check_failed');
       }
       // 如果降级禁用，抛出错误
-      throw new Error('AI service unavailable, degradation disabled');
+      throw new OrionError('AI service unavailable, degradation disabled', ErrorCode.OPERATION_FAILED);
     }
 
     // 尝试调用 LLM
@@ -365,7 +439,7 @@ export class AIGateway {
    */
   private async callLLM<T>(request: AIRequest): Promise<AIResponse<T>> {
     if (!this.llmCaller) {
-      throw new Error('LLM caller not configured');
+      throw new OrionError('LLM caller not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const timeout = request.options?.timeout || this.getTimeoutThreshold(request.scenario);
@@ -497,6 +571,35 @@ export class AIGateway {
 
     // 更新指标
     this.updateMetrics(scenario);
+
+    // Persist request history to DB
+    if (this.requestHistoryRepo) {
+      this.requestHistoryRepo.create({
+        id: `${scenario}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        scenario,
+        latency,
+        success: true,
+        request_time: new Date(),
+      }).then(() => {
+        // Prune old records to keep window size
+        return this.requestHistoryRepo!.pruneOldRecords(scenario, this.config.windowSize);
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist request history', error: err }));
+    }
+
+    // Persist metrics to DB
+    if (this.metricsRepo) {
+      const updatedMetrics = this.metrics.get(scenario)!;
+      this.metricsRepo.upsertByScenario({
+        scenario,
+        totalRequests: updatedMetrics.totalRequests,
+        failedRequests: updatedMetrics.failedRequests,
+        totalLatency: updatedMetrics.totalLatency,
+        avgLatency: updatedMetrics.avgLatency,
+        p95Latency: updatedMetrics.p95Latency,
+        errorRate: updatedMetrics.errorRate,
+        lastErrorTime: updatedMetrics.lastErrorTime,
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
+    }
   }
 
   /**
@@ -530,6 +633,47 @@ export class AIGateway {
     if (circuitState.failureCount >= this.config.circuitBreaker.failureThreshold) {
       this.openCircuit(scenario);
     }
+
+    // Persist request history to DB
+    if (this.requestHistoryRepo) {
+      this.requestHistoryRepo.create({
+        id: `${scenario}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        scenario,
+        latency,
+        success: false,
+        request_time: new Date(),
+      }).then(() => {
+        return this.requestHistoryRepo!.pruneOldRecords(scenario, this.config.windowSize);
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist request history', error: err }));
+    }
+
+    // Persist metrics to DB
+    if (this.metricsRepo) {
+      const updatedMetrics = this.metrics.get(scenario)!;
+      this.metricsRepo.upsertByScenario({
+        scenario,
+        totalRequests: updatedMetrics.totalRequests,
+        failedRequests: updatedMetrics.failedRequests,
+        totalLatency: updatedMetrics.totalLatency,
+        avgLatency: updatedMetrics.avgLatency,
+        p95Latency: updatedMetrics.p95Latency,
+        errorRate: updatedMetrics.errorRate,
+        lastErrorTime: updatedMetrics.lastErrorTime,
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
+    }
+
+    // Persist circuit state to DB
+    if (this.circuitStateRepo) {
+      this.circuitStateRepo.upsertByScenario({
+        scenario,
+        state: circuitState.state,
+        failureCount: circuitState.failureCount,
+        successCount: circuitState.successCount,
+        lastFailureTime: circuitState.lastFailureTime,
+        lastStateChangeTime: circuitState.lastStateChangeTime,
+        halfOpenAttempts: circuitState.halfOpenAttempts,
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+    }
   }
 
   /**
@@ -543,6 +687,19 @@ export class AIGateway {
     // 半开状态下成功次数足够，关闭熔断器
     if (state.halfOpenAttempts >= this.config.circuitBreaker.halfOpenMaxCalls) {
       this.closeCircuit(scenario);
+    } else {
+      // Persist intermediate state
+      if (this.circuitStateRepo) {
+        this.circuitStateRepo.upsertByScenario({
+          scenario,
+          state: state.state,
+          failureCount: state.failureCount,
+          successCount: state.successCount,
+          lastFailureTime: state.lastFailureTime,
+          lastStateChangeTime: state.lastStateChangeTime,
+          halfOpenAttempts: state.halfOpenAttempts,
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+      }
     }
   }
 
@@ -556,6 +713,19 @@ export class AIGateway {
     // 半开状态下失败，重新打开熔断器
     if (state.halfOpenAttempts >= this.config.circuitBreaker.halfOpenMaxCalls) {
       this.openCircuit(scenario);
+    } else {
+      // Persist intermediate state
+      if (this.circuitStateRepo) {
+        this.circuitStateRepo.upsertByScenario({
+          scenario,
+          state: state.state,
+          failureCount: state.failureCount,
+          successCount: state.successCount,
+          lastFailureTime: state.lastFailureTime,
+          lastStateChangeTime: state.lastStateChangeTime,
+          halfOpenAttempts: state.halfOpenAttempts,
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+      }
     }
   }
 
@@ -575,6 +745,19 @@ export class AIGateway {
         timestamp: new Date(),
         data: { failureCount: state.failureCount },
       });
+
+      // Persist to DB
+      if (this.circuitStateRepo) {
+        this.circuitStateRepo.upsertByScenario({
+          scenario,
+          state: 'OPEN',
+          failureCount: state.failureCount,
+          successCount: state.successCount,
+          lastFailureTime: state.lastFailureTime,
+          lastStateChangeTime: state.lastStateChangeTime,
+          halfOpenAttempts: state.halfOpenAttempts,
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+      }
     }
   }
 
@@ -594,6 +777,18 @@ export class AIGateway {
       timestamp: new Date(),
       data: {},
     });
+
+    // Persist to DB
+    if (this.circuitStateRepo) {
+      this.circuitStateRepo.upsertByScenario({
+        scenario,
+        state: 'CLOSED',
+        failureCount: 0,
+        successCount: 0,
+        lastStateChangeTime: state.lastStateChangeTime,
+        halfOpenAttempts: 0,
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+    }
   }
 
   /**
@@ -636,7 +831,7 @@ export class AIGateway {
    */
   private ensureScenarioInitialized(scenario: AIScenario): void {
     if (!this.metrics.has(scenario)) {
-      this.metrics.set(scenario, {
+      const defaultMetrics: AIMetrics = {
         scenario,
         totalRequests: 0,
         failedRequests: 0,
@@ -644,18 +839,43 @@ export class AIGateway {
         avgLatency: 0,
         p95Latency: 0,
         errorRate: 0,
-      });
+      };
+      this.metrics.set(scenario, defaultMetrics);
 
       this.requestHistory.set(scenario, []);
 
-      this.circuitStates.set(scenario, {
+      const defaultCircuitState: CircuitBreakerState = {
         scenario,
         state: 'CLOSED',
         failureCount: 0,
         successCount: 0,
         lastStateChangeTime: new Date(),
         halfOpenAttempts: 0,
-      });
+      };
+      this.circuitStates.set(scenario, defaultCircuitState);
+
+      // Persist to DB if available
+      if (this.metricsRepo) {
+        this.metricsRepo.upsertByScenario({
+          scenario,
+          totalRequests: 0,
+          failedRequests: 0,
+          totalLatency: 0,
+          avgLatency: 0,
+          p95Latency: 0,
+          errorRate: 0,
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist metrics', error: err }));
+      }
+      if (this.circuitStateRepo) {
+        this.circuitStateRepo.upsertByScenario({
+          scenario,
+          state: 'CLOSED',
+          failureCount: 0,
+          successCount: 0,
+          lastStateChangeTime: new Date(),
+          halfOpenAttempts: 0,
+        }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist circuit state', error: err }));
+      }
     }
   }
 

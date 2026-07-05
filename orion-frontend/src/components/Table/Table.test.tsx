@@ -34,7 +34,7 @@ describe('OrionTable', () => {
 
   it('should show empty text when no data', () => {
     render(<Table columns={sampleColumns} dataSource={[]} />);
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText('暂无数据')).toBeInTheDocument();
   });
 
   it('should show loading state', () => {
@@ -54,7 +54,7 @@ describe('OrionTable', () => {
 
     // With default pageSize=10, only 10 rows should be rendered in table
     // But all 25 should be countable in pagination total
-    expect(screen.getByText(/Total 25 items/)).toBeInTheDocument();
+    expect(screen.getByText(/共 25 条/)).toBeInTheDocument();
   });
 
   it('should render sortable columns', () => {
@@ -106,7 +106,7 @@ describe('OrionTable', () => {
         pagination={{ current: 1, pageSize: 10, total: 50 }}
       />
     );
-    expect(screen.getByText(/Total 50 items/)).toBeInTheDocument();
+    expect(screen.getByText(/共 50 条/)).toBeInTheDocument();
   });
 
   it('should show clear filters button when filters are active', () => {

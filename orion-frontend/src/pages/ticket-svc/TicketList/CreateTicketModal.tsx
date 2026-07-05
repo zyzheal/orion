@@ -6,10 +6,11 @@
  * - Duplicate detection preview
  * - Submit button with loading state
  */
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Modal, Form, Input, Select, Radio, Typography, message, Space } from 'antd';
 import { WarningOutlined } from '@ant-design/icons';
 import { colors, spacing } from '@/tokens';
+import { createTicket, updateTicket, type CreateTicketPayload, type Ticket } from '@/api/ticketing';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -33,6 +34,7 @@ export interface CreateTicketModalProps {
   open: boolean;
   onCancel: () => void;
   onSuccess: () => void;
+  ticket?: Ticket | null;
 }
 
 // ============================================================================
@@ -83,8 +85,15 @@ const priorityLabels: Record<string, string> = {
  * In production, this would query the backend for similar tickets.
  */
 const KNOWN_TICKET_PATTERNS = [
-  'CPU', '数据库', 'API 网关', '磁盘空间', '部署',
-  '安全漏洞', '成本', '响应延迟', 'Redis',
+  'CPU',
+  '数据库',
+  'API 网关',
+  '磁盘空间',
+  '部署',
+  '安全漏洞',
+  '成本',
+  '响应延迟',
+  'Redis',
 ];
 
 function findPotentialDuplicates(title: string): string[] {
@@ -105,10 +114,32 @@ function findPotentialDuplicates(title: string): string[] {
 // Component
 // ============================================================================
 
-const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, onSuccess }) => {
+const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
+  open,
+  onCancel,
+  onSuccess,
+  ticket,
+}) => {
   const [form] = Form.useForm<CreateTicketFormValues>();
   const [submitting, setSubmitting] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const isEdit = !!ticket;
+
+  useEffect(() => {
+    if (open && ticket) {
+      form.setFieldsValue({
+        title: ticket.title,
+        category: ticket.category,
+        priority: ticket.priority,
+        description: ticket.description,
+        source: ticket.source,
+        tags: ticket.tags ? Object.keys(ticket.tags) : [],
+      });
+    } else if (open && !ticket) {
+      form.resetFields();
+      setTitleValue('');
+    }
+  }, [open, ticket, form]);
 
   const potentialDuplicates = useMemo(() => {
     return findPotentialDuplicates(titleValue);
@@ -120,18 +151,25 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
     try {
       await form.validateFields();
       setSubmitting(true);
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      message.success('工单创建成功');
+      const values = form.getFieldsValue() as unknown as CreateTicketPayload;
+      if (isEdit && ticket) {
+        await updateTicket(ticket.id, values);
+        message.success('工单更新成功');
+      } else {
+        await createTicket(values);
+        message.success('工单创建成功');
+      }
       form.resetFields();
       setTitleValue('');
-      setSubmitting(false);
       onSuccess();
     } catch (error: unknown) {
+      if (error instanceof Error && error.message !== 'Validation failed') {
+        message.error(`${isEdit ? '更新' : '创建'}失败：${error.message}`);
+      }
+    } finally {
       setSubmitting(false);
-      // Form validation error - no need to show additional message
     }
-  }, [form, onSuccess]);
+  }, [form, onSuccess, isEdit, ticket]);
 
   const handleCancel = () => {
     form.resetFields();
@@ -141,16 +179,16 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
 
   return (
     <Modal
-      title="创建工单"
+      title={isEdit ? '编辑工单' : '创建工单'}
       open={open}
       onCancel={handleCancel}
       width={640}
-      okText="创建"
+      okText={isEdit ? '保存' : '创建'}
       cancelText="取消"
       confirmLoading={submitting}
       onOk={handleSubmit}
       okButtonProps={{
-        'data-testid': 'create-ticket-submit',
+        'data-testid': isEdit ? 'edit-ticket-submit' : 'create-ticket-submit',
       }}
       destroyOnClose
     >
@@ -212,7 +250,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
         )}
 
         {/* Category and Priority row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: spacing.md }}>
           <Form.Item
             label="工单分类"
             name="category"
@@ -230,7 +268,10 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({ open, onCancel, o
             name="priority"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Radio.Group data-testid="create-ticket-priority" style={{ display: 'flex', gap: 8 }}>
+            <Radio.Group
+              data-testid="create-ticket-priority"
+              style={{ display: 'flex', gap: spacing.sm }}
+            >
               {(['critical', 'high', 'medium', 'low'] as const).map((p) => (
                 <Radio.Button
                   key={p}

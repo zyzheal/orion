@@ -11,6 +11,9 @@
  */
 
 import { EventBusService } from '../services/event-bus-service';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('LEvent-LBus-LAdapter');
 
 /**
  * CloudEvents 1.0 标准格式
@@ -112,7 +115,7 @@ export class EventBusAdapter {
     options: PublishOptions = {},
   ): Promise<PublishResult> {
     if (!this.eventBus) {
-      console.warn(`[EventBusAdapter] EventBus not available, event ${type} not published`);
+      logger.warn(`[EventBusAdapter] EventBus not available, event ${type} not published`);
       return {
         success: false,
         error: 'EventBus not available',
@@ -146,7 +149,7 @@ export class EventBusAdapter {
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[EventBusAdapter] Failed to publish ${type}:`, errorMsg);
+      logger.error(`[EventBusAdapter] Failed to publish ${type}:`, errorMsg);
       return {
         success: false,
         error: errorMsg,

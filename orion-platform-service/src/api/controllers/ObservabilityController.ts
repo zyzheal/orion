@@ -288,7 +288,7 @@ export class ObservabilityController {
   async getRcaResult(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const params = request.params as { analysisId: string };
-      const result = this.rcaService.getAnalysis(params.analysisId);
+      const result = await this.rcaService.getAnalysis(params.analysisId);
 
       if (!result) {
         await reply.status(404).send({
@@ -318,7 +318,7 @@ export class ObservabilityController {
           ? { startTime: new Date(query.startTime), endTime: new Date(query.endTime) }
           : undefined;
 
-      const causes = this.rcaService.getTopRootCauses(tenantId, timeWindow, limit);
+      const causes = await this.rcaService.getTopRootCauses(tenantId, timeWindow, limit);
 
       await reply.send({
         data: causes,
@@ -445,7 +445,7 @@ export class ObservabilityController {
       const params = request.params as { deploymentId: string };
       const query = request.query as { start?: string; end?: string };
 
-      const existing = this.rcaService.getTimeline(params.deploymentId);
+      const existing = await this.rcaService.getTimeline(params.deploymentId);
       if (existing) {
         await reply.send({ timeline: existing });
         return;
@@ -472,7 +472,7 @@ export class ObservabilityController {
 
   async getDependencyGraph(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const graph = this.rcaService.getDependencyGraph();
+      const graph = await this.rcaService.getDependencyGraph();
       await reply.send({ data: graph });
     } catch (error) {
       await reply.status(500).send({
@@ -493,7 +493,7 @@ export class ObservabilityController {
         return;
       }
 
-      const roots = this.rcaService.identifyRootCauseViaDependencyGraph(body.affectedServices);
+      const roots = await this.rcaService.identifyRootCauseViaDependencyGraph(body.affectedServices);
       await reply.send({ data: roots });
     } catch (error) {
       await reply.status(500).send({

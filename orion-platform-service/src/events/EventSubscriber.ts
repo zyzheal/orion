@@ -1,3 +1,5 @@
+import { createLogger } from '../utils/logger';
+const logger = createLogger('EventSubscriber');
 import { EventBusService, TypedEnvelope } from '../services/event-bus-service';
 
 /**
@@ -80,7 +82,7 @@ export class EventSubscriber {
         streamName: (sub.metadata as any)?.streamName || 'ORION_PLATFORM',
         durableName: sub.durableName || `consumer-${sub.id}`,
         dataType: 'unknown',
-        handler: async (event: TypedEnvelope) => { console.log(`[EventSubscriber] Received event: ${event.type}`); },
+        handler: async (event: TypedEnvelope) => { logger.info(`[EventSubscriber] Received event: ${event.type}`); },
       };
       this.register(rule);
     }

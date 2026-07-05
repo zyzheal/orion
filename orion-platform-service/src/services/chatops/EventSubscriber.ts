@@ -10,10 +10,18 @@
  * ARCH-003: 订阅失败不再静默，而是采用 fallback 策略：
  * 1. NATS 不可用：定时轮询数据库事件表（fallback_poll 模式）
  * 2. 订阅失败：记录失败并等待 NATS 重连后重新订阅
+ *
+ * Migrated from Map() to PostgreSQL Repository pattern.
  */
 
 import { EventEmitter } from 'events';
-import { EventBusService, EventBusError, ConnectionState } from '../event-bus-service';
+import { EventBusService, EventBusError } from '../event-bus-service';
+import { ChatOpsRecommendationRepository } from '../../repositories/ChatOpsRecommendationRepository';
+import { ChatOpsSubscriptionFailureRepository } from '../../repositories/ChatOpsSubscriptionFailureRepository';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('EventSubscriber');
 
 export interface ChatOpsRecommendation {
   id: string;
@@ -46,9 +54,13 @@ interface SubscriptionFailure {
 export class ChatOpsEventSubscriber {
   private eventBus: EventBusService;
   private localBus: EventEmitter = new EventEmitter();
+  private recommendationRepo: ChatOpsRecommendationRepository | null;
+  private subscriptionFailureRepo: ChatOpsSubscriptionFailureRepository | null;
+  private tenantId: string | null;
+  /** In-memory cache for fast access (sync with DB) */
   private activeRecommendations: Map<string, ChatOpsRecommendation> = new Map();
   private unsubscribeFns: Array<() => Promise<void>> = [];
-  /** ARCH-003: 记录订阅失败 */
+  /** ARCH-003: In-memory cache of subscription failures */
   private subscriptionFailures: Map<string, SubscriptionFailure> = new Map();
   /** ARCH-003: Fallback 轮询定时器 */
   private fallbackPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -58,9 +70,16 @@ export class ChatOpsEventSubscriber {
   /** ARCH-003: Fallback 轮询间隔 */
   private readonly FALLBACK_POLL_INTERVAL_MS = 5_000;
 
-  constructor(eventBus: EventBusService) {
+  constructor(
+    eventBus: EventBusService,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId?: string,
+  ) {
     this.eventBus = eventBus;
-    // 每 10 分钟清理过期推荐，防止 Map 无限增长
+    this.recommendationRepo = db ? new ChatOpsRecommendationRepository(db) : null;
+    this.subscriptionFailureRepo = db ? new ChatOpsSubscriptionFailureRepository(db) : null;
+    this.tenantId = tenantId ?? null;
+    // 每 10 分钟清理过期推荐，防止无限增长
     this.cleanupTimer = setInterval(() => this.cleanExpiredRecommendations(), 10 * 60 * 1000);
     // 确保定时器不会阻止进程退出
     if (typeof this.cleanupTimer.unref === 'function') {
@@ -69,16 +88,52 @@ export class ChatOpsEventSubscriber {
 
     // ARCH-003: 监听 EventBus 状态变化，自动切换 fallback 模式
     this.eventBus.on('fallback', () => {
-      console.log('[ChatOpsEventSubscriber] EventBus in fallback mode, starting fallback polling');
+      logger.info('[ChatOpsEventSubscriber] EventBus in fallback mode, starting fallback polling');
       this.startFallbackPolling();
     });
 
     this.eventBus.on('connect', () => {
-      console.log('[ChatOpsEventSubscriber] EventBus connected, stopping fallback polling');
+      logger.info('[ChatOpsEventSubscriber] EventBus connected, stopping fallback polling');
       this.stopFallbackPolling();
       // ARCH-003: 重连后重试失败的订阅
       this.retryFailedSubscriptions();
     });
+
+    // Load existing recommendations from DB on startup
+    this.loadFromDB();
+  }
+
+  /** Load active recommendations and unresolved failures from DB */
+  private async loadFromDB(): Promise<void> {
+    try {
+      const recs = await this.recommendationRepo?.findActive(this.tenantId ?? undefined) ?? [];
+      for (const rec of recs) {
+        this.activeRecommendations.set(rec.id, {
+          id: rec.id,
+          type: rec.type as ChatOpsRecommendation['type'],
+          severity: rec.severity as ChatOpsRecommendation['severity'],
+          title: rec.title,
+          description: rec.description ?? '',
+          actions: rec.actions,
+          createdAt: rec.createdAt,
+          source: rec.source ?? '',
+        });
+      }
+
+      const failures = await this.subscriptionFailureRepo?.findUnresolved(this.tenantId ?? undefined) ?? [];
+      for (const f of failures) {
+        this.subscriptionFailures.set(f.eventType, {
+          event: f.eventType,
+          error: f.errorMessage,
+          timestamp: f.lastRetryAt,
+          retryCount: f.retryCount,
+        });
+      }
+
+      logger.info(`[ChatOpsEventSubscriber] Loaded ${recs.length} recommendations, ${failures.length} failures from DB`);
+    } catch (err) {
+      logger.warn('[ChatOpsEventSubscriber] Failed to load from DB:', err);
+    }
   }
 
   /**
@@ -106,6 +161,7 @@ export class ChatOpsEventSubscriber {
         this.unsubscribeFns.push(unsub);
         // ARCH-003: 订阅成功后清除失败记录
         this.subscriptionFailures.delete(event);
+        this.subscriptionFailureRepo?.markResolved(event).catch((err) => logger.warn({ err, event }, '[EventSubscriber] Failed to mark subscription resolved'));
       } catch (err: unknown) {
         // ARCH-003: 记录订阅失败，而非静默忽略
         const errorMsg = err instanceof EventBusError
@@ -120,13 +176,17 @@ export class ChatOpsEventSubscriber {
           retryCount: existing ? existing.retryCount + 1 : 1,
         });
 
-        console.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
+        // Persist to DB (fire-and-forget)
+        this.subscriptionFailureRepo?.upsertFailure(event, errorMsg, this.tenantId ?? undefined)
+          .catch((err) => logger.warn({ err, event }, '[EventSubscriber] Failed to persist subscription failure'));
+
+        logger.warn(`[ChatOpsEventSubscriber] Failed to subscribe to ${event}:`, errorMsg);
 
         // ARCH-003: 根据错误类型决定策略
         if (err instanceof EventBusError) {
           if (err.code === 'DISABLED') {
             // EventBus 禁用，无需 fallback
-            console.log(`[ChatOpsEventSubscriber] EventBus disabled, skipping subscription to ${event}`);
+            logger.info(`[ChatOpsEventSubscriber] EventBus disabled, skipping subscription to ${event}`);
           } else if (err.code === 'NOT_CONNECTED' && err.recoverable) {
             // NATS 未连接但可恢复，启动 fallback 轮询
             this.startFallbackPolling();
@@ -147,7 +207,7 @@ export class ChatOpsEventSubscriber {
   private startFallbackPolling(): void {
     if (this.fallbackPollTimer) return;  // 已启动
 
-    console.log('[ChatOpsEventSubscriber] Starting fallback polling for events');
+    logger.info('[ChatOpsEventSubscriber] Starting fallback polling for events');
     this.fallbackPollTimer = setInterval(async () => {
       await this.pollEventsFromDB();
     }, this.FALLBACK_POLL_INTERVAL_MS);
@@ -164,7 +224,7 @@ export class ChatOpsEventSubscriber {
     if (this.fallbackPollTimer) {
       clearInterval(this.fallbackPollTimer);
       this.fallbackPollTimer = null;
-      console.log('[ChatOpsEventSubscriber] Stopped fallback polling');
+      logger.info('[ChatOpsEventSubscriber] Stopped fallback polling');
     }
   }
 
@@ -188,11 +248,11 @@ export class ChatOpsEventSubscriber {
           // 更新状态为 delivered
           await repos.eventRepo.updateStatus(event.id, 'delivered');
         } catch (err) {
-          console.warn('[ChatOpsEventSubscriber] Failed to process fallback event:', err);
+          logger.warn('[ChatOpsEventSubscriber] Failed to process fallback event:', err);
         }
       }
     } catch (err) {
-      console.warn('[ChatOpsEventSubscriber] Fallback poll failed:', err);
+      logger.warn('[ChatOpsEventSubscriber] Fallback poll failed:', err);
     }
   }
 
@@ -218,12 +278,12 @@ export class ChatOpsEventSubscriber {
   private async retryFailedSubscriptions(): Promise<void> {
     if (this.subscriptionFailures.size === 0) return;
 
-    console.log('[ChatOpsEventSubscriber] Retrying failed subscriptions after reconnect');
+    logger.info('[ChatOpsEventSubscriber] Retrying failed subscriptions after reconnect');
     const failures = Array.from(this.subscriptionFailures.values());
 
     for (const failure of failures) {
       if (failure.retryCount >= 3) {
-        console.warn(`[ChatOpsEventSubscriber] Subscription ${failure.event} has exceeded max retries, skipping`);
+        logger.warn(`[ChatOpsEventSubscriber] Subscription ${failure.event} has exceeded max retries, skipping`);
         continue;
       }
 
@@ -237,7 +297,9 @@ export class ChatOpsEventSubscriber {
         });
         this.unsubscribeFns.push(unsub);
         this.subscriptionFailures.delete(failure.event);
-        console.log(`[ChatOpsEventSubscriber] Successfully re-subscribed to ${failure.event}`);
+        // Mark resolved in DB
+        this.subscriptionFailureRepo?.markResolved(failure.event).catch(() => {});
+        logger.info(`[ChatOpsEventSubscriber] Successfully re-subscribed to ${failure.event}`);
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         this.subscriptionFailures.set(failure.event, {
@@ -246,7 +308,9 @@ export class ChatOpsEventSubscriber {
           timestamp: new Date(),
           retryCount: failure.retryCount + 1,
         });
-        console.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
+        // Update retry count in DB
+        this.subscriptionFailureRepo?.incrementRetryCount(failure.event).catch((err) => logger.warn({ err, event: failure.event }, '[EventSubscriber] Failed to increment retry count'));
+        logger.warn(`[ChatOpsEventSubscriber] Re-subscription attempt ${failure.retryCount + 1} failed for ${failure.event}:`, errorMsg);
       }
     }
   }
@@ -257,7 +321,7 @@ export class ChatOpsEventSubscriber {
     const alertId = String(data.alertId || data.id || '');
     if (!alertId) return;
 
-    this.activeRecommendations.set(alertId, {
+    const rec: ChatOpsRecommendation = {
       id: alertId,
       type: 'alert',
       severity: (data.severity as 'critical' | 'warning' | 'info') || 'warning',
@@ -270,20 +334,28 @@ export class ChatOpsEventSubscriber {
       ],
       createdAt: new Date(),
       source: 'monitoring',
-    });
+    };
 
+    this.activeRecommendations.set(alertId, rec);
+    this.persistRecommendation(rec);
     this.emitRecommendationUpdate();
   }
 
   private handleAlertAcknowledged(data: EventBusPayload): void {
     const alertId = String(data.alertId || data.id || '');
-    if (alertId) this.activeRecommendations.delete(alertId);
+    if (alertId) {
+      this.activeRecommendations.delete(alertId);
+      this.recommendationRepo?.delete(alertId).catch((err) => logger.warn({ err, alertId }, '[EventSubscriber] Failed to delete recommendation'));
+    }
     this.emitRecommendationUpdate();
   }
 
   private handleAlertDismissed(data: EventBusPayload): void {
     const alertId = String(data.alertId || data.id || '');
-    if (alertId) this.activeRecommendations.delete(alertId);
+    if (alertId) {
+      this.activeRecommendations.delete(alertId);
+      this.recommendationRepo?.delete(alertId).catch((err) => logger.warn({ err, alertId }, '[EventSubscriber] Failed to delete recommendation'));
+    }
     this.emitRecommendationUpdate();
   }
 
@@ -294,7 +366,7 @@ export class ChatOpsEventSubscriber {
     if (data.status === 'success' || data.status === 'completed') return;
 
     const key = `pipeline:${data.runId || data.pipelineId || 'unknown'}`;
-    this.activeRecommendations.set(key, {
+    const rec: ChatOpsRecommendation = {
       id: key,
       type: 'blocked',
       severity: 'warning',
@@ -306,14 +378,16 @@ export class ChatOpsEventSubscriber {
       ],
       createdAt: new Date(),
       source: 'pipeline',
-    });
+    };
 
+    this.activeRecommendations.set(key, rec);
+    this.persistRecommendation(rec);
     this.emitRecommendationUpdate();
   }
 
   private handlePipelineBlocked(data: EventBusPayload): void {
     const key = `pipeline:${data.runId || data.pipelineId || 'unknown'}`;
-    this.activeRecommendations.set(key, {
+    const rec: ChatOpsRecommendation = {
       id: key,
       type: 'blocked',
       severity: 'warning',
@@ -325,8 +399,10 @@ export class ChatOpsEventSubscriber {
       ],
       createdAt: new Date(),
       source: 'pipeline',
-    });
+    };
 
+    this.activeRecommendations.set(key, rec);
+    this.persistRecommendation(rec);
     this.emitRecommendationUpdate();
   }
 
@@ -336,7 +412,7 @@ export class ChatOpsEventSubscriber {
     if (data.status !== 'failed') return;
 
     const key = `deploy:${data.deploymentId || 'unknown'}`;
-    this.activeRecommendations.set(key, {
+    const rec: ChatOpsRecommendation = {
       id: key,
       type: 'deploy_result',
       severity: 'critical',
@@ -348,8 +424,10 @@ export class ChatOpsEventSubscriber {
       ],
       createdAt: new Date(),
       source: 'deploy',
-    });
+    };
 
+    this.activeRecommendations.set(key, rec);
+    this.persistRecommendation(rec);
     this.emitRecommendationUpdate();
   }
 
@@ -357,7 +435,7 @@ export class ChatOpsEventSubscriber {
 
   private handleSelfHealingFailed(data: EventBusPayload): void {
     const key = `selfhealing:${data.policyId || 'unknown'}`;
-    this.activeRecommendations.set(key, {
+    const rec: ChatOpsRecommendation = {
       id: key,
       type: 'selfhealing',
       severity: 'warning',
@@ -369,9 +447,30 @@ export class ChatOpsEventSubscriber {
       ],
       createdAt: new Date(),
       source: 'selfhealing',
-    });
+    };
 
+    this.activeRecommendations.set(key, rec);
+    this.persistRecommendation(rec);
     this.emitRecommendationUpdate();
+  }
+
+  // ==================== Persistence Helpers ====================
+
+  /** Persist recommendation to DB (fire-and-forget) */
+  private persistRecommendation(rec: ChatOpsRecommendation): void {
+    this.recommendationRepo?.create({
+      id: rec.id,
+      tenant_id: this.tenantId,
+      type: rec.type,
+      severity: rec.severity,
+      title: rec.title,
+      description: rec.description,
+      actions: rec.actions,
+      source: rec.source,
+      created_at: rec.createdAt,
+    }).catch((err) => {
+      logger.warn(`[ChatOpsEventSubscriber] Failed to persist recommendation ${rec.id}:`, err);
+    });
   }
 
   // ==================== Local Bus ====================
@@ -405,14 +504,18 @@ export class ChatOpsEventSubscriber {
     return recs;
   }
 
-  /** 清理过期推荐项，防止 Map 无限增长 */
-  private cleanExpiredRecommendations(): void {
+  /** 清理过期推荐项，防止无限增长 */
+  private async cleanExpiredRecommendations(): Promise<void> {
     const now = Date.now();
     for (const [key, rec] of this.activeRecommendations.entries()) {
       if (now - rec.createdAt.getTime() > this.RECOMMENDATION_TTL_MS) {
         this.activeRecommendations.delete(key);
       }
     }
+
+    // Also clean expired from DB
+    this.recommendationRepo?.cleanExpired(this.RECOMMENDATION_TTL_MS, this.tenantId ?? undefined)
+      .catch((err) => logger.warn({ err }, '[EventSubscriber] Failed to clean expired recommendations'));
   }
 
   /** 清理所有订阅 */

@@ -6,7 +6,7 @@
 CREATE TABLE IF NOT EXISTS llm_traces (
     id SERIAL PRIMARY KEY,
     trace_id VARCHAR(64) NOT NULL UNIQUE,
-    tenant_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     user_id VARCHAR(64),
     scenario_id VARCHAR(64),
     provider_id VARCHAR(64),
@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_llm_traces_parent ON llm_traces(parent_trace_id);
 -- Token消耗聚合表（按日）
 CREATE TABLE IF NOT EXISTS llm_token_daily_stats (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     stat_date DATE NOT NULL,
     scenario_id VARCHAR(64),
     provider_id VARCHAR(64),

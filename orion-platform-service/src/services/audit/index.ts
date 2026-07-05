@@ -11,6 +11,8 @@ export { AuditIntegrityVerifier } from './AuditIntegrityVerifier';
 // Database-backed services (NEW)
 export { AuditRepository } from './AuditRepository';
 export { AuditService, AuditServiceError } from './AuditService';
+export { AuditComplianceService, type ComplianceCheckResult, type AuditComplianceReport, type AuditCoverageStats } from './AuditComplianceService';
+export { AuditRetentionService, type AuditRetentionPolicy, type AuditRetentionPolicyInput, type RetentionCleanupResult } from './AuditRetentionService';
 
 export {
   ChainedAuditLogEntry,

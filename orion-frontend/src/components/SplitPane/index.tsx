@@ -54,7 +54,7 @@ function SplitPane({
   minFirstSize = 100,
   minSecondSize = 100,
   splitterSize = 6,
-  splitterColor = 'var(--border-default, #d9d9d9)',
+  splitterColor = 'var(--border-default, colors.neutral[300])',
   resizable = true,
   firstStyle,
   secondStyle,

@@ -224,8 +224,8 @@ describe('DiagnosticAgentService', () => {
       reportId = result.report.id;
     });
 
-    it('should get report by ID', () => {
-      const report = service.getReport(reportId);
+    it('should get report by ID', async () => {
+      const report = await service.getReport(reportId);
       expect(report).toBeDefined();
       expect(report!.id).toBe(reportId);
     });
@@ -239,23 +239,23 @@ describe('DiagnosticAgentService', () => {
         ],
       });
 
-      const report = service.getReportBySession(result.session.id);
+      const report = await service.getReportBySession(result.session.id);
       expect(report).toBeDefined();
       expect(report!.sessionId).toBe(result.session.id);
     });
 
-    it('should return undefined for non-existent report', () => {
-      const report = service.getReport('non-existent');
+    it('should return undefined for non-existent report', async () => {
+      const report = await service.getReport('non-existent');
       expect(report).toBeUndefined();
     });
 
-    it('should return report history', () => {
-      const reports = service.getReportHistory();
+    it('should return report history', async () => {
+      const reports = await service.getReportHistory();
       expect(reports.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should filter report history by tenantId', () => {
-      const reports = service.getReportHistory({ tenantId: 'tenant-001' });
+    it('should filter report history by tenantId', async () => {
+      const reports = await service.getReportHistory({ tenantId: 'tenant-001' });
       expect(reports.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -263,8 +263,8 @@ describe('DiagnosticAgentService', () => {
   // ==================== Knowledge Base ====================
 
   describe('knowledge base management', () => {
-    it('should add a diagnostic pattern', () => {
-      const pattern = service.addPattern({
+    it('should add a diagnostic pattern', async () => {
+      const pattern = await service.addPattern({
         name: 'Custom Pattern',
         symptoms: [
           {
@@ -281,8 +281,8 @@ describe('DiagnosticAgentService', () => {
       expect(pattern.name).toBe('Custom Pattern');
     });
 
-    it('should get pattern by ID', () => {
-      const pattern = service.addPattern({
+    it('should get pattern by ID', async () => {
+      const pattern = await service.addPattern({
         name: 'Test Pattern',
         symptoms: [{ type: 'error' }],
         rootCause: 'Test cause',
@@ -290,13 +290,13 @@ describe('DiagnosticAgentService', () => {
         category: 'application',
       });
 
-      const found = service.getPattern(pattern.id);
+      const found = await service.getPattern(pattern.id);
       expect(found).toBeDefined();
       expect(found!.id).toBe(pattern.id);
     });
 
-    it('should search patterns', () => {
-      service.addPattern({
+    it('should search patterns', async () => {
+      await service.addPattern({
         name: 'Database Issue',
         symptoms: [{ type: 'database_error' }],
         rootCause: 'DB connection failure',
@@ -304,12 +304,12 @@ describe('DiagnosticAgentService', () => {
         category: 'database',
       });
 
-      const results = service.searchPatterns({ category: 'database' });
+      const results = await service.searchPatterns({ category: 'database' });
       expect(results.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should match symptoms', () => {
-      service.addPattern({
+    it('should match symptoms', async () => {
+      await service.addPattern({
         name: 'DB Pattern',
         symptoms: [
           {
@@ -332,17 +332,17 @@ describe('DiagnosticAgentService', () => {
         },
       ];
 
-      const matches = service.matchSymptoms(symptoms);
+      const matches = await service.matchSymptoms(symptoms);
       expect(matches.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should get all patterns', () => {
-      const patterns = service.getAllPatterns();
+    it('should get all patterns', async () => {
+      const patterns = await service.getAllPatterns();
       expect(patterns.length).toBeGreaterThan(0); // Default patterns exist
     });
 
     it('should record outcome', async () => {
-      const pattern = service.addPattern({
+      const pattern = await service.addPattern({
         name: 'Test Pattern',
         symptoms: [{ type: 'error' }],
         rootCause: 'Test cause',
@@ -356,7 +356,7 @@ describe('DiagnosticAgentService', () => {
         symptoms: [{ type: 'error', source: 'test', description: 'err', severity: 'error' }],
       });
 
-      const outcome = service.recordOutcome({
+      const outcome = await service.recordOutcome({
         sessionId: result.session.id,
         patternId: pattern.id,
         confirmed: true,
@@ -367,8 +367,8 @@ describe('DiagnosticAgentService', () => {
       expect(outcome.confirmed).toBe(true);
     });
 
-    it('should get knowledge base stats', () => {
-      const stats = service.getKnowledgeBaseStats();
+    it('should get knowledge base stats', async () => {
+      const stats = await service.getKnowledgeBaseStats();
 
       expect(stats.totalPatterns).toBeGreaterThan(0);
       expect(stats.patternsByCategory).toBeDefined();
@@ -393,25 +393,25 @@ describe('DiagnosticAgentService', () => {
         ],
       });
 
-      const estimate = service.estimateFixComplexity(result.session.id);
+      const estimate = await service.estimateFixComplexity(result.session.id);
 
       expect(estimate.complexity).toBeDefined();
       expect(estimate.estimatedFixTimeMs).toBeGreaterThan(0);
       expect(estimate.description).toBeDefined();
     });
 
-    it('should throw error for non-existent session', () => {
-      expect(() => {
-        service.estimateFixComplexity('non-existent');
-      }).toThrow('Diagnostic session non-existent not found');
+    it('should throw error for non-existent session', async () => {
+      await expect(
+        service.estimateFixComplexity('non-existent')
+      ).rejects.toThrow('Diagnostic session non-existent not found');
     });
   });
 
   // ==================== getStatus ====================
 
   describe('getStatus', () => {
-    it('should return service status', () => {
-      const status = service.getStatus();
+    it('should return service status', async () => {
+      const status = await service.getStatus();
 
       expect(status.service).toBe('diagnostic-agent');
       expect(status.sessionsCount).toBe(0);
@@ -426,7 +426,7 @@ describe('DiagnosticAgentService', () => {
         symptoms: [{ type: 'error', source: 'test', description: 'err', severity: 'error' }],
       });
 
-      const status = service.getStatus();
+      const status = await service.getStatus();
       expect(status.sessionsCount).toBe(1);
       expect(status.reportsCount).toBe(1);
     });
@@ -444,7 +444,7 @@ describe('DiagnosticAgentService', () => {
 
       service.clearAll();
 
-      const status = service.getStatus();
+      const status = await service.getStatus();
       expect(status.sessionsCount).toBe(0);
       expect(status.reportsCount).toBe(0);
     });

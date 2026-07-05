@@ -85,35 +85,49 @@ export interface DoraMetricsQuery {
 // ==================== DORA Metrics ====================
 
 export function getDoraMetrics(query?: DoraMetricsQuery) {
-  return api.get<DoraMetricsResult>('/v1/efficiency/dora/metrics', { params: query });
+  return api.get<DoraMetricsResult>('/efficiency/dora/metrics', { params: query });
 }
 
 export function generateDoraReport(query?: DoraMetricsQuery & { format?: 'json' | 'pdf' }) {
-  return api.post<{ report: any }>('/v1/efficiency/dora/report', query);
+  return api.post<{ report: any }>('/efficiency/dora/report', query);
 }
 
 export function getDoraBenchmarks() {
-  return api.get<DoraBenchmarks>('/v1/efficiency/dora/benchmarks');
+  return api.get<DoraBenchmarks>('/efficiency/dora/benchmarks');
 }
 
 // ==================== ClickHouse Sync ====================
 
 export function getClickHouseStatus() {
-  return api.get<ClickHouseStatus>('/v1/efficiency/clickhouse/status');
+  return api.get<ClickHouseStatus>('/efficiency/clickhouse/status');
 }
 
 export function triggerClickHouseSync(full?: boolean) {
-  return api.post<{ status: string; syncedAt: string }>('/v1/efficiency/clickhouse/sync', { full });
+  return api.post<{ status: string; syncedAt: string }>('/efficiency/clickhouse/sync', { full });
 }
 
 export function getClickHouseConfig() {
-  return api.get<{ config: { enabled: boolean } }>('/v1/efficiency/clickhouse/config');
+  return api.get<{ config: { enabled: boolean } }>('/efficiency/clickhouse/config');
 }
 
 // ==================== Dashboard ====================
 
 export function getEfficiencyDashboard(query?: { projectId?: string; teamId?: string }) {
-  return api.get<EfficiencyDashboard>('/v1/efficiency/dashboard', { params: query });
+  return api.get<{ dashboard: EfficiencyDashboard }>('/efficiency/dashboard', { params: query });
+}
+
+// ==================== Historical Trends ====================
+
+export interface TrendHistoryPoint {
+  week: string;
+  deploymentFrequency: number;
+  leadTime: number;
+  mttr: number;
+  changeFailureRate: number;
+}
+
+export function getDORTrends(query?: { tenantId?: string; weeks?: number }) {
+  return api.get<{ trends: TrendHistoryPoint[] }>('/efficiency/trends', { params: query });
 }
 
 // ==================== Team Comparison ====================
@@ -145,9 +159,48 @@ export interface TeamComparisonResult {
 }
 
 export function getTeams() {
-  return api.get<{ teams: TeamInfo[] }>('/v1/efficiency/teams');
+  return api.get<{ teams: TeamInfo[] }>('/efficiency/teams');
 }
 
 export function getTeamComparison(query?: { teamIds?: string; interval?: 'daily' | 'weekly' | 'monthly' }) {
-  return api.get<TeamComparisonResult>('/v1/efficiency/compare', { params: query });
+  return api.get<TeamComparisonResult>('/efficiency/compare', { params: query });
+}
+
+// ==================== Developer Profiles ====================
+
+export interface DeveloperProfile {
+  id: string;
+  name: string;
+  team: string;
+  role: string;
+  commits: number;
+  prs: number;
+  reviews: number;
+  bugsFixed: number;
+  avgReviewTime: number;
+  avgPRSize: number;
+  codeQuality: number;
+  activeDays: number;
+  specialty: string[];
+}
+
+export function getDeveloperProfiles(params?: { tenantId?: string }) {
+  return api.get<{ profiles: DeveloperProfile[] }>('/efficiency/developer-profiles', { params });
+}
+
+// ==================== Bottleneck Analysis ====================
+
+export interface BottleneckItem {
+  id: string;
+  category: string;
+  description: string;
+  impact: 'high' | 'medium' | 'low';
+  metric: string;
+  currentValue: string;
+  targetValue: string;
+  suggestion: string;
+}
+
+export function getBottlenecks(params?: { tenantId?: string; timeWindow?: string; windowSize?: number }) {
+  return api.get<{ bottlenecks: BottleneckItem[] }>('/efficiency/bottlenecks', { params });
 }

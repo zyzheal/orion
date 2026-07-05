@@ -3,6 +3,7 @@
  *
  * 编排测试依赖分析、影响分析、执行优化和失败预测的完整工作流。
  * 支持通过事件总线订阅 code.pr.opened 等事件，自动触发测试选择。
+ * PostgreSQL Repository 模式：PR 测试结果存储在 test_selector_pr_results 表中。
  */
 
 import {
@@ -19,6 +20,10 @@ import { TestImpactAnalyzer, ImpactAnalysisResult } from './TestImpactAnalyzer';
 import { TestExecutionOptimizer } from './TestExecutionOptimizer';
 import { TestFailurePredictor, TestHistoryStats } from './TestFailurePredictor';
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
+import { PRTestResultDependencyRepository } from '../../repositories/TestDependencyRepository';
+
+const logger = createLogger('test-selector-service');
 
 /**
  * 事件总线接口（兼容 EventBusService）
@@ -76,21 +81,28 @@ export class TestSelectorService {
   private executionOptimizer: TestExecutionOptimizer;
   private failurePredictor: TestFailurePredictor;
   private eventBus?: EventBusAdapter;
-  private prResults: Map<string, PRTestResult> = new Map();
   private isInitialized = false;
   private unsubscribe?: () => Promise<void>;
+  private prResultRepo: PRTestResultDependencyRepository;
+  private tenantId: string;
 
-  constructor(config: TestSelectorServiceConfig) {
+  constructor(
+    config: TestSelectorServiceConfig,
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId: string = 'default',
+  ) {
+    this.tenantId = tenantId;
     // 初始化组件
-    this.dependencyAnalyzer = new TestDependencyAnalyzer(config.analyzerConfig);
+    this.dependencyAnalyzer = new TestDependencyAnalyzer(config.analyzerConfig, db, tenantId);
     this.impactAnalyzer = new TestImpactAnalyzer(this.dependencyAnalyzer);
-    this.failurePredictor = new TestFailurePredictor();
+    this.failurePredictor = new TestFailurePredictor(db, tenantId);
     this.executionOptimizer = new TestExecutionOptimizer(
       this.impactAnalyzer,
       this.failurePredictor,
       config.optimizerConfig
     );
     this.eventBus = config.eventBus;
+    this.prResultRepo = new PRTestResultDependencyRepository(db);
   }
 
   /**
@@ -101,9 +113,9 @@ export class TestSelectorService {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    console.log('[TestSelectorService] Analyzing test dependencies...');
+    logger.info('Analyzing test dependencies...');
     const dependencyResult = await this.dependencyAnalyzer.analyzeTestDependencies();
-    console.log(`[TestSelectorService] Found ${dependencyResult.suites.length} test suites, ${dependencyResult.cases.length} test cases`);
+    logger.info({ suites: dependencyResult.suites.length, cases: dependencyResult.cases.length }, 'Found test suites and cases');
 
     // 自动订阅 PR 事件
     if (this.eventBus) {
@@ -126,30 +138,29 @@ export class TestSelectorService {
       await this.initialize();
     }
 
-    console.log(`[TestSelectorService] Selecting tests for PR ${prChange.prId}, ${prChange.changedFiles.length} changed files`);
+    logger.info({ prId: prChange.prId, changedFiles: prChange.changedFiles.length }, 'Selecting tests for PR');
 
     // 1. 分析变更影响
     const impactResult = await this.impactAnalyzer.analyzeImpact(prChange.changedFiles);
 
     if (impactResult.allAffectedTestIds.size === 0) {
-      console.log('[TestSelectorService] No tests affected by changes');
+      logger.info('No tests affected by changes');
     } else {
-      console.log(`[TestSelectorService] Found ${impactResult.allAffectedTestIds.size} affected tests`);
+      logger.info({ count: impactResult.allAffectedTestIds.size }, 'Found affected tests');
     }
 
     // 2. 优化执行
     const plan = await this.executionOptimizer.optimizeExecution(impactResult, prChange.prId);
 
-    // 3. 保存结果
-    const result: PRTestResult = {
+    // 3. 保存结果到 PostgreSQL
+    await this.prResultRepo.create({
+      id: uuidv4(),
+      tenantId: this.tenantId,
       prId: prChange.prId,
-      plan,
-      impact: impactResult,
+      planData: plan as unknown as Record<string, unknown>,
+      impactData: impactResult as unknown as Record<string, unknown>,
       status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.prResults.set(prChange.prId, result);
+    });
 
     // 4. 发布事件
     await this.publishTestSelectionEvent(prChange.prId, plan);
@@ -164,11 +175,9 @@ export class TestSelectorService {
    * @returns 测试执行计划
    */
   async getTestPlan(planId: string): Promise<TestExecutionPlan | null> {
-    // 搜索所有 PR 结果中的计划
-    for (const [, result] of this.prResults) {
-      if (result.plan.planId === planId) {
-        return result.plan;
-      }
+    const entity = await this.prResultRepo.findByPlanId(planId, this.tenantId);
+    if (entity) {
+      return entity.planData as unknown as TestExecutionPlan;
     }
     return null;
   }
@@ -177,17 +186,26 @@ export class TestSelectorService {
    * 获取 PR 的测试结果
    */
   async getPRTestResult(prId: string): Promise<PRTestResult | null> {
-    return this.prResults.get(prId) || null;
+    const entity = await this.prResultRepo.findByPrId(prId, this.tenantId);
+    if (!entity) return null;
+
+    return {
+      prId: entity.prId,
+      plan: entity.planData as unknown as TestExecutionPlan,
+      impact: entity.impactData as unknown as ImpactAnalysisResult,
+      status: entity.status as 'pending' | 'running' | 'completed' | 'failed',
+      createdAt: entity.created_at.toISOString(),
+      updatedAt: entity.updated_at.toISOString(),
+    };
   }
 
   /**
    * 更新 PR 测试执行状态
    */
   async updatePRTestStatus(prId: string, status: 'running' | 'completed' | 'failed'): Promise<void> {
-    const result = this.prResults.get(prId);
-    if (result) {
-      result.status = status;
-      result.updatedAt = new Date().toISOString();
+    const entity = await this.prResultRepo.findByPrId(prId, this.tenantId);
+    if (entity) {
+      await this.prResultRepo.updateStatus(entity.id, status);
     }
   }
 
@@ -218,14 +236,14 @@ export class TestSelectorService {
   /**
    * 获取测试历史
    */
-  getTestHistory(testId: string): TestHistoryStats {
+  async getTestHistory(testId: string): Promise<TestHistoryStats> {
     return this.failurePredictor.getStats(testId);
   }
 
   /**
    * 获取所有测试历史汇总
    */
-  getAllTestHistory(): TestHistoryStats[] {
+  async getAllTestHistory(): Promise<TestHistoryStats[]> {
     return this.failurePredictor.getAllStats();
   }
 
@@ -246,14 +264,14 @@ export class TestSelectorService {
   /**
    * 获取测试套件列表
    */
-  getSuites(): TestSuite[] {
+  async getSuites(): Promise<TestSuite[]> {
     return this.dependencyAnalyzer.getSuites();
   }
 
   /**
    * 获取测试用例列表
    */
-  getCases(): TestCase[] {
+  async getCases(): Promise<TestCase[]> {
     return this.dependencyAnalyzer.getCases();
   }
 
@@ -269,7 +287,7 @@ export class TestSelectorService {
    */
   async reanalyze(): Promise<void> {
     this.dependencyAnalyzer.clearCache();
-    this.failurePredictor.clearHistory();
+    await this.failurePredictor.clearHistory();
     this.isInitialized = false;
     await this.initialize();
   }
@@ -293,15 +311,15 @@ export class TestSelectorService {
 
     try {
       const unsubscribe = await this.eventBus.subscribe('code.pr.opened', async (event: any) => {
-        console.log('[TestSelectorService] Received code.pr.opened event:', event.data?.prId);
+        logger.info({ prId: event.data?.prId }, 'Received code.pr.opened event');
         // 事件处理需要 PR 变更数据，这里仅做记录
         // 实际的测试选择需要外部提供变更文件列表
       });
 
       this.unsubscribe = unsubscribe;
-      console.log('[TestSelectorService] Subscribed to code.pr.opened events');
+      logger.info('Subscribed to code.pr.opened events');
     } catch (error) {
-      console.warn('[TestSelectorService] Failed to subscribe to PR events:', error);
+      logger.warn({ err: error }, 'Failed to subscribe to PR events');
     }
   }
 
@@ -321,7 +339,7 @@ export class TestSelectorService {
         planId: plan.planId,
       });
     } catch (error) {
-      console.warn('[TestSelectorService] Failed to publish test selection event:', error);
+      logger.warn({ err: error }, 'Failed to publish test selection event');
     }
   }
 }

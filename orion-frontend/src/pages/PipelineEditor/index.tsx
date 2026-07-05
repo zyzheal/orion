@@ -17,7 +17,7 @@ import {
   Alert,
   Drawer,
 } from 'antd';
-import { spacing } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
   SaveOutlined,
@@ -26,15 +26,17 @@ import {
   CodeOutlined,
   ArrowLeftOutlined,
   CopyOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
 import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
 import { DAGGraph, validateDAG } from '@/components/DAGGraph';
 import { ApartmentOutlined } from '@ant-design/icons';
+import { pipelineTemplates } from '@/api/pipeline-templates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -49,6 +51,7 @@ export interface StageConfig {
   config?: Record<string, any>;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
+  position?: { x: number; y: number };
   matrix?: {
     enabled: boolean;
     dimensions: Array<{ key: string; values: string[] }>;
@@ -87,6 +90,8 @@ const STAGE_TYPES = [
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get('template');
   const [form] = Form.useForm();
 
   // Pipeline 基本信息
@@ -119,16 +124,19 @@ const PipelineEditor: React.FC = () => {
     if (id) {
       getPipeline(id)
         .then((response) => {
-          const pipeline: any = response.data.data;
+          const rawBody = response.data as { data?: unknown };
+          const pipeline = rawBody?.data ?? rawBody;
           if (pipeline) {
-            setPipelineInfo({
-              name: pipeline.name,
-              version: pipeline.version || '1.0.0',
-              description: pipeline.description || '',
-            });
+            const info = {
+              name: (pipeline as any).name,
+              version: String((pipeline as any).version || '1.0.0'),
+              description: (pipeline as any).description || '',
+            };
+            setPipelineInfo(info);
+            form.setFieldsValue(info);
             // 从 spec.stages 加载 Stage，支持后端格式和前端格式
-            if (pipeline.spec?.stages) {
-              const loadedStages: StageConfig[] = pipeline.spec.stages.map(
+            if ((pipeline as any).spec?.stages) {
+              const loadedStages: StageConfig[] = (pipeline as any).spec.stages.map(
                 (s: any, idx: number) => {
                   // 后端格式: { name, runsOn, steps: [{ name, uses, with }], timeout, retries, ... }
                   const stepType =
@@ -160,6 +168,30 @@ const PipelineEditor: React.FC = () => {
         });
     }
   }, [id]);
+
+  // Load template stages (when creating from template)
+  React.useEffect(() => {
+    if (templateId && !id) {
+      const tpl = pipelineTemplates.find((t) => t.id === templateId);
+      if (tpl) {
+        setPipelineInfo({
+          name: tpl.name,
+          version: '1.0.0',
+          description: tpl.description,
+        });
+        const stages: StageConfig[] = tpl.stages.map((s, idx) => ({
+          id: `stage-${idx}-${Date.now()}`,
+          name: s.name,
+          type: s.type,
+          timeout: 300,
+          retryCount: 0,
+          dependsOn: [],
+          config: s.config || {},
+        }));
+        setStages(stages);
+      }
+    }
+  }, [templateId, id]);
 
   // 生成 YAML (FIXED P0-8: aligned with backend PipelineStage schema)
   const generateYaml = useCallback(() => {
@@ -377,10 +409,12 @@ const PipelineEditor: React.FC = () => {
 
   // 保存 Pipeline
   const handleSavePipeline = useCallback(async () => {
-    try {
-      await form.validateFields();
-    } catch (error: unknown) {
-      message.error('请填写完整的 Pipeline 信息');
+    if (!pipelineInfo.name.trim()) {
+      message.error('请输入 Pipeline 名称');
+      return;
+    }
+    if (!pipelineInfo.version.trim()) {
+      message.error('请输入版本号');
       return;
     }
 
@@ -441,26 +475,30 @@ const PipelineEditor: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
-      {/* 页面头部 */}
+    <div style={{ padding: 0 }}>
+      {/* 页面头部 - 与列表页 space-between 布局一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
         }}
       >
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+        <div>
+          <Title level={2} style={{ marginBottom: spacing.sm, display: 'flex', alignItems: 'center' }}>
+            <EditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             {id ? '编辑 Pipeline' : '创建 Pipeline'}
           </Title>
           <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/pipelines')}
+          >
+            返回列表
+          </Button>
           <Button
             icon={<ApartmentOutlined />}
             onClick={() => setDagPreviewVisible(!dagPreviewVisible)}
@@ -497,8 +535,8 @@ const PipelineEditor: React.FC = () => {
         </Space>
       </div>
 
-      {/* Pipeline 基本信息 */}
-      <Card style={{ marginBottom: 24 }} title="基本信息">
+      {/* Pipeline 基本信息 - inline 表单布局 */}
+      <Card style={{ marginBottom: spacing.lg }} title="基本信息">
         <Form form={form} layout="inline" requiredMark>
           <Form.Item
             label="名称"
@@ -524,7 +562,7 @@ const PipelineEditor: React.FC = () => {
               onChange={(e) => setPipelineInfo({ ...pipelineInfo, version: e.target.value })}
             />
           </Form.Item>
-          <Form.Item label="描述" style={{ flex: 1 }}>
+          <Form.Item label="描述">
             <Input
               placeholder="可选描述..."
               value={pipelineInfo.description}
@@ -580,7 +618,7 @@ const PipelineEditor: React.FC = () => {
 
       {/* DAG 依赖关系可视化 */}
       {dagPreviewVisible && stages.length > 0 && (
-        <Card style={{ marginTop: 24 }} title="DAG 依赖关系">
+        <Card style={{ marginTop: spacing.lg }} title="DAG 依赖关系">
           <Alert
             type={validateDAG(stages).valid ? 'success' : 'error'}
             message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
@@ -590,14 +628,14 @@ const PipelineEditor: React.FC = () => {
                 : validateDAG(stages).errors.join('; ')
             }
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           />
           <DAGGraph stages={stages} height={350} showMiniMap={false} />
         </Card>
       )}
 
       {/* Stage 类型说明 */}
-      <Card style={{ marginTop: 24 }} title="阶段类型说明">
+      <Card style={{ marginTop: spacing.lg }} title="阶段类型说明">
         <Space wrap>
           {STAGE_TYPES.map((type) => (
             <Tag

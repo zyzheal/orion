@@ -106,7 +106,7 @@ describe('ArtifactRetentionService', () => {
   beforeEach(() => {
     policyRepo = new MockRetentionPolicyRepository();
     evalRepo = new MockRetentionEvaluationRepository();
-    service = new ArtifactRetentionService(policyRepo, evalRepo);
+    service = new ArtifactRetentionService({ policyRepository: policyRepo, evaluationRepository: evalRepo });
   });
 
   afterEach(() => {

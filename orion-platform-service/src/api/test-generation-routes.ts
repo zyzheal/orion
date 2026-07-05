@@ -6,6 +6,8 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import {
   TestGeneratorService,
   TestGenerationRequest,
@@ -17,6 +19,7 @@ import {
   TestFramework,
 } from '../services/test-generation';
 import { AIGateway } from '../services/ai/AIGateway';
+import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 /**
  * 创建测试生成路由
@@ -54,6 +57,7 @@ export default async function testGenerationRoutes(
    * 生成测试用例
    */
   app.post('/generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -90,11 +94,11 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: TestGenerationRequest }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      const result = await service.generateTests(request.body);
+      const result = await service.generateTests(request.body as any);
 
       return reply.status(200).send({
         success: true,
@@ -105,14 +109,10 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Test generation failed',
         error: error.message,
-        filePath: request.body.change?.filePath,
+        filePath: (request.body as any)?.change?.filePath,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -124,6 +124,7 @@ export default async function testGenerationRoutes(
    * 分析代码变更
    */
   app.post('/analyze-change', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -137,21 +138,15 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{
-      Body: {
-        diff: string;
-        filePath: string;
-        language: ProgrammingLanguage;
-        fileContent?: string;
-      };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
+      const body = request.body as any;
       const result: ChangeAnalysisResult = await service.analyzeChange(
-        request.body.diff,
-        request.body.filePath,
-        request.body.language
+        body.diff,
+        body.filePath,
+        body.language
       );
 
       return reply.status(200).send({
@@ -163,14 +158,10 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Change analysis failed',
         error: error.message,
-        filePath: request.body.filePath,
+        filePath: (request.body as any)?.filePath,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -182,6 +173,7 @@ export default async function testGenerationRoutes(
    * 建议覆盖率改进
    */
   app.post('/suggest-coverage', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
     schema: {
       body: {
         type: 'object',
@@ -207,11 +199,11 @@ export default async function testGenerationRoutes(
       },
     },
   }, async (
-    request: FastifyRequest<{ Body: CoverageSuggestionRequest }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      const result: CoverageSuggestionResponse = await service.suggestCoverageImprovements(request.body);
+      const result: CoverageSuggestionResponse = await service.suggestCoverageImprovements(request.body as any);
 
       return reply.status(200).send({
         success: true,
@@ -222,14 +214,10 @@ export default async function testGenerationRoutes(
       request.log.error({
         msg: 'Coverage suggestion failed',
         error: error.message,
-        sourceFile: request.body.sourceFile,
+        sourceFile: (request.body as any)?.sourceFile,
       });
 
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -240,7 +228,9 @@ export default async function testGenerationRoutes(
    *
    * 获取测试模板列表
    */
-  app.get('/templates', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/templates', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const templates = service.getTemplates();
 
@@ -250,11 +240,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -263,27 +249,21 @@ export default async function testGenerationRoutes(
    *
    * 获取指定语言和框架的模板
    */
-  app.get('/templates/:language/:framework', async (
-    request: FastifyRequest<{
-      Params: {
-        language: ProgrammingLanguage;
-        framework: TestFramework;
-      };
-    }>,
+  app.get('/templates/:language/:framework', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
+      const params = request.params as any;
       const allTemplates = service.getTemplates();
       const filtered = allTemplates.filter(
-        t => t.language === request.params.language && t.framework === request.params.framework
+        t => t.language === params.language && t.framework === params.framework
       );
 
       if (filtered.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          error: `No templates found for ${request.params.language}/${request.params.framework}`,
-          timestamp: new Date().toISOString(),
-        });
+        return handleError(reply, new NotFoundError('Unknown error'))
       }
 
       return reply.status(200).send({
@@ -292,11 +272,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -307,7 +283,9 @@ export default async function testGenerationRoutes(
    *
    * 获取生成历史记录
    */
-  app.get('/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const history = service.getGenerationHistory();
 
@@ -318,11 +296,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -331,12 +305,14 @@ export default async function testGenerationRoutes(
    *
    * 标记测试被采纳
    */
-  app.post('/history/:generationId/adopt', async (
-    request: FastifyRequest<{ Params: { generationId: string } }>,
+  app.post('/history/:generationId/adopt', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'write' })],
+  }, async (
+    request: FastifyRequest,
     reply: FastifyReply
   ) => {
     try {
-      service.markAsAdopted(request.params.generationId);
+      service.markAsAdopted((request.params as any).generationId);
 
       return reply.status(200).send({
         success: true,
@@ -344,11 +320,7 @@ export default async function testGenerationRoutes(
         timestamp: new Date().toISOString(),
       });
     } catch (error: any) {
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
+      return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -359,7 +331,9 @@ export default async function testGenerationRoutes(
    *
    * 获取支持的编程语言列表
    */
-  app.get('/supported-languages', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supported-languages', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const languages: Array<{
       language: ProgrammingLanguage;
       frameworks: TestFramework[];
@@ -383,7 +357,9 @@ export default async function testGenerationRoutes(
    *
    * 获取支持的测试框架列表
    */
-  app.get('/supported-frameworks', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/supported-frameworks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'test', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const frameworks: Array<{
       framework: TestFramework;
       languages: ProgrammingLanguage[];

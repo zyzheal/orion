@@ -17,6 +17,7 @@ import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
 import { PipelineService } from '../services/pipeline/PipelineService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * Pipeline Saga 输入
@@ -104,19 +105,19 @@ export function createPipelineSagaDefinition(
         // 获取 Pipeline 定义
         const pipeline = await pipelineService.getById(input.pipelineId);
         if (!pipeline) {
-          throw new Error(`Pipeline '${input.pipelineId}' not found`);
+          throw new OrionError(`Pipeline '${input.pipelineId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         // 解析 YAML
         let spec: { stages: PipelineYamlStage[] };
         try {
           if (!pipeline.yamlDefinition) {
-            throw new Error('Pipeline has no YAML definition');
+            throw new OrionError('Pipeline has no YAML definition', ErrorCode.OPERATION_FAILED);
           }
           const result = parsePipelineYaml(pipeline.yamlDefinition);
           spec = result.spec;
         } catch (error) {
-          throw new Error(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          throw new OrionError(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`, ErrorCode.NOT_FOUND);
         }
 
         // 创建 PipelineRun
@@ -174,7 +175,7 @@ export function createPipelineSagaDefinition(
         const previousOutput = context.stepExecutions[0]?.output as CreateRunOutput;
 
         if (!runId || !previousOutput) {
-          throw new Error('Missing runId or previous step output');
+          throw new OrionError('Missing runId or previous step output', ErrorCode.NOT_FOUND);
         }
 
         const spec = previousOutput.spec;
@@ -215,24 +216,20 @@ export function createPipelineSagaDefinition(
           tasksByStage.set(stage.id, tasks);
         }
 
-        // 模拟资源预留（实际应调用资源管理服务）
-        // 这里简单标记为预留成功
-        const reserved = true;
-
-        return { stages, tasksByStage: tasksByStageMap, reserved };
+        // 资源预留 — ResourceService 尚未实现，显式失败而非静默成功
+        // TODO: 注入 ResourceService 后替换为真实调用
+        throw new OrionError('ResourceService not implemented — cannot reserve resources for pipeline run. Implement ResourceService and inject it into PipelineSaga.', 'OPERATION_FAILED');
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as ReserveResourcesOutput;
         const runId = context.metadata.runId as string;
 
-        // 释放资源（模拟）
-        // 实际应调用资源管理服务释放预留的资源
-
-        // 清理 Stages 和 Tasks
+        // 清理 Stages 和 Tasks（内存清理仍需执行）
         stagesByRun.delete(runId);
         for (const stage of typedOutput.stages) {
           tasksByStage.delete(stage.id);
         }
+        // TODO: ResourceService 实现后，此处应调用 releaseResources
       },
       timeoutMs: 10000,
     },
@@ -361,7 +358,7 @@ export function createPipelineSagaDefinition(
         const run = pipelineRuns.get(runId);
 
         if (!run) {
-          throw new Error(`PipelineRun '${runId}' not found`);
+          throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const previousStatus = run.status;
@@ -415,7 +412,7 @@ export function createPipelineSagaDefinition(
         const stages = stagesByRun.get(runId) || [];
 
         if (!run) {
-          throw new Error(`PipelineRun '${runId}' not found`);
+          throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const events: string[] = [];
@@ -472,7 +469,7 @@ export function createPipelineSagaDefinition(
     }
 
     if (!run) {
-      throw new Error(`PipelineRun '${runId}' not found`);
+      throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     return {

@@ -29,7 +29,8 @@ export type CiStatus =
   | 'INACTIVE'
   | 'DECOMMISSIONED'
   | 'PENDING'
-  | 'MAINTENANCE';
+  | 'MAINTENANCE'
+  | 'ARCHIVED';
 
 /**
  * 关联关系类型
@@ -71,6 +72,7 @@ export interface CI extends CIBase {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
+  archivedAt?: Date;
 }
 
 /**
@@ -143,6 +145,7 @@ export interface CIFilters {
   offset?: number;
   orderBy?: string;
   order?: 'ASC' | 'DESC';
+  includeArchived?: boolean;
 }
 
 /**
@@ -153,4 +156,36 @@ export interface CIListResponse {
   total: number;
   limit: number;
   offset: number;
+}
+
+/**
+ * 关系类型定义
+ */
+export interface RelationTypeDefinition {
+  id: string;
+  tenantId: bigint;
+  name: string;
+  description?: string;
+  category?: string;
+  isSystem: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 创建关系类型输入
+ */
+export interface CreateRelationTypeInput {
+  name: string;
+  description?: string;
+  category?: string;
+}
+
+/**
+ * 更新关系类型输入
+ */
+export interface UpdateRelationTypeInput {
+  name?: string;
+  description?: string;
+  category?: string;
 }

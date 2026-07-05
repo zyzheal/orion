@@ -1,18 +1,17 @@
 /**
  * ArtifactPromotionRepository — PostgreSQL data access for artifact promotions.
+ * Fixed: aligned column names with migration schema (from_stage/to_stage/promoted_at)
  */
 
 export interface ArtifactPromotionEntity {
   id: string;
   artifact_id: string;
-  from_env: string;
-  to_env: string;
-  status: string;
+  from_stage: string | null;
+  to_stage: string;
   promoted_by: string;
   approved_by: string | null;
-  approved_at: Date | null;
   reason: string | null;
-  created_at: Date;
+  promoted_at: Date;
 }
 
 export class ArtifactPromotionRepository {
@@ -23,29 +22,28 @@ export class ArtifactPromotionRepository {
   }
 
   async create(data: {
-    artifactId: string; fromEnv: string; toEnv: string; status: string;
-    promotedBy: string; approvedBy: string | null; approvedAt: Date | null;
-    reason: string | null; createdAt: Date;
+    artifactId: string; fromStage: string | null; toStage: string;
+    promotedBy: string; approvedBy?: string | null; reason?: string | null;
   }): Promise<ArtifactPromotionEntity> {
     const id = `promo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.db.query(
-      `INSERT INTO artifact_promotions (id, artifact_id, from_env, to_env, status, promoted_by, approved_by, approved_at, reason, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [id, data.artifactId, data.fromEnv, data.toEnv, data.status, data.promotedBy, data.approvedBy, data.approvedAt, data.reason, data.createdAt]
+      `INSERT INTO artifact_promotions (id, artifact_id, from_stage, to_stage, promoted_by, approved_by, reason)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [id, data.artifactId, data.fromStage, data.toStage, data.promotedBy, data.approvedBy || null, data.reason || null]
     );
     return result.rows[0];
   }
 
   async approve(promotionId: string, approvedBy: string): Promise<void> {
     await this.db.query(
-      'UPDATE artifact_promotions SET approved_by = $1, approved_at = NOW() WHERE id = $2',
+      'UPDATE artifact_promotions SET approved_by = $1 WHERE id = $2',
       [approvedBy, promotionId]
     );
   }
 
   async findByArtifact(artifactId: string): Promise<ArtifactPromotionEntity[]> {
     const result = await this.db.query(
-      'SELECT * FROM artifact_promotions WHERE artifact_id = $1 ORDER BY created_at DESC',
+      'SELECT * FROM artifact_promotions WHERE artifact_id = $1 ORDER BY promoted_at DESC',
       [artifactId]
     );
     return result.rows;

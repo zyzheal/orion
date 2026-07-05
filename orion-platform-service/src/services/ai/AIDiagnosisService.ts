@@ -1,9 +1,11 @@
 // orion-platform-service/src/services/ai/AIDiagnosisService.ts
 // AI Diagnosis Service - error root cause analysis with rule-based fallback
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AIDiagnosisService');
 
 export interface DiagnosisResult {
   rootCause: string;
@@ -181,7 +183,7 @@ export class AIDiagnosisService {
     });
 
     if (!response.ok) {
-      throw new Error(`AI service returned ${response.status}: ${response.statusText}`);
+      throw new OrionError(`AI service returned ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     const data: Record<string, any> = (await response.json()) as Record<string, any>;
@@ -252,7 +254,7 @@ export class AIDiagnosisService {
       // A proper implementation would add a findByErrorPattern method to the repository
       return [];
     } catch (error: any) {
-      logger.warn({ error: error.message }, 'Failed to find similar incidents');
+      logger.warn({ traceId: getCurrentTraceId(), error: error.message }, 'Failed to find similar incidents');
       return [];
     }
   }

@@ -54,7 +54,7 @@ export { default as PageSkeleton } from './PageSkeleton';
 export type { PageSkeletonProps } from './PageSkeleton';
 
 export { default as PluginPicker } from './PluginPicker';
-export type { PluginItem, PluginPickerProps } from './PluginPicker';
+export type { PluginPickerProps } from './PluginPicker';
 
 export { InlineScriptEditor } from './InlineScriptEditor';
 export type { InlineScriptEditorProps } from './InlineScriptEditor';
@@ -63,5 +63,5 @@ export type { InlineScriptEditorProps } from './InlineScriptEditor';
 export { StepConfigurationPanel, default as StepConfigurationPanelDefault } from './StepConfigurationPanel';
 export type { StepConfigurationPanelProps } from './StepConfigurationPanel';
 
-export { ExecutionTimeline, default as ExecutionTimelineDefault } from './ExecutionTimeline';
+export { ExecutionTimeline } from './ExecutionTimeline';
 export type { ExecutionTimelineProps, TimelineStep } from './ExecutionTimeline';

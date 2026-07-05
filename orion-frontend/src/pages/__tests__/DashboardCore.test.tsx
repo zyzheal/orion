@@ -10,19 +10,17 @@ import DashboardCore from '@/pages/DashboardCore';
 vi.mock('@/api/client', () => ({
   api: {
     get: vi.fn((url: string) => {
-      if (url === '/v1/efficiency/dashboard') {
+      if (url === '/efficiency/dashboard') {
         return Promise.resolve({
           data: {
-            data: {
-              dashboard: {
-                dora: {
-                  deploymentFrequency: 3.5,
-                },
-                summary: {
-                  totalDeployments: 100,
-                  successfulDeployments: 85,
-                  failedDeployments: 15,
-                },
+            dashboard: {
+              dora: {
+                deploymentFrequency: 3.5,
+              },
+              summary: {
+                totalDeployments: 100,
+                successfulDeployments: 85,
+                failedDeployments: 15,
               },
             },
           },
@@ -31,6 +29,7 @@ vi.mock('@/api/client', () => ({
       if (url === '/v1/alerts') {
         return Promise.resolve({
           data: {
+            activeCount: 3,
             data: [
               {
                 id: 'alert-1',
@@ -43,7 +42,7 @@ vi.mock('@/api/client', () => ({
           },
         });
       }
-      return Promise.resolve({ data: { data: null } });
+      return Promise.resolve({ data: null });
     }),
   },
 }));

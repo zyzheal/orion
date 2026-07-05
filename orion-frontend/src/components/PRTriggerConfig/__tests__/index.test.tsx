@@ -2,7 +2,7 @@
  * PRTriggerConfig Component Tests
  */
 import { render, screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { describe, it, expect, vi } from 'vitest';
 import PRTriggerConfig from '../index';
 
 describe('PRTriggerConfig', () => {
@@ -27,7 +27,7 @@ describe('PRTriggerConfig', () => {
   });
 
   it('calls onChange when config changes', () => {
-    const handleChange = jest.fn();
+    const handleChange = vi.fn();
     render(<PRTriggerConfig onChange={handleChange} />);
 
     const switchElement = screen.getByRole('switch');

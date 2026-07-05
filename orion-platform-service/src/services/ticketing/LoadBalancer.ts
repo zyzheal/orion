@@ -19,6 +19,8 @@ import {
   TicketAssignment,
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
+import { TicketLoadRecordRepository } from '../../repositories/TicketLoadRecordRepository';
+import { AssignmentHistoryRepository } from '../../repositories/AssignmentHistoryRepository';
 
 /**
  * Ticket load record for tracking assignments
@@ -53,11 +55,13 @@ export class LoadBalancer {
   /** Repository for engineer profiles */
   private ticketingRepository?: TicketingRepository;
 
-  /** Ticket load records (in-memory, tracks current assignments) */
-  private ticketLoads: Map<string, TicketLoadRecord> = new Map();
+  /** Ticket load records - runtime cache */
+  private loadRecordRepository?: TicketLoadRecordRepository;
+  private ticketLoads: Map<string, TicketLoadRecord> = new Map(); // in-memory runtime cache
 
-  /** Assignment history */
-  private assignmentHistory: TicketAssignment[] = [];
+  /** Assignment history - runtime cache */
+  private assignmentHistoryRepository?: AssignmentHistoryRepository;
+  private assignmentHistory: TicketAssignment[] = []; // in-memory runtime cache
 
   /** Overload threshold */
   private overloadThreshold: number;
@@ -65,10 +69,14 @@ export class LoadBalancer {
   /** Underutilization threshold */
   private underutilizationThreshold: number;
 
-  constructor(options: { ticketingRepository?: TicketingRepository; overloadThreshold?: number; underutilizationThreshold?: number }) {
+  constructor(options: { ticketingRepository?: TicketingRepository; overloadThreshold?: number; underutilizationThreshold?: number; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } }) {
     this.ticketingRepository = options.ticketingRepository;
     this.overloadThreshold = options.overloadThreshold ?? DEFAULT_OVERLOAD_THRESHOLD;
     this.underutilizationThreshold = options.underutilizationThreshold ?? DEFAULT_UNDERUTILIZATION_THRESHOLD;
+    if (options.db) {
+      this.loadRecordRepository = new TicketLoadRecordRepository(options.db);
+      this.assignmentHistoryRepository = new AssignmentHistoryRepository(options.db);
+    }
   }
 
   // ==================== Engineer Management ====================
@@ -115,6 +123,16 @@ export class LoadBalancer {
         this.ticketLoads.delete(ticketId);
       }
     }
+
+    // Persist to repository
+    if (this.loadRecordRepository) {
+      try {
+        await this.loadRecordRepository.deleteByEngineerId(id);
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     return this.ticketingRepository!.deleteEngineerProfile(id);
   }
 
@@ -154,6 +172,20 @@ export class LoadBalancer {
 
     this.ticketLoads.set(assignment.ticketId, record);
 
+    // Persist to repository
+    if (this.loadRecordRepository) {
+      try {
+        await this.loadRecordRepository.create({
+          ticketId: assignment.ticketId,
+          engineerId: assignment.engineerId,
+          category: assignment.category,
+          estimatedEffortHours: assignment.estimatedEffortHours ?? null,
+        });
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
+
     // Update engineer load in repository
     const engineer = await this.getEngineer(assignment.engineerId);
     if (engineer) {
@@ -171,6 +203,15 @@ export class LoadBalancer {
     if (!record) return false;
 
     this.ticketLoads.delete(ticketId);
+
+    // Persist to repository
+    if (this.loadRecordRepository) {
+      try {
+        await this.loadRecordRepository.deleteByTicketId(ticketId);
+      } catch (err) {
+        // Log but don't fail
+      }
+    }
 
     // Update engineer load in repository
     const engineer = await this.getEngineer(record.engineerId);
@@ -442,6 +483,19 @@ export class LoadBalancer {
    */
   recordAssignmentHistory(assignment: TicketAssignment): void {
     this.assignmentHistory.push({ ...assignment });
+
+    // Persist to repository
+    if (this.assignmentHistoryRepository) {
+      this.assignmentHistoryRepository.create({
+        id: assignment.id,
+        ticketId: assignment.ticketId,
+        assignee: assignment.assignee,
+        assignedBy: assignment.assignedBy,
+        assignedAt: assignment.assignedAt,
+        reason: assignment.reason,
+        matchScore: assignment.matchScore ?? null,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**

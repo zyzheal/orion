@@ -7,6 +7,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { createLogger } from '../../utils/logger';
 import {
   Ticket,
   TicketPriority,
@@ -15,6 +16,9 @@ import {
   SLAAlert,
   SLATarget,
 } from './types';
+import { DispatchQueueEntryRepository, SLATargetRepository, SLAAlertRepository } from '../../repositories/DispatchQueueRepository';
+
+const logger = createLogger('LDispatch-LQueue-LManager');
 
 /**
  * Default SLA warning thresholds (percentage of time elapsed)
@@ -44,13 +48,16 @@ const DEFAULT_REPRIORITY_INTERVAL_MS = 60 * 1000; // 1 minute
  * handling SLA-aware ordering and dynamic re-prioritization.
  */
 export class DispatchQueueManager {
-  /** Queue entries indexed by ticket ID */
+  /** Queue entries indexed by ticket ID (runtime cache) */
+  private queueEntryRepository?: DispatchQueueEntryRepository;
   private queue: Map<string, DispatchQueueEntry> = new Map();
 
-  /** SLA targets */
+  /** SLA targets (runtime cache) */
+  private slaTargetRepository?: SLATargetRepository;
   private slaTargets: Map<string, SLATarget> = new Map();
 
-  /** SLA alerts */
+  /** SLA alerts (runtime cache) */
+  private slaAlertRepository?: SLAAlertRepository;
   private alerts: Map<string, SLAAlert> = new Map();
 
   /** Re-prioritization timer */
@@ -67,11 +74,16 @@ export class DispatchQueueManager {
     repriorityIntervalMs?: number;
     /** Auto re-prioritization on start */
     autoReprioritize?: boolean;
+    /** Database connection for repository persistence */
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     this.repriorityIntervalMs = options?.repriorityIntervalMs ?? DEFAULT_REPRIORITY_INTERVAL_MS;
+    if (options?.db) {
+      this.queueEntryRepository = new DispatchQueueEntryRepository(options.db);
+      this.slaTargetRepository = new SLATargetRepository(options.db);
+      this.slaAlertRepository = new SLAAlertRepository(options.db);
+    }
   }
-
-  // ==================== Queue Operations ====================
 
   /**
    * Enqueue a ticket for dispatch
@@ -95,9 +107,32 @@ export class DispatchQueueManager {
 
     this.queue.set(ticket.id, entry);
 
+    // Persist queue entry to repository
+    if (this.queueEntryRepository) {
+      this.queueEntryRepository.create({
+        id: entry.id,
+        ticketId: ticket.id,
+        ticketData: ticket as any,
+        dispatchPriority: entry.dispatchPriority,
+        slaDeadline: entry.slaDeadline || null,
+      }).catch(() => {/* ignore */});
+    }
+
     // Register SLA target if provided
     if (slaTarget) {
       this.slaTargets.set(slaTarget.id, slaTarget);
+
+      // Persist SLA target to repository
+      if (this.slaTargetRepository) {
+        this.slaTargetRepository.create({
+          id: slaTarget.id,
+          name: slaTarget.name || '',
+          priority: slaTarget.priority || '',
+          targetResponseTimeMs: slaTarget.targetResponseTimeMs || 0,
+          targetResolutionTimeMs: slaTarget.targetResolutionTimeMs || 0,
+          enabled: true,
+        }).catch(() => {/* ignore */});
+      }
     }
 
     // Notify listeners
@@ -125,6 +160,11 @@ export class DispatchQueueManager {
 
     if (best) {
       this.queue.delete(best.ticket.id);
+
+      // Persist to repository
+      if (this.queueEntryRepository) {
+        this.queueEntryRepository.deleteByTicketId(best.ticket.id).catch(() => {/* ignore */});
+      }
     }
 
     return best;
@@ -134,7 +174,14 @@ export class DispatchQueueManager {
    * Remove a specific ticket from the queue
    */
   remove(ticketId: string): boolean {
-    return this.queue.delete(ticketId);
+    const deleted = this.queue.delete(ticketId);
+
+    // Persist to repository
+    if (deleted && this.queueEntryRepository) {
+      this.queueEntryRepository.deleteByTicketId(ticketId).catch(() => {/* ignore */});
+    }
+
+    return deleted;
   }
 
   /**
@@ -182,6 +229,12 @@ export class DispatchQueueManager {
     entry.reprioritizeCount += 1;
 
     this.queue.set(ticketId, entry);
+
+    // Persist to repository
+    if (this.queueEntryRepository) {
+      this.queueEntryRepository.updatePriority(entry.id, newPriority, entry.reprioritizeCount).catch(() => {/* ignore */});
+    }
+
     return entry;
   }
 
@@ -211,7 +264,7 @@ export class DispatchQueueManager {
       this.checkSLAAlerts();
 
       if (count > 0) {
-        console.log(
+        logger.info(
           `[DispatchQueueManager] Re-prioritized ${count} entries, ${this.alerts.size} SLA alerts`
         );
       }
@@ -283,6 +336,18 @@ export class DispatchQueueManager {
 
       this.alerts.set(alert.id, alert);
       newAlerts.push(alert);
+
+      // Persist to repository
+      if (this.slaAlertRepository) {
+        this.slaAlertRepository.create({
+          id: alert.id,
+          queueEntryId: alert.queueEntryId,
+          ticketId: alert.ticketId,
+          alertType: alert.alertType,
+          timeRemainingMs: alert.timeRemainingMs,
+          message: alert.message,
+        }).catch(() => {/* ignore */});
+      }
     }
 
     return newAlerts;
@@ -322,11 +387,13 @@ export class DispatchQueueManager {
   clearResolvedAlerts(): number {
     const before = this.alerts.size;
     const now = Date.now();
+    const deletedIds: string[] = [];
 
     for (const [id, alert] of this.alerts.entries()) {
       // Remove alerts for tickets no longer in queue
       if (!this.queue.has(alert.ticketId)) {
         this.alerts.delete(id);
+        deletedIds.push(id);
         continue;
       }
 
@@ -338,7 +405,15 @@ export class DispatchQueueManager {
 
         if (alert.alertType === 'sla-warning' && elapsed < SLA_WARNING_THRESHOLD) {
           this.alerts.delete(id);
+          deletedIds.push(id);
         }
+      }
+    }
+
+    // Persist deletions to repository
+    if (deletedIds.length > 0 && this.slaAlertRepository) {
+      for (const id of deletedIds) {
+        this.slaAlertRepository.delete(id).catch(() => {/* ignore */});
       }
     }
 
@@ -409,6 +484,11 @@ export class DispatchQueueManager {
     entry.dispatchAttemptCount += 1;
     entry.lastDispatchAttempt = new Date();
     this.queue.set(ticketId, entry);
+
+    // Persist to repository
+    if (this.queueEntryRepository) {
+      this.queueEntryRepository.recordDispatchAttempt(entry.id).catch(() => {/* ignore */});
+    }
   }
 
   /**
@@ -425,6 +505,14 @@ export class DispatchQueueManager {
       if (alert.ticketId === ticketId) {
         this.alerts.delete(id);
       }
+    }
+
+    // Persist to repository
+    if (this.queueEntryRepository) {
+      this.queueEntryRepository.deleteByTicketId(ticketId).catch(() => {/* ignore */});
+    }
+    if (this.slaAlertRepository) {
+      this.slaAlertRepository.deleteByTicketId(ticketId).catch(() => {/* ignore */});
     }
 
     return true;

@@ -113,7 +113,7 @@ const CircuitBreakerPage: React.FC = () => {
     setApiError(null);
     try {
       const response = await getCircuitBreakers();
-      setBreakers(response.data?.data || []);
+      setBreakers(response.data || []);
     } catch (error: unknown) {
       const err = error as Error;
       setApiError(err.message);
@@ -126,7 +126,7 @@ const CircuitBreakerPage: React.FC = () => {
   const loadStats = useCallback(async () => {
     try {
       const response = await getCircuitBreakerStats();
-      setStats(response.data?.data || null);
+      setStats(response.data || null);
     } catch {
       setStats(null);
     }
@@ -171,7 +171,7 @@ const CircuitBreakerPage: React.FC = () => {
       await loadBreakers();
       await loadStats();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`创建失败: ${(error as Error).message}`);
       }
     } finally {
@@ -199,7 +199,7 @@ const CircuitBreakerPage: React.FC = () => {
       editForm.resetFields();
       await loadBreakers();
     } catch (error: unknown) {
-      if (!(error instanceof Error && (error as any).errorFields)) {
+      if (!(error instanceof Error && (error as { errorFields?: unknown }).errorFields)) {
         message.error(`更新失败: ${(error as Error).message}`);
       }
     } finally {
@@ -380,7 +380,7 @@ const CircuitBreakerPage: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
             <ThunderboltOutlined style={{ marginRight: spacing[2], color: colors.error[500] }} />
             熔断器管理
           </Title>

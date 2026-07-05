@@ -1,3 +1,4 @@
+import { OrionError } from '../../errors';
 /**
  * ChaosFaultLibrary - 故障类型库
  */
@@ -54,7 +55,7 @@ export function getFaultTypes(): Record<string, any> {
 export function getFaultConfigTemplate(faultType: string): any {
   const fault = FAULT_TYPES[faultType as keyof typeof FAULT_TYPES];
   if (!fault) {
-    throw new Error(`Unknown fault type: ${faultType}`);
+    throw new OrionError(`Unknown fault type: ${faultType}`, 'NOT_FOUND')
   }
   return {
     type: faultType,

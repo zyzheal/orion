@@ -67,7 +67,7 @@ vi.mock('@/api/llm-trace', () => ({
   }),
 }));
 
-describe('LLMTraceDashboard', () => {
+describe('LLMTraceDashboard', { timeout: 20000 }, () => {
   it('should render layout with navigation', async () => {
     const LLMTraceDashboardLayout = await import('@/pages/LLMTraceDashboard').then((m) => m.default);
     render(

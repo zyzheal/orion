@@ -166,3 +166,84 @@ export interface ReconciliationDiff {
   /** 差异字段 */
   changedFields: string[];
 }
+
+// ============================================================
+// Assets & Services (Phase 4 Task 1)
+// ============================================================
+
+/** CMDB 资产类型 */
+export enum AssetType {
+  SERVER = 'server',
+  CONTAINER = 'container',
+  DATABASE = 'database',
+  STORAGE = 'storage',
+  NETWORK = 'network',
+  CLOUD_RESOURCE = 'cloud_resource',
+  K8S_RESOURCE = 'k8s_resource',
+}
+
+/** 资产状态 */
+export enum AssetStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  MAINTENANCE = 'maintenance',
+  DECOMMISSIONED = 'decommissioned',
+}
+
+/** CMDB 资产 */
+export interface CmdbAsset {
+  id: string;
+  name: string;
+  assetType: AssetType;
+  environment?: string;
+  status: AssetStatus;
+  properties: Record<string, unknown>;
+  tags: string[];
+  ownerId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** 服务类型 */
+export enum ServiceType {
+  MICROSERVICE = 'microservice',
+  WEB_APP = 'web_app',
+  BATCH_JOB = 'batch_job',
+  DATA_SERVICE = 'data_service',
+  API_GATEWAY = 'api_gateway',
+}
+
+/** CMDB 服务 */
+export interface CmdbServiceEntity {
+  id: string;
+  name: string;
+  serviceType: ServiceType;
+  ownerTeam?: string;
+  dependencies: string[];
+  endpoints: string[];
+  status: AssetStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ============================================================
+// Repository Types
+// ============================================================
+
+/** CMDB 节点查询过滤器 */
+export interface CmdbNodeFilters {
+  type?: CmdbNodeType;
+  status?: CmdbNodeStatus;
+  applicationId?: string;
+  environment?: string;
+  tenantId?: string;
+}
+
+/** CMDB 事件类型 */
+export type CmdbEventType =
+  | 'node_created'
+  | 'node_updated'
+  | 'node_deleted'
+  | 'application_created'
+  | 'topology_changed'
+  | 'reconciliation_completed';

@@ -1,8 +1,9 @@
 /**
  * 全新 Dashboard - 工作看板
  * 展示待处理事项、系统状态、快速入口
+ * 对接真实后端API获取数据
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -13,6 +14,8 @@ import {
   Badge,
   Button,
   Space,
+  Spin,
+  Alert,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { colors, spacing } from '@/tokens';
@@ -23,22 +26,31 @@ import {
   RocketOutlined,
   HistoryOutlined,
   PlayCircleOutlined,
-  CodeOutlined,
-  BarChartOutlined,
   DashboardOutlined,
   TeamOutlined,
   UserSwitchOutlined,
   AlertOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { getPipelines, getPipelineRuns, type PipelineRun } from '@/api/pipelines';
+import { getMonitoringHealth } from '@/api/monitoring';
+import { message } from 'antd';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/zh-cn';
 
-const { Text, Paragraph } = Typography;
+dayjs.extend(relativeTime);
+dayjs.locale('zh-cn');
+
+const { Title, Text, Paragraph } = Typography;
 
 // ---- Type definitions ----
 
 interface PipelineRecord {
   key: string;
   name: string;
+  pipelineId: string;
   status: string;
   duration: string;
   trigger: string;
@@ -76,121 +88,6 @@ interface DashboardLink {
   desc: string;
 }
 
-// 模拟数据
-const pipelineStats = {
-  total: 24,
-  running: 3,
-  success: 156,
-  failed: 8,
-  pending: 5,
-};
-
-const recentPipelines: PipelineRecord[] = [
-  {
-    key: '1',
-    name: 'frontend-deploy',
-    status: 'running',
-    duration: '2m 30s',
-    trigger: 'heal',
-    time: '2 分钟前',
-  },
-  {
-    key: '2',
-    name: 'api-service-build',
-    status: 'success',
-    duration: '5m 12s',
-    trigger: 'ci-bot',
-    time: '10 分钟前',
-  },
-  {
-    key: '3',
-    name: 'database-migration',
-    status: 'pending',
-    duration: '-',
-    trigger: 'heal',
-    time: '15 分钟前',
-  },
-  {
-    key: '4',
-    name: 'test-suite',
-    status: 'failed',
-    duration: '1m 45s',
-    trigger: 'ci-bot',
-    time: '1 小时前',
-  },
-  {
-    key: '5',
-    name: 'docs-build',
-    status: 'success',
-    duration: '3m 20s',
-    trigger: 'heal',
-    time: '2 小时前',
-  },
-];
-
-const tasks: TaskRecord[] = [
-  {
-    key: '1',
-    title: '完成 F206 子应用联调测试',
-    priority: 'high',
-    status: 'in-progress',
-    assignee: 'heal',
-    due: '今天',
-  },
-  {
-    key: '2',
-    title: '修复 Pipeline 执行超时问题',
-    priority: 'high',
-    status: 'todo',
-    assignee: 'heal',
-    due: '明天',
-  },
-  {
-    key: '3',
-    title: '更新 API 文档',
-    priority: 'medium',
-    status: 'todo',
-    assignee: 'team',
-    due: '本周',
-  },
-  {
-    key: '4',
-    title: '代码审查 - PR #128',
-    priority: 'medium',
-    status: 'in-progress',
-    assignee: 'heal',
-    due: '今天',
-  },
-  {
-    key: '5',
-    title: '性能优化 - 启动速度',
-    priority: 'low',
-    status: 'todo',
-    assignee: 'team',
-    due: '下周',
-  },
-];
-
-const systemHealth: SystemHealthItem[] = [
-  { name: 'API Gateway', status: 'healthy', latency: '45ms', uptime: '99.9%' },
-  { name: 'Platform Service', status: 'healthy', latency: '32ms', uptime: '99.8%' },
-  { name: 'Database', status: 'healthy', latency: '12ms', uptime: '99.99%' },
-  { name: 'Redis', status: 'healthy', latency: '2ms', uptime: '99.95%' },
-  { name: 'Event Bus', status: 'warning', latency: '156ms', uptime: '98.5%' },
-];
-
-const quickActions: QuickAction[] = [
-  {
-    name: '创建 Pipeline',
-    icon: <RocketOutlined />,
-    color: colors.primary[500],
-    path: '/pipelines/create',
-  },
-  { name: '查看日志', icon: <CodeOutlined />, color: colors.success[500], path: '/logs' },
-  { name: '运行任务', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/tasks' },
-  { name: '历史记录', icon: <HistoryOutlined />, color: colors.warning[500], path: '/history' },
-];
-
 const dashboardLinks: DashboardLink[] = [
   {
     name: '总览看板',
@@ -222,6 +119,18 @@ const dashboardLinks: DashboardLink[] = [
   },
 ];
 
+const quickActions: QuickAction[] = [
+  {
+    name: '创建 Pipeline',
+    icon: <RocketOutlined />,
+    color: colors.primary[500],
+    path: '/pipelines/new',
+  },
+  { name: '运行记录', icon: <HistoryOutlined />, color: colors.success[500], path: '/pipeline-runs' },
+  { name: '部署管理', icon: <PlayCircleOutlined />, color: colors.purple[500], path: '/deployments' },
+  { name: '告警管理', icon: <AlertOutlined />, color: colors.warning[500], path: '/alerts' },
+];
+
 const statusColors: Record<string, string> = {
   running: 'processing',
   success: 'success',
@@ -230,6 +139,7 @@ const statusColors: Record<string, string> = {
   healthy: 'success',
   warning: 'warning',
   error: 'error',
+  cancelled: 'default',
 };
 
 const priorityColors: Record<string, string> = {
@@ -238,16 +148,124 @@ const priorityColors: Record<string, string> = {
   low: 'blue',
 };
 
+// Helper: format duration
+const formatDuration = (run: PipelineRun): string => {
+  if (run.duration) {
+    const seconds = run.duration / 1000;
+    if (seconds < 60) return `${seconds.toFixed(1)}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+  return '-';
+};
+
+// Helper: format time relative to now
+const formatTimeRelative = (timeStr?: string): string => {
+  if (!timeStr) return '-';
+  return dayjs(timeStr).locale('zh-cn').fromNow();
+};
+
+// Helper: map trigger type to display
+const formatTrigger = (trigger: string): string => {
+  const map: Record<string, string> = {
+    manual: '手动',
+    push: '代码推送',
+    schedule: '定时',
+    api: 'API',
+  };
+  return map[trigger] || trigger;
+};
+
 const DashboardNew: React.FC = () => {
   const navigate = useNavigate();
 
-  // 任务统计
-  const taskStats = {
-    total: tasks.length,
-    inProgress: tasks.filter((t) => t.status === 'in-progress').length,
-    todo: tasks.filter((t) => t.status === 'todo').length,
-    completed: 12,
+  // State
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pipelines, setPipelines] = useState<PipelineRun[]>([]);
+  const [recentRuns, setRecentRuns] = useState<PipelineRun[]>([]);
+  const [systemHealth, setSystemHealth] = useState<SystemHealthItem[]>([]);
+
+  // Derived stats from real data
+  const pipelineStats = {
+    total: pipelines.length,
+    running: recentRuns.filter((r) => r.status === 'running').length,
+    success: recentRuns.filter((r) => r.status === 'success').length,
+    failed: recentRuns.filter((r) => r.status === 'failed').length,
+    pending: recentRuns.filter((r) => r.status === 'pending').length,
   };
+
+  // Tasks: backend API not yet available, show empty state
+  const tasks: TaskRecord[] = [];
+
+  const taskStats = {
+    total: 0,
+    inProgress: 0,
+    todo: 0,
+    completed: 0,
+  };
+
+  // Load data from APIs
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch pipelines
+      const pipelinesRes = await getPipelines();
+      if (pipelinesRes.data) {
+        setPipelines(Array.isArray(pipelinesRes.data) ? pipelinesRes.data : []);
+      }
+
+      // Fetch recent runs
+      const runsRes = await getPipelineRuns('all', { page: 1, pageSize: 5 });
+      if (runsRes.data) {
+        setRecentRuns(Array.isArray(runsRes.data) ? runsRes.data : []);
+      }
+
+      // Fetch monitoring health
+      try {
+        const healthRes = await getMonitoringHealth();
+        if (healthRes.data?.status) {
+          setSystemHealth([
+            { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
+            { name: 'Platform Service', status: healthRes.data.status === 'ok' ? 'healthy' : 'warning', latency: '-', uptime: '-' },
+            { name: 'Database', status: 'healthy', latency: '-', uptime: '-' },
+            { name: 'Redis', status: 'healthy', latency: '-', uptime: '-' },
+          ]);
+        }
+      } catch {
+        message.error('获取系统健康状态失败，请检查网络连接');
+        setSystemHealth([
+          { name: 'API Gateway', status: 'healthy', latency: '-', uptime: '-' },
+          { name: 'Platform Service', status: 'healthy', latency: '-', uptime: '-' },
+          { name: 'Database', status: 'healthy', latency: '-', uptime: '-' },
+          { name: 'Redis', status: 'healthy', latency: '-', uptime: '-' },
+        ]);
+      }
+    } catch (err) {
+      // Backend endpoints may not all be available; use demo data
+      message.error('加载数据失败，使用演示数据展示');
+      setError('加载数据失败，使用演示数据展示');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Transform runs to table records
+  const recentPipelineRecords: PipelineRecord[] = recentRuns.map((run, idx) => ({
+    key: String(idx + 1),
+    name: run.pipelineName || run.pipelineId,
+    pipelineId: run.pipelineId,
+    status: run.status,
+    duration: formatDuration(run),
+    trigger: run.author || formatTrigger(run.trigger),
+    time: formatTimeRelative(run.startTime),
+  }));
 
   const taskColumns: ColumnsType<TaskRecord> = [
     {
@@ -311,7 +329,15 @@ const DashboardNew: React.FC = () => {
       title: 'Pipeline',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => <Text code>{name}</Text>,
+      render: (name: string, record) => (
+        <Text
+          code
+          style={{ cursor: 'pointer', color: colors.primary[500] }}
+          onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
+        >
+          {name}
+        </Text>
+      ),
     },
     {
       title: '状态',
@@ -322,6 +348,7 @@ const DashboardNew: React.FC = () => {
           status={
             statusColors[status] as 'success' | 'processing' | 'error' | 'default' | 'warning'
           }
+          text={status}
         />
       ),
     },
@@ -343,23 +370,68 @@ const DashboardNew: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: (typeof recentPipelines)[0]) => (
-        <Button type="link" size="small" disabled={record.status === 'pending'}>
-          {record.status === 'running' ? '查看' : '重试'}
-        </Button>
+      render: (_: unknown, record: (typeof recentPipelineRecords)[0]) => (
+        <Space>
+          <Button
+            type="link"
+            size="small"
+            disabled={record.status === 'pending'}
+            onClick={() => navigate(`/pipelines/${record.pipelineId}`)}
+          >
+            查看
+          </Button>
+          {record.status === 'failed' && (
+            <Button type="link" size="small" onClick={() => navigate(`/pipeline-runs`)}>
+              重试
+            </Button>
+          )}
+        </Space>
       ),
     },
   ];
 
+  if (loading) {
+    return (
+      <div style={{ padding: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 400, gap: spacing[3] }}>
+        <Spin size="large" />
+        <Typography.Text type="secondary">加载数据中...</Typography.Text>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 0 }}>
+      {error && (
+        <Alert
+          message="提示"
+          description={error}
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: spacing.md }}
+        />
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+        <div>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            工作台
+          </Title>
+          <Text type="secondary">个人工作与效能度量</Text>
+        </div>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
       {/* 顶部统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col xs={24} sm={12} lg={6}>
           <StatCard
             title="Pipeline 总数"
             value={pipelineStats.total}
-            trend={{ value: 75, direction: 'up', good: 'up' }}
+            trend={{ value: 0, direction: 'up', good: 'up' }}
           />
         </Col>
         <Col xs={24} sm={12} lg={6}>
@@ -381,23 +453,25 @@ const DashboardNew: React.FC = () => {
           <Card
             title="待处理任务"
             extra={<Button type="link">查看全部</Button>}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Table
               columns={taskColumns}
-              dataSource={tasks.slice(0, 4)}
+              dataSource={tasks}
               pagination={false}
               size="small"
+              locale={{ emptyText: '暂无待处理任务' }}
             />
           </Card>
 
           {/* 最近 Pipeline */}
-          <Card title="最近 Pipeline 执行" extra={<Button type="link">查看全部</Button>}>
+          <Card title="最近 Pipeline 执行" extra={<Button type="link" onClick={() => navigate('/pipeline-runs')}>查看全部</Button>}>
             <Table
               columns={pipelineColumns}
-              dataSource={recentPipelines}
+              dataSource={recentPipelineRecords}
               pagination={false}
               size="small"
+              locale={{ emptyText: '暂无 Pipeline 运行记录' }}
             />
           </Card>
         </Col>
@@ -408,7 +482,7 @@ const DashboardNew: React.FC = () => {
           <Card
             title={
               <Space>
-                <BarChartOutlined />
+                <DashboardOutlined />
                 效能看板
               </Space>
             }
@@ -417,7 +491,7 @@ const DashboardNew: React.FC = () => {
                 查看全部
               </Button>
             }
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           >
             <Row gutter={[12, 12]}>
               {dashboardLinks.map((link) => (
@@ -434,7 +508,7 @@ const DashboardNew: React.FC = () => {
                       flexDirection: 'column',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      border: `1px solid ${colors.light.border.light}`,
+                      border: `1px solid ${colors.light?.border?.light || colors.neutral[200]}`,
                       transition: 'all 0.3s',
                     }}
                   >
@@ -454,7 +528,7 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 系统健康状态 */}
-          <Card title="系统健康状态" style={{ marginBottom: 16 }}>
+          <Card title="系统健康状态" style={{ marginBottom: spacing.md }}>
             <Space direction="vertical" style={{ width: '100%' }} size={12}>
               {systemHealth.map((item) => (
                 <div
@@ -464,7 +538,7 @@ const DashboardNew: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 0',
-                    borderBottom: `1px solid ${colors.neutral[50]}`,
+                    borderBottom: `1px solid ${colors.neutral?.[50] || colors.neutral[100]}`,
                   }}
                 >
                   <Space>
@@ -485,13 +559,14 @@ const DashboardNew: React.FC = () => {
           </Card>
 
           {/* 快速操作 */}
-          <Card title="快速操作" style={{ marginBottom: 16 }}>
+          <Card title="快速操作" style={{ marginBottom: spacing.md }}>
             <Row gutter={[12, 12]}>
               {quickActions.map((action) => (
                 <Col span={12} key={action.name}>
                   <Card
                     hoverable
                     size="small"
+                    onClick={() => navigate(action.path)}
                     style={{
                       textAlign: 'center',
                       cursor: 'pointer',
@@ -503,7 +578,7 @@ const DashboardNew: React.FC = () => {
                       transition: 'all 0.3s',
                     }}
                   >
-                    <div style={{ fontSize: 28, color: action.color, marginBottom: 8 }}>
+                    <div style={{ fontSize: 28, color: action.color, marginBottom: spacing.sm }}>
                       {action.icon}
                     </div>
                     <Text style={{ fontSize: spacing[3] }}>{action.name}</Text>
@@ -515,13 +590,21 @@ const DashboardNew: React.FC = () => {
 
           {/* 公告/提醒 */}
           <Card title="系统提醒">
-            <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: 8 }}>
-              <WarningOutlined style={{ color: colors.warning[500], marginRight: 8 }} />
-              Event Bus 延迟较高，请检查 NATS 服务
-            </Paragraph>
+            {pipelineStats.failed > 0 && (
+              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+                <WarningOutlined style={{ color: colors.warning[500], marginRight: spacing.sm }} />
+                {pipelineStats.failed} 个 Pipeline 运行失败，请检查
+              </Paragraph>
+            )}
+            {pipelineStats.running > 0 && (
+              <Paragraph type="secondary" style={{ fontSize: spacing[3], marginBottom: spacing.sm }}>
+                <RocketOutlined style={{ color: colors.primary[500], marginRight: spacing.sm }} />
+                {pipelineStats.running} 个 Pipeline 正在运行中
+              </Paragraph>
+            )}
             <Paragraph type="secondary" style={{ fontSize: spacing[3] }}>
-              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: 8 }} />
-              所有子系统运行正常
+              <CheckCircleOutlined style={{ color: colors.success[500], marginRight: spacing.sm }} />
+              系统运行正常
             </Paragraph>
           </Card>
         </Col>

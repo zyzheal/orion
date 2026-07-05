@@ -18,6 +18,9 @@ import {
   PullRequestStatus,
   Review,
   FileComment,
+  FileDiff,
+  DiffHunk,
+  PRComment,
   WebhookConfig,
   WebhookEventType,
   MergeStrategy,
@@ -713,6 +716,147 @@ export class GitLabAdapter implements ICodeRepoAdapter {
     await this.client.delete(
       `/projects/${encodeURIComponent(repoId)}/hooks/${webhookId}`
     );
+  }
+
+  /**
+   * 更新 Webhook
+   *
+   * GitLab API: PUT /projects/:id/hooks/:hookId
+   */
+  async updateWebhook(repoId: string, webhookId: string, input: {
+    url?: string;
+    events?: WebhookEventType[];
+    active?: boolean;
+    secret?: string;
+  }): Promise<WebhookConfig> {
+    const body: Record<string, any> = {};
+    if (input.url) body.url = input.url;
+    if (input.secret) body.token = input.secret;
+    if (input.active !== undefined) body.enable_ssl_verification = input.active;
+    if (input.events) {
+      body.merge_requests_events = input.events.includes(WebhookEventType.PR_OPENED) || input.events.includes(WebhookEventType.PR_MERGED);
+      body.push_events = input.events.includes(WebhookEventType.PUSH);
+    }
+
+    const hook: any = await this.client.put(
+      `/projects/${encodeURIComponent(repoId)}/hooks/${webhookId}`,
+      body,
+      { id: webhookId, url: input.url || '', events: input.events || [], active: input.active ?? true, secret: input.secret }
+    );
+
+    return this.mapGitLabHookToWebhookConfig(hook);
+  }
+
+  /**
+   * 列出标签
+   *
+   * GitLab API: GET /projects/:id/repository/tags
+   */
+  async listTags(repoId: string): Promise<{ tags: string[]; total: number }> {
+    const data: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/tags?per_page=100`,
+      []
+    );
+
+    const tags = data.map((t: any) => t.name || '').filter(Boolean);
+    return { tags, total: tags.length };
+  }
+
+  /**
+   * 获取文件 diff（两个 ref 之间）
+   *
+   * GitLab API: GET /projects/:id/repository/compare/:from...:to
+   */
+  async getFileDiff(repoId: string, fromRef: string, toRef: string, options?: { path?: string }): Promise<FileDiff[]> {
+    const path = options?.path ? `&straight=true` : '';
+    const data: any = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/repository/compare?from=${encodeURIComponent(fromRef)}&to=${encodeURIComponent(toRef)}`,
+      { diffs: [] }
+    );
+
+    if (!data.diffs || !Array.isArray(data.diffs)) return [];
+
+    const result: FileDiff[] = data.diffs.map((diff: any) => {
+      const diffText: string = String(diff.diff || '');
+      const lines: string[] = diffText.split('\n');
+      const hunks: DiffHunk[] = [];
+      for (const line of lines) {
+        if (line.startsWith('@@')) {
+          hunks.push({ oldStart: 0, oldLines: 0, newStart: 0, newLines: 0, lines: [], header: line });
+        } else if (hunks.length > 0) {
+          hunks[hunks.length - 1].lines.push(line);
+        }
+      }
+
+      let additions = 0, deletions = 0;
+      for (const h of hunks) {
+        for (const l of h.lines) {
+          if (l.startsWith('+') && !l.startsWith('+++')) additions++;
+          else if (l.startsWith('-') && !l.startsWith('---')) deletions++;
+        }
+      }
+
+      return {
+        path: diff.new_path || diff.old_path || '',
+        oldBlobId: diff.old_path ? diff.old_path : undefined,
+        newBlobId: diff.new_path ? diff.new_path : undefined,
+        isNew: !!diff.new_path && !diff.old_path,
+        isDeleted: !!diff.renamed_file && !diff.new_path,
+        isRenamed: !!diff.renamed_file,
+        hunks,
+        stats: { additions, deletions, changes: additions + deletions },
+      };
+    });
+
+    return result;
+  }
+
+  /**
+   * 列出 MR 评论
+   *
+   * GitLab API: GET /projects/:id/merge_requests/:iid/notes
+   */
+  async listComments(repoId: string, prId: string): Promise<PRComment[]> {
+    const data: any[] = await this.client.get(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes?per_page=100`,
+      []
+    );
+
+    return data.map((note: any) => ({
+      id: String(note.id),
+      prId,
+      body: note.body,
+      author: note.author?.username || '',
+      createdAt: new Date(note.created_at),
+      updatedAt: new Date(note.updated_at),
+    }));
+  }
+
+  /**
+   * 添加 MR 评论
+   *
+   * GitLab API: POST /projects/:id/merge_requests/:iid/notes
+   */
+  async addComment(repoId: string, prId: string, input: { body: string; path?: string; line?: number }): Promise<PRComment> {
+    const body: any = { body: input.body };
+    if (input.path) body.position = { head_sha: '', base_sha: '', start_sha: '', old_path: input.path, new_path: input.path, new_line: input.line };
+
+    const note: any = await this.client.post(
+      `/projects/${encodeURIComponent(repoId)}/merge_requests/${prId}/notes`,
+      body,
+      { id: 'mock', body: input.body, author: { username: 'current-user' }, created_at: new Date(), updated_at: new Date() }
+    );
+
+    return {
+      id: String(note.id || Date.now()),
+      prId,
+      path: input.path,
+      line: input.line,
+      body: note.body || input.body,
+      author: note.author?.username || 'current-user',
+      createdAt: new Date(note.created_at || Date.now()),
+      updatedAt: new Date(note.updated_at || Date.now()),
+    };
   }
 
   // ==================== 数据映射方法 ====================

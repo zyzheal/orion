@@ -234,8 +234,8 @@ const SmartRecommend: React.FC = () => {
     setError(null);
     try {
       const res = await fetchRecommendations({ currentPage: 'chatops' });
-      const data = res.data?.data;
-      const items = Array.isArray(data) ? data : [];
+      const resData = res.data as { data?: Recommendation[] };
+      const items = Array.isArray(resData?.data) ? resData.data : [];
       // Re-apply dismissed state
       setRecommendations(
         items.map((r: Recommendation) => ({

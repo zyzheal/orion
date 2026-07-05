@@ -6,6 +6,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface HealingAuditEntity {
   id: string;
@@ -57,7 +58,7 @@ export class HealingAuditRepository extends BaseRepository<HealingAuditEntity> {
         data.result || null,
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

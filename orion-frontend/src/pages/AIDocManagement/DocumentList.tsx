@@ -18,6 +18,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
+  FileTextOutlined,
   ReloadOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -63,8 +64,8 @@ const DocumentListPage: React.FC = () => {
     setLoading(true);
     try {
       const [docRes, spaceRes] = await Promise.all([getDocs(), getSpaces()]);
-      setDocuments(Array.isArray(docRes.data.data) ? docRes.data.data : []);
-      const spaceList = Array.isArray(spaceRes.data.data) ? spaceRes.data.data : [];
+      setDocuments(Array.isArray(docRes.data) ? docRes.data : []);
+      const spaceList = Array.isArray(spaceRes.data) ? spaceRes.data : [];
       setSpaces(spaceList.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
     } catch (error: unknown) {
       setDocuments([]);
@@ -211,7 +212,12 @@ const DocumentListPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => {
+        const status = String(v);
+        const badgeStatus: 'running' | 'pending' | 'success' | 'failed' | 'warning' | 'cancelled' | 'unknown' =
+          status === 'archived' ? 'cancelled' : status === 'published' ? 'success' : 'pending';
+        return <StatusBadge status={badgeStatus} size="small" />;
+      },
     },
     {
       key: 'authorId',
@@ -288,11 +294,12 @@ const DocumentListPage: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <FileTextOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             文档管理
           </Title>
           <Text type="secondary">知识库文档浏览与管理</Text>
@@ -312,7 +319,7 @@ const DocumentListPage: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -407,12 +414,12 @@ const DocumentListPage: React.FC = () => {
       >
         {viewingDoc && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{getSpaceName(viewingDoc.spaceId)}</Tag>
-              <StatusBadge status={viewingDoc.status as any} />
+              <StatusBadge status={viewingDoc.status === 'archived' ? 'cancelled' : viewingDoc.status === 'published' ? 'success' : 'pending'} />
               <Tag>v{viewingDoc.version}</Tag>
             </Space>
-            <Space size={4} style={{ marginBottom: 16 }}>
+            <Space size={4} style={{ marginBottom: spacing.md }}>
               {viewingDoc.tags.map((t) => (
                 <Tag key={t}>{t}</Tag>
               ))}
@@ -421,7 +428,7 @@ const DocumentListPage: React.FC = () => {
               style={{
                 whiteSpace: 'pre-wrap',
                 background: colors.neutral[50],
-                padding: 16,
+                padding: spacing.md,
                 borderRadius: 4,
               }}
             >

@@ -1,5 +1,5 @@
 /**
- * EngineerSuspendService Stub - manages engineer suspension/leave.
+ * EngineerSuspendService - manages engineer suspension/leave.
  */
 import { EngineerSuspend, SuspensionImpact, Ticket } from '../types/ticketing';
 
@@ -8,10 +8,22 @@ export interface EngineerSuspendServiceOptions {
 }
 
 export class EngineerSuspendService {
-  constructor(options?: EngineerSuspendServiceOptions) {}
-  setOnActivateCallback(cb: (suspend: EngineerSuspend) => void): void {}
-  setOnEndCallback(cb: (suspend: EngineerSuspend) => void): void {}
-  createSuspend(input: {
+  private suspensions: Map<string, EngineerSuspend> = new Map();
+  private onActivateCallback?: (suspend: EngineerSuspend) => void;
+  private onEndCallback?: (suspend: EngineerSuspend) => void;
+  private autoCheckInterval?: ReturnType<typeof setInterval>;
+
+  constructor(private options?: EngineerSuspendServiceOptions) {}
+
+  setOnActivateCallback(cb: (suspend: EngineerSuspend) => void): void {
+    this.onActivateCallback = cb;
+  }
+
+  setOnEndCallback(cb: (suspend: EngineerSuspend) => void): void {
+    this.onEndCallback = cb;
+  }
+
+  async createSuspend(input: {
     engineerId: string;
     reason: string;
     startTime: Date;
@@ -22,42 +34,142 @@ export class EngineerSuspendService {
     notes?: string;
     createdBy: string;
   }): Promise<EngineerSuspend> {
-    throw new Error('NOT_IMPLEMENTED');
+    const suspension: EngineerSuspend = {
+      id: `SUS-${crypto.randomUUID().slice(0, 8)}`,
+      engineerId: input.engineerId,
+      reason: input.reason,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      backupEngineerId: input.backupEngineerId,
+      autoReassignPending: input.autoReassignPending ?? true,
+      pauseSLAForPending: input.pauseSLAForPending ?? false,
+      notes: input.notes,
+      createdBy: input.createdBy,
+      status: 'scheduled',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.suspensions.set(suspension.id, suspension);
+    return suspension;
   }
-  activateSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    return Promise.resolve(null);
+
+  async activateSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspension = this.suspensions.get(suspendId);
+    if (!suspension) return null;
+    suspension.status = 'active';
+    suspension.updatedAt = new Date();
+    if (this.onActivateCallback) {
+      this.onActivateCallback(suspension);
+    }
+    return suspension;
   }
-  endSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    return Promise.resolve(null);
+
+  async endSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspension = this.suspensions.get(suspendId);
+    if (!suspension) return null;
+    suspension.status = 'ended';
+    suspension.updatedAt = new Date();
+    if (this.onEndCallback) {
+      this.onEndCallback(suspension);
+    }
+    return suspension;
   }
-  cancelSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    return Promise.resolve(null);
+
+  async cancelSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    const suspension = this.suspensions.get(suspendId);
+    if (!suspension) return null;
+    suspension.status = 'cancelled';
+    suspension.updatedAt = new Date();
+    return suspension;
   }
-  isSuspended(engineerId: string): Promise<boolean> {
-    return Promise.resolve(false);
+
+  async isSuspended(engineerId: string): Promise<boolean> {
+    for (const s of this.suspensions.values()) {
+      if (s.engineerId === engineerId && s.status === 'active') {
+        const now = new Date();
+        if (now >= s.startTime && now <= s.endTime) return true;
+      }
+    }
+    return false;
   }
-  getActiveSuspensions(): Promise<EngineerSuspend[]> {
-    return Promise.resolve([]);
+
+  async getActiveSuspensions(): Promise<EngineerSuspend[]> {
+    const now = new Date();
+    return Array.from(this.suspensions.values()).filter(
+      s => s.status === 'active' && now >= s.startTime && now <= s.endTime
+    );
   }
-  getScheduledSuspensions(): Promise<EngineerSuspend[]> {
-    return Promise.resolve([]);
+
+  async getScheduledSuspensions(): Promise<EngineerSuspend[]> {
+    return Array.from(this.suspensions.values()).filter(s => s.status === 'scheduled');
   }
-  getSuspend(suspendId: string): Promise<EngineerSuspend | null> {
-    return Promise.resolve(null);
+
+  async getSuspend(suspendId: string): Promise<EngineerSuspend | null> {
+    return this.suspensions.get(suspendId) || null;
   }
-  getEngineerSuspensions(engineerId: string): Promise<EngineerSuspend[]> {
-    return Promise.resolve([]);
+
+  async getEngineerSuspensions(engineerId: string): Promise<EngineerSuspend[]> {
+    return Array.from(this.suspensions.values()).filter(s => s.engineerId === engineerId);
   }
-  analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
-    throw new Error('NOT_IMPLEMENTED');
+
+  async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
+    const suspension = this.suspensions.get(suspendId);
+    if (!suspension) {
+      return { affectedTickets: [], totalAffected: 0, criticalCount: 0 };
+    }
+    const affected = tickets.filter(t => t.assignee === suspension.engineerId && t.status !== 'closed' && t.status !== 'resolved');
+    return {
+      affectedTickets: affected.map(t => ({ ticketId: t.id, priority: t.priority, status: t.status })),
+      totalAffected: affected.length,
+      criticalCount: affected.filter(t => t.priority === 'critical').length,
+    };
   }
-  checkAutoActivate(): Promise<EngineerSuspend[]> {
-    return Promise.resolve([]);
+
+  async checkAutoActivate(): Promise<EngineerSuspend[]> {
+    const now = new Date();
+    const toActivate: EngineerSuspend[] = [];
+    for (const s of this.suspensions.values()) {
+      if (s.status === 'scheduled' && now >= s.startTime) {
+        s.status = 'active';
+        s.updatedAt = new Date();
+        toActivate.push(s);
+        if (this.onActivateCallback) this.onActivateCallback(s);
+      }
+    }
+    return toActivate;
   }
-  checkAutoEnd(): Promise<EngineerSuspend[]> {
-    return Promise.resolve([]);
+
+  async checkAutoEnd(): Promise<EngineerSuspend[]> {
+    const now = new Date();
+    const toEnd: EngineerSuspend[] = [];
+    for (const s of this.suspensions.values()) {
+      if (s.status === 'active' && now > s.endTime) {
+        s.status = 'ended';
+        s.updatedAt = new Date();
+        toEnd.push(s);
+        if (this.onEndCallback) this.onEndCallback(s);
+      }
+    }
+    return toEnd;
   }
-  startAutoChecks(intervalMs?: number): void {}
-  stopAutoChecks(): void {}
-  clearAll(): void {}
+
+  startAutoChecks(intervalMs: number = 60000): void {
+    this.stopAutoChecks();
+    this.autoCheckInterval = setInterval(async () => {
+      await this.checkAutoActivate();
+      await this.checkAutoEnd();
+    }, intervalMs);
+  }
+
+  stopAutoChecks(): void {
+    if (this.autoCheckInterval) {
+      clearInterval(this.autoCheckInterval);
+      this.autoCheckInterval = undefined;
+    }
+  }
+
+  clearAll(): void {
+    this.stopAutoChecks();
+    this.suspensions.clear();
+  }
 }

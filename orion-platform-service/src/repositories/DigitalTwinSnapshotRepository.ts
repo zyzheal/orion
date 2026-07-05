@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -56,12 +57,12 @@ export class DigitalTwinSnapshotRepository extends BaseRepository<DigitalTwinSna
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findById(id: string): Promise<DigitalTwinSnapshotEntity | undefined> {
+  async findById(id: string): Promise<DigitalTwinSnapshotEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM digital_twin_snapshots WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -90,7 +91,7 @@ export class DigitalTwinSnapshotRepository extends BaseRepository<DigitalTwinSna
         input.created_by ?? null,
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

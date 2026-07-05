@@ -5,7 +5,7 @@
 -- Pipeline triggers table: stores trigger definitions
 CREATE TABLE IF NOT EXISTS pipeline_triggers (
     id VARCHAR(64) PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     pipeline_id VARCHAR(64) NOT NULL,
     trigger_type VARCHAR(16) NOT NULL,
     trigger_config JSONB NOT NULL DEFAULT '{}',

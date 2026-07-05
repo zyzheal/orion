@@ -93,10 +93,10 @@ func NewConfig() (*Config, error) {
 		},
 		AdminPassword: "",
 		HTTP: HTTPConfig{
-			Port: 8000,
+			Port: 3020, // 与原 orion-knowledge-svc 端口一致，替换旧服务
 		},
 		PG: PGConfig{
-			DSN: "host=orion-knowledge-pg user=knowledge password=Knowledge@123 dbname=orion_knowledge port=5432 sslmode=disable TimeZone=Asia/Shanghai",
+			DSN: "", // 必须通过环境变量或配置文件设置
 		},
 		MQ: MQConfig{
 			Type: "nats",
@@ -110,7 +110,7 @@ func NewConfig() (*Config, error) {
 			Provider: "ct",
 			CTRAG: CTRAGConfig{
 				BaseURL: fmt.Sprintf("http://%s.18:5050", SUBNET_PREFIX),
-				APIKey:  "sk-1234567890",
+				APIKey:  "", // 必须通过环境变量设置
 			},
 		},
 		Redis: RedisConfig{
@@ -123,12 +123,12 @@ func NewConfig() (*Config, error) {
 		},
 		S3: S3Config{
 			Endpoint:  "orion-knowledge-minio:9000",
-			AccessKey: "s3knowledge",
+			AccessKey: "",
 			SecretKey: "",
 		},
 		Sentry: SentryConfig{
-			Enabled: true,
-			DSN:     "https://2a4cff1ae04b624ffc72663f523024ff@sentry.baizhi.cloud/4",
+			Enabled: false, // 默认禁用
+			DSN:     "",
 		},
 		CaddyAPI:     "/app/run/caddy-admin.sock",
 		SubnetPrefix: "169.254.15",
@@ -224,6 +224,20 @@ func overrideWithEnv(c *Config) {
 			fmt.Fprintf(os.Stderr, "Invalid log level: %s with err: %s\n", env, err)
 		}
 	}
+}
+
+// Validate 验证关键配置是否已设置
+func (c *Config) Validate() error {
+	if c.PG.DSN == "" {
+		return fmt.Errorf("PG_DSN must be set")
+	}
+	if c.Auth.JWT.Secret == "" {
+		return fmt.Errorf("JWT_SECRET must be set")
+	}
+	if c.RAG.CTRAG.BaseURL == "" {
+		return fmt.Errorf("RAG_CT_RAG_BASE_URL must be set")
+	}
+	return nil
 }
 
 func (*Config) GetString(key string) string {

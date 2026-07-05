@@ -1,9 +1,12 @@
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 import { EventEmitter } from 'events';
 import { HeartbeatWatchdog } from './HeartbeatWatchdog';
 import { ProcessKiller } from './ProcessKiller';
+import { GuardianTaskRepository } from '../../repositories/GuardianTaskRepository';
+import { v4 as uuidv4 } from 'uuid';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ExecutionGuardian');
 
 export interface GuardianConfig {
   globalTimeoutMs: number;
@@ -19,23 +22,34 @@ export const DEFAULT_GUARDIAN_CONFIG: GuardianConfig = {
   heartbeatTimeoutMs: 15000,
 };
 
+// Timer state kept in-memory (NodeJS.Timeout cannot be persisted to DB)
+interface TaskTimerState {
+  globalTimer: NodeJS.Timeout | undefined;
+  stepTimer: NodeJS.Timeout | undefined;
+  aborted: boolean;
+  abortListener?: () => void;
+}
+
 export class ExecutionGuardian extends EventEmitter {
   private config: GuardianConfig;
   private heartbeatWatchdog: HeartbeatWatchdog;
   private processKiller: ProcessKiller;
-  private activeTasks: Map<string, {
-    startTime: number;
-    globalTimer: NodeJS.Timeout | undefined;
-    stepTimer: NodeJS.Timeout | undefined;
-    aborted: boolean;
-    abortListener?: () => void;
-  }> = new Map();
+  private repository: GuardianTaskRepository;
+  // In-memory timer state (timers cannot be persisted to DB)
+  private timerStates: Map<string, TaskTimerState> = new Map();
 
-  constructor(config: Partial<GuardianConfig> = {}) {
+  constructor(
+    config: Partial<GuardianConfig> = {},
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {
     super();
+    if (!db) {
+      throw new OrionError('ExecutionGuardian requires a database connection', ErrorCode.INTERNAL_ERROR);
+    }
     this.config = { ...DEFAULT_GUARDIAN_CONFIG, ...config };
-    this.heartbeatWatchdog = new HeartbeatWatchdog();
-    this.processKiller = new ProcessKiller();
+    this.heartbeatWatchdog = new HeartbeatWatchdog(db);
+    this.processKiller = new ProcessKiller(db);
+    this.repository = new GuardianTaskRepository(db);
   }
 
   start(): void {
@@ -45,10 +59,10 @@ export class ExecutionGuardian extends EventEmitter {
 
   async stop(): Promise<void> {
     this.heartbeatWatchdog.stop();
-    for (const [taskId] of this.activeTasks) {
+    for (const [taskId] of this.timerStates) {
       await this.abortTask(taskId, 'guardian_shutdown');
     }
-    this.activeTasks.clear();
+    this.timerStates.clear();
     logger.info('ExecutionGuardian stopped');
   }
 
@@ -56,87 +70,93 @@ export class ExecutionGuardian extends EventEmitter {
     const globalTimeout = options.globalTimeoutMs || this.config.globalTimeoutMs;
     const stepTimeout = options.stepTimeoutMs || this.config.stepTimeoutMs;
 
-    const taskState: { startTime: number; globalTimer: NodeJS.Timeout | undefined; stepTimer: NodeJS.Timeout | undefined; aborted: boolean } = {
-      startTime: Date.now(),
+    const timerState: TaskTimerState = {
       globalTimer: undefined,
       stepTimer: undefined,
       aborted: false,
     };
 
-    taskState.globalTimer = setTimeout(() => {
+    timerState.globalTimer = setTimeout(() => {
       this.onGlobalTimeout(taskId);
     }, globalTimeout);
 
-    taskState.stepTimer = setTimeout(() => {
+    timerState.stepTimer = setTimeout(() => {
       this.onStepTimeout(taskId);
     }, stepTimeout);
 
-    this.activeTasks.set(taskId, taskState);
+    this.timerStates.set(taskId, timerState);
 
-    // TODO: Re-enable heartbeat watchdog once heartbeat is wired into
-    // the plugin execution loop (sandbox executeInSandbox should call
-    // guardian.heartbeat(taskId) periodically).  For now, registering
-    // without sending heartbeats would cause every task >15s to be
-    // killed by the heartbeat watchdog.
-    // this.heartbeatWatchdog.register(taskId, {
-    //   intervalMs: this.config.heartbeatIntervalMs,
-    //   timeoutMs: this.config.heartbeatTimeoutMs,
-    //   onTimeout: (tid: string, reason: string) => {
-    //     this.onHeartbeatTimeout(tid, reason);
-    //   },
-    // });
+    // Persist to DB
+    this.repository.create({
+      id: uuidv4(),
+      taskId,
+      startTime: Date.now(),
+      globalTimeoutMs: globalTimeout,
+      stepTimeoutMs: stepTimeout,
+      aborted: false,
+      status: 'active',
+    }).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to persist guardian task');
+    });
 
     logger.info({ taskId, globalTimeout, stepTimeout }, 'Task registered with guardian');
   }
 
   unregisterTask(taskId: string): void {
-    const taskState = this.activeTasks.get(taskId);
-    if (taskState) {
-      if (taskState.globalTimer) clearTimeout(taskState.globalTimer);
-      if (taskState.stepTimer) clearTimeout(taskState.stepTimer);
-      // Remove abort listener if registered
-      if (taskState.abortListener) {
-        this.off('task:aborted', taskState.abortListener);
+    const timerState = this.timerStates.get(taskId);
+    if (timerState) {
+      if (timerState.globalTimer) clearTimeout(timerState.globalTimer);
+      if (timerState.stepTimer) clearTimeout(timerState.stepTimer);
+      if (timerState.abortListener) {
+        this.off('task:aborted', timerState.abortListener);
       }
     }
     this.heartbeatWatchdog.unregister(taskId);
-    this.activeTasks.delete(taskId);
+    this.timerStates.delete(taskId);
+
+    // Remove from DB
+    this.repository.markCompleted(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to mark guardian task as completed');
+    });
+
     logger.debug({ taskId }, 'Task unregistered from guardian');
   }
 
   heartbeat(taskId: string): void {
     this.heartbeatWatchdog.beat(taskId);
-    // Reset step timer on heartbeat
-    const taskState = this.activeTasks.get(taskId);
-    if (taskState && !taskState.aborted) {
-      if (taskState.stepTimer) {
-        clearTimeout(taskState.stepTimer);
+    const timerState = this.timerStates.get(taskId);
+    if (timerState && !timerState.aborted) {
+      if (timerState.stepTimer) {
+        clearTimeout(timerState.stepTimer);
       }
-      taskState.stepTimer = setTimeout(() => {
+      timerState.stepTimer = setTimeout(() => {
         this.onStepTimeout(taskId);
       }, this.config.stepTimeoutMs);
     }
   }
 
   async abortTask(taskId: string, reason: string): Promise<void> {
-    const taskState = this.activeTasks.get(taskId);
-    if (!taskState) return; // Already cleaned up
+    const timerState = this.timerStates.get(taskId);
+    if (!timerState) return;
 
-    taskState.aborted = true;
-    if (taskState.globalTimer) clearTimeout(taskState.globalTimer);
-    if (taskState.stepTimer) clearTimeout(taskState.stepTimer);
-
-    // Remove abort listener if registered
-    if (taskState.abortListener) {
-      this.off('task:aborted', taskState.abortListener);
+    timerState.aborted = true;
+    if (timerState.globalTimer) clearTimeout(timerState.globalTimer);
+    if (timerState.stepTimer) clearTimeout(timerState.stepTimer);
+    if (timerState.abortListener) {
+      this.off('task:aborted', timerState.abortListener);
     }
 
     await this.processKiller.kill(taskId, reason);
     this.emit('task:aborted', { taskId, reason });
 
-    // Clean up: remove from activeTasks and heartbeat watchdog
-    this.activeTasks.delete(taskId);
+    this.timerStates.delete(taskId);
     this.heartbeatWatchdog.unregister(taskId);
+
+    // Mark as aborted in DB
+    this.repository.markAborted(taskId).catch((err) => {
+      logger.warn({ err, taskId }, 'Failed to mark guardian task as aborted');
+    });
+
     logger.info({ taskId, reason }, 'Task aborted and cleaned up');
   }
 
@@ -149,10 +169,9 @@ export class ExecutionGuardian extends EventEmitter {
     };
     this.once('task:aborted', listener);
 
-    // Store listener reference for cleanup
-    const taskState = this.activeTasks.get(taskId);
-    if (taskState) {
-      taskState.abortListener = listener as () => void;
+    const timerState = this.timerStates.get(taskId);
+    if (timerState) {
+      timerState.abortListener = listener as () => void;
     }
 
     return controller;
@@ -161,7 +180,6 @@ export class ExecutionGuardian extends EventEmitter {
   private onGlobalTimeout(taskId: string): void {
     logger.error({ taskId }, 'Global timeout reached');
     this.emit('task:timeout', { taskId, type: 'global' });
-    // SRE: Handle async error from setTimeout - don't swallow promise rejections
     this.abortTask(taskId, 'global_timeout').catch(err => {
       logger.error({ taskId, err: err instanceof Error ? err.message : String(err) }, 'Error aborting task on global timeout');
     });
@@ -170,7 +188,6 @@ export class ExecutionGuardian extends EventEmitter {
   private onStepTimeout(taskId: string): void {
     logger.warn({ taskId }, 'Step timeout reached');
     this.emit('task:timeout', { taskId, type: 'step' });
-    // Abort the task to prevent indefinite execution after step timeout
     this.abortTask(taskId, 'step_timeout').catch(err => {
       logger.error({ taskId, err: err instanceof Error ? err.message : String(err) }, 'Error aborting task on step timeout');
     });

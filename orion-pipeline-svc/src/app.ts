@@ -5,6 +5,7 @@ import { loadConfig } from './config';
 import { getPool, closePool, checkHealth, runMigrations } from './utils/database';
 import { getRedis, closeRedis, isRedisHealthy } from './utils/redis';
 import { getEventBus, closeEventBus, subscribe } from './utils/eventBus';
+import { NatsConnectionManager } from './utils/NatsConnectionManager.js';
 import { pipelineRoutes } from './routes/pipeline';
 import { pipelineRunRoutes } from './routes/pipeline-run';
 import { pipelineAdminRoutes } from './routes/pipeline-admin';
@@ -15,6 +16,7 @@ import { cacheStrategyRoutes } from './routes/cache-strategy';
 import { errorHandler } from './middleware/errorHandler';
 import { PipelineEngine } from './services/PipelineEngine';
 import { PipelineRunService } from './services/PipelineRunService';
+import { PipelineRunRepository } from './services/PipelineRunRepository';
 import { PipelineEventPublisher } from './events/PipelineEventPublisher';
 import { EventEmitter } from 'events';
 
@@ -42,6 +44,20 @@ async function buildApp() {
   const redis = getRedis();
   const eventBus = await getEventBus();
 
+  // Initialize NATS connection manager
+  const natsManager = new NatsConnectionManager({
+    servers: process.env.NATS_URL?.split(',') || ['nats://localhost:4222'],
+    jetStreamEnabled: process.env.NATS_JETSTREAM_ENABLED === 'true',
+  });
+  let natsConnected = false;
+  try {
+    await natsManager.connect();
+    natsConnected = true;
+    fastify.log.info('NATS connection established');
+  } catch (e) {
+    fastify.log.warn({ error: e }, 'NATS unavailable, falling back to in-memory EventBus');
+  }
+
   // Run migrations
   if (config.nodeEnv !== 'test') {
     await runMigrations();
@@ -51,12 +67,24 @@ async function buildApp() {
 
   const eventPublisher = new PipelineEventPublisher();
 
+  // Initialize repository for pipeline run state persistence (Phase 3 Task 1)
+  const pipelineRunRepository = new PipelineRunRepository(database);
+
   const pipelineEngine = new PipelineEngine({
     logger: fastify.log,
     maxConcurrentRuns: 10,
+    runRepository: pipelineRunRepository,
   });
 
-  const pipelineRunService = new PipelineRunService(eventPublisher);
+  // 恢复未完成的运行 (Phase 3 Task 1)
+  if (config.nodeEnv !== 'test') {
+    const recoveredCount = await pipelineEngine.recoverUnfinishedRuns();
+    if (recoveredCount > 0) {
+      fastify.log.info({ count: recoveredCount }, 'Recovered unfinished pipeline runs');
+    }
+  }
+
+  const pipelineRunService = new PipelineRunService(eventPublisher, pipelineRunRepository);
 
   // Local event bus for SSE
   const sseBus = new EventEmitter();
@@ -92,6 +120,9 @@ async function buildApp() {
     await closePool();
     await closeRedis();
     await closeEventBus();
+    if (natsConnected) {
+      await natsManager.close();
+    }
   });
 
   return { fastify, config };

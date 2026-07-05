@@ -1,5 +1,7 @@
 import { NotificationRepository } from './NotificationRepository';
+import { NotificationChannelService } from './NotificationChannelService';
 import type { CreateNotificationInput, Notification } from '../types/notification';
+import type { NotificationPayload, NotificationResult } from './NotificationChannelService';
 
 export class NotificationServiceError extends Error {
   constructor(message: string, public code: string) {
@@ -10,9 +12,11 @@ export class NotificationServiceError extends Error {
 
 export class NotificationService {
   private repository: NotificationRepository;
+  private channelService: NotificationChannelService;
 
-  constructor(repository: NotificationRepository) {
+  constructor(repository: NotificationRepository, channelService?: NotificationChannelService) {
     this.repository = repository;
+    this.channelService = channelService || new NotificationChannelService({} as any);
   }
 
   async send(input: CreateNotificationInput): Promise<Notification> {
@@ -22,7 +26,38 @@ export class NotificationService {
     if (!input.type || !input.title || !input.message) {
       throw new NotificationServiceError('Type, title, and message are required', 'INVALID_INPUT');
     }
-    return this.repository.create(input);
+
+    // Step 1: Create the notification record in DB (status: 'pending')
+    const notification = await this.repository.create(input);
+
+    // Step 2: If a channel is specified, try to send via that channel
+    if (input.channel && input.channel !== 'in-app') {
+      try {
+        const payload: NotificationPayload = {
+          tenantId: input.tenant_id,
+          channelType: input.channel,
+          config: {},
+          subject: input.title,
+          message: input.message,
+          recipients: [input.user_id], // Default recipient
+        };
+
+        const result: NotificationResult = await this.channelService.sendNotification(payload);
+
+        // Step 3: Update status based on result
+        if (result.success) {
+          await this.repository.markAsSent(notification.id);
+        } else {
+          // Mark as failed — could add a markAsFailed method later
+          // For now, leave as pending with error logged
+          console.error(`Notification ${notification.id} failed to send via ${input.channel}: ${result.error}`);
+        }
+      } catch (error) {
+        console.error(`Notification ${notification.id} delivery error: ${error}`);
+      }
+    }
+
+    return notification;
   }
 
   async getNotifications(userId: string, limit?: number): Promise<Notification[]> {

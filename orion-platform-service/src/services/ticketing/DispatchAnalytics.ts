@@ -13,6 +13,8 @@ import {
   TicketPriority,
   Ticket,
 } from './types';
+import { DispatchEventRepository } from '../../repositories/DispatchEventRepository';
+import { DispatchResultRepository } from '../../repositories/DispatchResultRepository';
 
 /**
  * Dispatch metrics summary
@@ -137,14 +139,23 @@ interface DispatchEvent {
  * to provide insights and performance metrics.
  */
 export class DispatchAnalytics {
-  /** Dispatch results */
-  private dispatchResults: DispatchResult[] = [];
+  /** Dispatch results - runtime cache */
+  private resultRepository?: DispatchResultRepository;
+  private dispatchResults: DispatchResult[] = []; // in-memory runtime cache
 
-  /** Dispatch events for time tracking */
-  private dispatchEvents: Map<string, DispatchEvent> = new Map();
+  /** Dispatch events for time tracking - runtime cache */
+  private eventRepository?: DispatchEventRepository;
+  private dispatchEvents: Map<string, DispatchEvent> = new Map(); // in-memory runtime cache
 
   /** Engineer profiles for context */
   private engineers: Map<string, EngineerProfile> = new Map();
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.eventRepository = new DispatchEventRepository(db);
+      this.resultRepository = new DispatchResultRepository(db);
+    }
+  }
 
   // ==================== Data Recording ====================
 
@@ -160,6 +171,31 @@ export class DispatchAnalytics {
       event.assignedAt = result.dispatchedAt;
       event.dispatchResult = result;
     }
+
+    // Persist to repository
+    if (this.eventRepository) {
+      this.eventRepository.updateAssignment(
+        result.ticketId,
+        result.dispatchedAt,
+        result as any
+      ).catch(() => {/* ignore */});
+    }
+
+    // Persist dispatch result to repository
+    if (this.resultRepository) {
+      this.resultRepository.create({
+        id: result.id,
+        ticketId: result.ticketId,
+        assignee: result.assignee,
+        reason: result.reason,
+        score: result.score,
+        dispatchedAt: result.dispatchedAt,
+        dispatchType: result.dispatchType,
+        scoreBreakdown: result.scoreBreakdown || null,
+        accepted: result.accepted,
+        timeToAcceptanceMs: result.timeToAcceptanceMs ?? null,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**
@@ -172,6 +208,15 @@ export class DispatchAnalytics {
       priority: ticket.priority,
       category: ticket.category,
     });
+
+    // Persist to repository
+    if (this.eventRepository) {
+      this.eventRepository.create({
+        ticketId: ticket.id,
+        priority: ticket.priority,
+        category: ticket.category,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**
@@ -179,8 +224,9 @@ export class DispatchAnalytics {
    */
   recordAcceptance(ticketId: string, acceptedAt?: Date): void {
     const event = this.dispatchEvents.get(ticketId);
+    const acceptanceTime = acceptedAt || new Date();
     if (event) {
-      event.acceptedAt = acceptedAt || new Date();
+      event.acceptedAt = acceptanceTime;
     }
 
     // Update dispatch result
@@ -188,11 +234,23 @@ export class DispatchAnalytics {
       .slice()
       .reverse()
       .find((r) => r.ticketId === ticketId);
+    let timeToAcceptanceMs: number | undefined;
     if (result) {
       result.accepted = true;
       if (event?.acceptedAt) {
         result.timeToAcceptanceMs = event.acceptedAt.getTime() - result.dispatchedAt.getTime();
+        timeToAcceptanceMs = result.timeToAcceptanceMs;
       }
+    }
+
+    // Persist to repository
+    if (this.eventRepository) {
+      this.eventRepository.updateAcceptance(ticketId, acceptanceTime).catch(() => {/* ignore */});
+    }
+
+    // Persist acceptance to dispatch result repository
+    if (this.resultRepository) {
+      this.resultRepository.updateAccepted(ticketId, true, timeToAcceptanceMs).catch(() => {/* ignore */});
     }
   }
 
@@ -207,15 +265,26 @@ export class DispatchAnalytics {
     if (result) {
       result.accepted = false;
     }
+
+    // Persist to repository
+    if (this.resultRepository) {
+      this.resultRepository.updateAccepted(ticketId, false).catch(() => {/* ignore */});
+    }
   }
 
   /**
    * Record ticket resolution
    */
   recordResolution(ticketId: string, resolvedAt?: Date): void {
+    const resolutionTime = resolvedAt || new Date();
     const event = this.dispatchEvents.get(ticketId);
     if (event) {
-      event.resolvedAt = resolvedAt || new Date();
+      event.resolvedAt = resolutionTime;
+    }
+
+    // Persist to repository
+    if (this.eventRepository) {
+      this.eventRepository.updateResolution(ticketId, resolutionTime).catch(() => {/* ignore */});
     }
   }
 

@@ -307,29 +307,159 @@ describe('IncidentRepository', () => {
 
   // ==================== Count Operations ====================
 
-  describe('count', () => {
-    it('should count all incidents', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ count: '15' }] });
+  // ==================== Update Operations ====================
 
-      const result = await repo.count();
+  describe('update', () => {
+    it('should update status', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', status: 'acknowledged' }],
+      });
 
-      expect(result).toBe(15);
+      const result = await repo.update('inc-1', { status: 'acknowledged' });
+
+      expect(result?.status).toBe('acknowledged');
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('status = $1'),
+        ['acknowledged', 'inc-1'],
+      );
     });
 
-    it('should count by tenant', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ count: '5' }] });
+    it('should update error_message', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', error_message: 'Connection refused' }],
+      });
 
-      const result = await repo.count({ tenantId: 'tenant-1' });
+      const result = await repo.update('inc-1', { error_message: 'Connection refused' });
 
-      expect(result).toBe(5);
+      expect(result?.error_message).toBe('Connection refused');
     });
 
-    it('should count by status', async () => {
-      mockPool.query.mockResolvedValueOnce({ rows: [{ count: '3' }] });
+    it('should update resolved_at and auto-calculate recovery_time_ms', async () => {
+      const resolvedAt = new Date();
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', resolved_at: resolvedAt, recovery_time_ms: 3600000 }],
+      });
 
-      const result = await repo.count({ status: 'open' });
+      const result = await repo.update('inc-1', { resolved_at: resolvedAt });
 
-      expect(result).toBe(3);
+      expect(result?.recovery_time_ms).toBe(3600000);
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('recovery_time_ms = EXTRACT(EPOCH FROM'),
+        expect.arrayContaining([resolvedAt, 'inc-1']),
+      );
+    });
+
+    it('should update acknowledged_at', async () => {
+      const ackAt = new Date();
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', acknowledged_at: ackAt }],
+      });
+
+      const result = await repo.update('inc-1', { acknowledged_at: ackAt });
+
+      expect(result?.acknowledged_at).toBe(ackAt);
+    });
+
+    it('should update multiple fields at once', async () => {
+      const ackAt = new Date();
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', status: 'acknowledged', acknowledged_at: ackAt }],
+      });
+
+      await repo.update('inc-1', { status: 'acknowledged', acknowledged_at: ackAt });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('status = $1'),
+        expect.arrayContaining(['acknowledged', ackAt, 'inc-1']),
+      );
+    });
+
+    it('should return existing when no fields to update', async () => {
+      mockPool.query.mockResolvedValueOnce({
+        rows: [{ id: 'inc-1', status: 'open' }],
+      });
+
+      const result = await repo.update('inc-1', {});
+
+      expect(result?.id).toBe('inc-1');
+      expect(mockPool.query).toHaveBeenCalledTimes(1);
+      expect(mockPool.query).toHaveBeenCalledWith(
+        'SELECT * FROM incidents WHERE id = $1',
+        ['inc-1'],
+      );
+    });
+
+    it('should return null when incident not found', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      const result = await repo.update('nonexistent', { status: 'resolved' });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ==================== Additional FindAll Filters ====================
+
+  describe('findAll — additional filters', () => {
+    it('should filter by severity', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      await repo.findAll({ severity: 'critical' });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('severity = $'),
+        ['critical'],
+      );
+    });
+
+    it('should filter by deploymentId directly', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [{ id: 'inc-1' }] });
+
+      await repo.findAll({ deploymentId: 'deploy-2' });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('deployment_id = $'),
+        ['deploy-2'],
+      );
+    });
+
+    it('should filter by pipelineRunId directly', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [{ id: 'inc-1' }] });
+
+      await repo.findAll({ pipelineRunId: 'run-2' });
+
+      expect(mockPool.query).toHaveBeenCalledWith(
+        expect.stringContaining('pipeline_run_id = $'),
+        ['run-2'],
+      );
+    });
+
+    it('should combine multiple filters', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+
+      await repo.findAll({ tenantId: 'tenant-1', status: 'open', severity: 'critical' });
+
+      const [query, params] = mockPool.query.mock.calls[0];
+      expect(query).toContain('tenant_id = $1');
+      expect(query).toContain('status = $2');
+      expect(query).toContain('severity = $3');
+      expect(params).toEqual(['tenant-1', 'open', 'critical']);
+    });
+  });
+
+  // ==================== Additional Count Filters ====================
+
+  describe('count — combined filters', () => {
+    it('should count by tenant and status', async () => {
+      mockPool.query.mockResolvedValueOnce({ rows: [{ count: '2' }] });
+
+      const result = await repo.count({ tenantId: 'tenant-1', status: 'open' });
+
+      expect(result).toBe(2);
+      const [query, params] = mockPool.query.mock.calls[0];
+      expect(query).toContain('tenant_id = $1');
+      expect(query).toContain('status = $2');
+      expect(params).toEqual(['tenant-1', 'open']);
     });
   });
 });

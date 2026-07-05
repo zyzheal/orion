@@ -16,7 +16,7 @@ import {
   Col,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, DownloadOutlined, DollarOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getCosts, type CostRecord } from '@/api/ai-cost';
 import { colors, spacing } from '@/tokens';
@@ -51,7 +51,7 @@ const CostDetail: React.FC = () => {
         startDate: dateRange?.[0]?.format('YYYY-MM-DD'),
         endDate: dateRange?.[1]?.format('YYYY-MM-DD'),
       });
-      setCosts(Array.isArray(res.data.data) ? res.data.data : []);
+      setCosts(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setCosts([]);
       message.error(`加载成本数据失败: ${(error as Error).message}`);
@@ -144,7 +144,8 @@ const CostDetail: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             成本明细
           </Title>
           <Text type="secondary">按维度下钻查看 AI 调用成本</Text>
@@ -169,7 +170,7 @@ const CostDetail: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic

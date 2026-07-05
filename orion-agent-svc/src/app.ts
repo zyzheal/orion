@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import { agentRoutes, agentStore } from './routes/agent';
 import { taskRoutes, setAgentStoreRef } from './routes/task';
+import { orchestrationRoutes } from './routes/orchestration-routes';
 
 // Wire agent store reference into task routes for cross-route validation
 setAgentStoreRef(agentStore);
@@ -22,6 +23,7 @@ async function buildApp() {
   // Register route modules
   await fastify.register(agentRoutes, { prefix: '/api/v1' });
   await fastify.register(taskRoutes, { prefix: '/api/v1' });
+  await fastify.register(orchestrationRoutes, { prefix: '/api/v1' });
 
   fastify.get('/health', async () => ({
     status: 'ok',

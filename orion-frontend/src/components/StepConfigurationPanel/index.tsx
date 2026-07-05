@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Form, Input, InputNumber, Select, Button, Space, message } from 'antd';
+import { colors, spacing } from '@/tokens';
 
 export interface StepConfigurationPanelProps {
   plugin: { name: string; version: string; tier: string; trust: string } | null;
@@ -17,7 +18,7 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
   const [form] = Form.useForm();
 
   if (!plugin) {
-    return <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Select a plugin to configure</div>;
+    return <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Select a plugin to configure</div>;
   }
 
   const handleSave = () => {
@@ -33,11 +34,11 @@ export const StepConfigurationPanel: React.FC<StepConfigurationPanelProps> = ({
 
   return (
     <Card title={`Step Configuration: ${plugin.name}`} size="small">
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <span>Plugin: </span><strong>{plugin.name}</strong> v{plugin.version}
         <br />
         <span>Tier: </span>{plugin.tier}
-        <span style={{ marginLeft: 16 }}>Trust: </span>{plugin.trust}
+        <span style={{ marginLeft: spacing.md }}>Trust: </span>{plugin.trust}
       </div>
 
       <Form form={form} layout="vertical" initialValues={{ timeout: 300, retryMax: 2 }}>

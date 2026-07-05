@@ -8,6 +8,9 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
+import { DbLagHistoryRepository } from '../../repositories/DbLagHistoryRepository';
+import { DbReplicaStatusRepository } from '../../repositories/DbReplicaStatusRepository';
 
 /**
  * 延迟级别定义
@@ -112,12 +115,17 @@ const DEFAULT_CONFIG: Omit<ReplicationLagMonitorConfig, 'executeQuery'> = {
 export class ReplicationLagMonitor extends EventEmitter {
   private config: ReplicationLagMonitorConfig;
   private checkTimer?: ReturnType<typeof setInterval>;
-  private lagHistory: Map<string, LagDataPoint[]> = new Map();
-  private currentReplicas: Map<string, ReplicaStatus> = new Map();
+  private lagHistoryRepo: DbLagHistoryRepository;
+  private replicaStatusRepo: DbReplicaStatusRepository;
   private currentLevel: DegradationLevel = DegradationLevel.LEVEL_0;
   private isMonitoring: boolean = false;
+  private tenantId?: string;
 
-  constructor(config: Partial<ReplicationLagMonitorConfig> & { executeQuery: ReplicationLagMonitorConfig['executeQuery'] }) {
+  constructor(
+    config: Partial<ReplicationLagMonitorConfig> & { executeQuery: ReplicationLagMonitorConfig['executeQuery'] },
+    db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId?: string,
+  ) {
     super();
     this.config = {
       ...DEFAULT_CONFIG,
@@ -127,6 +135,9 @@ export class ReplicationLagMonitor extends EventEmitter {
         ...config.thresholds,
       },
     };
+    this.tenantId = tenantId;
+    this.lagHistoryRepo = new DbLagHistoryRepository(db);
+    this.replicaStatusRepo = new DbReplicaStatusRepository(db);
   }
 
   /**
@@ -174,23 +185,62 @@ export class ReplicationLagMonitor extends EventEmitter {
   /**
    * 获取所有从库状态
    */
-  getReplicaStatuses(): Map<string, ReplicaStatus> {
-    return new Map(this.currentReplicas);
+  async getReplicaStatuses(): Promise<Map<string, ReplicaStatus>> {
+    const entities = await this.replicaStatusRepo.findAllReplicas(this.tenantId);
+    const result = new Map<string, ReplicaStatus>();
+    for (const entity of entities) {
+      const key = `${entity.host}:${entity.port}`;
+      result.set(key, {
+        host: entity.host,
+        port: entity.port,
+        ioRunning: entity.ioRunning,
+        sqlRunning: entity.sqlRunning,
+        secondsBehindMaster: entity.secondsBehindMaster,
+        lastError: entity.lastError || undefined,
+        lastIoError: entity.lastIoError || undefined,
+        lastSqlError: entity.lastSqlError || undefined,
+        relayMasterLogFile: entity.relayMasterLogFile,
+        execMasterLogPos: entity.execMasterLogPos,
+        readMasterLogPos: entity.readMasterLogPos,
+        retrievedGtidSet: entity.retrievedGtidSet || undefined,
+        executedGtidSet: entity.executedGtidSet || undefined,
+      });
+    }
+    return result;
   }
 
   /**
    * 获取指定从库状态
    */
-  getReplicaStatus(host: string): ReplicaStatus | undefined {
-    return this.currentReplicas.get(host);
+  async getReplicaStatus(host: string): Promise<ReplicaStatus | undefined> {
+    const [hostname, portStr] = host.split(':');
+    const port = parseInt(portStr || '3306', 10);
+    const entity = await this.replicaStatusRepo.findByHost(hostname, port, this.tenantId);
+    if (!entity) return undefined;
+    return {
+      host: entity.host,
+      port: entity.port,
+      ioRunning: entity.ioRunning,
+      sqlRunning: entity.sqlRunning,
+      secondsBehindMaster: entity.secondsBehindMaster,
+      lastError: entity.lastError || undefined,
+      lastIoError: entity.lastIoError || undefined,
+      lastSqlError: entity.lastSqlError || undefined,
+      relayMasterLogFile: entity.relayMasterLogFile,
+      execMasterLogPos: entity.execMasterLogPos,
+      readMasterLogPos: entity.readMasterLogPos,
+      retrievedGtidSet: entity.retrievedGtidSet || undefined,
+      executedGtidSet: entity.executedGtidSet || undefined,
+    };
   }
 
   /**
    * 获取最大延迟
    */
-  getMaxLag(): number {
+  async getMaxLag(): Promise<number> {
+    const replicas = await this.getReplicaStatuses();
     let maxLag = 0;
-    for (const status of this.currentReplicas.values()) {
+    for (const status of replicas.values()) {
       if (status.secondsBehindMaster > maxLag) {
         maxLag = status.secondsBehindMaster;
       }
@@ -201,8 +251,9 @@ export class ReplicationLagMonitor extends EventEmitter {
   /**
    * 获取平均延迟
    */
-  getAverageLag(): number {
-    const statuses = Array.from(this.currentReplicas.values());
+  async getAverageLag(): Promise<number> {
+    const replicas = await this.getReplicaStatuses();
+    const statuses = Array.from(replicas.values());
     if (statuses.length === 0) {
       return 0;
     }
@@ -213,23 +264,39 @@ export class ReplicationLagMonitor extends EventEmitter {
   /**
    * 获取延迟历史
    */
-  getLagHistory(host?: string): LagDataPoint[] {
+  async getLagHistory(host?: string): Promise<LagDataPoint[]> {
     if (host) {
-      return this.lagHistory.get(host) || [];
+      const entities = await this.lagHistoryRepo.findByReplicaHost(host, this.tenantId, 200);
+      return entities.map((e) => ({
+        timestamp: e.recordedAt,
+        lag: e.lagSeconds,
+        level: e.lagLevel as LagLevel,
+        replicaHost: e.replicaHost,
+      }));
     }
-    // 返回所有从库的历史合并
-    const allHistory: LagDataPoint[] = [];
-    for (const history of this.lagHistory.values()) {
-      allHistory.push(...history);
-    }
-    return allHistory.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    // 返回所有从库的历史
+    const { entities } = await this.lagHistoryRepo.findAll({ limit: 1000 });
+    return entities
+      .map((e) => ({
+        timestamp: e.recordedAt,
+        lag: e.lagSeconds,
+        level: e.lagLevel as LagLevel,
+        replicaHost: e.replicaHost,
+      }))
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
   }
 
   /**
    * 分析延迟趋势
    */
-  analyzeTrend(host: string): LagTrendAnalysis {
-    const history = this.lagHistory.get(host) || [];
+  async analyzeTrend(host: string): Promise<LagTrendAnalysis> {
+    const entities = await this.lagHistoryRepo.findByReplicaHost(host, this.tenantId, this.config.trendWindowSize);
+    const history: LagDataPoint[] = entities.map((e) => ({
+      timestamp: e.recordedAt,
+      lag: e.lagSeconds,
+      level: e.lagLevel as LagLevel,
+      replicaHost: e.replicaHost,
+    }));
 
     if (history.length < 2) {
       return {
@@ -318,20 +385,34 @@ export class ReplicationLagMonitor extends EventEmitter {
       const statuses = this.parseReplicaStatus(result.rows);
 
       // 更新从库状态
-      this.currentReplicas.clear();
+      await this.replicaStatusRepo.deleteAll();
       for (const status of statuses) {
-        const key = `${status.host}:${status.port}`;
-        this.currentReplicas.set(key, status);
+        await this.replicaStatusRepo.upsertStatus({
+          host: status.host,
+          port: status.port,
+          ioRunning: status.ioRunning,
+          sqlRunning: status.sqlRunning,
+          secondsBehindMaster: status.secondsBehindMaster,
+          lastError: status.lastError,
+          lastIoError: status.lastIoError,
+          lastSqlError: status.lastSqlError,
+          relayMasterLogFile: status.relayMasterLogFile,
+          execMasterLogPos: status.execMasterLogPos,
+          readMasterLogPos: status.readMasterLogPos,
+          retrievedGtidSet: status.retrievedGtidSet,
+          executedGtidSet: status.executedGtidSet,
+          tenantId: this.tenantId,
+        });
 
         // 记录历史数据
-        this.addLagDataPoint(status);
+        await this.addLagDataPoint(status);
 
         // 清理过期历史数据
-        this.cleanupHistory(key);
+        await this.cleanupHistory();
       }
 
       // 计算最大延迟和降级级别
-      const maxLag = this.getMaxLag();
+      const maxLag = await this.getMaxLag();
       const newLevel = this.calculateDegradationLevel(maxLag);
 
       // 如果级别发生变化，发出事件
@@ -342,7 +423,7 @@ export class ReplicationLagMonitor extends EventEmitter {
           previousLevel,
           newLevel,
           maxLag,
-          averageLag: this.getAverageLag(),
+          averageLag: await this.getAverageLag(),
           timestamp: new Date(),
         });
 
@@ -350,12 +431,13 @@ export class ReplicationLagMonitor extends EventEmitter {
         this.emitAlert(newLevel, maxLag);
       }
 
+      const replicas = await this.getReplicaStatuses();
       // 发出检查完成事件
       this.emit('check-complete', {
         maxLag,
-        averageLag: this.getAverageLag(),
+        averageLag: await this.getAverageLag(),
         level: this.currentLevel,
-        replicaCount: this.currentReplicas.size,
+        replicaCount: replicas.size,
       });
     } catch (error) {
       this.emit('error', error);
@@ -387,33 +469,24 @@ export class ReplicationLagMonitor extends EventEmitter {
   /**
    * 添加延迟数据点
    */
-  private addLagDataPoint(status: ReplicaStatus): void {
+  private async addLagDataPoint(status: ReplicaStatus): Promise<void> {
     const key = `${status.host}:${status.port}`;
-    const history = this.lagHistory.get(key) || [];
-
-    const dataPoint: LagDataPoint = {
-      timestamp: new Date(),
-      lag: status.secondsBehindMaster,
-      level: this.classifyLag(status.secondsBehindMaster),
-      replicaHost: key,
-    };
-
-    history.push(dataPoint);
-    this.lagHistory.set(key, history);
+    await this.lagHistoryRepo.create({
+      id: `lh-${key}-${Date.now()}-${randomUUID().slice(0, 8)}`,
+      replica_host: key,
+      lag_seconds: status.secondsBehindMaster,
+      lag_level: this.classifyLag(status.secondsBehindMaster),
+      recorded_at: new Date(),
+      tenant_id: this.tenantId || null,
+    });
   }
 
   /**
    * 清理过期历史数据
    */
-  private cleanupHistory(key: string): void {
-    const history = this.lagHistory.get(key);
-    if (!history) {
-      return;
-    }
-
-    const cutoff = Date.now() - this.config.historyRetention;
-    const filtered = history.filter((p) => p.timestamp.getTime() > cutoff);
-    this.lagHistory.set(key, filtered);
+  private async cleanupHistory(): Promise<void> {
+    const cutoff = new Date(Date.now() - this.config.historyRetention);
+    await this.lagHistoryRepo.deleteOlderThan(cutoff);
   }
 
   /**
@@ -496,21 +569,23 @@ export class ReplicationLagMonitor extends EventEmitter {
   /**
    * 获取监控状态
    */
-  getStatus(): {
+  async getStatus(): Promise<{
     isMonitoring: boolean;
     currentLevel: DegradationLevel;
     maxLag: number;
     averageLag: number;
     replicaCount: number;
     historySize: number;
-  } {
+  }> {
+    const replicas = await this.getReplicaStatuses();
+    const { total } = await this.lagHistoryRepo.findAll({ limit: 1 });
     return {
       isMonitoring: this.isMonitoring,
       currentLevel: this.currentLevel,
-      maxLag: this.getMaxLag(),
-      averageLag: this.getAverageLag(),
-      replicaCount: this.currentReplicas.size,
-      historySize: Array.from(this.lagHistory.values()).reduce((sum, h) => sum + h.length, 0),
+      maxLag: await this.getMaxLag(),
+      averageLag: await this.getAverageLag(),
+      replicaCount: replicas.size,
+      historySize: total,
     };
   }
 }

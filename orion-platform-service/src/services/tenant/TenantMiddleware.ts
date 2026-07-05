@@ -13,9 +13,10 @@ import { DatabasePool } from '../database';
 import { TenantInfo, tenantContext } from './TenantContext';
 import { TenantIsolationService } from './TenantIsolationService';
 import { RLSPolicyManager } from './RLSPolicyManager';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantMiddleware');
 
 export interface TenantMiddlewareOptions {
   enabled?: boolean;
@@ -96,13 +97,18 @@ function extractTenantInfo(
   config: TenantMiddlewareOptions
 ): TenantInfo | null {
   // 优先从 JWT user 对象获取（如果已验证）
+  // 支持 tenantId (camelCase) 和 tenant_id (snake_case)
   const user = (request as any).user as Record<string, unknown> | undefined;
-  if (user?.tenant_id) {
+  const tenantId = user?.tenantId || user?.tenant_id;
+
+  if (tenantId !== undefined && tenantId !== null) {
+    const tenantIdStr = String(tenantId);
+    const parsedTenantId = parseInt(tenantIdStr, 10);
     return {
-      tenantId: user.tenant_id as number,
-      userId: user.userId as string | undefined || user.sub as string | undefined,
-      roles: user.roles as string[] | undefined,
-      permissions: user.permissions as string[] | undefined,
+      tenantId: parsedTenantId,
+      userId: user?.userId ? String(user.userId) : user?.sub ? String(user.sub) : undefined,
+      roles: user?.roles ? (user.roles as string[]) : undefined,
+      permissions: user?.permissions ? (user.permissions as string[]) : undefined,
     };
   }
 

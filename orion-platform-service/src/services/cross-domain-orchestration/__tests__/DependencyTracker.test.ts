@@ -11,9 +11,11 @@ import {
   CreateDependencyInput,
   ChangeImpact,
 } from '../DependencyTracker';
+import { createMockPool } from './mock-db';
 
 describe('DependencyTracker', () => {
   let tracker: DependencyTracker;
+  let mockPool: ReturnType<typeof createMockPool>;
 
   const validDependency: CreateDependencyInput = {
     sourceDomain: 'pipeline',
@@ -28,7 +30,8 @@ describe('DependencyTracker', () => {
   };
 
   beforeEach(() => {
-    tracker = new DependencyTracker();
+    mockPool = createMockPool();
+    tracker = new DependencyTracker(mockPool);
   });
 
   // ==================== addDependency ====================

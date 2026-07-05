@@ -137,12 +137,15 @@ export class TrafficManagerError extends Error {
 export class TrafficManager {
   private configRepo: TrafficConfigRepository;
   private historyRepo: TrafficHistoryRepository;
+  private defaultTenantId: string;
 
   constructor(
     db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    defaultTenantId: string = 'default',
   ) {
     this.configRepo = new TrafficConfigRepository(db);
     this.historyRepo = new TrafficHistoryRepository(db);
+    this.defaultTenantId = defaultTenantId;
   }
 
   /**
@@ -473,8 +476,8 @@ export class TrafficManager {
   /**
    * 获取配置
    */
-  async getConfig(canaryId: string): Promise<TrafficSplitConfig | undefined> {
-    const entity = await this.configRepo.findByCanaryId(canaryId);
+  async getConfig(canaryId: string, tenantId?: string): Promise<TrafficSplitConfig | undefined> {
+    const entity = await this.configRepo.findByCanaryId(canaryId, tenantId ?? this.defaultTenantId);
     if (!entity) return undefined;
     return this.entityToConfig(entity);
   }
@@ -511,6 +514,7 @@ export class TrafficManager {
   ): Promise<void> {
     await this.configRepo.upsertConfig({
       id: `${canaryId}-config`,
+      tenant_id: this.defaultTenantId,
       canary_id: canaryId,
       strategy: config.strategy,
       phase: config.phase,

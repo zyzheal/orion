@@ -6,6 +6,17 @@
 
 import { BuildxBuilderService, BuildOptions } from '../../services/build/BuildxBuilderService';
 
+// Mock child_process to avoid actual Docker calls in tests
+jest.mock('child_process', () => ({
+  exec: jest.fn((cmd: string, opts: any, cb: any) => {
+    if (typeof opts === 'function') {
+      cb = opts;
+    }
+    cb(null, { stdout: '', stderr: '' });
+  }),
+  execSync: jest.fn().mockReturnValue(''),
+}));
+
 describe('BuildxBuilderService Multi-Arch', () => {
   let service: BuildxBuilderService;
 

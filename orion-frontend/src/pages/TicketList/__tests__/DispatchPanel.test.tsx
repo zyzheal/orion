@@ -44,8 +44,8 @@ const mockEngineers = [
 ];
 
 beforeEach(() => {
-  vi.mocked(ticketingApi.getTickets).mockResolvedValue({ data: { data: mockQueueTickets } } as any);
-  vi.mocked(usersApi.listUsers).mockResolvedValue({ data: { data: { data: mockEngineers } } } as any);
+  vi.mocked(ticketingApi.getTickets).mockResolvedValue({ data: { items: mockQueueTickets, total: mockQueueTickets.length } } as any);
+  vi.mocked(usersApi.listUsers).mockResolvedValue({ data: { data: mockEngineers } } as any);
 });
 
 const defaultProps = {

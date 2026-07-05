@@ -10,10 +10,11 @@
  * - Enforce tenant-scoped filtering for list/get operations
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { PipelineService } from './PipelineService';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineTenantIsolationService');
 
 export class PipelineTenantIsolationService {
   private pipelineService: PipelineService | null;
@@ -24,10 +25,10 @@ export class PipelineTenantIsolationService {
 
   /**
    * Extract tenantId from request headers.
-   * Falls back to '00000000-0000-0000-0000-000000000000' if not provided.
+   * Returns empty string if not provided (skip tenant validation for backward compatibility).
    */
   static extractTenantId(headers: Record<string, string | undefined>): string {
-    return (headers['x-tenant-id'] as string) || '00000000-0000-0000-0000-000000000000';
+    return (headers['x-tenant-id'] as string) || '';
   }
 
   /**
@@ -37,8 +38,20 @@ export class PipelineTenantIsolationService {
     pipelineId: string,
     tenantId: string
   ): Promise<{ valid: boolean; pipeline?: any; error?: string }> {
+    // Skip tenant validation if no tenantId provided (backward compatibility for single-tenant setups)
+    if (!tenantId) {
+      if (!this.pipelineService) {
+        return { valid: true };
+      }
+      const pipeline = await this.pipelineService.getById(pipelineId);
+      if (!pipeline) {
+        return { valid: false, error: `Pipeline '${pipelineId}' not found` };
+      }
+      return { valid: true, pipeline };
+    }
+
     if (!this.pipelineService) {
-      logger.warn({ pipelineId }, 'PipelineService unavailable for tenant validation, allowing');
+      logger.warn({ traceId: getCurrentTraceId(), pipelineId }, 'PipelineService unavailable for tenant validation, allowing');
       return { valid: true };
     }
 
@@ -65,6 +78,7 @@ export class PipelineTenantIsolationService {
   /**
    * Validate that a pipeline run belongs to the given tenant.
    * If run lacks tenantId, falls back to validating the associated pipeline.
+   * If no tenantId provided, skip validation for backward compatibility.
    */
   async validateRunTenant(
     run: any,
@@ -72,6 +86,11 @@ export class PipelineTenantIsolationService {
   ): Promise<{ valid: boolean; error?: string }> {
     if (!run) {
       return { valid: false, error: 'Run not found' };
+    }
+
+    // Skip tenant validation if no tenantId provided (backward compatibility for single-tenant)
+    if (!tenantId) {
+      return { valid: true };
     }
 
     const runTenantId = run.context?.tenantId || (run as any).tenant_id;

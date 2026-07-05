@@ -8,13 +8,13 @@
  * - Detail link
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { Typography, Button, Space, Tag, message } from 'antd';
+import { Typography, Button, Space, Tag, message, Modal } from 'antd';
 import { colors, spacing } from '@/tokens';
-import { ReloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, RocketOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import StatusBadge from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
-import { getDeployments } from '@/api/deployments';
+import { getDeployments, rollbackDeployment } from '@/api/deployments';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -22,6 +22,9 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 const { Title, Text } = Typography;
+
+// API 响应包装接口
+interface ListResponse<T> { data?: T[]; items?: T[] }
 
 interface DeploymentRecord {
   id: string;
@@ -48,8 +51,8 @@ const DeploymentList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getDeployments();
-      const apiData = response.data.data;
-      setDeployments(Array.isArray(apiData) ? apiData : (apiData as any).items || []);
+      const apiData = response.data;
+      setDeployments(Array.isArray(apiData) ? apiData : (apiData as ListResponse<DeploymentRecord>)?.items ?? []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载部署列表失败：${error.message}`);
@@ -64,6 +67,30 @@ const DeploymentList: React.FC = () => {
   useEffect(() => {
     loadDeployments();
   }, []);
+
+  // Rollback handler - Phase 1.4 fix
+  const handleRollback = (record: DeploymentRecord) => {
+    Modal.confirm({
+      title: '确认回滚',
+      content: `确认将部署 ${record.appName} (${record.version}) 回滚到 ${record.version}？`,
+      okText: '确认回滚',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await rollbackDeployment(record.id, { targetVersion: record.version });
+          message.success('回滚成功');
+          loadDeployments();
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            message.error(`回滚失败：${error.message}`);
+          } else {
+            message.error('回滚失败，请稍后重试');
+          }
+        }
+      },
+    });
+  };
 
   // Filter deployments based on search and filters
   const filteredDeployments = useMemo(() => {
@@ -198,7 +225,7 @@ const DeploymentList: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 120,
-      render: (value: unknown) => <StatusBadge status={value as any} size="small" />,
+      render: (value: unknown) => <StatusBadge status={String(value) as 'success' | 'running' | 'failed' | 'pending' | 'cancelled'} size="small" />,
     },
     {
       key: 'triggeredBy',
@@ -246,7 +273,7 @@ const DeploymentList: React.FC = () => {
             详情
           </Button>
           {record.status === 'success' && (
-            <Button type="link" size="small" danger>
+            <Button type="link" size="small" danger onClick={() => handleRollback(record)}>
               回滚
             </Button>
           )}
@@ -267,11 +294,12 @@ const DeploymentList: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             部署管理
           </Title>
           <Text type="secondary">共 {filteredDeployments.length} 条部署记录</Text>
@@ -282,7 +310,7 @@ const DeploymentList: React.FC = () => {
       </div>
 
       {/* Search and filter bar */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}

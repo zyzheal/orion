@@ -25,9 +25,10 @@ import {
   EditOutlined,
   DeleteOutlined,
   ThunderboltOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getBudgets,
@@ -73,7 +74,7 @@ const BudgetManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getBudgets();
-      setBudgets(Array.isArray(res.data.data) ? res.data.data : []);
+      setBudgets(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setBudgets([]);
       message.error(`加载预算数据失败: ${(error as Error).message}`);
@@ -239,7 +240,7 @@ const BudgetManagement: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'actions',
@@ -310,7 +311,8 @@ const BudgetManagement: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DollarOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             预算管理
           </Title>
           <Text type="secondary">创建和管理 AI 调用预算</Text>
@@ -329,7 +331,7 @@ const BudgetManagement: React.FC = () => {
         </Space>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="总预算" value={budgets.length} />
@@ -365,7 +367,7 @@ const BudgetManagement: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

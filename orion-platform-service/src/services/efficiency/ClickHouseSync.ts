@@ -10,6 +10,10 @@
  */
 
 import { EventEmitter } from 'events';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LClick-LHouse-LSync');
 import {
   EfficiencyMetricsRow,
   EfficiencyEventRow,
@@ -17,6 +21,7 @@ import {
   PipelineCompletionRecord,
   DeploymentRecord,
 } from './types';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 /**
  * ClickHouse 连接配置
@@ -159,7 +164,7 @@ export class ClickHouseSync extends EventEmitter {
         },
       };
     } catch {
-      console.warn('[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
+      logger.warn({ traceId: getCurrentTraceId() }, '[ClickHouseSync] @clickhouse/client not available, running in degraded mode');
       return null;
     }
   }
@@ -274,7 +279,7 @@ export class ClickHouseSync extends EventEmitter {
       for (const record of records) {
         const eventRow: EfficiencyEventRow = {
           id: record.id,
-          tenant_id: record.tenantId || 'default',
+          tenant_id: record.tenantId || getCurrentTenantId(),
           event_type: 'pipeline.run.completed',
           event_data: JSON.stringify(record),
           event_time: record.completedAt.toISOString(),
@@ -289,7 +294,7 @@ export class ClickHouseSync extends EventEmitter {
     try {
       const values = records.map((r) => ({
         id: r.id,
-        tenant_id: r.tenantId || 'default',
+        tenant_id: r.tenantId || getCurrentTenantId(),
         run_id: r.runId,
         pipeline_id: r.pipelineId,
         status: r.status,
@@ -332,7 +337,7 @@ export class ClickHouseSync extends EventEmitter {
       for (const record of records) {
         const eventRow: EfficiencyEventRow = {
           id: record.id,
-          tenant_id: record.tenantId || 'default',
+          tenant_id: record.tenantId || getCurrentTenantId(),
           event_type: `deployment.${record.status}`,
           event_data: JSON.stringify(record),
           event_time: record.deployedAt.toISOString(),
@@ -347,7 +352,7 @@ export class ClickHouseSync extends EventEmitter {
     try {
       const values = records.map((r) => ({
         id: r.id,
-        tenant_id: r.tenantId || 'default',
+        tenant_id: r.tenantId || getCurrentTenantId(),
         deployment_id: r.deploymentId,
         service: r.service,
         environment: r.environment,

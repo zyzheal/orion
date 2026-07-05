@@ -16,7 +16,6 @@ import {
   Popconfirm,
   Drawer,
   Descriptions,
-  Table as AntTable,
   Checkbox,
   Divider,
 } from 'antd';
@@ -36,120 +35,12 @@ import {
   deleteRole,
   type Role,
   type CreateRoleInput,
-  COMMON_PERMISSIONS,
   PERMISSION_GROUPS,
 } from '@/api/roles';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
-
-// ---- Mock data ----
-
-const MOCK_ROLES: Role[] = [
-  {
-    id: 'role-1',
-    tenant_id: 'tenant-default',
-    name: 'Admin',
-    description: '系统管理员，拥有所有权限',
-    permissions: COMMON_PERMISSIONS.map((p) => p.value),
-    is_system: true,
-    created_at: '2024-01-01T08:00:00Z',
-    updated_at: '2024-01-01T08:00:00Z',
-  },
-  {
-    id: 'role-2',
-    tenant_id: 'tenant-default',
-    name: 'Developer',
-    description: '开发人员，可查看和执行流水线、部署',
-    permissions: [
-      'pipeline:read',
-      'pipeline:write',
-      'pipeline:execute',
-      'deployment:read',
-      'deployment:execute',
-      'monitoring:read',
-      'alert:read',
-      'alert:acknowledge',
-      'config:read',
-      'artifact:read',
-    ],
-    created_at: '2024-01-15T08:00:00Z',
-    updated_at: '2024-03-10T10:00:00Z',
-  },
-  {
-    id: 'role-3',
-    tenant_id: 'tenant-default',
-    name: 'Viewer',
-    description: '只读用户，仅可查看权限',
-    permissions: [
-      'pipeline:read',
-      'deployment:read',
-      'monitoring:read',
-      'alert:read',
-      'config:read',
-      'artifact:read',
-      'cmdb:read',
-      'audit:read',
-      'finops:read',
-    ],
-    created_at: '2024-02-01T08:00:00Z',
-    updated_at: '2024-02-01T08:00:00Z',
-  },
-  {
-    id: 'role-4',
-    tenant_id: 'tenant-default',
-    name: 'DevOps',
-    description: '运维工程师，负责部署、配置、监控和告警管理',
-    permissions: [
-      'pipeline:read',
-      'pipeline:write',
-      'pipeline:execute',
-      'pipeline:delete',
-      'deployment:read',
-      'deployment:write',
-      'deployment:execute',
-      'deployment:delete',
-      'monitoring:read',
-      'monitoring:write',
-      'alert:read',
-      'alert:write',
-      'alert:acknowledge',
-      'config:read',
-      'config:write',
-      'cmdb:read',
-      'cmdb:write',
-      'artifact:read',
-      'artifact:write',
-    ],
-    created_at: '2024-02-10T08:00:00Z',
-    updated_at: '2024-03-15T14:00:00Z',
-  },
-  {
-    id: 'role-5',
-    tenant_id: 'tenant-default',
-    name: 'FinOps',
-    description: '成本优化专员，查看和管理成本相关数据',
-    permissions: ['finops:read', 'finops:write', 'deployment:read', 'monitoring:read'],
-    created_at: '2024-03-01T08:00:00Z',
-    updated_at: '2024-03-01T08:00:00Z',
-  },
-];
-
-// Mock user assignments
-const MOCK_USER_ASSIGNMENTS: Record<string, Array<{ id: string; name: string; email: string }>> = {
-  'role-1': [
-    { id: 'u1', name: 'Heal', email: 'heal@orion.dev' },
-    { id: 'u2', name: 'Admin', email: 'admin@orion.dev' },
-  ],
-  'role-2': [
-    { id: 'u3', name: 'Dev001', email: 'dev001@orion.dev' },
-    { id: 'u4', name: 'Dev002', email: 'dev002@orion.dev' },
-    { id: 'u5', name: 'Dev003', email: 'dev003@orion.dev' },
-  ],
-  'role-3': [{ id: 'u6', name: 'Viewer001', email: 'viewer001@orion.dev' }],
-  'role-4': [{ id: 'u7', name: 'Ops001', email: 'ops001@orion.dev' }],
-  'role-5': [{ id: 'u8', name: 'FinOps001', email: 'finops001@orion.dev' }],
-};
 
 // Default tenant ID for API calls
 const DEFAULT_TENANT_ID = 'tenant-default';
@@ -170,10 +61,9 @@ const RoleManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getRoles(DEFAULT_TENANT_ID);
-      setRoles(Array.isArray(res.data?.data) ? res.data.data : []);
+      setRoles(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
-      // Fallback to mock data when backend is unavailable
-      setRoles(MOCK_ROLES);
+      setRoles([]);
       if (error instanceof Error) {
         message.error(`加载角色列表失败：${error.message}`);
       } else {
@@ -257,11 +147,6 @@ const RoleManagement: React.FC = () => {
     return 'default';
   };
 
-  // Mock user count per role
-  const getUserCount = (roleId: string): number => {
-    return MOCK_USER_ASSIGNMENTS[roleId]?.length || 0;
-  };
-
   // ---- Table columns ----
 
   const columns: TableColumn<Role>[] = [
@@ -305,7 +190,7 @@ const RoleManagement: React.FC = () => {
       width: 120,
       render: (_: unknown, record: Role) => (
         <Tag color="cyan" icon={<TeamOutlined />}>
-          {getUserCount(record.id)} 位用户
+          {record.user_count || 0} 位用户
         </Tag>
       ),
     },
@@ -358,11 +243,11 @@ const RoleManagement: React.FC = () => {
       const groupPerms = group.permissions.filter((p) => role.permissions.includes(p.value));
       if (groupPerms.length === 0) return null;
       return (
-        <div key={group.group} style={{ marginBottom: 16 }}>
+        <div key={group.group} style={{ marginBottom: spacing.md }}>
           <Text strong style={{ fontSize: 13 }}>
             {group.group}
           </Text>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: spacing.sm }}>
             <Space wrap>
               {groupPerms.map((p) => (
                 <Tag key={p.value} color={getPermissionColor(p.value)}>
@@ -376,23 +261,8 @@ const RoleManagement: React.FC = () => {
     });
   };
 
-  const renderAssignedUsers = (roleId: string) => {
-    const users = MOCK_USER_ASSIGNMENTS[roleId] || [];
-    if (users.length === 0) {
-      return <Text type="secondary">暂无关联用户</Text>;
-    }
-    return (
-      <AntTable
-        dataSource={users}
-        rowKey="id"
-        size="small"
-        pagination={false}
-        columns={[
-          { title: '用户名', dataIndex: 'name', key: 'name' },
-          { title: '邮箱', dataIndex: 'email', key: 'email' },
-        ]}
-      />
-    );
+  const renderAssignedUsers = (_roleId: string) => {
+    return <Text type="secondary">暂无关联用户</Text>;
   };
 
   const isInitialLoading = loading && roles.length === 0;
@@ -410,11 +280,12 @@ const RoleManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <TeamOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 角色管理
               </Title>
               <Text type="secondary">管理系统角色及其权限分配 (RBAC)</Text>
@@ -441,7 +312,7 @@ const RoleManagement: React.FC = () => {
             <Input.Search
               placeholder="搜索角色名称或描述..."
               allowClear
-              style={{ marginBottom: 16, maxWidth: 400 }}
+              style={{ marginBottom: spacing.md, maxWidth: 400 }}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
             <Table
@@ -482,11 +353,11 @@ const RoleManagement: React.FC = () => {
                 <Form.Item name="permissions" valuePropName={undefined} noStyle>
                   {PERMISSION_GROUPS.map((group) => {
                     return (
-                      <div key={group.group} style={{ marginBottom: 16 }}>
+                      <div key={group.group} style={{ marginBottom: spacing.md }}>
                         <Text strong style={{ fontSize: 13 }}>
                           {group.group}
                         </Text>
-                        <Checkbox.Group style={{ width: '100%', marginTop: 8, marginLeft: 0 }}>
+                        <Checkbox.Group style={{ width: '100%', marginTop: spacing.sm, marginLeft: 0 }}>
                           <div
                             style={{
                               display: 'grid',
@@ -519,7 +390,7 @@ const RoleManagement: React.FC = () => {
           >
             {selectedRole && (
               <>
-                <Descriptions column={2} bordered size="small" style={{ marginBottom: 24 }}>
+                <Descriptions column={2} bordered size="small" style={{ marginBottom: spacing.lg }}>
                   <Descriptions.Item label="角色名称">{selectedRole.name}</Descriptions.Item>
                   <Descriptions.Item label="系统角色">
                     {selectedRole.is_system ? <Tag color="gold">是</Tag> : <Tag>否</Tag>}
@@ -528,7 +399,7 @@ const RoleManagement: React.FC = () => {
                     {selectedRole.permissions.length} 项
                   </Descriptions.Item>
                   <Descriptions.Item label="关联用户">
-                    {getUserCount(selectedRole.id)} 位
+                    {selectedRole.user_count || 0} 位
                   </Descriptions.Item>
                   <Descriptions.Item label="描述" span={2}>
                     {selectedRole.description || '-'}
@@ -546,7 +417,7 @@ const RoleManagement: React.FC = () => {
                 </Descriptions>
 
                 <Divider>权限列表</Divider>
-                <div style={{ marginBottom: 24 }}>{renderPermissionGroup(selectedRole)}</div>
+                <div style={{ marginBottom: spacing.lg }}>{renderPermissionGroup(selectedRole)}</div>
 
                 <Divider>关联用户</Divider>
                 {renderAssignedUsers(selectedRole.id)}

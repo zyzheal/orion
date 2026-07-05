@@ -7,6 +7,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { HookChainService, HookChainDefinition } from '../services/hook-chain';
 import { EventEmitter } from 'events';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
 const eventBus = new EventEmitter();
 const hookChainService = new HookChainService({ eventBus });
@@ -24,20 +27,22 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // ==================== Chain Management ====================
 
   // POST /api/v1/hook-chains - 创建 Hook 链
-  app.post('/hook-chains', async (request: FastifyRequest<{ Body: HookChainDefinition }>, reply: FastifyReply) => {
+  app.post('/hook-chains', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const definition = request.body;
+      const definition = request.body as HookChainDefinition;
       const created = hookChainService.createChain(definition);
       return reply.status(201).send(created);
     } catch (error) {
-      return reply.status(400).send({
-        error: error instanceof Error ? error.message : 'Invalid chain definition',
-      });
+      return handleError(reply, new ValidationError((error as Error).message))
     }
   });
 
   // GET /api/v1/hook-chains - 列出所有 Hook 链
-  app.get('/hook-chains', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/hook-chains', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const chains = hookChainService.listChains();
     return reply.send({
       data: chains,
@@ -46,38 +51,44 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   });
 
   // GET /api/v1/hook-chains/:chainId - 获取 Hook 链详情
-  app.get('/hook-chains/:chainId', async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  app.get('/hook-chains/:chainId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const chain = hookChainService.getChain(chainId);
 
     if (!chain) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.send(chain);
   });
 
   // PUT /api/v1/hook-chains/:chainId - 更新 Hook 链
-  app.put('/hook-chains/:chainId', async (request: FastifyRequest<{ Params: { chainId: string }; Body: Partial<HookChainDefinition> }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
-    const updates = request.body;
+  app.put('/hook-chains/:chainId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
+    const updates = request.body as Partial<HookChainDefinition>;
 
     const updated = hookChainService.updateChain(chainId, updates);
 
     if (!updated) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.send(updated);
   });
 
   // DELETE /api/v1/hook-chains/:chainId - 删除 Hook 链
-  app.delete('/hook-chains/:chainId', async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  app.delete('/hook-chains/:chainId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const deleted = hookChainService.deleteChain(chainId);
 
     if (!deleted) {
-      return reply.status(404).send({ error: `Hook chain "${chainId}" not found` });
+      return handleError(reply, new NotFoundError('Unknown error'));
     }
 
     return reply.status(204).send();
@@ -86,31 +97,29 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // ==================== Chain Execution ====================
 
   // POST /api/v1/hook-chains/:chainId/execute - 执行 Hook 链
-  app.post('/hook-chains/:chainId/execute', async (request: FastifyRequest<{
-    Params: { chainId: string };
-    Body: {
+  app.post('/hook-chains/:chainId/execute', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
+    const { triggerSource, triggerPayload, tenantId } = request.body as {
       triggerSource: string;
       triggerPayload: Record<string, any>;
       tenantId: string;
     };
-  }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
-    const { triggerSource, triggerPayload, tenantId } = request.body;
 
     try {
       const result = await hookChainService.executeChain(chainId, triggerSource, triggerPayload, tenantId);
       return reply.send(result);
     } catch (error) {
-      return reply.status(500).send({
-        error: error instanceof Error ? error.message : 'Chain execution failed',
-        chainId,
-      });
+      return handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
   // GET /api/v1/hook-chains/:chainId/history - 获取执行历史
-  app.get('/hook-chains/:chainId/history', async (request: FastifyRequest<{ Params: { chainId: string } }>, reply: FastifyReply) => {
-    const { chainId } = request.params;
+  app.get('/hook-chains/:chainId/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { chainId } = request.params as { chainId: string };
     const history = hookChainService.getExecutionHistory(chainId);
 
     return reply.send({
@@ -121,7 +130,9 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   });
 
   // GET /api/v1/hook-chains/executions/pending - 获取正在执行的链
-  app.get('/hook-chains/executions/pending', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/hook-chains/executions/pending', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const pending = hookChainService.getPendingExecutions();
     return reply.send({
       pending,
@@ -132,7 +143,9 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // ==================== SSE Events ====================
 
   // GET /api/v1/hook-chains/events - SSE 实时事件推送
-  app.get('/hook-chains/events', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/hook-chains/events', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     reply.raw.setHeader('Content-Type', 'text/event-stream');
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
@@ -161,13 +174,12 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
   // ==================== Custom Executor ====================
 
   // POST /api/v1/hook-chains/executors - 注册自定义执行器
-  app.post('/hook-chains/executors', async (request: FastifyRequest<{ Body: { type: string; handler: string } }>, reply: FastifyReply) => {
-    const { type, handler } = request.body;
+  app.post('/hook-chains/executors', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'hook', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { type, handler } = request.body as { type: string; handler: string };
 
     // 注意：这里只是示例，实际需要安全的执行器注册机制
-    reply.status(501).send({
-      error: 'Custom executor registration requires secure implementation',
-      type,
-    });
+handleError(reply, new OrionError('Custom executor registration requires secure implementation', ErrorCode.INTERNAL_ERROR))
   });
 }

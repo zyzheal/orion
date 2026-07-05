@@ -4,6 +4,15 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import iacRoutes from '../iac-routes';
 
+jest.mock('../../middleware/authMiddleware', () => ({
+  authenticateUser: async (req: any, _reply: any) => {
+    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenantId: '1' };
+  },
+}));
+jest.mock('../../middleware/requirePermission', () => ({
+  requirePermission: () => async (_req: any, _reply: any) => {},
+}));
+
 describe('IaC Plans, State Versions & Modules', () => {
   let app: FastifyInstance;
 

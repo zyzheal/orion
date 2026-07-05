@@ -45,11 +45,11 @@ describe('DORACalculator', () => {
   // ==================== calculateDeploymentFrequency ====================
 
   describe('calculateDeploymentFrequency', () => {
-    it('should calculate deployment frequency with met status', () => {
+    it('should calculate deployment frequency with met status', async () => {
       const now = Date.now();
       const deployments = createDeployments(30, now);
 
-      const result = calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
+      const result = await calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
 
       expect(result.value).toBeGreaterThan(0);
       expect(typeof result.trend).toBe('string');
@@ -58,21 +58,21 @@ describe('DORACalculator', () => {
       expect(['met', 'warning', 'missed']).toContain(result.status);
     });
 
-    it('should return missed status for low deployment frequency', () => {
+    it('should return missed status for low deployment frequency', async () => {
       const now = Date.now();
       const deployments = createDeployments(1, now);
 
-      const result = calculator.calculateDeploymentFrequency('tenant-1', deployments, 'month', 1);
+      const result = await calculator.calculateDeploymentFrequency('tenant-1', deployments, 'month', 1);
 
       expect(result.status).toBe('missed');
     });
 
-    it('should save snapshot for trend tracking', () => {
+    it('should save snapshot for trend tracking', async () => {
       const now = Date.now();
       const deployments = createDeployments(10, now);
 
-      const first = calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
-      const second = calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
+      const first = await calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
+      const second = await calculator.calculateDeploymentFrequency('tenant-1', deployments, 'week', 1);
 
       expect(first).toBeDefined();
       expect(second).toBeDefined();
@@ -82,25 +82,25 @@ describe('DORACalculator', () => {
   // ==================== calculateLeadTime ====================
 
   describe('calculateLeadTime', () => {
-    it('should calculate lead time correctly', () => {
+    it('should calculate lead time correctly', async () => {
       const now = Date.now();
       const pipelines = createPipelineRecords(5, now);
 
-      const result = calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
+      const result = await calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
 
       expect(result.value).toBeGreaterThanOrEqual(0);
       expect(['up', 'down', 'stable']).toContain(result.trend);
       expect(result.target).toBe(24);
     });
 
-    it('should invert trend for lead time (lower is better)', () => {
+    it('should invert trend for lead time (lower is better)', async () => {
       const now = Date.now();
       const pipelines = createPipelineRecords(10, now);
 
       // First call sets baseline
-      calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
+      await calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
       // Second call should show a trend (inverted)
-      const result = calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
+      const result = await calculator.calculateLeadTime('tenant-1', pipelines, [], 'week', 1);
 
       expect(['up', 'down', 'stable']).toContain(result.trend);
     });
@@ -109,18 +109,18 @@ describe('DORACalculator', () => {
   // ==================== calculateChangeFailureRate ====================
 
   describe('calculateChangeFailureRate', () => {
-    it('should calculate change failure rate', () => {
+    it('should calculate change failure rate', async () => {
       const now = Date.now();
       const deployments = createDeployments(10, now);
 
-      const result = calculator.calculateChangeFailureRate('tenant-1', deployments, 'week', 1);
+      const result = await calculator.calculateChangeFailureRate('tenant-1', deployments, 'week', 1);
 
       expect(result.value).toBeGreaterThanOrEqual(0);
       expect(result.value).toBeLessThanOrEqual(100);
       expect(result.target).toBe(5);
     });
 
-    it('should return met status for low failure rate', () => {
+    it('should return met status for low failure rate', async () => {
       const now = Date.now();
       const deployments: DeploymentRecord[] = Array.from({ length: 20 }, (_, i) => ({
         id: `d-${i}`,
@@ -132,7 +132,7 @@ describe('DORACalculator', () => {
         syncedToClickHouse: false,
       }));
 
-      const result = calculator.calculateChangeFailureRate('tenant-1', deployments, 'week', 1);
+      const result = await calculator.calculateChangeFailureRate('tenant-1', deployments, 'week', 1);
       expect(result.status).toBe('met');
       expect(result.value).toBe(0);
     });
@@ -141,7 +141,7 @@ describe('DORACalculator', () => {
   // ==================== calculateMTTR ====================
 
   describe('calculateMTTR', () => {
-    it('should calculate MTTR correctly', () => {
+    it('should calculate MTTR correctly', async () => {
       const now = Date.now();
       const deployments: DeploymentRecord[] = [
         {
@@ -156,7 +156,7 @@ describe('DORACalculator', () => {
         },
       ];
 
-      const result = calculator.calculateMTTR('tenant-1', deployments, [], 'week', 1);
+      const result = await calculator.calculateMTTR('tenant-1', deployments, [], 'week', 1);
 
       expect(result.value).toBeGreaterThan(0);
       expect(result.target).toBe(1);
@@ -166,12 +166,12 @@ describe('DORACalculator', () => {
   // ==================== calculateAllDORA ====================
 
   describe('calculateAllDORA', () => {
-    it('should calculate all DORA metrics at once', () => {
+    it('should calculate all DORA metrics at once', async () => {
       const now = Date.now();
       const deployments = createDeployments(10, now);
       const pipelines = createPipelineRecords(5, now);
 
-      const result = calculator.calculateAllDORA('tenant-1', deployments, pipelines, [], 'week', 1);
+      const result = await calculator.calculateAllDORA('tenant-1', deployments, pipelines, [], 'week', 1);
 
       expect(result.deploymentFrequency).toBeDefined();
       expect(result.leadTime).toBeDefined();
@@ -184,7 +184,7 @@ describe('DORACalculator', () => {
   // ==================== getDORATrend ====================
 
   describe('getDORATrend', () => {
-    it('should return trend comparison with current and previous periods', () => {
+    it('should return trend comparison with current and previous periods', async () => {
       const now = Date.now();
       // Create deployments spanning the last 2 weeks
       const deployments: DeploymentRecord[] = Array.from({ length: 20 }, (_, i) => ({
@@ -207,7 +207,7 @@ describe('DORACalculator', () => {
         syncedToClickHouse: false,
       }));
 
-      const trend = calculator.getDORATrend('tenant-1', deployments, pipelines, [], 'day', 7);
+      const trend = await calculator.getDORATrend('tenant-1', deployments, pipelines, [], 'day', 7);
 
       expect(trend.current).toBeDefined();
       expect(trend.previous).toBeDefined();
@@ -220,7 +220,7 @@ describe('DORACalculator', () => {
       expect(trend.previousPeriod).toBeDefined();
     });
 
-    it('should calculate percentage changes correctly', () => {
+    it('should calculate percentage changes correctly', async () => {
       const now = Date.now();
       // Create more deployments in the recent window
       const deployments: DeploymentRecord[] = [
@@ -247,27 +247,27 @@ describe('DORACalculator', () => {
       ];
       const pipelines: PipelineCompletionRecord[] = [];
 
-      const trend = calculator.getDORATrend('tenant-1', deployments, pipelines, [], 'day', 7);
+      const trend = await calculator.getDORATrend('tenant-1', deployments, pipelines, [], 'day', 7);
 
       // Recent week has more deployments, so change should be positive
       expect(trend.changes.deploymentFrequency).toBeGreaterThan(0);
     });
 
-    it('should handle empty data gracefully', () => {
-      const trend = calculator.getDORATrend('tenant-1', [], [], [], 'week', 1);
+    it('should handle empty data gracefully', async () => {
+      const trend = await calculator.getDORATrend('tenant-1', [], [], [], 'week', 1);
 
       expect(trend.current.deploymentFrequency.value).toBe(0);
       expect(trend.previous.deploymentFrequency.value).toBe(0);
       expect(trend.changes.deploymentFrequency).toBe(0);
     });
 
-    it('should include all four metric changes', () => {
+    it('should include all four metric changes', async () => {
       const now = Date.now();
       const deployments = createDeployments(14, now);
       const pipelines = createPipelineRecords(7, now);
       const incidents: IncidentRecord[] = [];
 
-      const trend = calculator.getDORATrend('tenant-1', deployments, pipelines, incidents, 'day', 7);
+      const trend = await calculator.getDORATrend('tenant-1', deployments, pipelines, incidents, 'day', 7);
 
       expect(trend.changes).toHaveProperty('deploymentFrequency');
       expect(trend.changes).toHaveProperty('leadTime');

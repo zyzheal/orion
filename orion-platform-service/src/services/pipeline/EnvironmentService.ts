@@ -6,11 +6,13 @@
  * and approval requirement checks.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EnvironmentService');
 
 export interface EnvironmentServiceOptions {
   repository: EnvironmentRepository;
@@ -46,12 +48,12 @@ export class EnvironmentService {
     // Check for duplicate name within tenant
     const existing = await this.repository.findByTenantAndName(input.tenantId, input.name);
     if (existing) {
-      throw new Error(`Environment '${input.name}' already exists for tenant '${input.tenantId}'`);
+      throw new OrionError(`Environment '${input.name}' already exists for tenant '${input.tenantId}'`, ErrorCode.NOT_FOUND);
     }
 
     // Validate approval count
     if ((input.approvalCount ?? 1) < 1) {
-      throw new Error('approvalCount must be at least 1');
+      throw new OrionError('approvalCount must be at least 1', ErrorCode.OPERATION_FAILED);
     }
 
     const env = createEnvironment(input);
@@ -75,7 +77,7 @@ export class EnvironmentService {
    * Get an environment by ID.
    */
   async getEnvironment(id: string): Promise<EnvironmentEntity | undefined> {
-    return this.repository.findById(id);
+    return (await this.repository.findById(id)) ?? undefined;
   }
 
   /**
@@ -98,12 +100,12 @@ export class EnvironmentService {
   async updateEnvironment(id: string, input: EnvironmentUpdateInput): Promise<EnvironmentEntity> {
     const existing = await this.repository.findById(id);
     if (!existing) {
-      throw new Error(`Environment '${id}' not found`);
+      throw new OrionError(`Environment '${id}' not found`, ErrorCode.NOT_FOUND);
     }
 
     // Validate name if being changed
     if (input.approvalCount !== undefined && input.approvalCount < 1) {
-      throw new Error('approvalCount must be at least 1');
+      throw new OrionError('approvalCount must be at least 1', ErrorCode.OPERATION_FAILED);
     }
 
     const updates: Partial<EnvironmentEntity> = {};
@@ -114,6 +116,7 @@ export class EnvironmentService {
     if (input.approvalCount !== undefined) updates.approvalCount = input.approvalCount;
 
     const updated = await this.repository.update(id, updates as any);
+    if (!updated) throw new OrionError('Failed to update environment', ErrorCode.OPERATION_FAILED);
     logger.info({ id, ...input }, 'Environment updated');
     return updated;
   }
@@ -148,7 +151,7 @@ export class EnvironmentService {
     const env = await this.repository.findByTenantAndName(tenantId, environmentName);
     if (!env) {
       // If environment not found, return pipeline variables as-is
-      logger.warn({ tenantId, environmentName }, 'Environment not found, returning pipeline variables only');
+      logger.warn({ traceId: getCurrentTraceId(), tenantId, environmentName }, 'Environment not found, returning pipeline variables only');
       return {
         variables: pipelineVariables,
         environment: {
@@ -256,14 +259,14 @@ export class EnvironmentService {
    */
   private validateName(name: string): void {
     if (!name || name.trim().length === 0) {
-      throw new Error('Environment name cannot be empty');
+      throw new OrionError('Environment name cannot be empty', ErrorCode.OPERATION_FAILED);
     }
     const namePattern = /^[a-z][a-z0-9_]*$/;
     if (!namePattern.test(name)) {
-      throw new Error(`Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`);
+      throw new OrionError(`Environment name '${name}' is invalid. Must be lowercase alphanumeric with underscores, starting with a letter.`, 'VALIDATION_ERROR')
     }
     if (name.length > 64) {
-      throw new Error(`Environment name '${name}' is too long (max 64 characters)`);
+      throw new OrionError(`Environment name '${name}' is too long (max 64 characters)`, 'OPERATION_FAILED')
     }
   }
 }

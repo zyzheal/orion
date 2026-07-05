@@ -5,13 +5,15 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { RunnerPoolService } from '../../services/pipeline/RunnerPoolService';
 import { RunnerCreateInput } from '../../models/Runner';
 
-export class RunnerController {
+export class RunnerController extends BaseController {
   private poolService: RunnerPoolService;
 
   constructor(db: any) {
+    super();
     this.poolService = new RunnerPoolService(db);
   }
 
@@ -82,7 +84,7 @@ export class RunnerController {
    */
   async listRunners(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || this.getTenantId(request);
 
     try {
       const runners = await this.poolService.listRunners(tenantId);

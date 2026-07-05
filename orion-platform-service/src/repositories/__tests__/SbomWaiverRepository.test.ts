@@ -69,7 +69,10 @@ describe('SbomWaiverRepository', () => {
     });
     const result = await repo.findExpired();
     expect(result.length).toBe(1);
-    expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('expires_at < NOW()'));
+    expect(mockDb.query).toHaveBeenCalledWith(
+      expect.stringContaining('expires_at < NOW()'),
+      ['__system__'],
+    );
   });
 
   test('should find active waivers', async () => {
@@ -90,6 +93,9 @@ describe('SbomWaiverRepository', () => {
     const result = await repo.findActive();
     expect(result.length).toBe(1);
     expect(result[0].scope).toBe('project');
-    expect(mockDb.query).toHaveBeenCalledWith(expect.stringContaining('expires_at > NOW()'));
+    expect(mockDb.query).toHaveBeenCalledWith(
+      expect.stringContaining('expires_at > NOW()'),
+      ['__system__'],
+    );
   });
 });

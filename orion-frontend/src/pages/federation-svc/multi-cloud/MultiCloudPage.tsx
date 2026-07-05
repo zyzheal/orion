@@ -37,6 +37,8 @@ import {
   type CloudAccount,
   type CloudResource,
 } from '@/api/multi-cloud';
+import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -105,8 +107,8 @@ const MultiCloudPage: React.FC = () => {
         provider: values.provider,
         name: values.name,
         region: values.region,
-        credentials: {},
-      });
+        credentials_ref: '',
+      } as any);
       message.success('云账号注册成功');
       setCreateModalOpen(false);
       form.resetFields();
@@ -151,7 +153,7 @@ const MultiCloudPage: React.FC = () => {
       title: '资源数',
       key: 'resourceCount',
       width: 80,
-      render: (_: unknown, record: CloudAccount) => resources.filter((r) => r.accountId === record.id).length,
+      render: (_: unknown, record: CloudAccount) => resources.filter((r) => r.account_id === record.id).length,
     },
     {
       title: '创建时间',
@@ -214,12 +216,12 @@ const MultiCloudPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <CloudOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CloudOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             多云管理
           </Title>
           <Text type="secondary">管理多云账号、资源跟踪和跨云编排</Text>
@@ -235,7 +237,7 @@ const MultiCloudPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="云账号总数" value={stats.total} prefix={<CloudServerOutlined />} />
@@ -243,7 +245,7 @@ const MultiCloudPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已连接" value={stats.active} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="已连接" value={stats.active} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -251,7 +253,7 @@ const MultiCloudPage: React.FC = () => {
             <Statistic
               title="异常"
               value={stats.error}
-              valueStyle={{ color: stats.error > 0 ? '#ff4d4f' : undefined }}
+              valueStyle={{ color: stats.error > 0 ? colors.error[400] : undefined }}
             />
           </Card>
         </Col>

@@ -28,9 +28,10 @@ import {
 import { ChangeAnalyzer } from './ChangeAnalyzer';
 import { TestTemplateEngine } from './TestTemplateEngine';
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { TestGenerationHistoryRepository } from '../../repositories/TestGenerationHistoryRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TestGeneratorService');
 
 /**
  * AI Gateway 接口（可选注入）
@@ -61,12 +62,16 @@ export class TestGeneratorService {
   private templateEngine: TestTemplateEngine;
   private aiGateway?: AIGatewayInterface;
   private history: Map<string, TestGenerationRecord> = new Map();
+  private historyRepo?: TestGenerationHistoryRepository;
 
-  constructor(config: Partial<TestGeneratorConfig> = {}) {
+  constructor(config: Partial<TestGeneratorConfig> = {}, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.config = { ...DEFAULT_TEST_GENERATOR_CONFIG, ...config };
     this.changeAnalyzer = new ChangeAnalyzer();
     this.templateEngine = new TestTemplateEngine();
     this.aiGateway = config.aiGateway;
+    if (db) {
+      this.historyRepo = new TestGenerationHistoryRepository(db);
+    }
   }
 
   /**

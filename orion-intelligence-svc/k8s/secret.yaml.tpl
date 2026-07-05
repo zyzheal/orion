@@ -1,0 +1,13 @@
+# Secret template - Replace placeholder values with actual secrets
+# DO NOT commit real secrets to version control
+# Use: kubectl create secret ... or a secret management tool
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-intelligence-secrets
+  namespace: orion
+type: Opaque
+stringData:
+  DATABASE_URL: "<CHANGE_ME>"
+  CLICKHOUSE_PASSWORD: "<CHANGE_ME>"
+  LLM_API_KEY: "<CHANGE_ME>"

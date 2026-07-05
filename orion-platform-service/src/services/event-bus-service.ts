@@ -12,7 +12,8 @@
 
 import { EventEmitter } from 'events';
 import crypto from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 import {
   EventBusConfigRepository,
   EventSubscriptionRepository,
@@ -22,6 +23,7 @@ export { TypedEnvelope } from './types/event-types';
 import { JetStreamConfig, ConsumerConfig, TypedEnvelope } from './types/event-types';
 import type { JetStreamClient, JetStreamManager } from 'nats';
 import { JetStreamManagerService } from './jetstream-manager';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * 连接状态枚举 - 明确区分各种状态
@@ -81,7 +83,7 @@ export interface EventBusRepositories {
   eventRepo?: EventBusEventRepository;
 }
 
-const logger = pino({ name: 'event-bus-service' });
+const logger = createLogger('event-bus-service');
 
 export class EventBusService extends EventEmitter {
   private config: EventBusServiceConfig;
@@ -361,7 +363,7 @@ export class EventBusService extends EventEmitter {
     if (this.repos.eventRepo) {
       try {
         eventRecord = await this.repos.eventRepo.insert({
-          tenant_id: options?.tenantId || 'default',
+          tenant_id: options?.tenantId || getCurrentTenantId(),
           event_type: type,
           subject,
           source,
@@ -509,7 +511,7 @@ export class EventBusService extends EventEmitter {
       if (this.repos.subscriptionRepo) {
         try {
           subRecord = await this.repos.subscriptionRepo.insert({
-            tenant_id: options?.tenantId || 'default',
+            tenant_id: options?.tenantId || getCurrentTenantId(),
             subject_pattern: eventType,
             handler_name: eventType,
             handler_type: 'nats',
@@ -577,7 +579,7 @@ export class EventBusService extends EventEmitter {
           const messages = await consumer.fetch({
             max_messages: 100,
             expires: 30_000_000_000, // 30s in nanoseconds
-          } as any);
+          });
           if (!messages) {
             // No messages returned, wait briefly before next fetch
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -745,6 +747,13 @@ export class EventBusService extends EventEmitter {
   }
 
   /**
+   * Get the underlying NATS connection for use by other services
+   */
+  getNatsConnection(): any {
+    return this.natsConnection;
+  }
+
+  /**
    * 检查是否为连接状态（仅 NATS 真正连接）
    * ARCH-001: 区分 "健康" 和 "已连接"
    */
@@ -774,7 +783,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventHistory(options?: { eventType?: string; status?: string; limit?: number }) {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (options?.eventType) {
       return this.repos.eventRepo.findByType(options.eventType, { limit: options.limit });
@@ -790,7 +799,7 @@ export class EventBusService extends EventEmitter {
    */
   async getSubscriptions(tenantId?: string) {
     if (!this.repos.subscriptionRepo) {
-      throw new Error('Subscription repository not available');
+      throw new OrionError('Subscription repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (tenantId) {
       return this.repos.subscriptionRepo.findByTenant(tenantId);
@@ -803,7 +812,7 @@ export class EventBusService extends EventEmitter {
    */
   async getEventStats() {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     const [published, pendingFallback, delivered, failed, deadLetter] = await Promise.all([
       this.repos.eventRepo.countByStatus('published'),
@@ -829,7 +838,7 @@ export class EventBusService extends EventEmitter {
     onProgress?: (eventId: string, success: boolean) => void;
   }): Promise<{ retried: number; succeeded: number; failed: number }> {
     if (!this.repos.eventRepo) {
-      throw new Error('Event repository not available');
+      throw new OrionError('Event repository not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     if (this.connectionState !== 'connected' || !this.natsConnection) {
       throw new EventBusError('NATS not connected, cannot retry events', 'NOT_CONNECTED', true);
@@ -997,7 +1006,7 @@ export class EventBusService extends EventEmitter {
       const messages = await consumer.fetch({
         max_messages: limit,
         expires: 30_000_000_000, // 30s in nanoseconds
-      } as any);
+      });
 
       if (messages) {
         for await (const msg of messages as AsyncIterable<any>) {

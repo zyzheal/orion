@@ -3,16 +3,16 @@
  *
  * 检测并报告实际配置与期望配置之间的差异，支持自动修复。
  *
- * 功能：
- * - detectDrift(tenantId, configGroup) — 检测配置漂移
- * - compareConfig(expected, actual) — 对比配置差异
- * - autoRemediateDrift(driftId) — 自动修复漂移
- * - getDriftReport(tenantId) — 漂移报告
+ * 数据持久化：ConfigDriftRepository (PostgreSQL)
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../database';
+import { ConfigDriftRepository, ConfigDriftEntity } from '../../repositories/ConfigDriftRepository';
 import { ConfigService } from './ConfigService';
+import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('ConfigDriftDetector');
 
 // ============================================================
 // Types
@@ -68,156 +68,41 @@ export interface ConfigComparisonResult {
 }
 
 // ============================================================
-// Repository
+// Converter
 // ============================================================
 
-interface DriftReportRow {
-  id: string;
-  tenant_id: string;
-  config_group: string | null;
-  drift_status: string;
-  expected_config: Record<string, unknown>;
-  actual_config: Record<string, unknown>;
-  drift_items: Record<string, unknown>[];
-  total_drifts: number;
-  critical_drifts: number;
-  auto_remediation_enabled: boolean;
-  remediation_log: Record<string, unknown>[];
-  detected_at: Date;
-  last_checked_at: Date;
-  created_at: Date;
-}
-
-class DriftReportRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, DriftReport>();
-
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
-  }
-
-  async save(report: DriftReport): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(report.id, report);
-      return;
-    }
-    await this.pool!.query(
-      `INSERT INTO config_drift_reports (
-        id, tenant_id, config_group, drift_status, expected_config, actual_config,
-        drift_items, total_drifts, critical_drifts, auto_remediation_enabled,
-        remediation_log, detected_at, last_checked_at, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      ON CONFLICT (id) DO UPDATE SET
-        drift_status = EXCLUDED.drift_status,
-        expected_config = EXCLUDED.expected_config,
-        actual_config = EXCLUDED.actual_config,
-        drift_items = EXCLUDED.drift_items,
-        total_drifts = EXCLUDED.total_drifts,
-        critical_drifts = EXCLUDED.critical_drifts,
-        auto_remediation_enabled = EXCLUDED.auto_remediation_enabled,
-        remediation_log = EXCLUDED.remediation_log,
-        last_checked_at = EXCLUDED.last_checked_at`,
-      [
-        report.id,
-        report.tenantId,
-        report.configGroup || null,
-        report.driftStatus,
-        JSON.stringify(report.expectedConfig),
-        JSON.stringify(report.actualConfig),
-        JSON.stringify(report.driftItems.map((d) => ({
-          configKey: d.configKey,
-          configGroup: d.configGroup,
-          path: d.path,
-          expectedValue: d.expectedValue,
-          actualValue: d.actualValue,
-          severity: d.severity,
-          description: d.description,
-        }))),
-        report.totalDrifts,
-        report.criticalDrifts,
-        report.autoRemediationEnabled,
-        JSON.stringify(report.remediationLog),
-        report.detectedAt,
-        report.lastCheckedAt,
-        report.createdAt,
-      ]
-    );
-  }
-
-  async findById(id: string): Promise<DriftReport | null> {
-    if (!this.isDbAvailable()) {
-      return this.memory.get(id) || null;
-    }
-    const rows = (
-      await this.pool!.query('SELECT * FROM config_drift_reports WHERE id = $1', [id])
-    ).rows;
-    if (rows.length === 0) return null;
-    return this.rowToReport(rows[0]);
-  }
-
-  async findByTenant(tenantId: string, configGroup?: string): Promise<DriftReport[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter((r) => r.tenantId === tenantId);
-      if (configGroup) results = results.filter((r) => r.configGroup === configGroup);
-      results.sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-      return results;
-    }
-
-    let query = 'SELECT * FROM config_drift_reports WHERE tenant_id = $1';
-    const params: unknown[] = [tenantId];
-    if (configGroup) {
-      query += ' AND config_group = $2';
-      params.push(configGroup);
-    }
-    query += ' ORDER BY detected_at DESC';
-
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: DriftReportRow) => this.rowToReport(r));
-  }
-
-  async findLatestByTenant(tenantId: string): Promise<DriftReport | null> {
-    const reports = await this.findByTenant(tenantId);
-    return reports.length > 0 ? reports[0] : null;
-  }
-
-  private rowToReport(row: DriftReportRow): DriftReport {
-    const rawItems = (row.drift_items || []) as Record<string, unknown>[];
-    return {
-      id: row.id,
-      tenantId: row.tenant_id,
-      configGroup: row.config_group || undefined,
-      driftStatus: row.drift_status as DriftStatus,
-      expectedConfig: (row.expected_config as Record<string, unknown>) || {},
-      actualConfig: (row.actual_config as Record<string, unknown>) || {},
-      driftItems: rawItems.map((item) => ({
-        configKey: (item.configKey as string) || '',
-        configGroup: (item.configGroup as string) || undefined,
-        path: (item.path as string) || '',
-        expectedValue: item.expectedValue,
-        actualValue: item.actualValue,
-        severity: (item.severity as 'low' | 'medium' | 'high' | 'critical') || 'low',
-        description: (item.description as string) || '',
-      })),
-      totalDrifts: row.total_drifts,
-      criticalDrifts: row.critical_drifts,
-      autoRemediationEnabled: row.auto_remediation_enabled,
-      remediationLog: (row.remediation_log || []).map((entry) => ({
-        driftId: (entry.driftId as string) || '',
-        configKey: (entry.configKey as string) || '',
-        action: (entry.action as string) || '',
-        success: (entry.success as boolean) || false,
-        error: (entry.error as string) || undefined,
-        timestamp: (entry.timestamp as Date) || new Date(),
-      })),
-      detectedAt: row.detected_at,
-      lastCheckedAt: row.last_checked_at,
-      createdAt: row.created_at,
-    };
-  }
+function entityToDriftReport(e: ConfigDriftEntity): DriftReport {
+  return {
+    id: e.id,
+    tenantId: e.tenantId,
+    configGroup: e.configGroup,
+    driftStatus: e.driftStatus as DriftStatus,
+    expectedConfig: (e.expectedConfig as Record<string, unknown>) || {},
+    actualConfig: (e.actualConfig as Record<string, unknown>) || {},
+    driftItems: ((e.driftItems || []) as Array<Record<string, unknown>>).map((item) => ({
+      configKey: (item.configKey as string) || '',
+      configGroup: (item.configGroup as string) || undefined,
+      path: (item.path as string) || '',
+      expectedValue: item.expectedValue,
+      actualValue: item.actualValue,
+      severity: (item.severity as 'low' | 'medium' | 'high' | 'critical') || 'low',
+      description: (item.description as string) || '',
+    })),
+    totalDrifts: e.totalDrifts,
+    criticalDrifts: e.criticalDrifts,
+    autoRemediationEnabled: e.autoRemediationEnabled,
+    remediationLog: ((e.remediationLog || []) as Array<Record<string, unknown>>).map((entry) => ({
+      driftId: (entry.driftId as string) || '',
+      configKey: (entry.configKey as string) || '',
+      action: (entry.action as string) || '',
+      success: (entry.success as boolean) || false,
+      error: (entry.error as string) || undefined,
+      timestamp: (entry.timestamp as Date) || new Date(),
+    })),
+    detectedAt: e.detectedAt,
+    lastCheckedAt: e.lastCheckedAt,
+    createdAt: e.createdAt,
+  };
 }
 
 // ============================================================
@@ -225,15 +110,18 @@ class DriftReportRepository {
 // ============================================================
 
 export class ConfigDriftDetector {
-  private repository: DriftReportRepository;
+  private repository: ConfigDriftRepository;
   private configService?: ConfigService;
   private expectedConfigs = new Map<string, Record<string, unknown>>();
 
   constructor(options: {
-    database?: DatabasePool;
+    repository?: ConfigDriftRepository;
     configService?: ConfigService;
   } = {}) {
-    this.repository = new DriftReportRepository(options.database);
+    if (!options.repository) {
+      throw new OrionError('ConfigDriftRepository is required', ErrorCode.INTERNAL_ERROR);
+    }
+    this.repository = options.repository;
     this.configService = options.configService;
   }
 
@@ -326,7 +214,7 @@ export class ConfigDriftDetector {
         lastCheckedAt: now,
         createdAt: now,
       };
-      await this.repository.save(report);
+      await this.saveReport(report);
       return { ...report };
     }
 
@@ -350,7 +238,7 @@ export class ConfigDriftDetector {
       createdAt: now,
     };
 
-    await this.repository.save(report);
+    await this.saveReport(report);
     return { ...report };
   }
 
@@ -395,18 +283,18 @@ export class ConfigDriftDetector {
    * 自动修复漂移
    */
   async autoRemediateDrift(driftId: string): Promise<DriftReport> {
-    const report = await this.repository.findById(driftId);
+    const report = await this.getDriftReportById(driftId);
     if (!report) {
-      throw new Error(`Drift report '${driftId}' not found`);
+      throw new OrionError(`Drift report '${driftId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (report.driftStatus !== 'drift_detected') {
-      throw new Error(`Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`);
+      throw new OrionError(`Can only remediate drift in 'drift_detected' state (current: ${report.driftStatus})`, 'OPERATION_FAILED')
     }
 
     report.driftStatus = 'remediating';
     report.lastCheckedAt = new Date();
-    await this.repository.save(report);
+    await this.saveReport(report);
 
     const remediationLog: RemediationEntry[] = [...report.remediationLog];
 
@@ -455,7 +343,7 @@ export class ConfigDriftDetector {
       report.criticalDrifts = 0;
     }
 
-    await this.repository.save(report);
+    await this.saveReport(report);
     return { ...report };
   }
 
@@ -464,19 +352,46 @@ export class ConfigDriftDetector {
    */
   async getDriftReport(tenantId: string, configGroup?: string): Promise<DriftReport | null> {
     const reports = await this.repository.findByTenant(tenantId, configGroup);
-    return reports.length > 0 ? reports[0] : null;
+    if (reports.length === 0) return null;
+    return entityToDriftReport(reports[0]);
   }
 
   /**
    * 获取所有漂移报告
    */
   async getAllDriftReports(tenantId: string): Promise<DriftReport[]> {
-    return this.repository.findByTenant(tenantId);
+    const reports = await this.repository.findByTenant(tenantId);
+    return reports.map(entityToDriftReport);
   }
 
   // ============================================================
   // Internal Methods
   // ============================================================
+
+  private async saveReport(report: DriftReport): Promise<void> {
+    await this.repository.upsert({
+      id: report.id,
+      tenantId: report.tenantId,
+      configGroup: report.configGroup,
+      driftStatus: report.driftStatus,
+      expectedConfig: report.expectedConfig,
+      actualConfig: report.actualConfig,
+      driftItems: report.driftItems,
+      totalDrifts: report.totalDrifts,
+      criticalDrifts: report.criticalDrifts,
+      autoRemediationEnabled: report.autoRemediationEnabled,
+      remediationLog: report.remediationLog,
+      detectedAt: report.detectedAt,
+      lastCheckedAt: report.lastCheckedAt,
+      createdAt: report.createdAt,
+    });
+  }
+
+  private async getDriftReportById(id: string): Promise<DriftReport | null> {
+    const entity = await this.repository.findById(id);
+    if (entity) return entityToDriftReport(entity);
+    return null;
+  }
 
   private walkObject(
     obj: Record<string, unknown>,
@@ -514,15 +429,12 @@ export class ConfigDriftDetector {
     expected: unknown,
     actual: unknown
   ): 'low' | 'medium' | 'high' | 'critical' {
-    // Critical paths
     if (path.includes('security') || path.includes('auth') || path.includes('credential')) {
       return 'critical';
     }
-    // High paths
     if (path.includes('database') || path.includes('connection') || path.includes('port')) {
       return 'high';
     }
-    // Medium paths
     if (path.includes('timeout') || path.includes('retry') || path.includes('limit')) {
       return 'medium';
     }

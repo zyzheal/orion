@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Input, Tabs, Card, Tag, Button, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { getBuiltInPlugins, searchMarketplace } from '../../api/pluginApi';
+import { colors, spacing } from '@/tokens';
 
 const { Search } = Input;
 
@@ -22,7 +23,7 @@ interface PluginItem {
   tags: string[];
 }
 
-interface PluginPickerProps {
+export interface PluginPickerProps {
   open: boolean;
   onClose: () => void;
   onSelect: (plugin: PluginItem) => void;
@@ -64,8 +65,8 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
 
   const extractData = <T,>(response: unknown): T[] => {
     const axiosResp = response as { data?: { data?: T[] } };
-    if (axiosResp.data?.data && Array.isArray(axiosResp.data.data)) {
-      return axiosResp.data.data;
+    if (axiosResp.data?.data && Array.isArray(axiosResp.data)) {
+      return axiosResp.data;
     }
     const direct = response as T[];
     return Array.isArray(direct) ? direct : [];
@@ -125,14 +126,14 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
       hoverable
       onClick={() => handleSelect(plugin)}
       style={{
-        border: selectedPlugin?.id === plugin.id ? '2px solid #1890ff' : undefined,
+        border: selectedPlugin?.id === plugin.id ? '2px solid colors.primary[500]' : undefined,
         cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <strong>{plugin.name}</strong>
-          <div style={{ fontSize: 12, color: '#666' }}>{plugin.description}</div>
+          <div style={{ fontSize: 12, color: colors.neutral[600] }}>{plugin.description}</div>
         </div>
         <Tag color={TIER_COLORS[plugin.tier] || 'default'}>{plugin.tier}</Tag>
       </div>
@@ -142,13 +143,13 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
   const renderPluginGrid = (plugins: PluginItem[]) => {
     const filtered = filterPlugins(plugins);
     if (filtered.length === 0) {
-      return <div style={{ color: '#999', textAlign: 'center', padding: 24 }}>No plugins found</div>;
+      return <div style={{ color: colors.neutral[500], textAlign: 'center', padding: spacing.lg }}>No plugins found</div>;
     }
     const grouped = groupByCategory(filtered);
     return Object.entries(grouped).map(([category, items]) => (
-      <div key={category} style={{ marginBottom: 16 }}>
+      <div key={category} style={{ marginBottom: spacing.md }}>
         <h4 style={{ margin: '0 0 8px' }}>{category}</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: spacing.sm }}>
           {items.map(renderPluginCard)}
         </div>
       </div>
@@ -169,12 +170,12 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
     {
       key: 'remote',
       label: 'Remote',
-      children: <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Remote plugin installation by URL (coming soon)</div>,
+      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Remote plugin installation by URL (coming soon)</div>,
     },
     {
       key: 'custom',
       label: 'Custom Script',
-      children: <div style={{ padding: 24, textAlign: 'center', color: '#999' }}>Use Inline Script Editor to write custom scripts</div>,
+      children: <div style={{ padding: spacing.lg, textAlign: 'center', color: colors.neutral[500] }}>Use Inline Script Editor to write custom scripts</div>,
     },
   ];
 
@@ -193,7 +194,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
             style={{ width: 300 }}
           />
           <div>
-            <Button onClick={onClose} style={{ marginRight: 8 }}>
+            <Button onClick={onClose} style={{ marginRight: spacing.sm }}>
               Cancel
             </Button>
             <Button type="primary" onClick={handleAdd} disabled={!selectedPlugin}>
@@ -208,7 +209,7 @@ export const PluginPicker: React.FC<PluginPickerProps> = ({
         <Tabs items={tabsItems} defaultActiveKey="builtin" />
       </Spin>
       {selectedPlugin && (
-        <div style={{ marginTop: 16, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
+        <div style={{ marginTop: spacing.md, padding: spacing[3], background: colors.neutral[100], borderRadius: 4 }}>
           <strong>Selected: {selectedPlugin.name}</strong>
           <div>Version: {selectedPlugin.version}</div>
         </div>

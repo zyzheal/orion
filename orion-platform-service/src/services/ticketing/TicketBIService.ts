@@ -29,6 +29,8 @@ import {
   EfficiencyScore,
   PeriodComparison,
 } from './types';
+import { BITransferRecordRepository } from '../../repositories/BITransferRecordRepository';
+import { BICommentRecordRepository } from '../../repositories/BICommentRecordRepository';
 
 /**
  * Transfer record for analytics
@@ -80,14 +82,23 @@ export class TicketBIService {
   /** Dispatch results */
   private dispatchResults: DispatchResult[] = [];
 
-  /** Transfer records */
-  private transferRecords: TransferRecord[] = [];
+  /** Transfer records - runtime cache */
+  private transferRecordRepository?: BITransferRecordRepository;
+  private transferRecords: TransferRecord[] = []; // in-memory runtime cache
 
-  /** Comment records */
-  private commentRecords: CommentRecord[] = [];
+  /** Comment records - runtime cache */
+  private commentRecordRepository?: BICommentRecordRepository;
+  private commentRecords: CommentRecord[] = []; // in-memory runtime cache
 
   /** Engineer profiles */
   private engineerProfiles: Map<string, EngineerProfile> = new Map();
+
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    if (db) {
+      this.transferRecordRepository = new BITransferRecordRepository(db);
+      this.commentRecordRepository = new BICommentRecordRepository(db);
+    }
+  }
 
   /**
    * Set ticket data for analysis
@@ -115,6 +126,21 @@ export class TicketBIService {
    */
   setTransferRecords(records: TransferRecord[]): void {
     this.transferRecords = [...records];
+
+    // Persist to repository
+    if (this.transferRecordRepository) {
+      for (const record of records) {
+        this.transferRecordRepository.create({
+          id: record.id,
+          ticketId: record.ticketId,
+          fromEngineer: record.fromEngineer,
+          toEngineer: record.toEngineer,
+          reason: record.reason,
+          transferredAt: record.transferredAt,
+          holdTimeMs: record.holdTimeMs ?? null,
+        }).catch(() => {/* ignore */});
+      }
+    }
   }
 
   /**
@@ -122,6 +148,18 @@ export class TicketBIService {
    */
   setCommentRecords(records: CommentRecord[]): void {
     this.commentRecords = [...records];
+
+    // Persist to repository
+    if (this.commentRecordRepository) {
+      for (const record of records) {
+        this.commentRecordRepository.create({
+          id: record.id,
+          ticketId: record.ticketId,
+          authorId: record.authorId,
+          createdAt: record.createdAt,
+        }).catch(() => {/* ignore */});
+      }
+    }
   }
 
   /**
@@ -152,6 +190,31 @@ export class TicketBIService {
     this.commentRecords = data.commentRecords ? [...data.commentRecords] : [];
     if (data.engineerProfiles) {
       this.setEngineerProfiles(data.engineerProfiles);
+    }
+
+    // Persist transfer and comment records to repository
+    if (this.transferRecordRepository && data.transferRecords) {
+      for (const record of data.transferRecords) {
+        this.transferRecordRepository.create({
+          id: record.id,
+          ticketId: record.ticketId,
+          fromEngineer: record.fromEngineer,
+          toEngineer: record.toEngineer,
+          reason: record.reason,
+          transferredAt: record.transferredAt,
+          holdTimeMs: record.holdTimeMs ?? null,
+        }).catch(() => {/* ignore */});
+      }
+    }
+    if (this.commentRecordRepository && data.commentRecords) {
+      for (const record of data.commentRecords) {
+        this.commentRecordRepository.create({
+          id: record.id,
+          ticketId: record.ticketId,
+          authorId: record.authorId,
+          createdAt: record.createdAt,
+        }).catch(() => {/* ignore */});
+      }
     }
   }
 

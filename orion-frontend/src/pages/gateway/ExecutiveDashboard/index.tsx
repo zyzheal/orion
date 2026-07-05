@@ -262,16 +262,16 @@ const ExecutiveDashboard: React.FC = () => {
         retry={handleRetry}
       >
         {/* Page header */}
-        <div style={{ marginBottom: 24 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TrophyOutlined style={{ marginRight: 8, color: COLORS.warning }} />
+        <div style={{ marginBottom: spacing.md }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <TrophyOutlined style={{ marginRight: spacing[3], color: COLORS.warning }} />
             总览看板
           </Title>
           <Text type="secondary">全局工单系统运行指标 — {dayjs().format('YYYY-MM-DD HH:mm')}</Text>
         </div>
 
       {/* KPI Cards - 8 cards in a 4x2 grid */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {kpiMetrics.map((metric) => (
           <Col xs={24} sm={12} lg={8} xl={6} key={metric.title}>
             <StatCard
@@ -296,7 +296,7 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Trend Charts Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Ticket Volume Trend */}
         <Col xs={24} xl={12}>
           <CardPanel title="工单量趋势（近14天）" extra={<Tag color="blue">30天数据</Tag>}>
@@ -334,7 +334,7 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Team Ranking Section */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         {/* Top Performers */}
         <Col xs={24} xl={14}>
           <CardPanel title="团队排名 - 优秀工程师" extra={<Tag color="gold">Top 5</Tag>}>
@@ -357,7 +357,7 @@ const ExecutiveDashboard: React.FC = () => {
               )}
               height={200}
             />
-            <div style={{ marginTop: 8, padding: `0 ${spacing[2]}` }}>
+            <div style={{ marginTop: spacing.sm, padding: `0 ${spacing[2]}` }}>
               {data.teamRanking.bottomPerformers.map((member) => (
                 <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
                   <Text type="warning" style={{ fontSize: spacing[3] }}>
@@ -372,9 +372,9 @@ const ExecutiveDashboard: React.FC = () => {
       </Row>
 
       {/* Alerts Section */}
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: spacing.lg }}>
         <CardPanel title="告警中心" extra={<Tag color="red">需立即处理</Tag>}>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} style={{ marginBottom: spacing.md }}>
             <Col xs={24} sm={8}>
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <GaugeChart

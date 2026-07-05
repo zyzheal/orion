@@ -28,6 +28,7 @@ import {
 import type { TraceabilityChain } from '@/api/artifactVersions';
 import dayjs from 'dayjs';
 import { colors } from '@/tokens/colors';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -68,7 +69,7 @@ const TraceabilityChainView: React.FC<TraceabilityChainViewProps> = ({ chain, lo
       {/* Version Info Header */}
       <Card
         size="small"
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: spacing.md }}
         title={
           <Space>
             <BuildOutlined />

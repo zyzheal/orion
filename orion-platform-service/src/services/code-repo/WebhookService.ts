@@ -23,6 +23,12 @@ import {
   RepoType,
   PullRequestStatus,
 } from './types';
+import { WebhookSecretRepository } from '../../repositories/WebhookSecretRepository';
+import { WebhookEventLogRepository } from '../../repositories/WebhookEventLogRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('webhook-service');
+
 
 /** EventBus 接口 (复用现有 EventBusService) */
 export interface IEventPublisher {
@@ -47,6 +53,8 @@ export interface WebhookServiceConfig {
   ipWhitelist?: string[]; // 允许的 IP 地址列表
   /** IP 白名单模式 (可选) */
   ipWhitelistMode?: 'allow' | 'deny'; // 'allow' = 只允许白名单, 'deny' = 禁止白名单
+  /** 数据库连接 (可选) */
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /** 内部事件日志记录 */
@@ -75,6 +83,8 @@ export class CodeRepoWebhookService extends EventEmitter {
   private eventLog: EventLogEntry[];
   private ipWhitelist: string[];
   private ipWhitelistMode: 'allow' | 'deny';
+  private secretRepo: WebhookSecretRepository | null;
+  private eventLogRepo: WebhookEventLogRepository | null;
 
   constructor(config?: WebhookServiceConfig) {
     super();
@@ -85,6 +95,15 @@ export class CodeRepoWebhookService extends EventEmitter {
     this.eventLog = [];
     this.ipWhitelist = config?.ipWhitelist || [];
     this.ipWhitelistMode = config?.ipWhitelistMode || 'allow';
+
+    // Initialize PostgreSQL repositories if db is available
+    if (config?.db) {
+      this.secretRepo = new WebhookSecretRepository(config.db);
+      this.eventLogRepo = new WebhookEventLogRepository(config.db);
+    } else {
+      this.secretRepo = null;
+      this.eventLogRepo = null;
+    }
   }
 
   /**
@@ -99,6 +118,8 @@ export class CodeRepoWebhookService extends EventEmitter {
    */
   registerWebhookSecret(repoId: string, secret: string): void {
     this.webhookSecrets.set(repoId, secret);
+    // Persist to PostgreSQL (fire-and-forget)
+    this.secretRepo?.upsertByRepoId(repoId, secret).catch((err) => logger.warn({ err }, '[WebhookService] Failed to persist webhook secret'));
   }
 
   /**
@@ -138,7 +159,16 @@ export class CodeRepoWebhookService extends EventEmitter {
     payload: string,
     headers: Record<string, string | undefined>
   ): boolean {
+    // Try Map cache first, then repository
     const secret = this.webhookSecrets.get(repoId);
+    if (!secret && this.secretRepo) {
+      // Fire-and-forget sync from repo to cache (non-blocking for signature check)
+      this.secretRepo.findByRepoId(repoId).then(entity => {
+        if (entity) {
+          this.webhookSecrets.set(repoId, entity.secret);
+        }
+      }).catch((err) => logger.warn({ err }, '[WebhookService] Failed to sync webhook secret from repo'));
+    }
     if (!secret) {
       // 没有配置密钥，跳过验证
       return true;
@@ -444,6 +474,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GITLAB,
+      repositoryId: String(repo.id || ''),
+      repositoryName: repo.name || '',
+      repositoryUrl: repo.web_url || repo.html_url || '',
+      sender: payload.user_username || payload.user_name || '',
       repository: {
         id: String(repo.id || ''),
         name: repo.name || '',
@@ -451,6 +485,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: repo.web_url || repo.html_url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     // 添加 PR/MR 信息
@@ -527,6 +563,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GERRIT,
+      repositoryId: project.name || '',
+      repositoryName: (project.name || '').split('/').pop() || '',
+      repositoryUrl: project.url || '',
+      sender: payload.uploader || payload.author || '',
       repository: {
         id: project.name || '',
         name: (project.name || '').split('/').pop() || '',
@@ -534,6 +574,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: project.url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     // 添加 Change 信息
@@ -597,6 +639,10 @@ export class CodeRepoWebhookService extends EventEmitter {
     const basePayload: CodeRepoWebhookPayload = {
       eventType,
       repoType: RepoType.GITHUB,
+      repositoryId: String(repo.id || ''),
+      repositoryName: repo.name || '',
+      repositoryUrl: repo.html_url || '',
+      sender: payload.sender?.login || '',
       repository: {
         id: String(repo.id || ''),
         name: repo.name || '',
@@ -604,6 +650,8 @@ export class CodeRepoWebhookService extends EventEmitter {
         url: repo.html_url || '',
       },
       rawPayload: payload,
+      timestamp: new Date(),
+      payload: payload as Record<string, unknown>,
     };
 
     if (pr.number || pr.id) {
@@ -644,7 +692,7 @@ export class CodeRepoWebhookService extends EventEmitter {
     success: boolean,
     error?: string
   ): void {
-    this.eventLog.push({
+    const entry: EventLogEntry = {
       id: uuidv4(),
       eventType: payload.eventType as any,
       repoType: payload.repoType as any,
@@ -653,12 +701,26 @@ export class CodeRepoWebhookService extends EventEmitter {
       timestamp: new Date(),
       success,
       error,
-    });
+    };
 
-    // 只保留最近 1000 条日志
+    this.eventLog.push(entry);
+
+    // 只保留最近 1000 条日志 (in-memory cache)
     if (this.eventLog.length > 1000) {
       this.eventLog = this.eventLog.slice(-1000);
     }
+
+    // Persist to PostgreSQL (fire-and-forget)
+    this.eventLogRepo?.create({
+      id: entry.id,
+      event_type: entry.eventType,
+      repo_type: entry.repoType,
+      repo_name: entry.repoName,
+      event_id: entry.eventId,
+      success: entry.success,
+      error: entry.error || null,
+      tenant_id: 'default',
+    }).catch((err) => logger.warn({ err }, '[WebhookService] Failed to persist event log'));
   }
 
   /** 获取事件日志 */

@@ -31,15 +31,18 @@ import {
   PlusOutlined,
   ReloadOutlined,
   DeleteOutlined,
+  EditOutlined,
   EyeOutlined,
   ClockCircleOutlined,
   CloudServerOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import {
   getRunners,
   registerRunner,
+  updateRunner,
   deregisterRunner,
   getRunnerJobs,
   type Runner,
@@ -47,6 +50,7 @@ import {
   type RunnerJob,
 } from '@/api/runners';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(relativeTime);
@@ -80,38 +84,75 @@ interface RegisterModalProps {
   visible: boolean;
   onCancel: () => void;
   onSuccess: () => void;
+  runner?: Runner | null;
 }
 
-const RegisterRunnerModal: React.FC<RegisterModalProps> = ({ visible, onCancel, onSuccess }) => {
+const RegisterRunnerModal: React.FC<RegisterModalProps> = ({
+  visible,
+  onCancel,
+  onSuccess,
+  runner,
+}) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
+  const isEdit = !!runner;
+
+  // Populate form when editing
+  React.useEffect(() => {
+    if (visible && runner) {
+      form.setFieldsValue({
+        name: runner.name,
+        maxConcurrent: runner.maxConcurrent,
+        endpoint: runner.endpoint,
+        os: runner.metadata?.os,
+        arch: runner.metadata?.arch,
+      });
+      setLabels(runner.labels || []);
+    } else if (visible && !runner) {
+      form.resetFields();
+      setLabels([]);
+    }
+  }, [visible, runner, form]);
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
 
-      await registerRunner({
-        name: values.name,
-        labels,
-        maxConcurrent: values.maxConcurrent || 1,
-        endpoint: values.endpoint,
-        metadata: {
-          os: values.os,
-          arch: values.arch,
-        },
-      });
-
-      message.success('Runner 注册成功');
+      if (isEdit && runner) {
+        await updateRunner(runner.id, {
+          name: values.name,
+          labels,
+          maxConcurrent: values.maxConcurrent || 1,
+          endpoint: values.endpoint,
+          metadata: {
+            os: values.os,
+            arch: values.arch,
+          },
+        });
+        message.success('Runner 更新成功');
+      } else {
+        await registerRunner({
+          name: values.name,
+          labels,
+          maxConcurrent: values.maxConcurrent || 1,
+          endpoint: values.endpoint,
+          metadata: {
+            os: values.os,
+            arch: values.arch,
+          },
+        });
+        message.success('Runner 注册成功');
+      }
       form.resetFields();
       setLabels([]);
       onSuccess();
     } catch (error: unknown) {
       if (error instanceof Error) {
-        message.error(`注册失败：${error.message}`);
+        message.error(`${isEdit ? '更新' : '注册'}失败：${error.message}`);
       } else {
-        message.error('注册失败，请稍后重试');
+        message.error(`${isEdit ? '更新' : '注册'}失败，请稍后重试`);
       }
     } finally {
       setLoading(false);
@@ -120,16 +161,19 @@ const RegisterRunnerModal: React.FC<RegisterModalProps> = ({ visible, onCancel, 
 
   return (
     <Modal
-      title="注册 Runner"
+      title={isEdit ? '编辑 Runner' : '注册 Runner'}
       open={visible}
-      onCancel={onCancel}
+      onCancel={() => {
+        onCancel();
+        setLabels([]);
+      }}
       onOk={handleSubmit}
       confirmLoading={loading}
-      okText="注册"
+      okText={isEdit ? '保存' : '注册'}
       cancelText="取消"
       width={520}
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           name="name"
           label="Runner 名称"
@@ -198,7 +242,7 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
     setJobsLoading(true);
     try {
       const response = await getRunnerJobs(runnerId);
-      const apiData = response.data.data;
+      const apiData = response.data;
       setJobs(Array.isArray(apiData) ? apiData : []);
     } catch {
       setJobs([]);
@@ -218,24 +262,17 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
   const statusCfg = STATUS_CONFIG[runner.status];
   const stale = isHeartbeatStale(runner.lastHeartbeat);
   const utilization =
-    runner.maxConcurrent > 0
-      ? Math.round((runner.currentJobs / runner.maxConcurrent) * 100)
-      : 0;
+    runner.maxConcurrent > 0 ? Math.round((runner.currentJobs / runner.maxConcurrent) * 100) : 0;
 
   return (
-    <Drawer
-      title={`Runner: ${runner.name}`}
-      open={visible}
-      onClose={onClose}
-      width={640}
-    >
+    <Drawer title={`Runner: ${runner.name}`} open={visible} onClose={onClose} width={640}>
       {/* Basic Info */}
-      <Descriptions bordered column={2} size="small" style={{ marginBottom: 24 }}>
+      <Descriptions bordered column={2} size="small" style={{ marginBottom: spacing.lg }}>
         <Descriptions.Item label="状态" span={2}>
           <Tag color={statusCfg.color}>{statusCfg.label}</Tag>
           {stale && (
             <Tooltip title="心跳超时超过 5 分钟">
-              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: 8 }}>
+              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ marginLeft: spacing.sm }}>
                 心跳超时
               </Tag>
             </Tooltip>
@@ -248,12 +285,12 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
         <Descriptions.Item label="当前任务">{runner.currentJobs}</Descriptions.Item>
         <Descriptions.Item label="最大并发">{runner.maxConcurrent}</Descriptions.Item>
         <Descriptions.Item label="利用率" span={2}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
             <div
               style={{
                 width: 120,
                 height: 8,
-                background: '#f0f0f0',
+                background: colors.neutral[200],
                 borderRadius: 4,
                 overflow: 'hidden',
               }}
@@ -262,7 +299,12 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
                 style={{
                   width: `${Math.min(utilization, 100)}%`,
                   height: '100%',
-                  background: utilization > 80 ? '#ff4d4f' : utilization > 50 ? '#faad14' : '#52c41a',
+                  background:
+                    utilization > 80
+                      ? colors.error[400]
+                      : utilization > 50
+                        ? colors.warning[500]
+                        : colors.success[500],
                   borderRadius: 4,
                   transition: 'width 0.3s',
                 }}
@@ -280,12 +322,14 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
               ))
             : '-'}
         </Descriptions.Item>
-        <Descriptions.Item label="最后心跳">{dayjs(runner.lastHeartbeat).fromNow()}</Descriptions.Item>
+        <Descriptions.Item label="最后心跳">
+          {dayjs(runner.lastHeartbeat).fromNow()}
+        </Descriptions.Item>
         <Descriptions.Item label="注册时间">{dayjs(runner.createdAt).fromNow()}</Descriptions.Item>
       </Descriptions>
 
       {/* Recent Jobs */}
-      <Title level={5} style={{ marginBottom: 12 }}>
+      <Title level={5} style={{ marginBottom: spacing[3] }}>
         最近任务
       </Title>
       {jobsLoading ? (
@@ -316,7 +360,10 @@ const RunnerDetailDrawer: React.FC<RunnerDetailDrawerProps> = ({ visible, runner
                     failed: { color: 'error', label: '失败' },
                     cancelled: { color: 'default', label: '已取消' },
                   };
-                  const cfg = statusMap[String(value)] || { color: 'default', label: String(value) };
+                  const cfg = statusMap[String(value)] || {
+                    color: 'default',
+                    label: String(value),
+                  };
                   return <Tag color={cfg.color}>{cfg.label}</Tag>;
                 },
               },
@@ -367,6 +414,7 @@ const RunnerManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<Record<string, string | string[] | undefined>>({});
   const [registerVisible, setRegisterVisible] = useState(false);
+  const [editingRunner, setEditingRunner] = useState<Runner | null>(null);
   const [selectedRunner, setSelectedRunner] = useState<Runner | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
 
@@ -375,8 +423,10 @@ const RunnerManagement: React.FC = () => {
     setLoading(true);
     try {
       const response = await getRunners();
-      const apiData = response.data.data;
-      const runnerList = Array.isArray(apiData) ? apiData : (apiData as any).items || [];
+      const apiData = response.data;
+      const runnerList = Array.isArray(apiData)
+        ? apiData
+        : (apiData as { items?: Runner[] })?.items || [];
       setRunners(runnerList);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -399,7 +449,12 @@ const RunnerManagement: React.FC = () => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchable = [runner.name, runner.labels.join(' '), runner.metadata?.os || '', runner.metadata?.arch || '']
+        const searchable = [
+          runner.name,
+          runner.labels.join(' '),
+          runner.metadata?.os || '',
+          runner.metadata?.arch || '',
+        ]
           .join(' ')
           .toLowerCase();
         if (!searchable.includes(query)) return false;
@@ -441,6 +496,11 @@ const RunnerManagement: React.FC = () => {
     setDrawerVisible(true);
   };
 
+  const handleEditRunner = (runner: Runner) => {
+    setEditingRunner(runner);
+    setRegisterVisible(true);
+  };
+
   // Filter definitions
   const filterDefs: FilterDefinition[] = [
     {
@@ -468,8 +528,8 @@ const RunnerManagement: React.FC = () => {
       filterable: true,
       render: (_value: unknown, record) => (
         <Space direction="vertical" size={0}>
-          <Text strong style={{ cursor: 'pointer', color: '#1890ff' }}>
-            <CloudServerOutlined style={{ marginRight: 6, color: '#8c8c8c' }} />
+          <Text strong style={{ cursor: 'pointer', color: colors.primary[500] }}>
+            <CloudServerOutlined style={{ marginRight: 6, color: colors.neutral[500] }} />
             {record.name}
           </Text>
           <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
@@ -492,7 +552,7 @@ const RunnerManagement: React.FC = () => {
             <Tag color={cfg.color}>{cfg.label}</Tag>
             {stale && (
               <Tooltip title="心跳超时（> 5 分钟）">
-                <ClockCircleOutlined style={{ color: '#faad14', fontSize: 14 }} />
+                <ClockCircleOutlined style={{ color: colors.warning[500], fontSize: 14 }} />
               </Tooltip>
             )}
           </Space>
@@ -513,9 +573,7 @@ const RunnerManagement: React.FC = () => {
                 {label}
               </Tag>
             ))}
-            {labels.length > 3 && (
-              <Tag color="default">+{labels.length - 3}</Tag>
-            )}
+            {labels.length > 3 && <Tag color="default">+{labels.length - 3}</Tag>}
             {labels.length === 0 && <Text type="secondary">-</Text>}
           </div>
         );
@@ -564,6 +622,14 @@ const RunnerManagement: React.FC = () => {
           <Button
             type="link"
             size="small"
+            icon={<EditOutlined />}
+            onClick={() => handleEditRunner(record)}
+          >
+            编辑
+          </Button>
+          <Button
+            type="link"
+            size="small"
             icon={<EyeOutlined />}
             onClick={() => handleViewDetail(record)}
           >
@@ -593,11 +659,12 @@ const RunnerManagement: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <RocketOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             Runner 资源池
           </Title>
           <Text type="secondary">
@@ -614,18 +681,14 @@ const RunnerManagement: React.FC = () => {
           <Button icon={<ReloadOutlined />} onClick={loadRunners} loading={loading}>
             刷新
           </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setRegisterVisible(true)}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterVisible(true)}>
             注册 Runner
           </Button>
         </Space>
       </div>
 
       {/* Search and filter */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -647,11 +710,25 @@ const RunnerManagement: React.FC = () => {
       {/* Register Runner Modal */}
       <RegisterRunnerModal
         visible={registerVisible}
-        onCancel={() => setRegisterVisible(false)}
+        onCancel={() => {
+          setRegisterVisible(false);
+          setEditingRunner(null);
+        }}
         onSuccess={() => {
           setRegisterVisible(false);
+          setEditingRunner(null);
           loadRunners();
         }}
+      />
+      {/* Edit Runner Modal */}
+      <RegisterRunnerModal
+        visible={!!editingRunner}
+        onCancel={() => setEditingRunner(null)}
+        onSuccess={() => {
+          setEditingRunner(null);
+          loadRunners();
+        }}
+        runner={editingRunner}
       />
 
       {/* Runner Detail Drawer */}

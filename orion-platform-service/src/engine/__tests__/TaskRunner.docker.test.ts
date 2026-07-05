@@ -8,6 +8,17 @@
 import { TaskRunner } from '../TaskRunner';
 import { Task, TaskType, TaskStatus } from '../../models/Task';
 
+// Mock DockerBuildService to avoid actual Docker calls in tests
+jest.mock('../../services/pipeline/DockerBuildService', () => {
+  return {
+    DockerBuildService: jest.fn().mockImplementation(() => ({
+      build: jest.fn().mockResolvedValue({ imageId: 'mock-image-id', size: 1024 }),
+      push: jest.fn().mockResolvedValue({ digest: 'sha256:mock-digest', size: 2048 }),
+      scan: jest.fn().mockResolvedValue({ vulnerabilities: [], summary: { total: 0 } }),
+    })),
+  };
+});
+
 describe('TaskRunner Docker Task Types', () => {
   let runner: TaskRunner;
 

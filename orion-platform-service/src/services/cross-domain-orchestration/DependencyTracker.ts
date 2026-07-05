@@ -3,10 +3,13 @@
  *
  * Tracks dependencies between pipeline changes and infrastructure,
  * detects potential impact of changes across domains.
+ *
+ * PostgreSQL Repository pattern — database is the single source of truth.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type DependencyType = 'hard' | 'soft' | 'optional';
 export type DependencyStatus = 'active' | 'resolved' | 'violated';
@@ -62,18 +65,15 @@ export interface CreateDependencyInput {
 // ============================================================
 
 class DependencyRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, CrossDomainDependency>();
+  private pool: DatabasePool;
 
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
+  constructor(pool: DatabasePool) {
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
+    this.pool = pool;
   }
 
-  private isDbAvailable(): boolean { return this.pool !== null; }
-
   async save(dep: CrossDomainDependency): Promise<void> {
-    if (!this.isDbAvailable()) { this.memory.set(dep.id, dep); return; }
-    await this.pool!.query(
+    await this.pool.query(
       `INSERT INTO cross_domain_dependencies (
         id, tenant_id, source_domain, source_id, source_name,
         target_domain, target_id, target_name, type, status,
@@ -93,16 +93,12 @@ class DependencyRepository {
   }
 
   async findByTenant(tenantId: string): Promise<CrossDomainDependency[]> {
-    if (!this.isDbAvailable()) return Array.from(this.memory.values()).filter(d => d.tenantId === tenantId);
-    const rows = (await this.pool!.query('SELECT * FROM cross_domain_dependencies WHERE tenant_id = $1', [tenantId])).rows;
+    const rows = (await this.pool.query('SELECT * FROM cross_domain_dependencies WHERE tenant_id = $1', [tenantId])).rows;
     return rows.map((r: any) => this.rowToDep(r));
   }
 
   async findBySource(tenantId: string, domain: DomainType, resourceId: string): Promise<CrossDomainDependency[]> {
-    if (!this.isDbAvailable()) {
-      return Array.from(this.memory.values()).filter(d => d.tenantId === tenantId && d.sourceDomain === domain && d.sourceId === resourceId);
-    }
-    const rows = (await this.pool!.query(
+    const rows = (await this.pool.query(
       'SELECT * FROM cross_domain_dependencies WHERE tenant_id = $1 AND source_domain = $2 AND source_id = $3',
       [tenantId, domain, resourceId]
     )).rows;
@@ -110,14 +106,12 @@ class DependencyRepository {
   }
 
   async findById(id: string): Promise<CrossDomainDependency | null> {
-    if (!this.isDbAvailable()) return this.memory.get(id) || null;
-    const rows = (await this.pool!.query('SELECT * FROM cross_domain_dependencies WHERE id = $1', [id])).rows;
+    const rows = (await this.pool.query('SELECT * FROM cross_domain_dependencies WHERE id = $1', [id])).rows;
     return rows.length ? this.rowToDep(rows[0]) : null;
   }
 
   async deleteById(id: string): Promise<boolean> {
-    if (!this.isDbAvailable()) return this.memory.delete(id);
-    const result = await this.pool!.query('DELETE FROM cross_domain_dependencies WHERE id = $1', [id]);
+    const result = await this.pool.query('DELETE FROM cross_domain_dependencies WHERE id = $1', [id]);
     return (result as any).rowCount > 0;
   }
 
@@ -140,7 +134,8 @@ class DependencyRepository {
 export class DependencyTracker {
   private repository: DependencyRepository;
 
-  constructor(database?: DatabasePool) {
+  constructor(database: DatabasePool) {
+    if (!database) throw new OrionError('DatabasePool is required for DependencyTracker', ErrorCode.INTERNAL_ERROR);
     this.repository = new DependencyRepository(database);
   }
 
@@ -183,7 +178,7 @@ export class DependencyTracker {
 
   async resolveDependency(id: string): Promise<CrossDomainDependency> {
     const dep = await this.repository.findById(id);
-    if (!dep) throw new Error(`Dependency '${id}' not found`);
+    if (!dep) throw new OrionError(`Dependency '${id}' not found`, ErrorCode.NOT_FOUND);
     dep.status = 'resolved';
     dep.resolvedAt = new Date();
     dep.updatedAt = new Date();

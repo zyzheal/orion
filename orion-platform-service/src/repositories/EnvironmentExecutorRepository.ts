@@ -6,6 +6,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface EnvironmentExecutorStateEntity {
   id: string;
@@ -196,7 +197,7 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
 
     if (fields.length === 0) {
       const entity = await this.findById(id);
-      if (!entity) throw new Error(`Entity with id ${id} not found`);
+      if (!entity) throw new OrionError(`Entity with id ${id} not found`, ErrorCode.NOT_FOUND);
       return entity;
     }
 
@@ -209,7 +210,7 @@ export class EnvironmentExecutorRepository extends BaseRepository<EnvironmentExe
       values,
     );
     if (result.rows.length === 0) {
-      throw new Error(`Update failed: entity with id ${id} not found`);
+      throw new OrionError(`Update failed: entity with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

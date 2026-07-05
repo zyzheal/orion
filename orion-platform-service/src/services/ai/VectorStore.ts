@@ -4,11 +4,12 @@
  * Uses PostgreSQL pgvector extension for vector similarity search.
  * Supports configurable embedding providers (hash-based fallback, OpenAI, or custom).
  */
-import pino from 'pino';
-import { VectorDocument, SearchQuery, SearchResult, VectorStoreConfig } from './types';
+import { createLogger } from '../../utils/logger';
+import { SearchQuery, SearchResult, VectorStoreConfig } from './types';
 import { VectorRepository } from '../../repositories/VectorRepository';
+import { OrionError } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('VectorStore');
 
 export type EmbeddingProvider = 'hash' | 'openai' | 'custom';
 
@@ -21,11 +22,13 @@ export class VectorStore {
   private repository: VectorRepository;
   private embeddingFn: EmbeddingFn;
   private embeddingProvider: EmbeddingProvider;
+  private persistent: boolean;
 
-  constructor(config: VectorStoreConfig, db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+  constructor(config: VectorStoreConfig, db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }, persistent: boolean = true) {
     this.config = config;
     this.embeddingProvider = (config.embeddingProvider as EmbeddingProvider) || 'hash';
     this.repository = new VectorRepository(db);
+    this.persistent = persistent;
     logger.info('VectorStore initialized with PostgreSQL pgvector backend');
 
     // Configure embedding function
@@ -76,7 +79,7 @@ export class VectorStore {
       document: {
         id: r.id,
         content: r.content,
-        metadata: r.metadata,
+        metadata: typeof r.metadata === 'string' ? VectorStore.safeJsonParse(r.metadata) : r.metadata,
         embedding: r.embedding || [],
       },
       score: r.score,
@@ -101,7 +104,7 @@ export class VectorStore {
    * Check if connected to persistent vector store
    */
   get isPersistent(): boolean {
-    return true;
+    return this.persistent;
   }
 
   // ==================== Embedding Providers ====================
@@ -123,7 +126,7 @@ export class VectorStore {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new Error(`OpenAI embedding API error (${response.status}): ${error}`);
+        throw new OrionError(`OpenAI embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
       }
 
       const data = await response.json() as { data?: Array<{ embedding: number[] }> };
@@ -154,6 +157,14 @@ export class VectorStore {
     return result;
   }
 
+  private static safeJsonParse(value: string, fallback: Record<string, any> = {}): Record<string, any> {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+
   private hashString(text: string): string {
     let hash = 0;
     for (let i = 0; i < text.length; i++) {
@@ -162,24 +173,5 @@ export class VectorStore {
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36);
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    if (normA === 0 || normB === 0) return 0;
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-  }
-
-  private matchesFilter(doc: VectorDocument, filter: Record<string, any>): boolean {
-    for (const [key, value] of Object.entries(filter)) {
-      if (doc.metadata[key] !== value) return false;
-    }
-    return true;
   }
 }

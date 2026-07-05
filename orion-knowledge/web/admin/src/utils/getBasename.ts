@@ -2,7 +2,9 @@
 
 declare global {
   interface Window {
-    __BASENAME__: string;
+    __BASENAME__?: string;
+    __POWERED_BY_WUJIE__?: boolean;
+    __POWERED_BY_ORION__?: boolean;
   }
 }
 

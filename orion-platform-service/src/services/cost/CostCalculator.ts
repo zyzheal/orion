@@ -6,6 +6,11 @@
 
 import { BudgetService } from './BudgetService';
 import { ModelPricing, CostRecord } from '../../models/CostRecord';
+import { OrionError } from '../../errors';
+import { CostEstimateRepository } from '../../repositories/CostEstimateRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('cost-calculator');
 
 export interface CostEstimate {
   model: string;
@@ -35,9 +40,11 @@ export interface TrendDataPoint {
 
 export class CostCalculator {
   private budgetService: BudgetService;
+  private estimateRepo: CostEstimateRepository | null;
 
-  constructor(budgetService: BudgetService) {
+  constructor(budgetService: BudgetService, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.budgetService = budgetService;
+    this.estimateRepo = db ? new CostEstimateRepository(db) : null;
   }
 
   /**
@@ -55,12 +62,26 @@ export class CostCalculator {
     );
 
     if (!pricing) {
-      throw new Error(
-        `No pricing found for ${params.provider}/${params.model}`
-      );
+      throw new OrionError(`No pricing found for ${params.provider}/${params.model}`, 'OPERATION_FAILED');
     }
 
-    return this._estimateFromPricing(pricing, params.inputTokens, params.outputTokens);
+    const estimate = this._estimateFromPricing(pricing, params.inputTokens, params.outputTokens);
+
+    // Persist estimate to PostgreSQL (fire-and-forget)
+    this.estimateRepo?.create({
+      id: `ce-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      model: estimate.model,
+      provider: estimate.provider,
+      input_tokens: estimate.inputTokens,
+      output_tokens: estimate.outputTokens,
+      input_cost: estimate.inputCost,
+      output_cost: estimate.outputCost,
+      total_cost: estimate.totalCost,
+      currency: estimate.currency,
+      tenant_id: 'default',
+    }).catch((err) => logger.warn({ err: err as Error, stack: (err as Error).stack, model: estimate.model, provider: estimate.provider }, '[CostCalculator] Failed to persist cost estimate'));
+
+    return estimate;
   }
 
   /**

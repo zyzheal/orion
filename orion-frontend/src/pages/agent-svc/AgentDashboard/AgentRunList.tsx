@@ -154,8 +154,8 @@ const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove,
     <>
       {/* Pending approvals section */}
       {approvals.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <Title level={5} style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: spacing.lg }}>
+          <Title level={5} style={{ marginBottom: spacing[3] }}>
             <Space>
               <PauseCircleOutlined style={{ color: colors.warning[500] }} />
               待审批队列 ({approvals.length})
@@ -172,7 +172,7 @@ const AgentRunList: React.FC<AgentRunListProps> = ({ runs, approvals, onApprove,
       )}
 
       {/* Recent runs table */}
-      <Title level={5} style={{ marginBottom: 12, marginTop: 24 }}>
+      <Title level={5} style={{ marginBottom: spacing[3], marginTop: spacing.lg }}>
         最近运行
       </Title>
       <Table

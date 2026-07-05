@@ -2,14 +2,15 @@
  * TestFailurePredictor - 测试失败预测器
  *
  * 基于历史数据预测测试失败概率，检测抖动测试。
+ * PostgreSQL Repository 模式：主数据存储在 test_selector_execution_history 表中。
  */
 
 import {
   TestExecutionRecord,
   TestFailurePrediction,
-  TestSuite,
-  TestCase,
 } from './types';
+import { TestExecutionHistoryDependencyRepository } from '../../repositories/TestDependencyRepository';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * 测试历史统计
@@ -43,10 +44,19 @@ export interface TestHistoryStats {
  * 使用历史执行数据预测测试失败概率，识别不稳定的抖动测试。
  */
 export class TestFailurePredictor {
-  // 测试 ID -> 执行历史
-  private testHistory: Map<string, TestExecutionRecord[]> = new Map();
-  // 测试 ID -> 统计信息（缓存）
+  // 统计信息缓存（从 DB 加载后缓存，写入时失效）
   private statsCache: Map<string, TestHistoryStats> = new Map();
+  /** PostgreSQL 持久化 */
+  private historyRepo: TestExecutionHistoryDependencyRepository;
+  private tenantId: string;
+
+  constructor(
+    db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    tenantId: string = 'default',
+  ) {
+    this.historyRepo = new TestExecutionHistoryDependencyRepository(db);
+    this.tenantId = tenantId;
+  }
 
   /**
    * 预测测试失败概率
@@ -61,7 +71,7 @@ export class TestFailurePredictor {
    * @returns 失败预测
    */
   async predictFailure(testId: string): Promise<TestFailurePrediction> {
-    const stats = this.getStats(testId);
+    const stats = await this.getStats(testId);
     const reasons: string[] = [];
 
     // 基础失败概率（基于历史通过率）
@@ -140,12 +150,18 @@ export class TestFailurePredictor {
    * @param record 执行记录
    */
   async updateTestHistory(testId: string, record: TestExecutionRecord): Promise<void> {
-    if (!this.testHistory.has(testId)) {
-      this.testHistory.set(testId, []);
-    }
-
-    const history = this.testHistory.get(testId)!;
-    history.push(record);
+    // 写入 PostgreSQL
+    await this.historyRepo.create({
+      id: uuidv4(),
+      tenantId: this.tenantId,
+      testId,
+      executionId: record.executionId,
+      passed: record.passed,
+      duration: record.duration,
+      failureMessage: record.failureMessage || null,
+      prId: record.prId || null,
+      executedAt: new Date(record.timestamp),
+    });
 
     // 清除该测试的统计缓存
     this.statsCache.delete(testId);
@@ -170,11 +186,21 @@ export class TestFailurePredictor {
    */
   async getFlakyTests(threshold: number = 50): Promise<string[]> {
     const flakyTests: string[] = [];
+    const allTestIds = await this.historyRepo.findAllTestIds(this.tenantId);
 
-    for (const [testId, history] of this.testHistory) {
-      if (history.length < 5) continue; // 至少 5 次执行才能判断
+    for (const testId of allTestIds) {
+      const historyEntities = await this.historyRepo.findByTestId(testId, 20);
+      if (historyEntities.length < 5) continue; // 至少 5 次执行才能判断
 
-      const recentHistory = history.slice(-20);
+      const recentHistory: TestExecutionRecord[] = historyEntities.map(e => ({
+        executionId: e.executionId,
+        passed: e.passed,
+        duration: e.duration,
+        timestamp: e.executedAt.toISOString(),
+        failureMessage: e.failureMessage || undefined,
+        prId: e.prId || undefined,
+      }));
+
       const passedCount = recentHistory.filter(h => h.passed).length;
       const passRate = passedCount / recentHistory.length;
 
@@ -194,14 +220,81 @@ export class TestFailurePredictor {
   /**
    * 获取测试统计信息
    */
-  getStats(testId: string): TestHistoryStats {
+  async getStats(testId: string): Promise<TestHistoryStats> {
     // 返回缓存
     if (this.statsCache.has(testId)) {
       return this.statsCache.get(testId)!;
     }
 
-    const history = this.testHistory.get(testId) || [];
+    // 从 DB 加载历史记录
+    const historyEntities = await this.historyRepo.findByTestId(testId, 200);
+    const history: TestExecutionRecord[] = historyEntities.map(e => ({
+      executionId: e.executionId,
+      passed: e.passed,
+      duration: e.duration,
+      timestamp: e.executedAt.toISOString(),
+      failureMessage: e.failureMessage || undefined,
+      prId: e.prId || undefined,
+    }));
 
+    const stats = this.computeStats(testId, history);
+    this.statsCache.set(testId, stats);
+    return stats;
+  }
+
+  /**
+   * 获取所有测试的统计汇总
+   */
+  async getAllStats(): Promise<TestHistoryStats[]> {
+    const allTestIds = await this.historyRepo.findAllTestIds(this.tenantId);
+    const allStats: TestHistoryStats[] = [];
+    for (const testId of allTestIds) {
+      allStats.push(await this.getStats(testId));
+    }
+    return allStats;
+  }
+
+  /**
+   * 清除旧历史数据
+   *
+   * @param retentionDays 保留天数
+   */
+  async pruneOldHistory(retentionDays: number = 90): Promise<number> {
+    const prunedCount = await this.historyRepo.pruneOld(retentionDays);
+    // 清除所有缓存（数据已变化）
+    this.statsCache.clear();
+    return prunedCount;
+  }
+
+  /**
+   * 获取测试历史
+   */
+  async getHistory(testId: string): Promise<TestExecutionRecord[]> {
+    const historyEntities = await this.historyRepo.findByTestId(testId, 200);
+    return historyEntities.map(e => ({
+      executionId: e.executionId,
+      passed: e.passed,
+      duration: e.duration,
+      timestamp: e.executedAt.toISOString(),
+      failureMessage: e.failureMessage || undefined,
+      prId: e.prId || undefined,
+    }));
+  }
+
+  /**
+   * 清空所有历史
+   */
+  async clearHistory(): Promise<void> {
+    await this.historyRepo.deleteByTenant(this.tenantId);
+    this.statsCache.clear();
+  }
+
+  // ==================== 私有方法 ====================
+
+  /**
+   * 从执行记录计算统计信息
+   */
+  private computeStats(testId: string, history: TestExecutionRecord[]): TestHistoryStats {
     const passedRuns = history.filter(h => h.passed).length;
     const failedRuns = history.length - passedRuns;
     const passRate = history.length > 0 ? passedRuns / history.length : 0;
@@ -225,7 +318,7 @@ export class TestFailurePredictor {
       .slice(-3)
       .map(h => h.failureMessage!);
 
-    const stats: TestHistoryStats = {
+    return {
       testId,
       totalRuns: history.length,
       passedRuns,
@@ -237,62 +330,7 @@ export class TestFailurePredictor {
       recentFailures,
       history,
     };
-
-    this.statsCache.set(testId, stats);
-    return stats;
   }
-
-  /**
-   * 获取所有测试的统计汇总
-   */
-  getAllStats(): TestHistoryStats[] {
-    const allStats: TestHistoryStats[] = [];
-    for (const testId of this.testHistory.keys()) {
-      allStats.push(this.getStats(testId));
-    }
-    return allStats;
-  }
-
-  /**
-   * 清除旧历史数据
-   *
-   * @param retentionDays 保留天数
-   */
-  pruneOldHistory(retentionDays: number = 90): number {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-
-    let prunedCount = 0;
-
-    for (const [testId, history] of this.testHistory) {
-      const originalLength = history.length;
-      const filteredHistory = history.filter(h => new Date(h.timestamp) >= cutoffDate);
-      if (filteredHistory.length < originalLength) {
-        this.testHistory.set(testId, filteredHistory);
-        this.statsCache.delete(testId); // 清除缓存
-        prunedCount += originalLength - filteredHistory.length;
-      }
-    }
-
-    return prunedCount;
-  }
-
-  /**
-   * 获取测试历史
-   */
-  getHistory(testId: string): TestExecutionRecord[] {
-    return this.testHistory.get(testId) || [];
-  }
-
-  /**
-   * 清空所有历史
-   */
-  clearHistory(): void {
-    this.testHistory.clear();
-    this.statsCache.clear();
-  }
-
-  // ==================== 私有方法 ====================
 
   /**
    * 计算抖动评分

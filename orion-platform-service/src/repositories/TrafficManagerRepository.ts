@@ -5,12 +5,13 @@
  * execution history, replacing the Map() in-memory storage.
  */
 
-import { BaseRepository, FindAllResult } from '../db/base-repository';
+import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 
 // ==================== Traffic Config ====================
 
 export interface TrafficConfigEntity {
   id: string;
+  tenant_id: string;
   canary_id: string;
   strategy: string;
   host: string | null;
@@ -35,16 +36,26 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
     super(db, 'canary_traffic_configs');
   }
 
-  async findByCanaryId(canaryId: string): Promise<TrafficConfigEntity | undefined> {
+  async findByCanaryId(canaryId: string, tenantId: string): Promise<TrafficConfigEntity | undefined> {
     const result = await this.db.query(
-      `SELECT * FROM canary_traffic_configs WHERE canary_id = $1 ORDER BY updated_at DESC LIMIT 1`,
-      [canaryId],
+      `SELECT * FROM canary_traffic_configs WHERE canary_id = $1 AND tenant_id = $2 ORDER BY updated_at DESC LIMIT 1`,
+      [canaryId, tenantId],
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async findAll(): Promise<FindAllResult<TrafficConfigEntity>> {
+  async findAll(options: FindAllOptions = {}): Promise<FindAllResult<TrafficConfigEntity>> {
+    const { where = {} } = options;
+    const tenantId = where.tenant_id as string | undefined;
+    if (tenantId) {
+      const result = await this.db.query(
+        `SELECT * FROM canary_traffic_configs WHERE tenant_id = $1 ORDER BY updated_at DESC`,
+        [tenantId],
+      );
+      const entities = result.rows.map(row => this.mapRowToEntity(row));
+      return { entities, total: entities.length };
+    }
     const result = await this.db.query(
       `SELECT * FROM canary_traffic_configs ORDER BY updated_at DESC`,
     );
@@ -54,6 +65,7 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
 
   async upsertConfig(input: {
     id: string;
+    tenant_id: string;
     canary_id: string;
     strategy: string;
     phase?: string;
@@ -70,7 +82,7 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
   }): Promise<TrafficConfigEntity> {
     const result = await this.db.query(
       `INSERT INTO canary_traffic_configs
-        (id, canary_id, strategy, host, namespace, upstream_name, phase,
+        (id, tenant_id, canary_id, strategy, host, namespace, upstream_name, phase,
          baseline_weight, canary_weight, baseline_destination, baseline_subset,
          canary_destination, canary_subset, servers)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
@@ -91,6 +103,7 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
        RETURNING *`,
       [
         input.id,
+        input.tenant_id,
         input.canary_id,
         input.strategy,
         input.host || null,
@@ -112,6 +125,7 @@ export class TrafficConfigRepository extends BaseRepository<TrafficConfigEntity>
   protected mapRowToEntity(row: any): TrafficConfigEntity {
     return {
       id: row.id,
+      tenant_id: row.tenant_id,
       canary_id: row.canary_id,
       strategy: row.strategy,
       host: row.host,

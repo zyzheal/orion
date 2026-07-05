@@ -11,9 +11,10 @@
  * with health monitoring and event publishing.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { PluginRegistry } from './PluginRegistry';
+import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
 import { PluginLifecycleManager } from './PluginLifecycleManager';
 import { PluginSandboxSPI } from './PluginSandbox';
 import { PluginDependencyResolver } from './PluginDependencyResolver';
@@ -25,8 +26,10 @@ import {
   PluginHealthStatus,
   PluginSandboxConfig,
 } from './types';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginService');
 
 /**
  * Plugin SPI Service
@@ -38,14 +41,14 @@ export class PluginService extends EventEmitter {
   private dependencyResolver: PluginDependencyResolver;
   private initialized = false;
 
-  constructor(options?: {
+  constructor(repository: PluginRegistryRepository, options?: {
     pluginDirectory?: string;
     sandboxConfig?: Partial<PluginSandboxConfig>;
   }) {
     super();
 
     // Initialize components
-    this.registry = new PluginRegistry({
+    this.registry = new PluginRegistry(repository, {
       pluginDirectory: options?.pluginDirectory,
     });
 
@@ -84,7 +87,7 @@ export class PluginService extends EventEmitter {
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
-      logger.warn('Plugin service already initialized');
+      logger.warn({ traceId: getCurrentTraceId() }, 'Plugin service already initialized');
       return;
     }
 
@@ -167,10 +170,10 @@ export class PluginService extends EventEmitter {
   /**
    * Update plugin configuration
    */
-  updatePluginConfig(
+  async updatePluginConfig(
     pluginId: string,
     config: Record<string, any>
-  ): PluginInfo | undefined {
+  ): Promise<PluginInfo | undefined> {
     return this.registry.updateConfig(pluginId, config);
   }
 
@@ -300,7 +303,7 @@ export class PluginService extends EventEmitter {
   } {
     const plugin = this.registry.getPlugin(pluginId);
     if (!plugin) {
-      throw new Error(`Plugin "${pluginId}" not found`);
+      throw new OrionError(`Plugin "${pluginId}" not found`, ErrorCode.NOT_FOUND);
     }
 
     const deps = plugin.manifest.dependencies?.map((d) => d.name) || [];

@@ -9,6 +9,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { AutoRecoveryService, RecoveryStats } from '../services/degradation/AutoRecoveryService';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 interface ProviderParams {
   providerId: string;
@@ -20,13 +23,17 @@ interface ProviderBody {
   tenantId?: number;
 }
 
+interface DegradationRoutesOptions {
+  database?: DatabasePool;
+}
+
 // Service singleton - initialized once during plugin registration
 let recoveryService: AutoRecoveryService | null = null;
 
-export default async function degradationRoutes(fastify: FastifyInstance) {
+export default async function degradationRoutes(fastify: FastifyInstance, options: DegradationRoutesOptions = {}) {
   // Initialize service singleton
-  if (!recoveryService) {
-    recoveryService = new AutoRecoveryService();
+  if (!recoveryService && options.database) {
+    recoveryService = new AutoRecoveryService({}, options.database);
   }
 
   // Apply authentication to all routes in this plugin
@@ -35,11 +42,12 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get recovery service status
   fastify.get(
     '/status',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         // Tenant isolation: only return stats for user's tenant
         const tenantId = request.user?.tenantId;
-        const allStats = recoveryService!.getAllStats();
+        const allStats = await recoveryService!.getAllStats();
         const stats = allStats.providers;
         const degraded = recoveryService!.getDegradedProviders();
         const config = recoveryService!.getConfig();
@@ -47,7 +55,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
 
         // Filter stats by tenant if applicable
         const filteredStats = tenantId
-          ? stats.filter(s => s.providerId.includes(`tenant-${tenantId}`))
+          ? stats.filter((s: RecoveryStats) => s.providerId.includes(`tenant-${tenantId}`))
           : stats;
 
         reply.send({
@@ -57,11 +65,7 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
           overallSuccessRate: successRate,
         });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get degradation status',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -69,16 +73,13 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get current configuration
   fastify.get(
     '/config',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const config = recoveryService!.getConfig();
         reply.send(config);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get configuration',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -86,27 +87,20 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get recovery stats for a provider
   fastify.get<{ Params: ProviderParams }>(
     '/stats/:providerId',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest<{ Params: ProviderParams }>, reply: FastifyReply) => {
       try {
         const { providerId } = request.params;
         const stats = recoveryService!.getRecoveryStats(providerId);
 
         if (!stats) {
-          reply.code(404).send({
-            code: 404,
-            error: 'NOT_FOUND',
-            message: 'Provider not found',
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
         reply.send(stats);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get provider stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -114,16 +108,13 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get degraded providers
   fastify.get(
     '/degraded',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const degraded = recoveryService!.getDegradedProviders();
         reply.send({ providers: degraded });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get degraded providers',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -131,47 +122,33 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Update provider success rate (admin only)
   fastify.post<{ Body: ProviderBody }>(
     '/update-rate',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'manage' })] },
     async (request: FastifyRequest<{ Body: ProviderBody }>, reply: FastifyReply) => {
       try {
         // Authorization: only admin can update rates
-        if (request.user?.role !== 'admin') {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Only admin can update provider success rates',
-          });
+        const roles = (request as any).user?.roles as string[] | undefined;
+        if (!roles?.includes('admin')) {
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const { providerId, successRate } = request.body;
 
         if (!providerId || successRate === undefined) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'providerId and successRate are required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Validate successRate range
         if (successRate < 0 || successRate > 1) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'successRate must be between 0 and 1',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         recoveryService!.updateProviderSuccessRate(providerId, successRate);
         reply.send({ success: true });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to update success rate',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -179,16 +156,13 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get all providers' recovery stats
   fastify.get(
     '/stats',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const allStats = recoveryService!.getAllStats();
         reply.send({ providers: allStats });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get all stats',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -196,16 +170,13 @@ export default async function degradationRoutes(fastify: FastifyInstance) {
   // Get overall success rate
   fastify.get(
     '/success-rate',
+    { onRequest: [requirePermission({ resource: 'degradation', action: 'read' })] },
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const rate = recoveryService!.getOverallSuccessRate();
         reply.send({ successRate: rate });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get success rate',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

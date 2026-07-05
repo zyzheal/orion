@@ -7,6 +7,7 @@ import {
   DecisionExplanationService,
   DecisionFeature,
 } from '../../services/ai/DecisionExplanationService';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class DecisionExplanationController {
   private service: DecisionExplanationService;
@@ -44,7 +45,7 @@ export class DecisionExplanationController {
     }
 
     try {
-      const explanation = this.service.explainDecision({
+      const explanation = await this.service.explainDecision({
         decisionId,
         decisionType,
         decision,
@@ -89,7 +90,7 @@ export class DecisionExplanationController {
     try {
       const features: DecisionFeature[] = JSON.parse(featuresJson);
       if (!Array.isArray(features)) {
-        throw new Error('features must be an array');
+        throw new OrionError('features must be an array', ErrorCode.OPERATION_FAILED);
       }
 
       const importance = this.service.calculateFeatureImportance(features);
@@ -196,7 +197,7 @@ export class DecisionExplanationController {
     const { id } = request.params;
 
     try {
-      const explanation = this.service.getExplanationById(id);
+      const explanation = await this.service.getExplanationById(id);
 
       if (!explanation) {
         return reply.status(404).send({
@@ -231,7 +232,7 @@ export class DecisionExplanationController {
     const limitNum = limit ? parseInt(limit, 10) : 50;
 
     try {
-      const history = this.service.getExplanationHistory(limitNum, decisionType);
+      const history = await this.service.getExplanationHistory(limitNum, decisionType);
 
       return reply.send({
         data: history,

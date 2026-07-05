@@ -41,15 +41,16 @@ export class DeploymentWorkflow {
     verifier?: DeploymentVerifier;
     historyService?: DeploymentHistoryService;
     rollbackService?: RollbackService;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.strategyEngine =
       options?.strategyEngine || new DeploymentStrategyEngine({ eventPublisher: options?.eventPublisher });
     this.verifier = options?.verifier || new DeploymentVerifier();
     this.historyService =
-      options?.historyService || new DeploymentHistoryService();
+      options?.historyService || (options?.db ? new DeploymentHistoryService(options.db) : new DeploymentHistoryService({ query: async () => ({ rows: [], rowCount: 0 }) }));
     this.rollbackService =
-      options?.rollbackService || new RollbackService({ eventPublisher: options?.eventPublisher });
+      options?.rollbackService || new RollbackService({ eventPublisher: options?.eventPublisher, db: options?.db ?? { query: async () => ({ rows: [], rowCount: 0 }) } });
   }
 
   /**
@@ -657,12 +658,14 @@ export class DeploymentWorkflow {
   async listDeployments(query: {
     pipelineId?: string;
     status?: string;
+    environment?: string;
     limit?: number;
   }): Promise<Deployment[]> {
     const limit = query.limit || 20;
     const response = await this.historyService.getHistory({
       limit,
       status: query.status as any,
+      environment: query.environment,
     });
     let deployments = response.data;
     if (query.pipelineId) {

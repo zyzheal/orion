@@ -31,7 +31,7 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   getPRTriggerRules,
   createPRTrigger,
@@ -332,10 +332,10 @@ const PRTriggerManagement: React.FC = () => {
   return (
     <div style={{ padding: 0 }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             PR/MR 触发管理
           </Title>
           <Text type="secondary">配置 Pull Request / Merge Request 触发规则和状态回写</Text>
@@ -351,7 +351,7 @@ const PRTriggerManagement: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="触发规则" value={rules.length} />
@@ -362,7 +362,7 @@ const PRTriggerManagement: React.FC = () => {
             <Statistic
               title="活跃规则"
               value={rules.filter((r) => r.enabled).length}
-              valueStyle={{ color: colors.success?.[500] || '#52c41a' }}
+              valueStyle={{ color: colors.success?.[500] || colors.success[500] }}
             />
           </Card>
         </Col>

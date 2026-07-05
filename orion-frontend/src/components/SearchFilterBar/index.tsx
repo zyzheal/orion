@@ -8,6 +8,7 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { Input, Select, Tag, Button } from 'antd';
 import { SearchOutlined, CloseOutlined, FilterOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 
 // ============================================================================
 // Types
@@ -134,7 +135,7 @@ function SearchFilterBar({
       <div
         style={{
           display: 'flex',
-          gap: 12,
+          gap: spacing[3],
           alignItems: 'center',
           flexWrap: 'wrap',
           marginBottom: activeFilterCount > 0 ? 12 : 0,
@@ -179,7 +180,7 @@ function SearchFilterBar({
             size="small"
             icon={<CloseOutlined />}
             onClick={clearAll}
-            style={{ color: '#8c8c8c' }}
+            style={{ color: colors.neutral[500] }}
             data-testid="clear-all-filters"
           >
             Clear All
@@ -189,7 +190,7 @@ function SearchFilterBar({
 
       {/* Active filter tags */}
       {activeFilterCount > 0 && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
           {Object.entries(activeFilters)
             .filter(([, value]) => value !== undefined && value !== '')
             .map(([key, value]) => (

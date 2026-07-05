@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS compliance_policies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     description TEXT,
     framework_type VARCHAR(64) NOT NULL, -- soc2, iso27001, gdpr, hipaa, pci_dss, custom
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS compliance_policies (
 
 CREATE TABLE IF NOT EXISTS compliance_evaluations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     policy_id UUID NOT NULL REFERENCES compliance_policies(id),
     status VARCHAR(32) DEFAULT 'pending', -- pending, running, completed, failed
     score DECIMAL(5,2) DEFAULT 0,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS compliance_evaluations (
 
 CREATE TABLE IF NOT EXISTS compliance_remediations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     evaluation_id UUID REFERENCES compliance_evaluations(id),
     gap_id VARCHAR(64) NOT NULL,
     status VARCHAR(32) DEFAULT 'pending', -- pending, in_progress, completed, failed
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS compliance_remediations (
 
 CREATE TABLE IF NOT EXISTS audit_plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     description TEXT,
     scope JSONB NOT NULL DEFAULT '{}',
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS audit_plans (
 CREATE TABLE IF NOT EXISTS audit_executions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     plan_id UUID NOT NULL REFERENCES audit_plans(id),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     status VARCHAR(32) DEFAULT 'pending', -- pending, running, completed, failed
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS audit_executions (
 CREATE TABLE IF NOT EXISTS audit_findings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     execution_id UUID NOT NULL REFERENCES audit_executions(id),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     title VARCHAR(255) NOT NULL,
     description TEXT,
     severity VARCHAR(16) NOT NULL, -- critical, high, medium, low, info
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS audit_findings (
 
 CREATE TABLE IF NOT EXISTS triggers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     name VARCHAR(255) NOT NULL,
     type VARCHAR(32) NOT NULL, -- webhook, chat, schedule, event, manual
     config JSONB NOT NULL DEFAULT '{}',
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS triggers (
 CREATE TABLE IF NOT EXISTS trigger_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     trigger_id UUID NOT NULL REFERENCES triggers(id),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     event_type VARCHAR(64) NOT NULL,
     event_payload JSONB NOT NULL DEFAULT '{}',
     evaluation_result VARCHAR(32), -- matched, not_matched, error
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS trigger_events (
 
 CREATE TABLE IF NOT EXISTS webhook_endpoints (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
     trigger_id UUID REFERENCES triggers(id),
     path VARCHAR(255) NOT NULL,
     secret VARCHAR(255),

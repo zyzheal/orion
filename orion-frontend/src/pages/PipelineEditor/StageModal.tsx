@@ -13,12 +13,14 @@ import {
   Switch,
   Button,
   Card,
+  message,
 } from 'antd';
 import { PlusOutlined, DeleteOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
-import type { StageConfig, MatrixBuildConfig, PRTriggerConfig } from './types';
+import type { StageConfig, MatrixBuildConfig } from './types';
 import MatrixConfigurator from '@/components/MatrixConfigurator';
 import PRTriggerConfigComponent, { type PRTriggerConfig as PRTriggerConfigType } from '@/components/PRTriggerConfig';
 import { getPipelines } from '@/api/pipelines';
+import { colors, spacing } from '@/tokens';
 
 const { TextArea } = Input;
 
@@ -135,7 +137,7 @@ const StageModal: React.FC<StageModalProps> = ({
     if (visible) {
       getPipelines()
         .then((res) => {
-          const data = res.data?.data ?? res.data;
+          const data = res.data ?? res.data;
           const list = Array.isArray(data) ? data : [];
           const opts = list.map((p: { id: string; name: string }) => ({
             label: p.name,
@@ -223,7 +225,7 @@ const StageModal: React.FC<StageModalProps> = ({
             }
           : undefined,
         // PR/MR 触发配置
-        prTrigger: prTriggerConfig.enabled ? prTriggerConfig : undefined,
+        prTrigger: prTriggerConfig.enabled ? (prTriggerConfig as PRTriggerConfigType) : undefined,
       };
       onSave(stageConfig);
     } catch (error: unknown) {
@@ -319,7 +321,7 @@ const StageModal: React.FC<StageModalProps> = ({
             style={{ width: '100%' }}
             placeholder="默认 300 秒"
             formatter={(value) => `${value}s`}
-            parser={(value) => Number(value?.replace('s', '')) as any}
+            parser={(value) => (Number(value?.replace('s', '')) || 0) as 0 | 7200}
           />
         </Form.Item>
 
@@ -385,7 +387,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'sub-pipeline' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space><BranchesOutlined /> 子流水线配置</Space>}>
                 <Form.Item
                   label="选择流水线"
                   name="subPipelineId"
@@ -464,7 +466,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'buildx' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space>🏷️ 多架构构建配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>🏷️ 多架构构建配置</Space>}>
                 <Form.Item
                   label="镜像名称"
                   name="buildxImageName"
@@ -517,7 +519,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate={(prev, curr) => prev.type !== curr.type}>
           {(formInstance) =>
             formInstance.getFieldValue('type') === 'container' && (
-              <Card size="small" style={{ marginBottom: 16 }} title={<Space>📦 容器运行配置</Space>}>
+              <Card size="small" style={{ marginBottom: spacing.md }} title={<Space>📦 容器运行配置</Space>}>
                 <Form.Item
                   label="容器镜像"
                   name="containerImage"
@@ -603,7 +605,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           {(formInstance) =>
             formInstance.getFieldValue('cacheEnabled') && (
-              <Card size="small" style={{ marginBottom: 16 }}>
+              <Card size="small" style={{ marginBottom: spacing.md }}>
                 <Form.Item
                   label="缓存 Key"
                   name="cacheKey"
@@ -656,7 +658,7 @@ const StageModal: React.FC<StageModalProps> = ({
           构建产物 (Artifact)
         </Divider>
 
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card size="small" style={{ marginBottom: spacing.md }}>
           <Form.Item label="上传路径" required>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {artifactPaths.map((path, index) => (
@@ -691,7 +693,7 @@ const StageModal: React.FC<StageModalProps> = ({
         {/* 矩阵构建配置 */}
         <Divider orientation="left" orientationMargin={0}>
           <Space>
-            <ThunderboltOutlined style={{ color: '#faad14' }} />
+            <ThunderboltOutlined style={{ color: colors.warning[500] }} />
             <span>矩阵构建 (Matrix Build)</span>
           </Space>
         </Divider>
@@ -699,7 +701,7 @@ const StageModal: React.FC<StageModalProps> = ({
         <Form.Item noStyle shouldUpdate>
           <Card
             size="small"
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
             extra={
               <Space>
                 <span>启用矩阵构建</span>
@@ -723,7 +725,7 @@ const StageModal: React.FC<StageModalProps> = ({
                 onChange={setMatrixConfig}
               />
             ) : (
-              <div style={{ padding: '8px 0', color: '#999' }}>
+              <div style={{ padding: '8px 0', color: colors.neutral[500] }}>
                 启用后可在多个维度上并行构建，例如同时测试多个 Node.js 版本和操作系统
               </div>
             )}

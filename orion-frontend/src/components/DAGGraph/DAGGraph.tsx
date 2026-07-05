@@ -17,8 +17,28 @@ import ReactFlow, {
   Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Typography, Tooltip, Badge, Space } from 'antd';
-import { colors } from '@/tokens';
+import { Typography, Tooltip, Badge, Space, ConfigProvider } from 'antd';
+
+// Tooltip 白色主题 token
+const tooltipTheme = {
+  token: {
+    colorBgSpotlight: colors.neutral[0],
+    colorTextLightSolid: colors.neutral[900],
+  },
+};
+
+// CSS 样式覆盖 - 确保 Tooltip 背景为白色
+const tooltipStyles = `
+  .dag-tooltip .ant-tooltip-inner {
+    background-color: colors.neutral[0] !important;
+    color: colors.neutral[900] !important;
+  }
+  .dag-tooltip .ant-tooltip-arrow::before {
+    background-color: colors.neutral[0] !important;
+  }
+`;
+import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 import {
   PlayCircleOutlined,
   CheckCircleOutlined,
@@ -61,6 +81,15 @@ interface StageNodeData {
   completedAt?: string;
 }
 
+const statusLabels: Record<string, string> = {
+  success: '成功',
+  failed: '失败',
+  running: '运行中',
+  pending: '等待中',
+  skipped: '已跳过',
+  cancelled: '已取消',
+};
+
 const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
   const formatDuration = (seconds?: number) => {
     if (!seconds) return '-';
@@ -88,81 +117,141 @@ const StageNode: React.FC<{ data: StageNodeData }> = ({ data }) => {
 
   return (
     <Tooltip
+      color={colors.neutral[0]}
       title={
-        <Space direction="vertical" size={4}>
-          <Text strong>{data.name}</Text>
-          <Text type="secondary">类型: {data.type}</Text>
-          <Text type="secondary">状态: {data.status}</Text>
-          <Text type="secondary">耗时: {formatDuration(data.duration)}</Text>
-          {data.stepsCount && <Text type="secondary">步骤数: {data.stepsCount}</Text>}
-        </Space>
+        <div style={{ minWidth: 160 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: spacing.sm, color: colors.neutral[900], paddingBottom: 8, borderBottom: `1px solid colors.neutral[200]` }}>
+            <Space size={6}>
+              <Badge
+                count={data.index + 1}
+                style={{
+                  backgroundColor: statusColors[data.status] || colors.neutral[300],
+                  color: colors.neutral[0],
+                  fontSize: 10,
+                  minWidth: 16,
+                  height: 16,
+                  lineHeight: '16px',
+                }}
+              />
+              {data.name}
+              {statusIcon}
+            </Space>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
+            <InfoRow label="类型" value={data.type} />
+            <InfoRow
+              label="状态"
+              value={statusLabels[data.status] || data.status}
+              color={statusColors[data.status]}
+            />
+            {data.duration != null && (
+              <InfoRow label="耗时" value={formatDuration(data.duration)} />
+            )}
+            {data.stepsCount != null && (
+              <InfoRow label="步骤数" value={`${data.stepsCount} 个`} />
+            )}
+            {data.startedAt && (
+              <InfoRow label="开始时间" value={dayjs(data.startedAt).format('HH:mm:ss')} />
+            )}
+            {data.completedAt && (
+              <InfoRow label="完成时间" value={dayjs(data.completedAt).format('HH:mm:ss')} />
+            )}
+          </div>
+        </div>
       }
+      overlayInnerStyle={{
+        maxWidth: 260,
+        borderRadius: 8,
+        boxShadow: '0 8px 24px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.06)',
+        padding: '12px 16px',
+      }}
       placement="top"
     >
       <div
         style={{
           padding: '12px 20px',
-          borderRadius: 8,
+          borderRadius: 10,
           border: `2px solid ${statusColors[data.status] || colors.neutral[300]}`,
           background: statusBgColors[data.status] || colors.neutral[100],
-          minWidth: 120,
+          minWidth: 140,
+          maxWidth: 180,
+          height: 64, // 固定高度，确保所有节点一致
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
           boxShadow: data.status === 'running' ? '0 0 12px rgba(24,144,255,0.4)' : 'none',
           transition: 'all 0.3s ease',
         }}
       >
-        {/* Input Handle */}
+        {/* Input Handle — 左侧 */}
         <Handle
           type="target"
-          position={Position.Top}
+          position={Position.Left}
           style={{
             background: colors.neutral[400],
             width: 8,
             height: 8,
-            top: -4,
+            left: -4,
           }}
         />
 
-        {/* Node Content */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Badge
-            count={data.index + 1}
-            style={{
-              backgroundColor: statusColors[data.status] || colors.neutral[300],
-              color: colors.neutral[0],
-              fontSize: 10,
-              minWidth: 18,
-              height: 18,
-              lineHeight: '18px',
-            }}
-          />
-          <Text strong style={{ fontSize: 12 }}>
-            {data.name}
-          </Text>
-          {statusIcon}
+        {/* Node Content — 居中 */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm, justifyContent: 'center' }}>
+            <Badge
+              count={data.index + 1}
+              style={{
+                backgroundColor: statusColors[data.status] || colors.neutral[300],
+                color: colors.neutral[0],
+                fontSize: 10,
+                minWidth: 18,
+                height: 18,
+                lineHeight: '18px',
+              }}
+            />
+            <Text strong style={{ fontSize: 13 }}>
+              {data.name}
+            </Text>
+            {statusIcon}
+          </div>
+
+          {data.duration && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {formatDuration(data.duration)}
+            </Text>
+          )}
         </div>
 
-        {/* Duration */}
-        {data.duration && (
-          <Text type="secondary" style={{ fontSize: 10, marginTop: 4, display: 'block' }}>
-            {formatDuration(data.duration)}
-          </Text>
-        )}
-
-        {/* Output Handle */}
+        {/* Output Handle — 右侧 */}
         <Handle
           type="source"
-          position={Position.Bottom}
+          position={Position.Right}
           style={{
             background: statusColors[data.status] || colors.neutral[300],
             width: 8,
             height: 8,
-            bottom: -4,
+            right: -4,
           }}
         />
       </div>
     </Tooltip>
   );
 };
+
+// ==================== Tooltip Info Row ====================
+interface InfoRowProps {
+  label: string;
+  value: string;
+  color?: string;
+}
+
+const InfoRow: React.FC<InfoRowProps> = ({ label, value, color }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}>
+    <span style={{ color: 'rgba(0,0,0,0.65)' }}>{label}</span>
+    <span style={{ color: color || colors.neutral[800], fontWeight: 500 }}>{value}</span>
+  </div>
+);
 
 // Custom Node Types
 const nodeTypes: NodeTypes = {
@@ -196,13 +285,13 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
   showMiniMap = true,
   onNodeClick,
 }) => {
-  // 构建 DAG Nodes
+  // 构建 DAG Nodes - 水平布局，所有节点 Y 坐标对齐
   const nodes: Node[] = useMemo(() => {
     // 计算每个节点的层级 (基于依赖深度)
     const nodeLevels: Map<string, number> = new Map();
 
     const getLevel = (stageName: string, visited: Set<string> = new Set()): number => {
-      if (visited.has(stageName)) return 0; // 循环依赖保护
+      if (visited.has(stageName)) return 0;
       visited.add(stageName);
 
       const stage = stages.find((s) => s.name === stageName);
@@ -218,27 +307,24 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
       nodeLevels.set(stage.name, getLevel(stage.name));
     });
 
-    // 按层级分组
-    const levelGroups: Map<number, string[]> = new Map();
-    stages.forEach((stage) => {
-      const level = nodeLevels.get(stage.name) || 0;
-      if (!levelGroups.has(level)) {
-        levelGroups.set(level, []);
-      }
-      levelGroups.get(level)!.push(stage.name);
-    });
+    // 线性流水线检测：所有 stage 都没有 dependsOn，按索引顺序排列
+    const allNoDeps = stages.every((s) => !s.dependsOn?.length);
+    if (allNoDeps && stages.length > 1) {
+      stages.forEach((stage, index) => {
+        nodeLevels.set(stage.name, index);
+      });
+    }
 
-    // 计算节点位置
-    const maxLevel = Math.max(...Array.from(nodeLevels.values()));
-    const levelHeight = 120; // 每层高度
-    const nodeWidth = 140; // 节点宽度估计
+    // 横向布局参数
+    const nodeW = 184;   // 节点宽度
+    const nodeH = 72;    // 节点高度（固定）
+    const gapX = 80;     // 水平间距 - 确保连接线水平
+
+    // 计算容器中心 Y 坐标（用于垂直居中）
+    const centerY = height / 2 - nodeH / 2;
 
     return stages.map((stage, index) => {
       const level = nodeLevels.get(stage.name) || 0;
-      const nodesInLevel = levelGroups.get(level) || [];
-      const posInLevel = nodesInLevel.indexOf(stage.name);
-      const levelWidth = nodesInLevel.length * nodeWidth;
-      const startX = -levelWidth / 2 + nodeWidth / 2;
 
       return {
         id: stage.id || `stage-${index}`,
@@ -253,18 +339,20 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
           startedAt: stage.startTime,
           completedAt: stage.endTime,
         },
+        // 水平排列：X = level * 间距，Y = 居中位置
         position: {
-          x: startX + posInLevel * nodeWidth,
-          y: level * levelHeight,
+          x: level * (nodeW + gapX),
+          y: centerY,
         },
       };
     });
-  }, [stages]);
+  }, [stages, height]);
 
-  // 构建 DAG Edges
+  // 构建 DAG Edges — 全部使用直线
   const edges: Edge[] = useMemo(() => {
     const edgeList: Edge[] = [];
 
+    // 显式依赖连接
     stages.forEach((stage) => {
       if (stage.dependsOn?.length) {
         stage.dependsOn.forEach((depName) => {
@@ -273,7 +361,6 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
             const depId = depStage.id || `stage-${stages.indexOf(depStage)}`;
             const sourceId = stage.id || `stage-${stages.indexOf(stage)}`;
 
-            // 根据状态设置边样式
             const isPathSuccess = depStage.status === 'success' && stage.status !== 'pending';
             const isPathFailed = depStage.status === 'failed';
 
@@ -281,7 +368,7 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
               id: `edge-${depId}-${sourceId}`,
               source: depId,
               target: sourceId,
-              type: 'smoothstep',
+              type: 'straight',
               animated: stage.status === 'running' && depStage.status === 'success',
               style: {
                 stroke: isPathFailed
@@ -305,6 +392,44 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
       }
     });
 
+    // 线性流水线：无显式依赖时，自动添加顺序连接
+    const hasAnyDeps = stages.some((s) => s.dependsOn?.length);
+    if (!hasAnyDeps && stages.length > 1) {
+      for (let i = 0; i < stages.length - 1; i++) {
+        const fromId = stages[i].id || `stage-${i}`;
+        const toId = stages[i + 1].id || `stage-${i + 1}`;
+        const fromStatus = stages[i].status;
+        const toStatus = stages[i + 1].status;
+
+        const isPathSuccess = fromStatus === 'success' && toStatus !== 'pending';
+        const isPathFailed = fromStatus === 'failed';
+
+        edgeList.push({
+          id: `edge-${fromId}-${toId}`,
+          source: fromId,
+          target: toId,
+          type: 'straight',
+          animated: toStatus === 'running' && fromStatus === 'success',
+          style: {
+            stroke: isPathFailed
+              ? colors.error[400]
+              : isPathSuccess
+                ? colors.success[400]
+                : colors.neutral[300],
+            strokeWidth: 2,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isPathFailed
+              ? colors.error[400]
+              : isPathSuccess
+                ? colors.success[400]
+                : colors.neutral[300],
+          },
+        });
+      }
+    }
+
     return edgeList;
   }, [stages]);
 
@@ -319,44 +444,45 @@ const DAGGraph: React.FC<DAGGraphProps> = ({
   );
 
   return (
-    <div style={{ height, width: '100%', background: colors.neutral[50], borderRadius: 8 }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onNodeClick={handleNodeClick}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.5}
-        maxZoom={1.5}
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        attributionPosition="bottom-left"
-        nodesDraggable={false}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        panOnDrag={true}
-        zoomOnScroll={true}
-      >
-        <Background color={colors.neutral[200]} gap={16} />
-        <Controls
-          style={{
-            button: {
-              backgroundColor: colors.neutral[100],
-              border: `1px solid ${colors.neutral[200]}`,
-            },
-          }}
-        />
-        {showMiniMap && (
-          <MiniMap
-            nodeColor={(node: Node) => statusColors[node.data?.status || 'pending']}
-            maskColor="rgba(0, 0, 0, 0.1)"
-            style={{
-              background: colors.neutral[100],
-            }}
-          />
-        )}
-      </ReactFlow>
-    </div>
+    <>
+      <style>{tooltipStyles}</style>
+      <ConfigProvider theme={tooltipTheme}>
+        <div
+          className="dag-tooltip"
+          style={{ height, width: '100%', background: colors.neutral[50], borderRadius: 8 }}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodeClick={handleNodeClick}
+            fitView
+            fitViewOptions={{ padding: 0.15 }}
+            minZoom={0.5}
+            maxZoom={1.5}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            attributionPosition="bottom-left"
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={true}
+            panOnDrag={true}
+            zoomOnScroll={true}
+          >
+            <Background color={colors.neutral[200]} gap={16} />
+            <Controls />
+            {showMiniMap && (
+              <MiniMap
+                nodeColor={(node: Node) => statusColors[node.data?.status || 'pending']}
+                maskColor="rgba(0, 0, 0, 0.1)"
+                style={{
+                  background: colors.neutral[100],
+                }}
+              />
+            )}
+          </ReactFlow>
+        </div>
+      </ConfigProvider>
+    </>
   );
 };
 
@@ -373,7 +499,6 @@ export function validateDAG(stages: DAGGraphProps['stages']): {
   const visited = new Set<string>();
   const recursionStack = new Set<string>();
 
-  // 检查循环依赖
   const detectCycle = (stageName: string, path: string[] = []): boolean => {
     if (recursionStack.has(stageName)) {
       cycles.push([...path, stageName]);
@@ -418,13 +543,11 @@ export function validateDAG(stages: DAGGraphProps['stages']): {
 
 // ==================== Utility: Calculate Execution Order ====================
 export function calculateExecutionOrder(stages: DAGGraphProps['stages']): string[][] {
-  // 拓扑排序，按层级分组
   const result: string[][] = [];
   const completed = new Set<string>();
   const remaining = [...stages];
 
   while (remaining.length > 0) {
-    // 找出当前可执行的节点 (所有依赖已完成)
     const ready = remaining.filter(
       (stage) =>
         !stage.dependsOn?.length ||
@@ -432,17 +555,11 @@ export function calculateExecutionOrder(stages: DAGGraphProps['stages']): string
     );
 
     if (ready.length === 0) {
-      // 存在循环依赖或无法继续
       break;
     }
 
-    // 添加当前层级
     result.push(ready.map((s) => s.name));
-
-    // 标记完成
     ready.forEach((stage) => completed.add(stage.name));
-
-    // 移除已处理的节点
     ready.forEach((stage) => {
       const idx = remaining.indexOf(stage);
       if (idx !== -1) remaining.splice(idx, 1);

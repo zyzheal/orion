@@ -125,7 +125,7 @@ export class MultiLevelApprovalService {
   }
 
   /**
-   * 审批操作（approve/reject）
+   * 审批操作（approve/reject）— 使用乐观锁防止并发竞态
    */
   async review(
     requestId: string,
@@ -145,29 +145,40 @@ export class MultiLevelApprovalService {
       throw new Error('This step is waiting for previous level to complete');
     }
 
-    // Update the step status
-    await this.repository.updateStepStatus(
+    // 使用乐观锁更新：仅在步骤仍为 pending 时更新成功
+    const updatedStep = await this.repository.updateStepStatusWithLock(
       matchingStep.id,
       action === ApprovalAction.APPROVE ? 'approved' : 'rejected',
+      ['pending'], // 只允许从 pending 状态转换，防止并发重复操作
       comment,
       new Date(),
     );
+    if (!updatedStep) {
+      throw new Error('This step has already been acted upon by another reviewer');
+    }
 
     const updatedSteps = await this.repository.findStepsByApproval(requestId);
 
-    // Determine if we should advance or finalize
+    // 使用条件更新防止并发状态不一致
     if (action === ApprovalAction.REJECT) {
-      // Any rejection rejects the entire request
-      await this.repository.updateStatus(requestId, 'rejected');
+      // 只有当状态仍为 pending 时才更新为 rejected
+      const result = await this.repository.updateStatusWithCondition(requestId, 'pending', 'rejected');
+      if (!result) {
+        // 状态已被其他审批人修改，重新读取最新状态
+        const currentEntity = await this.repository.findById(requestId);
+        if (currentEntity?.status === 'rejected') {
+          throw new Error('This request has already been rejected by another reviewer');
+        }
+      }
     } else {
-      // Check if all required approvals are met
+      // 检查是否所有需要的审批都已完成
       const approvedCount = updatedSteps.filter((s: ApprovalStepEntity) => s.status === 'approved').length;
       if (approvedCount >= entity.requiredApprovals) {
-        await this.repository.updateStatus(requestId, 'approved');
+        await this.repository.updateStatusWithCondition(requestId, 'pending', 'approved');
       } else {
-        // Advance to next level if serial mode
+        // 推进到下一级（serial 模式）
         await this.repository.advanceStep(requestId);
-        // Activate waiting steps for the current level
+        // 激活当前级别的待审批步骤
         await this.activateCurrentLevelSteps(requestId, updatedSteps);
       }
     }

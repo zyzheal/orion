@@ -7,6 +7,7 @@
 
 import { DatabasePool } from '../database';
 import { BaseRepository } from '../../db/base-repository';
+import { OrionError, ErrorCode } from '../../errors';
 
 // ==================== Entity Interfaces ====================
 
@@ -176,7 +177,7 @@ export class ArtifactRepository extends BaseRepository<ArtifactRecord> {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into artifacts returned no rows');
+      throw new OrionError('INSERT into artifacts returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -206,12 +207,12 @@ export class ArtifactRepository extends BaseRepository<ArtifactRecord> {
   /**
    * Find artifact by ID
    */
-  async findById(id: string): Promise<ArtifactRecord | undefined> {
+  async findById(id: string): Promise<ArtifactRecord | null> {
     const result = await this.db.query(
       `SELECT * FROM artifacts WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

@@ -16,6 +16,7 @@ import {
   CameraOutlined, SyncOutlined,
   StopOutlined, CloudServerOutlined,
 } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import {
   digitalTwinApi,
   type DigitalTwin,
@@ -348,9 +349,9 @@ const DigitalTwinPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>数字孪生</h2>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
@@ -372,7 +373,7 @@ const DigitalTwinPage: React.FC = () => {
       </div>
 
       {/* Summary Statistics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="孪生体总数" value={twins.length} />
@@ -380,17 +381,17 @@ const DigitalTwinPage: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃孪生体" value={activeTwins} valueStyle={{ color: '#52c41a' }} />
+            <Statistic title="活跃孪生体" value={activeTwins} valueStyle={{ color: colors.success[500] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃录制" value={activeRecordings} valueStyle={{ color: '#1677ff' }} />
+            <Statistic title="活跃录制" value={activeRecordings} valueStyle={{ color: colors.primary[500] }} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="回放会话" value={runningReplays} valueStyle={{ color: '#722ed1' }} />
+            <Statistic title="回放会话" value={runningReplays} valueStyle={{ color: colors.purple[500] }} />
           </Card>
         </Col>
       </Row>
@@ -457,7 +458,7 @@ const DigitalTwinPage: React.FC = () => {
       {selectedTwin && (
         <Card
           title="孪生体详情"
-          style={{ marginTop: 16 }}
+          style={{ marginTop: spacing.md }}
           extra={<Button onClick={() => setSelectedTwin(null)}>关闭</Button>}
         >
           <Descriptions column={2}>
@@ -474,9 +475,9 @@ const DigitalTwinPage: React.FC = () => {
             </Descriptions.Item>
           </Descriptions>
           {selectedTwin.services && selectedTwin.services.length > 0 && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <strong>关联服务:</strong>
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: spacing.sm }}>
                 {selectedTwin.services.map((s: string) => (
                   <Tag key={s}>{s}</Tag>
                 ))}

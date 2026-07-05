@@ -9,7 +9,7 @@
  * - 计算环境使用成本
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
 import {
   EphemeralEnvironment,
   EphemeralEnvCreateInput,
@@ -25,8 +25,9 @@ import { K8sProvisionerService } from './k8s-provisioner-service';
 import { EventBusService } from './event-bus-service';
 import { DatabasePool } from './database';
 import { EphemeralEnvRepository } from './ephemeral-env/EphemeralEnvRepository';
+import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ephemeral-env-service');
 
 // Cost rates per hour (MVP: simplified pricing)
 const COST_RATES = {
@@ -48,7 +49,7 @@ export class EphemeralEnvService {
     this.k8sProvisioner = options.k8sProvisioner;
     this.eventBus = options.eventBus;
     if (!options.database) {
-      throw new Error('EphemeralEnvService requires a database connection');
+      throw new OrionError('EphemeralEnvService requires a database connection', ErrorCode.SERVICE_UNAVAILABLE);
     }
     this.repository = new EphemeralEnvRepository(options.database);
   }
@@ -65,9 +66,7 @@ export class EphemeralEnvService {
     // Check for duplicate PR
     const existing = await this.repository.findByPrAndRepo(input.prId, input.repoId, ['destroyed']);
     if (existing) {
-      throw new Error(
-        `Ephemeral environment already exists for PR ${input.prId} in ${input.repoId} (status: ${existing.status})`
-      );
+      throw new OrionError('Invalid environment configuration', ErrorCode.VALIDATION_ERROR);
     }
 
     const env = createEphemeralEnvironment(input);
@@ -127,7 +126,7 @@ export class EphemeralEnvService {
   async getById(id: string): Promise<EphemeralEnvironment> {
     const env = await this.repository.findById(id);
     if (!env) {
-      throw new Error(`Ephemeral environment "${id}" not found`);
+      throw new OrionError(`Ephemeral environment "${id}" not found`, ErrorCode.NOT_FOUND);
     }
     return env;
   }
@@ -138,7 +137,7 @@ export class EphemeralEnvService {
   async wake(id: string): Promise<EphemeralEnvironment> {
     const env = await this.getById(id);
     if (env.status !== 'idle') {
-      throw new Error(`Environment is not idle (status: ${env.status})`);
+      throw new OrionError(`Environment is not idle (status: ${env.status})`, ErrorCode.NOT_FOUND);
     }
 
     wakeEnvironment(env);
@@ -156,7 +155,7 @@ export class EphemeralEnvService {
     const env = await this.getById(id);
 
     if (env.status === 'destroyed') {
-      throw new Error(`Environment already destroyed`);
+      throw new OrionError(`Environment already destroyed`, ErrorCode.NOT_FOUND);
     }
 
     markTearingDown(env, reason);
@@ -169,7 +168,7 @@ export class EphemeralEnvService {
       const message = error instanceof Error ? error.message : 'Unknown K8s teardown error';
       logger.error({ envId: env.id, error: message }, 'K8s teardown failed, resetting status');
       await this.repository.update(id, { status: 'idle' });
-      throw new Error(`Failed to teardown K8s resources: ${message}`);
+      throw new OrionError(`Failed to teardown K8s resources: ${message}`, ErrorCode.NOT_FOUND);
     }
 
     markDestroyed(env, reason);
@@ -215,7 +214,7 @@ export class EphemeralEnvService {
   async getPreviewUrl(id: string): Promise<string> {
     const env = await this.getById(id);
     if (!env.previewUrl) {
-      throw new Error('Preview URL not available');
+      throw new OrionError('Preview URL not available', ErrorCode.SERVICE_UNAVAILABLE);
     }
     return env.previewUrl;
   }
@@ -279,7 +278,7 @@ export class EphemeralEnvService {
     const env = await this.getById(id);
 
     if (env.status !== 'running') {
-      throw new Error(`Environment must be running to set idle (status: ${env.status})`);
+      throw new OrionError(`Environment must be running to set idle (status: ${env.status})`, 'VALIDATION_ERROR')
     }
 
     markIdle(env);

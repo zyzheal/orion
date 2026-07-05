@@ -1,12 +1,19 @@
 /**
- * ConfigAuditService - Configuration audit trail
+ * ConfigAuditService - Configuration audit trail with PostgreSQL persistence
  *
  * Records all configuration operations for compliance and traceability.
  * Supports querying, filtering, and exporting audit logs.
+ *
+ * Migration: in-memory Map/Array -> PostgreSQL (migration 377)
+ * Fallback: DB failure automatically falls back to in-memory storage.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
+
+// ============================================================
+// Types (public interface - unchanged)
+// ============================================================
 
 export type AuditAction =
   | 'config.create'
@@ -54,7 +61,7 @@ export interface AuditFilter {
 }
 
 // ============================================================
-// Repository
+// Repository (internal, with memory fallback)
 // ============================================================
 
 class ConfigAuditRepository {
@@ -69,115 +76,210 @@ class ConfigAuditRepository {
     return this.pool !== null;
   }
 
+  /** Insert one audit entry. Falls back to memory on DB failure. */
   async save(entry: ConfigAuditEntry): Promise<void> {
     if (!this.isDbAvailable()) {
       this.memory.unshift(entry);
       return;
     }
-    await this.pool!.query(
-      `INSERT INTO config_audit_log (
-        id, tenant_id, action, resource_type, resource_id, resource_key,
-        actor, actor_role, old_value, new_value, reason,
-        ip_address, user_agent, metadata, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [
-        entry.id, entry.tenantId, entry.action, entry.resourceType,
-        entry.resourceId, entry.resourceKey || null,
-        entry.actor, entry.actorRole || null,
-        entry.oldValue ? JSON.stringify(entry.oldValue) : null,
-        entry.newValue ? JSON.stringify(entry.newValue) : null,
-        entry.reason || null,
-        entry.ipAddress || null, entry.userAgent || null,
-        entry.metadata ? JSON.stringify(entry.metadata) : null,
-        entry.createdAt,
-      ]
-    );
+
+    try {
+      await this.pool!.query(
+        `INSERT INTO config_audit_logs (
+          id, tenant_id, action, resource_type, resource_id, resource_key,
+          actor, actor_role, old_value, new_value, reason,
+          ip_address, user_agent, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+        [
+          entry.id,
+          entry.tenantId,
+          entry.action,
+          entry.resourceType,
+          entry.resourceId,
+          entry.resourceKey ?? null,
+          entry.actor,
+          entry.actorRole ?? null,
+          entry.oldValue ? JSON.stringify(entry.oldValue) : null,
+          entry.newValue ? JSON.stringify(entry.newValue) : null,
+          entry.reason ?? null,
+          entry.ipAddress ?? null,
+          entry.userAgent ?? null,
+          entry.metadata ? JSON.stringify(entry.metadata) : null,
+          entry.createdAt.toISOString(),
+        ],
+      );
+    } catch {
+      // DB failure: degrade to memory
+      this.memory.unshift(entry);
+    }
   }
 
+  /** Query audit entries with filters. Falls back to memory on DB failure. */
   async query(filter: AuditFilter): Promise<ConfigAuditEntry[]> {
     if (!this.isDbAvailable()) {
-      let results = this.memory.filter(e => e.tenantId === filter.tenantId);
-      if (filter.action) {
-        const actions = Array.isArray(filter.action) ? filter.action : [filter.action];
-        results = results.filter(e => actions.includes(e.action));
-      }
-      if (filter.resourceType) results = results.filter(e => e.resourceType === filter.resourceType);
-      if (filter.resourceId) results = results.filter(e => e.resourceId === filter.resourceId);
-      if (filter.actor) results = results.filter(e => e.actor === filter.actor);
-      if (filter.startDate) results = results.filter(e => e.createdAt >= filter.startDate!);
-      if (filter.endDate) results = results.filter(e => e.createdAt <= filter.endDate!);
-      const offset = filter.offset || 0;
-      const limit = filter.limit || 100;
-      return results.slice(offset, offset + limit);
+      return this.queryMemory(filter);
     }
 
-    let query = 'SELECT * FROM config_audit_log WHERE tenant_id = $1';
+    try {
+      return await this.queryDb(filter);
+    } catch {
+      // DB failure: degrade to memory
+      return this.queryMemory(filter);
+    }
+  }
+
+  /** Count entries (optional resourceType filter). Falls back to memory on DB failure. */
+  async count(filter: { tenantId: string; resourceType?: string }): Promise<number> {
+    if (!this.isDbAvailable()) {
+      let results = this.memory.filter(e => e.tenantId === filter.tenantId);
+      if (filter.resourceType) {
+        results = results.filter(e => e.resourceType === filter.resourceType);
+      }
+      return results.length;
+    }
+
+    try {
+      return await this.countDb(filter);
+    } catch {
+      let results = this.memory.filter(e => e.tenantId === filter.tenantId);
+      if (filter.resourceType) {
+        results = results.filter(e => e.resourceType === filter.resourceType);
+      }
+      return results.length;
+    }
+  }
+
+  // --- Database path ---
+
+  private async queryDb(filter: AuditFilter): Promise<ConfigAuditEntry[]> {
+    let sql = 'SELECT * FROM config_audit_logs WHERE tenant_id = $1';
     const params: unknown[] = [filter.tenantId];
-    let paramIdx = 2;
+    let idx = 2;
 
     if (filter.action) {
       const actions = Array.isArray(filter.action) ? filter.action : [filter.action];
-      query += ` AND action = ANY($${paramIdx})`;
+      sql += ` AND action = ANY($${idx})`;
       params.push(actions);
-      paramIdx++;
+      idx++;
     }
     if (filter.resourceType) {
-      query += ` AND resource_type = $${paramIdx}`;
+      sql += ` AND resource_type = $${idx}`;
       params.push(filter.resourceType);
-      paramIdx++;
+      idx++;
     }
     if (filter.resourceId) {
-      query += ` AND resource_id = $${paramIdx}`;
+      sql += ` AND resource_id = $${idx}`;
       params.push(filter.resourceId);
-      paramIdx++;
+      idx++;
     }
     if (filter.actor) {
-      query += ` AND actor = $${paramIdx}`;
+      sql += ` AND actor = $${idx}`;
       params.push(filter.actor);
-      paramIdx++;
+      idx++;
     }
     if (filter.startDate) {
-      query += ` AND created_at >= $${paramIdx}`;
-      params.push(filter.startDate);
-      paramIdx++;
+      sql += ` AND created_at >= $${idx}`;
+      params.push(filter.startDate.toISOString());
+      idx++;
     }
     if (filter.endDate) {
-      query += ` AND created_at <= $${paramIdx}`;
-      params.push(filter.endDate);
-      paramIdx++;
+      sql += ` AND created_at <= $${idx}`;
+      params.push(filter.endDate.toISOString());
+      idx++;
     }
 
-    query += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY created_at DESC';
     if (filter.limit) {
-      query += ` LIMIT $${paramIdx}`;
+      sql += ` LIMIT $${idx}`;
       params.push(filter.limit);
-      paramIdx++;
+      idx++;
     }
     if (filter.offset) {
-      query += ` OFFSET $${paramIdx}`;
+      sql += ` OFFSET $${idx}`;
       params.push(filter.offset);
     }
 
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: any) => this.rowToEntry(r));
+    const rows = (await this.pool!.query(sql, params)).rows;
+    return rows.map((row: any) => this.rowToEntry(row));
+  }
+
+  private async countDb(filter: { tenantId: string; resourceType?: string }): Promise<number> {
+    let sql = 'SELECT COUNT(*) AS total FROM config_audit_logs WHERE tenant_id = $1';
+    const params: unknown[] = [filter.tenantId];
+    let idx = 2;
+
+    if (filter.resourceType) {
+      sql += ` AND resource_type = $${idx}`;
+      params.push(filter.resourceType);
+      idx++;
+    }
+
+    const result = await this.pool!.query(sql, params);
+    return parseInt(result.rows[0]?.total ?? '0', 10);
   }
 
   private rowToEntry(row: any): ConfigAuditEntry {
-    return {
-      id: row.id, tenantId: row.tenant_id, action: row.action as AuditAction,
-      resourceType: row.resource_type as ConfigAuditEntry['resourceType'],
-      resourceId: row.resource_id, resourceKey: row.resource_key || undefined,
-      actor: row.actor, actorRole: row.actor_role || undefined,
-      oldValue: row.old_value || undefined, newValue: row.new_value || undefined,
-      reason: row.reason || undefined, ipAddress: row.ip_address || undefined,
-      userAgent: row.user_agent || undefined, metadata: row.metadata || undefined,
-      createdAt: row.created_at,
+    const parseJson = (val: unknown): Record<string, unknown> | undefined => {
+      if (val === null || val === undefined) return undefined;
+      if (typeof val === 'object') return val as Record<string, unknown>;
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch { return undefined; }
+      }
+      return undefined;
     };
+
+    return {
+      id: row.id,
+      tenantId: row.tenant_id,
+      action: row.action as AuditAction,
+      resourceType: row.resource_type as ConfigAuditEntry['resourceType'],
+      resourceId: row.resource_id,
+      resourceKey: row.resource_key ?? undefined,
+      actor: row.actor,
+      actorRole: row.actor_role ?? undefined,
+      oldValue: parseJson(row.old_value),
+      newValue: parseJson(row.new_value),
+      reason: row.reason ?? undefined,
+      ipAddress: row.ip_address ?? undefined,
+      userAgent: row.user_agent ?? undefined,
+      metadata: parseJson(row.metadata),
+      createdAt: row.created_at ? new Date(row.created_at) : new Date(),
+    };
+  }
+
+  // --- Memory path ---
+
+  private queryMemory(filter: AuditFilter): ConfigAuditEntry[] {
+    let results = this.memory.filter(e => e.tenantId === filter.tenantId);
+
+    if (filter.action) {
+      const actions = Array.isArray(filter.action) ? filter.action : [filter.action];
+      results = results.filter(e => actions.includes(e.action));
+    }
+    if (filter.resourceType) {
+      results = results.filter(e => e.resourceType === filter.resourceType);
+    }
+    if (filter.resourceId) {
+      results = results.filter(e => e.resourceId === filter.resourceId);
+    }
+    if (filter.actor) {
+      results = results.filter(e => e.actor === filter.actor);
+    }
+    if (filter.startDate) {
+      results = results.filter(e => e.createdAt >= filter.startDate!);
+    }
+    if (filter.endDate) {
+      results = results.filter(e => e.createdAt <= filter.endDate!);
+    }
+
+    const offset = filter.offset || 0;
+    const limit = filter.limit || 100;
+    return results.slice(offset, offset + limit);
   }
 }
 
 // ============================================================
-// Service
+// Service (public interface - unchanged)
 // ============================================================
 
 export class ConfigAuditService {
@@ -202,7 +304,7 @@ export class ConfigAuditService {
       ipAddress?: string;
       userAgent?: string;
       metadata?: Record<string, unknown>;
-    }
+    },
   ): Promise<ConfigAuditEntry> {
     const entry: ConfigAuditEntry = {
       id: uuidv4(),
@@ -231,11 +333,6 @@ export class ConfigAuditService {
   }
 
   async getEntryCount(tenantId: string, resourceType?: string): Promise<number> {
-    const entries = await this.repository.query({
-      tenantId,
-      resourceType,
-      limit: 10000,
-    });
-    return entries.length;
+    return this.repository.count({ tenantId, resourceType });
   }
 }

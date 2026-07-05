@@ -9,9 +9,10 @@
  */
 
 import { parentPort } from 'worker_threads';
+import { OrionError, ErrorCode } from '../../errors';
 
 if (!parentPort) {
-  throw new Error('This file must be run as a Worker Thread');
+  throw new OrionError('This file must be run as a Worker Thread', ErrorCode.OPERATION_FAILED);
 }
 
 // ==================== Security: Blocklists ====================
@@ -74,7 +75,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
 
   // Check tool permission
   if (!profile.allowedTools.includes(action)) {
-    throw new Error(`Tool "${action}" is not allowed`);
+    throw new OrionError(`Tool "${action}" is not allowed`, ErrorCode.NOT_FOUND);
   }
 
   let output: Record<string, unknown>;
@@ -82,7 +83,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'read_file': {
       const filePath = (input.filePath as string) || '/dev/null';
       if (isPathBlocked(filePath)) {
-        throw new Error(`Access to "${filePath}" is blocked`);
+        throw new OrionError(`Access to "${filePath}" is blocked`, ErrorCode.NOT_FOUND);
       }
       output = {
         success: true,
@@ -97,7 +98,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'run_command': {
       const command = (input.command as string) || 'echo hello';
       if (isCommandBlocked(command)) {
-        throw new Error(`Command "${command}" is forbidden`);
+        throw new OrionError(`Command "${command}" is forbidden`, 'VALIDATION_ERROR')
       }
       output = {
         success: true,
@@ -114,7 +115,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     case 'write_code': {
       const filePath = (input.filePath as string) || '/tmp/agent-output.ts';
       if (isPathBlocked(filePath)) {
-        throw new Error(`Write to "${filePath}" is blocked`);
+        throw new OrionError(`Write to "${filePath}" is blocked`, 'OPERATION_FAILED')
       }
       const content = (input.content as string) || '// Agent generated code';
       output = {
@@ -147,7 +148,7 @@ async function executeInSandbox(task: SandboxTask): Promise<{ output: Record<str
     }
 
     default:
-      throw new Error(`Unknown action: ${action}`);
+      throw new OrionError(`Unknown action: ${action}`, 'NOT_FOUND')
   }
 
   return { output, durationMs: Date.now() - startTime };

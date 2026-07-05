@@ -5,6 +5,7 @@
  * over time windows, and anomaly detection using statistical methods (z-score).
  */
 
+import { v4 as uuidv4 } from 'uuid';
 import {
   MetricSeries,
   MetricAggregation,
@@ -14,6 +15,7 @@ import {
   AlertSeverity,
 } from './types';
 import { MetricCollector } from './MetricCollector';
+import { MonitoringWidgetConfigRepository, MonitoringWidgetConfigEntity } from '../../repositories/MonitoringWidgetConfigRepository';
 
 /**
  * Time window for aggregation
@@ -65,12 +67,21 @@ export class MonitoringDashboard {
   /** Default z-score threshold for anomaly detection */
   private anomalyThreshold: number;
 
-  /** Widget configurations */
-  private widgetConfigs: WidgetConfig[] = [];
+  /** Widget configurations repository */
+  private widgetConfigRepository?: MonitoringWidgetConfigRepository;
 
-  constructor(metricCollector: MetricCollector, options?: { anomalyThreshold?: number }) {
+  /** In-memory fallback for widget configs */
+  private widgetConfigsMemory: WidgetConfig[] = [];
+
+  constructor(
+    metricCollector: MetricCollector,
+    options?: { anomalyThreshold?: number; db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } },
+  ) {
     this.metricCollector = metricCollector;
     this.anomalyThreshold = options?.anomalyThreshold ?? 2.5;
+    if (options?.db) {
+      this.widgetConfigRepository = new MonitoringWidgetConfigRepository(options.db);
+    }
   }
 
   // ==================== Dashboard Data Generation ====================
@@ -78,33 +89,72 @@ export class MonitoringDashboard {
   /**
    * Add a widget configuration
    */
-  addWidgetConfig(config: WidgetConfig): void {
-    this.widgetConfigs.push(config);
+  async addWidgetConfig(config: WidgetConfig): Promise<void> {
+    if (this.widgetConfigRepository) {
+      try {
+        await this.widgetConfigRepository.create({
+          id: uuidv4(),
+          tenantId: 'default',
+          title: config.title,
+          metrics: config.metrics,
+          timeWindow: config.timeWindow,
+          tags: config.tags || {},
+          sortOrder: this.widgetConfigsMemory.length,
+        });
+      } catch (err) {
+        this.widgetConfigsMemory.push(config);
+      }
+    } else {
+      this.widgetConfigsMemory.push(config);
+    }
   }
 
   /**
    * Remove a widget configuration
    */
-  removeWidgetConfig(index: number): void {
-    this.widgetConfigs.splice(index, 1);
+  async removeWidgetConfig(index: number): Promise<void> {
+    if (this.widgetConfigRepository) {
+      const configs = await this.getWidgetConfigs();
+      if (index >= 0 && index < configs.length) {
+        const config = configs[index];
+        // Find by matching title and metrics (since we don't have a direct ID mapping)
+        const entities = await this.widgetConfigRepository.findByTenantId('default');
+        const entity = entities.find(e => e.title === config.title);
+        if (entity) {
+          await this.widgetConfigRepository.delete(entity.id);
+        }
+      }
+    } else {
+      this.widgetConfigsMemory.splice(index, 1);
+    }
   }
 
   /**
    * Get all widget configurations
    */
-  getWidgetConfigs(): WidgetConfig[] {
-    return [...this.widgetConfigs];
+  async getWidgetConfigs(): Promise<WidgetConfig[]> {
+    if (this.widgetConfigRepository) {
+      const entities = await this.widgetConfigRepository.findByTenantId('default');
+      return entities.map(e => ({
+        title: e.title,
+        metrics: e.metrics,
+        timeWindow: e.timeWindow as TimeWindow,
+        tags: Object.keys(e.tags).length > 0 ? e.tags : undefined,
+      }));
+    }
+    return [...this.widgetConfigsMemory];
   }
 
   /**
    * Generate complete dashboard data
    */
-  getDashboardData(
+  async getDashboardData(
     activeAlertCounts?: Record<AlertSeverity, number>
-  ): DashboardData {
+  ): Promise<DashboardData> {
     const widgets: DashboardWidget[] = [];
+    const configs = await this.getWidgetConfigs();
 
-    for (const config of this.widgetConfigs) {
+    for (const config of configs) {
       const widget = this.generateWidget(config);
       widgets.push(widget);
     }
@@ -389,7 +439,10 @@ export class MonitoringDashboard {
   /**
    * Clear widget configurations
    */
-  clearWidgetConfigs(): void {
-    this.widgetConfigs = [];
+  async clearWidgetConfigs(): Promise<void> {
+    if (this.widgetConfigRepository) {
+      await this.widgetConfigRepository.deleteByTenant('default');
+    }
+    this.widgetConfigsMemory = [];
   }
 }

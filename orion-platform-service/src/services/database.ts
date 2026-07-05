@@ -11,6 +11,10 @@
 import { EventEmitter } from 'events';
 import * as pg from 'pg';
 import { tenantContextStorage } from '../db/tenant-context-storage';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode } from '../errors';
+
+const logger = createLogger('database');
 
 const { Pool } = pg;
 
@@ -51,7 +55,7 @@ export class DatabasePool extends EventEmitter {
     }
 
     this.isInitializing = true;
-    console.log('[] Initializing connection pool...');
+    logger.info('[] Initializing connection pool...');
 
     try {
       this.pool = new Pool({
@@ -60,14 +64,14 @@ export class DatabasePool extends EventEmitter {
         user: this.config.user,
         password: this.config.password,
         database: this.config.database,
-        max: this.config.poolSize || 10,
+        max: this.config.poolSize || 25,
         connectionTimeoutMillis: this.config.connectionTimeout || 5000,
-        idleTimeoutMillis: this.config.idleTimeout || 10000,
+        idleTimeoutMillis: this.config.idleTimeout || 60000,
         ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
       });
 
       this.pool.on('error', (err) => {
-        console.error('[] Unexpected pool error:', err);
+        logger.error('[] Unexpected pool error:', err);
         this.emit('error', err);
       });
 
@@ -81,7 +85,7 @@ export class DatabasePool extends EventEmitter {
 
       this.isConnected = true;
       this.emit('connect');
-      console.log(`[] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
+      logger.info(`[] Connected to database ${this.config.database} at ${this.config.host}:${this.config.port}`);
     } catch (error) {
       this.emit('error', error);
       throw error;
@@ -95,7 +99,7 @@ export class DatabasePool extends EventEmitter {
    */
   async getConnection(): Promise<pg.PoolClient> {
     if (!this.isConnected || !this.pool) {
-      throw new Error('Database not connected');
+      throw new OrionError('Database not connected', ErrorCode.OPERATION_FAILED);
     }
 
     return this.pool.connect();
@@ -109,7 +113,7 @@ export class DatabasePool extends EventEmitter {
    */
   async query(sql: string, params?: any[]): Promise<QueryResult> {
     if (!this.pool) {
-      throw new Error('Database pool not initialized');
+      throw new OrionError('Database pool not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 优先使用请求绑定的连接（RLS session variable 已设置）
@@ -140,7 +144,7 @@ export class DatabasePool extends EventEmitter {
    */
   async transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
     if (!this.pool) {
-      throw new Error('Database pool not initialized');
+      throw new OrionError('Database pool not initialized', ErrorCode.OPERATION_FAILED);
     }
 
     // 在请求上下文中，复用已有的 tenant-scoped client 执行事务
@@ -155,7 +159,7 @@ export class DatabasePool extends EventEmitter {
         try {
           await store.dbClient.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[Database] Transaction rollback failed:', rollbackError);
+          logger.error('[Database] Transaction rollback failed:', rollbackError);
         }
         throw error;
       }
@@ -176,7 +180,7 @@ export class DatabasePool extends EventEmitter {
         try {
           await client.query('ROLLBACK');
         } catch (rollbackError) {
-          console.error('[Database] Transaction rollback failed:', rollbackError);
+          logger.error('[Database] Transaction rollback failed:', rollbackError);
         }
       }
       throw error;
@@ -216,13 +220,13 @@ export class DatabasePool extends EventEmitter {
       return;
     }
 
-    console.log('[] Closing connection pool...');
+    logger.info('[] Closing connection pool...');
 
     await this.pool.end();
     this.isConnected = false;
 
     this.emit('close');
-    console.log('[] Connection pool closed');
+    logger.info('[] Connection pool closed');
   }
 
   /**

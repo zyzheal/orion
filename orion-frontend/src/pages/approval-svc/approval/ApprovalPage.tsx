@@ -57,6 +57,7 @@ import {
 } from '@/api/approvals';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { spacing } from '@/tokens';
 
 dayjs.extend(relativeTime);
 
@@ -108,7 +109,7 @@ const StatsPanel: React.FC<{ approvals: ApprovalRequest[] }> = ({ approvals }) =
   };
 
   return (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card size="small" style={{ marginBottom: spacing.md }}>
       <Row gutter={16}>
         <Col span={6}>
           <Statistic title="总计" value={stats.total} />
@@ -154,7 +155,7 @@ const ApprovalPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getApprovals();
-      const list = res.data?.data?.approvals;
+      const list = res.data?.approvals;
       setApprovals(Array.isArray(list) ? list : []);
     } catch (error: unknown) {
       setApprovals([]);
@@ -301,7 +302,7 @@ const ApprovalPage: React.FC = () => {
   const loadDetail = async (id: string) => {
     try {
       const res = await getApproval(id);
-      const detail = res.data?.data;
+      const detail = res.data;
       if (detail) setSelectedApproval(detail);
     } catch {
       // fallback
@@ -491,10 +492,10 @@ const ApprovalPage: React.FC = () => {
                 dot={c.action === 'approved' ? <CheckCircleOutlined /> : <StopOutlined />}
               >
                 <Text strong>{c.userId}</Text>
-                <Tag color={c.action === 'approved' ? 'success' : 'error'} style={{ marginLeft: 8 }}>
+                <Tag color={c.action === 'approved' ? 'success' : 'error'} style={{ marginLeft: spacing.sm }}>
                   {c.action === 'approved' ? '通过' : '拒绝'}
                 </Tag>
-                <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                <Text type="secondary" style={{ marginLeft: spacing.sm, fontSize: 12 }}>
                   {dayjs(c.createdAt).fromNow()}
                 </Text>
                 {c.comment && <div style={{ marginTop: 4 }}>{c.comment}</div>}
@@ -523,9 +524,10 @@ const ApprovalPage: React.FC = () => {
       {isInitialLoading ? null : (
         <>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
             <div>
-              <Title level={3} style={{ margin: 0 }}>审批工作流</Title>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <CheckCircleOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />审批工作流</Title>
               <Text type="secondary">多级审批流程管理，包含待审批列表和紧急审批通道</Text>
             </div>
             <Space>
@@ -540,7 +542,7 @@ const ApprovalPage: React.FC = () => {
 
           {/* Filters */}
           <Card>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: spacing.md, marginBottom: spacing.md }}>
               <Input.Search placeholder="搜索审批标题、描述或申请人..." allowClear style={{ width: 320 }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onSearch={setSearchQuery} />
               <Select style={{ width: 140 }} value={statusFilter} onChange={(v) => setStatusFilter(v)} options={[
                 { label: '全部状态', value: 'all' },
@@ -556,9 +558,9 @@ const ApprovalPage: React.FC = () => {
 
           {/* Create Modal */}
           <Modal title="创建审批请求" open={createModalVisible} onCancel={() => setCreateModalVisible(false)} onOk={handleCreate} confirmLoading={submitting} width={600} destroyOnClose>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <Text type="secondary">快速选择模板：</Text>
-              <Space style={{ marginTop: 8 }} wrap>
+              <Space style={{ marginTop: spacing.sm }} wrap>
                 {APPROVAL_TEMPLATES.map((t) => (
                   <Button key={t.id} size="small" onClick={() => handleTemplateSelect(t)}>{t.name}</Button>
                 ))}
@@ -595,7 +597,7 @@ const ApprovalPage: React.FC = () => {
 
           {/* Emergency Approval Modal */}
           <Modal
-            title={<span><FireOutlined style={{ color: colors.error[400], marginRight: 8 }} />紧急审批通道</span>}
+            title={<span><FireOutlined style={{ color: colors.error[400], marginRight: spacing.sm }} />紧急审批通道</span>}
             open={emergencyModalVisible}
             onCancel={() => setEmergencyModalVisible(false)}
             onOk={handleEmergencyCreate}
@@ -603,7 +605,7 @@ const ApprovalPage: React.FC = () => {
             width={600}
             destroyOnClose
           >
-            <Alert message="紧急审批仅需 1 人审批即可通过，请确保情况属实" type="warning" showIcon style={{ marginBottom: 16 }} />
+            <Alert message="紧急审批仅需 1 人审批即可通过，请确保情况属实" type="warning" showIcon style={{ marginBottom: spacing.md }} />
             <Form form={emergencyForm} layout="vertical">
               <Form.Item name="title" label="审批标题" rules={[{ required: true }]}>
                 <Input placeholder="紧急审批标题" />
@@ -643,7 +645,7 @@ const ApprovalPage: React.FC = () => {
             okText={commentAction === 'approve' ? '通过' : '拒绝'}
             okButtonProps={{ danger: commentAction === 'reject', style: commentAction === 'approve' ? { backgroundColor: colors.success[500], borderColor: colors.success[500] } : undefined }}
           >
-            <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: spacing.sm }}>
               <Text type="secondary">{commentAction === 'approve' ? '确认通过该审批？可填写评论理由（可选）。' : '确认拒绝该审批？请填写拒绝理由（可选）。'}</Text>
             </div>
             <Input.TextArea rows={4} placeholder={commentAction === 'reject' ? '请输入拒绝理由...' : '请输入评论/理由（可选）...'} value={commentText} onChange={(e) => setCommentText(e.target.value)} maxLength={500} showCount />

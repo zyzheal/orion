@@ -5,23 +5,25 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import {
   CrossDomainOrchestrator,
   CreateOrchestrationInput,
   OrchestrationListFilter,
 } from '../../services/cross-domain-orchestration/CrossDomainOrchestrator';
 
-export class CrossDomainOrchestrationController {
+export class CrossDomainOrchestrationController extends BaseController {
   private orchestrator: CrossDomainOrchestrator;
 
   constructor(orchestrator: CrossDomainOrchestrator) {
+    super();
     this.orchestrator = orchestrator;
   }
 
   async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const createdBy = (request.headers['x-user-id'] as string) || 'system';
 
       const { name, description, domains, steps, metadata } = body;
@@ -57,7 +59,7 @@ export class CrossDomainOrchestrationController {
 
   async list(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
 
       const filter: OrchestrationListFilter = {

@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS quality_gates (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id         VARCHAR(100) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   name              VARCHAR(200) NOT NULL,
   description       TEXT,
   rules             JSONB NOT NULL DEFAULT '[]',

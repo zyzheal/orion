@@ -70,5 +70,12 @@ CREATE TABLE IF NOT EXISTS agent_approvals (
 CREATE INDEX idx_agent_approvals_run ON agent_approvals(run_id);
 CREATE INDEX idx_agent_approvals_status ON agent_approvals(status);
 
+-- ============================================================
+-- Tenant isolation: fix agent_profiles tenant_id
+-- ============================================================
+
+ALTER TABLE agent_profiles ADD COLUMN IF NOT EXISTS tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';
+CREATE INDEX IF NOT EXISTS idx_agent_profiles_tenant_id ON agent_profiles(tenant_id);
+
 -- Rollback:
 -- DROP TABLE IF EXISTS agent_approvals, agent_decisions, agent_runs, agent_profiles;

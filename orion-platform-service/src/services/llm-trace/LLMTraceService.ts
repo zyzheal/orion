@@ -11,9 +11,11 @@
 
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { LLMTraceRepository } from '../../repositories/LLMTraceRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('LLMTraceService');
 
 // Model pricing (CNY per token)
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
@@ -82,12 +84,17 @@ export interface DailyStats {
 }
 
 export class LLMTraceService extends EventEmitter {
-  private traces: Map<string, LLMTrace> = new Map();
   private completedCount: number = 0;
   private failedCount: number = 0;
+  private repo: LLMTraceRepository;
 
-  constructor() {
+  constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number }> }) {
     super();
+    if (db) {
+      this.repo = new LLMTraceRepository(db);
+    } else {
+      throw new OrionError('Database connection required for LLMTraceService', ErrorCode.SERVICE_UNAVAILABLE);
+    }
   }
 
   generateTraceId(): string {
@@ -120,22 +127,24 @@ export class LLMTraceService extends EventEmitter {
       requestContext: params.requestContext,
     };
 
-    this.traces.set(traceId, trace);
-
-    // Store in database (placeholder - actual implementation would use Repository)
-    logger.debug(`[LLMTrace] Started trace: ${traceId}`);
-
-    this.emit('trace:started', trace);
-    return trace;
+    // Persist to database
+    try {
+      const saved = await this.repo.create(trace);
+      logger.debug(`[LLMTrace] Started trace: ${traceId}`);
+      this.emit('trace:started', saved);
+      return saved;
+    } catch (err) {
+      logger.error(`[LLMTrace] Failed to persist trace ${traceId}:`, err);
+      throw new OrionError(`Failed to create trace: ${traceId}`, ErrorCode.OPERATION_FAILED);
+    }
   }
 
   async completeTrace(traceId: string, params: TraceCompleteParams): Promise<LLMTrace> {
-    const trace = this.traces.get(traceId);
+    const trace = await this.repo.findByTraceId(traceId);
     if (!trace) {
-      throw new Error(`Trace not found: ${traceId}`);
+      throw new OrionError(`Trace not found: ${traceId}`, ErrorCode.NOT_FOUND);
     }
 
-    // Calculate cost
     const cost = this.calculateCost({
       modelId: trace.modelId,
       inputTokens: params.inputTokens,
@@ -143,32 +152,43 @@ export class LLMTraceService extends EventEmitter {
     });
 
     const outputHash = this.hashContent(params.outputContent);
+    const status = params.errorMessage ? 'failed' : 'completed';
+    const requestCompletedAt = new Date();
+    const durationMs = requestCompletedAt.getTime() - trace.requestStartedAt.getTime();
 
-    // Update trace
-    trace.outputContent = params.outputContent;
-    trace.outputHash = outputHash;
-    trace.inputTokens = params.inputTokens;
-    trace.outputTokens = params.outputTokens;
-    trace.totalTokens = params.inputTokens + params.outputTokens;
-    trace.inputCost = cost.inputCost;
-    trace.outputCost = cost.outputCost;
-    trace.totalCost = cost.totalCost;
-    trace.status = params.errorMessage ? 'failed' : 'completed';
-    trace.requestCompletedAt = new Date();
-    trace.durationMs = trace.requestCompletedAt.getTime() - trace.requestStartedAt.getTime();
-    trace.errorMessage = params.errorMessage;
-
-    if (trace.status === 'completed') {
+    if (status === 'completed') {
       this.completedCount++;
     } else {
       this.failedCount++;
     }
 
-    // Update in database (placeholder)
-    logger.debug(`[LLMTrace] Completed trace: ${traceId} tokens=${trace.totalTokens} cost=${trace.totalCost}`);
+    // Update in database
+    try {
+      const updated = await this.repo.update(traceId, {
+        outputContent: params.outputContent,
+        outputHash,
+        inputTokens: params.inputTokens,
+        outputTokens: params.outputTokens,
+        totalTokens: params.inputTokens + params.outputTokens,
+        inputCost: cost.inputCost,
+        outputCost: cost.outputCost,
+        totalCost: cost.totalCost,
+        status,
+        requestCompletedAt,
+        durationMs,
+        errorMessage: params.errorMessage,
+      });
 
-    this.emit('trace:completed', trace);
-    return trace;
+      if (!updated) {
+        throw new OrionError(`Trace not found: ${traceId}`, ErrorCode.NOT_FOUND);
+      }
+      logger.debug(`[LLMTrace] Completed trace: ${traceId} tokens=${updated.totalTokens} cost=${updated.totalCost}`);
+      this.emit('trace:completed', updated);
+      return updated;
+    } catch (err) {
+      logger.error(`[LLMTrace] Failed to update trace ${traceId}:`, err);
+      throw new OrionError(`Failed to update trace: ${traceId}`, ErrorCode.OPERATION_FAILED);
+    }
   }
 
   calculateCost(params: { modelId: string; inputTokens: number; outputTokens: number }): {
@@ -177,11 +197,9 @@ export class LLMTraceService extends EventEmitter {
     totalCost: number;
   } {
     const pricing = MODEL_PRICING[params.modelId] || MODEL_PRICING['gpt-4'];
-
     const inputCost = params.inputTokens * pricing.input;
     const outputCost = params.outputTokens * pricing.output;
     const totalCost = inputCost + outputCost;
-
     return { inputCost, outputCost, totalCost };
   }
 
@@ -189,16 +207,16 @@ export class LLMTraceService extends EventEmitter {
     return crypto.createHash('sha256').update(content).digest('hex').slice(0, 64);
   }
 
-  getTrace(traceId: string): LLMTrace | null {
-    return this.traces.get(traceId) || null;
+  async getTrace(traceId: string): Promise<LLMTrace | null> {
+    return (await this.repo.findByTraceId(traceId)) || null;
   }
 
-  getTracesByTenant(tenantId: number): LLMTrace[] {
-    return Array.from(this.traces.values()).filter(t => t.tenantId === tenantId);
+  async getTracesByTenant(tenantId: number): Promise<LLMTrace[]> {
+    return this.repo.findByTenant(tenantId);
   }
 
-  getTracesByScenario(scenarioId: string): LLMTrace[] {
-    return Array.from(this.traces.values()).filter(t => t.scenarioId === scenarioId);
+  async getTracesByScenario(scenarioId: string): Promise<LLMTrace[]> {
+    return this.repo.findByScenario(scenarioId);
   }
 
   getTrackingAccuracy(): number {
@@ -215,45 +233,24 @@ export class LLMTraceService extends EventEmitter {
   }
 
   async aggregateDailyStats(tenantId: number, date: Date): Promise<DailyStats> {
-    const traces = this.getTracesByTenant(tenantId);
     const dateStr = date.toISOString().slice(0, 10);
 
-    const dayTraces = traces.filter(t => {
-      const traceDate = t.requestStartedAt.toISOString().slice(0, 10);
-      return traceDate === dateStr && t.status !== 'pending';
-    });
-
-    const totalRequests = dayTraces.length;
-    const completedTraces = dayTraces.filter(t => t.status === 'completed');
-
-    const totalTokens = dayTraces.reduce((sum, t) => sum + t.totalTokens, 0);
-    const totalCost = dayTraces.reduce((sum, t) => sum + t.totalCost, 0);
-    const avgDurationMs = totalRequests > 0
-      ? dayTraces.reduce((sum, t) => sum + (t.durationMs || 0), 0) / totalRequests
-      : 0;
-    const successRate = totalRequests > 0 ? completedTraces.length / totalRequests : 1.0;
-
+    const row = await this.repo.getDailyStats(tenantId, dateStr);
     return {
-      totalRequests,
-      totalTokens,
-      totalCost,
-      avgDurationMs,
-      successRate,
+      totalRequests: parseInt(String(row.total_requests), 10),
+      totalTokens: parseInt(String(row.total_tokens), 10),
+      totalCost: parseFloat(String(row.total_cost)),
+      avgDurationMs: parseFloat(String(row.avg_duration_ms)),
+      successRate: parseFloat(String(row.success_rate)),
     };
   }
 
-  /**
-   * Get all traces (for batch operations)
-   */
-  getAllTraces(): LLMTrace[] {
-    return Array.from(this.traces.values());
+  async getAllTraces(): Promise<LLMTrace[]> {
+    return this.repo.findAll();
   }
 
-  /**
-   * Clear traces (for testing)
-   */
-  clearTraces(): void {
-    this.traces.clear();
+  async clearTraces(): Promise<void> {
+    await this.repo.deleteAll();
     this.completedCount = 0;
     this.failedCount = 0;
   }

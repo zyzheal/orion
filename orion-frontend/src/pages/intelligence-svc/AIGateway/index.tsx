@@ -16,7 +16,7 @@ import {
   Progress,
   message,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ThunderboltOutlined,
   SafetyOutlined,
@@ -24,6 +24,7 @@ import {
   CloseCircleOutlined,
   ReloadOutlined,
   SettingOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getAllHealth, getRules, getGatewayStatus, getEngineStatus } from '@/api/ai-gateway';
@@ -61,10 +62,10 @@ const AIGatewayPage: React.FC = () => {
         getEngineStatus(),
         getRules(),
       ]);
-      setHealthData(healthRes.data.data.health || []);
-      setGatewayStatus(statusRes.data.data);
-      setEngineStatus(engineRes.data.data);
-      setRules(rulesRes.data.data.rules);
+      setHealthData(healthRes.data.health || []);
+      setGatewayStatus(statusRes.data);
+      setEngineStatus(engineRes.data);
+      setRules(rulesRes.data.rules);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载 AI Gateway 数据失败：${error.message}`);
@@ -182,11 +183,14 @@ const AIGatewayPage: React.FC = () => {
 
   return (
     <DashboardLayout>
-      <div style={{ padding: 24 }}>
+      <div style={{ padding: spacing.lg }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
           <div>
-            <Title level={2}>AI 网关管理</Title>
+            <Title level={2} style={{ marginBottom: spacing.sm }}>
+              <RobotOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+              AI 网关管理
+            </Title>
             <Text type="secondary">AI 模型路由、降级处理、规则引擎监控</Text>
           </div>
           <Space>
@@ -198,7 +202,7 @@ const AIGatewayPage: React.FC = () => {
         </div>
 
         {/* Summary Cards */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Row gutter={16} style={{ marginBottom: spacing.lg }}>
           <Col span={6}>
             <Card>
               <Statistic
@@ -241,7 +245,7 @@ const AIGatewayPage: React.FC = () => {
         </Row>
 
         {/* Gateway Status */}
-        <Card title="网关状态" style={{ marginBottom: 24 }}>
+        <Card title="网关状态" style={{ marginBottom: spacing.lg }}>
           <Space size="large">
             <div>
               <Text type="secondary">网关状态:</Text>{' '}
@@ -270,13 +274,13 @@ const AIGatewayPage: React.FC = () => {
         </Card>
 
         {/* Rules Info */}
-        <Card title="规则引擎" style={{ marginTop: 24 }}>
+        <Card title="规则引擎" style={{ marginTop: spacing.lg }}>
           {rules ? (
             <div>
               <Text>内置降级规则覆盖 {rules.scenarios?.length || 15} 个 AI 场景</Text>
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginTop: spacing[3] }}>
                 {rules.scenarios?.map((s: string) => (
-                  <Tag key={s} style={{ marginBottom: 8 }}>
+                  <Tag key={s} style={{ marginBottom: spacing.sm }}>
                     {s}
                   </Tag>
                 ))}

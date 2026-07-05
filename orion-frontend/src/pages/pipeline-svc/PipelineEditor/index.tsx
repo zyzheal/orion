@@ -2,7 +2,7 @@
  * Pipeline Editor Page - 可视化 Pipeline 编辑器
  * 支持拖拽式 Stage 编排、Stage 增删改、依赖配置、YAML 预览
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Typography,
   Button,
@@ -19,8 +19,10 @@ import {
   Segmented,
 } from 'antd';
 import { spacing } from '@/tokens';
+import { colors } from '@/tokens';
 import {
   PlusOutlined,
+  EditOutlined,
   SaveOutlined,
   UndoOutlined,
   DragOutlined,
@@ -32,13 +34,14 @@ import {
 } from '@ant-design/icons';
 import { DndContext, closestCenter } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StageItem from './StageItem';
 import StageModal from './StageModal';
 import { getPipeline, createPipeline, updatePipeline } from '@/api/pipelines';
 import { DAGGraph, validateDAG } from '@/components/DAGGraph';
 import { ApartmentOutlined } from '@ant-design/icons';
 import { PipelineCanvas } from './canvas';
+import { pipelineTemplates } from '@/api/pipeline-templates';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -92,6 +95,8 @@ const STAGE_TYPES = [
 const PipelineEditor: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const templateId = searchParams.get('template');
   const [form] = Form.useForm();
 
   // Pipeline 基本信息
@@ -127,7 +132,8 @@ const PipelineEditor: React.FC = () => {
     if (id) {
       getPipeline(id)
         .then((response) => {
-          const pipeline: any = response.data.data;
+          // Backend returns pipeline object directly: { id, name, version, ... }
+          const pipeline: any = response.data;
           if (pipeline) {
             setPipelineInfo({
               name: pipeline.name,
@@ -168,6 +174,30 @@ const PipelineEditor: React.FC = () => {
         });
     }
   }, [id]);
+
+  // Load template stages (when creating from template)
+  React.useEffect(() => {
+    if (templateId && !id) {
+      const tpl = pipelineTemplates.find((t) => t.id === templateId);
+      if (tpl) {
+        setPipelineInfo({
+          name: tpl.name,
+          version: '1.0.0',
+          description: tpl.description,
+        });
+        const stages: StageConfig[] = tpl.stages.map((s, idx) => ({
+          id: `stage-${idx}-${Date.now()}`,
+          name: s.name,
+          type: s.type,
+          timeout: 300,
+          retryCount: 0,
+          dependsOn: [],
+          config: s.config || {},
+        }));
+        setStages(stages);
+      }
+    }
+  }, [templateId, id]);
 
   // 生成 YAML (FIXED P0-8: aligned with backend PipelineStage schema)
   const generateYaml = useCallback(() => {
@@ -449,23 +479,33 @@ const PipelineEditor: React.FC = () => {
   );
 
   return (
-    <div style={{ padding: 0, maxWidth: 1200, margin: '0 auto' }}>
-      {/* 页面头部 */}
+    <div style={{ padding: 0 }}>
+      {/* 页面头部 - 与列表页风格一致 */}
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          marginBottom: 24,
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          marginBottom: spacing.lg,
         }}
       >
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/pipelines')}>
-          返回列表
-        </Button>
-        <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
-            {id ? '编辑 Pipeline' : '创建 Pipeline'}
-          </Title>
+        <div>
+          <div style={{ marginBottom: spacing.sm }}>
+            <Space align="center">
+              <Button
+                type="text"
+                icon={<ArrowLeftOutlined />}
+                onClick={() => navigate('/pipelines')}
+                size="small"
+              >
+                返回列表
+              </Button>
+              <Title level={2} style={{ marginBottom: 0, display: 'flex', alignItems: 'center' }}>
+                <EditOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                {id ? '编辑 Pipeline' : '创建 Pipeline'}
+              </Title>
+            </Space>
+          </div>
           <Text type="secondary">可视化编排您的 CI/CD 流水线</Text>
         </div>
         <Space>
@@ -515,7 +555,7 @@ const PipelineEditor: React.FC = () => {
       </div>
 
       {/* Pipeline 基本信息 */}
-      <Card style={{ marginBottom: 24 }} title="基本信息">
+      <Card style={{ marginBottom: spacing.lg }} title="基本信息">
         <Form form={form} layout="inline" requiredMark>
           <Form.Item
             label="名称"
@@ -627,7 +667,7 @@ const PipelineEditor: React.FC = () => {
 
       {/* DAG 依赖关系可视化 */}
       {dagPreviewVisible && stages.length > 0 && (
-        <Card style={{ marginTop: 24 }} title="DAG 依赖关系">
+        <Card style={{ marginTop: spacing.lg }} title="DAG 依赖关系">
           <Alert
             type={validateDAG(stages).valid ? 'success' : 'error'}
             message={validateDAG(stages).valid ? '依赖关系有效，无循环依赖' : '依赖关系存在问题'}
@@ -637,14 +677,14 @@ const PipelineEditor: React.FC = () => {
                 : validateDAG(stages).errors.join('; ')
             }
             showIcon
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: spacing.md }}
           />
           <DAGGraph stages={stages} height={350} showMiniMap={false} />
         </Card>
       )}
 
       {/* Stage 类型说明 */}
-      <Card style={{ marginTop: 24 }} title="阶段类型说明">
+      <Card style={{ marginTop: spacing.lg }} title="阶段类型说明">
         <Space wrap>
           {STAGE_TYPES.map((type) => (
             <Tag

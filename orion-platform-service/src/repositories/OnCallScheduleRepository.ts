@@ -1,4 +1,5 @@
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface OnCallScheduleEntity {
   id: string;
@@ -51,7 +52,7 @@ export class OnCallScheduleRepository extends BaseRepository<OnCallScheduleEntit
       [JSON.stringify(escalations), id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`OnCall schedule with id ${id} not found`);
+      throw new OrionError(`OnCall schedule with id ${id} not found`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

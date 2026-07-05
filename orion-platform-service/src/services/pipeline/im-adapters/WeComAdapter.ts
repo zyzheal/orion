@@ -6,6 +6,7 @@
  */
 
 import { IMAdapter, IMNotificationConfig, IMNotificationPayload } from '../IMNotifier';
+import { OrionError } from '../../../errors';
 
 export class WeComAdapter implements IMAdapter {
   readonly platformType = 'wecom' as const;
@@ -27,12 +28,12 @@ export class WeComAdapter implements IMAdapter {
     });
 
     if (!response.ok) {
-      throw new Error(`WeCom webhook returned status ${response.status}: ${response.statusText}`);
+      throw new OrionError(`WeCom webhook returned status ${response.status}: ${response.statusText}`, 'OPERATION_FAILED')
     }
 
     const result = await response.json() as Record<string, unknown>;
     if (result.errcode !== undefined && result.errcode !== 0) {
-      throw new Error(`WeCom API error: ${JSON.stringify(result)}`);
+      throw new OrionError(`WeCom API error: ${JSON.stringify(result)}`, 'OPERATION_FAILED')
     }
   }
 

@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: orion-ai-service
+Version: 0.1.0
+Summary: Orion AI Service - AI 增强域基础服务
+Requires-Python: >=3.11

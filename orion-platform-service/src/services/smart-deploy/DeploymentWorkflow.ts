@@ -23,6 +23,11 @@ import { DeploymentStrategyEngine } from './DeploymentStrategyEngine';
 import { DeploymentVerifier } from './DeploymentVerifier';
 import { DeploymentHistoryService } from './DeploymentHistoryService';
 import { RollbackService } from './RollbackService';
+import { EnvironmentLockService } from '../environment/EnvironmentLockService';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('LDeployment-LWorkflow');
 
 /**
  * Deployment workflow orchestration
@@ -33,6 +38,7 @@ export class DeploymentWorkflow {
   private historyService: DeploymentHistoryService;
   private rollbackService: RollbackService;
   private eventPublisher?: IEventPublisher;
+  private lockService?: EnvironmentLockService;
 
   constructor(options?: {
     eventPublisher?: IEventPublisher;
@@ -40,15 +46,18 @@ export class DeploymentWorkflow {
     verifier?: DeploymentVerifier;
     historyService?: DeploymentHistoryService;
     rollbackService?: RollbackService;
+    lockService?: EnvironmentLockService;
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.strategyEngine =
-      options?.strategyEngine || new DeploymentStrategyEngine({ eventPublisher: options?.eventPublisher });
+      options?.strategyEngine || new DeploymentStrategyEngine({ eventPublisher: options?.eventPublisher, db: options?.db });
     this.verifier = options?.verifier || new DeploymentVerifier();
     this.historyService =
-      options?.historyService || new DeploymentHistoryService();
+      options?.historyService || (options?.db ? new DeploymentHistoryService(options.db) : undefined as any);
     this.rollbackService =
-      options?.rollbackService || new RollbackService({ eventPublisher: options?.eventPublisher });
+      options?.rollbackService || (options?.db ? new RollbackService({ db: options.db, eventPublisher: options?.eventPublisher }) : undefined as any);
+    this.lockService = options?.lockService;
   }
 
   /**
@@ -248,13 +257,11 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; stage?: DeploymentStage }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     if (stageIndex < 0 || stageIndex >= deployment.stages.length) {
-      throw new Error(
-        `Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`
-      );
+      throw new OrionError(`Stage index ${stageIndex} out of range. Valid range: 0-${deployment.stages.length - 1}`, 'OPERATION_FAILED');
     }
 
     const stage = deployment.stages[stageIndex];
@@ -318,7 +325,7 @@ export class DeploymentWorkflow {
   ): Promise<{ success: boolean; report?: VerificationReport }> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const report = await this.verifier.generateVerificationReport(deployment);
@@ -368,7 +375,7 @@ export class DeploymentWorkflow {
   async completeDeployment(deploymentId: string): Promise<Deployment> {
     const deployment = await this.historyService.getDeployment(deploymentId);
     if (!deployment) {
-      throw new Error(`Deployment '${deploymentId}' not found`);
+      throw new OrionError(`Deployment '${deploymentId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     deployment.status = 'completed';
@@ -400,6 +407,22 @@ export class DeploymentWorkflow {
     deployment: Deployment,
     config: DeployConfig
   ): Promise<{ success: boolean; error?: string }> {
+    // Step 0: Check if target environment is locked
+    if (this.lockService) {
+      try {
+        const lockCheck = await this.lockService.checkDeploymentAllowed(deployment.environment);
+        if (!lockCheck.allowed) {
+          return {
+            success: false,
+            error: `Deployment blocked: ${lockCheck.reason}`,
+          };
+        }
+      } catch (error: any) {
+        // If the environment lookup fails, log but don't block
+        logger.warn(`[DeploymentWorkflow] Environment lock check failed: ${error.message}`);
+      }
+    }
+
     // Create pre-check stage
     const preCheckStage: DeploymentStage = {
       name: 'pre-deployment-checks',
@@ -627,7 +650,7 @@ export class DeploymentWorkflow {
           source: 'orion-smart-deploy',
         });
       } catch (error) {
-        console.warn(
+        logger.warn(
           `[DeploymentWorkflow] Failed to publish event ${type}:`,
           error
         );

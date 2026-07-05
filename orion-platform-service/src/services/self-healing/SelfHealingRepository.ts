@@ -81,33 +81,6 @@ export interface ApprovalRequestRow {
   expires_at: Date | null;
 }
 
-export interface Ticket {
-  id: string;
-  tenant_id: string;
-  title: string;
-  description: string | null;
-  type: string;
-  priority: string;
-  status: string;
-  assignee_id: string | null;
-  reporter_id: string | null;
-  source: string | null;
-  source_id: string | null;
-  tags: string[];
-  resolved_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface TicketComment {
-  id: string;
-  ticket_id: string;
-  author_id: string | null;
-  content: string;
-  is_internal: boolean;
-  created_at: Date;
-}
-
 export class SelfHealingRepository {
   constructor(private pool: DatabasePool) {}
 

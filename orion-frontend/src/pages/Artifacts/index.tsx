@@ -17,7 +17,8 @@ import {
   Tag,
   Card,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
+import { PlusOutlined, ReloadOutlined, InboxOutlined } from '@ant-design/icons';
 import SearchFilterBar from '@/components/SearchFilterBar';
 import PageSkeleton from '@/components/PageSkeleton';
 import {
@@ -97,10 +98,10 @@ const ArtifactManagement: React.FC = () => {
     setLoading(true);
     try {
       const res = await getArtifacts({ page: p, perPage: s });
-      const raw = res.data?.data;
+      const raw = res.data;
       if (Array.isArray(raw)) {
         setArtifacts(raw);
-        const respTotal = (res.data as any)?.total ?? raw.length;
+        const respTotal = (res.data as { total?: number })?.total ?? raw.length;
         setTotal(respTotal);
       } else {
         setArtifacts([]);
@@ -118,7 +119,7 @@ const ArtifactManagement: React.FC = () => {
   const loadStats = async () => {
     try {
       const res = await getArtifactStats();
-      setStats(res.data?.data || null);
+      setStats(res.data || null);
     } catch (error: unknown) {
       setStats(null);
     }
@@ -127,7 +128,7 @@ const ArtifactManagement: React.FC = () => {
   const loadNamespaces = async () => {
     try {
       const res = await getNamespaces();
-      setNamespaces(res.data?.data || []);
+      setNamespaces(res.data || []);
     } catch (error: unknown) {
       setNamespaces([]);
     }
@@ -273,7 +274,7 @@ const ArtifactManagement: React.FC = () => {
   const handleDownload = async (record: Artifact) => {
     try {
       const res = await downloadArtifact(record.id);
-      const url = res.data?.data?.url;
+      const url = res.data?.url;
       if (url) {
         window.open(url, '_blank');
         message.success('下载链接已打开');
@@ -379,7 +380,7 @@ const ArtifactManagement: React.FC = () => {
   const loadTags = async (id: string) => {
     try {
       const res = await getArtifactTags(id);
-      setTags(Array.isArray(res.data?.data) ? res.data.data : []);
+      setTags(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setTags([]);
     }
@@ -388,7 +389,7 @@ const ArtifactManagement: React.FC = () => {
   const loadPromotionHistory = async (id: string) => {
     try {
       const res = await getPromotionHistory(id);
-      setPromotionHistory(Array.isArray(res.data?.data) ? res.data.data : []);
+      setPromotionHistory(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       setPromotionHistory([]);
     }
@@ -456,11 +457,12 @@ const ArtifactManagement: React.FC = () => {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-start',
-              marginBottom: 24,
+              marginBottom: spacing.lg,
             }}
           >
             <div>
-              <Title level={3} style={{ margin: 0 }}>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <InboxOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
                 制品管理
               </Title>
               <Text type="secondary">管理制品仓库、生命周期晋升、标签和安全扫描</Text>
@@ -491,7 +493,7 @@ const ArtifactManagement: React.FC = () => {
 
           {/* Artifact List */}
           <Card>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: spacing.md }}>
               <SearchFilterBar
                 onSearch={setSearchQuery}
                 onFilter={setFilters}
@@ -623,7 +625,7 @@ const ArtifactManagement: React.FC = () => {
             width={480}
           >
             {selectedArtifact && (
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: spacing.md }}>
                 <Text>
                   当前制品: <Text strong>{selectedArtifact.name}</Text> ({selectedArtifact.version})
                 </Text>

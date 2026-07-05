@@ -13,14 +13,145 @@ describe('ConfigApprovalService', () => {
   let approvalService: ConfigApprovalService;
   let mockEventPublisher: jest.Mocked<IEventPublisher>;
 
+  // In-memory stores for mock repositories
+  let approvalStore: Map<string, any>;
+  let configStore: Map<string, any>;
+  let configIdCounter: number;
+
+  // Mock ConfigApprovalRepository
+  let mockApprovalRepo: any;
+
+  // Mock ConfigRepository (for ConfigService)
+  let mockConfigRepo: any;
+
   beforeEach(() => {
-    configService = new ConfigService();
+    approvalStore = new Map<string, any>();
+    configStore = new Map<string, any>();
+    configIdCounter = 0;
+    jest.clearAllMocks();
+
+    mockApprovalRepo = {
+      create: jest.fn(async (data: any) => {
+        const entity = {
+          ...data,
+          approvals: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        approvalStore.set(data.id, entity);
+        return entity;
+      }),
+      findById: jest.fn(async (id: string) => {
+        const e = approvalStore.get(id);
+        return e ? { ...e } : null;
+      }),
+      findMany: jest.fn(async (options?: { status?: string; configId?: string; requester?: string; environment?: string }) => {
+        let results = Array.from(approvalStore.values());
+        if (options?.status) results = results.filter((e: any) => e.status === options.status);
+        if (options?.configId) results = results.filter((e: any) => e.configId === options.configId);
+        if (options?.requester) results = results.filter((e: any) => e.requester === options.requester);
+        if (options?.environment) results = results.filter((e: any) => e.environment === options.environment);
+        return results.map((e: any) => ({ ...e }));
+      }),
+      findByConfig: jest.fn(async (configId: string) => {
+        return Array.from(approvalStore.values())
+          .filter((e: any) => e.configId === configId)
+          .map((e: any) => ({ ...e }));
+      }),
+      update: jest.fn(async (id: string, data: any) => {
+        const existing = approvalStore.get(id);
+        if (!existing) return null;
+        const updated = { ...existing, ...data, updatedAt: new Date() };
+        approvalStore.set(id, updated);
+        return updated;
+      }),
+      delete: jest.fn(async (id: string) => {
+        return approvalStore.delete(id);
+      }),
+    };
+
+    mockConfigRepo = {
+      set: jest.fn(async (tenantId: string, key: string, value: any, changedBy?: string) => {
+        // Find existing entry with matching tenantId and key
+        for (const [, entry] of configStore) {
+          if (entry.tenant_id === tenantId && entry.key === key) {
+            entry.value = value;
+            entry.version = (entry.version || 1) + 1;
+            entry.updatedBy = changedBy;
+            entry.updated_by = changedBy;
+            entry.updatedAt = new Date();
+            entry.updated_at = new Date();
+            configStore.set(entry.id, entry);
+            return { ...entry };
+          }
+        }
+        const id = `config-${++configIdCounter}`;
+        const entry = {
+          id,
+          tenant_id: tenantId,
+          key,
+          value,
+          version: 1,
+          environment: value.environment || 'dev',
+          status: 'active',
+          description: value.description,
+          encrypted: value.encrypted || false,
+          tags: value.tags || [],
+          createdBy: changedBy,
+          created_by: changedBy,
+          createdAt: new Date(),
+          created_at: new Date(),
+          updatedBy: changedBy,
+          updated_by: changedBy,
+          updatedAt: new Date(),
+          updated_at: new Date(),
+        };
+        configStore.set(id, entry);
+        return { ...entry };
+      }),
+      findById: jest.fn(async (id: string) => configStore.get(id) ? { ...configStore.get(id) } : null),
+      findByKey: jest.fn(async (tenantId: string, key: string) => {
+        for (const [, e] of configStore) {
+          if (e.tenant_id === tenantId && e.key === key) return { ...e };
+        }
+        return null;
+      }),
+      findAll: jest.fn(async (tenantId: string) =>
+        Array.from(configStore.values()).filter((e: any) => e.tenant_id === tenantId)
+      ),
+      delete: jest.fn(async (tenantId: string, key: string) => {
+        for (const [id, e] of configStore) {
+          if (e.tenant_id === tenantId && e.key === key) {
+            configStore.delete(id);
+            return true;
+          }
+        }
+        return false;
+      }),
+      getHistory: jest.fn(async () => []),
+      getHistoryByConfigId: jest.fn(async () => []),
+      updateByKey: jest.fn(async () => null),
+    };
+
+    configService = new ConfigService(mockConfigRepo as any);
+
     mockEventPublisher = {
       publish: jest.fn().mockResolvedValue('event-id'),
     };
+
     approvalService = new ConfigApprovalService({
       configService,
+      repository: mockApprovalRepo as any,
       eventPublisher: mockEventPublisher,
+    });
+  });
+
+  describe('constructor', () => {
+    it('should throw error if repository is not provided', () => {
+      expect(() => new ConfigApprovalService({ configService } as any)).toThrow(
+        'ConfigApprovalRepository is required'
+      );
     });
   });
 
@@ -672,13 +803,13 @@ describe('ConfigApprovalService', () => {
 
   describe('auto-apply toggle', () => {
     it('should not auto-apply when disabled', async () => {
-      const configService2 = new ConfigService();
       const approvalService2 = new ConfigApprovalService({
-        configService: configService2,
+        configService,
+        repository: mockApprovalRepo as any,
         autoApply: false,
       });
 
-      const config = await configService2.createConfig({
+      const config = await configService.createConfig({
         key: 'test.key',
         value: 'old',
         environment: 'dev',
@@ -697,7 +828,7 @@ describe('ConfigApprovalService', () => {
       });
 
       // Config should not be updated
-      const currentConfig = await configService2.getConfig(config.id);
+      const currentConfig = await configService.getConfig(config.id);
       expect(currentConfig?.value).toBe('old');
     });
 

@@ -6,9 +6,13 @@
  * - 症状关联与聚类分析
  * - 根因识别与置信度评分
  * - 诊断会话管理
+ *
+ * Migration: Now supports PostgreSQL Repository for persistent session storage.
+ * When db is provided, sessions are persisted to PostgreSQL.
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   DiagnosticSession,
   Symptom,
@@ -26,6 +30,7 @@ import {
   DecisionTreeResult,
 } from './DiagnosticDecisionTree';
 import { DiagnosticKnowledgeBase, KnowledgeBaseSearchResult } from './DiagnosticKnowledgeBase';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 症状聚类结果
@@ -51,33 +56,38 @@ export interface DiagnosticEngineConfig {
   knowledgeBase?: DiagnosticKnowledgeBase;
   /** 是否使用默认决策树 */
   useDefaultTree?: boolean;
+  /** Database connection for repository persistence */
+  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
  * 诊断引擎
  */
 export class DiagnosticEngine {
+  /** In-memory session store (fallback when no db) */
   private sessions: Map<string, DiagnosticSession>;
   private decisionTree: DiagnosticDecisionTree;
   private knowledgeBase: DiagnosticKnowledgeBase;
+  private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } | null;
 
   constructor(config?: DiagnosticEngineConfig) {
     this.sessions = new Map();
+    this.db = config?.db || null;
     this.decisionTree =
       config?.decisionTree ||
       (config?.useDefaultTree !== false ? createDefaultDiagnosticDecisionTree() : new DiagnosticDecisionTree());
-    this.knowledgeBase = config?.knowledgeBase || new DiagnosticKnowledgeBase();
+    this.knowledgeBase = config?.knowledgeBase || new DiagnosticKnowledgeBase(config?.db);
   }
 
   /**
    * 启动诊断会话
    */
-  startDiagnostic(params: {
+  async startDiagnostic(params: {
     triggerType: DiagnosticTriggerType;
     triggerId: string;
     initialSymptoms: Symptom[];
     tenantId?: string;
-  }): DiagnosticSession {
+  }): Promise<DiagnosticSession> {
     const session: DiagnosticSession = {
       id: uuidv4(),
       triggerType: params.triggerType,
@@ -94,17 +104,42 @@ export class DiagnosticEngine {
       tenantId: params.tenantId,
     };
 
+    // Store in memory
     this.sessions.set(session.id, session);
+
+    // Persist to PostgreSQL if available
+    if (this.db) {
+      try {
+        await this.db.query(
+          `INSERT INTO diagnostic_sessions (id, tenant_id, title, status, target_type, target_id, symptoms, findings, started_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            session.id,
+            session.tenantId || getCurrentTenantId(),
+            `${session.triggerType}: ${session.triggerId}`,
+            session.status,
+            session.triggerType,
+            session.triggerId,
+            JSON.stringify(session.symptoms),
+            JSON.stringify(session.findings),
+            session.createdAt,
+          ]
+        );
+      } catch (err) {
+        // Persistence failure does not block main flow
+      }
+    }
+
     return session;
   }
 
   /**
    * 添加症状到诊断会话
    */
-  addSymptom(sessionId: string, symptom: Symptom): DiagnosticSession {
-    const session = this.sessions.get(sessionId);
+  async addSymptom(sessionId: string, symptom: Symptom): Promise<DiagnosticSession> {
+    const session = await this.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(`Diagnostic session ${sessionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const newSymptom: Symptom = {
@@ -114,6 +149,19 @@ export class DiagnosticEngine {
 
     session.symptoms.push(newSymptom);
     this.sessions.set(sessionId, session);
+
+    // Persist update to PostgreSQL if available
+    if (this.db) {
+      try {
+        await this.db.query(
+          `UPDATE diagnostic_sessions SET symptoms = $1, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(session.symptoms), sessionId]
+        );
+      } catch {
+        // Ignore persistence failure
+      }
+    }
+
     return session;
   }
 
@@ -122,13 +170,13 @@ export class DiagnosticEngine {
    *
    * 将相关症状分组，识别共同模式和影响范围
    */
-  correlateSymptoms(sessionId: string): {
+  async correlateSymptoms(sessionId: string): Promise<{
     clusters: SymptomCluster[];
     findings: Finding[];
-  } {
-    const session = this.sessions.get(sessionId);
+  }> {
+    const session = await this.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(`Diagnostic session ${sessionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     const symptoms = session.symptoms;
@@ -139,6 +187,18 @@ export class DiagnosticEngine {
     session.findings = findings;
     this.sessions.set(sessionId, session);
 
+    // Persist findings to PostgreSQL if available
+    if (this.db) {
+      try {
+        await this.db.query(
+          `UPDATE diagnostic_sessions SET findings = $1, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(findings), sessionId]
+        );
+      } catch {
+        // Ignore persistence failure
+      }
+    }
+
     return { clusters, findings };
   }
 
@@ -147,10 +207,10 @@ export class DiagnosticEngine {
    *
    * 结合决策树评估和知识库匹配，确定最可能的根因
    */
-  identifyRootCause(sessionId: string): DiagnosticSession {
-    const session = this.sessions.get(sessionId);
+  async identifyRootCause(sessionId: string): Promise<DiagnosticSession> {
+    const session = await this.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(`Diagnostic session ${sessionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     if (session.symptoms.length === 0) {
@@ -171,7 +231,7 @@ export class DiagnosticEngine {
     const treeResult = this.decisionTree.evaluate(session.symptoms);
 
     // 2. 知识库匹配
-    const kbResults = this.knowledgeBase.matchSymptoms(session.symptoms);
+    const kbResults = await this.knowledgeBase.matchSymptoms(session.symptoms);
 
     // 3. 综合评估根因
     const rootCause = this.synthesizeRootCause(treeResult, kbResults, session.symptoms);
@@ -186,41 +246,137 @@ export class DiagnosticEngine {
   /**
    * 完成诊断会话
    */
-  completeDiagnostic(sessionId: string): DiagnosticSession {
-    const session = this.sessions.get(sessionId);
+  async completeDiagnostic(sessionId: string): Promise<DiagnosticSession> {
+    const session = await this.getSession(sessionId);
     if (!session) {
-      throw new Error(`Diagnostic session ${sessionId} not found`);
+      throw new OrionError(`Diagnostic session ${sessionId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // 如果还未识别根因，先执行
     if (!session.rootCause && session.status === 'running') {
-      this.identifyRootCause(sessionId);
+      await this.identifyRootCause(sessionId);
     }
 
     session.status = 'completed';
     session.completedAt = new Date();
     this.sessions.set(sessionId, session);
+
+    // Persist completion to PostgreSQL if available
+    if (this.db) {
+      try {
+        await this.db.query(
+          `UPDATE diagnostic_sessions SET status = 'completed', completed_at = NOW(), findings = $1, updated_at = NOW() WHERE id = $2`,
+          [JSON.stringify(session.findings), sessionId]
+        );
+      } catch {
+        // Ignore persistence failure
+      }
+    }
+
     return session;
   }
 
   /**
    * 获取诊断会话
    */
-  getSession(sessionId: string): DiagnosticSession | undefined {
-    return this.sessions.get(sessionId);
+  async getSession(sessionId: string): Promise<DiagnosticSession | undefined> {
+    // Check in-memory first
+    const inMemory = this.sessions.get(sessionId);
+    if (inMemory) return inMemory;
+
+    // Try PostgreSQL if available
+    if (this.db) {
+      try {
+        const result = await this.db.query(
+          `SELECT * FROM diagnostic_sessions WHERE id = $1`,
+          [sessionId]
+        );
+        if (result.rows.length > 0) {
+          const row = result.rows[0];
+          const session: DiagnosticSession = {
+            id: row.id,
+            triggerType: row.target_type || 'manual',
+            triggerId: row.target_id || row.id,
+            symptoms: (row.symptoms || []),
+            findings: (row.findings || []),
+            rootCause: null,
+            confidence: 0,
+            status: row.status || 'running',
+            createdAt: new Date(row.started_at),
+            completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+            tenantId: row.tenant_id,
+          };
+          // Cache in memory
+          this.sessions.set(sessionId, session);
+          return session;
+        }
+      } catch {
+        // Ignore persistence failure
+      }
+    }
+
+    return undefined;
   }
 
   /**
    * 获取诊断历史
    */
-  getDiagnosticHistory(params?: {
+  async getDiagnosticHistory(params?: {
     triggerType?: DiagnosticTriggerType;
     triggerId?: string;
     tenantId?: string;
     status?: DiagnosticSessionStatus;
     since?: Date;
     limit?: number;
-  }): DiagnosticSession[] {
+  }): Promise<DiagnosticSession[]> {
+    // Try PostgreSQL first if tenantId is available
+    if (this.db && params?.tenantId) {
+      try {
+        let query = `SELECT * FROM diagnostic_sessions WHERE tenant_id = $1`;
+        const queryParams: any[] = [params.tenantId];
+        let paramIndex = 2;
+
+        if (params.status) {
+          query += ` AND status = $${paramIndex}`;
+          queryParams.push(params.status);
+          paramIndex++;
+        }
+        if (params.triggerType) {
+          query += ` AND target_type = $${paramIndex}`;
+          queryParams.push(params.triggerType);
+          paramIndex++;
+        }
+        if (params.since) {
+          query += ` AND started_at >= $${paramIndex}`;
+          queryParams.push(params.since);
+          paramIndex++;
+        }
+
+        query += ` ORDER BY started_at DESC`;
+        if (params.limit) {
+          query += ` LIMIT $${paramIndex}`;
+          queryParams.push(params.limit);
+        }
+
+        const result = await this.db.query(query, queryParams);
+        return result.rows.map(row => ({
+          id: row.id,
+          triggerType: row.target_type || 'manual',
+          triggerId: row.target_id || row.id,
+          symptoms: (row.symptoms || []),
+          findings: (row.findings || []),
+          rootCause: null,
+          confidence: 0,
+          status: row.status || 'running',
+          createdAt: new Date(row.started_at),
+          completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+          tenantId: row.tenant_id,
+        }));
+      } catch {
+        // Fall back to in-memory
+      }
+    }
+
     let results = Array.from(this.sessions.values());
 
     if (params?.triggerType) {

@@ -17,10 +17,11 @@
  * - data_exfiltration: 数据泄露尝试（请求导出数据）
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { PromptSecurity, ThreatType, PromptThreat, PromptAnalysis } from './PromptSecurity';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('prompt-injection-detector');
 
 /**
  * 检测规则定义
@@ -403,7 +404,7 @@ export class PromptInjectionDetector {
 
     // 8. 记录日志（如果启用）
     if (this.config.logAllDetections && threats.length > 0) {
-      logger.warn({
+      logger.warn({ traceId: getCurrentTraceId(),
         msg: 'Prompt injection detected',
         promptLength: prompt.length,
         riskScore,

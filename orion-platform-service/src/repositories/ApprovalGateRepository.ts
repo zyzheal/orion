@@ -2,9 +2,8 @@
  * ApprovalGateRepository - PostgreSQL data access layer for approval gates
  *
  * Provides CRUD operations for Pipeline approval gates.
+ * Uses db query interface (compatible with Pool and BaseRepository.db).
  */
-
-import { Pool } from 'pg';
 
 export interface ApprovalGateEntity {
   id: string;
@@ -41,7 +40,7 @@ export interface ApprovalGateUpdateInput {
 }
 
 export class ApprovalGateRepository {
-  constructor(private pool: Pool) {}
+  constructor(private db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {}
 
   /**
    * Create a new approval gate
@@ -50,7 +49,7 @@ export class ApprovalGateRepository {
     const now = new Date();
     const id = `gate-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-    await this.pool.query(
+    await this.db.query(
       `INSERT INTO approval_gates (id, tenant_id, run_id, stage_id, status, requested_by, approver_ids, metadata, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
@@ -86,7 +85,7 @@ export class ApprovalGateRepository {
    * Find gate by ID
    */
   async findById(id: string): Promise<ApprovalGateEntity | null> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       'SELECT * FROM approval_gates WHERE id = $1',
       [id]
     );
@@ -99,7 +98,7 @@ export class ApprovalGateRepository {
    * Find all gates by run ID
    */
   async findByRunId(runId: string): Promise<ApprovalGateEntity[]> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       'SELECT * FROM approval_gates WHERE run_id = $1 ORDER BY created_at DESC',
       [runId]
     );
@@ -111,7 +110,7 @@ export class ApprovalGateRepository {
    * Find gate by run ID and stage ID
    */
   async findByRunAndStage(runId: string, stageId: string): Promise<ApprovalGateEntity | null> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       'SELECT * FROM approval_gates WHERE run_id = $1 AND stage_id = $2',
       [runId, stageId]
     );
@@ -124,7 +123,7 @@ export class ApprovalGateRepository {
    * Find pending gates by approver
    */
   async findPendingByApprover(approverId: string, tenantId: string): Promise<ApprovalGateEntity[]> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       `SELECT * FROM approval_gates
        WHERE tenant_id = $1 AND status = 'pending'
        AND $2 = ANY(approver_ids::text[])
@@ -139,7 +138,7 @@ export class ApprovalGateRepository {
    * Find pending gates by tenant
    */
   async findPendingByTenant(tenantId: string): Promise<ApprovalGateEntity[]> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       `SELECT * FROM approval_gates
        WHERE tenant_id = $1 AND status = 'pending'
        ORDER BY requested_at ASC`,
@@ -181,7 +180,7 @@ export class ApprovalGateRepository {
     values.push(new Date());
     values.push(id);
 
-    await this.pool.query(
+    await this.db.query(
       `UPDATE approval_gates SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
       values
     );
@@ -193,7 +192,7 @@ export class ApprovalGateRepository {
    * Check if approval is required for a stage
    */
   async isApprovalRequired(runId: string, stageId: string): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       `SELECT 1 FROM approval_gates
        WHERE run_id = $1 AND stage_id = $2 AND status = 'pending'
        LIMIT 1`,
@@ -207,7 +206,7 @@ export class ApprovalGateRepository {
    * Delete gate by ID
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.pool.query(
+    const result = await this.db.query(
       'DELETE FROM approval_gates WHERE id = $1',
       [id]
     );

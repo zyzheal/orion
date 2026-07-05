@@ -2,12 +2,15 @@
 // Inline Script API Routes
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { InlineScriptService } from '../services/inline-script/InlineScriptService';
 import { InlineScriptApprovalRepository } from '../repositories/InlineScriptApprovalRepository';
 import { AIGenerateService } from '../services/ai/AIGenerateService';
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('script-routes');
 
 // Input validation schema
 const scanSchema = {
@@ -98,37 +101,46 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   const aiGenerateService = new AIGenerateService();
 
   // POST /scan - Security scan code
-  app.post('/scan', { schema: scanSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/scan', {
+    schema: scanSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.config || typeof body.config.code !== 'string') {
-      return reply.code(400).send({ error: 'Missing or invalid config.code' });
+      return handleError(reply, new ValidationError('Missing or invalid config.code'));
     }
     const result = await scriptService.scanCode(body.config);
     return result;
   });
 
   // POST /dry-run - Dry run test
-  app.post('/dry-run', { schema: dryRunSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/dry-run', {
+    schema: dryRunSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.config || typeof body.config.code !== 'string') {
-      return reply.code(400).send({ error: 'Missing or invalid config.code' });
+      return handleError(reply, new ValidationError('Missing or invalid config.code'));
     }
     const result = await scriptService.dryRun(body);
     return result;
   });
 
   // POST /execute - Execute inline script
-  app.post('/execute', { schema: executionSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/execute', {
+    schema: executionSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'execute' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
 
     if (!body.config || typeof body.config.code !== 'string') {
-      return reply.code(400).send({ error: 'Missing or invalid config.code' });
+      return handleError(reply, new ValidationError('Missing or invalid config.code'));
     }
 
     if (!body.taskId || !body.pipelineRunId || !body.stageId) {
-      return reply.code(400).send({ error: 'Missing taskId, pipelineRunId, or stageId' });
+      return handleError(reply, new ValidationError('Missing taskId, pipelineRunId, or stageId'));
     }
 
     const result = await scriptService.execute({
@@ -151,17 +163,20 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /approval - Request Level 3 approval
-  app.post('/approval', { schema: approvalSchema }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/approval', {
+    schema: approvalSchema,
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
     const userId = (request as any).userId;
 
     if (!body.code || !body.reason) {
-      return reply.code(400).send({ error: 'Missing code or reason' });
+      return handleError(reply, new ValidationError('Missing code or reason'));
     }
 
     if (!tenantId || !userId) {
-      return reply.code(401).send({ error: 'Unauthorized: missing tenant or user' });
+      return handleError(reply, new UnauthorizedError('Unauthorized: missing tenant or user'));
     }
 
     const result = await scriptService.requestApproval({ ...body, tenantId, userId });
@@ -169,7 +184,9 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // GET /approval/:approvalId - Get approval status
-  app.get('/approval/:approvalId', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/approval/:approvalId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { approvalId } = request.params as { approvalId: string };
     const tenantId = (request as any).tenantId;
     const result = await scriptService.getApprovalStatus(approvalId, tenantId);
@@ -177,31 +194,33 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
   });
 
   // POST /approval/:approvalId/decide - Approve/deny request
-  app.post('/approval/:approvalId/decide', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/approval/:approvalId/decide', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'approve' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { approvalId } = request.params as { approvalId: string };
     const body = request.body as any;
     const tenantId = (request as any).tenantId;
 
     if (!body.decision || !['approved', 'denied'].includes(body.decision)) {
-      return reply.code(400).send({ error: 'Invalid decision: must be "approved" or "denied"' });
+      return handleError(reply, new ValidationError('Invalid decision: must be "approved" or "denied"'));
     }
 
     if (!approvalRepo) {
-      return reply.code(500).send({ error: 'Approval repository not configured' });
+      return handleError(reply, new OrionError('Approval repository not configured', ErrorCode.INTERNAL_ERROR));
     }
 
     if (!tenantId) {
-      return reply.code(401).send({ error: 'Unauthorized: missing tenant' });
+      return handleError(reply, new UnauthorizedError('Unauthorized: missing tenant'));
     }
 
     try {
       const approval = await approvalRepo.findByApprovalId(approvalId, tenantId);
       if (!approval) {
-        return reply.code(404).send({ error: `Approval ${approvalId} not found` });
+        return handleError(reply, new NotFoundError('Unknown error'));
       }
 
       if (approval.status !== 'pending') {
-        return reply.code(400).send({ error: `Approval already ${approval.status}` });
+        return handleError(reply, new ValidationError('Unknown error'));
       }
 
       if (body.decision === 'denied') {
@@ -221,17 +240,19 @@ export default async function scriptRoutes(app: FastifyInstance, options?: { dat
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       if (msg.includes('not found') || msg.includes('no longer pending')) {
-        return reply.code(400).send({ error: 'Approval is no longer pending' });
+        return handleError(reply, new ValidationError('Approval is no longer pending'));
       }
-      return reply.code(500).send({ error: 'Failed to process decision' });
+      return handleError(reply, new OrionError('Failed to process decision', ErrorCode.INTERNAL_ERROR));
     }
   });
 
   // POST /ai-generate - AI generate script
-  app.post('/ai-generate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/ai-generate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'script', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as any;
     if (!body.prompt) {
-      return reply.code(400).send({ error: 'Missing prompt' });
+      return handleError(reply, new ValidationError('Missing prompt'));
     }
 
     const result = await aiGenerateService.generateScript({

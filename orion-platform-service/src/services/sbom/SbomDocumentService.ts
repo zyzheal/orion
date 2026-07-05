@@ -5,7 +5,7 @@
  * packages, and attestations.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   SbomDocumentRepository,
   SbomDocumentEntity,
@@ -22,7 +22,7 @@ import {
 import { SbomVulnerabilityRepository, SbomVulnerabilityEntity } from '../../repositories/SbomVulnerabilityRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SbomDocumentService');
 
 // ==================== SbomDocumentService ====================
 

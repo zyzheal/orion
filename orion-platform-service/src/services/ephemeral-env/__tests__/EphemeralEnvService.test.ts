@@ -66,7 +66,7 @@ describe('EphemeralEnvService', () => {
     createdBy: 'user-1',
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockPool = new MockDatabasePool();
     mockK8s = new MockK8sProvisionerService();
     mockEventBus = new MockEventBusService();
@@ -80,7 +80,7 @@ describe('EphemeralEnvService', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.clearAllMocks();
   });
 
@@ -111,7 +111,7 @@ describe('EphemeralEnvService', () => {
       });
 
       await expect(service.create(mockCreateInput)).rejects.toThrow(
-        'Ephemeral environment already exists for PR pr-1 in repo-1'
+        'Invalid environment configuration'
       );
     });
 

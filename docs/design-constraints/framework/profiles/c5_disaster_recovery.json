@@ -1,0 +1,62 @@
+{
+  "version": "3.0",
+  "name": "c5_disaster_recovery",
+  "extends": "base",
+  "priority": 1,
+  "layer": "operations",
+  "description": "灾难恢复检查项",
+  "checks": [
+    {
+      "id": "C5-01",
+      "category": "rto",
+      "level": "P0",
+      "rule": "RTO/RPO 定义",
+      "description": "服务必须定义恢复时间目标 (RTO) 和恢复点目标 (RPO)",
+      "detection": "review"
+    },
+    {
+      "id": "C5-02",
+      "category": "backup",
+      "level": "P0",
+      "rule": "备份策略",
+      "description": "数据库和配置必须有备份策略（频率/范围/验证）",
+      "detection": "review"
+    },
+    {
+      "id": "C5-03",
+      "category": "recovery",
+      "level": "P0",
+      "rule": "恢复方案",
+      "description": "数据和服必须有明确的恢复方案",
+      "detection": "review"
+    },
+    {
+      "id": "C5-04",
+      "category": "failover",
+      "level": "P1",
+      "rule": "故障切换",
+      "description": "主备服务应有自动故障切换机制",
+      "detection": "review"
+    },
+    {
+      "id": "C5-05",
+      "category": "multi-region",
+      "level": "P1",
+      "rule": "多区域部署",
+      "description": "关键服务应支持同城或异地容灾部署",
+      "detection": "review"
+    },
+    {
+      "id": "C5-06",
+      "category": "drill",
+      "level": "P1",
+      "rule": "演练机制",
+      "description": "定期灾备演练，文档化演练流程",
+      "detection": "review"
+    }
+  ],
+  "coveragePolicy": "review",
+  "responsibleSkill": "design-doc-reviewer",
+  "coveragePolicyReason": "灾备策略是运行时行为",
+  "noNewAST": "RC-01 约束：不追求 AST 100% 覆盖"
+}

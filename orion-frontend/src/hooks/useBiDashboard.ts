@@ -66,7 +66,7 @@ export function useBiDashboard(
     fetcher()
       .then((res) => {
         if (!cancelled) {
-          setData(res.data.data as BiDashboardData);
+          setData(res.data as BiDashboardData);
           setLoading(false);
         }
       })

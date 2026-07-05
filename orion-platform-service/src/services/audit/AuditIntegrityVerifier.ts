@@ -9,10 +9,11 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { AuditLogChain } from './AuditLogChain';
 import { ImmutableAuditStorage } from './ImmutableAuditStorage';
+import { OrionError } from '../../errors';
 import {
   IntegrityReport,
   IntegrityIssue,
@@ -24,7 +25,7 @@ import {
   ChainedAuditLogEntry,
 } from './AuditTypes';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'integrity-verifier' });
+const logger = createLogger('integrity-verifier');
 
 /**
  * 校验选项
@@ -379,7 +380,7 @@ export class AuditIntegrityVerifier extends EventEmitter {
       });
 
       if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status}`);
+        throw new OrionError(`Webhook returned ${response.status}`, 'OPERATION_FAILED')
       }
 
       logger.info({ alertId: alert.id }, 'Webhook alert sent successfully');

@@ -9,7 +9,7 @@
  * - Batch processing with rate limiting
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
 import {
   CodeEmbedding,
@@ -22,8 +22,10 @@ import {
   EmbeddingCacheConfig,
   EmbeddingCacheEntry,
 } from './vector-types';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CodeEmbeddingService');
 
 export type EmbeddingProviderType = 'openai' | 'voyage' | 'claude' | 'hash';
 
@@ -300,7 +302,7 @@ export class CodeEmbeddingService {
       case 'hash':
         return this.hashEmbedding(text);
       default:
-        throw new Error(`Unknown embedding provider: ${this.providerConfig.type}`);
+        throw new OrionError(`Unknown embedding provider: ${this.providerConfig.type}`, 'NOT_FOUND')
     }
   }
 
@@ -309,7 +311,7 @@ export class CodeEmbeddingService {
    */
   private async callOpenAI(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new Error('OpenAI API key not configured');
+      throw new OrionError('OpenAI API key not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const model = this.providerConfig.model || 'text-embedding-ada-002';
@@ -326,7 +328,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`OpenAI embedding API error (${response.status}): ${error}`);
+      throw new OrionError(`OpenAI embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
@@ -338,7 +340,7 @@ export class CodeEmbeddingService {
    */
   private async callVoyage(text: string): Promise<number[]> {
     if (!this.providerConfig.apiKey) {
-      throw new Error('Voyage API key not configured');
+      throw new OrionError('Voyage API key not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
     const model = this.providerConfig.model || 'voyage-2';
@@ -355,7 +357,7 @@ export class CodeEmbeddingService {
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Voyage embedding API error (${response.status}): ${error}`);
+      throw new OrionError(`Voyage embedding API error (${response.status}): ${error}`, 'OPERATION_FAILED')
     }
 
     const data = (await response.json()) as { data?: Array<{ embedding: number[] }> };
@@ -367,7 +369,7 @@ export class CodeEmbeddingService {
    */
   private async callClaude(text: string): Promise<number[]> {
     // Claude doesn't have dedicated embedding API yet, use hash fallback
-    logger.warn('Claude embedding not yet available, using hash fallback');
+    logger.warn({ traceId: getCurrentTraceId() }, 'Claude embedding not yet available, using hash fallback');
     return this.hashEmbedding(text);
   }
 

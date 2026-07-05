@@ -9,6 +9,7 @@ import { getReviewHistory } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -25,8 +26,8 @@ const AIReviewHistory: React.FC = () => {
     setLoading(true);
     try {
       const res = await getReviewHistory({ ...filters, page, pageSize });
-      setData(res.data.data?.items || []);
-      setTotal(res.data.data?.total || 0);
+      setData((res.data as any)?.items || []);
+      setTotal((res.data as any)?.total || 0);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审历史失败：${error.message}`);
@@ -139,16 +140,16 @@ const AIReviewHistory: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <Title level={3} style={{ marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <Title level={3} style={{ marginBottom: spacing.md }}>
         评审历史
       </Title>
-      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+      <Text type="secondary" style={{ display: 'block', marginBottom: spacing.md }}>
         查看所有 AI 评审记录
       </Text>
 
       {/* Filter Bar */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space wrap>
           <Input
             placeholder="搜索仓库 ID"

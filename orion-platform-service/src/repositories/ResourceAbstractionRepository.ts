@@ -6,6 +6,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 // ==================== Unified Resource ====================
 
@@ -59,7 +60,7 @@ export class UnifiedResourceRepository extends BaseRepository<UnifiedResourceEnt
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into unified_resources returned no rows');
+      throw new OrionError('INSERT into unified_resources returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -119,12 +120,12 @@ export class DeploymentResultRepository extends BaseRepository<DeploymentResultE
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findById(id: string): Promise<DeploymentResultEntity | undefined> {
+  async findById(id: string): Promise<DeploymentResultEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM deployment_results WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -145,7 +146,7 @@ export class DeploymentResultRepository extends BaseRepository<DeploymentResultE
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into deployment_results returned no rows');
+      throw new OrionError('INSERT into deployment_results returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

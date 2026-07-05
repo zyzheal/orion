@@ -53,9 +53,9 @@ const PLATFORM_OPTIONS = [
 
 /** Platform display config */
 const PLATFORM_CONFIG: Record<string, { color: string; label: string }> = {
-  dingtalk: { color: '#0089FF', label: '钉钉' },
-  wecom: { color: '#2BAE67', label: '企业微信' },
-  feishu: { color: '#3370FF', label: '飞书' },
+  dingtalk: { color: colors.primary[500], label: '钉钉' },
+  wecom: { color: colors.brand.wecom, label: '企业微信' },
+  feishu: { color: colors.primary[500], label: '飞书' },
 };
 
 /** Pipeline events available for IM notification subscription */
@@ -281,7 +281,7 @@ const IMNotificationsTab: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, textAlign: 'right' }}>
+      <div style={{ marginBottom: spacing.md, textAlign: 'right' }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新建 IM 通知
         </Button>
@@ -362,8 +362,8 @@ const NotificationRules: React.FC = () => {
       {/* Header - always visible */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BellOutlined style={{ marginRight: 8, color: colors.primary[500] }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <BellOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             通知规则管理
           </Title>
           <Text type="secondary">管理平台 Webhook 与 IM 通知规则</Text>

@@ -9,9 +9,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'cache-storage-driver' });
+const logger = createLogger('cache-storage-driver');
 
 export interface CacheEntry {
   key: string;
@@ -139,7 +140,7 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
 
       return { saved: true, sizeBytes: totalSize };
     } catch (error) {
-      logger.error({ key, error }, 'Failed to save cache');
+      logger.error({ traceId: getCurrentTraceId(), key, error }, 'Failed to save cache');
       // 清理可能的部分文件
       try {
         await fs.unlink(destPath);
@@ -177,7 +178,7 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
         }
       }
     } catch (error) {
-      logger.error({ error }, 'Cache cleanup failed');
+      logger.error({ traceId: getCurrentTraceId(), error }, 'Cache cleanup failed');
     }
 
     logger.info({ removedCount, freedBytes }, 'Cache cleanup completed');
@@ -250,7 +251,7 @@ export class LocalCacheStorageDriver implements CacheStorageDriver {
         }
       }
     } catch (error) {
-      logger.warn({ key, error }, 'Failed to restore cache entry');
+      logger.warn({ traceId: getCurrentTraceId(), key, error }, 'Failed to restore cache entry');
     }
 
     return { matched: false, restoredPaths: [] };

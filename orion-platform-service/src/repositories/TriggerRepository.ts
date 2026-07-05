@@ -2,9 +2,11 @@
  * TriggerRepository
  * Data access layer for pipeline triggers and execution history.
  * Supports trigger persistence for GAP-11 (previously in-memory only).
+ * Task 6: Added run tracking fields and updateRunInfo method.
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { OrionError } from '../errors';
 
 /**
  * Trigger entity mapped from pipeline_triggers table.
@@ -18,6 +20,11 @@ export interface TriggerEntity {
   status: string;
   createdAt: Date;
   updatedAt: Date;
+  // Enhanced run tracking (Task 6)
+  lastRunId: string | null;
+  lastRunStatus: string | null;
+  lastRunAt: Date | null;
+  consecutiveFailures: number;
 }
 
 /**
@@ -41,8 +48,9 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
   /**
    * Override create to map entity properties to database column names.
    * Entity uses camelCase (type, config), DB uses snake_case (trigger_type, trigger_config).
+   * Task 6: Added default values for new run tracking columns.
    */
-  async create(data: Omit<TriggerEntity, 'id' | 'created_at' | 'updated_at'> & Partial<Pick<TriggerEntity, 'id'>>): Promise<TriggerEntity> {
+  async create(data: Omit<TriggerEntity, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<TriggerEntity, 'id'>>): Promise<TriggerEntity> {
     const columns = ['tenant_id', 'pipeline_id', 'trigger_type', 'trigger_config', 'status'];
     const values = [data.tenantId, data.pipelineId, data.type, data.config, data.status];
 
@@ -56,7 +64,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error(`INSERT into pipeline_triggers returned no rows`);
+      throw new OrionError(`INSERT into pipeline_triggers returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -102,7 +110,7 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       [status, id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on pipeline_triggers affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on pipeline_triggers affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -116,7 +124,32 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       [type, config, id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on pipeline_triggers affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on pipeline_triggers affected no rows (id: ${id})`, 'OPERATION_FAILED')
+    }
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * Update run tracking metadata for a trigger.
+   * Task 6: Used by PipelineTriggerService.recordExecution() to persist lastRunId,
+   * lastRunStatus, lastRunAt, and consecutiveFailures.
+   */
+  async updateRunInfo(
+    id: string,
+    runId: string | null,
+    status: string | null,
+    runAt: Date | null,
+    consecutiveFailures: number
+  ): Promise<TriggerEntity> {
+    const result = await this.db.query(
+      `UPDATE pipeline_triggers
+       SET last_run_id = $1, last_run_status = $2, last_run_at = $3,
+           consecutive_failures = $4, updated_at = NOW()
+       WHERE id = $5 RETURNING *`,
+      [runId, status, runAt, consecutiveFailures, id],
+    );
+    if (result.rows.length === 0) {
+      throw new OrionError(`UPDATE on pipeline_triggers affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }
@@ -138,6 +171,11 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
       status: row.status,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      // Task 6: Enhanced run tracking fields
+      lastRunId: row.last_run_id ?? null,
+      lastRunStatus: row.last_run_status ?? null,
+      lastRunAt: row.last_run_at ?? null,
+      consecutiveFailures: row.consecutive_failures ?? 0,
     };
   }
 
@@ -146,14 +184,14 @@ export class TriggerRepository extends BaseRepository<TriggerEntity> {
   /**
    * Save a trigger execution record.
    */
-  async saveExecutionRecord(record: Omit<TriggerExecutionEntity, 'createdAt'>): Promise<TriggerExecutionEntity> {
+  async saveExecutionRecord(record: any): Promise<TriggerExecutionEntity> {
     const result = await this.db.query(
       `INSERT INTO pipeline_trigger_executions (id, trigger_id, run_id, status, context_json, executed_at)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [record.id, record.triggerId, record.runId ?? null, record.status, record.contextJson ?? {}, record.executedAt],
     );
     if (result.rows.length === 0) {
-      throw new Error(`INSERT into pipeline_trigger_executions returned no rows`);
+      throw new OrionError(`INSERT into pipeline_trigger_executions returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapExecutionRowToEntity(result.rows[0]);
   }

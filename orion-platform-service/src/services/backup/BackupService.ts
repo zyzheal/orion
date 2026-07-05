@@ -349,8 +349,8 @@ export class BackupService {
 
   // ==================== Recovery Plan Management ====================
 
-  createRecoveryPlan(planData: Omit<RecoveryPlan, 'createdAt' | 'updatedAt'>): RecoveryPlan {
-    const plan = this.recoveryService.createPlan(planData);
+  async createRecoveryPlan(planData: Omit<RecoveryPlan, 'createdAt' | 'updatedAt'>): Promise<RecoveryPlan> {
+    const plan = await this.recoveryService.createPlan(planData);
     this.verifier.registerRecoveryPlans([plan]);
     return plan;
   }
@@ -359,15 +359,15 @@ export class BackupService {
     return this.recoveryService.getAllPlans();
   }
 
-  getRecoveryPlan(planId: string): RecoveryPlan | null {
+  async getRecoveryPlan(planId: string): Promise<RecoveryPlan | null> {
     return this.recoveryService.getPlan(planId);
   }
 
-  updateRecoveryPlan(planId: string, updates: Partial<RecoveryPlan>): RecoveryPlan | null {
+  async updateRecoveryPlan(planId: string, updates: Partial<RecoveryPlan>): Promise<RecoveryPlan | null> {
     return this.recoveryService.updatePlan(planId, updates);
   }
 
-  deleteRecoveryPlan(planId: string): boolean {
+  async deleteRecoveryPlan(planId: string): Promise<boolean> {
     return this.recoveryService.deletePlan(planId);
   }
 

@@ -13,6 +13,7 @@
 
 import { SagaStep, SagaContext, SagaDefinition } from './types';
 import { EventBusService } from '../services/event-bus-service';
+import { OrionError, ErrorCode } from '../errors';
 
 /**
  * Self-Healing Saga 输入
@@ -251,7 +252,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session) {
-          throw new Error(`Self-healing session '${healingId}' not found`);
+          throw new OrionError(`Self-healing session '${healingId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         session.status = SelfHealingSagaStatus.DIAGNOSING;
@@ -298,7 +299,7 @@ export function createSelfHealingSagaDefinition(
 
           // 如果没有用户批准，抛出等待错误
           if (!input.userApproval) {
-            throw new Error(`Confidence ${diagnosis.confidence}% below threshold ${input.autoExecuteThreshold ?? 90}%, waiting for user approval`);
+            throw new OrionError(`Confidence ${diagnosis.confidence}% below threshold ${input.autoExecuteThreshold ?? 90}%, waiting for user approval`, ErrorCode.NOT_FOUND);
           }
         }
 
@@ -335,7 +336,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session || !session.diagnosisResult) {
-          throw new Error(`Self-healing session '${healingId}' not found or diagnosis missing`);
+          throw new OrionError(`Self-healing session '${healingId}' not found or diagnosis missing`, ErrorCode.NOT_FOUND);
         }
 
         session.status = SelfHealingSagaStatus.REMEDIATING;
@@ -394,7 +395,7 @@ export function createSelfHealingSagaDefinition(
         healingSessions.set(healingId, session);
 
         if (!remediation.success) {
-          throw new Error(`Remediation action '${action}' failed`);
+          throw new OrionError(`Remediation action '${action}' failed`, ErrorCode.NOT_FOUND);
         }
 
         return remediation;
@@ -441,7 +442,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session) {
-          throw new Error(`Self-healing session '${healingId}' not found`);
+          throw new OrionError(`Self-healing session '${healingId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         session.status = SelfHealingSagaStatus.VERIFYING;
@@ -481,7 +482,7 @@ export function createSelfHealingSagaDefinition(
         }
 
         if (!verification.verified) {
-          throw new Error('Remediation verification failed');
+          throw new OrionError('Remediation verification failed', ErrorCode.OPERATION_FAILED);
         }
 
         session.status = SelfHealingSagaStatus.COMPLETED;
@@ -510,7 +511,7 @@ export function createSelfHealingSagaDefinition(
         const session = healingSessions.get(healingId);
 
         if (!session) {
-          throw new Error(`Self-healing session '${healingId}' not found`);
+          throw new OrionError(`Self-healing session '${healingId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const events: string[] = [];
@@ -559,7 +560,7 @@ export function createSelfHealingSagaDefinition(
     const session = healingSessions.get(healingId);
 
     if (!session) {
-      throw new Error(`Self-healing session '${healingId}' not found`);
+      throw new OrionError(`Self-healing session '${healingId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     return {

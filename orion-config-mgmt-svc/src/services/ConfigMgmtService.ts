@@ -1,9 +1,12 @@
 /**
  * Orion Configuration Management Service
- * 配置管理核心服务 - 基于内存的实现
+ * 配置管理核心服务 - 基于 PostgreSQL Repository 实现
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { DatabasePool } from '../utils/database';
+import { ConfigRepository, ConfigItemEntity, ConfigVersionEntity } from '../repositories/ConfigRepository';
+import { NamespaceRepository, NamespaceEntity } from '../repositories/NamespaceRepository';
 import {
   ConfigItem,
   ConfigVersion,
@@ -11,7 +14,6 @@ import {
   ConfigDrift,
   FeatureFlag,
   ConfigApproval,
-  GitOpsConfig,
   ConfigStatus,
   ConfigItemType,
   ApprovalStatus,
@@ -20,134 +22,158 @@ import {
 } from '../types/config-mgmt';
 
 export class ConfigMgmtService {
-  private configs = new Map<string, ConfigItem>();
-  private versions = new Map<string, ConfigVersion[]>(); // configId -> versions
+  private db: DatabasePool;
+  private configRepo: ConfigRepository;
+  private namespaceRepo: NamespaceRepository;
+
+  // Fallback in-memory stores for non-config features (feature flags, approvals)
   private featureFlags = new Map<string, FeatureFlag>();
   private approvals = new Map<string, ConfigApproval>();
 
-  async getConfig(key: string, environment: string): Promise<ConfigItem | null> {
-    const configId = `${key}:${environment}`;
-    const config = this.configs.get(configId);
-    if (!config || config.status !== 'active') return null;
-    return config;
+  constructor(db: DatabasePool) {
+    this.db = db;
+    this.configRepo = new ConfigRepository(db);
+    this.namespaceRepo = new NamespaceRepository(db);
   }
 
-  async updateConfig(key: string, value: Record<string, unknown> | string | number | boolean, changeReason: string, changedBy: string, environment: string = 'production'): Promise<ConfigItem | null> {
-    const configId = `${key}:${environment}`;
-    const existing = this.configs.get(configId);
+  // ==================== Namespace Management ====================
 
-    if (!existing) {
-      // Create new config
-      const newConfig: ConfigItem = {
-        id: uuidv4(),
-        key,
-        value,
-        itemType: ConfigItemType.APPLICATION,
-        status: ConfigStatus.ACTIVE,
-        environment,
-        currentVersion: 1,
-        tenantId: 'system',
-        createdBy: changedBy,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      this.configs.set(configId, newConfig);
+  /**
+   * Create a new config namespace
+   */
+  async createNamespace(data: {
+    name: string;
+    description?: string;
+    gitRepoUrl?: string;
+    branch?: string;
+  }): Promise<NamespaceEntity> {
+    return this.namespaceRepo.create(data);
+  }
 
-      // Create version
-      const version: ConfigVersion = {
-        id: uuidv4(),
-        configId: newConfig.id,
-        version: 1,
-        value,
-        changeReason,
-        changedBy,
-        createdAt: new Date(),
-      };
-      this.versions.set(newConfig.id, [version]);
-      return newConfig;
-    }
+  /**
+   * List all config namespaces
+   */
+  async listNamespaces(): Promise<NamespaceEntity[]> {
+    return this.namespaceRepo.findAll();
+  }
 
-    // Update existing
-    const currentVersions = this.versions.get(existing.id) || [];
-    const newVersion = currentVersions.length + 1;
+  // ==================== Config Management ====================
 
-    const version: ConfigVersion = {
-      id: uuidv4(),
-      configId: existing.id,
-      version: newVersion,
-      value,
-      changeReason,
-      changedBy,
-      createdAt: new Date(),
+  /**
+   * Set config value (creates or updates, auto-versioning)
+   */
+  async setConfig(data: {
+    key: string;
+    namespace: string;
+    value: Record<string, unknown> | string | number | boolean;
+    createdBy: string;
+    commitMessage?: string;
+    environment?: string;
+  }): Promise<{ config: ConfigItem; version: ConfigVersion }> {
+    const result = await this.configRepo.setConfig({
+      ...data,
+      tenantId: 'system',
+    });
+    return {
+      config: this.entityToConfigItem(result.config),
+      version: this.entityToConfigVersion(result.version),
     };
-    currentVersions.push(version);
-    this.versions.set(existing.id, currentVersions);
+  }
 
-    const updated: ConfigItem = {
-      ...existing,
-      value,
-      currentVersion: newVersion,
-      updatedAt: new Date(),
+  /**
+   * Get current config by key
+   */
+  async getConfig(key: string, namespace: string, environment: string = 'production'): Promise<ConfigItem | null> {
+    const entity = await this.configRepo.getConfig(key, namespace, environment);
+    if (!entity) return null;
+    return this.entityToConfigItem(entity);
+  }
+
+  /**
+   * List configs with optional filters
+   */
+  async listConfigs(filters?: {
+    namespace?: string;
+    environment?: string;
+    status?: string;
+  }): Promise<ConfigItem[]> {
+    const entities = await this.configRepo.listConfigs(filters);
+    return entities.map((e) => this.entityToConfigItem(e));
+  }
+
+  // ==================== Version Management ====================
+
+  /**
+   * Get a specific version (or latest)
+   */
+  async getVersion(configKey: string, namespace: string, version?: number): Promise<ConfigVersion | null> {
+    const entity = await this.configRepo.getVersion(configKey, namespace, version);
+    if (!entity) return null;
+    return this.entityToConfigVersion(entity);
+  }
+
+  /**
+   * List all versions for a config
+   */
+  async listVersions(configKey: string, namespace: string): Promise<ConfigVersion[]> {
+    const entities = await this.configRepo.listVersions(configKey, namespace);
+    return entities.map((e) => this.entityToConfigVersion(e));
+  }
+
+  /**
+   * Rollback to a specific version
+   */
+  async rollback(configKey: string, namespace: string, targetVersion: number, createdBy: string): Promise<{ config: ConfigItem; version: ConfigVersion } | null> {
+    const result = await this.configRepo.rollback(configKey, namespace, targetVersion, createdBy);
+    if (!result) return null;
+    return {
+      config: this.entityToConfigItem(result.config),
+      version: this.entityToConfigVersion(result.version),
     };
-    this.configs.set(configId, updated);
-    return updated;
   }
 
-  async getVersion(configId: string, version?: number): Promise<ConfigVersion | null> {
-    const versions = this.versions.get(configId);
-    if (!versions || versions.length === 0) return null;
-    if (version) {
-      return versions.find(v => v.version === version) || null;
-    }
-    return versions[versions.length - 1];
+  /**
+   * Diff between two versions
+   */
+  async diff(configKey: string, namespace: string, versionA: number, versionB: number): Promise<Record<string, unknown> | null> {
+    return this.configRepo.diff(configKey, namespace, versionA, versionB);
   }
 
-  async diffVersions(configId: string, versionA: number, versionB: number): Promise<ConfigDiff[]> {
-    const versions = this.versions.get(configId);
-    if (!versions) return [];
+  // ==================== Legacy Methods (compatibility) ====================
 
-    const vA = versions.find(v => v.version === versionA);
-    const vB = versions.find(v => v.version === versionB);
-    if (!vA || !vB) return [];
+  /**
+   * Archive config by key
+   */
+  async archiveConfig(key: string, namespace: string, environment: string = 'production'): Promise<ConfigItem | null> {
+    const entity = await this.configRepo.getConfig(key, namespace, environment);
+    if (!entity) return null;
 
-    const diffs: ConfigDiff[] = [];
-    const valA = typeof vA.value === 'object' ? vA.value as Record<string, unknown> : { value: vA.value };
-    const valB = typeof vB.value === 'object' ? vB.value as Record<string, unknown> : { value: vB.value };
-
-    const allKeys = new Set([...Object.keys(valA), ...Object.keys(valB)]);
-    for (const key of allKeys) {
-      const oldVal = valA[key] as ConfigDiff['oldValue'];
-      const newVal = valB[key] as ConfigDiff['newValue'];
-      if (!(key in valA)) {
-        diffs.push({ id: uuidv4(), key, diffType: 'added', newValue: newVal });
-      } else if (!(key in valB)) {
-        diffs.push({ id: uuidv4(), key, diffType: 'removed', oldValue: oldVal, newValue: newVal });
-      } else if (JSON.stringify(valA[key]) !== JSON.stringify(valB[key])) {
-        diffs.push({ id: uuidv4(), key, diffType: 'modified', oldValue: oldVal, newValue: newVal });
-      }
-    }
-    return diffs;
+    const result = await this.db.query(
+      `UPDATE config_items SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      ['archived', entity.id],
+    );
+    if (result.rows.length === 0) return null;
+    return this.entityToConfigRow(result.rows[0]);
   }
 
+  /**
+   * Detect config drift (stub - would compare against actual infrastructure)
+   */
   async detectDrift(environment: string): Promise<ConfigDrift[]> {
-    const drifts: ConfigDrift[] = [];
-    for (const config of this.configs.values()) {
-      if (config.environment === environment && config.status === 'active') {
-        const configValue = typeof config.value === 'object' ? config.value as Record<string, unknown> : { value: config.value };
-        drifts.push({
-          id: uuidv4(),
-          configId: config.id,
-          expectedValue: configValue,
-          actualValue: configValue,
-          status: DriftStatus.IN_SYNC,
-          driftedFields: [],
-          detectedAt: new Date(),
-          tenantId: config.tenantId,
-        });
-      }
-    }
-    return drifts;
+    const items = await this.configRepo.listConfigs({ environment, status: 'active' });
+    return items.map((item) => ({
+      id: uuidv4(),
+      configId: item.id,
+      expectedValue: item.value as Record<string, unknown>,
+      actualValue: item.value as Record<string, unknown>,
+      status: DriftStatus.IN_SYNC,
+      driftedFields: [],
+      detectedAt: new Date(),
+      tenantId: item.tenantId,
+    }));
   }
+
+  // ==================== Feature Flags (in-memory for now) ====================
 
   async createFeatureFlag(data: Omit<FeatureFlag, 'id' | 'createdAt' | 'updatedAt'>): Promise<FeatureFlag> {
     const flag: FeatureFlag = {
@@ -162,7 +188,7 @@ export class ConfigMgmtService {
 
   async listFeatureFlags(environment?: string): Promise<{ items: FeatureFlag[]; total: number }> {
     let items = Array.from(this.featureFlags.values());
-    if (environment) items = items.filter(f => f.environment === environment);
+    if (environment) items = items.filter((f) => f.environment === environment);
     return { items: items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()), total: items.length };
   }
 
@@ -173,6 +199,8 @@ export class ConfigMgmtService {
     this.featureFlags.set(flagId, updated);
     return updated;
   }
+
+  // ==================== Approvals (in-memory for now) ====================
 
   async createApproval(data: Omit<ConfigApproval, 'id' | 'createdAt'>): Promise<ConfigApproval> {
     const approval: ConfigApproval = {
@@ -189,11 +217,6 @@ export class ConfigMgmtService {
     return this.approvals.get(approvalId) || null;
   }
 
-  async gitOpsSync(tenantId: string): Promise<{ status: string; syncedCount: number }> {
-    // TODO: implement actual Git sync
-    return { status: 'not_implemented', syncedCount: 0 };
-  }
-
   async decideApproval(approvalId: string, decision: 'approved' | 'rejected', comments: string, decidedBy: string): Promise<ConfigApproval | null> {
     const existing = this.approvals.get(approvalId);
     if (!existing) return null;
@@ -208,19 +231,55 @@ export class ConfigMgmtService {
     return updated;
   }
 
-  async listConfigs(filters?: { environment?: string; status?: string }): Promise<ConfigItem[]> {
-    let items = Array.from(this.configs.values());
-    if (filters?.environment) items = items.filter(c => c.environment === filters.environment);
-    if (filters?.status) items = items.filter(c => c.status === filters.status);
-    return items;
+  // ==================== GitOps (stub) ====================
+
+  async gitOpsSync(tenantId: string): Promise<{ status: string; syncedCount: number }> {
+    return { status: 'not_implemented', syncedCount: 0 };
   }
 
-  async archiveConfig(key: string, environment: string): Promise<ConfigItem | null> {
-    const configId = `${key}:${environment}`;
-    const existing = this.configs.get(configId);
-    if (!existing) return null;
-    const updated: ConfigItem = { ...existing, status: ConfigStatus.ARCHIVED, updatedAt: new Date() };
-    this.configs.set(configId, updated);
-    return updated;
+  // ==================== Entity Mapping ====================
+
+  private entityToConfigItem(entity: ConfigItemEntity): ConfigItem {
+    return {
+      id: entity.id,
+      key: entity.key,
+      value: entity.value,
+      itemType: ConfigItemType.APPLICATION,
+      status: entity.status as ConfigStatus,
+      environment: entity.environment,
+      currentVersion: entity.currentVersion,
+      tenantId: entity.tenantId,
+      createdBy: entity.createdBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
+
+  private entityToConfigVersion(entity: ConfigVersionEntity): ConfigVersion {
+    return {
+      id: entity.id,
+      configId: entity.configKey,
+      version: entity.version,
+      value: entity.value,
+      changeReason: entity.commitMessage || undefined,
+      changedBy: entity.createdBy,
+      createdAt: entity.createdAt,
+    };
+  }
+
+  private entityToConfigRow(row: any): ConfigItem {
+    return {
+      id: row.id,
+      key: row.key,
+      value: typeof row.value === 'string' ? JSON.parse(row.value) : row.value,
+      itemType: ConfigItemType.APPLICATION,
+      status: row.status,
+      environment: row.environment,
+      currentVersion: row.current_version,
+      tenantId: row.tenant_id,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 }

@@ -1,3 +1,5 @@
+import { colors } from '@/tokens';
+
 /**
  * DORA 指标引导配置
  *
@@ -64,19 +66,28 @@ export const ONBOARDING_STEPS = [
     title: '四大核心指标',
     icon: 'metrics',
     content:
-      '• 部署频率：衡量交付速度\n• 变更前置时间：衡量流程效率\n• 服务恢复时间：衡量响应能力\n• 变更失败率：衡量发布质量',
+      `• 部署频率：衡量交付速度
+• 变更前置时间：衡量流程效率
+• 服务恢复时间：衡量响应能力
+• 变更失败率：衡量发布质量`,
   },
   {
     title: '效能等级说明',
     icon: 'level',
     content:
-      'Elite（精英）：行业顶尖水平\nHigh（高）：表现优秀\nMedium（中等）：有改进空间\nLow（低）：需要重点关注',
+      `Elite（精英）：行业顶尖水平
+High（高）：表现优秀
+Medium（中等）：有改进空间
+Low（低）：需要重点关注`,
   },
   {
     title: '如何提升效能',
     icon: 'improve',
     content:
-      '1. 查看改进建议获取针对性优化方案\n2. 使用团队对比了解差距\n3. 关注趋势分析持续改进\n4. 点击右上角 ❓ 图标可随时查看帮助',
+      `1. 查看改进建议获取针对性优化方案
+2. 使用团队对比了解差距
+3. 关注趋势分析持续改进
+4. 点击右上角 ❓ 图标可随时查看帮助`,
   },
 ];
 
@@ -85,7 +96,7 @@ export const DORA_LEVELS = [
   {
     level: 'elite',
     name: 'Elite（精英）',
-    color: '#52c41a',
+    color: colors.success[500],
     description: '行业顶尖水平，具备卓越的软件交付能力。',
     criteria: {
       deploymentFrequency: '按需部署（每天多次）',
@@ -97,7 +108,7 @@ export const DORA_LEVELS = [
   {
     level: 'high',
     name: 'High（高）',
-    color: '#1890ff',
+    color: colors.primary[500],
     description: '表现优秀，持续交付能力稳定可靠。',
     criteria: {
       deploymentFrequency: '每周至每月部署一次',
@@ -109,7 +120,7 @@ export const DORA_LEVELS = [
   {
     level: 'medium',
     name: 'Medium（中等）',
-    color: '#faad14',
+    color: colors.warning[500],
     description: '有改进空间，需要优化部分流程。',
     criteria: {
       deploymentFrequency: '每月至每季度部署一次',
@@ -121,7 +132,7 @@ export const DORA_LEVELS = [
   {
     level: 'low',
     name: 'Low（低）',
-    color: '#ff4d4f',
+    color: colors.error[400],
     description: '需要重点关注，建议制定改进计划。',
     criteria: {
       deploymentFrequency: '少于每季度部署一次',

@@ -44,6 +44,7 @@ import {
   type Trigger,
   type TriggerStats,
 } from '@/api/triggers';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -97,7 +98,7 @@ const TriggerPage: React.FC = () => {
       ]);
 
       if (webhooksRes.status === 'fulfilled') {
-        setWebhooks((webhooksRes.value.data as any)?.webhooks || []);
+        setWebhooks(((webhooksRes.value.data as { webhooks?: unknown[] })?.webhooks ?? []) as Webhook[]);
       }
       if (triggersRes.status === 'fulfilled') {
         setTriggers(Array.isArray(triggersRes.value) ? triggersRes.value : []);
@@ -319,12 +320,13 @@ const TriggerPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <ThunderboltOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <ThunderboltOutlined style={{ marginRight: spacing.sm }} />
             多模态触发器
           </Title>
           <Text type="secondary">Webhook 管理、事件触发器和自动化规则</Text>
@@ -343,7 +345,7 @@ const TriggerPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic title="Webhooks" value={webhooks.length} />
@@ -354,7 +356,7 @@ const TriggerPage: React.FC = () => {
             <Statistic
               title="活跃 Webhook"
               value={webhooks.filter((w) => w.enabled).length}
-              valueStyle={{ color: '#52c41a' }}
+              valueStyle={{ color: colors.success[500] }}
             />
           </Card>
         </Col>
@@ -369,7 +371,7 @@ const TriggerPage: React.FC = () => {
               title="成功率"
               value={successRate}
               valueStyle={{
-                color: triggerStats && triggerStats.successRate >= 0.9 ? '#52c41a' : '#faad14',
+                color: triggerStats && triggerStats.successRate >= 0.9 ? colors.success[500] : colors.warning[500],
               }}
             />
           </Card>

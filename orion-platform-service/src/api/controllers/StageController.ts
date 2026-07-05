@@ -4,7 +4,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
-import { StageExecutor } from '../../engine/StageExecutor';
+import { StageExecutor } from '../../services/pipeline';
 import { StageStatus } from '../../models/Stage';
 import { TaskStatus } from '../../models/Task';
 

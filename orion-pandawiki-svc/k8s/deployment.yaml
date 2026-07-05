@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-pandawiki-svc
+  labels:
+    app: orion-pandawiki-svc
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-pandawiki-svc
+  template:
+    metadata:
+      labels:
+        app: orion-pandawiki-svc
+        tier: backend
+    spec:
+      containers:
+        - name: pandawiki
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-pandawiki-svc:v1.0.0
+          ports:
+            - containerPort: 3034
+              name: http
+          env:
+            - name: PORT
+              value: "3034"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: PANDAWIKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-pandawiki-config
+                  key: pandawiki-url
+            - name: PANDAWIKI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: orion-pandawiki-secrets
+                  key: api-key
+                  optional: true
+            - name: PANDAWIKI_TIMEOUT
+              value: "30000"
+            - name: NATS_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-nats-config
+                  key: servers
+                  optional: true
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3034
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3034
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3

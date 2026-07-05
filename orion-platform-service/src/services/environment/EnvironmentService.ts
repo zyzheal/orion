@@ -144,4 +144,80 @@ export class EnvironmentService {
 
     return this.updateEnvironment(id, { status });
   }
+
+  /**
+   * Lock an environment to prevent accidental deployments.
+   */
+  async lockEnvironment(id: string, lockedBy: string, reason: string): Promise<Environment> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new EnvironmentServiceError(`Environment not found: ${id}`, 'NOT_FOUND');
+    }
+
+    const result = await this.repository.lock(id, lockedBy, reason);
+    if (!result) {
+      throw new EnvironmentServiceError(`Failed to lock environment: ${id}`, 'LOCK_FAILED');
+    }
+    return result;
+  }
+
+  /**
+   * Unlock an environment to allow deployments.
+   */
+  async unlockEnvironment(id: string): Promise<Environment> {
+    const existing = await this.repository.findById(id);
+    if (!existing) {
+      throw new EnvironmentServiceError(`Environment not found: ${id}`, 'NOT_FOUND');
+    }
+
+    const result = await this.repository.unlock(id);
+    if (!result) {
+      throw new EnvironmentServiceError(`Failed to unlock environment: ${id}`, 'UNLOCK_FAILED');
+    }
+    return result;
+  }
+
+  /**
+   * Get lock information for an environment.
+   */
+  async getLockInfo(id: string): Promise<{
+    locked: boolean;
+    lockedBy?: string;
+    lockedAt?: Date;
+    reason?: string;
+  }> {
+    const env = await this.repository.findById(id);
+    if (!env) {
+      throw new EnvironmentServiceError(`Environment not found: ${id}`, 'NOT_FOUND');
+    }
+
+    return {
+      locked: env.locked ?? false,
+      lockedBy: env.locked_by,
+      lockedAt: env.locked_at,
+      reason: env.locked_reason,
+    };
+  }
+
+  /**
+   * Check if a deployment is allowed to the given environment.
+   */
+  async checkDeploymentAllowed(id: string): Promise<{
+    allowed: boolean;
+    reason?: string;
+  }> {
+    const env = await this.repository.findById(id);
+    if (!env) {
+      throw new EnvironmentServiceError(`Environment not found: ${id}`, 'NOT_FOUND');
+    }
+
+    if (env.locked) {
+      return {
+        allowed: false,
+        reason: `Environment '${env.name}' is locked by ${env.locked_by} — ${env.locked_reason}`,
+      };
+    }
+
+    return { allowed: true };
+  }
 }

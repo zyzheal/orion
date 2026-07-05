@@ -79,12 +79,12 @@ export class PolicyViolationRepository extends BaseRepository<PolicyViolationEnt
   /**
    * Find violation by ID
    */
-  async findById(id: string): Promise<PolicyViolationEntity | undefined> {
+  async findById(id: string): Promise<PolicyViolationEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM policy_violations WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

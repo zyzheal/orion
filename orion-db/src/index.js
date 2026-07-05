@@ -7,47 +7,65 @@ const { Pool } = require('pg');
 const Redis = require('ioredis');
 
 // PostgreSQL 连接池配置
-const pgConfig = {
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  user: process.env.POSTGRES_USER || 'orion_app',
-  password: process.env.POSTGRES_PASSWORD || 'orion_app_password',
-  database: process.env.POSTGRES_DB || 'orion_tenant_db',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-};
+function getPgConfig() {
+  const password = process.env.POSTGRES_PASSWORD;
+  if (!password) {
+    throw new Error('POSTGRES_PASSWORD environment variable is required');
+  }
+  return {
+    host: process.env.POSTGRES_HOST || 'localhost',
+    port: parseInt(process.env.POSTGRES_PORT || '5432'),
+    user: process.env.POSTGRES_USER || 'orion_app',
+    password,
+    database: process.env.POSTGRES_DB || 'orion_tenant_db',
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+}
 
 // Redis 配置
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD || 'redis_password',
-  maxRetriesPerRequest: 3,
-  retryStrategy: (times) => {
-    if (times > 3) return null;
-    return Math.min(times * 50, 2000);
-  },
-};
+function getRedisConfig() {
+  const password = process.env.REDIS_PASSWORD;
+  if (!password) {
+    throw new Error('REDIS_PASSWORD environment variable is required');
+  }
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379'),
+    password,
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times) => {
+      if (times > 3) return null;
+      return Math.min(times * 50, 2000);
+    },
+  };
+}
 
 // Redis Sentinel 配置
-const redisSentinelConfig = {
-  sentinels: [
-    { host: 'localhost', port: 26379 },
-    { host: 'localhost', port: 26380 },
-    { host: 'localhost', port: 26381 },
-  ],
-  name: 'mymaster',
-  password: process.env.REDIS_PASSWORD || 'redis_password',
-  maxRetriesPerRequest: 3,
-};
+function getRedisSentinelConfig() {
+  const password = process.env.REDIS_PASSWORD;
+  if (!password) {
+    throw new Error('REDIS_PASSWORD environment variable is required');
+  }
+  return {
+    sentinels: [
+      { host: 'localhost', port: 26379 },
+      { host: 'localhost', port: 26380 },
+      { host: 'localhost', port: 26381 },
+    ],
+    name: 'mymaster',
+    password,
+    maxRetriesPerRequest: 3,
+  };
+}
 
 // 创建 PostgreSQL 连接池
 let pgPool = null;
 
 function getPostgresPool() {
   if (!pgPool) {
-    pgPool = new Pool(pgConfig);
+    pgPool = new Pool(getPgConfig());
 
     pgPool.on('error', (err) => {
       console.error('Unexpected PostgreSQL error:', err);
@@ -62,9 +80,9 @@ let redisClient = null;
 function getRedisClient(useSentinel = false) {
   if (!redisClient) {
     if (useSentinel) {
-      redisClient = new Redis(redisSentinelConfig);
+      redisClient = new Redis(getRedisSentinelConfig());
     } else {
-      redisClient = new Redis(redisConfig);
+      redisClient = new Redis(getRedisConfig());
     }
 
     redisClient.on('error', (err) => {
@@ -78,14 +96,14 @@ function getRedisClient(useSentinel = false) {
   return redisClient;
 }
 
-// 设置租户上下文
+// 设置租户上下文（参数化查询防止 SQL 注入）
 async function setTenantContext(client, tenantId) {
-  await client.query(`SET LOCAL app.current_tenant_id = '${tenantId}'`);
+  await client.query('SET LOCAL app.current_tenant_id = $1', [String(tenantId)]);
 }
 
-// 设置用户上下文
+// 设置用户上下文（参数化查询防止 SQL 注入）
 async function setUserContext(client, userId) {
-  await client.query(`SET LOCAL app.current_user_id = '${userId}'`);
+  await client.query('SET LOCAL app.current_user_id = $1', [String(userId)]);
 }
 
 // 缓存键命名规范
@@ -245,7 +263,7 @@ module.exports = {
   CacheKeys,
   CacheTTL,
   CacheService,
-  pgConfig,
-  redisConfig,
-  redisSentinelConfig,
+  getPgConfig,
+  getRedisConfig,
+  getRedisSentinelConfig,
 };

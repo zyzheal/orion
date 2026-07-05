@@ -4,14 +4,18 @@
  * Handles build environment and build record management
  */
 
-import { 
-  BuildRepository, 
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LBuild-LService');
+import {
+  BuildRepository,
   Build,
   BuildEnvironment,
   CreateBuildInput,
   CreateBuildEnvironmentInput,
   UpdateBuildInput
 } from './BuildRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 export interface ListBuildsOptions {
   page?: number;
@@ -194,7 +198,7 @@ export class BuildService {
 
     // In real implementation, trigger actual build
     this.executeBuild(id).catch(err => {
-      console.error(`Build execution failed: ${err.message}`);
+      logger.error(`Build execution failed: ${err.message}`);
     });
 
     return updated;

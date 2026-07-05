@@ -3,10 +3,11 @@
  * Git 提交状态管理服务
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';
+import { OrionError } from '../../errors';
 
 // Local type definitions (not yet in types.ts)
 export enum CommitStatus {
@@ -21,7 +22,17 @@ export enum GitProvider {
   GITHUB = 'github',
 }
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CommitStatusService');
+
+/** Pipeline run status as seen by SCM integration */
+export type PipelineRunOutcome = 'success' | 'failure' | 'cancelled';
+
+/** Stage summary for PR comment rendering */
+export interface StageSummaryItem {
+  name: string;
+  status: string;
+  durationMs: number;
+}
 
 export interface CommitStatusInput {
   repositoryId: string;
@@ -82,7 +93,7 @@ export class CommitStatusService {
           await this.createGitHubStatus(input);
           break;
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
       
       logger.info({
@@ -113,7 +124,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatus(query);
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
     } catch (error) {
       logger.error({
@@ -137,7 +148,7 @@ export class CommitStatusService {
         case GitProvider.GITHUB:
           return await this.getGitHubStatusDetail(query);
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
     } catch (error) {
       logger.error({
@@ -185,7 +196,7 @@ export class CommitStatusService {
           await this.deleteGitHubStatus(query);
           break;
         default:
-          throw new Error(`Unsupported Git provider: ${provider}`);
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
       }
       
       logger.info({
@@ -280,7 +291,7 @@ export class CommitStatusService {
 
     const state = gitlabStateMap[input.state];
     if (!state) {
-      throw new Error(`Unsupported state for GitLab: ${input.state}`);
+      throw new OrionError(`Unsupported state for GitLab: ${input.state}`, 'VALIDATION_ERROR')
     }
 
     await this.gitLabClient.createCommitStatus({
@@ -306,7 +317,7 @@ export class CommitStatusService {
 
     const state = githubStateMap[input.state];
     if (!state) {
-      throw new Error(`Unsupported state for GitHub: ${input.state}`);
+      throw new OrionError(`Unsupported state for GitHub: ${input.state}`, 'VALIDATION_ERROR')
     }
 
     await this.githubClient.createCommitStatus({
@@ -470,20 +481,293 @@ export class CommitStatusService {
    */
   private groupByProvider(inputs: CommitStatusInput[]): Map<GitProvider, CommitStatusInput[]> {
     const grouped = new Map<GitProvider, CommitStatusInput[]>();
-    
+
     inputs.forEach(input => {
       const provider = this.detectProvider(input.repositoryId);
-      
+
       if (!grouped.has(provider)) {
         grouped.set(provider, []);
       }
-      
+
       const existing = grouped.get(provider);
       if (existing) {
         existing.push(input);
       }
     });
-    
+
     return grouped;
+  }
+
+  // ==================== PR Comment Integration ====================
+
+  /**
+   * Post a structured PR comment with pipeline results.
+   *
+   * @param provider - SCM provider (github | gitlab)
+   * @param repositoryId - Repository identifier (owner/repo for GitHub, project-id for GitLab)
+   * @param prNumber - Pull Request / Merge Request number
+   * @param pipelineRunId - Orion pipeline run ID
+   * @param pipelineName - Human-readable pipeline name
+   * @param outcome - Pipeline result (success | failure | cancelled)
+   * @param targetUrl - Link back to Orion run details
+   * @param stagesSummary - Stage-level results for markdown table
+   */
+  async postPrComment(
+    provider: GitProvider,
+    repositoryId: string,
+    prNumber: number,
+    pipelineRunId: string,
+    pipelineName: string,
+    outcome: PipelineRunOutcome,
+    targetUrl: string,
+    stagesSummary?: StageSummaryItem[]
+  ): Promise<void> {
+    const emoji = outcome === 'success' ? '\u{1F7E2}' : outcome === 'failure' ? '\u{1F534}' : '\u{26AA}';
+    const statusText = outcome === 'success' ? 'completed successfully' : outcome === 'failure' ? 'failed' : 'cancelled';
+
+    let comment = `${emoji} Pipeline **${pipelineName}** (#${pipelineRunId}) ${statusText}\n\n`;
+
+    if (stagesSummary && stagesSummary.length > 0) {
+      comment += '| Stage | Status | Duration |\n';
+      comment += '|-------|--------|----------|\n';
+      for (const stage of stagesSummary) {
+        const icon = stage.status === 'success' ? '\u2705 Pass' : stage.status === 'failed' ? '\u274C Fail' : stage.status === 'skipped' ? '\u23ED Skip' : `\u2753 ${stage.status}`;
+        const duration = this.formatDuration(stage.durationMs);
+        comment += `| ${stage.name} | ${icon} | ${duration} |\n`;
+      }
+      comment += '\n';
+    }
+
+    comment += `[View full details in Orion](${targetUrl})`;
+
+    try {
+      switch (provider) {
+        case GitProvider.GITHUB:
+          await this.postGitHubComment(repositoryId, prNumber, comment);
+          break;
+        case GitProvider.GITLAB:
+          await this.postGitLabComment(repositoryId, prNumber, comment);
+          break;
+        default:
+          throw new OrionError(`Unsupported Git provider: ${provider}`, 'VALIDATION_ERROR')
+      }
+
+      logger.info(
+        { provider, repositoryId, prNumber, pipelineRunId, outcome },
+        'PR comment posted successfully'
+      );
+    } catch (error) {
+      logger.error(
+        { error, provider, repositoryId, prNumber, pipelineRunId },
+        'Failed to post PR comment'
+      );
+      // Do not rethrow — PR comment posting should not affect pipeline status
+    }
+  }
+
+  /**
+   * Post a comment on a GitHub Pull Request.
+   * Uses POST /repos/{owner}/{repo}/issues/{number}/comments
+   */
+  private async postGitHubComment(
+    repositoryId: string,
+    prNumber: number,
+    body: string
+  ): Promise<void> {
+    const owner = this.extractOwner(repositoryId);
+    const repo = this.extractRepo(repositoryId);
+    const url = `${this.githubClient['baseUrl']}/repos/${owner}/${repo}/issues/${prNumber}/comments`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.githubClient['headers'] as Record<string, string>,
+      body: JSON.stringify({ body }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
+    }
+  }
+
+  /**
+   * Post a comment on a GitLab Merge Request.
+   * Uses POST /api/v4/projects/{id}/merge_requests/{iid}/notes
+   */
+  private async postGitLabComment(
+    projectId: string,
+    mrIid: number,
+    body: string
+  ): Promise<void> {
+    const url = `${this.gitLabClient['baseUrl']}/api/v4/projects/${encodeURIComponent(projectId)}/merge_requests/${mrIid}/notes`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: this.gitLabClient['headers'] as Record<string, string>,
+      body: JSON.stringify({ body }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new OrionError(`GitLab API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
+    }
+  }
+
+  // ==================== GitHub Check Run Integration ====================
+
+  /**
+   * Create a GitHub Check Run (more feature-rich than commit status).
+   * Supports check suites, annotations, and detailed output.
+   *
+   * POST /repos/{owner}/{repo}/check-runs
+   */
+  async createCheckRun(input: {
+    owner: string;
+    repo: string;
+    name: string;
+    headSha: string;
+    status: 'queued' | 'in_progress' | 'completed';
+    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required';
+    detailsUrl?: string;
+    output?: {
+      title: string;
+      summary: string;
+      text?: string;
+    };
+    token?: string;
+  }): Promise<number | undefined> {
+    try {
+      const url = `https://api.github.com/repos/${input.owner}/${input.repo}/check-runs`;
+
+      const checkHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${input.token || process.env.GITHUB_TOKEN || ''}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Orion-Platform-Service/1.0',
+      };
+
+      const body: Record<string, unknown> = {
+        name: input.name,
+        head_sha: input.headSha,
+        status: input.status,
+      };
+
+      if (input.conclusion) {
+        body.conclusion = input.conclusion;
+      }
+      if (input.detailsUrl) {
+        body.details_url = input.detailsUrl;
+      }
+      if (input.output) {
+        body.output = input.output;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: checkHeaders,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new OrionError(`GitHub Check Run API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
+      }
+
+      const result = (await response.json()) as { id: number };
+      const checkRunId = result.id;
+
+      logger.info(
+        { owner: input.owner, repo: input.repo, checkRunId, name: input.name, status: input.status },
+        'GitHub Check Run created'
+      );
+
+      return checkRunId;
+    } catch (error) {
+      logger.error(
+        { error, input },
+        'Failed to create GitHub Check Run'
+      );
+      // Do not rethrow — Check Run creation is non-critical
+      return undefined;
+    }
+  }
+
+  /**
+   * Update an existing GitHub Check Run.
+   * PATCH /repos/{owner}/{repo}/check-runs/{check_run_id}
+   */
+  async updateCheckRun(input: {
+    owner: string;
+    repo: string;
+    checkRunId: number;
+    status?: 'queued' | 'in_progress' | 'completed';
+    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'timed_out' | 'action_required';
+    output?: {
+      title: string;
+      summary: string;
+      text?: string;
+    };
+    detailsUrl?: string;
+    token?: string;
+  }): Promise<void> {
+    try {
+      const url = `https://api.github.com/repos/${input.owner}/${input.repo}/check-runs/${input.checkRunId}`;
+
+      const checkHeaders: Record<string, string> = {
+        'Authorization': `Bearer ${input.token || process.env.GITHUB_TOKEN || ''}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Orion-Platform-Service/1.0',
+      };
+
+      const body: Record<string, unknown> = {};
+
+      if (input.status) {
+        body.status = input.status;
+      }
+      if (input.conclusion) {
+        body.conclusion = input.conclusion;
+      }
+      if (input.output) {
+        body.output = input.output;
+      }
+      if (input.detailsUrl) {
+        body.details_url = input.detailsUrl;
+      }
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: checkHeaders,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new OrionError(`GitHub Check Run API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
+      }
+
+      logger.info(
+        { owner: input.owner, repo: input.repo, checkRunId: input.checkRunId },
+        'GitHub Check Run updated'
+      );
+    } catch (error) {
+      logger.error(
+        { error, input },
+        'Failed to update GitHub Check Run'
+      );
+    }
+  }
+
+  // ==================== Helpers ====================
+
+  /**
+   * Format duration in ms to human-readable string.
+   */
+  private formatDuration(ms: number): string {
+    if (ms < 1000) return `${ms}ms`;
+    if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.round((ms % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
   }
 }

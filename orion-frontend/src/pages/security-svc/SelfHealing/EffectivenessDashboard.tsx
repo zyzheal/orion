@@ -4,14 +4,14 @@
  */
 import React, { useState, useEffect } from 'react';
 import { Typography, Card, Row, Col, Statistic, Table, Tag, Button, message } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import {
   ReloadOutlined,
   ThunderboltOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
   LineChartOutlined,
-} from '@ant-design/icons';
+  DashboardOutlined,} from '@ant-design/icons';
 import { getEffectiveness, getHealingHistory } from '@/api/self-healing';
 import type { SelfHealingEffectiveness, SelfHealingIncident } from '@/api/self-healing';
 import dayjs from 'dayjs';
@@ -30,8 +30,8 @@ const EffectivenessDashboard: React.FC = () => {
         getEffectiveness(),
         getHealingHistory({ pageSize: 10 }),
       ]);
-      setEffectiveness(effRes.data.data || null);
-      setRecentHistory(histRes.data.data?.items || []);
+      setEffectiveness((effRes.data || null) as unknown as SelfHealingEffectiveness | null);
+      setRecentHistory((histRes.data as any).items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载效能数据失败：${error.message}`);
@@ -92,10 +92,11 @@ const EffectivenessDashboard: React.FC = () => {
   const historyData = recentHistory.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DashboardOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             效能仪表盘
           </Title>
           <Text type="secondary">自愈合系统效能分析与趋势</Text>
@@ -106,7 +107,7 @@ const EffectivenessDashboard: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -153,7 +154,7 @@ const EffectivenessDashboard: React.FC = () => {
       </Row>
 
       {/* Detailed Metrics */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: spacing.lg }}>
         <Col span={12}>
           <Card title="效能指标">
             {effectiveness ? (
@@ -208,7 +209,7 @@ const EffectivenessDashboard: React.FC = () => {
               {effectiveness ? `${(effectiveness.healingRate * 100).toFixed(1)}%` : '0%'}，
               平均修复时间为 {effectiveness ? `${effectiveness.avgMttr.toFixed(1)}` : '0'} 分钟。
             </Text>
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text strong>优化建议：</Text>
               <ul style={{ paddingLeft: 20, margin: '8px 0 0' }}>
                 <li>增加更多自动化策略以提高自愈率</li>

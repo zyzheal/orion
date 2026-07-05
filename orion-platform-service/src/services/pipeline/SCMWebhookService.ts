@@ -8,11 +8,14 @@
  */
 
 import crypto from 'crypto';
-import pino from 'pino';
-import { PipelineEngine } from '../../engine/PipelineEngine';
+import { createLogger } from '../../utils/logger';
+import { PipelineEngine } from '../../services/pipeline';
 import { TriggerType } from '../../models/PipelineRun';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { ScmTriggerRuleRepository } from '../../repositories/ScmTriggerRuleRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SCMWebhookService');
 
 /**
  * Parsed SCM webhook event
@@ -29,6 +32,12 @@ export interface SCMWebhookEvent {
   timestamp: Date;
   rawPayload: Record<string, any>;
   matchedPipelines: string[];
+  /** Pull Request number (for pull_request events) */
+  prNumber?: number;
+  /** Source branch (head of PR) */
+  sourceBranch?: string;
+  /** Target branch (base of PR) */
+  targetBranch?: string;
 }
 
 /**
@@ -48,25 +57,75 @@ export class SCMWebhookService {
   private secretToken: string;
   /** PR event debounce map: key -> timeout */
   private prDebounceMap = new Map<string, NodeJS.Timeout>();
+  private ruleRepo?: ScmTriggerRuleRepository;
 
-  constructor(pipelineEngine?: PipelineEngine | null) {
+  constructor(pipelineEngine?: PipelineEngine | null, db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.pipelineEngine = pipelineEngine || null;
     this.secretToken = process.env.SCM_WEBHOOK_SECRET || '';
+    if (db) {
+      this.ruleRepo = new ScmTriggerRuleRepository(db);
+      this.loadTriggerRulesFromDb().catch(err => {
+        logger.warn({ err }, 'Failed to load trigger rules from DB on startup');
+      });
+    }
+  }
+
+  /**
+   * Load trigger rules from PostgreSQL into in-memory cache.
+   */
+  private async loadTriggerRulesFromDb(): Promise<void> {
+    if (!this.ruleRepo) return;
+    try {
+      const rules = await this.ruleRepo.findAllRules();
+      this.triggerRules = rules.map(r => ({
+        pipelineId: r.pipelineId,
+        repository: r.repositoryPattern,
+        branchPattern: r.branchPattern,
+        events: r.events,
+      }));
+      logger.info({ count: this.triggerRules.length }, 'Loaded trigger rules from DB');
+    } catch (err) {
+      logger.warn({ err }, 'Failed to load trigger rules from DB');
+    }
   }
 
   /**
    * Configure trigger rules for SCM webhook matching.
+   * Persists to DB if available (fire-and-forget).
    */
   setTriggerRules(rules: SCMTriggerRule[]): void {
     this.triggerRules = rules;
     logger.info({ ruleCount: rules.length }, 'SCM webhook trigger rules configured');
+
+    if (this.ruleRepo) {
+      this.ruleRepo.bulkUpsert(rules.map(r => ({
+        pipelineId: r.pipelineId,
+        repositoryPattern: r.repository,
+        branchPattern: r.branchPattern,
+        events: r.events,
+      }))).catch(err => {
+        logger.warn({ err }, 'Failed to persist trigger rules to DB');
+      });
+    }
   }
 
   /**
    * Add a single trigger rule.
+   * Persists to DB if available (fire-and-forget).
    */
   addTriggerRule(rule: SCMTriggerRule): void {
     this.triggerRules.push(rule);
+
+    if (this.ruleRepo) {
+      this.ruleRepo.addRule({
+        pipelineId: rule.pipelineId,
+        repositoryPattern: rule.repository,
+        branchPattern: rule.branchPattern,
+        events: rule.events,
+      }).catch(err => {
+        logger.warn({ err }, 'Failed to persist trigger rule to DB');
+      });
+    }
   }
 
   /**
@@ -75,7 +134,7 @@ export class SCMWebhookService {
    */
   validateGitHubSignature(payload: string, signature: string): boolean {
     if (!this.secretToken) {
-      logger.warn('SCM_WEBHOOK_SECRET not set, skipping GitHub signature validation');
+      logger.warn({ traceId: getCurrentTraceId() }, 'SCM_WEBHOOK_SECRET not set, skipping GitHub signature validation');
       return true; // Skip validation if no secret configured
     }
 
@@ -103,7 +162,7 @@ export class SCMWebhookService {
    */
   validateGitLabToken(token: string): boolean {
     if (!this.secretToken) {
-      logger.warn('SCM_WEBHOOK_SECRET not set, skipping GitLab token validation');
+      logger.warn({ traceId: getCurrentTraceId() }, 'SCM_WEBHOOK_SECRET not set, skipping GitLab token validation');
       return true;
     }
 
@@ -126,7 +185,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new Error('Invalid GitHub webhook signature');
+        throw new OrionError('Invalid GitHub webhook signature', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -155,7 +214,7 @@ export class SCMWebhookService {
     if (signature) {
       const rawPayload = JSON.stringify(payload);
       if (!this.validateGitHubSignature(rawPayload, signature)) {
-        throw new Error('Invalid GitHub webhook signature');
+        throw new OrionError('Invalid GitHub webhook signature', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -187,6 +246,9 @@ export class SCMWebhookService {
       timestamp: new Date(),
       rawPayload: payload,
       matchedPipelines: [],
+      prNumber: pr.number,
+      sourceBranch: pr.head?.ref,
+      targetBranch: pr.base?.ref,
     };
 
     return this.processEvent(event);
@@ -199,7 +261,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new Error('Invalid GitLab webhook token');
+        throw new OrionError('Invalid GitLab webhook token', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -227,7 +289,7 @@ export class SCMWebhookService {
     // Validate token if provided
     if (token) {
       if (!this.validateGitLabToken(token)) {
-        throw new Error('Invalid GitLab webhook token');
+        throw new OrionError('Invalid GitLab webhook token', ErrorCode.VALIDATION_ERROR);
       }
     }
 
@@ -259,6 +321,9 @@ export class SCMWebhookService {
       timestamp: new Date(),
       rawPayload: payload,
       matchedPipelines: [],
+      prNumber: attrs.iid,
+      sourceBranch: attrs.source_branch,
+      targetBranch: attrs.target_branch,
     };
 
     return this.processEvent(event);
@@ -298,22 +363,42 @@ export class SCMWebhookService {
     for (const pipelineId of matchedPipelines) {
       try {
         if (!this.pipelineEngine) {
-          logger.warn({ pipelineId }, 'Pipeline engine not available, skipping trigger');
+          logger.warn({ traceId: getCurrentTraceId(), pipelineId }, 'Pipeline engine not available, skipping trigger');
           continue;
+        }
+
+        // Build git context for SCM write-back
+        const gitContext: Record<string, unknown> = {
+          git: {
+            ref: event.branch,
+            sha: event.commitSha,
+            repo: event.repository,
+          },
+          scmProvider: event.provider,
+          repository: event.repository,
+          branch: event.branch,
+          commitSha: event.commitSha,
+          commitMessage: event.commitMessage,
+          webhookEventId: event.id,
+        };
+
+        // Add PR context if this is a pull_request event
+        if (event.eventType === 'pull_request' && event.prNumber) {
+          gitContext.prNumber = event.prNumber;
+          gitContext.sourceBranch = event.sourceBranch;
+          gitContext.targetBranch = event.targetBranch;
+          (gitContext as any).pullRequest = {
+            number: event.prNumber,
+            sourceBranch: event.sourceBranch,
+            targetBranch: event.targetBranch,
+          };
         }
 
         await this.pipelineEngine.execute(
           pipelineId,
           TriggerType.EVENT,
           event.pusher,
-          {
-            scmProvider: event.provider,
-            repository: event.repository,
-            branch: event.branch,
-            commitSha: event.commitSha,
-            commitMessage: event.commitMessage,
-            webhookEventId: event.id,
-          }
+          gitContext
         );
 
         logger.info({ pipelineId, eventId: event.id }, 'Pipeline triggered from SCM webhook');

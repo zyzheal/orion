@@ -13,7 +13,7 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import httpProxy, { ServerOptions } from 'http-proxy';
-import { getConfig } from '../config';
+import { Readable } from 'stream';
 import {
   ServiceClient,
   ServiceClientError,
@@ -51,6 +51,47 @@ export class ProxyMiddleware {
 
     // 监听服务客户端事件
     this.setupEventListeners();
+
+    // 为所有代理响应注入 CORS 头
+    // 确保目标服务返回的响应包含 CORS 头，支持跨域访问
+    this.setupCorsInjection();
+  }
+
+  /**
+   * 设置 CORS 注入
+   * 为所有通过代理的响应添加 CORS 头，支持前端跨域访问后端服务
+   */
+  private setupCorsInjection(): void {
+    this.proxyServer.on('proxyRes', (proxyRes, req, res) => {
+      // 如果响应已结束，跳过 CORS 注入
+      if (res.headersSent || res.writableEnded) return;
+
+      const requestOrigin = (req as any).headers?.origin;
+
+      // 不覆盖后端已设置的 CORS 头
+      if (res.getHeader('Access-Control-Allow-Origin')) return;
+
+      // 规范要求：credentials: true 时不能使用 origin: *
+      // 有 origin 则回显，否则不设置 allow-credentials（降级为 *）
+      const allowOrigin = requestOrigin || '*';
+      const allowCredentials = requestOrigin ? 'true' : undefined;
+
+      const headers: Record<string, string> = {
+        'Access-Control-Allow-Origin': allowOrigin,
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key, X-Request-ID, X-Tenant-ID',
+        'Access-Control-Max-Age': '86400',
+        'Access-Control-Expose-Headers': 'X-Request-ID',
+      };
+
+      if (allowCredentials) {
+        headers['Access-Control-Allow-Credentials'] = allowCredentials;
+      }
+
+      Object.entries(headers).forEach(([key, value]) => {
+        res.setHeader(key, value);
+      });
+    });
   }
 
   /**
@@ -112,22 +153,58 @@ export class ProxyMiddleware {
   /**
    * 代理请求到目标服务（直接代理模式，用于流式响应）
    */
+  /**
+   * 代理请求到目标服务（直接代理模式，用于流式响应）
+   *
+   * OPTIONS 预检请求直接响应，不代理到后端
+   */
   forward(
     request: FastifyRequest,
     reply: FastifyReply,
     target: string,
     options?: ProxyOptions
   ): void {
-    const config = getConfig();
+    // 处理 CORS 预检请求（OPTIONS），直接响应不代理
+    if (request.method === 'OPTIONS') {
+      const requestOrigin = request.headers.origin;
+      const allowOrigin = requestOrigin || '*';
+
+      reply.header('Access-Control-Allow-Origin', allowOrigin);
+      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+      reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Request-ID, X-Tenant-ID');
+      reply.header('Access-Control-Max-Age', '86400');
+      if (requestOrigin) {
+        reply.header('Access-Control-Allow-Credentials', 'true');
+      }
+      reply.code(204).send();
+      return;
+    }
+
     const timeout = options?.timeout || 30000;
 
     // 设置超时
     request.raw.setTimeout(timeout);
 
-    // 构建代理请求头
+    // 构建代理请求头，传播认证和追踪信息
     const proxyHeaders: Record<string, string> = {
-      'X-Request-ID': request.requestId,
+      'X-Request-ID': request.requestId || `gw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     };
+
+    // 传播 Content-Type（POST 请求必需）
+    const contentType = request.headers['content-type'];
+    if (contentType) {
+      proxyHeaders['Content-Type'] = contentType as string;
+    }
+
+    // 传播认证信息（Authorization 或 X-API-Key）
+    const authHeader = request.headers.authorization;
+    if (authHeader) {
+      proxyHeaders['Authorization'] = authHeader;
+    }
+    const apiKey = request.headers['x-api-key'];
+    if (apiKey) {
+      proxyHeaders['X-API-Key'] = apiKey as string;
+    }
 
     // 传播租户 ID
     if (request.tenantId) {
@@ -141,16 +218,31 @@ export class ProxyMiddleware {
       headers: proxyHeaders,
     };
 
-    this.proxyServer.web(request.raw, reply.raw, proxyOptions);
+    // 如果 Fastify 已解析 body（如 POST/PUT），http-proxy 无法读取原始流，
+    // 需要手动将已解析的 body 序列化为 buffer 注入
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD' && request.body !== undefined;
+    if (hasBody) {
+      const bodyStr = typeof request.body === 'string'
+        ? request.body
+        : JSON.stringify(request.body);
+      const bodyBuffer = Buffer.from(bodyStr);
+      const bufferStream = Readable.from(bodyBuffer);
+      proxyOptions.buffer = bufferStream;
 
-    // 处理代理错误
-    this.proxyServer.on('error', (err, req, res) => {
+      // 更新 Content-Length 以匹配重新序列化的 body
+      proxyHeaders['Content-Length'] = String(bodyBuffer.length);
+    }
+
+    // 使用 once 注册 error 处理，避免监听器累积
+    this.proxyServer.once('error', (err, req, res) => {
       const errorResponse = ErrorFactory.create(
         ErrorCodes.HTTP_REQUEST_FAILED,
         { target, error: err.message }
       );
       reply.code(errorResponse.statusCode).send(errorResponse.toJSON(request.requestId));
     });
+
+    this.proxyServer.web(request.raw, reply.raw, proxyOptions);
   }
 
   /**

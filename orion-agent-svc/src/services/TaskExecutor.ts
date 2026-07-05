@@ -7,6 +7,7 @@ import {
 } from '../types/agent';
 import { AgentSandbox, SandboxConfig, SandboxResult, SandboxTask as SandboxTaskType } from './AgentSandbox';
 import { v4 as uuidv4 } from 'uuid';
+import { query } from '../utils/database.js';
 
 /**
  * TaskExecutor - Task execution with sandbox isolation
@@ -16,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
  * - Command allowlisting
  * - Timeout enforcement
  * - Path blocklisting
+ *
+ * Persistence: Redis (cache) + PostgreSQL (persistent storage)
  */
 export class TaskExecutor {
   private redis: Redis;
@@ -31,6 +34,66 @@ export class TaskExecutor {
       memoryLimitMB: config.sandbox.memoryLimit || 512,
       defaultTimeoutMs: (config.sandbox.timeout || 30) * 1000,
     });
+  }
+
+  /**
+   * Persist task to PostgreSQL
+   */
+  private async persistTask(task: Task): Promise<void> {
+    try {
+      await query(
+        `INSERT INTO agent_tasks (id, agent_id, task_type, payload, status, result, error, started_at, finished_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         ON CONFLICT (id) DO UPDATE SET
+           status = EXCLUDED.status,
+           result = EXCLUDED.result,
+           error = EXCLUDED.error,
+           started_at = EXCLUDED.started_at,
+           finished_at = EXCLUDED.finished_at,
+           updated_at = NOW()`,
+        [
+          task.id,
+          task.agentId,
+          'command',
+          JSON.stringify({ command: task.command, workingDirectory: task.workingDirectory, environment: task.environment }),
+          task.status,
+          task.stdout ? JSON.stringify({ stdout: task.stdout, stderr: task.stderr, exitCode: task.exitCode }) : null,
+          task.errorMessage,
+          task.startedAt ? new Date(task.startedAt) : null,
+          task.completedAt ? new Date(task.completedAt) : null,
+          new Date(task.createdAt),
+        ],
+      );
+    } catch (err) {
+      // Log but don't fail - Redis is the primary store
+      console.error('Failed to persist task to PostgreSQL:', err);
+    }
+  }
+
+  /**
+   * Add task execution log
+   */
+  async addTaskLog(taskId: string, level: 'info' | 'warn' | 'error', message: string, metadata?: Record<string, unknown>): Promise<void> {
+    try {
+      await query(
+        `INSERT INTO agent_task_logs (task_id, level, message, metadata, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [taskId, level, message, metadata ? JSON.stringify(metadata) : null],
+      );
+    } catch (err) {
+      console.error('Failed to add task log:', err);
+    }
+  }
+
+  /**
+   * Get task logs from PostgreSQL
+   */
+  async getTaskLogsFromDb(taskId: string, limit = 100): Promise<Array<{ level: string; message: string; created_at: Date }>> {
+    const result = await query(
+      `SELECT level, message, created_at FROM agent_task_logs WHERE task_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [taskId, limit],
+    );
+    return result.rows;
   }
 
   /**
@@ -63,16 +126,22 @@ export class TaskExecutor {
       if (completedTask) this.tasks.delete(completedTask.id);
     }
 
-    // Persist task
+    // Persist task to in-memory and Redis
     this.tasks.set(task.id, task);
     await this.redis.set(`task:${task.id}`, JSON.stringify(task), 'EX', 86400);
 
+    // Persist to PostgreSQL for durability
+    await this.persistTask(task);
+    await this.addTaskLog(task.id, 'info', `Task dispatched to agent ${agentId}`, { command: task.command });
+
     // Execute in sandbox asynchronously
-    this.executeInSandbox(task).catch(err => {
+    this.executeInSandbox(task).catch(async (err) => {
       task.status = TaskStatus.FAILED;
       task.errorMessage = err.message;
       task.completedAt = new Date().toISOString();
       this.tasks.set(task.id, task);
+      await this.persistTask(task);
+      await this.addTaskLog(task.id, 'error', `Task failed: ${err.message}`);
     });
 
     return task;
@@ -92,6 +161,8 @@ export class TaskExecutor {
       },
     };
 
+    await this.addTaskLog(task.id, 'info', `Executing command: ${task.command}`, { timeout: task.timeoutSeconds });
+
     const result = await this.sandbox.execute(sandboxTask);
 
     // Update task with result
@@ -104,6 +175,15 @@ export class TaskExecutor {
       completedTask.completedAt = new Date().toISOString();
       this.tasks.set(task.id, completedTask);
     }
+
+    // Persist updated task to PostgreSQL
+    await this.persistTask(completedTask!);
+    await this.addTaskLog(
+      task.id,
+      result.success ? 'info' : 'error',
+      result.success ? 'Task completed successfully' : `Task failed: ${result.error}`,
+      { exitCode: result.success ? 0 : 1, durationMs: result.durationMs },
+    );
 
     // Return a SandboxResult-compatible object for the caller
     return {
@@ -153,6 +233,14 @@ export class TaskExecutor {
     task.completedAt = new Date().toISOString();
     task.errorMessage = 'Cancelled by user';
     this.tasks.set(taskId, task);
+
+    // Update Redis
+    await this.redis.set(`task:${taskId}`, JSON.stringify(task), 'EX', 86400);
+
+    // Persist to PostgreSQL
+    await this.persistTask(task);
+    await this.addTaskLog(taskId, 'warn', 'Task cancelled by user');
+
     return true;
   }
 

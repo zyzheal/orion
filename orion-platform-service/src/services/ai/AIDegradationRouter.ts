@@ -16,6 +16,14 @@ import {
   AI_SCENARIO_PRIORITY,
 } from './types';
 import { RuleEngine } from './RuleEngine';
+import { createLogger } from '../../utils/logger';
+import {
+  AIDegradationConfigRepository,
+  AIDegradationResultCacheRepository,
+} from '../../repositories/AIDegradationConfigRepository';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('AIDegradationRouter');
 
 // 默认降级配置映射
 const DEFAULT_DEGRADATION_CONFIGS: Record<AIScenario, DegradationConfig> = {
@@ -140,8 +148,21 @@ export class AIDegradationRouter {
   private degradationHandlers: Map<string, (input: Record<string, unknown>) => Promise<DegradationResult>> = new Map();
   private notificationHandler?: (scenario: AIScenario, reason: string) => void;
 
-  constructor(ruleEngine?: RuleEngine) {
+  // Repositories (optional, for PostgreSQL persistence)
+  private configRepo: AIDegradationConfigRepository | null = null;
+  private cacheRepo: AIDegradationResultCacheRepository | null = null;
+
+  constructor(
+    ruleEngine?: RuleEngine,
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+  ) {
     this.ruleEngine = ruleEngine || new RuleEngine();
+
+    // Initialize repositories if db is provided
+    if (db) {
+      this.configRepo = new AIDegradationConfigRepository(db);
+      this.cacheRepo = new AIDegradationResultCacheRepository(db);
+    }
 
     // 初始化默认配置
     for (const [scenario, config] of Object.entries(DEFAULT_DEGRADATION_CONFIGS)) {
@@ -150,10 +171,51 @@ export class AIDegradationRouter {
   }
 
   /**
+   * 从数据库恢复状态（启动时调用）
+   */
+  async restoreState(): Promise<void> {
+    if (!this.configRepo) return;
+
+    try {
+      const entities = await this.configRepo.listAll();
+      for (const entity of entities) {
+        const config: DegradationConfig = {
+          strategy: entity.strategy as DegradationStrategy,
+          fallbackStrategies: (entity.fallback_strategies || []) as DegradationStrategy[],
+          ruleSet: entity.rule_set || undefined,
+          templateName: entity.template_name || undefined,
+          cacheTTL: entity.cache_ttl,
+          notifyOnDegradation: entity.notify_on_degradation,
+          defaultResponse: entity.default_response || undefined,
+        };
+        this.degradationConfigs.set(entity.scenario as AIScenario, config);
+      }
+      logger.info({ msg: 'AIDegradationRouter state restored from DB', configCount: entities.length });
+    } catch (error) {
+      logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to restore AIDegradationRouter state from DB', error });
+    }
+  }
+
+  /**
    * 设置降级配置
    */
   setDegradationConfig(scenario: AIScenario, config: DegradationConfig): void {
     this.degradationConfigs.set(scenario, config);
+
+    // Persist to DB if available
+    if (this.configRepo) {
+      this.configRepo.upsertByScenario({
+        id: `${scenario}-config`,
+        scenario,
+        strategy: config.strategy,
+        fallbackStrategies: config.fallbackStrategies || [],
+        ruleSet: config.ruleSet,
+        templateName: config.templateName,
+        cacheTtl: config.cacheTTL || 300000,
+        notifyOnDegradation: config.notifyOnDegradation || false,
+        defaultResponse: config.defaultResponse as Record<string, unknown>,
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist degradation config', error: err }));
+    }
   }
 
   /**
@@ -419,11 +481,23 @@ export class AIDegradationRouter {
   cacheResult(scenario: AIScenario, input: Record<string, unknown>, result: DegradationResult, ttl?: number): void {
     const cacheKey = this.getCacheKey(scenario, input);
     const effectiveTTL = ttl || this.degradationConfigs.get(scenario)?.cacheTTL || 300000;
+    const expiresAt = Date.now() + effectiveTTL;
 
     this.resultCache.set(cacheKey, {
       result,
-      expiresAt: Date.now() + effectiveTTL,
+      expiresAt,
     });
+
+    // Persist to DB if available
+    if (this.cacheRepo) {
+      this.cacheRepo.upsertByCacheKey({
+        id: cacheKey,
+        cacheKey,
+        scenario,
+        resultJson: result as unknown as Record<string, unknown>,
+        expiresAt: new Date(expiresAt),
+      }).catch(err => logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to persist degradation cache', error: err }));
+    }
   }
 
   /**
@@ -431,6 +505,8 @@ export class AIDegradationRouter {
    */
   clearCache(): void {
     this.resultCache.clear();
+
+    // Note: DB cache entries will expire naturally via expires_at
   }
 
   /**
@@ -441,6 +517,13 @@ export class AIDegradationRouter {
       if (key.startsWith(scenario)) {
         this.resultCache.delete(key);
       }
+    }
+
+    // Persist to DB
+    if (this.cacheRepo) {
+      this.cacheRepo.deleteByScenario(scenario).catch(err =>
+        logger.error({ traceId: getCurrentTraceId(), msg: 'Failed to clear scenario cache from DB', error: err })
+      );
     }
   }
 

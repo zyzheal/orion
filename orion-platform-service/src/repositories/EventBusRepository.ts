@@ -10,6 +10,8 @@
  */
 
 import { BaseRepository, FindAllOptions } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 // ==================== Entity Types ====================
 
@@ -69,7 +71,7 @@ export class EventBusConfigRepository extends BaseRepository<EventBusConfigEntit
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async upsert(key: string, value: Record<string, any>, description?: string): Promise<EventBusConfigEntity> {
+  async upsert(key: string, value: Record<string, any>, description?: string): Promise<EventBusConfigEntity | null> {
     const existing = await this.findByKey(key);
     if (existing) {
       return this.update(existing.id, { configValue: value, description });
@@ -82,7 +84,7 @@ export class EventBusConfigRepository extends BaseRepository<EventBusConfigEntit
       `INSERT INTO event_bus_config (config_key, config_value, description) VALUES ($1, $2, $3) RETURNING *`,
       [data.configKey, JSON.stringify(data.configValue), data.description],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -167,7 +169,7 @@ export class EventSubscriptionRepository extends BaseRepository<EventSubscriptio
         JSON.stringify(data.metadata || {}),
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -280,7 +282,7 @@ export class EventBusEventRepository extends BaseRepository<EventBusEventEntity>
       `INSERT INTO event_bus_events (tenant_id, event_type, subject, source, payload, sequence_num, status, published_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [
-        data.tenant_id || 'default',
+        data.tenant_id || getCurrentTenantId(),
         data.event_type,
         data.subject,
         data.source || 'orion-platform-service',
@@ -290,7 +292,7 @@ export class EventBusEventRepository extends BaseRepository<EventBusEventEntity>
         data.published_by || null,
       ],
     );
-    if (result.rows.length === 0) throw new Error('INSERT returned no rows');
+    if (result.rows.length === 0) throw new OrionError('INSERT returned no rows', ErrorCode.OPERATION_FAILED);
     return this.mapRowToEntity(result.rows[0]);
   }
 

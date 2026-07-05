@@ -15,10 +15,10 @@ import {
   Col,
   Statistic,
 } from 'antd';
-import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon } from '@ant-design/icons';
-import { spacing } from '@/tokens';
+import { ReloadOutlined, DeleteOutlined, ReloadOutlined as ReloadIcon, AppstoreOutlined } from '@ant-design/icons';
+import { colors, spacing } from '@/tokens';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getMySkills, uninstallSkill, type SkillPackage } from '@/api/skills';
 import dayjs from 'dayjs';
@@ -39,7 +39,7 @@ const MySkills: React.FC = () => {
     setLoading(true);
     try {
       const res = await getMySkills();
-      setSkills(Array.isArray(res.data.data) ? res.data.data : []);
+      setSkills(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load installed skills：${error.message}`);
@@ -122,7 +122,7 @@ const MySkills: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'rating',
@@ -198,11 +198,12 @@ const MySkills: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <AppstoreOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             我的技能
           </Title>
           <Text type="secondary">已安装的技能包管理</Text>
@@ -212,7 +213,7 @@ const MySkills: React.FC = () => {
         </Button>
       </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: spacing.lg }}>
         <Col span={8}>
           <Card>
             <Statistic title="已安装技能" value={skills.length} suffix="个" />
@@ -242,7 +243,7 @@ const MySkills: React.FC = () => {
       </Row>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}

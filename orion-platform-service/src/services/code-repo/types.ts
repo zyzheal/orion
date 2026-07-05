@@ -8,6 +8,7 @@ export enum RepoType {
   GITHUB = 'github',
   GITLAB = 'gitlab',
   GERRIT = 'gerrit',
+  BITBUCKET = 'bitbucket',
 }
 
 export enum PullRequestStatus {
@@ -73,6 +74,68 @@ export interface FileComment {
   body: string;
   author: string;
   createdAt: Date;
+}
+
+/**
+ * 文件 diff 的单个变更块
+ */
+export interface DiffHunk {
+  /** 变更块在旧文件中的起始行 */
+  oldStart: number;
+  /** 变更块在旧文件中的行数 */
+  oldLines: number;
+  /** 变更块在新文件中的起始行 */
+  newStart: number;
+  /** 变更块在新文件中的行数 */
+  newLines: number;
+  /** 变更内容（行级 diff） */
+  lines: string[];
+  /** 变更块头部描述 */
+  header?: string;
+}
+
+/**
+ * 文件 diff 结果
+ */
+export interface FileDiff {
+  /** 文件路径 */
+  path: string;
+  /** 旧文件 blob ID */
+  oldBlobId?: string;
+  /** 新文件 blob ID */
+  newBlobId?: string;
+  /** 是否为新文件 */
+  isNew: boolean;
+  /** 是否为删除文件 */
+  isDeleted: boolean;
+  /** 是否为重命名 */
+  isRenamed: boolean;
+  /** 变更 hunks */
+  hunks: DiffHunk[];
+  /** 变更统计 */
+  stats: {
+    additions: number;
+    deletions: number;
+    changes: number;
+  };
+}
+
+/**
+ * PR/MR 评论（行级或整体）
+ */
+export interface PRComment {
+  id: string;
+  prId: string;
+  /** 关联的文件路径（行级评论） */
+  path?: string;
+  /** 关联的行号 */
+  line?: number;
+  /** 评论内容 */
+  body: string;
+  /** 评论作者 */
+  author: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface WebhookConfig {
@@ -156,8 +219,18 @@ export interface ICodeRepoAdapter {
   createWebhook(repoId: string, input: { url: string; events: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig>;
   /** 列出 Webhooks */
   listWebhooks(repoId: string): Promise<WebhookConfig[]>;
+  /** 更新 Webhook */
+  updateWebhook(repoId: string, webhookId: string, input: { url?: string; events?: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig>;
   /** 删除 Webhook */
   deleteWebhook(repoId: string, webhookId: string): Promise<void>;
+  /** 列出标签 */
+  listTags(repoId: string): Promise<{ tags: string[]; total: number }>;
+  /** 获取文件 diff（两个提交/分支之间） */
+  getFileDiff(repoId: string, fromRef: string, toRef: string, options?: { path?: string }): Promise<FileDiff[]>;
+  /** 列出 PR/MR 评论 */
+  listComments(repoId: string, prId: string): Promise<PRComment[]>;
+  /** 添加 PR/MR 评论 */
+  addComment(repoId: string, prId: string, input: { body: string; path?: string; line?: number }): Promise<PRComment>;
 }
 
 /**
@@ -180,6 +253,8 @@ export interface OwnershipRule {
  * 解析后的 CODEOWNERS 文件
  */
 export interface CodeOwnersFile {
+  /** 记录 ID */
+  id: string;
   /** 所属仓库 ID */
   repoId: string;
   /** CODEOWNERS 文件路径，如 .github/CODEOWNERS */

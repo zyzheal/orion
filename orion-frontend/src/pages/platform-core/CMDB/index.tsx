@@ -23,7 +23,7 @@ import {
   Descriptions,
   Tabs,
 } from 'antd';
-import { colors } from '@/tokens';
+import { colors, spacing } from '@/tokens';
 import PageSkeleton from '@/components/PageSkeleton';
 import ReactFlow, {
   Background,
@@ -49,6 +49,7 @@ import {
   SyncOutlined,
   AppstoreOutlined,
   LinkOutlined,
+  DesktopOutlined,
 } from '@ant-design/icons';
 import {
   getCIs,
@@ -67,6 +68,11 @@ import {
   type K8sResource,
   type UpdateCIInput,
 } from '@/api/cmdb';
+
+// API 响应包装接口
+interface CIResponse { data?: CIItem[] }
+interface HostResponse { data?: HostInfo[] }
+interface K8sResponse { data?: K8sResource[] }
 
 const { Title, Text } = Typography;
 
@@ -89,7 +95,7 @@ const CITablePage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getCIs({ pageSize: 50 });
-      setCIs((res.data as any).data || []);
+      setCIs((res.data as CIResponse).data || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
@@ -210,10 +216,10 @@ const CITablePage: React.FC = () => {
   };
 
   const statusColorMap: Record<string, string> = {
-    active: 'green',
-    inactive: 'default',
-    maintenance: 'orange',
-    deprecated: 'red',
+    active: colors.success[500],
+    inactive: colors.neutral[400],
+    maintenance: colors.warning[500],
+    deprecated: colors.error[500],
   };
 
   const columns: TableColumnsType<CIItem> = [
@@ -232,7 +238,7 @@ const CITablePage: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: unknown) => <Tag color="blue">{String(type)}</Tag>,
+      render: (type: unknown) => <Tag color={colors.primary[500]}>{String(type)}</Tag>,
     },
     {
       title: '环境',
@@ -240,7 +246,7 @@ const CITablePage: React.FC = () => {
       key: 'environment',
       render: (env: unknown) =>
         env ? (
-          <Tag color={String(env) === 'production' ? 'red' : 'geekblue'}>{String(env)}</Tag>
+          <Tag color={String(env) === 'production' ? colors.error[500] : colors.info[500]}>{String(env)}</Tag>
         ) : (
           '-'
         ),
@@ -300,9 +306,12 @@ const CITablePage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
-              <Title level={4}>配置项管理</Title>
+              <Title level={2} style={{ marginBottom: spacing.sm }}>
+                <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+                配置项管理
+              </Title>
               <Text type="secondary">管理所有配置项 (CI) 及其生命周期</Text>
             </div>
             <Space>
@@ -320,7 +329,7 @@ const CITablePage: React.FC = () => {
           </div>
 
           {/* Summary */}
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={6}>
               <Card>
                 <Statistic title="配置项总数" value={cis.length} />
@@ -652,7 +661,7 @@ const CINode: React.FC<{ data: CINodeData }> = ({ data }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       {/* 节点头部：类型图标 + 名称 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
         <span style={{ color: iconColor, fontSize: 16 }}>{typeIconMap[data.type]}</span>
         <Text strong ellipsis={{ tooltip: data.label }} style={{ maxWidth: 140 }}>
           {data.label}
@@ -692,7 +701,7 @@ const TopologyPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await getTopology();
-      const data = (res.data as any).data || null;
+      const data = (res.data as { data?: TopologyData }).data || null;
       setTopology(data);
       if (data) {
         const flowNodes = convertToFlowNodes(data.nodes || []);
@@ -755,7 +764,7 @@ const TopologyPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>拓扑图</Title>
               <Text type="secondary">可视化资源配置依赖关系</Text>
@@ -779,7 +788,7 @@ const TopologyPage: React.FC = () => {
                   }}
                 >
                   <Space>
-                    <Tag color="blue" icon={<CloudServerOutlined />}>
+                    <Tag color={colors.primary[500]} icon={<CloudServerOutlined />}>
                       节点: {topology.nodes?.length || 0}
                     </Tag>
                     <Tag icon={<LinkOutlined />}>连接: {topology.edges?.length || 0}</Tag>
@@ -886,8 +895,8 @@ const IntegrationPage: React.FC = () => {
     setLoading(true);
     try {
       const [hostsRes, k8sRes] = await Promise.all([getHosts({ pageSize: 20 }), getK8sResources()]);
-      setHosts((hostsRes.data as any).data || []);
-      setK8sResources((k8sRes.data as any).data || []);
+      setHosts((hostsRes.data as HostResponse).data || []);
+      setK8sResources((k8sRes.data as K8sResponse).data || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('401') || error.message.includes('403')) {
@@ -944,12 +953,12 @@ const IntegrationPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'running' ? 'green' : 'default'}>{s}</Tag>,
+      render: (s: string) => <Tag color={s === 'running' ? colors.success[500] : colors.neutral[400]}>{s}</Tag>,
     },
   ];
 
   const k8sColumns = [
-    { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag>{k}</Tag> },
+    { title: '类型', dataIndex: 'kind', key: 'kind', render: (k: string) => <Tag color={colors.neutral[500]}>{k}</Tag> },
     { title: '名称', dataIndex: 'name', key: 'name' },
     { title: 'Namespace', dataIndex: 'namespace', key: 'namespace' },
     {
@@ -962,7 +971,7 @@ const IntegrationPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      render: (s: string) => <Tag color={s === 'Running' ? 'green' : 'default'}>{s}</Tag>,
+      render: (s: string) => <Tag color={s === 'Running' ? colors.success[500] : colors.neutral[400]}>{s}</Tag>,
     },
   ];
 
@@ -975,7 +984,7 @@ const IntegrationPage: React.FC = () => {
 
       {isInitialLoading ? null : (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
             <div>
               <Title level={4}>集成资源</Title>
               <Text type="secondary">主机、K8s、CI/CD 资源同步状态</Text>
@@ -985,7 +994,7 @@ const IntegrationPage: React.FC = () => {
             </Button>
           </div>
 
-          <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Row gutter={16} style={{ marginBottom: spacing.lg }}>
             <Col span={8}>
               <Card>
                 <Statistic title="主机数量" value={hosts.length} prefix={<CloudServerOutlined />} />
@@ -1011,7 +1020,7 @@ const IntegrationPage: React.FC = () => {
             </Col>
           </Row>
 
-          <Card title="主机列表" style={{ marginBottom: 16 }} loading={loading}>
+          <Card title="主机列表" style={{ marginBottom: spacing.md }} loading={loading}>
             <Table
               columns={hostColumns}
               dataSource={hosts}

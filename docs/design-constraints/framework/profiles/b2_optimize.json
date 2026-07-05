@@ -1,0 +1,134 @@
+{
+  "version": "3.0",
+  "name": "b2_optimize",
+  "extends": "base",
+  "priority": 1,
+  "layer": "develop",
+  "description": "优化能力检查项",
+  "checks": [
+    {
+      "id": "B2-01",
+      "category": "performance",
+      "level": "P1",
+      "rule": "API 响应时间 <= 200ms",
+      "description": "API P95 响应时间不超过 200ms",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-02",
+      "category": "performance",
+      "level": "P1",
+      "rule": "前端首屏 <= 1s",
+      "description": "首屏加载时间不超过 1 秒",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-03",
+      "category": "performance",
+      "level": "P1",
+      "rule": "内存占用合理",
+      "description": "内存占用不应异常增长",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-04",
+      "category": "cache",
+      "level": "P1",
+      "rule": "多级缓存策略",
+      "description": "数据层/应用层多级缓存",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-05",
+      "category": "cache",
+      "level": "P0",
+      "rule": "缓存失效策略",
+      "description": "缓存必须有明确的失效策略（TTL/LRU）",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-06",
+      "category": "cache",
+      "level": "P1",
+      "rule": "缓存命中率监控",
+      "description": "缓存命中率必须有监控指标",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-07",
+      "category": "lazy",
+      "level": "P0",
+      "rule": "路由懒加载",
+      "description": "前端路由必须使用懒加载",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-08",
+      "category": "lazy",
+      "level": "P1",
+      "rule": "组件懒加载",
+      "description": "重型组件应使用懒加载",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-09",
+      "category": "lazy",
+      "level": "P1",
+      "rule": "图片懒加载",
+      "description": "列表图片必须使用懒加载",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-10",
+      "category": "bundle",
+      "level": "P1",
+      "rule": "Code splitting",
+      "description": "代码打包必须分割 chunk",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-11",
+      "category": "bundle",
+      "level": "P1",
+      "rule": "Tree shaking",
+      "description": "打包必须启用 Tree shaking",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-12",
+      "category": "bundle",
+      "level": "P1",
+      "rule": "第三方依赖按需引入",
+      "description": "第三方库必须按需引入",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-13",
+      "category": "render",
+      "level": "P1",
+      "rule": "减少不必要重绘",
+      "description": "避免不必要的组件重绘",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-14",
+      "category": "request",
+      "level": "P1",
+      "rule": "请求合并",
+      "description": "批量请求应合并",
+      "detection": "ast"
+    },
+    {
+      "id": "B2-15",
+      "category": "request",
+      "level": "P1",
+      "rule": "请求取消",
+      "description": "组件卸载时必须取消未完成的请求",
+      "detection": "ast"
+    }
+  ],
+  "coveragePolicy": "ast",
+  "responsibleSkill": "design-constraint",
+  "coveragePolicyReason": "懒加载/请求取消/合并可 AST 检测",
+  "noNewAST": "已覆盖，不再新增"
+}

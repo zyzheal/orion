@@ -1,220 +1,381 @@
 /**
- * Code Repository API 路由注册
+ * Code Repo API Routes
  *
- * 提供代码仓库管理、分支保护、代码所有权、Webhook 处理等 API 端点
+ * Routes under /api/v1/code-repo
+ * Wraps CodeRepoController with Fastify routes.
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
-import { CodeRepoController, registerGitLabInstance, registerGerritInstance } from './controllers/code-repo/CodeRepoController';
-import { BranchPolicyController } from './controllers/code-repo/BranchPolicyController';
-import { CodeOwnershipController } from './controllers/code-repo/CodeOwnershipController';
-import { WebhookController } from './controllers/code-repo/WebhookController';
+import { CodeRepoController } from './controllers/code-repo/CodeRepoController';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode, handleError } from '../errors';
+import { WebhookSecretRepository } from '../repositories/WebhookSecretRepository';
+import { tenantContextStorage } from '../db/tenant-context-storage';
 
-export default async function codeRepoRoutes(app: FastifyInstance, options?: { database?: DatabasePool }): Promise<void> {
-  // ==================== 注册适配器 (FIXED P0-7) ====================
+const logger = createLogger('code-repo-routes');
 
-  // 从环境变量注册 GitLab 实例
-  if (process.env.GITLAB_BASE_URL && process.env.GITLAB_TOKEN) {
-    registerGitLabInstance('default-gitlab', {
-      baseUrl: process.env.GITLAB_BASE_URL,
-      token: process.env.GITLAB_TOKEN,
-    });
-    console.log('[CodeRepo] Registered GitLab adapter: default-gitlab');
+export default async function codeRepoRoutes(
+  app: FastifyInstance,
+  options?: Record<string, unknown>
+): Promise<void> {
+  const ctrl = new CodeRepoController();
+
+  // Adapters
+  app.get('/code-repo/adapters', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const res = await ctrl.listAdapters(req, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Repos
+  app.get('/code-repo/:adapterId/repos', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId } = req.params as { adapterId: string };
+      const res = await ctrl.listRepositories({ ...req, params: { adapterId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Branches CRUD
+  app.get('/code-repo/:adapterId/repos/:repoId/branches', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.listBranches({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/branches', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.createBranch({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.delete('/code-repo/:adapterId/repos/:repoId/branches/:branchName', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, branchName } = req.params as { adapterId: string; repoId: string; branchName: string };
+      const res = await ctrl.deleteBranch({ ...req, params: { adapterId, repoId, branchName } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // PRs CRUD
+  app.get('/code-repo/:adapterId/repos/:repoId/pulls', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.listPullRequests({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.createPullRequest({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls/:prId/merge', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.mergePullRequest({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls/:prId/close', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.closePullRequest({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Reviews
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls/:prId/reviews', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.addReview({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.get('/code-repo/:adapterId/repos/:repoId/pulls/:prId/reviews', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.listReviews({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // Code Ownership
+  app.get('/code-repo/code-owners', { onRequest: [authenticateUser] }, async (req, reply) => {
+    return reply.send({ success: true, data: { owners: [] } });
+  });
+
+  // Webhooks
+  app.get('/code-repo/webhooks/logs', { onRequest: [authenticateUser] }, async (req, reply) => {
+    return reply.send({ success: true, data: { logs: [] } });
+  });
+
+  // ==================== Task 5.6: Commit History ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/commits', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.listCommits({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.get('/code-repo/:adapterId/repos/:repoId/commits/:sha', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, sha } = req.params as { adapterId: string; repoId: string; sha: string };
+      const res = await ctrl.getCommit({ ...req, params: { adapterId, repoId, sha } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Task 5.6: File Diff ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/diff', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.getFileDiff({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Task 5.6: PR Comments ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/pulls/:prId/comments', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.listComments({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls/:prId/comments', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.addComment({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.status(201).send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== 4.20 Repository & PR 补充路由 ====================
+
+  // GET /code-repo/:adapterId/repos/:repoId — 获取仓库详情
+  app.get('/code-repo/:adapterId/repos/:repoId', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.getRepository({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /code-repo/:adapterId/repos/:repoId/pull-requests — 获取 PR 列表
+  app.get('/code-repo/:adapterId/repos/:repoId/pull-requests', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.listPullRequests({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /code-repo/:adapterId/pull-requests/:prId — 获取 PR 详情
+  app.get('/code-repo/:adapterId/pull-requests/:prId', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'read' })] }, async (req, reply) => {
+    try {
+      const { adapterId, prId } = req.params as { adapterId: string; prId: string };
+      const repoId = (req.query as any)?.repoId as string | undefined;
+      if (!repoId) {
+        return reply.status(400).send({ success: false, error: 'repoId query parameter is required' });
+      }
+      const res = await ctrl.getPullRequest({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // PUT /code-repo/:adapterId/pull-requests/:prId — 更新 PR
+  app.put('/code-repo/:adapterId/pull-requests/:prId', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, prId } = req.params as { adapterId: string; prId: string };
+      const body = req.body as { title?: string; body?: string; state?: string; assignees?: string[] };
+      // repoId 由客户端在 query 或 body 中提供
+      const repoId = (req.query as any)?.repoId || (req.body as any)?.repoId as string | undefined;
+      if (!repoId) {
+        return reply.status(400).send({ success: false, error: 'repoId is required in query or request body' });
+      }
+      const res = await ctrl.updatePullRequest({ ...req, params: { adapterId, repoId, prId }, body }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== 4.22 Webhook 密钥管理路由 ====================
+
+  /**
+   * 辅助函数：从请求上下文中获取数据库查询接口，用于创建 WebhookSecretRepository
+   */
+  function getDbQuery() {
+    const store = tenantContextStorage.getStore();
+    if (!store?.dbClient) {
+      throw new OrionError('Database client not available in request context', ErrorCode.OPERATION_FAILED);
+    }
+    return {
+      query: (text: string, params?: unknown[]) => store.dbClient.query(text, params),
+    };
   }
 
-  // 从环境变量注册 Gerrit 实例
-  if (process.env.GERRIT_BASE_URL && process.env.GERRIT_USERNAME && process.env.GERRIT_PASSWORD) {
-    registerGerritInstance('default-gerrit', {
-      baseUrl: process.env.GERRIT_BASE_URL,
-      username: process.env.GERRIT_USERNAME,
-      password: process.env.GERRIT_PASSWORD,
-    });
-    console.log('[CodeRepo] Registered Gerrit adapter: default-gerrit');
+  /**
+   * 辅助函数：对密钥进行脱敏处理
+   * 长度 >= 8 时显示前 4 + **** + 后 4，否则仅显示前 2 + ****
+   */
+  function maskSecret(secret: string): string {
+    if (!secret) return '';
+    if (secret.length >= 8) {
+      return secret.slice(0, 4) + '****' + secret.slice(-4);
+    }
+    return secret.slice(0, 2) + '****';
   }
 
-  // 初始化控制器
-  const codeRepoController = new CodeRepoController();
-  const branchPolicyController = new BranchPolicyController(options?.database ?? null);
-  const codeOwnershipController = new CodeOwnershipController();
-  const webhookController = new WebhookController();
+  // POST /code-repo/webhooks/:id/secret — 设置 webhook 密钥
+  app.post('/code-repo/webhooks/:id/secret', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { id: repoId } = req.params as { id: string };
+      const body = req.body as { secret: string };
 
-  // ==================== 代码仓库管理 ====================
+      if (!body?.secret || typeof body.secret !== 'string') {
+        return reply.status(400).send({ success: false, error: 'secret is required in request body' });
+      }
 
-  // 获取已注册的适配器列表
-  app.get('/adapters', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.listAdapters(request, reply);
+      const repo = new WebhookSecretRepository(getDbQuery());
+      const result = await repo.upsertByRepoId(repoId, body.secret);
+
+      if (!result) {
+        return reply.status(500).send({ success: false, error: 'Failed to create webhook secret' });
+      }
+
+      logger.info({ repoId }, 'Webhook secret set successfully');
+      return reply.status(201).send({
+        success: true,
+        data: {
+          id: result.id,
+          repoId: result.repo_id,
+          secret: maskSecret(result.secret),
+          createdAt: result.created_at,
+          updatedAt: result.updated_at,
+        },
+      });
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to set webhook secret');
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
   });
 
-  // GET /:adapterId/repositories - 仓库列表
-  app.get('/:adapterId/repositories', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.listRepositories(request, reply);
+  // GET /code-repo/webhooks/:id/secret — 获取 webhook 密钥（脱敏）
+  app.get('/code-repo/webhooks/:id/secret', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'read' })] }, async (req, reply) => {
+    try {
+      const { id: repoId } = req.params as { id: string };
+
+      const repo = new WebhookSecretRepository(getDbQuery());
+      const result = await repo.findByRepoId(repoId);
+
+      if (!result) {
+        return reply.status(404).send({ success: false, error: 'Webhook secret not found for this repository' });
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          id: result.id,
+          repoId: result.repo_id,
+          secret: maskSecret(result.secret),
+          createdAt: result.created_at,
+          updatedAt: result.updated_at,
+        },
+      });
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to get webhook secret');
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
   });
 
-  // GET /:adapterId/repository - 仓库详情
-  app.get('/:adapterId/repository', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.getRepository(request, reply);
-  });
+  // POST /code-repo/webhooks/:id/rotate-secret — 轮换密钥
+  app.post('/code-repo/webhooks/:id/rotate-secret', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { id: repoId } = req.params as { id: string };
+      const body = req.body as { secret?: string };
 
-  // ---- 分支管理 ----
+      // 如果未提供新密钥，自动生成一个强随机密钥
+      const newSecret = body?.secret || `whsec_${Date.now()}_${Math.random().toString(36).substring(2, 18)}`;
 
-  // GET /:adapterId/:repoId/branches - 分支列表
-  app.get('/:adapterId/:repoId/branches', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.listBranches(request, reply);
-  });
+      const repo = new WebhookSecretRepository(getDbQuery());
+      const result = await repo.upsertByRepoId(repoId, newSecret);
 
-  // GET /:adapterId/:repoId/branches/:branchName - 分支详情
-  app.get('/:adapterId/:repoId/branches/:branchName', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.getBranch(request, reply);
-  });
+      if (!result) {
+        return reply.status(500).send({ success: false, error: 'Failed to rotate webhook secret' });
+      }
 
-  // POST /:adapterId/:repoId/branches - 创建分支
-  app.post('/:adapterId/:repoId/branches', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.createBranch(request, reply);
-  });
-
-  // DELETE /:adapterId/:repoId/branches/:branchName - 删除分支
-  app.delete('/:adapterId/:repoId/branches/:branchName', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.deleteBranch(request, reply);
-  });
-
-  // ---- Pull Request / MR 管理 ----
-
-  // GET /:adapterId/:repoId/pull-requests - PR/MR 列表
-  app.get('/:adapterId/:repoId/pull-requests', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.listPullRequests(request, reply);
-  });
-
-  // GET /:adapterId/:repoId/pull-requests/:prId - PR/MR 详情
-  app.get('/:adapterId/:repoId/pull-requests/:prId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.getPullRequest(request, reply);
-  });
-
-  // POST /:adapterId/:repoId/pull-requests - 创建 PR/MR
-  app.post('/:adapterId/:repoId/pull-requests', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.createPullRequest(request, reply);
-  });
-
-  // POST /:adapterId/:repoId/pull-requests/:prId/merge - 合并 PR/MR
-  app.post('/:adapterId/:repoId/pull-requests/:prId/merge', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.mergePullRequest(request, reply);
-  });
-
-  // POST /:adapterId/:repoId/pull-requests/:prId/close - 关闭 PR/MR
-  app.post('/:adapterId/:repoId/pull-requests/:prId/close', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.closePullRequest(request, reply);
-  });
-
-  // ---- Review 管理 ----
-
-  // GET /:adapterId/:repoId/pull-requests/:prId/reviews - Reviews 列表
-  app.get('/:adapterId/:repoId/pull-requests/:prId/reviews', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.listReviews(request, reply);
-  });
-
-  // POST /:adapterId/:repoId/pull-requests/:prId/reviews - 添加 Review
-  app.post('/:adapterId/:repoId/pull-requests/:prId/reviews', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeRepoController.addReview(request, reply);
-  });
-
-  // ==================== 分支保护策略 ====================
-
-  // POST /branch-policies - 创建分支保护策略
-  app.post('/branch-policies', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.create(request, reply);
-  });
-
-  // GET /branch-policies/:id - 策略详情
-  app.get('/branch-policies/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.getById(request, reply);
-  });
-
-  // GET /branch-policies/repo/:repoId - 仓库的所有策略
-  app.get('/branch-policies/repo/:repoId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.listByRepo(request, reply);
-  });
-
-  // PUT /branch-policies/:id - 更新策略
-  app.put('/branch-policies/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.update(request, reply);
-  });
-
-  // DELETE /branch-policies/:id - 删除策略
-  app.delete('/branch-policies/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.delete(request, reply);
-  });
-
-  // GET /branch-policies/match - 匹配分支策略
-  app.get('/branch-policies/match', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.matchPolicy(request, reply);
-  });
-
-  // POST /branch-policies/check-merge - 检查合并可行性
-  app.post('/branch-policies/check-merge', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.checkMerge(request, reply);
-  });
-
-  // POST /branch-policies/defaults/:repoId - 创建默认策略
-  app.post('/branch-policies/defaults/:repoId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return branchPolicyController.createDefaults(request, reply);
-  });
-
-  // ==================== 代码所有权 ====================
-
-  // POST /code-owners - 注册 CODEOWNERS 文件
-  app.post('/code-owners', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.register(request, reply);
-  });
-
-  // GET /code-owners/:repoId - 获取 CODEOWNERS 文件
-  app.get('/code-owners/:repoId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.get(request, reply);
-  });
-
-  // DELETE /code-owners/:repoId - 删除 CODEOWNERS 文件
-  app.delete('/code-owners/:repoId', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.remove(request, reply);
-  });
-
-  // POST /code-owners/validate - 验证 CODEOWNERS 格式
-  app.post('/code-owners/validate', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.validate(request, reply);
-  });
-
-  // POST /code-owners/recommend - 获取审批人推荐
-  app.post('/code-owners/recommend', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.recommend(request, reply);
-  });
-
-  // POST /code-owners/approvers - 获取 PR 所需审批人
-  app.post('/code-owners/approvers', async (request: FastifyRequest, reply: FastifyReply) => {
-    return codeOwnershipController.getApprovers(request, reply);
-  });
-
-  // ==================== Webhook 处理 ====================
-
-  // POST /webhooks/gitlab - GitLab Webhook
-  app.post('/webhooks/gitlab', async (request: FastifyRequest, reply: FastifyReply) => {
-    return webhookController.handleGitLab(request, reply);
-  });
-
-  // POST /webhooks/gerrit - Gerrit Webhook
-  app.post('/webhooks/gerrit', async (request: FastifyRequest, reply: FastifyReply) => {
-    return webhookController.handleGerrit(request, reply);
-  });
-
-  // POST /webhooks/github - GitHub Webhook
-  app.post('/webhooks/github', async (request: FastifyRequest, reply: FastifyReply) => {
-    return webhookController.handleGitHub(request, reply);
-  });
-
-  // GET /webhooks/logs - 事件日志
-  app.get('/webhooks/logs', async (request: FastifyRequest, reply: FastifyReply) => {
-    return webhookController.getEventLog(request, reply);
-  });
-
-  // POST /webhooks/secret - 注册 Webhook 密钥
-  app.post('/webhooks/secret', async (request: FastifyRequest, reply: FastifyReply) => {
-    return webhookController.registerSecret(request, reply);
+      logger.info({ repoId }, 'Webhook secret rotated successfully');
+      return reply.send({
+        success: true,
+        data: {
+          id: result.id,
+          repoId: result.repo_id,
+          secret: maskSecret(result.secret),
+          rotatedAt: result.updated_at,
+        },
+      });
+    } catch (e) {
+      logger.error({ err: e }, 'Failed to rotate webhook secret');
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
   });
 }

@@ -2,7 +2,7 @@
  * OnCall Scheduling Service
  * Schedule CRUD + rotation assignment + override + escalation
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
 import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';
@@ -16,8 +16,10 @@ interface RawEntityEscalation {
 }
 import { OnCallAssignmentRepository, OnCallAssignmentEntity } from '../../repositories/OnCallAssignmentRepository';
 import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositories/OnCallOverrideRepository';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('OnCallService');
 
 export class OnCallService {
   private scheduleRepository?: OnCallScheduleRepository;
@@ -46,7 +48,7 @@ export class OnCallService {
     rotationStartHour: number = 9,
     escalations: EscalationRule[] = [],
   ): Promise<OnCallSchedule> {
-    if (!name || teamMembers.length === 0) throw new Error('Name and team members required');
+    if (!name || teamMembers.length === 0) throw new OrionError('Name and team members required', ErrorCode.VALIDATION_ERROR);
 
     const id = `schedule_${uuidv4()}`;
     const now = new Date();
@@ -116,7 +118,7 @@ export class OnCallService {
             endTime: assignment.endTime,
           });
         } catch (err) {
-          logger.warn({ err }, 'Failed to persist assignment, falling back to in-memory');
+          logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist assignment, falling back to in-memory');
         }
       }
       this.assignments.set(assignment.id, assignment);
@@ -176,7 +178,7 @@ export class OnCallService {
     }
 
     // No assignment covers current time - use fallback but flag it
-    logger.warn({ scheduleId, scheduleName: schedule.name }, 'No active assignment found, using fallback');
+    logger.warn({ traceId: getCurrentTraceId(), scheduleId, scheduleName: schedule.name }, 'No active assignment found, using fallback');
     return {
       isOnCall: false,
       primaryUserId: schedule.teamMembers[0],
@@ -246,7 +248,7 @@ export class OnCallService {
           reason,
         });
       } catch (err) {
-        logger.warn({ err }, 'Failed to persist override, falling back to in-memory');
+        logger.warn({ traceId: getCurrentTraceId(), err }, 'Failed to persist override, falling back to in-memory');
       }
     }
     this.overrides.set(override.id, override);

@@ -23,6 +23,7 @@ import {
 import { IaCWorkspaceRepository, IaCWorkspaceEntity } from '../../repositories/IaCWorkspaceRepository';
 import { IaCStateVersionRepository, IaCStateVersionEntity } from '../../repositories/IaCStateVersionRepository';
 import { IaCModuleRepository, IaCModuleEntity } from '../../repositories/IaCModuleRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface IaCWorkspaceListFilter {
   projectId?: string;
@@ -108,7 +109,7 @@ export class WorkspaceService {
         variables: input.variables ?? {},
         status: 'active',
         provider: input.provider ?? 'terraform',
-      } as any);
+      });
 
       const workspace = toWorkspace(entity);
 
@@ -174,6 +175,7 @@ export class WorkspaceService {
       try {
         const entity = await this.workspaceRepository.update(id, updateData as any);
         await this.eventBus?.publish('iac.workspace.updated', { workspaceId: id });
+        if (!entity) return undefined;
         return toWorkspace(entity);
       } catch {
         return undefined;
@@ -200,18 +202,19 @@ export class WorkspaceService {
       const entity = await this.workspaceRepository.findById(workspaceId);
       if (!entity) return undefined;
       if (entity.lockedBy) {
-        throw new Error(`Workspace is already locked by ${entity.lockedBy}`);
+        throw new OrionError(`Workspace is already locked by ${entity.lockedBy}`, ErrorCode.NOT_FOUND);
       }
 
       const updated = await this.workspaceRepository.update(workspaceId, {
         locked_by: userId,
         status: 'locked',
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.workspace.locked', {
         workspaceId,
         lockedBy: userId,
       });
+      if (!updated) return undefined;
       return toWorkspace(updated);
     }
     return undefined;
@@ -225,9 +228,10 @@ export class WorkspaceService {
       const updated = await this.workspaceRepository.update(workspaceId, {
         locked_by: null,
         status: 'active',
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.workspace.unlocked', { workspaceId });
+      if (!updated) return undefined;
       return toWorkspace(updated);
     }
     return undefined;
@@ -247,7 +251,7 @@ export class WorkspaceService {
         commit_sha: input.commitSha,
         author: input.author,
         size: input.size,
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.state.versioned', {
         workspaceId: input.workspaceId,
@@ -319,7 +323,7 @@ export class WorkspaceService {
   async importResource(workspaceId: string, resource: Record<string, unknown>): Promise<Record<string, unknown>> {
     const workspace = await this.getById(workspaceId);
     if (!workspace) {
-      throw new Error('Workspace not found');
+      throw new OrionError('Workspace not found', ErrorCode.NOT_FOUND);
     }
 
     // Store imported resource in variables for tracking
@@ -344,7 +348,7 @@ export class WorkspaceService {
         version: input.version,
         source: input.source,
         dependencies: input.dependencies ?? {},
-      } as any);
+      });
 
       await this.eventBus?.publish('iac.module.created', {
         moduleId: entity.id,
@@ -391,7 +395,7 @@ export class WorkspaceService {
 
   async listStateVersions(workspaceId: string): Promise<Array<{ version: number; createdAt: string | undefined; serial: number; lineage: string }>> {
     const workspace = await this.getById(workspaceId);
-    if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
+    if (!workspace) throw new OrionError(`Workspace ${workspaceId} not found`, ErrorCode.NOT_FOUND);
 
     const history = await this.getStateHistory(workspaceId);
     return history.map((sv, index) => ({

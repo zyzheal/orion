@@ -6,13 +6,15 @@
 
 import { ConfigDiffService } from '../ConfigDiffService';
 import { ConfigService } from '../ConfigService';
+import { ConfigRepository } from '../ConfigRepository';
 
 describe('ConfigDiffService', () => {
   let configService: ConfigService;
   let diffService: ConfigDiffService;
 
   beforeEach(() => {
-    configService = new ConfigService();
+    const repository = new ConfigRepository(); // in-memory mode (no pool)
+    configService = new ConfigService(repository);
     diffService = new ConfigDiffService({ configService });
   });
 

@@ -10,6 +10,8 @@ import { DatabasePool } from '../services/database';
 import { EscalationConfigService, EscalationPolicy, GlobalEscalationConfig } from '../services/escalation/EscalationConfigService';
 import { escalationScheduler } from '../services/escalation';
 import { EventBusService } from '../services/event-bus-service';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface EscalationRoutesOptions {
   database?: DatabasePool;
@@ -52,7 +54,7 @@ export default async function escalationRoutes(
   // ==================== 策略管理 ====================
 
   // POST /escalation/policies - 创建升级策略
-  app.post<{ Body: CreatePolicyBody }>('/policies', async (request, reply) => {
+  app.post<{ Body: CreatePolicyBody }>('/policies', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'write' })] }, async (request, reply) => {
     const body = request.body;
 
     if (!body.entityType || !body.level || !body.timeoutMinutes) {
@@ -81,7 +83,7 @@ export default async function escalationRoutes(
   });
 
   // GET /escalation/policies - 获取所有升级策略
-  app.get('/policies', async (request, reply) => {
+  app.get('/policies', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'read' })] }, async (request, reply) => {
     const { entityType, severity } = request.query as { entityType?: string; severity?: string };
 
     if (entityType) {
@@ -96,29 +98,35 @@ export default async function escalationRoutes(
   });
 
   // GET /escalation/policies/:id - 获取单个策略
-  app.get<{ Params: { id: string } }>('/policies/:id', async (request, reply) => {
+  app.get<{ Params: { id: string } }>('/policies/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'read' })] }, async (request, reply) => {
     const { id } = request.params;
-    // TODO: 实现 getById
-    return reply.send({ id, message: 'Not implemented' });
+    const policy = configService.getById(id);
+    if (!policy) {
+      return reply.status(404).send({ code: 'NOT_FOUND', message: 'Policy ' + id + ' not found' });
+    }
+    return reply.send({ policy });
   });
 
   // DELETE /escalation/policies/:id - 删除策略
-  app.delete<{ Params: { id: string } }>('/policies/:id', async (request, reply) => {
+  app.delete<{ Params: { id: string } }>('/policies/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'delete' })] }, async (request, reply) => {
     const { id } = request.params;
-    // TODO: 实现删除
-    return reply.send({ id, message: 'Not implemented' });
+    const deleted = await configService.delete(id);
+    if (!deleted) {
+      return reply.status(404).send({ code: 'NOT_FOUND', message: 'Policy ' + id + ' not found' });
+    }
+    return reply.send({ message: 'Policy deleted', id });
   });
 
   // ==================== 全局配置 ====================
 
   // GET /escalation/config - 获取全局配置
-  app.get('/config', async (_request, reply) => {
+  app.get('/config', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'read' })] }, async (_request, reply) => {
     const config = configService.getGlobalConfig();
     return reply.send({ config });
   });
 
   // PUT /escalation/config - 更新全局配置
-  app.put<{ Body: UpdateConfigBody }>('/config', async (request, reply) => {
+  app.put<{ Body: UpdateConfigBody }>('/config', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'write' })] }, async (request, reply) => {
     const body = request.body;
 
     if (body.defaults) {
@@ -140,7 +148,7 @@ export default async function escalationRoutes(
   // ==================== 调度器控制 ====================
 
   // POST /escalation/scheduler/start - 启动调度器
-  app.post('/scheduler/start', async (_request, reply) => {
+  app.post('/scheduler/start', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'execute' })] }, async (_request, reply) => {
     try {
       await escalationScheduler.start();
       return reply.send({ message: 'Scheduler started' });
@@ -150,13 +158,13 @@ export default async function escalationRoutes(
   });
 
   // POST /escalation/scheduler/stop - 停止调度器
-  app.post('/scheduler/stop', async (_request, reply) => {
+  app.post('/scheduler/stop', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'execute' })] }, async (_request, reply) => {
     escalationScheduler.stop();
     return reply.send({ message: 'Scheduler stopped' });
   });
 
   // GET /escalation/scheduler/status - 获取调度器状态
-  app.get('/scheduler/status', async (_request, reply) => {
+  app.get('/scheduler/status', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'read' })] }, async (_request, reply) => {
     return reply.send({
       running: (escalationScheduler as any).isRunning || false,
       config: configService.getGlobalConfig(),
@@ -168,6 +176,7 @@ export default async function escalationRoutes(
   // POST /escalation/manual - 手动触发升级
   app.post<{ Body: { entityType: 'alert' | 'ticket' | 'incident'; entityId: string; targetLevel?: number } }>(
     '/manual',
+    { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'execute' })] },
     async (request, reply) => {
       const { entityType, entityId, targetLevel } = request.body;
 
@@ -190,7 +199,7 @@ export default async function escalationRoutes(
   // ==================== 默认策略初始化 ====================
 
   // POST /escalation/init-defaults - 初始化默认策略
-  app.post('/init-defaults', async (_request, reply) => {
+  app.post('/init-defaults', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'manage' })] }, async (_request, reply) => {
     const defaultPolicies: Omit<EscalationPolicy, 'id' | 'createdAt' | 'updatedAt'>[] = [
       // 告警升级策略
       { entityType: 'alert', severity: 'critical', level: 1, timeoutMinutes: 5, notifyUsers: ['oncall'], notifyChannels: ['dingtalk', 'sms'], isActive: true },

@@ -23,6 +23,7 @@ import {
 import { BuildLog, createBuildLog, appendLogEntry } from '../../models/BuildLog';
 import { BuildCacheService } from './BuildCacheService';
 import { BuilderImageService } from './BuilderImageService';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * K8s 客户端接口
@@ -362,7 +363,7 @@ export class K8sBuildExecutor {
   async getPodLogs(podId: string, containerName?: string): Promise<string> {
     const pod = this.pods.get(podId);
     if (!pod) {
-      throw new Error(`Pod '${podId}' not found`);
+      throw new OrionError(`Pod '${podId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     return this.k8sClient.getPodLogs(pod.namespace, pod.name, containerName);

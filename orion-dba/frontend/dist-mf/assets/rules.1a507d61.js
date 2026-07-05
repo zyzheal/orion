@@ -1,0 +1,2 @@
+import{e as t,C as a}from"./__federation_expose_Index.91d63fce.js";function o(){return t.post(`${a}/manage/roles/global`)}function u(e){return t.post(`${a}/manage/roles/global_updated`,e)}function n(){return t.post(`${a}/manage/roles/list`)}function r(e){return t.post(`${a}/manage/roles/updated`,e)}function l(e){return t.post(`${a}/manage/roles/add`,e)}export{l as a,r as b,o as c,n as g,u};
+//# sourceMappingURL=rules.1a507d61.js.map

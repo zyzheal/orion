@@ -294,7 +294,9 @@ export class ExpressionEvaluator {
     const withoutStrings = expression.replace(/'[^']*'/g, '');
     // Remove allowed github.xxx patterns before checking for remaining dots
     const withoutGithub = withoutStrings.replace(/\bgithub\.\w+/g, '');
-    if (withoutGithub.includes('.')) {
+    // Remove numeric literals (integers and decimals) so "0.9" doesn't trigger the dot check
+    const withoutNumbers = withoutGithub.replace(/\b\d+(?:\.\d+)?\b/g, '0');
+    if (withoutNumbers.includes('.')) {
       // Dot notation could be used for prototype pollution
       // We handle dot paths through our custom variable system instead
       throw new EvaluationError(

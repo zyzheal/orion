@@ -16,10 +16,11 @@ import {
   Table,
   Alert,
 } from 'antd';
-import { ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
+import { DesktopOutlined, ArrowLeftOutlined, CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { getSession, completeSession, getSessionComplexity } from '@/api/diagnostic';
 import type { DiagnosticSymptom } from '@/api/diagnostic';
 import dayjs from 'dayjs';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 
@@ -45,8 +46,8 @@ const DiagnosticSessionDetail: React.FC = () => {
         getSession(id),
         getSessionComplexity(id),
       ]);
-      setSession(sessionRes.data.data);
-      setComplexity(complexityRes.data.data);
+      setSession(sessionRes.data);
+      setComplexity(complexityRes.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载会话详情失败：${error.message}`);
@@ -133,7 +134,7 @@ const DiagnosticSessionDetail: React.FC = () => {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Button
           type="text"
           icon={<ArrowLeftOutlined />}
@@ -142,7 +143,8 @@ const DiagnosticSessionDetail: React.FC = () => {
           返回
         </Button>
         <div style={{ flex: 1 }}>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             会话详情
           </Title>
           <Text type="secondary" code>
@@ -162,7 +164,7 @@ const DiagnosticSessionDetail: React.FC = () => {
       </div>
 
       {/* Session Info */}
-      <Card title="会话信息" style={{ marginBottom: 16 }}>
+      <Card title="会话信息" style={{ marginBottom: spacing.md }}>
         <Descriptions column={3} size="small">
           <Descriptions.Item label="状态">
             <Tag color={statusConfig[session.status]?.color}>
@@ -187,7 +189,7 @@ const DiagnosticSessionDetail: React.FC = () => {
 
       {/* Complexity */}
       {complexity && (
-        <Card title="复杂度分析" style={{ marginBottom: 16 }}>
+        <Card title="复杂度分析" style={{ marginBottom: spacing.md }}>
           <Descriptions column={3} size="small">
             <Descriptions.Item label="复杂度等级">
               <Tag

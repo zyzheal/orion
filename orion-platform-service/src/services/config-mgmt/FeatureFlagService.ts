@@ -7,10 +7,14 @@
  * - User/target-based targeting rules
  * - Flag evaluation
  * - Flag toggle history
+ *
+ * Migrated from inline Map storage to PostgreSQL Repository pattern (353).
+ * Falls back to in-memory Map when no database is available.
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabasePool } from '../database';
+import { FeatureFlagRepository } from '../../repositories/FeatureFlagRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 export type FeatureFlagStatus = 'active' | 'inactive' | 'archived';
 export type RolloutStrategy = 'percentage' | 'targeted' | 'gradual';
@@ -91,180 +95,14 @@ export interface EvaluateFlagContext {
 }
 
 // ============================================================
-// Repository
-// ============================================================
-
-interface FeatureFlagRow {
-  id: string;
-  tenant_id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  status: string;
-  default_value: boolean;
-  rollout_percentage: number;
-  rollout_strategy: string;
-  targeting_rules: Record<string, unknown>[];
-  environments: string[];
-  tags: string[];
-  created_by: string;
-  updated_by: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-class FeatureFlagRepository {
-  private pool: DatabasePool | null;
-  private memory = new Map<string, FeatureFlag>();
-
-  constructor(pool?: DatabasePool) {
-    this.pool = pool || null;
-  }
-
-  private isDbAvailable(): boolean {
-    return this.pool !== null;
-  }
-
-  async save(flag: FeatureFlag): Promise<void> {
-    if (!this.isDbAvailable()) {
-      this.memory.set(flag.id, flag);
-      return;
-    }
-    await this.pool!.query(
-      `INSERT INTO feature_flags (
-        id, tenant_id, key, name, description, status, default_value,
-        rollout_percentage, rollout_strategy, targeting_rules, environments,
-        tags, created_by, updated_by, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description,
-        status = EXCLUDED.status,
-        default_value = EXCLUDED.default_value,
-        rollout_percentage = EXCLUDED.rollout_percentage,
-        rollout_strategy = EXCLUDED.rollout_strategy,
-        targeting_rules = EXCLUDED.targeting_rules,
-        environments = EXCLUDED.environments,
-        tags = EXCLUDED.tags,
-        updated_by = EXCLUDED.updated_by,
-        updated_at = EXCLUDED.updated_at`,
-      [
-        flag.id,
-        flag.tenantId,
-        flag.key,
-        flag.name,
-        flag.description || null,
-        flag.status,
-        flag.defaultValue,
-        flag.rolloutPercentage,
-        flag.rolloutStrategy,
-        JSON.stringify(flag.targetingRules),
-        JSON.stringify(flag.environments),
-        JSON.stringify(flag.tags),
-        flag.createdBy,
-        flag.updatedBy || null,
-        flag.createdAt,
-        flag.updatedAt,
-      ]
-    );
-  }
-
-  async findById(id: string): Promise<FeatureFlag | null> {
-    if (!this.isDbAvailable()) {
-      return this.memory.get(id) || null;
-    }
-    const rows = (
-      await this.pool!.query('SELECT * FROM feature_flags WHERE id = $1', [id])
-    ).rows;
-    if (rows.length === 0) return null;
-    return this.rowToFlag(rows[0]);
-  }
-
-  async findByKey(tenantId: string, key: string): Promise<FeatureFlag | null> {
-    if (!this.isDbAvailable()) {
-      for (const flag of this.memory.values()) {
-        if (flag.tenantId === tenantId && flag.key === key) return flag;
-      }
-      return null;
-    }
-    const rows = (
-      await this.pool!.query(
-        'SELECT * FROM feature_flags WHERE tenant_id = $1 AND key = $2',
-        [tenantId, key]
-      )
-    ).rows;
-    if (rows.length === 0) return null;
-    return this.rowToFlag(rows[0]);
-  }
-
-  async findByTenant(tenantId: string, filter?: { status?: string; environment?: string }): Promise<FeatureFlag[]> {
-    if (!this.isDbAvailable()) {
-      let results = Array.from(this.memory.values()).filter(f => f.tenantId === tenantId);
-      if (filter?.status) results = results.filter(f => f.status === filter.status);
-      if (filter?.environment) results = results.filter(f => f.environments.includes(filter.environment!));
-      return results;
-    }
-
-    let query = 'SELECT * FROM feature_flags WHERE tenant_id = $1';
-    const params: unknown[] = [tenantId];
-    let paramIdx = 2;
-
-    if (filter?.status) {
-      query += ` AND status = $${paramIdx}`;
-      params.push(filter.status);
-      paramIdx++;
-    }
-    if (filter?.environment) {
-      query += ` AND environments @> $${paramIdx}::jsonb`;
-      params.push(JSON.stringify([filter.environment]));
-      paramIdx++;
-    }
-
-    query += ' ORDER BY created_at DESC';
-    const rows = (await this.pool!.query(query, params)).rows;
-    return rows.map((r: FeatureFlagRow) => this.rowToFlag(r));
-  }
-
-  async deleteById(id: string): Promise<boolean> {
-    if (!this.isDbAvailable()) {
-      return this.memory.delete(id);
-    }
-    const result = await this.pool!.query('DELETE FROM feature_flags WHERE id = $1', [id]);
-    return (result as any).rowCount > 0;
-  }
-
-  private rowToFlag(row: FeatureFlagRow): FeatureFlag {
-    return {
-      id: row.id,
-      tenantId: row.tenant_id,
-      key: row.key,
-      name: row.name,
-      description: row.description || undefined,
-      status: row.status as FeatureFlagStatus,
-      defaultValue: row.default_value,
-      rolloutPercentage: row.rollout_percentage,
-      rolloutStrategy: row.rollout_strategy as RolloutStrategy,
-      targetingRules: (row.targeting_rules as unknown as TargetingRule[]) || [],
-      environments: row.environments || [],
-      tags: row.tags || [],
-      createdBy: row.created_by,
-      updatedBy: row.updated_by || undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      toggleHistory: [],
-    };
-  }
-}
-
-// ============================================================
 // Service
 // ============================================================
 
 export class FeatureFlagService {
   private repository: FeatureFlagRepository;
 
-  constructor(database?: DatabasePool) {
-    this.repository = new FeatureFlagRepository(database);
+  constructor(pool?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.repository = new FeatureFlagRepository(pool);
   }
 
   async createFlag(
@@ -274,7 +112,7 @@ export class FeatureFlagService {
   ): Promise<FeatureFlag> {
     const existing = await this.repository.findByKey(tenantId, input.key);
     if (existing) {
-      throw new Error(`Feature flag with key '${input.key}' already exists`);
+      throw new OrionError(`Feature flag with key '${input.key}' already exists`, ErrorCode.NOT_FOUND);
     }
 
     const now = new Date();
@@ -297,12 +135,15 @@ export class FeatureFlagService {
       toggleHistory: [],
     };
 
-    await this.repository.save(flag);
-    return flag;
+    return this.repository.create(flag);
   }
 
   async getFlag(id: string): Promise<FeatureFlag | null> {
-    return this.repository.findById(id);
+    const flag = await this.repository.findById(id);
+    if (!flag) return null;
+    // Attach toggle history
+    flag.toggleHistory = await this.repository.getToggleHistory(id);
+    return flag;
   }
 
   async listFlags(
@@ -318,7 +159,7 @@ export class FeatureFlagService {
     updatedBy: string
   ): Promise<FeatureFlag> {
     const flag = await this.repository.findById(id);
-    if (!flag) throw new Error(`Feature flag '${id}' not found`);
+    if (!flag) throw new OrionError(`Feature flag '${id}' not found`, ErrorCode.NOT_FOUND);
 
     if (updates.name !== undefined) flag.name = updates.name;
     if (updates.description !== undefined) flag.description = updates.description;
@@ -333,17 +174,20 @@ export class FeatureFlagService {
     flag.updatedBy = updatedBy;
     flag.updatedAt = new Date();
 
-    await this.repository.save(flag);
-    return flag;
+    const updated = await this.repository.update(id, flag);
+    if (!updated) {
+      throw new OrionError(`Feature flag '${id}' not found during update`, ErrorCode.NOT_FOUND);
+    }
+    return updated;
   }
 
   async deleteFlag(id: string): Promise<boolean> {
-    return this.repository.deleteById(id);
+    return this.repository.delete(id);
   }
 
   async setRolloutPercentage(id: string, percentage: number, updatedBy: string): Promise<FeatureFlag> {
     if (percentage < 0 || percentage > 100) {
-      throw new Error('Rollout percentage must be between 0 and 100');
+      throw new OrionError('Rollout percentage must be between 0 and 100', ErrorCode.OPERATION_FAILED);
     }
     return this.updateFlag(id, { rolloutPercentage: percentage }, updatedBy);
   }
@@ -409,20 +253,18 @@ export class FeatureFlagService {
     changedBy: string,
     reason?: string
   ): Promise<void> {
-    const flag = await this.repository.findById(flagId);
-    if (!flag) return;
-
-    const record: FlagToggleRecord = {
-      id: uuidv4(),
+    await this.repository.recordToggle({
       flagId,
       oldValue,
       newValue,
       changedBy,
       reason,
       changedAt: new Date(),
-    };
-    flag.toggleHistory.push(record);
-    await this.repository.save(flag);
+    });
+  }
+
+  async getToggleHistory(flagId: string): Promise<FlagToggleRecord[]> {
+    return this.repository.getToggleHistory(flagId);
   }
 
   private hashUserId(userId: string, flagKey: string): number {

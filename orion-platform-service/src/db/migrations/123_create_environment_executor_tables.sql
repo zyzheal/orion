@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS environment_executor_states (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   env_id                  VARCHAR(255) NOT NULL,
-  tenant_id               VARCHAR(255) NOT NULL,
+  tenant_id UUID NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
   state                   VARCHAR(20) NOT NULL DEFAULT 'active',  -- active | hibernating | hibernated | waking | error
   last_active_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   hibernated_at           TIMESTAMPTZ,

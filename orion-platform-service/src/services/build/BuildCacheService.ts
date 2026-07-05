@@ -28,17 +28,22 @@ import {
   BuildCacheConfigRepository,
   BuildCacheEntryRepository,
 } from '../../repositories/BuildCacheRepository';
+import { CacheMonitorService } from '../cache-monitor/CacheMonitorService';
+import { OrionError, ErrorCode } from '../../errors';
 
 export class BuildCacheService {
   private configRepo: BuildCacheConfigRepository;
   private entryRepo: BuildCacheEntryRepository;
+  private cacheMonitor?: CacheMonitorService;
 
   constructor(
     configRepo: BuildCacheConfigRepository,
     entryRepo: BuildCacheEntryRepository,
+    cacheMonitor?: CacheMonitorService,
   ) {
     this.configRepo = configRepo;
     this.entryRepo = entryRepo;
+    this.cacheMonitor = cacheMonitor;
   }
 
   /**
@@ -51,7 +56,7 @@ export class BuildCacheService {
       input.targetId,
     );
     if (existing) {
-      throw new Error(`Cache config already exists for level=${input.level}, target=${input.targetId}`);
+      throw new OrionError(`Cache config already exists for level=${input.level}, target=${input.targetId}`, ErrorCode.NOT_FOUND);
     }
 
     const config = createBuildCacheConfig(input);
@@ -238,7 +243,7 @@ export class BuildCacheService {
   ): Promise<CacheEntry> {
     const config = await this.getConfig(configId);
     if (!config) {
-      throw new Error(`Cache config '${configId}' not found`);
+      throw new OrionError(`Cache config '${configId}' not found`, ErrorCode.NOT_FOUND);
     }
 
     const cacheKey = generateCacheKey(config.cacheKeyPattern, hash);
@@ -276,18 +281,35 @@ export class BuildCacheService {
   async getCacheEntryByKey(
     configId: string,
     cacheKey: string,
+    tenantId?: string,
   ): Promise<CacheEntry | null> {
     const entry = await this.entryRepo.findByCacheKey(configId, cacheKey);
 
-    if (!entry) return null;
+    if (!entry) {
+      // Cache miss
+      if (this.cacheMonitor && tenantId) {
+        await this.cacheMonitor.recordCacheEvent(configId, tenantId, 'miss').catch(() => {});
+      }
+      return null;
+    }
 
     // 检查是否过期
     if (entry.expiresAt && entry.expiresAt <= new Date()) {
+      if (this.cacheMonitor && tenantId) {
+        await this.cacheMonitor.recordCacheEvent(configId, tenantId, 'miss').catch(() => {});
+      }
       return null;
     }
 
     // 记录命中
-    return this.entryRepo.recordHit(entry.id);
+    const hitEntry = await this.entryRepo.recordHit(entry.id);
+
+    // Record cache hit for monitoring
+    if (this.cacheMonitor && tenantId) {
+      await this.cacheMonitor.recordCacheEvent(configId, tenantId, 'hit').catch(() => {});
+    }
+
+    return hitEntry;
   }
 
   /**
@@ -333,9 +355,10 @@ export class BuildCacheService {
    *
    * @param configId 配置 ID
    * @param maxEntries 最大条目数
+   * @param tenantId 租户 ID（用于监控记录）
    * @returns 清理的条目数量
    */
-  async cleanupLRU(configId: string, maxEntries: number): Promise<number> {
+  async cleanupLRU(configId: string, maxEntries: number, tenantId?: string): Promise<number> {
     const configEntries = await this.entryRepo.findLRUEntries(configId);
 
     if (configEntries.length <= maxEntries) {
@@ -347,6 +370,11 @@ export class BuildCacheService {
     for (const entry of toDelete) {
       const deleted = await this.entryRepo.delete(entry.id);
       if (deleted) count++;
+    }
+
+    // Record eviction for monitoring
+    if (count > 0 && this.cacheMonitor && tenantId) {
+      await this.cacheMonitor.recordCacheEviction(configId, tenantId, count).catch(() => {});
     }
 
     return count;

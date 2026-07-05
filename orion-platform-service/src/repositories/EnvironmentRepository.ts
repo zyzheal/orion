@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
+import { OrionError } from '../errors';
 
 /**
  * Environment entity mapped from pipeline_environments table.
@@ -53,7 +54,7 @@ export class EnvironmentRepository extends BaseRepository<EnvironmentEntity> {
     const result = await this.db.query(query, values);
 
     if (result.rows.length === 0) {
-      throw new Error(`INSERT into pipeline_environments returned no rows`);
+      throw new OrionError(`INSERT into pipeline_environments returned no rows`, 'OPERATION_FAILED')
     }
     return this.mapRowToEntity(result.rows[0]);
   }

@@ -11,6 +11,9 @@ import { TenantPrivacyPolicyService, TenantPrivacyPolicy } from '../services/pri
 import { SecretSanitizer } from '../services/privacy/SecretSanitizer';
 import { PIISanitizer } from '../services/privacy/PIISanitizer';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { DatabasePool } from '../services/database';
+import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
 interface TenantParams {
   tenantId: string;
@@ -43,7 +46,15 @@ let policyService: TenantPrivacyPolicyService | null = null;
 let secretSanitizer: SecretSanitizer | null = null;
 let piiSanitizer: PIISanitizer | null = null;
 
-export default async function privacyRoutes(fastify: FastifyInstance) {
+interface PrivacyRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function privacyRoutes(
+  fastify: FastifyInstance,
+  options: PrivacyRoutesOptions = {}
+): Promise<void> {
+  void options.database;
   // Initialize service singletons
   if (!policyService) {
     policyService = new TenantPrivacyPolicyService();
@@ -63,7 +74,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
    */
   function verifyTenantAccess(request: FastifyRequest, tenantId: number): boolean {
     const userTenantId = request.user?.tenantId;
-    const userRole = request.user?.role;
+    const userRole = (request.user as any)?.role;
 
     // Admin can access any tenant
     if (userRole === 'admin') {
@@ -71,53 +82,40 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
     }
 
     // Regular users can only access their own tenant
-    return userTenantId === tenantId;
+    return (userTenantId as any) === tenantId;
   }
 
   // Get tenant privacy policy
   fastify.get<{ Params: TenantParams }>(
     '/:tenantId/policy',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Tenant isolation check
         if (!verifyTenantAccess(request, tenantId)) {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Access denied to this tenant',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const policy = policyService!.getPolicy(tenantId);
 
         if (!policy) {
-          reply.code(404).send({
-            code: 404,
-            error: 'NOT_FOUND',
-            message: 'Policy not found for this tenant',
-          });
+handleError(reply, new NotFoundError('NOT_FOUND'))
           return;
         }
 
         reply.send(policy);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to get privacy policy',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -125,26 +123,21 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Create or update tenant privacy policy (admin only)
   fastify.put<{ Params: TenantParams; Body: PolicyBody }>(
     '/:tenantId/policy',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams; Body: PolicyBody }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Authorization: admin can modify any tenant's policy
-        if (request.user?.role !== 'admin') {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Only admin can modify privacy policies',
-          });
+        if ((request.user as any)?.role !== 'admin') {
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
@@ -152,11 +145,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
         const policy = policyService!.setPolicy(tenantId, policyData);
         reply.send(policy);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to update privacy policy',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -164,36 +153,27 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Validate compliance for tenant
   fastify.get<{ Params: TenantParams }>(
     '/:tenantId/compliance',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'read' })],
+    },
     async (request: FastifyRequest<{ Params: TenantParams }>, reply: FastifyReply) => {
       try {
-        const tenantId = parseInt(request.params.tenantId, 10);
+        const tenantId = parseInt((request.params as any).tenantId, 10);
 
         if (isNaN(tenantId)) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'Invalid tenant ID',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (!verifyTenantAccess(request, tenantId)) {
-          reply.code(403).send({
-            code: 403,
-            error: 'FORBIDDEN',
-            message: 'Access denied to this tenant',
-          });
+handleError(reply, new ForbiddenError('FORBIDDEN'))
           return;
         }
 
         const result = await policyService!.validatePolicyCompliance(tenantId, 'regex-only');
         reply.send(result);
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to validate compliance',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -201,28 +181,23 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Sanitize content (secrets + PII)
   fastify.post<{ Body: SanitizeBody }>(
     '/sanitize',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: SanitizeBody }>, reply: FastifyReply) => {
       try {
-        const { content, options } = request.body;
+        const {  content, options  } = request.body as any;
 
         // Input validation
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required and must be a string',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         // Size limit check
         const maxLength = options?.maxLength || MAX_CONTENT_SIZE;
         if (content.length > maxLength) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${maxLength} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
@@ -238,11 +213,7 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
           piiDetected: piiResult.detectedCount,
         });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to sanitize content',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -250,36 +221,27 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Detect secrets in content
   fastify.post<{ Body: { content: string } }>(
     '/detect-secrets',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
-        const { content } = request.body;
+        const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (content.length > MAX_CONTENT_SIZE) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${MAX_CONTENT_SIZE} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         const detected = secretSanitizer!.detectSecrets(content);
         reply.send({ detected, count: detected.length });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to detect secrets',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );
@@ -287,36 +249,27 @@ export default async function privacyRoutes(fastify: FastifyInstance) {
   // Detect PII in content (with NER)
   fastify.post<{ Body: { content: string } }>(
     '/detect-pii',
+    {
+      onRequest: [requirePermission({ resource: 'privacy', action: 'write' })],
+    },
     async (request: FastifyRequest<{ Body: { content: string } }>, reply: FastifyReply) => {
       try {
-        const { content } = request.body;
+        const {  content  } = request.body as any;
 
         if (!content || typeof content !== 'string') {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: 'content is required',
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         if (content.length > MAX_CONTENT_SIZE) {
-          reply.code(400).send({
-            code: 400,
-            error: 'BAD_REQUEST',
-            message: `Content exceeds maximum size limit (${MAX_CONTENT_SIZE} bytes)`,
-          });
+handleError(reply, new ValidationError('BAD_REQUEST'))
           return;
         }
 
         const detected = await piiSanitizer!.detectPIIWithNER(content);
         reply.send({ detected, count: detected.length });
       } catch (error) {
-        reply.code(500).send({
-          code: 500,
-          error: 'INTERNAL_ERROR',
-          message: 'Failed to detect PII',
-        });
+handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR))
       }
     }
   );

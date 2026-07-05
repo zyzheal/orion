@@ -5,6 +5,9 @@
  * Prefix: /api/v1/audit
  *
  * Endpoints:
+ *   GET    /logs/export     - Export audit logs (JSON/CSV) via query params
+ *   POST   /export          - Export audit logs as CSV (body params)
+ *   POST   /export/json     - Export audit logs as JSON (body params)
  *   GET    /logs           - List audit logs (paginated)
  *   GET    /logs/:id       - Get audit log by ID
  *   POST   /logs           - Create audit log
@@ -19,7 +22,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { AuditRepository } from '../services/audit/AuditRepository';
-import { AuditService } from '../services/audit/AuditService';
+import { AuditService, type ExportFormat } from '../services/audit/AuditService';
+import { AuditComplianceService, ComplianceCheckResult, AuditComplianceReport, AuditCoverageStats } from '../services/audit/AuditComplianceService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { OrionError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
 interface AuditRoutesOptions {
   database?: DatabasePool;
@@ -41,6 +48,16 @@ interface AuditLogCreateBody {
   responseBody?: Record<string, any>;
 }
 
+interface AuditExportBody {
+  tenantId?: string;
+  userId?: string;
+  action?: string;
+  resourceType?: string;
+  resourceId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
 /**
  * Map database AuditLog (snake_case) to frontend-friendly format (camelCase)
  */
@@ -52,7 +69,7 @@ function toAuditLogEntry(log: any): any {
     userId: log.user_id,
     tenantId: log.tenant_id,
     details: log.request_body || log.response_body || {},
-    resourceType: log.resource_type,
+    resource: log.resource_type,
     resourceId: log.resource_id,
     ipAddress: log.ip_address,
     userAgent: log.user_agent,
@@ -69,9 +86,9 @@ function toAuditLogEntry(log: any): any {
 /**
  * Map frontend create body to CreateAuditLogInput
  */
-function toCreateInput(body: AuditLogCreateBody): any {
+function toCreateInput(body: AuditLogCreateBody, fallbackTenantId?: string): any {
   return {
-    tenant_id: body.tenantId || 'default',
+    tenant_id: body.tenantId || fallbackTenantId,
     user_id: body.userId,
     action: body.action,
     resource_type: body.resourceType || 'audit',
@@ -96,21 +113,20 @@ export default async function auditRoutes(
   const service = repository ? new AuditService(repository) : undefined;
 
   // Error handler
-  function handleError(error: any, reply: FastifyReply, context: string) {
+  function handleRouteError(error: any, reply: FastifyReply) {
     if (error?.code === 'NOT_FOUND') {
-      return reply.status(404).send({ error: 'NOT_FOUND', message: error.message });
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
     }
-    return reply.status(500).send({
-      error: context,
-      message: error?.message || 'Internal server error',
-    });
+    return handleError(reply, new OrionError('audit.route', ErrorCode.INTERNAL_ERROR));
   }
 
   // ==================== Audit Log CRUD ====================
 
   // GET /logs - List audit logs (paginated)
-  app.get('/logs', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as Record<string, any>;
     const page = parseInt(query.page, 10) || 1;
@@ -135,13 +151,15 @@ export default async function auditRoutes(
         totalPages: result.totalPages,
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_LIST_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // GET /logs/:id - Get single audit log
-  app.get('/logs/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/logs/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -149,28 +167,33 @@ export default async function auditRoutes(
       const log = await service.getAuditLog(params.id);
       return reply.send(toAuditLogEntry(log));
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_GET_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // POST /logs - Create audit log
-  app.post('/logs', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.post('/logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as AuditLogCreateBody;
+    const fallbackTenantId = (request as any).user?.tenantId;
 
     try {
-      const input = toCreateInput(body);
+      const input = toCreateInput(body, fallbackTenantId);
       const log = await service.createAuditLog(input);
       return reply.status(201).send({ entry: toAuditLogEntry(log) });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_CREATE_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // GET /logs/:id/verify - Verify single audit log integrity
-  app.get('/logs/:id/verify', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/logs/:id/verify', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const params = request.params as { id: string };
 
@@ -182,25 +205,27 @@ export default async function auditRoutes(
         isValid: !!log.hash && log.hash.length > 0,
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_VERIFY_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // ==================== Chain Verification ====================
 
   // POST /verify - Verify entire chain integrity
-  app.post('/verify', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.post('/verify', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as { tenantId?: string } | undefined;
-    const tenantId = body?.tenantId || 'default';
+    const tenantId = body?.tenantId ?? '';
 
     try {
       const result = await service.verifyChain(tenantId);
       return reply.send({
         result: {
           valid: result.valid,
-          verifiedCount: result.valid ? 1 : 0,
+          totalVerified: result.totalVerified ?? 0,
           breaks: result.valid ? [] : [{
             breakType: 'HASH_MISMATCH' as const,
             description: `Chain broken at ${result.brokenAt?.toISOString()}`,
@@ -211,39 +236,149 @@ export default async function auditRoutes(
         verifiedAt: new Date().toISOString(),
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_VERIFY_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // ==================== Metadata ====================
 
   // GET /actions - Get distinct action types
-  app.get('/actions', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/actions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const actions = await service.getActions(tenantId);
+      const actions = await service.getActions(tenantId ?? '');
       return reply.send({ actions });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_ACTIONS_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // GET /resource-types - Get distinct resource types
-  app.get('/resource-types', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/resource-types', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const resourceTypes = await service.getResourceTypes(tenantId);
+      const resourceTypes = await service.getResourceTypes(tenantId ?? '');
       return reply.send({ resourceTypes });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_RESOURCE_TYPES_ERROR');
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // ==================== Compliance Reporting ====================
+  // SOC2 / ISO27001 compliance reports
+
+  // GET /compliance/soc2 - SOC2 Type II compliance report
+  app.get('/compliance/soc2', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId;
+
+    try {
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateSOC2Report(tenantId ?? '');
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/iso27001 - ISO27001 compliance report
+  app.get('/compliance/iso27001', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId;
+
+    try {
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateISO27001Report(tenantId ?? '');
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/combined - Combined SOC2 + ISO27001 compliance report
+  app.get('/compliance/combined', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId;
+
+    try {
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateCombinedReport(tenantId ?? '');
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /compliance/coverage - Audit coverage statistics
+  app.get('/compliance/coverage', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as { tenantId?: string };
+    const tenantId = query.tenantId;
+
+    try {
+      const complianceService = new AuditComplianceService(pool!);
+      const stats = await complianceService.getAuditCoverageStats(tenantId ?? '');
+      return reply.send(stats);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /compliance/check - Run all compliance checks
+  app.post('/compliance/check', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as { framework?: 'SOC2' | 'ISO27001' | 'COMBINED'; tenantId?: string } | undefined;
+    const tenantId = body?.tenantId;
+    const framework = body?.framework || 'COMBINED';
+
+    try {
+      const complianceService = new AuditComplianceService(pool!);
+      let report: AuditComplianceReport;
+
+      switch (framework) {
+        case 'SOC2':
+          report = await complianceService.generateSOC2Report(tenantId ?? '');
+          break;
+        case 'ISO27001':
+          report = await complianceService.generateISO27001Report(tenantId ?? '');
+          break;
+        default:
+          report = await complianceService.generateCombinedReport(tenantId ?? '');
+      }
+
+      return reply.send(report);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
     }
   });
 
@@ -251,11 +386,13 @@ export default async function auditRoutes(
   // These provide compatibility with existing frontend API calls
 
   // GET /chain/info - Chain info (frontend compatibility)
-  app.get('/chain/info', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/chain/info', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const [logs, total] = await Promise.all([
@@ -271,16 +408,18 @@ export default async function auditRoutes(
         genesisHash: '0'.repeat(64),
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_CHAIN_INFO_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // GET /storage/stats - Storage stats (frontend compatibility)
-  app.get('/storage/stats', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/storage/stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const total = await service.listAuditLogs({ page: 1, limit: 1, tenantId });
@@ -293,37 +432,134 @@ export default async function auditRoutes(
         },
       });
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_STORAGE_STATS_ERROR');
+      return handleRouteError(error, reply);
     }
   });
 
   // POST /storage/flush - Flush storage (frontend compatibility)
   // Note: This is a no-op for PostgreSQL as data is already persistent
-  app.post('/storage/flush', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/storage/flush', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     // PostgreSQL doesn't need flush - data is already persisted
     return reply.send({ status: 'noop', message: 'PostgreSQL storage does not require flush' });
   });
 
   // GET /chain/genesis - Genesis hash (frontend compatibility)
-  app.get('/chain/genesis', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/chain/genesis', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return reply.send({ genesisHash: '0'.repeat(64) });
   });
 
   // GET /chain/latest - Latest entry (frontend compatibility)
-  app.get('/chain/latest', async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!service) return reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', message: 'Database not configured' });
+  app.get('/chain/latest', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const result = await service.listAuditLogs({ page: 1, limit: 1, tenantId });
       if (result.data.length === 0) {
-        return reply.status(404).send({ error: 'NOT_FOUND', message: 'No audit logs found' });
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send(toAuditLogEntry(result.data[0]));
     } catch (error: any) {
-      return handleError(error, reply, 'AUDIT_LATEST_ERROR');
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /logs/export - Export audit logs (CSV/JSON)
+  app.get('/logs/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as Record<string, any>;
+    const format = (query.format as ExportFormat) || 'json';
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: query.tenantId,
+        userId: query.userId,
+        action: query.action,
+        resourceType: query.resourceType,
+        resourceId: query.resourceId,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+        format,
+      });
+
+      if (format === 'csv') {
+        reply.type('text/csv');
+        reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      } else {
+        reply.type('application/json');
+        reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      }
+
+      return reply.send(result.content);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /export - Export audit logs as CSV (body params)
+  app.post('/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as AuditExportBody;
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: body.tenantId,
+        userId: body.userId,
+        action: body.action,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        dateFrom: body.dateFrom,
+        dateTo: body.dateTo,
+        format: 'csv',
+      });
+
+      reply.type('text/csv');
+      reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      return reply.send(result.content);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /export/json - Export audit logs as JSON (body params)
+  app.post('/export/json', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as AuditExportBody;
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: body.tenantId,
+        userId: body.userId,
+        action: body.action,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        dateFrom: body.dateFrom,
+        dateTo: body.dateTo,
+        format: 'json',
+      });
+
+      reply.type('application/json');
+      reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      return reply.send(result.content);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
     }
   });
 }

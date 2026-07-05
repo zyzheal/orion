@@ -6,10 +6,11 @@
  * Now uses RiskPredictionRepository for persistence.
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { RiskPredictionRepository, RiskPredictionEntity, CreatePredictionInput } from '../../repositories/RiskPredictionRepository';
+import { OrionError } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RiskAssessmentService');
 
 export interface RiskFeature {
   // Core features (26 total as per design)
@@ -197,7 +198,7 @@ export class RiskAssessmentService {
           shapValues: result.shapValues,
           topRiskFactors: result.topRiskFactors,
           expiresAt,
-        } as any);
+        });
       } catch (error) {
         logger.warn({ error }, '[RiskAssessment] Failed to persist prediction');
       }
@@ -409,7 +410,7 @@ export class RiskAssessmentService {
 
     for (const feature of requiredFeatures) {
       if (features[feature] === undefined || features[feature] === null) {
-        throw new Error(`Missing required feature: ${feature}`);
+        throw new OrionError(`Missing required feature: ${feature}`, 'NOT_FOUND')
       }
     }
   }

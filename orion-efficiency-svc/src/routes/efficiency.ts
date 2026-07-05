@@ -17,8 +17,8 @@ import { InMemoryLocalStorage, EfficiencyEventHandler } from '../services/EventH
 import { WeeklyReportService } from '../services/WeeklyReportService';
 import { DeployRepository } from '../services/deploy/DeployRepository';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
+import { TicketRepository } from '../repositories/TicketRepository';
 import { TicketAnalyticsService } from '../services/ticketing/TicketAnalyticsService';
-import { TicketService } from '../services/ticketing/TicketService';
 
 interface EfficiencyRoutesOptions {
   database?: DatabasePool;
@@ -628,25 +628,10 @@ function getWeeklyReportService(db?: DatabasePool, sharedLocalStorage?: InMemory
 
   _weeklyReportService = new WeeklyReportService({
     doraService,
-    ticketService: db ? new TicketAnalyticsService(db) : createFallbackTicketService(),
+    ticketService: new TicketAnalyticsService(db!),
     dataSource,
     db,
   });
 
   return _weeklyReportService;
-}
-
-/**
- * Fallback in-memory ticket service for when DB is not available.
- * Wraps the old TicketService to match TicketServiceLike interface.
- */
-function createFallbackTicketService() {
-  const oldService = new TicketService();
-  return {
-    getSLACompliance: (periodStart?: Date, periodEnd?: Date) => oldService.getSLACompliance(periodStart, periodEnd),
-    getResolutionStats: () => oldService.getResolutionStats(),
-    getBacklogAnalysis: () => oldService.getBacklogAnalysis(),
-    getTrendReport: (options?: { days?: number; granularity?: string }) => oldService.getTrendReport({ days: options?.days }),
-    getStatistics: () => oldService.getStatistics(),
-  };
 }

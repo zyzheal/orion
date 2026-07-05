@@ -11,7 +11,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { CodeEmbeddingService } from '../../services/ai/CodeEmbeddingService';
 import { SemanticSearchService } from '../../services/ai/SemanticSearchService';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
@@ -24,7 +24,7 @@ import {
   EmbeddingStatus,
 } from '../../services/ai/vector-types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('VectorController');
 
 export interface VectorRoutesOptions {
   database?: {
@@ -364,7 +364,7 @@ export class VectorController {
         const startTime = Date.now();
         const errors: Array<{ index: number; error: string }> = [];
         let processed = 0;
-        let skipped = 0;
+        const skipped = 0;
 
         for (let i = 0; i < inputs.length; i++) {
           try {

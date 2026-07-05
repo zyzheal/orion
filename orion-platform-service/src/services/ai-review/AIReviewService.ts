@@ -25,9 +25,13 @@ import {
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
 import { ReviewRuleEngine } from './ReviewRuleEngine';
+import { ReviewRuleRepository } from '../../repositories/ReviewRuleRepository';
 import { ReviewAggregator } from './ReviewAggregator';
 import { ReviewIntegrationService } from './ReviewIntegrationService';
 import { createLLMClient, LLMClient } from './LLMClient';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LA-LI-LReview-LService');
 
 /** 审查历史记录存储 (内存版，生产环境应使用数据库) */
 interface ReviewHistoryEntry {
@@ -52,6 +56,7 @@ export class AIReviewService {
     config?: Partial<ReviewConfig>;
     eventBus?: any;
     customRules?: ReviewRule[];
+    ruleRepository?: ReviewRuleRepository;
   }) {
     this.config = {
       rules: [],
@@ -70,7 +75,7 @@ export class AIReviewService {
       ...options?.config,
     };
 
-    this.ruleEngine = new ReviewRuleEngine(options?.customRules);
+    this.ruleEngine = new ReviewRuleEngine(options?.ruleRepository, options?.customRules);
     this.diffAnalyzer = new DiffAnalyzer();
     this.integrationService = new ReviewIntegrationService(this.config);
     this.reviewHistory = [];
@@ -234,28 +239,28 @@ export class AIReviewService {
   /**
    * 获取所有审查规则
    */
-  getRules(): ReviewRule[] {
+  async getRules(): Promise<ReviewRule[]> {
     return this.ruleEngine.getAllRules();
   }
 
   /**
    * 获取启用的审查规则
    */
-  getEnabledRules(): ReviewRule[] {
+  async getEnabledRules(): Promise<ReviewRule[]> {
     return this.ruleEngine.getEnabledRules();
   }
 
   /**
    * 获取单个规则
    */
-  getRule(ruleId: string): ReviewRule | undefined {
+  async getRule(ruleId: string): Promise<ReviewRule | undefined> {
     return this.ruleEngine.getRule(ruleId);
   }
 
   /**
    * 创建审查规则
    */
-  createRule(request: RuleCreateRequest): ReviewRule {
+  async createRule(request: RuleCreateRequest): Promise<ReviewRule> {
     const rule: ReviewRule = {
       id: uuidv4(),
       name: request.name,
@@ -272,14 +277,14 @@ export class AIReviewService {
       },
     };
 
-    this.ruleEngine.registerRule(rule);
+    await this.ruleEngine.registerRule(rule);
     return rule;
   }
 
   /**
    * 更新审查规则
    */
-  updateRule(ruleId: string, request: RuleUpdateRequest): ReviewRule | undefined {
+  async updateRule(ruleId: string, request: RuleUpdateRequest): Promise<ReviewRule | undefined> {
     const updates: Partial<ReviewRule> = {};
 
     if (request.name !== undefined) updates.name = request.name;
@@ -297,14 +302,14 @@ export class AIReviewService {
   /**
    * 删除审查规则
    */
-  deleteRule(ruleId: string): boolean {
+  async deleteRule(ruleId: string): Promise<boolean> {
     return this.ruleEngine.removeRule(ruleId);
   }
 
   /**
    * 启用/禁用规则
    */
-  toggleRule(ruleId: string, enabled: boolean): ReviewRule | undefined {
+  async toggleRule(ruleId: string, enabled: boolean): Promise<ReviewRule | undefined> {
     return this.ruleEngine.updateRule(ruleId, { enabled });
   }
 
@@ -343,7 +348,7 @@ export class AIReviewService {
       await this.eventBus.subscribe(
         'code.pr.opened',
         async (event: any) => {
-          console.log('[AIReview] Received code.pr.opened event:', event.type);
+          logger.info('[AIReview] Received code.pr.opened event:', event.type);
           // 这里可以从事件中提取 diff 并触发审查
           // 实际实现需要获取 diff 内容
         },
@@ -353,14 +358,14 @@ export class AIReviewService {
       await this.eventBus.subscribe(
         'code.pr.updated',
         async (event: any) => {
-          console.log('[AIReview] Received code.pr.updated event:', event.type);
+          logger.info('[AIReview] Received code.pr.updated event:', event.type);
         },
         { filterSubject: 'code.pr.updated' }
       );
 
-      console.log('[AIReview] Subscribed to code review events');
+      logger.info('[AIReview] Subscribed to code review events');
     } catch (error) {
-      console.warn('[AIReview] Failed to subscribe to events:', error);
+      logger.warn('[AIReview] Failed to subscribe to events:', error);
     }
   }
 

@@ -22,7 +22,13 @@ import {
   TicketSLA,
 } from './types';
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
+import { AssignmentRuleRepository } from '../../repositories/AssignmentRuleRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LTicket-LWorkflow-LService');
 
 /**
  * Valid workflow transitions matrix
@@ -60,8 +66,9 @@ const DEFAULT_SLA_TARGETS: SLATarget[] = [
  * - Escalation for overdue tickets
  */
 export class TicketWorkflowService {
-  /** Assignment rules (in-memory, no DB table yet) */
-  private assignmentRules: AssignmentRule[] = [];
+  /** Assignment rules - migrated to repository */
+  private assignmentRuleRepository?: AssignmentRuleRepository;
+  private assignmentRules: AssignmentRule[] = []; // in-memory cache
 
   /** SLA targets (in-memory configuration) */
   private slaTargets: SLATarget[] = [...DEFAULT_SLA_TARGETS];
@@ -71,7 +78,7 @@ export class TicketWorkflowService {
   private slaRepository?: TicketSLARepository;
   private ticketingRepository: TicketingRepository;
 
-  /** In-memory cache for tickets (refreshed from DB) */
+  /** In-memory runtime cache (write-through, populated during operations) */
   private ticketsCache: Map<string, Ticket> = new Map();
 
   /** Escalation timer */
@@ -85,11 +92,30 @@ export class TicketWorkflowService {
     if (db) {
       this.workflowRepository = new TicketWorkflowRepository(db);
       this.slaRepository = new TicketSLARepository(db);
+      this.assignmentRuleRepository = new AssignmentRuleRepository(db);
     }
     if (options && options.ticketingRepository) {
       this.ticketingRepository = options.ticketingRepository;
     } else {
-      throw new Error('TicketingRepository is required for TicketWorkflowService');
+      throw new OrionError('TicketingRepository is required for TicketWorkflowService', ErrorCode.VALIDATION_ERROR);
+    }
+  }
+
+  /**
+   * Load assignment rules from PostgreSQL on startup
+   */
+  async loadFromDb(): Promise<void> {
+    if (this.assignmentRuleRepository) {
+      const { entities } = await this.assignmentRuleRepository.findAll();
+      this.assignmentRules = entities.map(e => ({
+        id: e.id,
+        name: e.name,
+        categories: e.categories as any,
+        assignee: e.assignee,
+        priorities: e.priorities as any,
+        enabled: e.enabled,
+        order: e.ruleOrder,
+      }));
     }
   }
 
@@ -124,19 +150,20 @@ export class TicketWorkflowService {
     }
 
     // Persist to repository
+    const tenantId = getCurrentTraceId() || '';
     try {
       await this.ticketingRepository.createWorkflowHistory(
-        ticket.id, 'open', ticket.status, ticket.reporter, 'Ticket created'
+        ticket.id, 'open', ticket.status, ticket.reporter, 'Ticket created', tenantId
       );
       if (slaTarget) {
         await this.ticketingRepository.createSLA(
-          ticket.id, ticket.priority, slaTarget.targetResolutionTimeMs
+          ticket.id, ticket.priority, slaTarget.targetResolutionTimeMs, tenantId
         );
       }
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist ticket to repository: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     // Update cache
@@ -154,7 +181,8 @@ export class TicketWorkflowService {
     if (cached) return cached;
 
     // Fetch from repository
-    const record = await this.ticketingRepository.findById(ticketId);
+    const tid = getCurrentTraceId() || '';
+    const record = await this.ticketingRepository.findById(ticketId, tid);
     if (record) {
       const ticket = this.mapRecordToTicket(record);
       this.ticketsCache.set(ticketId, ticket);
@@ -189,8 +217,8 @@ export class TicketWorkflowService {
       return tickets;
     } catch (err) {
       const message = `[TicketWorkflowService] Repository list failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -232,11 +260,11 @@ export class TicketWorkflowService {
       if (updates.priority) dbUpdates.priority = updates.priority;
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.assignee) dbUpdates.assignee_id = updates.assignee;
-      await this.ticketingRepository.update(ticketId, dbUpdates);
+      await this.ticketingRepository.update(ticketId, dbUpdates, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist update: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     const updated = { ...existing, ...updates, updatedAt: new Date() };
@@ -296,22 +324,22 @@ export class TicketWorkflowService {
     // Persist to repository
     try {
       await this.ticketingRepository.createWorkflowHistory(
-        ticketId, fromStatus, toStatus, performedBy, reason
+        ticketId, fromStatus, toStatus, performedBy, reason, getCurrentTraceId() || ''
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist workflow history: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     // Update SLA tracking on resolution
     if (toStatus === 'resolved' || toStatus === 'closed') {
       try {
-        await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() });
+        await this.ticketingRepository.updateSLA(ticketId, { resolvedAt: new Date() }, getCurrentTraceId() || '');
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to update SLA: ${err}`;
-        console.error(message);
-        throw new Error(message);
+        logger.error(message);
+        throw new OrionError(message, 'OPERATION_FAILED');
       }
     }
 
@@ -321,11 +349,11 @@ export class TicketWorkflowService {
         await this.ticketingRepository.updateSLA(ticketId, {
           responseBreached: false,
           resolutionBreached: false,
-        });
+        }, getCurrentTraceId() || '');
       } catch (err) {
         const message = `[TicketWorkflowService] Failed to reset SLA: ${err}`;
-        console.error(message);
-        throw new Error(message);
+        logger.error(message);
+        throw new OrionError(message, 'OPERATION_FAILED');
       }
     }
 
@@ -370,21 +398,22 @@ export class TicketWorkflowService {
       ticket.status = 'assigned';
     }
 
+    const tid = getCurrentTraceId() || '';
     // Persist to repository
     try {
-      await this.ticketingRepository.update(ticketId, { status: ticket.status, assignee_id: assignee });
+      await this.ticketingRepository.update(ticketId, { status: ticket.status, assignee_id: assignee }, tid);
       await this.ticketingRepository.createAssignment({
         ticketId, assignee, assignedBy, reason: reason || 'Manual assignment',
-      });
+      }, tid);
       if (prevStatus === 'open') {
         await this.ticketingRepository.createWorkflowHistory(
-          ticketId, prevStatus, 'assigned', assignedBy, 'Auto-transitioned on assignment'
+          ticketId, prevStatus, 'assigned', assignedBy, 'Auto-transitioned on assignment', tid
         );
       }
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist assignment: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     this.ticketsCache.set(ticketId, ticket);
@@ -398,6 +427,19 @@ export class TicketWorkflowService {
   addAssignmentRule(rule: AssignmentRule): void {
     this.assignmentRules.push(rule);
     this.assignmentRules.sort((a, b) => a.order - b.order);
+
+    // Persist to repository
+    if (this.assignmentRuleRepository) {
+      this.assignmentRuleRepository.create({
+        id: rule.id,
+        name: rule.name,
+        categories: rule.categories,
+        assignee: rule.assignee,
+        priorities: rule.priorities || null,
+        enabled: rule.enabled,
+        ruleOrder: rule.order,
+      }).catch(() => {/* ignore */});
+    }
   }
 
   /**
@@ -414,6 +456,12 @@ export class TicketWorkflowService {
     const idx = this.assignmentRules.findIndex(r => r.id === ruleId);
     if (idx === -1) return false;
     this.assignmentRules.splice(idx, 1);
+
+    // Persist deletion to repository
+    if (this.assignmentRuleRepository) {
+      this.assignmentRuleRepository.delete(ruleId).catch(() => {/* ignore */});
+    }
+
     return true;
   }
 
@@ -487,19 +535,20 @@ export class TicketWorkflowService {
 
     this.ticketsCache.set(ticketId, ticket);
 
+    const tid2 = getCurrentTraceId() || '';
     // Persist to repository
     try {
       await this.ticketingRepository.update(ticketId, {
         priority: ticket.priority,
-      });
+      }, tid2);
       await this.ticketingRepository.createWorkflowHistory(
         ticketId, ticket.status, ticket.status, escalatedBy,
-        reason || `Escalated to level ${ticket.escalationLevel}`
+        reason || `Escalated to level ${ticket.escalationLevel}`, tid2
       );
     } catch (err) {
       const message = `[TicketWorkflowService] Failed to persist escalation: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
 
     return { ticket };
@@ -521,7 +570,7 @@ export class TicketWorkflowService {
       // Skip already highly escalated
       if (ticket.escalationLevel >= 3) continue;
 
-      const sla = await this.ticketingRepository.getSLA(ticket.id);
+      const sla = await this.ticketingRepository.getSLA(ticket.id, getCurrentTraceId() || '');
       if (!sla) continue;
 
       const age = now - ticket.createdAt.getTime();
@@ -549,7 +598,7 @@ export class TicketWorkflowService {
     this.escalationTimer = setInterval(async () => {
       const escalated = await this.checkAndEscalateOverdue();
       if (escalated.length > 0) {
-        console.log(`[TicketWorkflowService] Auto-escalated ${escalated.length} overdue tickets`);
+        logger.info(`[TicketWorkflowService] Auto-escalated ${escalated.length} overdue tickets`);
       }
     }, intervalMs);
   }
@@ -581,11 +630,11 @@ export class TicketWorkflowService {
       }));
     }
     try {
-      return await this.ticketingRepository.getWorkflowHistory(ticketId);
+      return await this.ticketingRepository.getWorkflowHistory(ticketId, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getWorkflowHistory failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -594,11 +643,11 @@ export class TicketWorkflowService {
    */
   async getAssignmentHistory(ticketId: string): Promise<TicketAssignment[]> {
     try {
-      return await this.ticketingRepository.getAssignmentsByTicket(ticketId);
+      return await this.ticketingRepository.getAssignmentsByTicket(ticketId, getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAssignmentHistory failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -627,12 +676,12 @@ export class TicketWorkflowService {
    */
   async getTicketSLA(ticketId: string): Promise<TicketSLA | undefined> {
     try {
-      const sla = await this.ticketingRepository.getSLA(ticketId);
+      const sla = await this.ticketingRepository.getSLA(ticketId, getCurrentTraceId() || '');
       return sla || undefined;
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getTicketSLA failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -641,11 +690,11 @@ export class TicketWorkflowService {
    */
   async getAllSLARecords(): Promise<TicketSLA[]> {
     try {
-      return await this.ticketingRepository.getAllSLA();
+      return await this.ticketingRepository.getAllSLA(getCurrentTraceId() || '');
     } catch (err) {
       const message = `[TicketWorkflowService] Repository getAllSLARecords failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 
@@ -702,8 +751,8 @@ export class TicketWorkflowService {
       return await this.ticketingRepository.count();
     } catch (err) {
       const message = `[TicketWorkflowService] Repository count failed: ${err}`;
-      console.error(message);
-      throw new Error(message);
+      logger.error(message);
+      throw new OrionError(message, 'OPERATION_FAILED');
     }
   }
 

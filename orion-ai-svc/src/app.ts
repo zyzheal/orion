@@ -10,6 +10,16 @@ import vectorStoreRoutes from './routes/vector-store';
 import { vectorRoutes } from './routes/vector';
 import llmTraceRoutes from './routes/llm-trace';
 import degradationRoutes from './routes/degradation';
+
+import { chatopsRoutes } from './routes/chatops';
+import { knowledgeRoutes } from './routes/knowledge';
+import { knowledgeSecurityRoutes } from './routes/knowledge-security-api';
+
+// 新增：Agent 路由
+import { agentRoutes } from './routes/agent';
+import { taskRoutes } from './routes/task';
+import { orchestrationRoutes } from './routes/orchestration-routes';
+
 import { errorHandler } from './middleware/errorHandler';
 
 async function buildApp() {
@@ -26,6 +36,21 @@ async function buildApp() {
   await fastify.register(vectorRoutes, { prefix: '/api/v1/vector', database });
   await fastify.register(llmTraceRoutes, { prefix: '/api/v1/llm', database });
   await fastify.register(degradationRoutes, { prefix: '/api/v1/degradation', database });
+
+  // ChatOps 路由
+  await fastify.register(chatopsRoutes, { prefix: '/api/v1/chatops', database });
+
+  // 知识库 路由
+  await fastify.register(knowledgeRoutes, { prefix: '/api/v1/knowledge', database });
+
+  // 知识库安全 路由
+  await fastify.register(knowledgeSecurityRoutes, { prefix: '/api/v1/knowledge-security', database });
+
+  // 新增：Agent 路由
+  await fastify.register(agentRoutes, { prefix: '/api/v1', database });
+  await fastify.register(taskRoutes, { prefix: '/api/v1', database });
+  await fastify.register(orchestrationRoutes, { prefix: '/api/v1', database });
+
   fastify.get('/health', async () => { const db = await checkHealth(); return { status: db.status === 'up' ? 'ok' : 'degraded', timestamp: new Date().toISOString(), checks: { database: db } }; });
   fastify.addHook('onClose', async () => { await closePool(); });
   return { fastify };

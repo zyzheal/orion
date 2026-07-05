@@ -3,14 +3,16 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { PipelineTemplateService } from '../../services/pipeline/PipelineTemplateService';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 
-export class PipelineTemplateController {
+export class PipelineTemplateController extends BaseController {
   private templateService: PipelineTemplateService;
   private pipelineService: PipelineService;
 
   constructor(templateService: PipelineTemplateService, pipelineService: PipelineService) {
+    super();
     this.templateService = templateService;
     this.pipelineService = pipelineService;
   }
@@ -22,7 +24,7 @@ export class PipelineTemplateController {
   async listTemplates(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const { category, tag, page, limit } = query;
 
       const result = await this.templateService.listTemplates({
@@ -66,7 +68,7 @@ export class PipelineTemplateController {
     try {
       const params = request.params as any;
       const { templateId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const template = await this.templateService.getTemplateById(tenantId, templateId);
       if (!template) {
@@ -109,7 +111,7 @@ export class PipelineTemplateController {
   async createTemplate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any || {};
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const createdBy = (request.headers['x-user-id'] as string) || undefined;
       const { name, description, category, tags, yamlDefinition, parameters, pipelineId } = body;
 
@@ -173,7 +175,7 @@ export class PipelineTemplateController {
       const params = request.params as any;
       const body = request.body as any || {};
       const { templateId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const { name, description, tags, yamlDefinition, parameters } = body;
 
       const updated = await this.templateService.updateTemplate(tenantId, templateId, {
@@ -219,7 +221,7 @@ export class PipelineTemplateController {
     try {
       const params = request.params as any;
       const { templateId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const success = await this.templateService.deleteTemplate(tenantId, templateId);
       if (!success) {
@@ -250,7 +252,7 @@ export class PipelineTemplateController {
       const params = request.params as any;
       const body = request.body as any || {};
       const { templateId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const createdBy = (request.headers['x-user-id'] as string) || undefined;
       const { name, projectId, params: templateParams } = body;
 

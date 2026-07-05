@@ -7,6 +7,7 @@ import { Typography, Button, Space, Tag, Modal, Form, Input, Select, message, Dr
 import { colors, spacing } from '@/tokens';
 import {
   PlusOutlined,
+  DesktopOutlined,
   ReloadOutlined,
   SearchOutlined,
   CheckCircleOutlined,
@@ -39,11 +40,14 @@ const DiagnosticSessions: React.FC = () => {
   const [sessionDetail, setSessionDetail] = useState<any>(null);
   const [symptomForm] = Form.useForm();
 
+  // 动态获取主题
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
   const loadData = async () => {
     setLoading(true);
     try {
       const response = await getSessions();
-      const apiData = response.data.data;
+      const apiData = response.data;
       setSessions(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -102,7 +106,7 @@ const DiagnosticSessions: React.FC = () => {
     setDetailDrawerVisible(true);
     try {
       const res = await getSession(session.id);
-      setSessionDetail(res.data.data);
+      setSessionDetail(res.data);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载会话详情失败：${error.message}`);
@@ -127,7 +131,7 @@ const DiagnosticSessions: React.FC = () => {
       loadData();
       if (detailDrawerVisible) {
         const res = await getSession(selectedSession.id);
-        setSessionDetail(res.data.data);
+        setSessionDetail(res.data);
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -168,7 +172,7 @@ const DiagnosticSessions: React.FC = () => {
         return (
           <Text
             code
-            style={{ fontSize: spacing[3], color: colors.purple[500], cursor: 'pointer' }}
+            style={{ fontSize: spacing[3], color: colors.primary[500], cursor: 'pointer' }}
             onClick={() => {
               const s = sessions.find((item) => item.id === value);
               if (s) showSessionDetail(s);
@@ -273,12 +277,13 @@ const DiagnosticSessions: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <SearchOutlined style={{ marginRight: 8 }} />
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <DesktopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
+            <SearchOutlined style={{ marginRight: spacing.sm }} />
             诊断会话
           </Title>
           <Text type="secondary">共 {sessions.length} 个会话</Text>
@@ -297,7 +302,7 @@ const DiagnosticSessions: React.FC = () => {
         </Space>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: spacing.md }}>
         <SearchFilterBar
           onSearch={setSearchQuery}
           onFilter={setFilters}
@@ -379,7 +384,7 @@ const DiagnosticSessions: React.FC = () => {
             <div>
               <Text type="secondary">触发类型:</Text>{' '}
               <Tag color="purple">{sessionDetail.triggerType}</Tag>
-              <Text type="secondary" style={{ marginLeft: 16 }}>
+              <Text type="secondary" style={{ marginLeft: spacing.md }}>
                 触发器ID:
               </Text>{' '}
               <Text code>{sessionDetail.triggerId}</Text>
@@ -406,13 +411,13 @@ const DiagnosticSessions: React.FC = () => {
                   {sessionDetail.symptoms.map((symptom: DiagnosticSymptom, idx: number) => (
                     <div
                       key={idx}
-                      style={{ padding: 12, background: colors.neutral[50], borderRadius: 6 }}
+                      style={{ padding: spacing[3], background: isDark ? 'rgba(255,255,255,0.05)' : colors.neutral[50], borderRadius: 6 }}
                     >
                       <Space>
                         <Tag color="purple">{symptom.type}</Tag>
                         <Text strong>{symptom.source}</Text>
                       </Space>
-                      <div style={{ marginTop: 8 }}>
+                      <div style={{ marginTop: spacing.sm }}>
                         <Text>{symptom.description}</Text>
                       </div>
                     </div>

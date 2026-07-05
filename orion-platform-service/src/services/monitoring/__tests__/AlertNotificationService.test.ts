@@ -62,7 +62,7 @@ describe('AlertNotificationService', () => {
       expect(channels.length).toBe(1);
     });
 
-    it('should allow updating a channel', () => {
+    it('should allow updating a channel', async () => {
       const channel: AlertChannel = {
         id: 'ch-1',
         name: 'Test',
@@ -71,20 +71,20 @@ describe('AlertNotificationService', () => {
         enabled: true,
       };
 
-      service.addChannel(channel);
+      await service.addChannel(channel);
 
-      const updated = service.updateChannel('ch-1', { name: 'Updated Name' });
+      const updated = await service.updateChannel('ch-1', { name: 'Updated Name' });
       expect(updated).not.toBeNull();
       expect(updated!.name).toBe('Updated Name');
     });
 
-    it('should return null when updating non-existent channel', () => {
-      const result = service.updateChannel('nonexistent', { name: 'Test' });
+    it('should return null when updating non-existent channel', async () => {
+      const result = await service.updateChannel('nonexistent', { name: 'Test' });
       expect(result).toBeNull();
     });
 
-    it('should allow removing a channel', () => {
-      service.addChannel({
+    it('should allow removing a channel', async () => {
+      await service.addChannel({
         id: 'ch-1',
         name: 'Test',
         type: 'email',
@@ -92,7 +92,7 @@ describe('AlertNotificationService', () => {
         enabled: true,
       });
 
-      const removed = service.removeChannel('ch-1');
+      const removed = await service.removeChannel('ch-1');
       expect(removed).toBe(true);
       expect(service.getAllChannels().length).toBe(0);
     });

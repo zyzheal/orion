@@ -6,6 +6,10 @@
  */
 
 import { CostEvent, CostEventType } from './types';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('LCost-LEvent-LPublisher');
 
 /**
  * 事件总线接口（兼容 EventBusService）
@@ -105,7 +109,7 @@ export class CostEventPublisher {
         });
         return eventId;
       } catch (error) {
-        console.warn('[CostEventPublisher] Failed to publish cost.collected event:', error);
+        logger.warn('[CostEventPublisher] Failed to publish cost.collected event:', error);
       }
     }
 
@@ -134,7 +138,7 @@ export class CostEventPublisher {
         });
         return eventId;
       } catch (error) {
-        console.warn('[CostEventPublisher] Failed to publish cost.anomaly_detected event:', error);
+        logger.warn('[CostEventPublisher] Failed to publish cost.anomaly_detected event:', error);
       }
     }
 

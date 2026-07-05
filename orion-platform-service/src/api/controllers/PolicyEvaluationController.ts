@@ -3,12 +3,14 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { PolicyEvaluationService } from '../../services/policy/PolicyEvaluationService';
 
-export class PolicyEvaluationController {
+export class PolicyEvaluationController extends BaseController {
   private evaluationService: PolicyEvaluationService;
 
   constructor(evaluationService: PolicyEvaluationService) {
+    super();
     this.evaluationService = evaluationService;
   }
 
@@ -27,7 +29,7 @@ export class PolicyEvaluationController {
 
       const result = await this.evaluationService.evaluate({
         policyId: body.policyId,
-        tenantId: body.tenantId || 'default',
+        tenantId: body.tenantId || this.getTenantId(request),
         runId: body.runId,
         resourceType: body.resourceType,
         resourceId: body.resourceId,

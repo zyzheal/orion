@@ -26,6 +26,10 @@ import {
   EngineerAvailability,
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+
+const logger = createLogger('LEngineer-LSuspend-LService');
 
 /**
  * Engineer Suspend Service
@@ -129,6 +133,13 @@ export class EngineerSuspendService {
   }
 
   /**
+   * List all suspensions
+   */
+  async listAll(): Promise<EngineerSuspend[]> {
+    return this.ticketingRepository!.listAllSuspensions();
+  }
+
+  /**
    * Get scheduled (future) suspensions
    */
   async getScheduledSuspensions(): Promise<EngineerSuspend[]> {
@@ -174,7 +185,7 @@ export class EngineerSuspendService {
   async analyzeImpact(suspendId: string, tickets: Ticket[]): Promise<SuspensionImpact> {
     const suspend = await this.ticketingRepository!.findSuspendById(suspendId);
     if (!suspend) {
-      throw new Error(`Suspend ${suspendId} not found`);
+      throw new OrionError(`Suspend ${suspendId} not found`, ErrorCode.NOT_FOUND);
     }
 
     // Find tickets assigned to this engineer
@@ -243,7 +254,7 @@ export class EngineerSuspendService {
       const activated = await this.checkAutoActivate();
       const ended = await this.checkAutoEnd();
       if (activated.length > 0 || ended.length > 0) {
-        console.log(`[EngineerSuspendService] Auto-activated: ${activated.length}, Auto-ended: ${ended.length}`);
+        logger.info(`[EngineerSuspendService] Auto-activated: ${activated.length}, Auto-ended: ${ended.length}`);
       }
     }, intervalMs);
   }

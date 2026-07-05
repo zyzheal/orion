@@ -11,9 +11,10 @@
  */
 
 import { EventEmitter } from 'events';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantIsolationService');
 
 /**
  * 租户隔离验证上下文
@@ -183,7 +184,7 @@ export class TenantIsolationService extends EventEmitter {
    */
   disable(): void {
     this.enabled = false;
-    logger.warn('[TenantIsolation] Service disabled');
+    logger.warn({ traceId: getCurrentTraceId() }, '[TenantIsolation] Service disabled');
   }
 
   /**

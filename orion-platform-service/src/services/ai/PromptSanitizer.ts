@@ -9,11 +9,12 @@
  * 5. 支持可配置的清洗策略
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { ExtendedPromptThreat, ExtendedThreatType } from './PromptInjectionDetector';
 import { ThreatType } from './PromptSecurity';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PromptSanitizer');
 
 /**
  * 清洗策略类型
@@ -201,7 +202,7 @@ export class PromptSanitizer {
 
     for (const threat of sortedThreats) {
       if (iterations >= this.config.maxIterations) {
-        logger.warn('Sanitization iteration limit reached');
+        logger.warn({ traceId: getCurrentTraceId() }, 'Sanitization iteration limit reached');
         break;
       }
 

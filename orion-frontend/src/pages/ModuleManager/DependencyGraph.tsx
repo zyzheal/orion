@@ -94,7 +94,7 @@ function buildDependencyTree(
               module={mod}
               suffix={
                 dependents.length > 0 && (
-                  <Tag color="cyan" style={{ marginLeft: 8 }}>
+                  <Tag color="cyan" style={{ marginLeft: spacing.sm }}>
                     {dependents.length} 依赖
                   </Tag>
                 )
@@ -133,7 +133,7 @@ function buildDependencyTree(
             module={mod}
             suffix={
               deps.length > 0 && (
-                <Tag color="geekblue" style={{ marginLeft: 8 }}>
+                <Tag color="geekblue" style={{ marginLeft: spacing.sm }}>
                   {deps.length} 依赖
                 </Tag>
               )
@@ -157,7 +157,7 @@ interface ModuleNodeTitleProps {
 
 function ModuleNodeTitle({ module, suffix }: ModuleNodeTitleProps) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
       {stateIcon[module.state] || null}
       <Text strong>{module.name}</Text>
       <Tag
@@ -219,20 +219,20 @@ const DependencyGraph: React.FC<DependencyGraphProps> = ({
     <Card
       title={
         <span>
-          <ClusterOutlined style={{ marginRight: 8 }} />
+          <ClusterOutlined style={{ marginRight: spacing.sm }} />
           依赖关系图 {showReverseDeps ? '(反向)' : ''}
         </span>
       }
       size="small"
     >
       {/* Stats summary */}
-      <div style={{ marginBottom: spacing[3], display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: spacing[3], display: 'flex', gap: spacing.md, flexWrap: 'wrap' }}>
         {Object.entries(stats.levelCounts).map(([level, count]) => (
           <Tag key={level} color={levelColor[level]}>
             {levelLabel[level]}: {count}
           </Tag>
         ))}
-        <span style={{ marginLeft: 8 }}>
+        <span style={{ marginLeft: spacing.sm }}>
           <Text type="secondary">
             活跃: {stats.stateCounts.active || 0} | 已停止: {stats.stateCounts.stopped || 0} |
             失败: {stats.stateCounts.failed || 0}

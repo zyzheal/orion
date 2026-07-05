@@ -4,12 +4,12 @@
  * Phase 2: 提供审批模板的创建、查询功能，
  * 用于快速创建常见审批流程（如部署审批、变更审批等）。
  */
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 
 import { v4 as uuidv4 } from 'uuid';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ApprovalTemplateService');
 
 export interface ApprovalTemplateLevel {
   levelIndex: number;

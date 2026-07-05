@@ -87,7 +87,7 @@ describe('SubPipeline Integration', () => {
   let stageExecutor: StageExecutor;
   let runId = 'test-run-1';
 
-  beforeEach(() => {
+  beforeEach(async () => {
     runId = 'test-run-' + Date.now();
     tasksByStage = new Map();
 
@@ -163,10 +163,11 @@ describe('SubPipeline Integration', () => {
       mockRunService,
       mockEventPublisher,
       stageExecutor,
+      undefined, // sseBridge
       subPipelineService || null,
       undefined, undefined, undefined, undefined,
       undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined,
     );
   }
 
@@ -186,7 +187,7 @@ describe('SubPipeline Integration', () => {
       };
       (mockPipelineService.getById as jest.Mock).mockResolvedValue(pipeline);
 
-      mockSubPipelineService.invoke.mockResolvedValue({
+      await mockSubPipelineService.invoke.mockResolvedValue({
         invocation: {
           id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
           childRunId: 'run-child-1', status: 'running', inputParams: {},
@@ -195,13 +196,13 @@ describe('SubPipeline Integration', () => {
         },
         childRunId: 'run-child-1',
       });
-      mockSubPipelineService.waitForCompletion.mockResolvedValue({
+      await mockSubPipelineService.waitForCompletion.mockResolvedValue({
         id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
         childRunId: 'run-child-1', status: 'completed', inputParams: {},
         outputResults: { url: 'https://staging.example.com' },
         stageName: 'deploy-staging', outputMapping: {}, createdAt: new Date(), completedAt: new Date(),
       });
-      mockSubPipelineService.getResults.mockResolvedValue({ url: 'https://staging.example.com' });
+      await mockSubPipelineService.getResults.mockResolvedValue({ url: 'https://staging.example.com' });
 
       const engine = createEngine(mockSubPipelineService);
       const run = await engine.execute('pipeline-parent', TriggerType.MANUAL, 'test-user');
@@ -238,7 +239,7 @@ describe('SubPipeline Integration', () => {
       };
       (mockPipelineService.getById as jest.Mock).mockResolvedValue(pipeline);
 
-      mockSubPipelineService.invoke.mockResolvedValue({
+      await mockSubPipelineService.invoke.mockResolvedValue({
         invocation: {
           id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
           childRunId: 'run-child-1', status: 'running',
@@ -248,7 +249,7 @@ describe('SubPipeline Integration', () => {
         },
         childRunId: 'run-child-1',
       });
-      mockSubPipelineService.waitForCompletion.mockResolvedValue({
+      await mockSubPipelineService.waitForCompletion.mockResolvedValue({
         id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
         childRunId: 'run-child-1', status: 'completed',
         inputParams: { env: 'production', version: '2.0.0' },
@@ -256,7 +257,7 @@ describe('SubPipeline Integration', () => {
         stageName: 'deploy-prod', outputMapping: { deployUrl: 'url' },
         createdAt: new Date(), completedAt: new Date(),
       });
-      mockSubPipelineService.getResults.mockResolvedValue({ url: 'https://prod.example.com' });
+      await mockSubPipelineService.getResults.mockResolvedValue({ url: 'https://prod.example.com' });
 
       const engine = createEngine(mockSubPipelineService);
       await engine.execute('pipeline-parent', TriggerType.MANUAL, 'test-user');
@@ -290,7 +291,7 @@ describe('SubPipeline Integration', () => {
       };
       (mockPipelineService.getById as jest.Mock).mockResolvedValue(pipeline);
 
-      mockSubPipelineService.invoke.mockResolvedValue({
+      await mockSubPipelineService.invoke.mockResolvedValue({
         invocation: {
           id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-deploy',
           childRunId: 'run-child-1', status: 'running', inputParams: {},
@@ -300,7 +301,7 @@ describe('SubPipeline Integration', () => {
         },
         childRunId: 'run-child-1',
       });
-      mockSubPipelineService.waitForCompletion.mockResolvedValue({
+      await mockSubPipelineService.waitForCompletion.mockResolvedValue({
         id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-deploy',
         childRunId: 'run-child-1', status: 'completed', inputParams: {},
         outputResults: { url: 'https://example.com', version: '1.0.0', status: 'ok' },
@@ -308,7 +309,7 @@ describe('SubPipeline Integration', () => {
         outputMapping: { deployUrl: 'url', deployVersion: 'version' },
         createdAt: new Date(), completedAt: new Date(),
       });
-      mockSubPipelineService.getResults.mockResolvedValue({
+      await mockSubPipelineService.getResults.mockResolvedValue({
         url: 'https://example.com', version: '1.0.0', status: 'ok',
       });
 
@@ -344,7 +345,7 @@ describe('SubPipeline Integration', () => {
       };
       (mockPipelineService.getById as jest.Mock).mockResolvedValue(pipeline);
 
-      mockSubPipelineService.invoke.mockResolvedValue({
+      await mockSubPipelineService.invoke.mockResolvedValue({
         invocation: {
           id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
           childRunId: 'run-child-1', status: 'running', inputParams: {},
@@ -353,10 +354,10 @@ describe('SubPipeline Integration', () => {
         },
         childRunId: 'run-child-1',
       });
-      mockSubPipelineService.waitForCompletion.mockRejectedValue(
+      await mockSubPipelineService.waitForCompletion.mockRejectedValue(
         new Error('Child pipeline failed: test step failed')
       );
-      mockSubPipelineService.markFailed.mockResolvedValue({
+      await mockSubPipelineService.markFailed.mockResolvedValue({
         id: 'inv-1', parentRunId: runId, childPipelineId: 'pipeline-child',
         childRunId: 'run-child-1', status: 'failed', inputParams: {},
         outputResults: {}, stageName: 'deploy-stage', outputMapping: {},

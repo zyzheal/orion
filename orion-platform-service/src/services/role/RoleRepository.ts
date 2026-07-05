@@ -8,7 +8,6 @@ export interface Role {
   tenant_id: string;
   name: string;
   description: string | null;
-  permissions: string[];
 }
 
 export class RoleRepository {
@@ -22,10 +21,10 @@ export class RoleRepository {
     return (await this.pool.query('SELECT * FROM roles WHERE tenant_id = $1', [tenantId])).rows;
   }
 
-  async create(tenantId: string, name: string, permissions: string[]): Promise<Role> {
+  async create(tenantId: string, name: string, _description?: string): Promise<Role> {
     const result = await this.pool.query(
-      'INSERT INTO roles (tenant_id, name, permissions) VALUES ($1, $2, $3) RETURNING *',
-      [tenantId, name, permissions]
+      'INSERT INTO roles (tenant_id, name, description) VALUES ($1, $2, $3) RETURNING *',
+      [tenantId, name, _description || null]
     );
     return result.rows[0];
   }
@@ -35,13 +34,16 @@ export class RoleRepository {
     return result.rowCount > 0;
   }
 
-  async update(id: string, input: { name?: string; description?: string; permissions?: string[] }): Promise<Role | null> {
+  async findByName(name: string): Promise<Role | null> {
+    return (await this.pool.query('SELECT * FROM roles WHERE name = $1', [name])).rows[0] || null;
+  }
+
+  async update(id: string, input: { name?: string; description?: string }): Promise<Role | null> {
     const updates: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
     if (input.name !== undefined) { updates.push(`name = $${idx++}`); params.push(input.name); }
     if (input.description !== undefined) { updates.push(`description = $${idx++}`); params.push(input.description); }
-    if (input.permissions !== undefined) { updates.push(`permissions = $${idx++}`); params.push(input.permissions); }
     if (updates.length === 0) return this.findById(id);
     updates.push(`updated_at = NOW()`);
     params.push(id);
@@ -50,5 +52,50 @@ export class RoleRepository {
       params
     );
     return result.rows[0] || null;
+  }
+
+  /** Find a specific role_permission mapping (for seed) */
+  async findRolePermission(roleId: string, resource: string, action: string): Promise<{ id: string } | null> {
+    const result = await this.pool.query(
+      `SELECT rp.id FROM role_permissions rp
+       JOIN permissions p ON p.id = rp.permission_id
+       WHERE rp.role_id = $1 AND p.resource = $2 AND p.action = $3`,
+      [roleId, resource, action]
+    );
+    return result.rows[0] || null;
+  }
+
+  /** Add a role_permission mapping */
+  async addRolePermission(roleId: string, resource: string, action: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO role_permissions (role_id, permission_id)
+       SELECT $1, id FROM permissions WHERE resource = $2 AND action = $3
+       ON CONFLICT DO NOTHING`,
+      [roleId, resource, action]
+    );
+  }
+
+  /** Find all permissions for a list of role names (via role_permissions join) */
+  async findPermissionsByRoleNames(roleNames: string[]): Promise<{ resource: string; action: string }[]> {
+    if (roleNames.length === 0) return [];
+    const result = await this.pool.query(
+      `SELECT DISTINCT p.resource, p.action FROM permissions p
+       JOIN role_permissions rp ON rp.permission_id = p.id
+       JOIN roles r ON r.id = rp.role_id
+       WHERE r.name = ANY($1)`,
+      [roleNames]
+    );
+    return result.rows;
+  }
+
+  /** Find roles for a user */
+  async findUserRoles(userId: string, tenantId: string): Promise<{ name: string }[]> {
+    const result = await this.pool.query(
+      `SELECT r.name FROM roles r
+       JOIN user_roles ur ON ur.role_id = r.id
+       WHERE ur.user_id = $1 AND ur.tenant_id = $2`,
+      [userId, tenantId]
+    );
+    return result.rows;
   }
 }

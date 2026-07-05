@@ -15,7 +15,7 @@ import {
   Spin,
   Tooltip,
 } from 'antd';
-import { ReloadOutlined, SearchOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined, InfoCircleOutlined, LineChartOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { getTraces, type LLMTrace } from '@/api/llm-trace';
 import { colors, spacing } from '@/tokens';
@@ -41,7 +41,7 @@ const TraceList: React.FC = () => {
     setLoading(true);
     try {
       const response = await getTraces({ tenantId, scenarioId, limit });
-      const data = response.data.data as { data: LLMTrace[]; total: number };
+      const data = response.data as unknown as { data: LLMTrace[]; total: number };
       setTraces(data.data || []);
       setTotal(data.total || 0);
     } catch (error: unknown) {
@@ -147,7 +147,8 @@ const TraceList: React.FC = () => {
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <LineChartOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             LLM 调用记录
           </Title>
           <Text type="secondary">

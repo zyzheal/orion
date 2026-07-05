@@ -190,7 +190,7 @@ export class PathFilter {
     const hasInclude = patterns.some((p) => !p.startsWith('!'));
     if (!hasInclude) {
       // No include patterns — all patterns are negations, default match all first
-      let matched = true;
+      const matched = true;
       for (const pattern of patterns) {
         if (pattern.startsWith('!')) {
           const negPattern = pattern.slice(1);

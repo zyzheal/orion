@@ -10,9 +10,14 @@
  * 后续可以接入真实的 SHAP 库进行精确计算。
  */
 
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  DecisionExplanationRepository,
+  DecisionExplanationEntity,
+} from '../../repositories/DecisionExplanationRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('DecisionExplanationService');
 
 // ==================== 类型定义 ====================
 
@@ -173,13 +178,18 @@ const CONFIDENCE_EXPLANATIONS: Record<string, Omit<ConfidenceExplanation, 'score
 
 export class DecisionExplanationService {
   private decisionRules: Map<string, DecisionTypeRules>;
-  private explanationHistory: Map<string, DecisionExplanation>;
+  private explanationRepo: DecisionExplanationRepository | null = null;
 
-  constructor(customRules?: Record<string, DecisionTypeRules>) {
+  constructor(
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    customRules?: Record<string, DecisionTypeRules>
+  ) {
+    if (db) {
+      this.explanationRepo = new DecisionExplanationRepository(db);
+    }
     this.decisionRules = new Map(
       Object.entries({ ...DEFAULT_DECISION_RULES, ...customRules })
     );
-    this.explanationHistory = new Map();
   }
 
   /**
@@ -193,7 +203,7 @@ export class DecisionExplanationService {
   /**
    * 生成决策解释
    */
-  explainDecision(input: {
+  async explainDecision(input: {
     decisionId: string;
     decisionType: string;
     decision: 'pass' | 'fail' | 'warn' | 'manual_review';
@@ -201,7 +211,7 @@ export class DecisionExplanationService {
     confidence?: number;
     threshold?: number;
     context?: Record<string, unknown>;
-  }): DecisionExplanation {
+  }): Promise<DecisionExplanation> {
     const { decisionId, decisionType, decision, features, confidence = 0.75, threshold, context } = input;
 
     logger.info({
@@ -246,7 +256,23 @@ export class DecisionExplanationService {
     };
 
     // 存储到历史记录
-    this.explanationHistory.set(decisionId, explanation);
+    if (this.explanationRepo) {
+      await this.explanationRepo.create({
+        id: uuidv4(),
+        decision_id: decisionId,
+        decision_type: decisionType,
+        decision,
+        confidence,
+        confidence_level: confidenceLevel,
+        overall_reason: overallReason,
+        feature_importance: featureImportance as unknown as unknown[],
+        matched_rules: matchedRules as unknown as unknown[],
+        contributing_factors: contributingFactors,
+        mitigating_factors: mitigatingFactors,
+        recommendations,
+        metadata_json: (context as Record<string, unknown>) ?? null,
+      });
+    }
 
     return explanation;
   }
@@ -361,7 +387,7 @@ export class DecisionExplanationService {
   /**
    * 批量解释多个决策
    */
-  explainBatch(input: {
+  async explainBatch(input: {
     decisionType: string;
     decisions: Array<{
       decisionId: string;
@@ -369,16 +395,19 @@ export class DecisionExplanationService {
       features: DecisionFeature[];
       confidence?: number;
     }>;
-  }): DecisionExplanation[] {
-    return input.decisions.map((d) =>
-      this.explainDecision({
+  }): Promise<DecisionExplanation[]> {
+    const results: DecisionExplanation[] = [];
+    for (const d of input.decisions) {
+      const result = await this.explainDecision({
         decisionId: d.decisionId,
         decisionType: input.decisionType,
         decision: d.decision,
         features: d.features,
         confidence: d.confidence,
-      })
-    );
+      });
+      results.push(result);
+    }
+    return results;
   }
 
   // ==================== 私有方法 ====================
@@ -644,21 +673,42 @@ export class DecisionExplanationService {
   /**
    * 根据 ID 获取解释
    */
-  getExplanationById(decisionId: string): DecisionExplanation | undefined {
-    return this.explanationHistory.get(decisionId);
+  async getExplanationById(decisionId: string): Promise<DecisionExplanation | undefined> {
+    if (this.explanationRepo) {
+      const entity = await this.explanationRepo.findByDecisionId(decisionId);
+      if (entity) return this.entityToExplanation(entity);
+    }
+    return undefined;
   }
 
   /**
    * 获取解释历史记录
    */
-  getExplanationHistory(limit: number = 50, decisionType?: string): DecisionExplanation[] {
-    let explanations = Array.from(this.explanationHistory.values())
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    if (decisionType) {
-      explanations = explanations.filter((e) => e.decisionType === decisionType);
+  async getExplanationHistory(limit: number = 50, decisionType?: string): Promise<DecisionExplanation[]> {
+    if (this.explanationRepo) {
+      const entities = await this.explanationRepo.findRecent(limit, decisionType);
+      return entities.map(e => this.entityToExplanation(e));
     }
+    return [];
+  }
 
-    return explanations.slice(0, limit);
+  // ==================== Entity Conversion ====================
+
+  private entityToExplanation(entity: DecisionExplanationEntity): DecisionExplanation {
+    return {
+      decisionId: entity.decision_id,
+      decisionType: entity.decision_type,
+      decision: entity.decision as DecisionExplanation['decision'],
+      confidence: entity.confidence,
+      confidenceLevel: entity.confidence_level as DecisionExplanation['confidenceLevel'],
+      overallReason: entity.overall_reason ?? '',
+      featureImportance: (entity.feature_importance as unknown as FeatureImportance[]) ?? [],
+      matchedRules: (entity.matched_rules as unknown as MatchedRule[]) ?? [],
+      contributingFactors: entity.contributing_factors ?? [],
+      mitigatingFactors: entity.mitigating_factors ?? [],
+      recommendations: entity.recommendations ?? [],
+      timestamp: entity.created_at,
+      metadata: entity.metadata_json ?? undefined,
+    };
   }
 }

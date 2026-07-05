@@ -3,9 +3,9 @@
  */
 import React, { useState, useMemo, useEffect } from 'react';
 import { Typography, Button, Space, Tag, Card, Rate, Modal, message } from 'antd';
-import { ReloadOutlined, DownloadOutlined } from '@ant-design/icons';
+import { ReloadOutlined, DownloadOutlined, ShopOutlined } from '@ant-design/icons';
 import Table, { type TableColumn } from '@/components/Table';
-import StatusBadge from '@/components/StatusBadge';
+import StatusBadge, { type StatusType } from '@/components/StatusBadge';
 import SearchFilterBar, { type FilterDefinition } from '@/components/SearchFilterBar';
 import { getSkills, installSkill, type SkillPackage } from '@/api/skills';
 import { colors, spacing } from '@/tokens';
@@ -39,7 +39,7 @@ const SkillMarketplace: React.FC = () => {
     setLoading(true);
     try {
       const res = await getSkills();
-      setSkills(Array.isArray(res.data.data) ? res.data.data : []);
+      setSkills(Array.isArray(res.data) ? res.data : []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`Failed to load skills：${error.message}`);
@@ -142,7 +142,7 @@ const SkillMarketplace: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 100,
-      render: (v: unknown) => <StatusBadge status={v as any} size="small" />,
+      render: (v: unknown) => <StatusBadge status={String(v) as StatusType} size="small" />,
     },
     {
       key: 'rating',
@@ -227,11 +227,12 @@ const SkillMarketplace: React.FC = () => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: spacing.lg,
         }}
       >
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ShopOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             技能市场
           </Title>
           <Text type="secondary">浏览和安装社区共享的技能包</Text>
@@ -244,7 +245,7 @@ const SkillMarketplace: React.FC = () => {
       </div>
 
       <Card>
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: spacing.md }}>
           <SearchFilterBar
             onSearch={setSearchQuery}
             onFilter={setFilters}
@@ -285,14 +286,14 @@ const SkillMarketplace: React.FC = () => {
       >
         {selectedSkill && (
           <div>
-            <Space style={{ marginBottom: 16 }}>
+            <Space style={{ marginBottom: spacing.md }}>
               <Tag color="blue">{selectedSkill.category}</Tag>
-              <StatusBadge status={selectedSkill.status as any} size="small" />
+              <StatusBadge status={selectedSkill.status as StatusType} size="small" />
               <Rate disabled defaultValue={selectedSkill.rating} />
               <Text type="secondary">安装量: {selectedSkill.installCount}</Text>
             </Space>
             <Text>{selectedSkill.description}</Text>
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: spacing.md }}>
               <Text strong>标签: </Text>
               <Space size={4}>
                 {selectedSkill.tags.map((tag) => (
@@ -300,15 +301,15 @@ const SkillMarketplace: React.FC = () => {
                 ))}
               </Space>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>作者: </Text>
               <Text>{selectedSkill.author}</Text>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>版本: </Text>
               <Text>v{selectedSkill.version}</Text>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: spacing.sm }}>
               <Text strong>发布时间: </Text>
               <Text type="secondary">
                 {dayjs(selectedSkill.createdAt).format('YYYY-MM-DD HH:mm')}

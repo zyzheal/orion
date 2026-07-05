@@ -1,133 +1,86 @@
 /**
- * Self-Healing Engine API Routes
+ * Self-Healing API Routes (TASK-702)
  *
- * Provides endpoints for self-healing operations including incident
- * management, strategy configuration, approval workflows,
- * history queries, and effectiveness metrics.
+ * Prefix: /self-healing (parent mounts under /api/v1 → /api/v1/self-healing)
  *
- * TASK-702: Self-Healing Engine (self-healing rules/executions backed by PostgreSQL)
- * Prefix: /api/v1/self-healing
+ * Endpoints:
+ *   POST   /incidents                    - Create incident
+ *   GET    /incidents/:id                - Get incident detail
+ *   GET    /history                      - Healing history
+ *   GET    /effectiveness                - Effectiveness metrics
+ *   GET    /strategies                   - List strategies
+ *   GET    /strategies/:id               - Strategy detail
+ *   POST   /strategies/:id/toggle        - Toggle strategy
+ *   POST   /strategies                   - Register custom strategy
+ *   GET    /approvals                    - List approvals
+ *   GET    /approvals/:id                - Approval detail
+ *   POST   /approvals/:id/respond        - Respond to approval
  */
 
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { DatabasePool } from '../services/database';
-import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
+import { FastifyInstance } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { SelfHealingController } from '../api/controllers/SelfHealingController';
 import { SelfHealingService } from '../services/self-healing/SelfHealingService';
-import { SelfHealingController } from './controllers/SelfHealingController';
-
-export interface SelfHealingRoutesOptions {
-  database?: DatabasePool;
-}
+import { SelfHealingRepository } from '../services/self-healing/SelfHealingRepository';
+import { OrionError, ErrorCode } from '../errors';
 
 export default async function selfHealingRoutes(
   app: FastifyInstance,
-  options: SelfHealingRoutesOptions
+  opts?: { database?: any }
 ): Promise<void> {
-  // Initialize Repository and Service with database pool
-  const repository = options.database
-    ? new SelfHealingRepository(options.database)
-    : undefined;
-
-  if (!repository) {
-    console.warn('[SelfHealingRoutes] No database pool provided, self-healing routes will not be functional');
-    return;
+  if (!opts?.database) {
+    throw new OrionError('Self-healing routes require database connection', ErrorCode.SERVICE_UNAVAILABLE);
   }
 
-  const service = new SelfHealingService(repository);
+  const repository = new SelfHealingRepository(opts.database);
+  const service = new SelfHealingService(repository, undefined, opts.database);
   const controller = new SelfHealingController(service);
 
-  // ==================== Incident Management ====================
+  // Incidents
+  app.post('/incidents', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write' })],
+  }, controller.createIncident.bind(controller));
+  app.get('/incidents/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getIncident.bind(controller));
 
-  // POST /self-healing/incidents - Manually trigger a healing incident
-  app.post(
-    '/incidents',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.createIncident(request, reply);
-    }
-  );
+  // History
+  app.get('/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getHistory.bind(controller));
 
-  // GET /self-healing/incidents/:id - Get incident details
-  app.get(
-    '/incidents/:id',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getIncident(request, reply);
-    }
-  );
+  // Effectiveness
+  app.get('/effectiveness', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getEffectiveness.bind(controller));
 
-  // ==================== History ====================
+  // Strategies
+  app.get('/strategies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getStrategies.bind(controller));
+  app.get('/strategies/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getStrategy.bind(controller));
+  app.post('/strategies/:id/toggle', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.toggleStrategy.bind(controller));
+  app.post('/strategies', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'write' })],
+  }, controller.registerStrategy.bind(controller));
 
-  // GET /self-healing/history - Get healing history
-  app.get('/history', async (request: FastifyRequest, reply: FastifyReply) => {
-    return controller.getHistory(request, reply);
-  });
-
-  // ==================== Effectiveness ====================
-
-  // GET /self-healing/effectiveness - Get healing effectiveness metrics
-  app.get(
-    '/effectiveness',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getEffectiveness(request, reply);
-    }
-  );
-
-  // ==================== Strategies ====================
-
-  // GET /self-healing/strategies - Get all healing strategies
-  app.get(
-    '/strategies',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getStrategies(request, reply);
-    }
-  );
-
-  // GET /self-healing/strategies/:id - Get strategy details
-  app.get(
-    '/strategies/:id',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getStrategy(request, reply);
-    }
-  );
-
-  // POST /self-healing/strategies - Register a custom strategy
-  app.post(
-    '/strategies',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.registerStrategy(request, reply);
-    }
-  );
-
-  // POST /self-healing/strategies/:id/toggle - Enable/disable a strategy
-  app.post(
-    '/strategies/:id/toggle',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.toggleStrategy(request, reply);
-    }
-  );
-
-  // ==================== Approval Workflow ====================
-
-  // GET /self-healing/approvals - Get approval requests
-  app.get(
-    '/approvals',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getApprovals(request, reply);
-    }
-  );
-
-  // GET /self-healing/approvals/:id - Get approval request details
-  app.get(
-    '/approvals/:id',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.getApproval(request, reply);
-    }
-  );
-
-  // POST /self-healing/approvals/:id/respond - Respond to an approval request
+  // Approvals
+  app.get('/approvals', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read' })],
+  }, controller.getApprovals.bind(controller));
+  app.get('/approvals/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'read', extractResourceId: (req) => (req.params as { id: string }).id })],
+  }, controller.getApproval.bind(controller));
   app.post(
     '/approvals/:id/respond',
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      return controller.respondToApproval(request, reply);
-    }
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'selfhealing', action: 'approve', extractResourceId: (req) => (req.params as { id: string }).id })],
+    },
+    controller.respondToApproval.bind(controller)
   );
 }

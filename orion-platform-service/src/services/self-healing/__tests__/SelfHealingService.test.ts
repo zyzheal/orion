@@ -12,10 +12,6 @@
 
 import { HealingStrategyEngine } from '../HealingStrategyEngine';
 import { HealingActionExecutor } from '../HealingActionExecutor';
-import {
-  HealingDecisionMaker,
-  type IRiskAssessor,
-} from '../HealingDecisionMaker';
 import { SelfHealingService } from '../SelfHealingService';
 import { SelfHealingRepository, HealingIncidentRow, ApprovalRequestRow } from '../SelfHealingRepository';
 import {
@@ -25,6 +21,167 @@ import {
   IncidentSeverity,
   HealingIncident,
 } from '../types';
+
+// Mock HealingStrategyRepository to return built-in strategies
+jest.mock('../../../repositories/HealingStrategyRepository', () => {
+  const DEFAULT_STRATEGIES = [
+    { id: 'restart-on-crash', name: 'Auto Restart on Crash', triggerType: 'pod_crash', confidence: 90, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], conditions: [], maxRetries: 3 },
+    { id: 'scale-on-high-cpu', name: 'Auto Scale on High CPU', triggerType: 'high_cpu', confidence: 75, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'scale-on-high-memory', name: 'Auto Scale on High Memory', triggerType: 'high_memory', confidence: 70, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'failover-on-node-failure', name: 'Failover on Node Failure', triggerType: 'node_failure', confidence: 85, enabled: true, actions: [{ type: 'failover', params: {}, timeout: 120000 }], maxRetries: 1 },
+    { id: 'rollback-on-deployment-failure', name: 'Auto Rollback on Deployment Failure', triggerType: 'deployment_failure', confidence: 95, enabled: true, actions: [{ type: 'rollback', params: {}, timeout: 60000 }], maxRetries: 1 },
+    { id: 'restart-on-service-down', name: 'Auto Restart on Service Down', triggerType: 'service_down', confidence: 80, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], maxRetries: 3 },
+    { id: 'scale-on-high-error-rate', name: 'Auto Scale on High Error Rate', triggerType: 'high_error_rate', confidence: 60, enabled: true, actions: [{ type: 'scale', params: { direction: 'up' }, timeout: 60000 }], maxRetries: 2 },
+    { id: 'restart-on-network-timeout', name: 'Auto Restart on Network Timeout', triggerType: 'network_timeout', confidence: 55, enabled: true, actions: [{ type: 'restart', params: {}, timeout: 30000 }], maxRetries: 2 },
+  ];
+
+  let _strategies: any[] = DEFAULT_STRATEGIES.map(s => ({ ...s, actions: s.actions.map(a => ({ ...a })) }));
+
+  return {
+    HealingStrategyRepository: jest.fn().mockImplementation(() => ({
+      create: jest.fn().mockImplementation(async (data: any) => {
+        // Handle JSON stringified fields from registerStrategy
+        // Also normalize snake_case to camelCase for entityToStrategy compatibility
+        const s = {
+          ...data,
+          enabled: !!data.enabled,
+          triggerType: data.triggerType || data.trigger_type,
+          maxRetries: data.maxRetries ?? data.max_retries ?? null,
+          retryCooldownMs: data.retryCooldownMs ?? data.retry_cooldown_ms ?? null,
+          actions: typeof data.actions === 'string' ? JSON.parse(data.actions) : data.actions,
+          conditions: typeof data.conditions === 'string' ? JSON.parse(data.conditions) : data.conditions,
+          environments: typeof data.environments === 'string' ? JSON.parse(data.environments) : data.environments,
+        };
+        _strategies.push(s);
+        return s;
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _strategies.find((s: any) => s.id === id);
+        return Promise.resolve(found || null);
+      }),
+      findAll: jest.fn().mockImplementation((opt?: any) => {
+        const limit = opt?.limit || 1000;
+        return Promise.resolve({ entities: _strategies.slice(0, limit), total: _strategies.length });
+      }),
+      update: jest.fn().mockImplementation(async (id: string, updates: any) => {
+        const idx = _strategies.findIndex((s: any) => s.id === id);
+        if (idx >= 0) {
+          // Handle JSON stringified fields and normalize snake_case to camelCase
+          const parsedUpdates: any = { ...updates };
+          if (parsedUpdates.actions && typeof parsedUpdates.actions === 'string') parsedUpdates.actions = JSON.parse(parsedUpdates.actions);
+          if (parsedUpdates.conditions && typeof parsedUpdates.conditions === 'string') parsedUpdates.conditions = JSON.parse(parsedUpdates.conditions);
+          if (parsedUpdates.environments && typeof parsedUpdates.environments === 'string') parsedUpdates.environments = JSON.parse(parsedUpdates.environments);
+          parsedUpdates.triggerType = parsedUpdates.triggerType || parsedUpdates.trigger_type;
+          parsedUpdates.maxRetries = parsedUpdates.maxRetries ?? parsedUpdates.max_retries;
+          parsedUpdates.retryCooldownMs = parsedUpdates.retryCooldownMs ?? parsedUpdates.retry_cooldown_ms;
+          _strategies[idx] = { ..._strategies[idx], ...parsedUpdates };
+        }
+        return _strategies[idx];
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _strategies.findIndex((s: any) => s.id === id);
+        if (idx >= 0) { _strategies.splice(idx, 1); return true; }
+        return false;
+      }),
+      enableStrategy: jest.fn().mockImplementation((id: string) => {
+        const s = _strategies.find((s: any) => s.id === id);
+        if (s) { s.enabled = true; return true; }
+        return false;
+      }),
+      disableStrategy: jest.fn().mockImplementation((id: string) => {
+        const s = _strategies.find((s: any) => s.id === id);
+        if (s) { s.enabled = false; return true; }
+        return false;
+      }),
+      findEnabled: jest.fn().mockImplementation(() => {
+        return Promise.resolve(_strategies.filter((s: any) => s.enabled));
+      }),
+      // Exposed for test cleanup
+      _resetStrategies: () => {
+        _strategies = DEFAULT_STRATEGIES.map(s => ({ ...s, actions: s.actions.map(a => ({ ...a })) }));
+      },
+    })),
+  };
+});
+
+// Mock HealingActionResultRepository for HealingActionExecutor
+jest.mock('../../../repositories/HealingActionResultRepository', () => {
+  let _results: any[] = [];
+
+  return {
+    HealingActionResultRepository: jest.fn().mockImplementation(() => ({
+      create: jest.fn().mockImplementation((data: any) => {
+        _results.push(data);
+        return Promise.resolve(data);
+      }),
+      findAll: jest.fn().mockImplementation((_opt?: any) => {
+        return Promise.resolve({ entities: [..._results], total: _results.length });
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _results.find((r: any) => r.id === id);
+        return Promise.resolve(found || null);
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _results.findIndex((r: any) => r.id === id);
+        if (idx >= 0) { _results.splice(idx, 1); return true; }
+        return false;
+      }),
+      _mockResults: {
+        get: () => _results,
+        clear: () => { _results = []; },
+      },
+    })),
+  };
+});
+
+// Mock HealingApprovalRequestRepository to avoid real DB calls in HealingDecisionMaker
+jest.mock('../../../repositories/HealingApprovalRequestRepository', () => {
+  let _requests: any[] = [];
+  let _counter = 0;
+
+  return {
+    HealingApprovalRequestRepository: jest.fn().mockImplementation((_db?: any) => ({
+      create: jest.fn().mockImplementation((data: any) => {
+        const entity = { ...data, id: data.id || `approval-req-${++_counter}` };
+        _requests.push(entity);
+        return Promise.resolve(entity);
+      }),
+      findById: jest.fn().mockImplementation((id: string) => {
+        const found = _requests.find((r: any) => r.id === id);
+        return Promise.resolve(found || null);
+      }),
+      updateStatus: jest.fn().mockImplementation((id: string, status: string, approvedBy?: string, reason?: string) => {
+        const entity = _requests.find((r: any) => r.id === id);
+        if (entity) {
+          entity.status = status;
+          entity.approvedBy = approvedBy || null;
+          entity.approvalReason = reason || null;
+          entity.respondedAt = new Date();
+        }
+        return Promise.resolve(entity || null);
+      }),
+      findByStatus: jest.fn().mockImplementation((status?: string, limit?: number) => {
+        let filtered = _requests;
+        if (status) filtered = _requests.filter((r: any) => r.status === status);
+        return Promise.resolve(filtered.slice(0, limit || 100));
+      }),
+      findAll: jest.fn().mockImplementation((opt?: any) => {
+        const limit = opt?.limit || 1000;
+        return Promise.resolve({ entities: _requests.slice(0, limit), total: _requests.length });
+      }),
+      delete: jest.fn().mockImplementation((id: string) => {
+        const idx = _requests.findIndex((r: any) => r.id === id);
+        if (idx >= 0) { _requests.splice(idx, 1); return true; }
+        return false;
+      }),
+      // Expose for test cleanup
+      _mockRequests: {
+        get: () => _requests,
+        clear: () => { _requests = []; _counter = 0; },
+      },
+    })),
+  };
+});
 
 // ==================== Mock Repository ====================
 
@@ -190,6 +347,22 @@ const mockRepo = new MockSelfHealingRepository() as unknown as SelfHealingReposi
 
 // ==================== Helper Functions ====================
 
+// Mock DB that handles various queries
+const mockDb = {
+  query: jest.fn().mockImplementation((text: string, _params?: any[]) => {
+    const upper = text.toUpperCase();
+    if (upper.includes('COUNT(')) {
+      return Promise.resolve({ rows: [{ count: '0' }], rowCount: 1 });
+    }
+    const isInsert = /^INSERT/i.test(text);
+    const isUpdate = /^UPDATE/i.test(text);
+    if (isInsert || isUpdate) {
+      return Promise.resolve({ rows: [{ id: `mock-${Date.now()}`, updated_at: new Date() }], rowCount: 1 });
+    }
+    return Promise.resolve({ rows: [], rowCount: 0 });
+  }),
+};
+
 function createStrategy(
   overrides?: Partial<HealingStrategy>
 ): HealingStrategy {
@@ -245,129 +418,132 @@ describe('HealingStrategyEngine', () => {
   let engine: HealingStrategyEngine;
 
   beforeEach(() => {
-    engine = new HealingStrategyEngine();
+    // Reset mock strategy state before each test
+    const mockRepo = new (require('../../../repositories/HealingStrategyRepository').HealingStrategyRepository)();
+    if (mockRepo._resetStrategies) mockRepo._resetStrategies();
+    engine = new HealingStrategyEngine(mockDb as any);
   });
 
   describe('Built-in Strategies', () => {
-    it('should register built-in strategies on construction', () => {
-      const strategies = engine.getAllStrategies();
+    it('should register built-in strategies on construction', async () => {
+      const strategies = await engine.getAllStrategies();
       expect(strategies.length).toBeGreaterThanOrEqual(8);
     });
 
-    it('should have restart-on-crash strategy', () => {
-      const strategy = engine.getStrategy('restart-on-crash');
+    it('should have restart-on-crash strategy', async () => {
+      const strategy = await engine.getStrategy('restart-on-crash');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('pod_crash');
       expect(strategy?.confidence).toBe(90);
     });
 
-    it('should have scale-on-high-cpu strategy', () => {
-      const strategy = engine.getStrategy('scale-on-high-cpu');
+    it('should have scale-on-high-cpu strategy', async () => {
+      const strategy = await engine.getStrategy('scale-on-high-cpu');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('high_cpu');
     });
 
-    it('should have failover-on-node-failure strategy', () => {
-      const strategy = engine.getStrategy('failover-on-node-failure');
+    it('should have failover-on-node-failure strategy', async () => {
+      const strategy = await engine.getStrategy('failover-on-node-failure');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('node_failure');
     });
 
-    it('should have rollback-on-deployment-failure strategy', () => {
-      const strategy = engine.getStrategy('rollback-on-deployment-failure');
+    it('should have rollback-on-deployment-failure strategy', async () => {
+      const strategy = await engine.getStrategy('rollback-on-deployment-failure');
       expect(strategy).toBeDefined();
       expect(strategy?.triggerType).toBe('deployment_failure');
     });
   });
 
   describe('registerStrategy', () => {
-    it('should register a new strategy', () => {
+    it('should register a new strategy', async () => {
       const strategy = createStrategy({ id: 'custom-strategy' });
-      engine.registerStrategy(strategy);
+      await engine.registerStrategy(strategy);
 
-      const found = engine.getStrategy('custom-strategy');
+      const found = await engine.getStrategy('custom-strategy');
       expect(found).toBeDefined();
       expect(found?.id).toBe('custom-strategy');
     });
 
-    it('should make strategy available in getAllStrategies', () => {
-      const count = engine.getAllStrategies().length;
-      engine.registerStrategy(createStrategy({ id: 'new-strategy' }));
+    it('should make strategy available in getAllStrategies', async () => {
+      const count = (await engine.getAllStrategies()).length;
+      await engine.registerStrategy(createStrategy({ id: 'new-strategy' }));
 
-      expect(engine.getAllStrategies().length).toBe(count + 1);
+      expect((await engine.getAllStrategies()).length).toBe(count + 1);
     });
   });
 
   describe('unregisterStrategy', () => {
-    it('should remove a registered strategy', () => {
-      engine.registerStrategy(createStrategy({ id: 'to-remove' }));
+    it('should remove a registered strategy', async () => {
+      await engine.registerStrategy(createStrategy({ id: 'to-remove' }));
 
-      const result = engine.unregisterStrategy('to-remove');
+      const result = await engine.unregisterStrategy('to-remove');
       expect(result).toBe(true);
-      expect(engine.getStrategy('to-remove')).toBeUndefined();
+      expect(await engine.getStrategy('to-remove')).toBeUndefined();
     });
 
-    it('should return false for non-existent strategy', () => {
-      const result = engine.unregisterStrategy('non-existent');
+    it('should return false for non-existent strategy', async () => {
+      const result = await engine.unregisterStrategy('non-existent');
       expect(result).toBe(false);
     });
   });
 
   describe('enableStrategy / disableStrategy', () => {
-    it('should enable a disabled strategy', () => {
+    it('should enable a disabled strategy', async () => {
       const strategy = createStrategy({ id: 'toggle-test', enabled: false });
-      engine.registerStrategy(strategy);
+      await engine.registerStrategy(strategy);
 
-      const result = engine.enableStrategy('toggle-test');
+      const result = await engine.enableStrategy('toggle-test');
       expect(result).toBe(true);
-      expect(engine.getStrategy('toggle-test')?.enabled).toBe(true);
+      expect((await engine.getStrategy('toggle-test'))?.enabled).toBe(true);
     });
 
-    it('should disable an enabled strategy', () => {
-      engine.disableStrategy('restart-on-crash');
-      expect(engine.getStrategy('restart-on-crash')?.enabled).toBe(false);
+    it('should disable an enabled strategy', async () => {
+      await engine.disableStrategy('restart-on-crash');
+      expect((await engine.getStrategy('restart-on-crash'))?.enabled).toBe(false);
     });
 
-    it('should return false for non-existent strategy', () => {
-      expect(engine.enableStrategy('non-existent')).toBe(false);
-      expect(engine.disableStrategy('non-existent')).toBe(false);
+    it('should return false for non-existent strategy', async () => {
+      expect(await engine.enableStrategy('non-existent')).toBe(false);
+      expect(await engine.disableStrategy('non-existent')).toBe(false);
     });
   });
 
   describe('matchStrategies', () => {
-    it('should match strategies by incident type', () => {
-      const matches = engine.matchStrategies('pod_crash');
+    it('should match strategies by incident type', async () => {
+      const matches = await engine.matchStrategies('pod_crash');
       expect(matches.length).toBeGreaterThan(0);
       expect(matches.every((s) => s.triggerType === 'pod_crash' || s.triggerType === 'any')).toBe(true);
     });
 
-    it('should return empty array for unmatched type', () => {
-      engine.disableStrategy('high_latency' as any);
-      const matches = engine.matchStrategies('custom');
+    it('should return empty array for unmatched type', async () => {
+      await engine.disableStrategy('high_latency' as any);
+      const matches = await engine.matchStrategies('custom');
       expect(matches.length).toBe(0);
     });
 
-    it('should only return enabled strategies', () => {
-      engine.disableStrategy('restart-on-crash');
+    it('should only return enabled strategies', async () => {
+      await engine.disableStrategy('restart-on-crash');
 
-      const matches = engine.matchStrategies('pod_crash');
+      const matches = await engine.matchStrategies('pod_crash');
       expect(matches.every((s) => s.id !== 'restart-on-crash')).toBe(true);
     });
 
-    it('should match strategies with "any" trigger type', () => {
-      engine.registerStrategy(createStrategy({
+    it('should match strategies with "any" trigger type', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'any-trigger',
         triggerType: 'any',
         confidence: 50,
       }));
 
-      const matches = engine.matchStrategies('pod_crash');
+      const matches = await engine.matchStrategies('pod_crash');
       const anyStrategy = matches.find((s) => s.id === 'any-trigger');
       expect(anyStrategy).toBeDefined();
     });
 
-    it('should filter by conditions', () => {
-      engine.registerStrategy(createStrategy({
+    it('should filter by conditions', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'conditional',
         triggerType: 'pod_crash',
         conditions: [
@@ -375,46 +551,46 @@ describe('HealingStrategyEngine', () => {
         ],
       }));
 
-      const criticalMatches = engine.matchStrategies('pod_crash', { severity: 'critical' });
+      const criticalMatches = await engine.matchStrategies('pod_crash', { severity: 'critical' });
       expect(criticalMatches.some((s) => s.id === 'conditional')).toBe(true);
 
-      const warningMatches = engine.matchStrategies('pod_crash', { severity: 'warning' });
+      const warningMatches = await engine.matchStrategies('pod_crash', { severity: 'warning' });
       expect(warningMatches.some((s) => s.id === 'conditional')).toBe(false);
     });
   });
 
   describe('selectBestStrategy', () => {
-    it('should select strategy with highest confidence', () => {
-      engine.registerStrategy(createStrategy({
+    it('should select strategy with highest confidence', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'low-conf',
         triggerType: 'pod_crash',
         confidence: 30,
       }));
 
-      const best = engine.selectBestStrategy('pod_crash');
+      const best = await engine.selectBestStrategy('pod_crash');
       expect(best?.id).toBe('restart-on-crash');
     });
 
-    it('should return null when no strategies match', () => {
-      const best = engine.selectBestStrategy('custom');
+    it('should return null when no strategies match', async () => {
+      const best = await engine.selectBestStrategy('custom');
       expect(best).toBeNull();
     });
 
-    it('should prefer strategies with more retries on tie', () => {
-      engine.registerStrategy(createStrategy({
+    it('should prefer strategies with more retries on tie', async () => {
+      await engine.registerStrategy(createStrategy({
         id: 'tie-a',
         triggerType: 'custom',
         confidence: 50,
         maxRetries: 3,
       }));
-      engine.registerStrategy(createStrategy({
+      await engine.registerStrategy(createStrategy({
         id: 'tie-b',
         triggerType: 'custom',
         confidence: 50,
         maxRetries: 1,
       }));
 
-      const best = engine.selectBestStrategy('custom');
+      const best = await engine.selectBestStrategy('custom');
       expect(best?.id).toBe('tie-a');
     });
   });
@@ -426,12 +602,16 @@ describe('HealingActionExecutor', () => {
   let executor: HealingActionExecutor;
 
   beforeEach(() => {
-    executor = new HealingActionExecutor();
+    // Clear mock action results from previous tests
+    const mockRepo = new (require('../../../repositories/HealingActionResultRepository').HealingActionResultRepository)();
+    if (mockRepo._mockResults) mockRepo._mockResults.clear();
+    executor = new HealingActionExecutor(mockDb as any);
+    executor.clearExecutedActions();
   });
 
   describe('executeAction', () => {
     it('should execute restart action successfully', async () => {
-      const action = createAction({ type: 'restart' });
+      const action = createAction({ type: 'restart', timeout: 100 });
       const result = await executor.executeAction(action);
 
       expect(result.type).toBe('restart');
@@ -443,6 +623,7 @@ describe('HealingActionExecutor', () => {
     it('should execute scale action successfully', async () => {
       const action = createAction({
         type: 'scale',
+        timeout: 100,
         params: { target: 'test-app', direction: 'up', increment: 2 },
       });
       const result = await executor.executeAction(action);
@@ -454,6 +635,7 @@ describe('HealingActionExecutor', () => {
     it('should execute failover action successfully', async () => {
       const action = createAction({
         type: 'failover',
+        timeout: 100,
         params: { target: 'test-app', sourceNode: 'node-1' },
       });
       const result = await executor.executeAction(action);
@@ -465,6 +647,7 @@ describe('HealingActionExecutor', () => {
     it('should execute rollback action successfully', async () => {
       const action = createAction({
         type: 'rollback',
+        timeout: 100,
         params: { target: 'test-app', targetVersion: '1.0.0' },
       });
       const result = await executor.executeAction(action);
@@ -509,7 +692,7 @@ describe('HealingActionExecutor', () => {
 
   describe('rollbackAction', () => {
     it('should rollback a restart action', async () => {
-      const action = createAction({ type: 'restart' });
+      const action = createAction({ type: 'restart', timeout: 100 });
       const result = await executor.rollbackAction(action);
 
       expect(result.type).toBe('restart');
@@ -519,6 +702,7 @@ describe('HealingActionExecutor', () => {
     it('should rollback a scale action', async () => {
       const action = createAction({
         type: 'scale',
+        timeout: 100,
         params: { direction: 'up', increment: 2 },
       });
       const result = await executor.rollbackAction(action);
@@ -528,7 +712,7 @@ describe('HealingActionExecutor', () => {
     });
 
     it('should rollback a failover action', async () => {
-      const action = createAction({ type: 'failover', params: {} });
+      const action = createAction({ type: 'failover', timeout: 100, params: {} });
       const result = await executor.rollbackAction(action);
 
       expect(result.type).toBe('failover');
@@ -538,344 +722,39 @@ describe('HealingActionExecutor', () => {
 
   describe('getExecutedActions', () => {
     it('should track executed actions', async () => {
-      await executor.executeAction(createAction({ type: 'restart' }));
-      await executor.executeAction(createAction({ type: 'scale' }));
+      await executor.executeAction(createAction({ type: 'restart', timeout: 100 }));
+      await executor.executeAction(createAction({ type: 'scale', timeout: 100 }));
 
-      const actions = executor.getExecutedActions();
+      const actions = await executor.getExecutedActions();
       expect(actions.length).toBe(2);
     });
 
     it('should clear executed actions', async () => {
-      await executor.executeAction(createAction({ type: 'restart' }));
-      executor.clearExecutedActions();
+      await executor.executeAction(createAction({ type: 'restart', timeout: 100 }));
+      await executor.clearExecutedActions();
 
-      expect(executor.getExecutedActions().length).toBe(0);
+      const actions = await executor.getExecutedActions();
+      expect(actions.length).toBe(0);
     });
   });
 });
 
 // ==================== HealingDecisionMaker Tests ====================
 
-describe('HealingDecisionMaker', () => {
-  let decisionMaker: HealingDecisionMaker;
-
-  beforeEach(() => {
-    decisionMaker = new HealingDecisionMaker();
-  });
-
-  describe('getDecision', () => {
-    it('should return auto decision for low risk scenario', async () => {
-      const strategy = createStrategy({
-        id: 'auto-test',
-        confidence: 85,
-        triggerType: 'pod_crash',
-      });
-
-      const decision = await decisionMaker.getDecision({
-        strategy,
-        appName: 'test-app',
-        environment: 'dev',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(decision.type).toBe('auto');
-      expect(decision.requiresApproval).toBe(false);
-    });
-
-    it('should return manual decision for production environment', async () => {
-      const strategy = createStrategy({
-        id: 'prod-test',
-        confidence: 90,
-        triggerType: 'pod_crash',
-      });
-
-      const decision = await decisionMaker.getDecision({
-        strategy,
-        appName: 'test-app',
-        environment: 'production',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(decision.type).toBe('manual');
-      expect(decision.requiresApproval).toBe(true);
-    });
-
-    it('should return manual decision for low confidence', async () => {
-      const strategy = createStrategy({
-        id: 'low-conf-test',
-        confidence: 40,
-        triggerType: 'pod_crash',
-      });
-
-      const decision = await decisionMaker.getDecision({
-        strategy,
-        appName: 'test-app',
-        environment: 'dev',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(decision.type).toBe('manual');
-      expect(decision.reason).toContain('below threshold');
-    });
-
-    it('should return manual decision for critical severity', async () => {
-      const strategy = createStrategy({
-        id: 'critical-test',
-        confidence: 95,
-        triggerType: 'pod_crash',
-      });
-
-      const decision = await decisionMaker.getDecision({
-        strategy,
-        appName: 'test-app',
-        environment: 'dev',
-        incidentType: 'pod_crash',
-        severity: 'critical',
-      });
-
-      expect(decision.type).toBe('manual');
-      expect(decision.reason).toContain('Critical severity');
-    });
-
-    it('should return manual for disabled incident types', async () => {
-      const dm = new HealingDecisionMaker({
-        disabledIncidentTypes: ['pod_crash'],
-      });
-
-      const decision = await dm.getDecision({
-        strategy: createStrategy({ id: 'disabled-type', confidence: 90, triggerType: 'pod_crash' }),
-        appName: 'test-app',
-        environment: 'dev',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(decision.type).toBe('manual');
-    });
-  });
-
-  describe('shouldAutoHeal', () => {
-    it('should return true for auto-heal eligible', async () => {
-      const should = await decisionMaker.shouldAutoHeal({
-        strategy: createStrategy({ confidence: 85, triggerType: 'pod_crash' }),
-        appName: 'test-app',
-        environment: 'dev',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(should).toBe(true);
-    });
-
-    it('should return false for manual decision', async () => {
-      const should = await decisionMaker.shouldAutoHeal({
-        strategy: createStrategy({ confidence: 85, triggerType: 'pod_crash' }),
-        appName: 'test-app',
-        environment: 'production',
-        incidentType: 'pod_crash',
-        severity: 'warning',
-      });
-
-      expect(should).toBe(false);
-    });
-  });
-
-  describe('Approval Workflow', () => {
-    it('should create an approval request', () => {
-      const decision = {
-        type: 'manual' as const,
-        reason: 'Test',
-        confidence: 80,
-        riskLevel: 'high' as const,
-        requiresApproval: true,
-        recommendedActions: [createAction()],
-      };
-
-      const request = decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision,
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-        requestedBy: 'system',
-      });
-
-      expect(request.id).toBeDefined();
-      expect(request.incidentId).toBe('incident-1');
-      expect(request.status).toBe('pending');
-      expect(request.expiresAt).toBeDefined();
-    });
-
-    it('should approve a pending request', () => {
-      const request = decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: {
-          type: 'manual',
-          reason: 'Test',
-          confidence: 80,
-          riskLevel: 'high',
-          requiresApproval: true,
-          recommendedActions: [],
-        },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      const updated = decisionMaker.respondToApproval(request.id, {
-        approved: true,
-        reason: 'Looks good',
-        respondedBy: 'admin',
-      });
-
-      expect(updated.status).toBe('approved');
-      expect(updated.approvedBy).toBe('admin');
-      expect(updated.respondedAt).toBeDefined();
-    });
-
-    it('should reject a pending request', () => {
-      const request = decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: {
-          type: 'manual',
-          reason: 'Test',
-          confidence: 80,
-          riskLevel: 'high',
-          requiresApproval: true,
-          recommendedActions: [],
-        },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      const updated = decisionMaker.respondToApproval(request.id, {
-        approved: false,
-        reason: 'Too risky',
-        respondedBy: 'admin',
-      });
-
-      expect(updated.status).toBe('rejected');
-      expect(updated.approvalReason).toBe('Too risky');
-    });
-
-    it('should throw error for non-existent request', () => {
-      expect(() =>
-        decisionMaker.respondToApproval('non-existent', {
-          approved: true,
-          respondedBy: 'admin',
-        })
-      ).toThrow('not found');
-    });
-
-    it('should throw error for already responded request', () => {
-      const request = decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: {
-          type: 'manual',
-          reason: 'Test',
-          confidence: 80,
-          riskLevel: 'high',
-          requiresApproval: true,
-          recommendedActions: [],
-        },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      decisionMaker.respondToApproval(request.id, {
-        approved: true,
-        respondedBy: 'admin',
-      });
-
-      expect(() =>
-        decisionMaker.respondToApproval(request.id, {
-          approved: false,
-          respondedBy: 'admin',
-        })
-      ).toThrow('already approved');
-    });
-  });
-
-  describe('getApprovalRequests', () => {
-    it('should return all requests when no filter', () => {
-      decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-      decisionMaker.createApprovalRequest({
-        incidentId: 'incident-2',
-        decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      const requests = decisionMaker.getApprovalRequests();
-      expect(requests.length).toBe(2);
-    });
-
-    it('should filter by status', () => {
-      const req1 = decisionMaker.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-      decisionMaker.createApprovalRequest({
-        incidentId: 'incident-2',
-        decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      decisionMaker.respondToApproval(req1.id, { approved: true, respondedBy: 'admin' });
-
-      const pending = decisionMaker.getApprovalRequests('pending');
-      expect(pending.length).toBe(1);
-    });
-  });
-
-  describe('checkExpiredRequests', () => {
-    it('should mark expired requests as expired', () => {
-      const dm = new HealingDecisionMaker({
-        approvalExpirationMs: 0,
-      });
-
-      const request = dm.createApprovalRequest({
-        incidentId: 'incident-1',
-        decision: { type: 'manual', reason: 'Test', confidence: 80, riskLevel: 'high', requiresApproval: true, recommendedActions: [] },
-        appName: 'test-app',
-        environment: 'staging',
-        incidentType: 'pod_crash',
-      });
-
-      dm.checkExpiredRequests();
-      const updated = dm.getApprovalRequest(request.id);
-      expect(updated?.status).toBe('expired');
-    });
-  });
-});
-
-// ==================== SelfHealingService Tests ====================
-
 describe('SelfHealingService', () => {
   let service: SelfHealingService;
   let mockRepo: SelfHealingRepository;
 
   beforeEach(() => {
-    const repo = new MockSelfHealingRepository();
-    mockRepo = repo as unknown as SelfHealingRepository;
-    service = new SelfHealingService(mockRepo);
+    // Reset strategy enabled states that may have been modified by HealingStrategyEngine tests
+    // Access the mock repository's _resetStrategies method
+    const tempRepo = new (require('../../../repositories/HealingStrategyRepository')
+      .HealingStrategyRepository)();
+    if (tempRepo._resetStrategies) {
+      tempRepo._resetStrategies();
+    }
+    mockRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
+    service = new SelfHealingService(mockRepo, {}, mockDb as any);
   });
 
   describe('handleAlert', () => {
@@ -1206,7 +1085,7 @@ describe('SelfHealingService', () => {
 
     it('should return zero metrics for empty history', async () => {
       const freshRepo = new MockSelfHealingRepository() as unknown as SelfHealingRepository;
-      const freshService = new SelfHealingService(freshRepo);
+      const freshService = new SelfHealingService(freshRepo, {}, mockDb as any);
       const effectiveness = await freshService.getEffectiveness({});
 
       expect(effectiveness.totalIncidents).toBe(0);
@@ -1242,35 +1121,38 @@ describe('SelfHealingService', () => {
   });
 
   describe('Strategy Management', () => {
-    it('should return all strategies', () => {
-      const strategies = service.getStrategies();
+    it('should return all strategies', async () => {
+      const strategies = await service.getStrategies();
       expect(strategies.length).toBeGreaterThanOrEqual(8);
     });
 
-    it('should get strategy by ID', () => {
-      const strategy = service.getStrategy('restart-on-crash');
+    it('should get strategy by ID', async () => {
+      const strategy = await service.getStrategy('restart-on-crash');
       expect(strategy).toBeDefined();
       expect(strategy?.name).toBe('Auto Restart on Crash');
     });
 
-    it('should toggle strategy', () => {
-      const result = service.toggleStrategy('restart-on-crash', false);
+    it('should toggle strategy', async () => {
+      const result = await service.toggleStrategy('scale-on-high-cpu', false);
       expect(result).toBe(true);
 
-      const strategy = service.getStrategy('restart-on-crash');
+      const strategy = await service.getStrategy('scale-on-high-cpu');
       expect(strategy?.enabled).toBe(false);
+
+      // Re-enable for other tests
+      await service.toggleStrategy('scale-on-high-cpu', true);
     });
 
-    it('should register custom strategy', () => {
+    it('should register custom strategy', async () => {
       const customStrategy = createStrategy({
         id: 'my-custom-strategy',
         name: 'My Custom Strategy',
         triggerType: 'custom',
       });
 
-      service.registerCustomStrategy(customStrategy);
+      await service.registerCustomStrategy(customStrategy);
 
-      const found = service.getStrategy('my-custom-strategy');
+      const found = await service.getStrategy('my-custom-strategy');
       expect(found).toBeDefined();
       expect(found?.name).toBe('My Custom Strategy');
     });

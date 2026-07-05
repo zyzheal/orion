@@ -1,3 +1,5 @@
+import { colors, spacing } from '@/tokens';
+
 /**
  * Configuration Management Page
  * Phase 3 - GitOps config management, environment diffs, and approval workflows
@@ -27,11 +29,13 @@ import {
   ReloadOutlined,
   DiffOutlined,
   SyncOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import {
   getConfigs,
   getConfigStats,
   createConfig,
+  updateConfig,
   deleteConfig,
   getGitOpsConfig,
   syncFromGit,
@@ -48,6 +52,7 @@ const ConfigMgmtPage: React.FC = () => {
   const [stats, setStats] = useState<{ total: number; byEnvironment: Record<string, number>; byCategory: Record<string, number>; byStatus: Record<string, number> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<ConfigItem | null>(null);
   const [form] = Form.useForm();
   const [diffForm] = Form.useForm();
   const [diffResult, setDiffResult] = useState<any>(null);
@@ -64,12 +69,12 @@ const ConfigMgmtPage: React.FC = () => {
         getConfigStats(),
         getGitOpsConfig(),
       ]);
-      const configData = configRes.data as any;
-      setConfigs(configData?.configs || []);
-      const statsData = statsRes.data as any;
-      setStats(statsData || null);
-      const gitOpsData = gitOpsRes.data as any;
-      setGitOpsConfig(gitOpsData || null);
+      const configData = configRes.data as { configs?: unknown[] };
+      setConfigs((configData?.configs ?? []) as ConfigItem[]);
+      const statsData = statsRes.data as { data?: unknown };
+      setStats((statsData?.data ?? null) as any);
+      const gitOpsData = gitOpsRes.data as { data?: unknown };
+      setGitOpsConfig((gitOpsData?.data ?? null) as any);
     } catch {
       message.error('Failed to load configuration data');
     } finally {
@@ -93,6 +98,36 @@ const ConfigMgmtPage: React.FC = () => {
       loadData();
     } catch {
       message.error('Failed to create config');
+    }
+  };
+
+  const handleEdit = (record: ConfigItem) => {
+    setEditingConfig(record);
+    form.setFieldsValue({
+      key: record.key,
+      value: record.value,
+      environment: record.environment,
+      category: record.category,
+      description: record.description,
+      sensitive: record.sensitive,
+    });
+    setCreateModalOpen(true);
+  };
+
+  const handleUpdate = async (values: any) => {
+    if (!editingConfig) return;
+    try {
+      await updateConfig(editingConfig.id, {
+        value: values.value,
+        changeReason: values.changeReason,
+      });
+      message.success('Config updated');
+      setCreateModalOpen(false);
+      setEditingConfig(null);
+      form.resetFields();
+      loadData();
+    } catch {
+      message.error('Failed to update config');
     }
   };
 
@@ -156,6 +191,9 @@ const ConfigMgmtPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: ConfigItem) => (
         <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            Edit
+          </Button>
           <Button size="small" danger disabled={record.status === 'active'} onClick={() => handleDelete(record.id)}>
             Delete
           </Button>
@@ -165,10 +203,11 @@ const ConfigMgmtPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.lg }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <SettingOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             <SettingOutlined /> Configuration Management
           </Title>
           <Text type="secondary">GitOps config, environment diffs, and approval workflows</Text>
@@ -185,7 +224,7 @@ const ConfigMgmtPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <Row gutter={24} style={{ marginBottom: 24 }}>
+      <Row gutter={24} style={{ marginBottom: spacing.lg }}>
         <Col span={6}>
           <Card><Statistic title="Total Configs" value={stats?.total ?? configs.length} /></Card>
         </Col>
@@ -216,7 +255,7 @@ const ConfigMgmtPage: React.FC = () => {
               label: 'Environment Diff',
               children: (
                 <div>
-                  <Form form={diffForm} layout="inline" onFinish={handleCompare} style={{ marginBottom: 16 }}>
+                  <Form form={diffForm} layout="inline" onFinish={handleCompare} style={{ marginBottom: spacing.md }}>
                     <Form.Item label="Source" name="sourceEnv" rules={[{ required: true }]}>
                       <Select
                         options={[
@@ -260,17 +299,17 @@ const ConfigMgmtPage: React.FC = () => {
         />
       </Card>
 
-      {/* Create Modal */}
+      {/* Create/Edit Modal */}
       <Modal
-        title="Add Configuration"
+        title={editingConfig ? 'Edit Configuration' : 'Add Configuration'}
         open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
+        onCancel={() => { setCreateModalOpen(false); setEditingConfig(null); form.resetFields(); }}
         onOk={() => form.submit()}
         width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleCreate}>
+        <Form form={form} layout="vertical" onFinish={editingConfig ? handleUpdate : handleCreate}>
           <Form.Item label="Key" name="key" rules={[{ required: true }]}>
-            <Input placeholder="config.key.name" />
+            <Input placeholder="config.key.name" disabled={!!editingConfig} />
           </Form.Item>
           <Form.Item label="Value" name="value" rules={[{ required: true }]}>
             <Input.TextArea rows={3} placeholder="Configuration value" />
@@ -282,10 +321,11 @@ const ConfigMgmtPage: React.FC = () => {
                 { value: 'staging', label: 'Staging' },
                 { value: 'production', label: 'Production' },
               ]}
+              disabled={!!editingConfig}
             />
           </Form.Item>
           <Form.Item label="Category" name="category" rules={[{ required: true }]}>
-            <Input placeholder="database / feature-flag / etc" />
+            <Input placeholder="database / feature-flag / etc" disabled={!!editingConfig} />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <Input placeholder="Config description" />
@@ -293,6 +333,11 @@ const ConfigMgmtPage: React.FC = () => {
           <Form.Item label="Sensitive" name="sensitive" valuePropName="checked">
             <Select options={[{ value: true, label: 'Yes' }, { value: false, label: 'No' }]} />
           </Form.Item>
+          {editingConfig && (
+            <Form.Item label="Change Reason" name="changeReason" rules={[{ required: true, message: 'Please provide a change reason' }]}>
+              <Input.TextArea rows={2} placeholder="Reason for this change" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

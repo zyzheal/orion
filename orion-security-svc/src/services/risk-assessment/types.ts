@@ -1,7 +1,7 @@
 /**
  * Re-export security types for risk assessment routes
  */
-export {
+export type {
   RiskTargetType,
   RiskLevel,
   DeploymentRisk,

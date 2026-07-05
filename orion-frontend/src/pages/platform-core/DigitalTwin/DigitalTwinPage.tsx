@@ -9,6 +9,7 @@ import {
   Card, Table, Button, Modal, Form, Select, Input, Tag, Tabs,
   Progress, message, Space, Statistic, Row, Col, Badge
 } from 'antd';
+import { spacing } from '@/tokens';
 import {
   CameraOutlined, PlayCircleOutlined, ControlOutlined,
   CloudServerOutlined, ReloadOutlined, PlusOutlined,
@@ -197,7 +198,7 @@ const DigitalTwinPage: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: spacing.lg }}>
       <Tabs
         items={[
           {
@@ -215,7 +216,7 @@ const DigitalTwinPage: React.FC = () => {
                   </Space>
                 }
               >
-                <Row gutter={16} style={{ marginBottom: 24 }}>
+                <Row gutter={16} style={{ marginBottom: spacing.lg }}>
                   <Col span={6}>
                     <Card>
                       <Statistic title="Total Twins" value={twins.length} />

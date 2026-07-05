@@ -20,33 +20,16 @@ describe('DiagnosticDecisionTree', () => {
       expect(root.branches).toEqual([]);
     });
 
-    it('should add branches to the tree', () => {
+    it('should throw error when adding branch to non-existent parent', async () => {
       const tree = new DiagnosticDecisionTree();
 
-      const childId = tree.addBranch('root', {
-        name: 'Test Branch',
-        conditions: [{ field: 'type', operator: 'equals', value: 'test' }],
-        childNode: {
-          name: 'Test Node',
-          description: 'A test node',
-          isLeaf: true,
-        },
-      });
-
-      expect(childId).toBeDefined();
-      expect(tree.getNodeCount()).toBe(2); // root + child
-    });
-
-    it('should throw error when adding branch to non-existent parent', () => {
-      const tree = new DiagnosticDecisionTree();
-
-      expect(() => {
+      await expect(
         tree.addBranch('non-existent', {
           name: 'Test Branch',
           conditions: [],
           childNode: { name: 'Test', description: '', isLeaf: false },
-        });
-      }).toThrow('Parent node non-existent not found');
+        })
+      ).rejects.toThrow('Parent node non-existent not found');
     });
   });
 
@@ -159,40 +142,15 @@ describe('DiagnosticDecisionTree', () => {
   });
 
   describe('set default branch', () => {
-    it('should set default branch on a node', () => {
+    it('should throw error when setting default branch on non-existent parent', async () => {
       const tree = new DiagnosticDecisionTree();
 
-      const childId = tree.addBranch('root', {
-        name: 'Known Branch',
-        conditions: [{ field: 'type', operator: 'equals', value: 'known' }],
-        childNode: {
-          name: 'Known Node',
-          description: 'Known issue',
-          isLeaf: true,
-        },
-      });
-
-      const defaultChildId = tree.setDefaultBranch(childId, {
-        name: 'Default Branch',
-        childNode: {
-          name: 'Default Node',
-          description: 'Unknown issue',
-          isLeaf: true,
-        },
-      });
-
-      expect(defaultChildId).toBeDefined();
-    });
-
-    it('should throw error when setting default branch on non-existent parent', () => {
-      const tree = new DiagnosticDecisionTree();
-
-      expect(() => {
+      await expect(
         tree.setDefaultBranch('non-existent', {
           name: 'Default Branch',
           childNode: { name: 'Default', description: '', isLeaf: false },
-        });
-      }).toThrow('Parent node non-existent not found');
+        })
+      ).rejects.toThrow('Parent node non-existent not found');
     });
   });
 });

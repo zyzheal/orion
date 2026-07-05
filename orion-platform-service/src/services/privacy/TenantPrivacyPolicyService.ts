@@ -1,8 +1,9 @@
 // orion-platform-service/src/services/privacy/TenantPrivacyPolicyService.ts
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
+import { TenantPrivacyPolicyRepository } from '../../repositories/TenantPrivacyPolicyRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantPrivacyPolicyService');
 
 export interface TenantPrivacyPolicy {
   tenantId: number;
@@ -72,9 +73,13 @@ const POLICY_PRESETS: Record<string, Partial<TenantPrivacyPolicy>> = {
 export class TenantPrivacyPolicyService {
   private policies: Map<number, TenantPrivacyPolicy> = new Map();
   private db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  private repo?: TenantPrivacyPolicyRepository;
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.db = db;
+    if (db) {
+      this.repo = new TenantPrivacyPolicyRepository(db);
+    }
   }
 
   /**
@@ -88,9 +93,29 @@ export class TenantPrivacyPolicyService {
       return cached;
     }
 
-    // Try to load from database
-    if (this.db) {
-      try {
+    // Try to load from repository or database
+    try {
+      if (this.repo) {
+        const entity = await this.repo.findByTenantId(tenantId);
+        if (entity) {
+          const policy: TenantPrivacyPolicy = {
+            tenantId: entity.tenant_id,
+            policyLevel: entity.policy_level as TenantPrivacyPolicy['policyLevel'],
+            secretSanitizationEnabled: entity.secret_sanitization_enabled,
+            piiSanitizationEnabled: entity.pii_sanitization_enabled,
+            nerModelType: entity.ner_model_type as TenantPrivacyPolicy['nerModelType'],
+            localModelRequired: entity.local_model_required,
+            sensitiveDataTypes: entity.sensitive_data_types,
+            piiTypes: entity.pii_types,
+            customPatterns: entity.custom_patterns,
+            auditLoggingEnabled: entity.audit_logging_enabled,
+            createdAt: entity.created_at,
+            updatedAt: entity.updated_at,
+          };
+          this.policies.set(tenantId, policy);
+          return policy;
+        }
+      } else if (this.db) {
         const result = await this.db.query(
           `SELECT * FROM tenant_privacy_policies WHERE tenant_id = $1`,
           [tenantId],
@@ -112,14 +137,12 @@ export class TenantPrivacyPolicyService {
             createdAt: row.created_at,
             updatedAt: row.updated_at,
           };
-
-          // Cache the policy
           this.policies.set(tenantId, policy);
           return policy;
         }
-      } catch (error) {
-        logger.warn(`[TenantPrivacyPolicy] Database query failed, using default: ${(error as Error).message}`);
       }
+    } catch (error) {
+      logger.warn(`[TenantPrivacyPolicy] Database query failed, using default: ${(error as Error).message}`);
     }
 
     // Return default policy
@@ -148,8 +171,22 @@ export class TenantPrivacyPolicyService {
     // Update in-memory cache
     this.policies.set(tenantId, updated);
 
-    // Persist to database
-    if (this.db) {
+    // Persist to repository or database
+    if (this.repo) {
+      this.repo.upsert(tenantId, {
+        policy_level: updated.policyLevel,
+        secret_sanitization_enabled: updated.secretSanitizationEnabled,
+        pii_sanitization_enabled: updated.piiSanitizationEnabled,
+        ner_model_type: updated.nerModelType,
+        local_model_required: updated.localModelRequired,
+        sensitive_data_types: updated.sensitiveDataTypes,
+        pii_types: updated.piiTypes,
+        custom_patterns: updated.customPatterns,
+        audit_logging_enabled: updated.auditLoggingEnabled,
+      }).catch((err: any) => {
+        logger.warn(`[TenantPrivacyPolicy] Repository save failed: ${err.message}`);
+      });
+    } else if (this.db) {
       try {
         await this.db.query(
           `INSERT INTO tenant_privacy_policies (
@@ -294,6 +331,15 @@ export class TenantPrivacyPolicyService {
    */
   async deletePolicy(tenantId: number): Promise<boolean> {
     this.policies.delete(tenantId);
+
+    if (this.repo) {
+      try {
+        return await this.repo.deleteByTenantId(tenantId);
+      } catch (error) {
+        logger.warn(`[TenantPrivacyPolicy] Repository delete failed: ${(error as Error).message}`);
+        return false;
+      }
+    }
 
     if (this.db) {
       try {

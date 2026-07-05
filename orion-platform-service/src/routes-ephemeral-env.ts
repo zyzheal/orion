@@ -9,6 +9,7 @@ import { K8sProvisionerService } from './services/k8s-provisioner-service';
 import { EphemeralEnvService } from './services/ephemeral-env-service';
 import { EphemeralEnvController } from './api/controllers/EphemeralEnvController';
 import { EventBusService } from './services/event-bus-service';
+import { OrionError, ErrorCode } from './errors';
 
 export interface EphemeralEnvRoutesOptions {
   eventBus?: EventBusService;
@@ -23,7 +24,7 @@ export default async function registerEphemeralEnvRoutes(
   options: EphemeralEnvRoutesOptions
 ): Promise<void> {
   // 初始化服务
-  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new Error('Database not configured'); } });
+  const k8sProvisioner = new K8sProvisionerService(options?.database || { query: async () => { throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE); } });
   const ephemeralEnvService = new EphemeralEnvService({
     k8sProvisioner,
     eventBus: options.eventBus,

@@ -17,9 +17,10 @@ import {
   message,
   Switch,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, EditOutlined, ThunderboltOutlined,} from '@ant-design/icons';
 import { getStrategies, createStrategy, toggleStrategy } from '@/api/self-healing';
 import type { SelfHealingStrategy } from '@/api/self-healing';
+import { colors, spacing } from '@/tokens';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -46,7 +47,7 @@ const StrategyList: React.FC = () => {
     setLoading(true);
     try {
       const res = await getStrategies();
-      setData(res.data.data?.items || []);
+      setData((res.data as any).items || []);
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载策略列表失败：${error.message}`);
@@ -189,10 +190,11 @@ const StrategyList: React.FC = () => {
   const tableData = data.map((r) => ({ ...r, key: r.id }));
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ padding: spacing.lg }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: spacing.md }}>
         <div>
-          <Title level={3} style={{ margin: 0 }}>
+          <Title level={2} style={{ marginBottom: spacing.sm }}>
+            <ThunderboltOutlined style={{ marginRight: spacing[3], color: colors.primary[500] }} />
             策略列表
           </Title>
           <Text type="secondary">管理自愈合策略</Text>
@@ -202,7 +204,7 @@ const StrategyList: React.FC = () => {
         </Button>
       </div>
 
-      <Card style={{ marginBottom: 16 }}>
+      <Card style={{ marginBottom: spacing.md }}>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={loadData}>
             刷新

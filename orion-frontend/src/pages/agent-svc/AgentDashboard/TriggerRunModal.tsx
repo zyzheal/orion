@@ -6,6 +6,7 @@ import { Modal, Form, Input, Select, Space, message } from 'antd';
 import { PlayCircleOutlined } from '@ant-design/icons';
 import { triggerAgentRun } from '@/api/agents';
 import { TRIGGER_EVENT_OPTIONS } from './constants';
+import { spacing } from '@/tokens';
 
 interface TriggerRunModalProps {
   open: boolean;
@@ -68,7 +69,7 @@ const TriggerRunModal: React.FC<TriggerRunModalProps> = ({ open, onCancel, onSuc
       width={600}
       data-testid="trigger-run-modal"
     >
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+      <Form form={form} layout="vertical" style={{ marginTop: spacing.md }}>
         <Form.Item
           label="触发事件"
           name="triggerEvent"

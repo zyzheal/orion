@@ -12,6 +12,10 @@ import {
   CostEntityType,
   CostPeriod,
 } from './types';
+import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
+import { BudgetSpendRepository } from '../../repositories/BudgetSpendRepository';
+import { BudgetAlertTriggerRepository } from '../../repositories/BudgetAlertTriggerRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 预算状态
@@ -94,25 +98,20 @@ export interface UpdateBudgetParams {
  * 提供预算 CRUD、阈值告警检查、预算预测功能
  */
 export class BudgetService {
-  /** 预算存储 */
-  private budgets: CostBudget[] = [];
+  private budgetRepo: BudgetRepository;
+  private spendRepo: BudgetSpendRepository;
+  private alertTriggerRepo: BudgetAlertTriggerRepository;
 
-  /** 告警触发记录 */
-  private alertTriggers: BudgetAlertTrigger[] = [];
-
-  /** 实体当前花费 */
-  private entitySpend: Map<string, number> = new Map();
-
-  /** 实体花费历史 */
-  private spendHistory: Map<
-    string,
-    { date: Date; cumulativeCost: number }[]
-  > = new Map();
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.budgetRepo = new BudgetRepository(db);
+    this.spendRepo = new BudgetSpendRepository(db);
+    this.alertTriggerRepo = new BudgetAlertTriggerRepository(db);
+  }
 
   /**
    * 创建预算
    */
-  createBudget(params: CreateBudgetParams): CostBudget {
+  async createBudget(params: CreateBudgetParams): Promise<CostBudget> {
     const defaultThresholds = params.alerts || [
       { percentage: 50 },
       { percentage: 75 },
@@ -126,8 +125,24 @@ export class BudgetService {
       triggered: false,
     }));
 
+    const id = uuidv4();
+    await this.budgetRepo.create({
+      id,
+      name: `${params.entityType}:${params.entityId}`,
+      type: params.entityType,
+      scope: params.entityId,
+      period: params.period,
+      amount: params.amount,
+      thresholds: thresholds.reduce((acc, t) => {
+        acc[t.id] = t.percentage;
+        return acc;
+      }, {} as Record<string, number>),
+      status: 'active',
+      spent: 0,
+    } as any);
+
     const budget: CostBudget = {
-      id: uuidv4(),
+      id,
       entityType: params.entityType,
       entityId: params.entityId,
       amount: params.amount,
@@ -139,91 +154,137 @@ export class BudgetService {
       description: params.description,
     };
 
-    this.budgets.push(budget);
     return budget;
   }
 
   /**
    * 更新预算
    */
-  updateBudget(budgetId: string, params: UpdateBudgetParams): CostBudget | null {
-    const budget = this.budgets.find((b) => b.id === budgetId);
-    if (!budget) return null;
+  async updateBudget(budgetId: string, params: UpdateBudgetParams): Promise<CostBudget | null> {
+    const existing = await this.budgetRepo.findById(budgetId);
+    if (!existing) return null;
 
+    const updates: any = {};
     if (params.amount !== undefined) {
-      budget.amount = params.amount;
+      updates.amount = params.amount;
     }
     if (params.period !== undefined) {
-      budget.period = params.period;
+      updates.period = params.period;
     }
     if (params.alerts !== undefined) {
-      budget.alerts = params.alerts.map((t) => ({
+      const thresholds: BudgetThreshold[] = params.alerts.map((t) => ({
         id: uuidv4(),
         percentage: t.percentage,
         triggered: false,
       }));
-    }
-    if (params.environment !== undefined) {
-      budget.environment = params.environment;
-    }
-    if (params.description !== undefined) {
-      budget.description = params.description;
+      updates.thresholds = thresholds.reduce((acc, t) => {
+        acc[t.id] = t.percentage;
+        return acc;
+      }, {} as Record<string, number>);
     }
 
-    budget.updatedAt = new Date();
-    return budget;
+    const updated = await this.budgetRepo.update(budgetId, updates);
+    if (!updated) {
+      throw new OrionError(`Budget not found: ${budgetId}`, ErrorCode.NOT_FOUND);
+    }
+
+    return {
+      id: updated.id,
+      entityType: updated.type as CostEntityType,
+      entityId: updated.scope,
+      amount: updated.amount,
+      period: updated.period as CostPeriod,
+      currency: 'USD',
+      alerts: Object.entries(updated.thresholds).map(([id, percentage]) => ({
+        id,
+        percentage: percentage as number,
+        triggered: false,
+      })),
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
   }
 
   /**
    * 删除预算
    */
-  deleteBudget(budgetId: string): boolean {
-    const index = this.budgets.findIndex((b) => b.id === budgetId);
-    if (index === -1) return false;
-    this.budgets.splice(index, 1);
-    return true;
+  async deleteBudget(budgetId: string): Promise<boolean> {
+    return this.budgetRepo.delete(budgetId);
   }
 
   /**
    * 获取预算
    */
-  getBudget(budgetId: string): CostBudget | undefined {
-    return this.budgets.find((b) => b.id === budgetId);
+  async getBudget(budgetId: string): Promise<CostBudget | undefined> {
+    const entity = await this.budgetRepo.findById(budgetId);
+    if (!entity) return undefined;
+
+    return {
+      id: entity.id,
+      entityType: entity.type as CostEntityType,
+      entityId: entity.scope,
+      amount: entity.amount,
+      period: entity.period as CostPeriod,
+      currency: 'USD',
+      alerts: Object.entries(entity.thresholds).map(([id, percentage]) => ({
+        id,
+        percentage: percentage as number,
+        triggered: false,
+      })),
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
   }
 
   /**
    * 获取所有预算
    */
-  listBudgets(filter?: {
+  async listBudgets(filter?: {
     entityType?: CostEntityType;
     entityId?: string;
-  }): CostBudget[] {
-    let budgets = [...this.budgets];
-
+  }): Promise<CostBudget[]> {
+    const where: Record<string, any> = {};
     if (filter?.entityType) {
-      budgets = budgets.filter((b) => b.entityType === filter.entityType);
+      where.type = filter.entityType;
     }
     if (filter?.entityId) {
-      budgets = budgets.filter((b) => b.entityId === filter.entityId);
+      where.scope = filter.entityId;
     }
 
-    return budgets;
+    const { entities } = await this.budgetRepo.findAll({
+      where,
+      limit: 1000,
+    });
+
+    return entities.map((entity) => ({
+      id: entity.id,
+      entityType: entity.type as CostEntityType,
+      entityId: entity.scope,
+      amount: entity.amount,
+      period: entity.period as CostPeriod,
+      currency: 'USD',
+      alerts: Object.entries(entity.thresholds).map(([id, percentage]) => ({
+        id,
+        percentage: percentage as number,
+        triggered: false,
+      })),
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    }));
   }
 
   /**
    * 更新实体花费
    */
-  updateEntitySpend(entityType: CostEntityType, entityId: string, amount: number): void {
-    const key = `${entityType}:${entityId}`;
-    this.entitySpend.set(key, amount);
-
-    // 记录历史
-    if (!this.spendHistory.has(key)) {
-      this.spendHistory.set(key, []);
-    }
-    this.spendHistory.get(key)!.push({
-      date: new Date(),
-      cumulativeCost: amount,
+  async updateEntitySpend(entityType: CostEntityType, entityId: string, amount: number): Promise<void> {
+    await this.spendRepo.create({
+      id: uuidv4(),
+      entityType,
+      entityId,
+      amount,
+      recordedAt: new Date(),
+      windowStart: null,
+      windowEnd: null,
     });
   }
 
@@ -234,33 +295,49 @@ export class BudgetService {
    *
    * @returns 触发的告警列表
    */
-  checkBudgetAlerts(): BudgetAlertTrigger[] {
+  async checkBudgetAlerts(): Promise<BudgetAlertTrigger[]> {
     const triggered: BudgetAlertTrigger[] = [];
+    const { entities: budgets } = await this.budgetRepo.findAll({ limit: 1000 });
 
-    for (const budget of this.budgets) {
-      const key = `${budget.entityType}:${budget.entityId}`;
-      const currentSpend = this.entitySpend.get(key) || 0;
-      const usagePercent =
-        budget.amount > 0 ? (currentSpend / budget.amount) * 100 : 0;
+    for (const budget of budgets) {
+      const totalSpend = await this.spendRepo.getTotalSpend(budget.type, budget.scope);
+      const usagePercent = budget.amount > 0 ? (totalSpend / budget.amount) * 100 : 0;
 
-      for (const threshold of budget.alerts) {
-        if (usagePercent >= threshold.percentage && !threshold.triggered) {
-          threshold.triggered = true;
-          threshold.triggeredAt = new Date();
+      const thresholds = budget.thresholds;
+      for (const [thresholdId, percentage] of Object.entries(thresholds)) {
+        const pct = percentage as number;
+        if (usagePercent >= pct) {
+          // Check if already triggered
+          const existingTriggers = await this.alertTriggerRepo.findByBudgetId(budget.id);
+          const alreadyTriggered = existingTriggers.some(
+            (t) => t.threshold === pct && t.entityType === budget.type && t.entityId === budget.scope
+          );
 
-          const alert: BudgetAlertTrigger = {
-            id: uuidv4(),
-            budgetId: budget.id,
-            threshold: threshold.percentage,
-            actual: Math.round(currentSpend * 100) / 100,
-            percentage: Math.round(usagePercent * 100) / 100,
-            triggeredAt: new Date(),
-            entityType: budget.entityType,
-            entityId: budget.entityId,
-          };
+          if (!alreadyTriggered) {
+            const alert: BudgetAlertTrigger = {
+              id: uuidv4(),
+              budgetId: budget.id,
+              threshold: pct,
+              actual: Math.round(totalSpend * 100) / 100,
+              percentage: Math.round(usagePercent * 100) / 100,
+              triggeredAt: new Date(),
+              entityType: budget.type as CostEntityType,
+              entityId: budget.scope,
+            };
 
-          triggered.push(alert);
-          this.alertTriggers.push(alert);
+            await this.alertTriggerRepo.create({
+              id: alert.id,
+              budgetId: alert.budgetId,
+              threshold: alert.threshold,
+              actual: alert.actual,
+              percentage: alert.percentage,
+              entityType: alert.entityType,
+              entityId: alert.entityId,
+              triggeredAt: alert.triggeredAt,
+            });
+
+            triggered.push(alert);
+          }
         }
       }
     }
@@ -271,33 +348,39 @@ export class BudgetService {
   /**
    * 获取预算状态
    */
-  getBudgetStatus(budgetId: string): BudgetStatus | null {
-    const budget = this.budgets.find((b) => b.id === budgetId);
+  async getBudgetStatus(budgetId: string): Promise<BudgetStatus | null> {
+    const budget = await this.budgetRepo.findById(budgetId);
     if (!budget) return null;
 
-    const key = `${budget.entityType}:${budget.entityId}`;
-    const currentSpend = this.entitySpend.get(key) || 0;
-    const usagePercent =
-      budget.amount > 0 ? (currentSpend / budget.amount) * 100 : 0;
-    const remaining = budget.amount - currentSpend;
+    const totalSpend = await this.spendRepo.getTotalSpend(budget.type, budget.scope);
+    const usagePercent = budget.amount > 0 ? (totalSpend / budget.amount) * 100 : 0;
+    const remaining = budget.amount - totalSpend;
 
-    const triggeredAlerts = this.alertTriggers.filter(
-      (a) => a.budgetId === budgetId
-    );
+    const triggeredAlertEntities = await this.alertTriggerRepo.findByBudgetId(budgetId);
+    const triggeredAlerts: BudgetAlertTrigger[] = triggeredAlertEntities.map((t) => ({
+      id: t.id,
+      budgetId: t.budgetId,
+      threshold: t.threshold,
+      actual: t.actual,
+      percentage: t.percentage,
+      triggeredAt: t.triggeredAt,
+      entityType: t.entityType as CostEntityType,
+      entityId: t.entityId,
+    }));
 
     // 尝试获取预测
-    const forecast = this.forecastBudget(budgetId);
+    const forecast = await this.forecastBudget(budgetId);
 
     return {
       budgetId: budget.id,
-      entityType: budget.entityType,
-      entityId: budget.entityId,
+      entityType: budget.type as CostEntityType,
+      entityId: budget.scope,
       budgetAmount: budget.amount,
-      currentSpend: Math.round(currentSpend * 100) / 100,
+      currentSpend: Math.round(totalSpend * 100) / 100,
       usagePercent: Math.round(usagePercent * 100) / 100,
       remaining: Math.round(remaining * 100) / 100,
-      period: budget.period,
-      overBudget: currentSpend > budget.amount,
+      period: budget.period as CostPeriod,
+      overBudget: totalSpend > budget.amount,
       triggeredAlerts,
       forecastedSpend: forecast?.forecastedSpend,
     };
@@ -308,13 +391,18 @@ export class BudgetService {
    *
    * 基于历史花费数据预测周期结束时的总花费
    */
-  forecastBudget(budgetId: string): BudgetForecast | null {
-    const budget = this.budgets.find((b) => b.id === budgetId);
+  async forecastBudget(budgetId: string): Promise<BudgetForecast | null> {
+    const budget = await this.budgetRepo.findById(budgetId);
     if (!budget) return null;
 
-    const key = `${budget.entityType}:${budget.entityId}`;
-    const history = this.spendHistory.get(key) || [];
-    const currentSpend = this.entitySpend.get(key) || 0;
+    const spendRecords = await this.spendRepo.findByEntity(budget.type, budget.scope);
+    const totalSpend = await this.spendRepo.getTotalSpend(budget.type, budget.scope);
+
+    // Build history from spend records
+    const history = spendRecords.map((r) => ({
+      date: r.recordedAt,
+      cumulativeCost: r.amount,
+    }));
 
     // 计算日均花费
     let dailySpendRate = 0;
@@ -325,32 +413,31 @@ export class BudgetService {
         (last.date.getTime() - first.date.getTime()) / (24 * 60 * 60 * 1000);
       const costDiff = last.cumulativeCost - first.cumulativeCost;
       dailySpendRate = daysDiff > 0 ? costDiff / daysDiff : 0;
-    } else if (currentSpend > 0) {
-      // 只有一条记录，用当前花费估算
-      const periodDays = this.getPeriodDays(budget.period);
-      dailySpendRate = currentSpend / Math.max(periodDays, 1);
+    } else if (totalSpend > 0) {
+      const periodDays = this.getPeriodDays(budget.period as CostPeriod);
+      dailySpendRate = totalSpend / Math.max(periodDays, 1);
     }
 
     // 预测剩余天数
-    const periodDays = this.getPeriodDays(budget.period);
+    const periodDays = this.getPeriodDays(budget.period as CostPeriod);
     const elapsedDays = history.length > 1
       ? (history[history.length - 1].date.getTime() - history[0].date.getTime()) /
         (24 * 60 * 60 * 1000)
       : 0;
     const remainingDays = Math.max(periodDays - elapsedDays, 0);
 
-    const forecastedSpend = currentSpend + dailySpendRate * remainingDays;
+    const forecastedSpend = totalSpend + dailySpendRate * remainingDays;
     const projectedOverage = Math.max(forecastedSpend - budget.amount, 0);
 
     // 距离预算耗尽天数
     const daysUntilExhausted =
       dailySpendRate > 0
-        ? (budget.amount - currentSpend) / dailySpendRate
+        ? (budget.amount - totalSpend) / dailySpendRate
         : Infinity;
 
     return {
       budgetId: budget.id,
-      currentSpend: Math.round(currentSpend * 100) / 100,
+      currentSpend: Math.round(totalSpend * 100) / 100,
       forecastedSpend: Math.round(forecastedSpend * 100) / 100,
       projectedOverage: Math.round(projectedOverage * 100) / 100,
       dailySpendRate: Math.round(dailySpendRate * 100) / 100,
@@ -364,32 +451,33 @@ export class BudgetService {
   /**
    * 获取所有告警触发记录
    */
-  getAlertTriggers(filter?: {
+  async getAlertTriggers(filter?: {
     budgetId?: string;
     entityType?: CostEntityType;
-  }): BudgetAlertTrigger[] {
-    let triggers = [...this.alertTriggers];
+  }): Promise<BudgetAlertTrigger[]> {
+    let entities;
 
     if (filter?.budgetId) {
-      triggers = triggers.filter((t) => t.budgetId === filter.budgetId);
-    }
-    if (filter?.entityType) {
-      triggers = triggers.filter((t) => t.entityType === filter.entityType);
+      entities = await this.alertTriggerRepo.findByBudgetId(filter.budgetId);
+    } else if (filter?.entityType) {
+      entities = await this.alertTriggerRepo.findByEntityType(filter.entityType);
+    } else {
+      const { entities: all } = await this.alertTriggerRepo.findAll({ limit: 1000 });
+      entities = all;
     }
 
-    return triggers.sort(
-      (a, b) => b.triggeredAt.getTime() - a.triggeredAt.getTime()
-    );
-  }
-
-  /**
-   * 清空所有数据
-   */
-  clearAll(): void {
-    this.budgets = [];
-    this.alertTriggers = [];
-    this.entitySpend.clear();
-    this.spendHistory.clear();
+    return entities
+      .map((t) => ({
+        id: t.id,
+        budgetId: t.budgetId,
+        threshold: t.threshold,
+        actual: t.actual,
+        percentage: t.percentage,
+        triggeredAt: t.triggeredAt,
+        entityType: t.entityType as CostEntityType,
+        entityId: t.entityId,
+      }))
+      .sort((a, b) => b.triggeredAt.getTime() - a.triggeredAt.getTime());
   }
 
   // ==================== 私有方法 ====================

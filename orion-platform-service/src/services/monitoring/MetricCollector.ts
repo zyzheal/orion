@@ -2,11 +2,12 @@
  * TASK-703: Metric Collector
  *
  * Collects system metrics (CPU, memory, disk, network), application metrics
- * (latency, error rate, throughput), and custom metrics. Stores time-series
- * data with configurable retention.
+ * (latency, error rate, throughput), and custom metrics. Uses PostgreSQL
+ * Repository for persistent storage.
  */
 
 import os from 'os';
+import { OrionError, ErrorCode } from '../../errors';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Metric,
@@ -14,6 +15,13 @@ import {
   MetricAggregation,
   DataPoint,
 } from './types';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('LMetric-LCollector');
+import {
+  MetricStorageRepository,
+} from './MetricStorageRepository';
+import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
 /**
  * Custom metric registration parameters
@@ -27,6 +35,8 @@ export interface MetricRegistration {
   defaultTags?: Record<string, string>;
   /** Description */
   description?: string;
+  /** Tenant ID for repository operations */
+  tenantId?: string;
 }
 
 /**
@@ -63,12 +73,16 @@ interface RegisteredMetric {
  * - Application metrics (latency, error rate, throughput)
  * - Custom metric registration and recording
  * - Time-series storage with configurable retention
+ * - PostgreSQL Repository persistence (required)
  */
 export class MetricCollector {
-  /** Registered metric metadata */
+  /** PostgreSQL repository for persistent storage (required) */
+  private readonly repository: MetricStorageRepository;
+
+  /** Registered metric metadata (in-memory cache for fast lookups) */
   private registeredMetrics: Map<string, RegisteredMetric> = new Map();
 
-  /** Raw metric storage: metricName -> DataPoint[] */
+  /** Raw metric storage: metricName -> DataPoint[] (in-memory cache for real-time access) */
   private metricStorage: Map<string, { points: DataPoint[]; tags: Record<string, string>[] }> = new Map();
 
   /** Metric retention period in milliseconds (default: 24 hours) */
@@ -77,15 +91,20 @@ export class MetricCollector {
   /** Maximum data points per metric */
   private maxDataPoints: number;
 
-  /** NATS message rate tracking */
+  /** NATS message rate tracking (always in-memory) */
   private natsMessageCounts: Map<string, number> = new Map();
 
   constructor(options?: {
     retentionMs?: number;
     maxDataPointsPerMetric?: number;
+    repository?: MetricStorageRepository;
   }) {
     this.retentionMs = options?.retentionMs ?? 24 * 60 * 60 * 1000; // 24 hours
     this.maxDataPoints = options?.maxDataPointsPerMetric ?? 10000;
+    if (!options?.repository) {
+      throw new OrionError('MetricStorageRepository is required for MetricCollector', ErrorCode.INTERNAL_ERROR);
+    }
+    this.repository = options.repository;
   }
 
   // ==================== System Metrics Collection ====================
@@ -283,10 +302,19 @@ export class MetricCollector {
       description: params.description,
     });
 
-    // Initialize storage if not exists
+    // Initialize in-memory cache
     if (!this.metricStorage.has(params.name)) {
       this.metricStorage.set(params.name, { points: [], tags: [] });
     }
+
+    // Persist to repository (required)
+    this.repository.registerMetric({
+      tenant_id: params.tenantId || getCurrentTenantId(),
+      name: params.name,
+      unit: params.unit,
+      default_tags: params.defaultTags,
+      description: params.description,
+    }).catch(err => logger.warn('[MetricCollector] Failed to register metric in repository:', err));
   }
 
   /**
@@ -295,6 +323,11 @@ export class MetricCollector {
   unregisterMetric(name: string): boolean {
     this.registeredMetrics.delete(name);
     this.metricStorage.delete(name);
+
+    this.repository.unregisterMetric(name).catch(err =>
+      logger.warn('[MetricCollector] Failed to unregister metric in repository:', err)
+    );
+
     return true;
   }
 
@@ -319,6 +352,7 @@ export class MetricCollector {
     const ts = timestamp || new Date();
     const point: DataPoint = { timestamp: ts, value };
 
+    // Update in-memory cache for real-time access
     if (!this.metricStorage.has(name)) {
       this.metricStorage.set(name, { points: [], tags: [] });
     }
@@ -327,15 +361,24 @@ export class MetricCollector {
     storage.points.push(point);
     storage.tags.push(tags || {});
 
-    // Enforce retention
+    // Enforce retention on in-memory cache
     this.enforceRetention(name);
 
-    // Enforce max data points
+    // Enforce max data points on in-memory cache
     if (storage.points.length > this.maxDataPoints) {
       const excess = storage.points.length - this.maxDataPoints;
       storage.points = storage.points.slice(excess);
       storage.tags = storage.tags.slice(excess);
     }
+
+    // Persist to repository (fire-and-forget)
+    this.repository.insertDataPoint({
+      tenant_id: getCurrentTenantId(),
+      metric_name: name,
+      value,
+      tags: tags || {},
+      timestamp: ts,
+    }).catch(err => logger.warn('[MetricCollector] Failed to persist data point:', err));
   }
 
   /**
@@ -393,9 +436,20 @@ export class MetricCollector {
   // ==================== Metric Retrieval ====================
 
   /**
-   * Get metric time-series data
+   * Get metric time-series data from in-memory cache (fast, real-time)
    */
   getMetricSeries(query: MetricQuery): MetricSeries {
+    return this.getMetricSeriesFromMemory(query);
+  }
+
+  /**
+   * Async version of getMetricSeries that queries the repository for persisted data.
+   */
+  async getMetricSeriesAsync(query: MetricQuery): Promise<MetricSeries> {
+    return this.repository.queryMetricSeries(query, getCurrentTenantId());
+  }
+
+  private getMetricSeriesFromMemory(query: MetricQuery): MetricSeries {
     const storage = this.metricStorage.get(query.name);
 
     if (!storage) {
@@ -480,7 +534,26 @@ export class MetricCollector {
   }
 
   /**
-   * Get the latest value for a metric
+   * Async version of getMetricSummary that queries the repository.
+   */
+  async getMetricSummaryAsync(
+    name: string,
+    tags?: Record<string, string>,
+    windowMs?: number
+  ): Promise<MetricAggregation> {
+    const query: MetricQuery = { name, tags };
+
+    if (windowMs) {
+      query.startTime = new Date(Date.now() - windowMs);
+      query.endTime = new Date();
+    }
+
+    const series = await this.getMetricSeriesAsync(query);
+    return series.aggregation;
+  }
+
+  /**
+   * Get the latest value for a metric (in-memory cache)
    */
   getLatestValue(name: string, tags?: Record<string, string>): number | null {
     const storage = this.metricStorage.get(name);
@@ -496,6 +569,13 @@ export class MetricCollector {
     }
 
     return null;
+  }
+
+  /**
+   * Async version that queries repository for latest persisted value.
+   */
+  async getLatestValueAsync(name: string, tags?: Record<string, string>): Promise<number | null> {
+    return this.repository.getLatestValue(name, tags, getCurrentTenantId());
   }
 
   // ==================== Maintenance ====================
@@ -520,6 +600,11 @@ export class MetricCollector {
       }
     }
 
+    // Also prune repository (required)
+    this.repository.pruneExpired(this.retentionMs, getCurrentTenantId())
+      .then(count => logger.info(`[MetricCollector] Pruned ${count} expired points from repository`))
+      .catch(err => logger.warn('[MetricCollector] Failed to prune from repository:', err));
+
     return pruned;
   }
 
@@ -530,12 +615,15 @@ export class MetricCollector {
     this.metricStorage.clear();
     this.registeredMetrics.clear();
     this.natsMessageCounts.clear();
+
+    this.repository.clearAll(getCurrentTenantId())
+      .catch(err => logger.warn('[MetricCollector] Failed to clear repository:', err));
   }
 
   // ==================== Private Methods ====================
 
   /**
-   * Enforce retention policy on a metric's storage
+   * Enforce retention policy on a metric's in-memory storage
    */
   private enforceRetention(name: string): void {
     const cutoff = Date.now() - this.retentionMs;

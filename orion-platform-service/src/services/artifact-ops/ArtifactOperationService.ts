@@ -4,18 +4,24 @@
  * Provides artifact operation tracking, history, and statistics
  * using PostgreSQL-backed repositories.
  *
+ * Task 2.38: 统一 FallbackStorageService
+ *   - 移除模块级 inMemoryOperations Map
+ *   - 使用 FallbackStorageService 替代直接内存操作
+ *   - 保持 tenant_id 隔离（key 前缀包含 tenantId）
+ *
  * TASK-504: 制品运营
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import {
   ArtifactOperationRepository,
   ArtifactOperationEntity,
 } from '../../repositories/ArtifactOperationRepository';
+import { FallbackStorageService } from '../fallback/FallbackStorageService';
 import type { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ArtifactOperationService');
 
 // ==================== Domain Types ====================
 
@@ -64,18 +70,46 @@ export interface OperationHistoryFilter {
   endDate?: string;
 }
 
-// ==================== In-memory stores ====================
+// ==================== Storage Key Helper ====================
 
-const inMemoryOperations = new Map<string, ArtifactOperationRecord[]>();
+const OPS_PREFIX = 'artifact-ops';
+
+function tenantOpsKey(tenantId: string): string {
+  return `${OPS_PREFIX}:tenant:${tenantId}`;
+}
+
+// ==================== ArtifactOperationService ====================
 
 export class ArtifactOperationService {
   private operationRepository: ArtifactOperationRepository | null;
+  private storage: FallbackStorageService | null;
 
   /**
    * @param db - DatabasePool, or null for in-memory mode.
    */
   constructor(db: DatabasePool | null) {
     this.operationRepository = db ? new ArtifactOperationRepository(db) : null;
+
+    if (db) {
+      // Persistent mode: FallbackStorageService with DB persistence
+      this.storage = new FallbackStorageService({
+        prefix: OPS_PREFIX,
+        maxSize: 5000,
+        ttlMs: 0, // Operations are permanent until deleted
+        persistToDb: true,
+        tenantId: 'global',
+      });
+      this.storage.start();
+    } else {
+      // In-memory fallback mode
+      this.storage = new FallbackStorageService({
+        prefix: OPS_PREFIX,
+        maxSize: 5000,
+        ttlMs: 0,
+        persistToDb: false,
+      });
+      this.storage.start();
+    }
   }
 
   // ==================== Track Operations ====================
@@ -105,10 +139,11 @@ export class ArtifactOperationService {
       durationMs: 0,
     };
 
-    // Store in memory
-    const tenantOps = inMemoryOperations.get(tenantId) ?? [];
-    tenantOps.push(record);
-    inMemoryOperations.set(tenantId, tenantOps);
+    // Store in FallbackStorageService (keyed by tenant)
+    const key = tenantOpsKey(tenantId);
+    const existingOps = (await this.storage!.get<ArtifactOperationRecord[]>(key)) ?? [];
+    existingOps.push(record);
+    await this.storage!.set(key, existingOps);
 
     // Persist to database
     if (this.operationRepository) {
@@ -123,7 +158,7 @@ export class ArtifactOperationService {
           metadata: input.metadata ?? {},
           status: 'completed',
           initiated_by: input.initiatedBy ?? null,
-        } as any);
+        });
 
         // Update status after creation
         await this.operationRepository.updateStatus(id, 'completed', now, 0);
@@ -180,8 +215,9 @@ export class ArtifactOperationService {
       }
     }
 
-    // Fallback to in-memory
-    let ops = inMemoryOperations.get(tenantId) ?? [];
+    // Fallback to storage
+    const storedOps = await this.storage!.get<ArtifactOperationRecord[]>(tenantOpsKey(tenantId)) ?? [];
+    let ops = storedOps;
 
     if (filter) {
       if (filter.artifactId) {
@@ -227,8 +263,8 @@ export class ArtifactOperationService {
       }
     }
 
-    // Fallback to in-memory
-    const ops = inMemoryOperations.get(tenantId) ?? [];
+    // Fallback to storage
+    const ops = await this.storage!.get<ArtifactOperationRecord[]>(tenantOpsKey(tenantId)) ?? [];
 
     const totalOperations = ops.length;
     const operationsByType: Record<string, number> = {};
@@ -268,10 +304,10 @@ export class ArtifactOperationService {
    * Delete all operation records for a tenant.
    */
   async deleteTenantOperations(tenantId: string): Promise<number> {
-    const ops = inMemoryOperations.get(tenantId) ?? [];
+    const ops = await this.storage!.get<ArtifactOperationRecord[]>(tenantOpsKey(tenantId)) ?? [];
     const count = ops.length;
 
-    inMemoryOperations.delete(tenantId);
+    await this.storage!.delete(tenantOpsKey(tenantId));
 
     // Also delete from database if repository available
     if (this.operationRepository) {
@@ -291,11 +327,11 @@ export class ArtifactOperationService {
    * Delete operation records for a specific artifact.
    */
   async deleteArtifactOperations(tenantId: string, artifactId: string): Promise<number> {
-    const ops = inMemoryOperations.get(tenantId) ?? [];
+    const ops = await this.storage!.get<ArtifactOperationRecord[]>(tenantOpsKey(tenantId)) ?? [];
     const toDelete = ops.filter((o) => o.artifactId === artifactId);
     const remaining = ops.filter((o) => o.artifactId !== artifactId);
 
-    inMemoryOperations.set(tenantId, remaining);
+    await this.storage!.set(tenantOpsKey(tenantId), remaining);
 
     return toDelete.length;
   }
@@ -312,7 +348,7 @@ export class ArtifactOperationService {
     completedAt?: Date,
     durationMs?: number
   ): Promise<ArtifactOperationRecord | null> {
-    const ops = inMemoryOperations.get(tenantId) ?? [];
+    const ops = await this.storage!.get<ArtifactOperationRecord[]>(tenantOpsKey(tenantId)) ?? [];
     const op = ops.find((o) => o.id === operationId);
 
     if (op) {
@@ -323,6 +359,9 @@ export class ArtifactOperationService {
       if (durationMs !== undefined) {
         op.durationMs = durationMs;
       }
+
+      // Save updated list back to storage
+      await this.storage!.set(tenantOpsKey(tenantId), ops);
 
       // Update in database
       if (this.operationRepository) {

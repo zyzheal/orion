@@ -13,6 +13,12 @@
       "description": "基于 wujie 微前端的完整平台实现",
       "status": "completed",
       "dir": "orion-mvp-dev"
+    },
+    {
+      "dir": "platform-capability-enhancement",
+      "name": "平台能力提升",
+      "description": "通用熔断器、消息队列、缓存策略优化、CI/CD增强、容灾设计完善",
+      "status": "planning"
     }
   ]
 }

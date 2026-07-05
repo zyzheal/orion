@@ -21,11 +21,12 @@ export class CmdbVersionRepository {
     changes: string;
     data: Record<string, any>;
     createdBy: string;
+    tenantId?: bigint;
   }): Promise<CIVersion> {
     const query = `
       INSERT INTO cmdb_ci_version (
-        ci_id, version, changes, data, created_by
-      ) VALUES ($1, $2, $3, $4, $5)
+        ci_id, version, changes, data, created_by, tenant_id
+      ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING id, ci_id, version, changes, data, created_by, created_at
     `;
 
@@ -35,6 +36,7 @@ export class CmdbVersionRepository {
       input.changes,
       JSON.stringify(input.data),
       input.createdBy,
+      input.tenantId?.toString() || '00000000-0000-0000-0000-000000000000',
     ];
 
     const result = await this.database.query(query, params);
@@ -44,15 +46,21 @@ export class CmdbVersionRepository {
   /**
    * 获取 CI 的版本历史
    */
-  async getVersions(ciId: string): Promise<CIVersion[]> {
-    const query = `
-      SELECT id, ci_id, version, changes, data, created_by, created_at
-      FROM cmdb_ci_version
-      WHERE ci_id = $1
-      ORDER BY version DESC
-    `;
+  async getVersions(ciId: string, tenantId?: bigint): Promise<CIVersion[]> {
+    const query = tenantId
+      ? `SELECT id, ci_id, version, changes, data, created_by, created_at, tenant_id
+         FROM cmdb_ci_version
+         WHERE ci_id = $1 AND tenant_id = $2
+         ORDER BY version DESC`
+      : `SELECT id, ci_id, version, changes, data, created_by, created_at, tenant_id
+         FROM cmdb_ci_version
+         WHERE ci_id = $1
+         ORDER BY version DESC`;
 
-    const result = await this.database.query(query, [ciId]);
+    const result = await this.database.query(query, tenantId
+      ? [ciId, tenantId.toString()]
+      : [ciId]
+    );
     return result.rows.map((row: any) => this.mapRowToVersion(row));
   }
 
@@ -61,7 +69,7 @@ export class CmdbVersionRepository {
    */
   async getVersion(ciId: string, version: number): Promise<CIVersion | null> {
     const query = `
-      SELECT id, ci_id, version, changes, data, created_by, created_at
+      SELECT id, ci_id, version, changes, data, created_by, created_at, tenant_id
       FROM cmdb_ci_version
       WHERE ci_id = $1 AND version = $2
     `;
@@ -77,15 +85,20 @@ export class CmdbVersionRepository {
   /**
    * 获取当前版本
    */
-  async getCurrentVersion(ciId: string): Promise<number> {
-    const query = `
-      SELECT MAX(version) as current_version
-      FROM cmdb_ci_version
-      WHERE ci_id = $1
-    `;
+  async getCurrentVersion(ciId: string, tenantId?: bigint): Promise<number> {
+    const query = tenantId
+      ? `SELECT MAX(version) as current_version
+         FROM cmdb_ci_version
+         WHERE ci_id = $1 AND tenant_id = $2`
+      : `SELECT MAX(version) as current_version
+         FROM cmdb_ci_version
+         WHERE ci_id = $1`;
 
-    const result = await this.database.query(query, [ciId]);
-    return result.rows[0].current_version || 0;
+    const result = await this.database.query(query, tenantId
+      ? [ciId, tenantId.toString()]
+      : [ciId]
+    );
+    return result.rows[0]?.current_version || 0;
   }
 
   /**

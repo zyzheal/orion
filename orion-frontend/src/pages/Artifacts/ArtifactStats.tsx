@@ -6,6 +6,7 @@ import { Statistic, Row, Col, Card } from 'antd';
 import { FileTextOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { colors } from '@/tokens/colors';
 import type { ArtifactStats } from '@/api/artifacts';
+import { spacing } from '@/tokens';
 
 const formatSize = (bytes: number): string => {
   if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(1)} GB`;
@@ -19,7 +20,7 @@ interface ArtifactStatsProps {
 }
 
 const ArtifactStats: React.FC<ArtifactStatsProps> = ({ stats }) => (
-  <Card size="small" style={{ marginBottom: 16 }}>
+  <Card size="small" style={{ marginBottom: spacing.md }}>
     <Row gutter={16}>
       <Col span={4}>
         <Statistic title="制品总数" value={stats.total} prefix={<FileTextOutlined />} />

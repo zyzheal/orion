@@ -14,6 +14,14 @@ vi.mock('@/hooks/useAuth', () => ({
   }),
 }));
 
+// Mock auth API
+vi.mock('@/api/auth', () => ({
+  getEnabledSsoProviders: vi.fn().mockResolvedValue([]),
+  login: vi.fn(),
+  logout: vi.fn(),
+  refreshToken: vi.fn(),
+}));
+
 // Mock window.location to prevent navigation errors
 const mockLocation = { href: '' };
 Object.defineProperty(window, 'location', {
@@ -28,15 +36,15 @@ const renderWithRouter = (ui: React.ReactElement) => {
 describe('Login', () => {
   it('should render login form', () => {
     renderWithRouter(<Login />);
-    expect(screen.getByPlaceholderText('用户名')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('密码')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /登/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('请输入用户名')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('请输入密码')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /登\s*录/i })).toBeInTheDocument();
   });
 
   it.skip('should show error when username is empty', async () => {
     // TODO: Fix Ant Design Form validation in JSDOM environment
     renderWithRouter(<Login />);
-    const submitButton = screen.getByRole('button', { name: /登/i });
+    const submitButton = screen.getByRole('button', { name: /登\s*录/i });
     fireEvent.click(submitButton);
     await waitFor(() => {
       expect(screen.getByText(/请输入/)).toBeInTheDocument();
@@ -46,8 +54,8 @@ describe('Login', () => {
   it.skip('should show error when password is empty', async () => {
     // TODO: Fix Ant Design Form validation in JSDOM environment
     renderWithRouter(<Login />);
-    const usernameInput = screen.getByPlaceholderText('用户名');
-    const submitButton = screen.getByRole('button', { name: /登/i });
+    const usernameInput = screen.getByPlaceholderText('请输入用户名');
+    const submitButton = screen.getByRole('button', { name: /登\s*录/i });
     fireEvent.change(usernameInput, { target: { value: 'admin' } });
     fireEvent.click(submitButton);
     await waitFor(() => {
@@ -57,17 +65,17 @@ describe('Login', () => {
 
   it('should submit form with valid data', async () => {
     renderWithRouter(<Login />);
-    const usernameInput = screen.getByPlaceholderText('用户名');
-    const passwordInput = screen.getByPlaceholderText('密码');
-    const submitButton = screen.getByRole('button', { name: /登/i });
+    const usernameInput = screen.getByPlaceholderText('请输入用户名');
+    const passwordInput = screen.getByPlaceholderText('请输入密码');
+    const submitButton = screen.getByRole('button', { name: /登\s*录/i });
 
     fireEvent.change(usernameInput, { target: { value: 'admin' } });
     fireEvent.change(passwordInput, { target: { value: 'admin123' } });
     fireEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('用户名')).toHaveValue('admin');
-      expect(screen.getByPlaceholderText('密码')).toHaveValue('admin123');
+      expect(screen.getByPlaceholderText('请输入用户名')).toHaveValue('admin');
+      expect(screen.getByPlaceholderText('请输入密码')).toHaveValue('admin123');
     });
   });
 });

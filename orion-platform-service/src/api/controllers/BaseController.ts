@@ -177,12 +177,14 @@ export abstract class BaseController {
 
   /**
    * 获取租户ID（从请求头或user信息）
+   * SECURITY: 不再回退到 'default'，缺失时抛出错误防止跨租户数据泄露
    */
   protected getTenantId(request: FastifyRequest): string {
     const tenantId = request.headers['x-tenant-id'] as string;
     if (tenantId) return tenantId;
     const user = this.getUser(request);
-    return user?.tenantId || 'default';
+    if (user?.tenantId) return user.tenantId;
+    throw new OrionError('租户ID缺失：请求头 x-tenant-id 或用户认证信息中必须包含 tenantId', 'VALIDATION_ERROR');
   }
 
   /**

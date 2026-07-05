@@ -3,9 +3,10 @@
  * GitHub API 客户端
  */
 
-import pino from 'pino';
+import { createLogger } from '../utils/logger';
+import { OrionError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('GitHubClient');
 
 export interface GitHubConfig {
   baseUrl: string;
@@ -71,7 +72,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info({
@@ -112,7 +113,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       const statuses = await response.json();
@@ -148,7 +149,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info({
@@ -211,7 +212,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -238,7 +239,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -265,7 +266,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -292,7 +293,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -337,7 +338,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return await response.json();
@@ -364,7 +365,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       return (await response.json()) as any[];
@@ -391,7 +392,7 @@ export class GitHubClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`GitHub API error: ${response.status} - ${errorText}`);
+        throw new OrionError(`GitHub API error: ${response.status} - ${errorText}`, 'OPERATION_FAILED')
       }
 
       logger.info({

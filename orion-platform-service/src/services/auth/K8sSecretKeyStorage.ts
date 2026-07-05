@@ -1,9 +1,10 @@
 // orion-platform-service/src/services/auth/K8sSecretKeyStorage.ts
 import { KubeConfig, CoreV1Api } from '@kubernetes/client-node';
-import pino from 'pino';
+import { createLogger } from '../../utils/logger';
 import type { JwtKey } from './JwtKeyRotationService';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('k8s-secret-storage');
 
 export interface K8sSecretConfig {
   namespace: string;
@@ -16,12 +17,18 @@ const DEFAULT_CONFIG: K8sSecretConfig = {
 };
 
 export class K8sSecretKeyStorage {
-  private config: K8sSecretConfig;
+  private config: K8sSecretConfig = DEFAULT_CONFIG;
   private k8sApi: CoreV1Api | null = null;
   private kubeConfig: KubeConfig | null = null;
   private available: boolean = false;
 
   constructor(config: Partial<K8sSecretConfig> = {}) {
+    // Disable K8s storage in development (no K8s cluster)
+    if (process.env.NODE_ENV === 'development' && !process.env.K8S_ENABLED) {
+      logger.debug('[K8sSecretStorage] Disabled in development mode');
+      this.available = false;
+      return;
+    }
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.initializeK8sClient();
   }
@@ -60,7 +67,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const secretData = response.data || {};
       const keys: JwtKey[] = [];
@@ -107,7 +114,7 @@ export class K8sSecretKeyStorage {
    */
   async storeKey(key: JwtKey): Promise<void> {
     if (!this.available || !this.k8sApi) {
-      logger.warn('[K8sSecretStorage] K8s not available, skipping secret storage');
+      logger.warn({ traceId: getCurrentTraceId() }, '[K8sSecretStorage] K8s not available, skipping secret storage');
       return;
     }
 
@@ -116,7 +123,7 @@ export class K8sSecretKeyStorage {
       const existingSecret = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e)) as any;
+      }).catch((e: any) => e.statusCode === 404 ? null : Promise.reject(e)) as any;
 
       const keyData = this.encodeKeyData(key);
 
@@ -134,7 +141,7 @@ export class K8sSecretKeyStorage {
             ...existingSecret,
             data: updatedData,
           },
-        } as any);
+        });
       } else {
         // Create new secret
         await this.k8sApi.createNamespacedSecret({
@@ -154,7 +161,7 @@ export class K8sSecretKeyStorage {
               [key.keyId]: keyData,
             },
           }
-        } as any);
+        });
       }
 
       logger.info(`[K8sSecretStorage] Stored key ${key.keyId} in K8s Secret`);
@@ -176,7 +183,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const keyData = this.encodeKeyData(key);
 
@@ -190,7 +197,7 @@ export class K8sSecretKeyStorage {
             [key.keyId]: keyData,
           },
         },
-      } as any);
+      });
 
       logger.info(`[K8sSecretStorage] Updated key ${key.keyId} in K8s Secret`);
     } catch (error) {
@@ -211,7 +218,7 @@ export class K8sSecretKeyStorage {
       const response = await this.k8sApi.readNamespacedSecret({
         name: this.config.secretName,
         namespace: this.config.namespace,
-      } as any) as any;
+      }) as any;
 
       const updatedData = { ...response.data };
       delete updatedData[keyId];
@@ -223,7 +230,7 @@ export class K8sSecretKeyStorage {
           ...response,
           data: updatedData,
         },
-      } as any);
+      });
 
       logger.info(`[K8sSecretStorage] Deleted key ${keyId} from K8s Secret`);
     } catch (error) {

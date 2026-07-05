@@ -14,6 +14,64 @@ import {
 describe('AlertCorrelationService', () => {
   let correlation: AlertCorrelationService;
 
+  // Mock db with in-memory storage for topology nodes and edges
+  const topologyNodes = new Map<string, any>();
+  const topologyEdges = new Map<string, any>();
+  const mockDb = {
+    query: jest.fn(async (text: string, params?: unknown[]) => {
+      if (text.includes('INSERT INTO alert_topology_nodes')) {
+        const row = {
+          id: params?.[0], tenant_id: params?.[1], node_type: params?.[2],
+          name: params?.[3], status: params?.[4], parent_id: params?.[5],
+          children_ids: params?.[6], created_at: new Date(), updated_at: new Date(),
+        };
+        topologyNodes.set(row.id, row);
+        return { rows: [row], rowCount: 1 };
+      }
+      if (text.includes('SELECT * FROM alert_topology_nodes WHERE tenant_id')) {
+        const rows = Array.from(topologyNodes.values()).filter(n => n.tenant_id === params?.[0]);
+        return { rows, rowCount: rows.length };
+      }
+      if (text.includes('SELECT * FROM alert_topology_nodes WHERE id')) {
+        const row = topologyNodes.get(params?.[0]);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
+      if (text.includes('UPDATE alert_topology_nodes SET status')) {
+        const node = topologyNodes.get(params?.[1]);
+        if (node) node.status = params?.[0];
+        return { rows: node ? [node] : [], rowCount: node ? 1 : 0 };
+      }
+      if (text.includes('UPDATE alert_topology_nodes SET')) {
+        const nodeId = params?.[params!.length - 1];
+        const node = topologyNodes.get(nodeId);
+        if (node) node.children_ids = params?.[0];
+        return { rows: node ? [node] : [], rowCount: node ? 1 : 0 };
+      }
+      if (text.includes('DELETE FROM alert_topology_nodes')) {
+        const count = topologyNodes.size;
+        topologyNodes.clear();
+        return { rows: [], rowCount: count };
+      }
+      if (text.includes('INSERT INTO alert_topology_edges') || text.includes('insert into alert_topology_edges')) {
+        const edge = {
+          id: params?.[0], source: params?.[1], target: params?.[2],
+          relation_type: params?.[3], tenant_id: params?.[4] || 'default',
+          created_at: new Date(), updated_at: new Date(),
+        };
+        topologyEdges.set(edge.id, edge);
+        return { rows: [edge], rowCount: 1 };
+      }
+      if (text.includes('alert_correlation_groups')) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes('SELECT * FROM alert_topology_edges')) {
+        const rows = Array.from(topologyEdges.values());
+        return { rows, rowCount: rows.length };
+      }
+      return { rows: [], rowCount: 0 };
+    }),
+  };
+
   const createTopology = (): AlertTopologyGraph => ({
     nodes: [
       { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
@@ -59,17 +117,20 @@ describe('AlertCorrelationService', () => {
     updatedAt: new Date(),
   });
 
-  beforeEach(() => {
-    correlation = new AlertCorrelationService();
-    correlation.setTopology(createTopology());
+  beforeEach(async () => {
+    topologyNodes.clear();
+    topologyEdges.clear();
+    mockDb.query.mockClear();
+    correlation = new AlertCorrelationService(undefined, mockDb as any);
+    await correlation.setTopology(createTopology());
   });
 
   describe('setTopology', () => {
-    it('should set topology correctly', () => {
+    it('should set topology correctly', async () => {
       const topology = createTopology();
-      correlation.setTopology(topology);
+      await correlation.setTopology(topology);
 
-      const result = correlation.getTopology();
+      const result = await correlation.getTopology();
 
       expect(result.nodes).toHaveLength(7);
       expect(result.edges).toHaveLength(7);
@@ -175,157 +236,27 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('detectCorrelation', () => {
-    // NOTE: detectCorrelation, analyzeCorrelations, calculateImpact, getNodeHealth
-    // are not implemented in AlertCorrelationService. These tests are skipped
-    // until the methods are added to the implementation.
-    it.skip('should detect same source correlation', () => {
-      const alert1 = createAlert('alert-1', 'app-001', AlertSourceType.APPLICATION);
-      const alert2 = createAlert('alert-2', 'app-001', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('same_source');
-      expect(result?.confidence).toBe(0.9);
-    });
-
-    it.skip('should detect dependency correlation', () => {
-      const alert1 = createAlert('alert-1', 'db-001', AlertSourceType.DATABASE);
-      const alert2 = createAlert('alert-2', 'app-001', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert2, alert1);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('dependency');
-    });
-
-    it.skip('should detect common dependency correlation', () => {
-      const alert1 = createAlert('alert-1', 'app-001', AlertSourceType.APPLICATION);
-      const alert2 = createAlert('alert-2', 'app-002', AlertSourceType.APPLICATION);
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('common_dependency');
-    });
-
-    it.skip('should detect temporal correlation', () => {
-      correlation.setTopology({
-        nodes: [
-          { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
-          { id: 'node-002', type: AlertSourceType.NODE, name: 'Server-2', status: 'healthy' },
-        ],
-        edges: [],
-      });
-
-      const now = new Date();
-      const alert1: Alert = {
-        id: 'alert-1',
-        fingerprint: 'fp-1',
-        name: 'Alert-1',
-        severity: AlertSeverity.HIGH,
-        status: AlertStatus.FIRING,
-        sourceType: AlertSourceType.NODE,
-        sourceId: 'node-001',
-        sourceName: 'node-001',
-        labels: {},
-        annotations: {},
-        value: 80,
-        threshold: 70,
-        startsAt: now,
-        tenantId: 'tenant-001',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const alert2: Alert = {
-        ...alert1,
-        id: 'alert-2',
-        sourceId: 'node-002',
-        sourceName: 'node-002',
-        startsAt: new Date(now.getTime() + 2 * 60 * 1000),
-      };
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(true);
-      expect(result?.correlationType).toBe('temporal');
-    });
-
-    it.skip('should return no correlation for unrelated alerts', () => {
-      correlation.setTopology({
-        nodes: [
-          { id: 'node-001', type: AlertSourceType.NODE, name: 'Server-1', status: 'healthy' },
-          { id: 'node-002', type: AlertSourceType.NODE, name: 'Server-2', status: 'healthy' },
-        ],
-        edges: [],
-      });
-
-      const now = new Date();
-      const alert1: Alert = {
-        id: 'alert-1',
-        fingerprint: 'fp-1',
-        name: 'Alert-1',
-        severity: AlertSeverity.HIGH,
-        status: AlertStatus.FIRING,
-        sourceType: AlertSourceType.NODE,
-        sourceId: 'node-001',
-        sourceName: 'node-001',
-        labels: {},
-        annotations: {},
-        value: 80,
-        threshold: 70,
-        startsAt: now,
-        tenantId: 'tenant-001',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const alert2: Alert = {
-        ...alert1,
-        id: 'alert-2',
-        sourceId: 'node-002',
-        sourceName: 'node-002',
-        startsAt: new Date(now.getTime() + 10 * 60 * 1000),
-      };
-
-      const result = (correlation as any).detectCorrelation?.(alert1, alert2);
-
-      expect(result?.correlated).toBe(false);
-      expect(result?.correlationType).toBe('none');
-    });
+    it.todo('should detect same source correlation');
+    it.todo('should detect dependency correlation');
+    it.todo('should detect common dependency correlation');
+    it.todo('should detect temporal correlation');
+    it.todo('should return no correlation for unrelated alerts');
   });
 
   describe('analyzeCorrelations', () => {
-    it.skip('should analyze all alerts and return correlation results', () => {
-      const alerts: Alert[] = [
-        createAlert('alert-db', 'db-001', AlertSourceType.DATABASE),
-        createAlert('alert-app1', 'app-001', AlertSourceType.APPLICATION),
-        createAlert('alert-app2', 'app-002', AlertSourceType.APPLICATION),
-      ];
-
-      const results = (correlation as any).analyzeCorrelations?.(alerts);
-
-      expect(results).toHaveLength(3);
-
-      const app1Result = results.find((r: any) => r.alertId === 'alert-app1');
-      expect(app1Result!.correlatedAlertIds).toContain('alert-db');
-
-      const app2Result = results.find((r: any) => r.alertId === 'alert-app2');
-      expect(app2Result!.correlatedAlertIds).toContain('alert-db');
-    });
+    it.todo('should analyze all alerts and return correlation results');
   });
 
   describe('updateNodeHealth', () => {
-    it('should update node health based on alerts', () => {
+    it('should update node health based on alerts', async () => {
       const alerts: Alert[] = [
         createAlert('alert-critical', 'app-001', AlertSourceType.APPLICATION, AlertSeverity.CRITICAL),
         createAlert('alert-high', 'app-002', AlertSourceType.APPLICATION, AlertSeverity.HIGH),
       ];
 
-      correlation.updateNodeHealth(alerts);
+      await correlation.updateNodeHealth(alerts);
 
-      const allHealth = correlation.getAllNodeHealth();
+      const allHealth = await correlation.getAllNodeHealth();
       const health1 = allHealth.find(h => h.nodeId === 'app-001');
       expect(health1?.status).toBe('unhealthy');
 
@@ -335,23 +266,14 @@ describe('AlertCorrelationService', () => {
   });
 
   describe('calculateImpact', () => {
-    it.skip('should calculate direct and indirect impact', () => {
-      const alert = createAlert('alert-db', 'db-001', AlertSourceType.DATABASE);
-
-      const impact = (correlation as any).calculateImpact?.(alert);
-
-      expect(impact?.directImpact).toContain('app-001');
-      expect(impact?.directImpact).toContain('app-002');
-      expect(impact?.totalImpactCount).toBeGreaterThan(0);
-    });
+    it.todo('should calculate direct and indirect impact');
   });
 
   describe('getNodeHealth', () => {
-    it('should return health status for all nodes', () => {
-      const allHealth = correlation.getAllNodeHealth();
+    it('should return health status for all nodes', async () => {
+      const allHealth = await correlation.getAllNodeHealth();
 
-      // Only nodes that have received alerts will have health status set
-      // After setTopology, nodeHealth is initialized for all nodes
+      // All topology nodes should be returned with healthy status
       expect(allHealth.length).toBeGreaterThan(0);
       expect(allHealth[0].status).toBe('healthy');
     });

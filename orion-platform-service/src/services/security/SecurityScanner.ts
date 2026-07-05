@@ -13,6 +13,9 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { SecurityTrivyScanRepository } from '../../repositories/SecurityTrivyScanRepository';
+import { SecurityCosignSignatureRepository } from '../../repositories/SecurityCosignSignatureRepository';
+import { SecuritySbomRepository } from '../../repositories/SecuritySbomRepository';
 
 const execAsync = promisify(exec);
 
@@ -116,10 +119,16 @@ export class SecurityScannerError extends Error {
 }
 
 export class SecurityScanner {
-  private scanResults: Map<string, TrivyScanResult> = new Map();
-  private signatures: Map<string, CosignSignature> = new Map();
-  private sboms: Map<string, SBOMResult> = new Map();
   private scanCounter: number = 0;
+  private trivyRepo: SecurityTrivyScanRepository;
+  private cosignRepo: SecurityCosignSignatureRepository;
+  private sbomRepo: SecuritySbomRepository;
+
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.trivyRepo = new SecurityTrivyScanRepository(db);
+    this.cosignRepo = new SecurityCosignSignatureRepository(db);
+    this.sbomRepo = new SecuritySbomRepository(db);
+  }
 
   /**
    * Trivy 扫描镜像
@@ -138,7 +147,7 @@ export class SecurityScanner {
       try {
         const { stdout } = await execAsync(command);
         const parsedResult = this.parseTrivyResult(stdout, imageName);
-        this.scanResults.set(scanId, parsedResult);
+        await this.persistTrivyScan(scanId, parsedResult);
 
         return {
           success: true,
@@ -147,7 +156,7 @@ export class SecurityScanner {
       } catch (execError) {
         // Fallback: simulated scan when Trivy is not available
         const simulatedResult = this.simulateTrivyScan(imageName);
-        this.scanResults.set(scanId, simulatedResult);
+        await this.persistTrivyScan(scanId, simulatedResult);
 
         return {
           success: true,
@@ -235,7 +244,7 @@ export class SecurityScanner {
           keyId: key,
           verified: true,
         };
-        this.signatures.set(imageName, signature);
+        await this.persistCosignSignature(signature);
 
         return {
           success: true,
@@ -250,7 +259,7 @@ export class SecurityScanner {
           keyId: key,
           verified: true,
         };
-        this.signatures.set(imageName, signature);
+        await this.persistCosignSignature(signature);
 
         return {
           success: true,
@@ -275,7 +284,7 @@ export class SecurityScanner {
         throw new SecurityScannerError('Image name is required', 'INVALID_INPUT');
       }
 
-      const storedSignature = this.signatures.get(imageName);
+      const storedSignature = await this.cosignRepo.findByImageName(imageName);
 
       const command = `cosign verify ${imageName}`;
 
@@ -290,7 +299,7 @@ export class SecurityScanner {
           keyId: parsed?.[0]?.optional?.issuer || 'unknown',
           verified: true,
         };
-        this.signatures.set(imageName, signature);
+        await this.persistCosignSignature(signature);
 
         return {
           success: true,
@@ -301,7 +310,13 @@ export class SecurityScanner {
         if (storedSignature) {
           return {
             success: true,
-            result: { ...storedSignature, verified: true },
+            result: {
+              imageName: storedSignature.imageName,
+              digest: storedSignature.digest || '',
+              signedAt: storedSignature.signedAt,
+              keyId: storedSignature.keyId || 'unknown',
+              verified: true,
+            },
           };
         }
 
@@ -312,7 +327,7 @@ export class SecurityScanner {
           keyId: 'cosign-key-simulated',
           verified: true,
         };
-        this.signatures.set(imageName, simulatedSignature);
+        await this.persistCosignSignature(simulatedSignature);
 
         return {
           success: true,
@@ -343,7 +358,7 @@ export class SecurityScanner {
       try {
         const { stdout } = await execAsync(command);
         const sbom = this.parseCycloneDXSBOM(stdout, imageName);
-        this.sboms.set(imageName, sbom);
+        await this.persistSBOM(imageName, sbom);
 
         return {
           success: true,
@@ -356,7 +371,7 @@ export class SecurityScanner {
             `syft ${imageName} -o cyclonedx-json`
           );
           const sbom = this.parseCycloneDXSBOM(syftOut, imageName);
-          this.sboms.set(imageName, sbom);
+          await this.persistSBOM(imageName, sbom);
 
           return {
             success: true,
@@ -365,7 +380,7 @@ export class SecurityScanner {
         } catch {
           // Simulated SBOM
           const simulatedSbom = this.simulateSBOM(imageName);
-          this.sboms.set(imageName, simulatedSbom);
+          await this.persistSBOM(imageName, simulatedSbom);
 
           return {
             success: true,
@@ -385,29 +400,63 @@ export class SecurityScanner {
   /**
    * 获取扫描结果
    */
-  getScanResult(scanId: string): TrivyScanResult | undefined {
-    return this.scanResults.get(scanId);
+  async getScanResult(scanId: string): Promise<TrivyScanResult | undefined> {
+    const entity = await this.trivyRepo.findById(scanId);
+    if (!entity) return undefined;
+    return {
+      imageName: entity.imageName,
+      scannedAt: entity.scannedAt,
+      scannerVersion: entity.scannerVersion || 'unknown',
+      vulnerabilities: entity.vulnerabilities,
+      summary: entity.summary as TrivyScanResult['summary'],
+      passed: entity.passed,
+    };
   }
 
   /**
    * 获取签名
    */
-  getSignature(imageName: string): CosignSignature | undefined {
-    return this.signatures.get(imageName);
+  async getSignature(imageName: string): Promise<CosignSignature | undefined> {
+    const entity = await this.cosignRepo.findByImageName(imageName);
+    if (!entity) return undefined;
+    return {
+      imageName: entity.imageName,
+      digest: entity.digest || '',
+      signedAt: entity.signedAt,
+      keyId: entity.keyId || 'unknown',
+      verified: entity.verified,
+    };
   }
 
   /**
    * 获取 SBOM
    */
-  getSBOM(imageName: string): SBOMResult | undefined {
-    return this.sboms.get(imageName);
+  async getSBOM(imageName: string): Promise<SBOMResult | undefined> {
+    const entities = await this.sbomRepo.findByImageName(imageName, 1);
+    if (entities.length === 0) return undefined;
+    const entity = entities[0];
+    return {
+      imageName: entity.imageName,
+      format: entity.format as SBOMResult['format'],
+      generatedAt: entity.generatedAt,
+      components: entity.components,
+      rawDocument: entity.rawDocument || undefined,
+    };
   }
 
   /**
    * 获取所有扫描结果
    */
-  getAllScanResults(): TrivyScanResult[] {
-    return Array.from(this.scanResults.values());
+  async getAllScanResults(): Promise<TrivyScanResult[]> {
+    const { entities } = await this.trivyRepo.findAll({ limit: 100 });
+    return entities.map(entity => ({
+      imageName: entity.imageName,
+      scannedAt: entity.scannedAt,
+      scannerVersion: entity.scannerVersion || 'unknown',
+      vulnerabilities: entity.vulnerabilities,
+      summary: entity.summary as TrivyScanResult['summary'],
+      passed: entity.passed,
+    }));
   }
 
   // ==================== Internal Helpers ====================
@@ -628,5 +677,41 @@ export class SecurityScanner {
       generatedAt: new Date(),
       components,
     };
+  }
+
+  // ==================== DB Persistence Helpers ====================
+
+  private async persistTrivyScan(scanId: string, result: TrivyScanResult): Promise<void> {
+    await this.trivyRepo.create({
+      id: scanId,
+      imageName: result.imageName,
+      scannedAt: result.scannedAt,
+      scannerVersion: result.scannerVersion,
+      vulnerabilities: result.vulnerabilities,
+      summary: result.summary,
+      passed: result.passed,
+    });
+  }
+
+  private async persistCosignSignature(sig: CosignSignature): Promise<void> {
+    await this.cosignRepo.create({
+      id: `cosign-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      imageName: sig.imageName,
+      digest: sig.digest,
+      signedAt: sig.signedAt,
+      keyId: sig.keyId,
+      verified: sig.verified,
+    });
+  }
+
+  private async persistSBOM(imageName: string, sbom: SBOMResult): Promise<void> {
+    await this.sbomRepo.create({
+      id: `sbom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      imageName,
+      format: sbom.format,
+      generatedAt: sbom.generatedAt,
+      components: sbom.components,
+      rawDocument: sbom.rawDocument || null,
+    });
   }
 }

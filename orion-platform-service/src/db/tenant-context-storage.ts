@@ -21,6 +21,10 @@ export interface TenantContextStore {
   tenantId: number;
   /** 是否为系统租户模式（绕过 RLS） */
   isSystemTenant?: boolean;
+  /** 当前请求的 traceId（W3C Trace Context） */
+  traceId?: string;
+  /** 当前请求的 spanId */
+  spanId?: string;
 }
 
 /**
@@ -41,7 +45,36 @@ export interface TenantContextStore {
 export const tenantContextStorage = new AsyncLocalStorage<TenantContextStore>();
 
 /**
+ * 获取当前请求的 traceId。
+ * 在任何 Service/Repository 中调用，无需传递参数。
+ * 如果不在请求上下文中（如后台任务），返回空字符串。
+ */
+export function getCurrentTraceId(): string {
+  const store = tenantContextStorage.getStore();
+  return store?.traceId || '';
+}
+
+/**
+ * 获取当前请求的 spanId。
+ */
+export function getCurrentSpanId(): string {
+  const store = tenantContextStorage.getStore();
+  return store?.spanId || '';
+}
+
+/**
  * 系统租户 ID 常量
  * 后台任务（Cron/EventBus/Saga）使用此 ID 绕过 RLS 策略
  */
 export const SYSTEM_TENANT_ID = '__system__' as unknown as number;
+
+/**
+ * 获取当前请求的租户 ID（字符串形式）。
+ * 在任何 Service/Repository 中调用，无需传递参数。
+ * 如果不在请求上下文中（如后台任务），返回 SYSTEM_TENANT_ID。
+ */
+export function getCurrentTenantId(): string {
+  const store = tenantContextStorage.getStore();
+  if (!store) return SYSTEM_TENANT_ID as unknown as string;
+  return String(store.tenantId);
+}

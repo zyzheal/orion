@@ -14,6 +14,9 @@ import {
   DeprecateLibraryInput,
   LibraryQueryOptions,
 } from '../models/InternalLibrary';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { ValidationError, NotFoundError, handleError } from '../errors';
 
 interface InternalLibraryRoutesOptions {
   database?: DatabasePool;
@@ -29,13 +32,15 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 创建二方库
    * POST /internal-libraries
    */
-  app.post('/', async (request: FastifyRequest<{ Body: CreateLibraryInput }>, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const input = request.body;
+      const input = request.body as CreateLibraryInput;
       const library = await libraryService.create(input);
       reply.status(201).send(library);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -43,8 +48,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 列出二方库
    * GET /internal-libraries
    */
-  app.get('/', async (request: FastifyRequest<{ Querystring: LibraryQueryOptions }>, reply: FastifyReply) => {
-    const opts = request.query;
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const opts = request.query as LibraryQueryOptions;
     const libraries = await libraryService.list(opts);
     reply.send(libraries);
   });
@@ -53,11 +60,13 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 获取二方库详情
    * GET /internal-libraries/:id
    */
-  app.get('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.get('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const library = await libraryService.getById(id);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -67,11 +76,13 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 按名称获取二方库
    * GET /internal-libraries/name/:name
    */
-  app.get('/name/:name', async (request: FastifyRequest<{ Params: { name: string } }>, reply: FastifyReply) => {
-    const { name } = request.params;
+  app.get('/name/:name', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { name } = request.params as { name: string };
     const library = await libraryService.getByName(name);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -81,8 +92,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 按语言列出二方库
    * GET /internal-libraries/language/:language
    */
-  app.get('/language/:language', async (request: FastifyRequest<{ Params: { language: string } }>, reply: FastifyReply) => {
-    const { language } = request.params;
+  app.get('/language/:language', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { language } = request.params as { language: string };
     const libraries = await libraryService.listByLanguage(language as any);
     reply.send(libraries);
   });
@@ -91,8 +104,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 按团队列出二方库
    * GET /internal-libraries/owner/:owner
    */
-  app.get('/owner/:owner', async (request: FastifyRequest<{ Params: { owner: string } }>, reply: FastifyReply) => {
-    const { owner } = request.params;
+  app.get('/owner/:owner', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { owner } = request.params as { owner: string };
     const libraries = await libraryService.listByOwner(owner);
     reply.send(libraries);
   });
@@ -101,11 +116,13 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 删除二方库
    * DELETE /internal-libraries/:id
    */
-  app.delete('/:id', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.delete('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const deleted = await libraryService.delete(id);
     if (!deleted) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.status(204).send();
@@ -117,7 +134,9 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 发布新版本
    * POST /internal-libraries/:id/versions
    */
-  app.post('/:id/versions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/versions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
@@ -134,7 +153,7 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       const version = await libraryService.publishVersion(input);
       reply.status(201).send(version);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -142,8 +161,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 获取版本列表
    * GET /internal-libraries/:id/versions
    */
-  app.get('/:id/versions', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.get('/:id/versions', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const versions = await libraryService.getVersions(id);
     reply.send(versions);
   });
@@ -152,11 +173,13 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 获取特定版本
    * GET /internal-libraries/:id/versions/:version
    */
-  app.get('/:id/versions/:version', async (request: FastifyRequest<{ Params: { id: string; version: string } }>, reply: FastifyReply) => {
-    const { id, version } = request.params;
+  app.get('/:id/versions/:version', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id, version } = request.params as { id: string; version: string };
     const versionInfo = await libraryService.getVersion(id, version);
     if (!versionInfo) {
-      reply.status(404).send({ error: 'Version not found' });
+handleError(reply, new NotFoundError('Version not found'));
       return;
     }
     reply.send(versionInfo);
@@ -166,12 +189,14 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 废弃版本
    * POST /internal-libraries/:id/versions/:version/deprecate
    */
-  app.post('/:id/versions/:version/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/versions/:version/deprecate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id, version } = request.params as { id: string; version: string };
     const body = request.body as any;
     const result = await libraryService.deprecateVersion(id, version, body.reason, new Date(body.eolDate), body.migrationGuide);
     if (!result) {
-      reply.status(404).send({ error: 'Version not found' });
+handleError(reply, new NotFoundError('Version not found'));
       return;
     }
     reply.send(result);
@@ -183,7 +208,9 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 废弃二方库
    * POST /internal-libraries/:id/deprecate
    */
-  app.post('/:id/deprecate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/deprecate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
@@ -196,12 +223,12 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
       };
       const library = await libraryService.deprecate(input);
       if (!library) {
-        reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
         return;
       }
       reply.send(library);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -209,11 +236,13 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 激活二方库
    * POST /internal-libraries/:id/activate
    */
-  app.post('/:id/activate', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.post('/:id/activate', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const library = await libraryService.activate(id);
     if (!library) {
-      reply.status(404).send({ error: 'Library not found' });
+handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
@@ -225,8 +254,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 获取依赖者列表
    * GET /internal-libraries/:id/dependents
    */
-  app.get('/:id/dependents', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.get('/:id/dependents', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     const dependents = await libraryService.getDependents(id);
     reply.send(dependents);
   });
@@ -235,14 +266,16 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 添加依赖关系
    * POST /internal-libraries/:id/dependents
    */
-  app.post('/:id/dependents', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/dependents', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
       const dependent = await libraryService.addDependent(id, body.repoName, body.teamName, body.version);
       reply.status(201).send(dependent);
     } catch (error: any) {
-      reply.status(400).send({ error: error.message });
+handleError(reply, new ValidationError(error.message));
     }
   });
 
@@ -250,12 +283,14 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 更新依赖版本
    * PUT /internal-libraries/:id/dependents/:repoName
    */
-  app.put('/:id/dependents/:repoName', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id/dependents/:repoName', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id, repoName } = request.params as { id: string; repoName: string };
     const body = request.body as any;
     const success = await libraryService.updateDependentVersion(id, repoName, body.version);
     if (!success) {
-      reply.status(404).send({ error: 'Dependent not found' });
+handleError(reply, new NotFoundError('Dependent not found'));
       return;
     }
     reply.send({ success: true });
@@ -265,8 +300,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 检查项目依赖
    * GET /internal-libraries/dependencies/:repoName
    */
-  app.get('/dependencies/:repoName', async (request: FastifyRequest<{ Params: { repoName: string } }>, reply: FastifyReply) => {
-    const { repoName } = request.params;
+  app.get('/dependencies/:repoName', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { repoName } = request.params as { repoName: string };
     const dependencies = await libraryService.checkDependencies(repoName);
     reply.send(dependencies);
   });
@@ -275,8 +312,10 @@ export async function internalLibraryRoutes(app: FastifyInstance, options: Inter
    * 更新依赖统计
    * POST /internal-libraries/:id/update-stats
    */
-  app.post('/:id/update-stats', async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    const { id } = request.params;
+  app.post('/:id/update-stats', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
     await libraryService.updateDependentsStats(id);
     reply.send({ success: true });
   });

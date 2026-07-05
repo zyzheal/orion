@@ -1,3 +1,4 @@
+import { OrionError, ErrorCode } from '../errors';
 /**
  * DisasterRecoveryRepository - Database layer for Disaster Recovery operations
  *
@@ -117,7 +118,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into disaster_recovery_plans returned no rows');
+      throw new OrionError('INSERT into disaster_recovery_plans returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return result.rows[0];
   }
@@ -161,7 +162,7 @@ export class DisasterRecoveryRepository {
     }
 
     if (setClauses.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     setClauses.push(`updated_at = NOW()`);
@@ -172,7 +173,7 @@ export class DisasterRecoveryRepository {
     const query = `UPDATE disaster_recovery_plans SET ${setClauses.join(', ')} WHERE id = $${idParam} AND tenant_id = $${tenantParam} RETURNING *`;
     const result = await this.db.query(query, params);
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on disaster_recovery_plans affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on disaster_recovery_plans affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return result.rows[0];
   }
@@ -241,7 +242,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into dr_failover_tests returned no rows');
+      throw new OrionError('INSERT into dr_failover_tests returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return result.rows[0];
   }
@@ -271,7 +272,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on dr_failover_tests affected no rows (id: ${input.id})`);
+      throw new OrionError(`UPDATE on dr_failover_tests affected no rows (id: ${input.id})`, 'OPERATION_FAILED')
     }
     return result.rows[0];
   }
@@ -333,7 +334,7 @@ export class DisasterRecoveryRepository {
       ],
     );
     if (result.rows.length === 0) {
-      throw new Error('INSERT into backup_configs returned no rows');
+      throw new OrionError('INSERT into backup_configs returned no rows', ErrorCode.OPERATION_FAILED);
     }
     return result.rows[0];
   }
@@ -373,7 +374,7 @@ export class DisasterRecoveryRepository {
     }
 
     if (setClauses.length === 0) {
-      throw new Error('Update requires at least one column');
+      throw new OrionError('Update requires at least one column', ErrorCode.OPERATION_FAILED);
     }
 
     setClauses.push(`updated_at = NOW()`);
@@ -384,7 +385,7 @@ export class DisasterRecoveryRepository {
     const query = `UPDATE backup_configs SET ${setClauses.join(', ')} WHERE id = $${idParam} AND tenant_id = $${tenantParam} RETURNING *`;
     const result = await this.db.query(query, params);
     if (result.rows.length === 0) {
-      throw new Error(`UPDATE on backup_configs affected no rows (id: ${id})`);
+      throw new OrionError(`UPDATE on backup_configs affected no rows (id: ${id})`, 'OPERATION_FAILED')
     }
     return result.rows[0];
   }

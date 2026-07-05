@@ -1,0 +1,312 @@
+/**
+ * ABAC Policy API Routes
+ * Prefix: /api/v1/abac-policies
+ *
+ * 提供 ABAC 策略的 CRUD 接口。
+ */
+
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { abacPolicyEngine, AbacPolicy, ConditionRule } from '../services/authz/AbacPolicyEngine';
+import { AbacHotReloadService } from '../services/authz/AbacHotReloadService';
+import { OrionError, ErrorCode , ValidationError, NotFoundError, ForbiddenError, handleError} from '../errors';
+import { DatabasePool } from '../services/database';
+
+interface PolicyParams {
+  id: string;
+}
+
+interface CreatePolicyBody {
+  name: string;
+  description?: string;
+  resourceType: string | string[];
+  actionType: string | string[];
+  conditions: ConditionRule;
+  effect: 'allow' | 'deny';
+  priority?: number;
+  enabled?: boolean;
+}
+
+interface UpdatePolicyBody {
+  name?: string;
+  description?: string;
+  resourceType?: string | string[];
+  actionType?: string | string[];
+  conditions?: ConditionRule;
+  effect?: 'allow' | 'deny';
+  priority?: number;
+  enabled?: boolean;
+}
+
+/**
+ * 系统策略白名单 — 不可被删除或修改
+ */
+const SYSTEM_POLICY_IDS = new Set<string>();
+
+/**
+ * 递归验证 ConditionRule 结构的合法性
+ */
+function validateConditionRule(rule: ConditionRule, path = 'root'): void {
+  // 如果是叶子节点，必须有 condition
+  if (!rule.and && !rule.or && !rule.not) {
+    if (!rule.condition) {
+      throw new OrionError(`Condition at ${path} must have a 'condition' property or be a combinator (and/or/not)`, 'OPERATION_FAILED')
+    }
+    const cond = rule.condition;
+    if (!cond.attribute || typeof cond.attribute !== 'string') {
+      throw new OrionError(`Condition at ${path}: attribute must be a non-empty string`, 'VALIDATION_ERROR')
+    }
+    const validOperators = ['equals', 'not_equals', 'in', 'not_in', 'contains', 'gt', 'lt', 'gte', 'lte', 'regex', 'match'];
+    if (!cond.operator || !validOperators.includes(cond.operator)) {
+      throw new OrionError(`Condition at ${path}: operator must be one of ${validOperators.join(', ')}`, 'VALIDATION_ERROR')
+    }
+    if (cond.value === undefined) {
+      throw new OrionError(`Condition at ${path}: value is required`, 'VALIDATION_ERROR')
+    }
+  }
+
+  // 递归验证组合规则
+  if (rule.and) {
+    if (!Array.isArray(rule.and) || rule.and.length === 0) {
+      throw new OrionError(`'and' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
+    }
+    rule.and.forEach((sub, i) => validateConditionRule(sub, `${path}.and[${i}]`));
+  }
+  if (rule.or) {
+    if (!Array.isArray(rule.or) || rule.or.length === 0) {
+      throw new OrionError(`'or' at ${path} must be a non-empty array`, 'VALIDATION_ERROR')
+    }
+    rule.or.forEach((sub, i) => validateConditionRule(sub, `${path}.or[${i}]`));
+  }
+  if (rule.not) {
+    validateConditionRule(rule.not, `${path}.not`);
+  }
+}
+
+/**
+ * 验证策略字段的合法性
+ */
+function validatePolicyBody(body: CreatePolicyBody): void {
+  if (!body.name || typeof body.name !== 'string') {
+    throw new OrionError('Policy name is required', ErrorCode.VALIDATION_ERROR);
+  }
+  if (!body.resourceType || (typeof body.resourceType !== 'string' && !Array.isArray(body.resourceType))) {
+    throw new OrionError('resourceType is required and must be a string or array', ErrorCode.VALIDATION_ERROR);
+  }
+  if (!body.actionType || (typeof body.actionType !== 'string' && !Array.isArray(body.actionType))) {
+    throw new OrionError('actionType is required and must be a string or array', ErrorCode.VALIDATION_ERROR);
+  }
+  if (!body.effect || !['allow', 'deny'].includes(body.effect)) {
+    throw new OrionError('effect must be "allow" or "deny"', ErrorCode.OPERATION_FAILED);
+  }
+  // 验证条件结构
+  validateConditionRule(body.conditions);
+}
+
+/**
+ * 注册系统策略（在 AbacPolicyEngine 初始化后调用）
+ */
+export function registerSystemPolicyId(id: string): void {
+  SYSTEM_POLICY_IDS.add(id);
+}
+
+interface AbacPolicyRoutesOptions {
+  database?: DatabasePool;
+}
+
+export default async function abacPolicyRoutes(
+  app: FastifyInstance,
+  options: AbacPolicyRoutesOptions = {}
+): Promise<void> {
+  // 初始化 ABAC 热重载服务（单例模式，使用已注册的 engine + 数据库连接）
+  const hotReloadService = options.database
+    ? new AbacHotReloadService(abacPolicyEngine, options.database as any)
+    : null;
+
+  // GET /api/v1/abac-policies - 获取所有策略
+  app.get('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'read' })],
+  }, async (_request, reply) => {
+    try {
+      const policies = abacPolicyEngine.getAllPolicies();
+      return reply.send({ data: policies, total: policies.length });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // GET /api/v1/abac-policies/:id - 获取单个策略
+  app.get<{ Params: PolicyParams }>('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'read' })],
+  }, async (request, reply) => {
+    try {
+      const policy = abacPolicyEngine.getPolicy(request.params.id);
+      if (!policy) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      return reply.send({ data: policy });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // GET /api/v1/abac-policies/resource/:resourceType - 获取资源类型对应的策略
+  app.get<{ Params: { resourceType: string } }>('/resource/:resourceType', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'read' })],
+  }, async (request, reply) => {
+    try {
+      const policies = abacPolicyEngine.getPoliciesForResourceType(request.params.resourceType);
+      return reply.send({ data: policies, total: policies.length });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // POST /api/v1/abac-policies - 创建策略
+  app.post<{ Body: CreatePolicyBody }>('/', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'write' })],
+  }, async (request, reply) => {
+    try {
+      // 验证策略字段和条件结构
+      validatePolicyBody(request.body);
+
+      const policy: AbacPolicy = {
+        id: `custom-${Date.now()}`,
+        name: request.body.name,
+        description: request.body.description,
+        resourceType: request.body.resourceType,
+        actionType: request.body.actionType,
+        conditions: request.body.conditions,
+        effect: request.body.effect,
+        priority: request.body.priority ?? 0,
+        enabled: request.body.enabled ?? true,
+      };
+      abacPolicyEngine.registerPolicy(policy);
+      return reply.status(201).send({ data: policy, message: 'Policy created' });
+    } catch (err) {
+      if ((err as Error).message.includes('Condition at') ||
+          (err as Error).message.includes('required') ||
+          (err as Error).message.includes('must be')) {
+            return handleError(reply, new ValidationError('VALIDATION_ERROR'));
+      }
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // PUT /api/v1/abac-policies/:id - 更新策略
+  app.put<{ Params: PolicyParams; Body: UpdatePolicyBody }>('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'write' })],
+  }, async (request, reply) => {
+    try {
+      const existing = abacPolicyEngine.getPolicy(request.params.id);
+      if (!existing) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      // 保护系统策略不被修改
+      if (SYSTEM_POLICY_IDS.has(request.params.id)) {
+        return handleError(reply, new ForbiddenError('FORBIDDEN'));
+      }
+      // 如果更新了 conditions，验证其合法性
+      if (request.body.conditions) {
+        validateConditionRule(request.body.conditions);
+      }
+      abacPolicyEngine.updatePolicy(request.params.id, request.body);
+      const updated = abacPolicyEngine.getPolicy(request.params.id);
+      return reply.send({ data: updated, message: 'Policy updated' });
+    } catch (err) {
+      if ((err as Error).message.includes('Condition at')) {
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
+      }
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // DELETE /api/v1/abac-policies/:id - 删除策略
+  app.delete<{ Params: PolicyParams }>('/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'delete' })],
+  }, async (request, reply) => {
+    try {
+      const existing = abacPolicyEngine.getPolicy(request.params.id);
+      if (!existing) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      // 保护系统策略不被删除
+      if (SYSTEM_POLICY_IDS.has(request.params.id)) {
+        return handleError(reply, new ForbiddenError('FORBIDDEN'));
+      }
+      abacPolicyEngine.unregisterPolicy(request.params.id);
+      return reply.send({ message: 'Policy deleted' });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // POST /api/v1/abac-policies/:id/toggle - 启用/禁用策略
+  app.post<{ Params: PolicyParams }>('/:id/toggle', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'write' })],
+  }, async (request, reply) => {
+    try {
+      const existing = abacPolicyEngine.getPolicy(request.params.id);
+      if (!existing) {
+        return handleError(reply, new NotFoundError('NOT_FOUND'));
+      }
+      abacPolicyEngine.updatePolicy(request.params.id, { enabled: !existing.enabled });
+      const updated = abacPolicyEngine.getPolicy(request.params.id);
+      return reply.send({ data: updated, message: `Policy ${updated?.enabled ? 'enabled' : 'disabled'}` });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // POST /api/v1/abac-policies/reload - 手动触发热重载
+  app.post('/reload', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'write' })],
+  }, async (_request, reply) => {
+    try {
+      if (!hotReloadService) {
+        return handleError(reply, new OrionError('Hot reload service is not configured (no database connection)', ErrorCode.SERVICE_UNAVAILABLE));
+      }
+      const result = await hotReloadService.triggerReload(false);
+      if (!result.success) {
+        return reply.status(400).send({
+          success: false,
+          message: result.error || 'Reload failed',
+          data: result,
+        });
+      }
+      return reply.send({ success: true, message: 'ABAC policies reloaded successfully', data: result });
+    } catch (err) {
+      if ((err as any)?.code === ErrorCode.RATE_LIMITED) {
+        return handleError(reply, err as Error);
+      }
+      return handleError(reply, err as Error);
+    }
+  });
+
+  // GET /api/v1/abac-policies/reload/status - 获取热重载状态
+  app.get('/reload/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'abac', action: 'read' })],
+  }, async (_request, reply) => {
+    try {
+      if (!hotReloadService) {
+        // 热重载服务未配置时返回基础状态
+        return reply.send({
+          data: {
+            reloading: false,
+            policyCount: abacPolicyEngine.getAllPolicies().length,
+            reloadVersion: abacPolicyEngine.getReloadVersion(),
+            watching: false,
+            watchPaths: [],
+            rateLimit: { allowed: true, remainingMs: 0 },
+            configured: false,
+          },
+        });
+      }
+      const status = hotReloadService.getStatus();
+      return reply.send({ data: { ...status, configured: true } });
+    } catch (err) {
+      return handleError(reply, err as Error);
+    }
+  });
+}

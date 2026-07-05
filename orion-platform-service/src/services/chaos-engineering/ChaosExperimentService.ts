@@ -1,3 +1,5 @@
+import { createLogger } from '../../utils/logger';
+const logger = createLogger('ChaosExperimentService');
 import { DatabasePool } from '../database';
 /**
  * ChaosExperimentService - Business logic for Chaos Engineering
@@ -322,7 +324,7 @@ export class ChaosExperimentService {
     // Check production safety guard
     if (input.scope.environment === 'production') {
       // Would require additional confirmation in production
-      console.warn(`[ChaosExperiment] Production experiment created: ${input.name}`);
+      logger.warn(`[ChaosExperiment] Production experiment created: ${input.name}`);
     }
 
     return this.repository.create(input);
@@ -410,7 +412,7 @@ export class ChaosExperimentService {
     // Production safety guard
     if (experiment.scope.environment === 'production' && !input.dry_run) {
       // In real implementation, would require explicit confirmation
-      console.warn(`[ChaosExperiment] Production execution initiated: ${experiment.name}`);
+      logger.warn(`[ChaosExperiment] Production execution initiated: ${experiment.name}`);
     }
 
     const run = await this.repository.createRun(experimentId);
