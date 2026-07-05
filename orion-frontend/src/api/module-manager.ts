@@ -68,25 +68,25 @@ export interface ToggleModuleResponse {
 
 /** List all modules with their status */
 export async function getModules() {
-  return api.get<ModuleDescriptor[]>('/v1/system/modules');
+  return api.get<ModuleDescriptor[]>('/api/v1/system/modules');
 }
 
 /** Get single module detail */
 export async function getModule(id: string) {
-  return api.get<ModuleDetailResponse>(`/v1/system/modules/${id}`);
+  return api.get<ModuleDetailResponse>(`/api/v1/system/modules/${id}`);
 }
 
 /** Enable or disable a module */
 export async function toggleModule(id: string, enabled: boolean) {
-  return api.put<ToggleModuleResponse>(`/v1/system/modules/${id}/toggle`, { enabled });
+  return api.put<ToggleModuleResponse>(`/api/v1/system/modules/${id}/toggle`, { enabled });
 }
 
 /** Validate module dependencies */
 export async function validateDependencies() {
-  return api.get<ValidationResponse>('/v1/system/modules/validate');
+  return api.get<ValidationResponse>('/api/v1/system/modules/validate');
 }
 
 /** Get module startup order (topological sort) */
 export async function getStartupOrder() {
-  return api.get<StartupOrderResponse>('/v1/system/modules/startup-order');
+  return api.get<StartupOrderResponse>('/api/v1/system/modules/startup-order');
 }

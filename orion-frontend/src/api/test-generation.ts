@@ -1,7 +1,7 @@
 /**
  * TestGeneration API Service
  * Auto-generated from backend test-generation-routes.ts
- * Prefix: /v1/test-generation
+ * Prefix: /api/v1/test-generation
  */
 import { api } from './client';
 
@@ -16,31 +16,31 @@ export interface TestGeneration {
 }
 
 export const createTestGenerationGenerate = async (data?: Partial<TestGeneration>): Promise<TestGeneration> => {
-  const response = await api.post<TestGeneration>('/v1/test-generation/generate', data);
+  const response = await api.post<TestGeneration>('/api/v1/test-generation/generate', data);
   return response.data;
 };
 
 export const createTestGenerationAnalyzeChange = async (data?: Partial<TestGeneration>): Promise<TestGeneration> => {
-  const response = await api.post<TestGeneration>('/v1/test-generation/analyze-change', data);
+  const response = await api.post<TestGeneration>('/api/v1/test-generation/analyze-change', data);
   return response.data;
 };
 
 export const createTestGenerationSuggestCoverage = async (data?: Partial<TestGeneration>): Promise<TestGeneration> => {
-  const response = await api.post<TestGeneration>('/v1/test-generation/suggest-coverage', data);
+  const response = await api.post<TestGeneration>('/api/v1/test-generation/suggest-coverage', data);
   return response.data;
 };
 
 export const listTestGeneration = async (params?: Record<string, unknown>): Promise<{ data: TestGeneration[]; total: number }> => {
-  const response = await api.get<{ data: TestGeneration[]; total: number }>('/v1/test-generation/templates', { params });
+  const response = await api.get<{ data: TestGeneration[]; total: number }>('/api/v1/test-generation/templates', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const getTestGeneration = async (language: string, framework: string): Promise<TestGeneration> => {
-  const response = await api.get<TestGeneration>('/v1/test-generation/templates/' + language + '/' + framework);
+  const response = await api.get<TestGeneration>('/api/v1/test-generation/templates/' + language + '/' + framework);
   return response.data;
 };
 
 export const createTestGenerationHistoryAdopt = async (generationId: string, data?: Partial<TestGeneration>): Promise<TestGeneration> => {
-  const response = await api.post<TestGeneration>('/v1/test-generation/history/' + generationId + '/adopt', data);
+  const response = await api.post<TestGeneration>('/api/v1/test-generation/history/' + generationId + '/adopt', data);
   return response.data;
 };

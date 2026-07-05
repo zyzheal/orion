@@ -43,37 +43,37 @@ export interface SupplyChainReport {
 
 export const supplyChainApi = {
   generateSBOM: async (data: { pipelineId: string; format?: 'spdx' | 'cyclonedx' }) => {
-    const response = await apiClient.post('/v1/supply-chain/sbom', data);
+    const response = await apiClient.post('/api/v1/supply-chain/sbom', data);
     return response.data as SBOM;
   },
 
   getSBOM: async (sbomId: string) => {
-    const response = await apiClient.get(`/v1/supply-chain/sbom/${sbomId}`);
+    const response = await apiClient.get(`/api/v1/supply-chain/sbom/${sbomId}`);
     return response.data as SBOM;
   },
 
   analyzeDependencies: async (packageName: string, version: string) => {
-    const response = await apiClient.get(`/v1/supply-chain/dependencies/${packageName}/${version}/analyze`);
+    const response = await apiClient.get(`/api/v1/supply-chain/dependencies/${packageName}/${version}/analyze`);
     return response.data;
   },
 
   getDependencyGraph: async (data: { packageName: string; version: string }) => {
-    const response = await apiClient.post('/v1/supply-chain/dependencies/graph', data);
+    const response = await apiClient.post('/api/v1/supply-chain/dependencies/graph', data);
     return response.data as DependencyGraph;
   },
 
   signArtifact: async (artifactId: string) => {
-    const response = await apiClient.post(`/v1/supply-chain/artifacts/${artifactId}/sign`);
+    const response = await apiClient.post(`/api/v1/supply-chain/artifacts/${artifactId}/sign`);
     return response.data;
   },
 
   verifySignature: async (artifactId: string) => {
-    const response = await apiClient.post(`/v1/supply-chain/artifacts/${artifactId}/verify`);
+    const response = await apiClient.post(`/api/v1/supply-chain/artifacts/${artifactId}/verify`);
     return response.data;
   },
 
   getSupplyChainReport: async (pipelineId: string) => {
-    const response = await apiClient.get(`/v1/supply-chain/reports/${pipelineId}`);
+    const response = await apiClient.get(`/api/v1/supply-chain/reports/${pipelineId}`);
     return response.data as SupplyChainReport;
   },
 };

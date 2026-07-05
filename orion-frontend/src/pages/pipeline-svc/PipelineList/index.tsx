@@ -35,6 +35,8 @@ const PipelineList: React.FC = () => {
   const [runModalVisible, setRunModalVisible] = useState(false);
   const [selectedPipeline, setSelectedPipeline] = useState<Pipeline | null>(null);
   const [runBranch, setRunBranch] = useState('main');
+  const [runVariables, setRunVariables] = useState<Record<string, string>>({});
+  const [variablesText, setVariablesText] = useState('{}');
   const [running, setRunning] = useState(false);
 
   // Load pipelines from API
@@ -109,7 +111,15 @@ const PipelineList: React.FC = () => {
     if (!selectedPipeline) return;
     setRunning(true);
     try {
-      const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch });
+      let variables: Record<string, string> = {};
+      try {
+        variables = JSON.parse(variablesText);
+      } catch {
+        message.error('参数格式错误，请输入有效的 JSON');
+        setRunning(false);
+        return;
+      }
+      const response = await triggerPipeline(selectedPipeline.id, { branch: runBranch, variables });
       const wrapperData = response.data as { data?: { id?: string } };
       const apiData = wrapperData?.data ?? wrapperData;
       const runId = (apiData as any).id;
@@ -312,11 +322,20 @@ const PipelineList: React.FC = () => {
         cancelText="取消"
       >
         <div style={{ marginBottom: spacing.md }}>
-          <label style={{ display: 'block', marginBottom: spacing.sm }}>分支</label>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>分支</label>
           <Input
             value={runBranch}
             onChange={(e) => setRunBranch(e.target.value)}
             placeholder="输入分支名称，默认为 main"
+          />
+        </div>
+        <div style={{ marginBottom: spacing.md }}>
+          <label style={{ display: 'block', marginBottom: spacing.sm, fontWeight: 500 }}>参数 (JSON)</label>
+          <Input.TextArea
+            value={variablesText}
+            onChange={(e) => setVariablesText(e.target.value)}
+            placeholder='{"KEY": "value"}'
+            rows={4}
           />
         </div>
       </Modal>

@@ -42,21 +42,21 @@ export interface AuditRecord {
 }
 
 export const inceptionApi = {
-  health: () => api.get('/inception/health'),
-  status: () => api.get('/inception/status'),
+  health: () => api.get('/api/v1/inception/health'),
+  status: () => api.get('/api/v1/inception/status'),
   audit: (sql: string, database?: string) =>
-    api.post<SqlAuditResult>('/inception/audit', { sql, database }),
+    api.post<SqlAuditResult>('/api/v1/inception/audit', { sql, database }),
   parse: (sql: string) =>
-    api.post<SqlParseResult>('/inception/parse', { sql }),
+    api.post<SqlParseResult>('/api/v1/inception/parse', { sql }),
   execute: (sql: string, database?: string, dryRun?: boolean) =>
-    api.post<SqlExecuteResult>('/inception/execute', {
+    api.post<SqlExecuteResult>('/api/v1/inception/execute', {
       sql,
       database,
       dryRun: dryRun || false,
     }),
-  listDatabases: () => api.get<{ databases: string[] }>('/inception/databases'),
+  listDatabases: () => api.get<{ databases: string[] }>('/api/v1/inception/databases'),
   history: (params?: { page?: number; limit?: number }) =>
-    api.get<{ records: AuditRecord[]; total: number }>('/inception/history', {
+    api.get<{ records: AuditRecord[]; total: number }>('/api/v1/inception/history', {
       params,
     }),
 };

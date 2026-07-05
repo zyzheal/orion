@@ -77,29 +77,29 @@ export interface AuditTrailEntry {
 
 // ==================== API 方法 ====================
 
-// POST /v1/audit-logs — 记录单条 (内部接口)
+// POST /api/v1/audit-logs — 记录单条 (内部接口)
 export function recordAuditLog(data: CreateAuditLogInput) {
-  return api.post<PipelineAuditLog>('/v1/audit-logs', data);
+  return api.post<PipelineAuditLog>('/api/v1/audit-logs', data);
 }
 
-// POST /v1/audit-logs/batch — 批量记录 (内部接口)
+// POST /api/v1/audit-logs/batch — 批量记录 (内部接口)
 export function batchRecordAuditLogs(logs: CreateAuditLogInput[]) {
-  return api.post<PipelineAuditLog[]>('/v1/audit-logs/batch', { logs });
+  return api.post<PipelineAuditLog[]>('/api/v1/audit-logs/batch', { logs });
 }
 
-// GET /v1/audit-logs — 查询审计日志
+// GET /api/v1/audit-logs — 查询审计日志
 export function getAuditLogs(params?: AuditLogFilter) {
-  return api.get<{ data: PipelineAuditLog[]; total?: number }>('/v1/audit-logs', { params });
+  return api.get<{ data: PipelineAuditLog[]; total?: number }>('/api/v1/audit-logs', { params });
 }
 
-// GET /v1/audit-logs/runs/:runId/audit-trail — 获取运行完整审计轨迹
+// GET /api/v1/audit-logs/runs/:runId/audit-trail — 获取运行完整审计轨迹
 export function getRunAuditTrail(runId: string, limit?: number) {
-  return api.get<AuditTrailEntry[]>(`/v1/audit-logs/runs/${runId}/audit-trail`, {
+  return api.get<AuditTrailEntry[]>(`/api/v1/audit-logs/runs/${runId}/audit-trail`, {
     params: limit ? { limit: String(limit) } : undefined,
   });
 }
 
-// POST /v1/audit-logs/cleanup — 清理过期日志 (管理员)
+// POST /api/v1/audit-logs/cleanup — 清理过期日志 (管理员)
 export function cleanupAuditLogs(retentionDays?: number) {
-  return api.post<{ deleted: number }>('/v1/audit-logs/cleanup', { retentionDays });
+  return api.post<{ deleted: number }>('/api/v1/audit-logs/cleanup', { retentionDays });
 }

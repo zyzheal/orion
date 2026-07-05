@@ -2,11 +2,12 @@
  * AgentDetailDrawer - Detail panel for an Agent Profile
  */
 import React from 'react';
-import { Typography, Tag, Badge, Descriptions, Divider, Drawer } from 'antd';
+import { Typography, Tag, Badge, Descriptions, Divider, Drawer, Button, Space } from 'antd';
 import Table from '@/components/Table';
 import type { AgentProfile } from '@/api/agents';
 import dayjs from 'dayjs';
-import { spacing } from '@/tokens';
+import { spacing, colors } from '@/tokens';
+import { EditOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -14,14 +15,29 @@ interface AgentDetailDrawerProps {
   agent: AgentProfile | null;
   open: boolean;
   onClose: () => void;
+  onEdit?: (agent: AgentProfile) => void;
 }
 
-const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onClose }) => {
+const AgentDetailDrawer: React.FC<AgentDetailDrawerProps> = ({ agent, open, onClose, onEdit }) => {
   if (!agent) return null;
 
   return (
     <Drawer
-      title={`Agent 详情 - ${agent.name}`}
+      title={
+        <Space style={{ justifyContent: 'space-between', width: '100%' }}>
+          <span>{`Agent 详情 - ${agent.name}`}</span>
+          {onEdit && (
+            <Button
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => onEdit(agent)}
+              style={{ color: colors.primary[500] }}
+            >
+              编辑
+            </Button>
+          )}
+        </Space>
+      }
       placement="right"
       width={600}
       onClose={onClose}

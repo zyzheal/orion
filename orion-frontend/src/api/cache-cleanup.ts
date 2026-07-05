@@ -1,7 +1,7 @@
 /**
  * CacheCleanup API Service
  * Auto-generated from backend cache-cleanup-routes.ts
- * Prefix: /v1/cache-cleanup
+ * Prefix: /api/v1/cache-cleanup
  */
 import { api } from './client';
 
@@ -16,11 +16,11 @@ export interface CacheCleanup {
 }
 
 export const listCacheCleanup = async (params?: Record<string, unknown>): Promise<{ data: CacheCleanup[]; total: number }> => {
-  const response = await api.get<{ data: CacheCleanup[]; total: number }>('/v1/cache-cleanup/status', { params });
+  const response = await api.get<{ data: CacheCleanup[]; total: number }>('/api/v1/cache-cleanup/status', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createCacheCleanupRun = async (data?: Partial<CacheCleanup>): Promise<CacheCleanup> => {
-  const response = await api.post<CacheCleanup>('/v1/cache-cleanup/run', data);
+  const response = await api.post<CacheCleanup>('/api/v1/cache-cleanup/run', data);
   return response.data;
 };

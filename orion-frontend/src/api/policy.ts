@@ -98,12 +98,12 @@ export const listPolicies = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ policies: Policy[]; total: number }> => {
-  const response = await api.get<{ data: Policy[]; total?: number }>('/v1/policies', { params });
+  const response = await api.get<{ data: Policy[]; total?: number }>('/api/v1/policies', { params });
   return { policies: response.data.data, total: response.data.total ?? response.data.data.length };
 };
 
 export const getPolicy = async (id: string): Promise<Policy> => {
-  const response = await api.get<{ data: Policy }>(`/v1/policies/${id}`);
+  const response = await api.get<{ data: Policy }>(`/api/v1/policies/${id}`);
   return response.data.data;
 };
 
@@ -116,17 +116,17 @@ export const createPolicy = async (data: {
   severity?: string;
   resources?: string[];
 }): Promise<Policy> => {
-  const response = await api.post<{ data: Policy }>('/v1/policies', data);
+  const response = await api.post<{ data: Policy }>('/api/v1/policies', data);
   return response.data.data;
 };
 
 export const updatePolicy = async (id: string, data: Partial<Policy>): Promise<Policy> => {
-  const response = await api.put<{ data: Policy }>(`/v1/policies/${id}`, data);
+  const response = await api.put<{ data: Policy }>(`/api/v1/policies/${id}`, data);
   return response.data.data;
 };
 
 export const deletePolicy = async (id: string): Promise<void> => {
-  await api.delete(`/v1/policies/${id}`);
+  await api.delete(`/api/v1/policies/${id}`);
 };
 
 // ==================== Evaluation Endpoints ====================
@@ -137,7 +137,7 @@ export const evaluatePolicy = async (data: {
   resourceType?: string;
   input?: Record<string, any>;
 }): Promise<PolicyEvaluation> => {
-  const response = await api.post<{ data: PolicyEvaluation }>('/v1/policies/evaluate-policy', data);
+  const response = await api.post<{ data: PolicyEvaluation }>('/api/v1/policies/evaluate-policy', data);
   return response.data.data;
 };
 
@@ -146,7 +146,7 @@ export const getEvaluationHistory = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<PolicyEvaluation[]> => {
-  const response = await api.get<{ data: PolicyEvaluation[] }>('/v1/policies/evaluations', { params });
+  const response = await api.get<{ data: PolicyEvaluation[] }>('/api/v1/policies/evaluations', { params });
   return response.data.data;
 };
 
@@ -154,7 +154,7 @@ export const evaluatePolicyForRun = async (data: {
   policyId: string;
   runId: string;
 }): Promise<PolicyEvaluation> => {
-  const response = await api.post<{ data: PolicyEvaluation }>('/v1/policies/evaluate', data);
+  const response = await api.post<{ data: PolicyEvaluation }>('/api/v1/policies/evaluate', data);
   return response.data.data;
 };
 
@@ -164,7 +164,7 @@ export const listEvaluations = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<PolicyEvaluation[]> => {
-  const response = await api.get<{ data: PolicyEvaluation[] }>('/v1/policies/evaluations/runs', { params });
+  const response = await api.get<{ data: PolicyEvaluation[] }>('/api/v1/policies/evaluations/runs', { params });
   return response.data.data;
 };
 
@@ -172,7 +172,7 @@ export const evaluateGate = async (gateId: string, data?: {
   runId?: string;
   context?: Record<string, any>;
 }): Promise<PolicyEvaluation> => {
-  const response = await api.post<{ data: PolicyEvaluation }>(`/v1/policies/gate/${gateId}/evaluate`, data);
+  const response = await api.post<{ data: PolicyEvaluation }>(`/api/v1/policies/gate/${gateId}/evaluate`, data);
   return response.data.data;
 };
 
@@ -185,12 +185,12 @@ export const listViolations = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ violations: PolicyViolation[]; total: number }> => {
-  const response = await api.get<{ data: PolicyViolation[]; total?: number }>('/v1/policies/violations', { params });
+  const response = await api.get<{ data: PolicyViolation[]; total?: number }>('/api/v1/policies/violations', { params });
   return { violations: response.data.data, total: response.data.total ?? response.data.data.length };
 };
 
 export const getViolation = async (id: string): Promise<PolicyViolation> => {
-  const response = await api.get<{ data: PolicyViolation }>(`/v1/policies/violations/${id}`);
+  const response = await api.get<{ data: PolicyViolation }>(`/api/v1/policies/violations/${id}`);
   return response.data.data;
 };
 
@@ -198,14 +198,14 @@ export const waiveViolation = async (id: string, data: {
   reason: string;
   waivedBy: string;
 }): Promise<PolicyViolation> => {
-  const response = await api.post<{ data: PolicyViolation }>(`/v1/policies/violations/${id}/waive`, data);
+  const response = await api.post<{ data: PolicyViolation }>(`/api/v1/policies/violations/${id}/waive`, data);
   return response.data.data;
 };
 
 export const resolveViolation = async (id: string, data?: {
   resolution?: string;
 }): Promise<PolicyViolation> => {
-  const response = await api.post<{ data: PolicyViolation }>(`/v1/policies/violations/${id}/resolve`, data);
+  const response = await api.post<{ data: PolicyViolation }>(`/api/v1/policies/violations/${id}/resolve`, data);
   return response.data.data;
 };
 
@@ -216,7 +216,7 @@ export const listOverrides = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<PolicyOverride[]> => {
-  const response = await api.get<{ data: PolicyOverride[] }>('/v1/policies/overrides', { params });
+  const response = await api.get<{ data: PolicyOverride[] }>('/api/v1/policies/overrides', { params });
   return response.data.data;
 };
 
@@ -227,24 +227,24 @@ export const createOverride = async (data: {
   reason: string;
   expiresAt?: string;
 }): Promise<PolicyOverride> => {
-  const response = await api.post<{ data: PolicyOverride }>('/v1/policies/overrides', data);
+  const response = await api.post<{ data: PolicyOverride }>('/api/v1/policies/overrides', data);
   return response.data.data;
 };
 
 // ==================== Bundle Management ====================
 
 export const listBundles = async (): Promise<PolicyBundle[]> => {
-  const response = await api.get<{ data: PolicyBundle[] }>('/v1/policies/bundles');
+  const response = await api.get<{ data: PolicyBundle[] }>('/api/v1/policies/bundles');
   return response.data.data;
 };
 
 export const getBundle = async (id: string): Promise<PolicyBundle> => {
-  const response = await api.get<{ data: PolicyBundle }>(`/v1/policies/bundles/${id}`);
+  const response = await api.get<{ data: PolicyBundle }>(`/api/v1/policies/bundles/${id}`);
   return response.data.data;
 };
 
 export const syncBundles = async (sourceUrl?: string): Promise<{ synced: number; errors: number }> => {
-  const response = await api.post<{ data: { synced: number; errors: number } }>('/v1/policies/bundles/sync', { sourceUrl });
+  const response = await api.post<{ data: { synced: number; errors: number } }>('/api/v1/policies/bundles/sync', { sourceUrl });
   return response.data.data;
 };
 
@@ -254,14 +254,14 @@ export const testPolicy = async (data: {
   rego: string;
   testCases: Array<Record<string, unknown>>;
 }): Promise<PolicyTestResult> => {
-  const response = await api.post<{ data: PolicyTestResult }>('/v1/policies/test', data);
+  const response = await api.post<{ data: PolicyTestResult }>('/api/v1/policies/test', data);
   return response.data.data;
 };
 
 // ==================== Toggle Policy ====================
 
 export const togglePolicy = async (id: string): Promise<Policy> => {
-  const response = await api.patch<{ data: Policy }>(`/v1/policies/${id}/toggle`);
+  const response = await api.patch<{ data: Policy }>(`/api/v1/policies/${id}/toggle`);
   return response.data.data;
 };
 
@@ -276,7 +276,7 @@ export const submitExemption = async (data: {
   requestedBy: string;
   expiresAt?: string;
 }): Promise<Exemption> => {
-  const response = await api.post<{ data: Exemption }>('/v1/policies/exemptions', data);
+  const response = await api.post<{ data: Exemption }>('/api/v1/policies/exemptions', data);
   return response.data.data;
 };
 
@@ -288,12 +288,12 @@ export const listExemptions = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<{ exemptions: Exemption[]; total: number }> => {
-  const response = await api.get<{ data: Exemption[]; total?: number }>('/v1/policies/exemptions', { params });
+  const response = await api.get<{ data: Exemption[]; total?: number }>('/api/v1/policies/exemptions', { params });
   return { exemptions: response.data.data, total: response.data.total ?? response.data.data.length };
 };
 
 export const getExemption = async (id: string): Promise<Exemption> => {
-  const response = await api.get<{ data: Exemption }>(`/v1/policies/exemptions/${id}`);
+  const response = await api.get<{ data: Exemption }>(`/api/v1/policies/exemptions/${id}`);
   return response.data.data;
 };
 
@@ -302,11 +302,11 @@ export const reviewExemption = async (id: string, data: {
   comment?: string;
   reviewer: string;
 }): Promise<Exemption> => {
-  const response = await api.post<{ data: Exemption }>(`/v1/policies/exemptions/${id}/review`, data);
+  const response = await api.post<{ data: Exemption }>(`/api/v1/policies/exemptions/${id}/review`, data);
   return response.data.data;
 };
 
 export const revokeExemption = async (id: string): Promise<Exemption> => {
-  const response = await api.delete<{ data: Exemption }>(`/v1/policies/exemptions/${id}`);
+  const response = await api.delete<{ data: Exemption }>(`/api/v1/policies/exemptions/${id}`);
   return response.data.data;
 };

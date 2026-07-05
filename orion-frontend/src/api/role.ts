@@ -47,32 +47,32 @@ export interface PermissionsMap {
 export const getRoles = async (params?: {
   tenantId?: string;
 }): Promise<Role[]> => {
-  const response = await api.get<{ data: Role[] }>('/v1/roles', { params });
+  const response = await api.get<{ data: Role[] }>('/api/v1/roles', { params });
   return response.data.data;
 };
 
 export const getRole = async (id: string): Promise<Role> => {
-  const response = await api.get<{ data: Role }>(`/v1/roles/${id}`);
+  const response = await api.get<{ data: Role }>(`/api/v1/roles/${id}`);
   return response.data.data;
 };
 
 export const createRole = async (data: CreateRoleInput): Promise<Role> => {
-  const response = await api.post<{ data: Role }>('/v1/roles', data);
+  const response = await api.post<{ data: Role }>('/api/v1/roles', data);
   return response.data.data;
 };
 
 export const updateRole = async (id: string, data: UpdateRoleInput): Promise<Role> => {
-  const response = await api.put<{ data: Role }>(`/v1/roles/${id}`, data);
+  const response = await api.put<{ data: Role }>(`/api/v1/roles/${id}`, data);
   return response.data.data;
 };
 
 export const deleteRole = async (id: string): Promise<void> => {
-  await api.delete(`/v1/roles/${id}`);
+  await api.delete(`/api/v1/roles/${id}`);
 };
 
 // ==================== Permissions Map ====================
 
 export const getPermissionsMap = async (): Promise<PermissionsMap> => {
-  const response = await api.get<{ data: PermissionsMap }>('/v1/roles/permissions-map');
+  const response = await api.get<{ data: PermissionsMap }>('/api/v1/roles/permissions-map');
   return response.data.data;
 };

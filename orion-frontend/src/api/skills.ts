@@ -62,45 +62,45 @@ export interface SkillListParams {
 // ---- Skill Marketplace ----
 
 export function getSkills(params?: SkillListParams) {
-  return api.get('/v1/skills', { params });
+  return api.get('/api/v1/skills', { params });
 }
 
 export function getSkill(id: string) {
-  return api.get(`/v1/skills/${id}`);
+  return api.get(`/api/v1/skills/${id}`);
 }
 
 export function createSkill(data: SkillPackageInput) {
-  return api.post('/v1/skills', data);
+  return api.post('/api/v1/skills', data);
 }
 
 export function updateSkill(id: string, data: UpdateSkillInput) {
-  return api.put(`/v1/skills/${id}`, data);
+  return api.put(`/api/v1/skills/${id}`, data);
 }
 
 export function deleteSkill(id: string) {
-  return api.delete(`/v1/skills/${id}`);
+  return api.delete(`/api/v1/skills/${id}`);
 }
 
 // ---- Skill Versions ----
 
 export function getSkillVersions(id: string) {
-  return api.get(`/v1/skills/${id}/versions`);
+  return api.get(`/api/v1/skills/${id}/versions`);
 }
 
 // ---- Install / Uninstall ----
 
 export function installSkill(id: string) {
-  return api.post(`/v1/skills/${id}/install`);
+  return api.post(`/api/v1/skills/${id}/install`);
 }
 
 export function uninstallSkill(id: string) {
-  return api.post(`/v1/skills/${id}/uninstall`);
+  return api.post(`/api/v1/skills/${id}/uninstall`);
 }
 
 // ---- Rating ----
 
 export function rateSkill(id: string, data: SkillRating) {
-  return api.post(`/v1/skills/${id}/rate`, data);
+  return api.post(`/api/v1/skills/${id}/rate`, data);
 }
 
 // ---- My Skills ----
@@ -108,11 +108,11 @@ export function rateSkill(id: string, data: SkillRating) {
 // Use query params on /skills to filter by installed status.
 
 export function getMySkills() {
-  return api.get('/v1/skills', { params: { installed: 'true' } });
+  return api.get('/api/v1/skills', { params: { installed: 'true' } });
 }
 
 export function getInstalledSkill(id: string) {
-  return api.get(`/v1/skills/${id}`);
+  return api.get(`/api/v1/skills/${id}`);
 }
 
 // ---- Instance Management ----
@@ -158,25 +158,25 @@ export interface UpdateInstanceInput {
 }
 
 export async function getSkillInstances(skillId: string) {
-  const res = await api.get(`/v1/skills/${skillId}/instances`);
+  const res = await api.get(`/api/v1/skills/${skillId}/instances`);
   const body = res.data as { data?: SkillInstance[] };
   return { data: { data: body?.data || [] } };
 }
 
 export async function createSkillInstance(skillId: string, data: CreateInstanceInput) {
-  const res = await api.post(`/v1/skills/${skillId}/instances`, data);
+  const res = await api.post(`/api/v1/skills/${skillId}/instances`, data);
   const body = res.data as { data?: SkillInstance };
   return { data: { data: body?.data } };
 }
 
 export async function updateSkillInstance(skillId: string, instanceId: string, data: UpdateInstanceInput) {
-  const res = await api.put(`/v1/skills/${skillId}/instances/${instanceId}`, data);
+  const res = await api.put(`/api/v1/skills/${skillId}/instances/${instanceId}`, data);
   const body = res.data as { data?: SkillInstance };
   return { data: { data: body?.data } };
 }
 
 export async function deleteSkillInstance(skillId: string, instanceId: string) {
-  const res = await api.delete(`/v1/skills/${skillId}/instances/${instanceId}`);
+  const res = await api.delete(`/api/v1/skills/${skillId}/instances/${instanceId}`);
   const body = res.data as { message?: string };
   return { data: { message: body?.message } };
 }
@@ -211,13 +211,13 @@ export interface ExecuteSkillInput {
 }
 
 export async function executeSkill(skillId: string, data: ExecuteSkillInput) {
-  const res = await api.post(`/v1/skills/${skillId}/execute`, data);
+  const res = await api.post(`/api/v1/skills/${skillId}/execute`, data);
   const body = res.data as { data?: SkillExecution };
   return { data: { data: body?.data } };
 }
 
 export async function getSkillExecutions(skillId: string, params?: { page?: number; limit?: number }) {
-  const res = await api.get(`/v1/skills/${skillId}/executions`, { params });
+  const res = await api.get(`/api/v1/skills/${skillId}/executions`, { params });
   const body = res.data as { data?: { executions?: Array<{ id: string; skill_id: string; instance_id?: string; tenant_id?: string; triggered_by?: string; capability?: string; input?: Record<string, unknown>; output?: Record<string, unknown>; status?: string; duration_ms?: number; error_message?: string; started_at?: string; created_at?: string; completed_at?: string; }>; total?: number; page?: number } };
   const rawExecutions = body?.data?.executions || [];
   // Map snake_case backend fields to camelCase frontend types
@@ -242,31 +242,31 @@ export async function getSkillExecutions(skillId: string, params?: { page?: numb
 // ---- Review Workflow ----
 
 export async function submitSkillForReview(skillId: string) {
-  const res = await api.post(`/v1/skills/${skillId}/submit`);
+  const res = await api.post(`/api/v1/skills/${skillId}/submit`);
   const body = res.data as { data?: SkillPackage };
   return { data: { data: body?.data } };
 }
 
 export async function approveSkill(skillId: string, reason?: string) {
-  const res = await api.post(`/v1/skills/${skillId}/approve`, { reason });
+  const res = await api.post(`/api/v1/skills/${skillId}/approve`, { reason });
   const body = res.data as { data?: SkillPackage };
   return { data: { data: body?.data } };
 }
 
 export async function rejectSkill(skillId: string, reason: string) {
-  const res = await api.post(`/v1/skills/${skillId}/reject`, { reason });
+  const res = await api.post(`/api/v1/skills/${skillId}/reject`, { reason });
   const body = res.data as { data?: SkillPackage };
   return { data: { data: body?.data } };
 }
 
 export async function archiveSkill(skillId: string, reason?: string) {
-  const res = await api.post(`/v1/skills/${skillId}/archive`, { reason });
+  const res = await api.post(`/api/v1/skills/${skillId}/archive`, { reason });
   const body = res.data as { data?: SkillPackage };
   return { data: { data: body?.data } };
 }
 
 export async function getPendingReviews(params?: { page?: number; limit?: number; category?: string }) {
-  const res = await api.get('/v1/skills/pending-review', { params });
+  const res = await api.get('/api/v1/skills/pending-review', { params });
   const body = res.data as { data?: { skills?: SkillPackage[]; total?: number; page?: number } };
   const rawSkills = body?.data?.skills || [];
   return { data: { data: { skills: rawSkills, total: body?.data?.total || 0, page: body?.data?.page || 1 } } };
@@ -287,13 +287,13 @@ export interface SkillAuditEntry {
 }
 
 export async function getSkillAuditLog(skillId: string, params?: { page?: number; limit?: number }) {
-  const res = await api.get(`/v1/skills/${skillId}/audit`, { params });
+  const res = await api.get(`/api/v1/skills/${skillId}/audit`, { params });
   const body = res.data as { data?: { items?: SkillAuditEntry[]; total?: number; page?: number } };
   return { data: { data: body?.data || { items: [], total: 0, page: 1 } } };
 }
 
 export async function getAllAuditHistory(params?: { page?: number; limit?: number; action?: string }) {
-  const res = await api.get('/v1/skills/audit', { params });
+  const res = await api.get('/api/v1/skills/audit', { params });
   const body = res.data as { data?: { logs?: Array<{ id: string; skill_id: string; skill_name?: string; action: string; actor_name?: string; actor_id?: string; reason?: string; old_status?: string; new_status?: string; created_at?: string }>; total?: number } };
   const rawLogs = body?.data?.logs || [];
   // Map snake_case backend fields to camelCase

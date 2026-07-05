@@ -108,7 +108,7 @@ export interface SecurityStatus {
 // ==================== JWT Key Rotation ====================
 
 export const getJwtKeyStatus = async (): Promise<JwtKeyStatus> => {
-  const response = await api.get<{ data: JwtKeyStatus }>('/v1/auth/keys');
+  const response = await api.get<{ data: JwtKeyStatus }>('/api/v1/auth/keys');
   return response.data.data;
 };
 
@@ -116,45 +116,45 @@ export const rotateJwtKey = async (data?: {
   rotationType?: 'scheduled' | 'manual' | 'emergency';
   reason?: string;
 }): Promise<KeyRotationResult> => {
-  const response = await api.post<{ data: KeyRotationResult }>('/v1/auth/keys/rotate', data);
+  const response = await api.post<{ data: KeyRotationResult }>('/api/v1/auth/keys/rotate', data);
   return response.data.data;
 };
 
 export const emergencyRotateJwtKey = async (): Promise<EmergencyRotationResult> => {
-  const response = await api.post<{ data: EmergencyRotationResult }>('/v1/auth/keys/emergency-rotate');
+  const response = await api.post<{ data: EmergencyRotationResult }>('/api/v1/auth/keys/emergency-rotate');
   return response.data.data;
 };
 
 // ==================== Token Blacklist ====================
 
 export const revokeToken = async (data: TokenRevokeInput): Promise<TokenRevokeResult> => {
-  const response = await api.post<{ data: TokenRevokeResult }>('/v1/auth/tokens/revoke', data);
+  const response = await api.post<{ data: TokenRevokeResult }>('/api/v1/auth/tokens/revoke', data);
   return response.data.data;
 };
 
 export const checkTokenStatus = async (tokenHash: string): Promise<TokenCheckResult> => {
-  const response = await api.get<{ data: TokenCheckResult }>(`/v1/auth/tokens/check/${tokenHash}`);
+  const response = await api.get<{ data: TokenCheckResult }>(`/api/v1/auth/tokens/check/${tokenHash}`);
   return response.data.data;
 };
 
 export const batchRevokeTokens = async (data: BatchRevokeInput): Promise<BatchRevokeResult> => {
-  const response = await api.post<{ data: BatchRevokeResult }>('/v1/auth/tokens/revoke-batch', data);
+  const response = await api.post<{ data: BatchRevokeResult }>('/api/v1/auth/tokens/revoke-batch', data);
   return response.data.data;
 };
 
 export const getTokenBlacklistStats = async (): Promise<TokenBlacklistStats> => {
-  const response = await api.get<{ data: TokenBlacklistStats }>('/v1/auth/tokens/stats');
+  const response = await api.get<{ data: TokenBlacklistStats }>('/api/v1/auth/tokens/stats');
   return response.data.data;
 };
 
 export const cleanupExpiredTokens = async (): Promise<CleanupResult> => {
-  const response = await api.post<{ data: CleanupResult }>('/v1/auth/tokens/cleanup');
+  const response = await api.post<{ data: CleanupResult }>('/api/v1/auth/tokens/cleanup');
   return response.data.data;
 };
 
 // ==================== Security Monitoring ====================
 
 export const getAuthSecurityStatus = async (): Promise<SecurityStatus> => {
-  const response = await api.get<{ data: SecurityStatus }>('/v1/auth/security/status');
+  const response = await api.get<{ data: SecurityStatus }>('/api/v1/auth/security/status');
   return response.data.data;
 };

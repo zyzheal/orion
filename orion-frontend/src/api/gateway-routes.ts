@@ -73,35 +73,35 @@ export interface GatewayRouteStats {
 }
 
 export async function getGatewayRoutes(): Promise<GatewayRoute[]> {
-  const response = await api.get<GatewayRoute[]>('/v1/gateway/routes');
+  const response = await api.get<GatewayRoute[]>('/api/v1/gateway/routes');
   return response.data;
 }
 
 export async function getGatewayRoute(id: string): Promise<GatewayRoute> {
-  const response = await api.get<GatewayRoute>(`/v1/gateway/routes/${id}`);
+  const response = await api.get<GatewayRoute>(`/api/v1/gateway/routes/${id}`);
   return response.data;
 }
 
 export async function createGatewayRoute(data: GatewayRouteInput): Promise<GatewayRoute> {
-  const response = await api.post<GatewayRoute>('/v1/gateway/routes', data);
+  const response = await api.post<GatewayRoute>('/api/v1/gateway/routes', data);
   return response.data;
 }
 
 export async function updateGatewayRoute(id: string, data: Partial<GatewayRouteInput>): Promise<GatewayRoute> {
-  const response = await api.put<GatewayRoute>(`/v1/gateway/routes/${id}`, data);
+  const response = await api.put<GatewayRoute>(`/api/v1/gateway/routes/${id}`, data);
   return response.data;
 }
 
 export async function deleteGatewayRoute(id: string): Promise<void> {
-  await api.delete<void>(`/v1/gateway/routes/${id}`);
+  await api.delete<void>(`/api/v1/gateway/routes/${id}`);
 }
 
 export async function toggleGatewayRoute(id: string, enabled: boolean): Promise<GatewayRoute> {
-  const response = await api.patch<GatewayRoute>(`/v1/gateway/routes/${id}/toggle`, { enabled });
+  const response = await api.patch<GatewayRoute>(`/api/v1/gateway/routes/${id}/toggle`, { enabled });
   return response.data;
 }
 
 export async function getGatewayRouteStats(): Promise<GatewayRouteStats> {
-  const response = await api.get<GatewayRouteStats>('/v1/gateway/routes/stats');
+  const response = await api.get<GatewayRouteStats>('/api/v1/gateway/routes/stats');
   return response.data;
 }

@@ -1,7 +1,7 @@
 /**
  * PipelineSse API Service
  * Auto-generated from backend pipeline-sse-routes.ts
- * Prefix: /v1/pipelines
+ * Prefix: /api/v1/pipelines
  */
 import { api } from './client';
 
@@ -16,16 +16,16 @@ export interface PipelineSse {
 }
 
 export const listPipelineSse = async (params?: Record<string, unknown>): Promise<{ data: PipelineSse[]; total: number }> => {
-  const response = await api.get<{ data: PipelineSse[]; total: number }>('/v1/pipelines/pipelines/sse/logs', { params });
+  const response = await api.get<{ data: PipelineSse[]; total: number }>('/api/v1/pipelines/pipelines/sse/logs', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createPipelineSsePipelinesSsePublishLog = async (data?: Partial<PipelineSse>): Promise<PipelineSse> => {
-  const response = await api.post<PipelineSse>('/v1/pipelines/pipelines/sse/publish/log', data);
+  const response = await api.post<PipelineSse>('/api/v1/pipelines/pipelines/sse/publish/log', data);
   return response.data;
 };
 
 export const createPipelineSsePipelinesSsePublishStatus = async (data?: Partial<PipelineSse>): Promise<PipelineSse> => {
-  const response = await api.post<PipelineSse>('/v1/pipelines/pipelines/sse/publish/status', data);
+  const response = await api.post<PipelineSse>('/api/v1/pipelines/pipelines/sse/publish/status', data);
   return response.data;
 };

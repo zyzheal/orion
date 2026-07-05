@@ -41,49 +41,49 @@ export interface BreakingChange {
 export const governanceApi = {
   // Contracts
   listContracts: async (params?: { service?: string; status?: string }) => {
-    const response = await apiClient.get('/v1/api-governance/contracts', { params });
+    const response = await apiClient.get('/api/v1/api-governance/contracts', { params });
     return response.data;
   },
 
   getContract: async (contractId: string) => {
-    const response = await apiClient.get(`/v1/api-governance/contracts/${contractId}`);
+    const response = await apiClient.get(`/api/v1/api-governance/contracts/${contractId}`);
     return response.data as APIContract;
   },
 
   uploadContract: async (data: { service_name: string; version: string; spec: Record<string, unknown> }) => {
-    const response = await apiClient.post('/v1/api-governance/contracts/upload', data);
+    const response = await apiClient.post('/api/v1/api-governance/contracts/upload', data);
     return response.data as APIContract;
   },
 
   verifyContract: async (contractId: string, scope?: 'provider' | 'consumer') => {
-    const response = await apiClient.post(`/v1/api-governance/contracts/${contractId}/verify`, { scope });
+    const response = await apiClient.post(`/api/v1/api-governance/contracts/${contractId}/verify`, { scope });
     return response.data as ContractVerificationResult;
   },
 
   getContractChanges: async (contractId: string) => {
-    const response = await apiClient.get(`/v1/api-governance/contracts/${contractId}/changes`);
+    const response = await apiClient.get(`/api/v1/api-governance/contracts/${contractId}/changes`);
     return response.data;
   },
 
   // Versions
   listVersions: async (params?: { service?: string }) => {
-    const response = await apiClient.get('/v1/api-governance/versions', { params });
+    const response = await apiClient.get('/api/v1/api-governance/versions', { params });
     return response.data;
   },
 
   updateVersionStatus: async (versionId: string, status: 'active' | 'deprecated' | 'retired') => {
-    const response = await apiClient.put(`/v1/api-governance/versions/${versionId}/status`, { status });
+    const response = await apiClient.put(`/api/v1/api-governance/versions/${versionId}/status`, { status });
     return response.data;
   },
 
   checkCompatibility: async (contractId: string, newSpec: Record<string, unknown>) => {
-    const response = await apiClient.post(`/v1/api-governance/versions/${contractId}/compatibility-check`, { newSpec });
+    const response = await apiClient.post(`/api/v1/api-governance/versions/${contractId}/compatibility-check`, { newSpec });
     return response.data as CompatibilityCheckResult;
   },
 
   // Impact Analysis
   analyzeImpact: async (data: { contract_id: string; changes: Array<{ endpoint: string; change_type: string }> }) => {
-    const response = await apiClient.post('/v1/api-governance/impact-analysis', data);
+    const response = await apiClient.post('/api/v1/api-governance/impact-analysis', data);
     return response.data;
   },
 };

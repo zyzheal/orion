@@ -31,29 +31,29 @@ import type {
 
 /**
  * 获取成本概览
- * GET /v1/finops/cost-overview
+ * GET /api/v1/finops/cost-overview
  */
 export const getCostOverview = async (
   params?: { period?: string; tenantId?: string }
 ): Promise<CostSummaryResponse['summary']> => {
-  const response = await api.get<ApiResponse<CostSummaryResponse>>('/v1/finops/cost-overview', { params });
+  const response = await api.get<ApiResponse<CostSummaryResponse>>('/api/v1/finops/cost-overview', { params });
   return response.data.data.summary;
 };
 
 /**
  * 获取成本分解
- * GET /v1/finops/cost-breakdown
+ * GET /api/v1/finops/cost-breakdown
  */
 export const getCostBreakdown = async (
   params?: { dimension?: string; tenantId?: string }
 ): Promise<CostBreakdownItem[]> => {
-  const response = await api.get<ApiResponse<CostBreakdownResponse>>('/v1/finops/cost-breakdown', { params });
+  const response = await api.get<ApiResponse<CostBreakdownResponse>>('/api/v1/finops/cost-breakdown', { params });
   return response.data.data.breakdown;
 };
 
 /**
  * 获取成本趋势
- * GET /v1/finops/track/:entityType/:entityId/trend
+ * GET /api/v1/finops/track/:entityType/:entityId/trend
  */
 export const getCostTrend = async (
   entityType?: string,
@@ -63,7 +63,7 @@ export const getCostTrend = async (
   const et = entityType || 'project';
   const eid = entityId || 'default';
   const response = await api.get<ApiResponse<CostTrendResponse>>(
-    `/v1/finops/track/${et}/${eid}/trend`,
+    `/api/v1/finops/track/${et}/${eid}/trend`,
     { params }
   );
   return response.data.data.trend;
@@ -75,85 +75,85 @@ export const getCostTrend = async (
 
 /**
  * 获取预算列表
- * GET /v1/finops/budgets
+ * GET /api/v1/finops/budgets
  */
 export const getBudgets = async (
   params?: { entityType?: string; entityId?: string }
 ): Promise<Budget[]> => {
-  const response = await api.get<ApiResponse<{ budgets: Budget[] }>>('/v1/finops/budgets', { params });
+  const response = await api.get<ApiResponse<{ budgets: Budget[] }>>('/api/v1/finops/budgets', { params });
   return response.data.data.budgets;
 };
 
 /**
  * 获取单个预算
- * GET /v1/finops/budgets/:id
+ * GET /api/v1/finops/budgets/:id
  */
 export const getBudget = async (id: string): Promise<Budget> => {
-  const response = await api.get<ApiResponse<{ budget: Budget }>>(`/v1/finops/budgets/${id}`);
+  const response = await api.get<ApiResponse<{ budget: Budget }>>(`/api/v1/finops/budgets/${id}`);
   return response.data.data.budget;
 };
 
 /**
  * 创建预算
- * POST /v1/finops/budgets
+ * POST /api/v1/finops/budgets
  */
 export const createBudget = async (input: BudgetInput): Promise<Budget> => {
-  const response = await api.post<ApiResponse<{ budget: Budget }>>('/v1/finops/budgets', input);
+  const response = await api.post<ApiResponse<{ budget: Budget }>>('/api/v1/finops/budgets', input);
   return response.data.data.budget;
 };
 
 /**
  * 更新预算
- * PUT /v1/finops/budgets/:id
+ * PUT /api/v1/finops/budgets/:id
  */
 export const updateBudget = async (id: string, input: BudgetUpdateInput): Promise<Budget> => {
-  const response = await api.put<ApiResponse<{ budget: Budget }>>(`/v1/finops/budgets/${id}`, input);
+  const response = await api.put<ApiResponse<{ budget: Budget }>>(`/api/v1/finops/budgets/${id}`, input);
   return response.data.data.budget;
 };
 
 /**
  * 删除预算
- * DELETE /v1/finops/budgets/:id
+ * DELETE /api/v1/finops/budgets/:id
  */
 export const deleteBudget = async (id: string): Promise<void> => {
-  await api.delete(`/v1/finops/budgets/${id}`);
+  await api.delete(`/api/v1/finops/budgets/${id}`);
 };
 
 /**
  * 获取预算状态
- * GET /v1/finops/budgets/:id/status
+ * GET /api/v1/finops/budgets/:id/status
  */
 export const getBudgetStatus = async (id: string): Promise<BudgetStatus> => {
-  const response = await api.get<ApiResponse<{ status: BudgetStatus }>>(`/v1/finops/budgets/${id}/status`);
+  const response = await api.get<ApiResponse<{ status: BudgetStatus }>>(`/api/v1/finops/budgets/${id}/status`);
   return response.data.data.status;
 };
 
 /**
  * 获取预算预测
- * GET /v1/finops/budgets/:id/forecast
+ * GET /api/v1/finops/budgets/:id/forecast
  */
 export const getBudgetForecast = async (id: string): Promise<BudgetForecast> => {
-  const response = await api.get<ApiResponse<{ forecast: BudgetForecast }>>(`/v1/finops/budgets/${id}/forecast`);
+  const response = await api.get<ApiResponse<{ forecast: BudgetForecast }>>(`/api/v1/finops/budgets/${id}/forecast`);
   return response.data.data.forecast;
 };
 
 /**
  * 检查预算告警
- * POST /v1/finops/budgets/check-alerts
+ * POST /api/v1/finops/budgets/check-alerts
  */
 export const checkBudgetAlerts = async (): Promise<{ triggered: AlertTrigger[]; count: number }> => {
-  const response = await api.post<ApiResponse<{ triggered: AlertTrigger[]; count: number }>>('/v1/finops/budgets/check-alerts');
+  const response = await api.post<ApiResponse<{ triggered: AlertTrigger[]; count: number }>>('/api/v1/finops/budgets/check-alerts');
   return response.data.data;
 };
 
 /**
  * 获取告警触发记录
- * GET /v1/finops/budgets/alert-triggers
+ * GET /api/v1/finops/budgets/alert-triggers
  */
 export const getAlertTriggers = async (
   params?: { budgetId?: string; entityType?: string }
 ): Promise<AlertTrigger[]> => {
-  const response = await api.get<ApiResponse<{ triggers: AlertTrigger[] }>>('/v1/finops/budgets/alert-triggers', { params });
+  const response = await api.get<ApiResponse<{ triggers: AlertTrigger[] }>>('/api/v1/finops/budgets/alert-triggers', { params });
   return response.data.data.triggers;
 };
 
@@ -163,10 +163,10 @@ export const getAlertTriggers = async (
 
 /**
  * 获取成本预测列表
- * GET /v1/finops/forecasts
+ * GET /api/v1/finops/forecasts
  */
 export const getForecasts = async (): Promise<BudgetForecast[]> => {
-  const response = await api.get<ApiResponse<{ forecasts: BudgetForecast[]; count: number }>>('/v1/finops/forecasts');
+  const response = await api.get<ApiResponse<{ forecasts: BudgetForecast[]; count: number }>>('/api/v1/finops/forecasts');
   return response.data.data.forecasts;
 };
 
@@ -176,13 +176,13 @@ export const getForecasts = async (): Promise<BudgetForecast[]> => {
 
 /**
  * 获取优化建议列表
- * GET /v1/finops/recommendations
+ * GET /api/v1/finops/recommendations
  */
 export const getRecommendations = async (
   params?: { category?: string; priority?: string; status?: string }
 ): Promise<OptimizationRecommendation[]> => {
   const response = await api.get<ApiResponse<{ optimizations: OptimizationRecommendation[] }>>(
-    '/v1/finops/recommendations',
+    '/api/v1/finops/recommendations',
     { params }
   );
   return response.data.data.optimizations;
@@ -190,14 +190,14 @@ export const getRecommendations = async (
 
 /**
  * 更新优化建议状态
- * PATCH /v1/finops/recommendations/:id/status
+ * PATCH /api/v1/finops/recommendations/:id/status
  */
 export const updateRecommendationStatus = async (
   id: string,
   status: string
 ): Promise<OptimizationRecommendation> => {
   const response = await api.patch<ApiResponse<{ optimization: OptimizationRecommendation }>>(
-    `/v1/finops/recommendations/${id}/status`,
+    `/api/v1/finops/recommendations/${id}/status`,
     { status }
   );
   return response.data.data.optimization;
@@ -205,21 +205,21 @@ export const updateRecommendationStatus = async (
 
 /**
  * 删除优化建议
- * DELETE /v1/finops/recommendations/:id
+ * DELETE /api/v1/finops/recommendations/:id
  */
 export const deleteRecommendation = async (id: string): Promise<void> => {
-  await api.delete(`/v1/finops/recommendations/${id}`);
+  await api.delete(`/api/v1/finops/recommendations/${id}`);
 };
 
 /**
  * 获取资源调整大小建议
- * GET /v1/finops/recommendations/right-sizing
+ * GET /api/v1/finops/recommendations/right-sizing
  */
 export const getRightSizingRecommendations = async (
   params?: { tenantId?: string; environment?: string }
 ): Promise<RightSizingRecommendation[]> => {
   const response = await api.get<ApiResponse<{ recommendations: RightSizingRecommendation[] }>>(
-    '/v1/finops/recommendations/right-sizing',
+    '/api/v1/finops/recommendations/right-sizing',
     { params }
   );
   return response.data.data.recommendations;
@@ -227,10 +227,10 @@ export const getRightSizingRecommendations = async (
 
 /**
  * 获取预估节省金额
- * GET /v1/finops/recommendations/savings
+ * GET /api/v1/finops/recommendations/savings
  */
 export const getSavingsMetrics = async (): Promise<SavingsMetrics> => {
-  const response = await api.get<ApiResponse<{ savings: SavingsMetrics }>>('/v1/finops/recommendations/savings');
+  const response = await api.get<ApiResponse<{ savings: SavingsMetrics }>>('/api/v1/finops/recommendations/savings');
   return response.data.data.savings;
 };
 
@@ -240,10 +240,10 @@ export const getSavingsMetrics = async (): Promise<SavingsMetrics> => {
 
 /**
  * 获取报告列表
- * GET /v1/finops/reports
+ * GET /api/v1/finops/reports
  */
 export const getReports = async (params?: { tenantId?: string }): Promise<any[]> => {
-  const response = await api.get<ApiResponse<{ reports: any[] }>>('/v1/finops/reports', { params });
+  const response = await api.get<ApiResponse<{ reports: any[] }>>('/api/v1/finops/reports', { params });
   return response.data.data.reports;
 };
 
@@ -251,7 +251,7 @@ export const getReports = async (params?: { tenantId?: string }): Promise<any[]>
  * 导出成本报表
  */
 export const exportCostReport = async (params?: Record<string, any>): Promise<Blob> => {
-  const response = await api.get('/v1/finops/chargeback', {
+  const response = await api.get('/api/v1/finops/chargeback', {
     params,
     responseType: 'blob',
   });
@@ -264,10 +264,10 @@ export const exportCostReport = async (params?: Record<string, any>): Promise<Bl
 
 /**
  * 获取 ROI 汇总
- * GET /v1/finops/roi/summary
+ * GET /api/v1/finops/roi/summary
  */
 export const getROISummary = async (): Promise<ROISummary> => {
-  const response = await api.get<ApiResponse<{ summary: ROISummary }>>('/v1/finops/roi/summary');
+  const response = await api.get<ApiResponse<{ summary: ROISummary }>>('/api/v1/finops/roi/summary');
   return response.data.data.summary;
 };
 
@@ -277,10 +277,10 @@ export const getROISummary = async (): Promise<ROISummary> => {
 
 /**
  * 获取 FinOps 指标
- * GET /v1/finops/metrics
+ * GET /api/v1/finops/metrics
  */
 export const getFinOpsMetrics = async (): Promise<FinOpsMetrics> => {
-  const response = await api.get<ApiResponse<FinOpsMetrics>>('/v1/finops/metrics');
+  const response = await api.get<ApiResponse<FinOpsMetrics>>('/api/v1/finops/metrics');
   return response.data.data;
 };
 

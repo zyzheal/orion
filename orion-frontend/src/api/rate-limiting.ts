@@ -37,25 +37,25 @@ export interface RateLimitStats {
 }
 
 export async function getRateLimits(params?: { tenantId?: string; enabled?: boolean }) {
-  return api.get<RateLimitRule[]>('/v1/rate-limits', { params });
+  return api.get<RateLimitRule[]>('/api/v1/rate-limits', { params });
 }
 
 export async function createRateLimit(data: Omit<RateLimitRule, 'id' | 'createdAt' | 'updatedAt'>) {
-  return api.post<RateLimitRule>('/v1/rate-limits', data);
+  return api.post<RateLimitRule>('/api/v1/rate-limits', data);
 }
 
 export async function updateRateLimit(id: string, data: Partial<RateLimitRule>) {
-  return api.put<RateLimitRule>(`/v1/rate-limits/${id}`, data);
+  return api.put<RateLimitRule>(`/api/v1/rate-limits/${id}`, data);
 }
 
 export async function deleteRateLimit(id: string) {
-  return api.delete<void>(`/v1/rate-limits/${id}`);
+  return api.delete<void>(`/api/v1/rate-limits/${id}`);
 }
 
 export async function toggleRateLimit(id: string, enabled: boolean) {
-  return api.post<RateLimitRule>(`/v1/rate-limits/${id}/toggle`, { enabled });
+  return api.post<RateLimitRule>(`/api/v1/rate-limits/${id}/toggle`, { enabled });
 }
 
 export async function getRateLimitStats() {
-  return api.get<RateLimitStats>('/v1/rate-limits/stats');
+  return api.get<RateLimitStats>('/api/v1/rate-limits/stats');
 }

@@ -94,7 +94,7 @@ export interface PluginExecutionResult {
  * GET /api/v1/plugins-spi/stats
  */
 export async function getSPIStats() {
-  const res = await api.get<SPIStats>('/v1/plugins-spi/stats');
+  const res = await api.get<SPIStats>('/api/v1/plugins-spi/stats');
   return res.data;
 }
 
@@ -103,7 +103,7 @@ export async function getSPIStats() {
  * GET /api/v1/plugins-spi/plugins
  */
 export async function getExtensionPoints() {
-  const res = await api.get<PluginInfo[]>('/v1/plugins-spi/plugins');
+  const res = await api.get<PluginInfo[]>('/api/v1/plugins-spi/plugins');
 
   // 适配前端: 将插件列表转为扩展点格式 (按 capability 分组)
   const capabilityMap = new Map<string, number>();
@@ -142,7 +142,7 @@ export async function getExtensionPoints() {
  * GET /api/v1/plugins-spi/plugins
  */
 export async function getPluginRegistrations() {
-  const res = await api.get<PluginInfo[]>('/v1/plugins-spi/plugins');
+  const res = await api.get<PluginInfo[]>('/api/v1/plugins-spi/plugins');
 
   const registrations: PluginRegistration[] = res.data.map((p) => ({
     id: p.name,
@@ -207,7 +207,7 @@ export async function createRegistration(input: Omit<PluginRegistration, 'id' | 
     capabilities: [input.extensionPointName],
     dependencies: [],
   };
-  const res = await api.post<PluginInfo>('/v1/plugins-spi/plugins', { manifest, config: input.config });
+  const res = await api.post<PluginInfo>('/api/v1/plugins-spi/plugins', { manifest, config: input.config });
   return res.data;
 }
 
@@ -215,14 +215,14 @@ export async function createRegistration(input: Omit<PluginRegistration, 'id' | 
  * 删除注册 (卸载插件)
  */
 export async function deleteRegistration(id: string) {
-  await api.delete(`/v1/plugins-spi/plugins/${id}`);
+  await api.delete(`/api/v1/plugins-spi/plugins/${id}`);
 }
 
 /**
  * 获取插件详情
  */
 export async function getPluginDetails(pluginName: string) {
-  const res = await api.get<PluginInfo>(`/v1/plugins-spi/plugins/${pluginName}`);
+  const res = await api.get<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}`);
   return res.data;
 }
 
@@ -230,7 +230,7 @@ export async function getPluginDetails(pluginName: string) {
  * 更新插件配置
  */
 export async function updatePluginConfig(pluginName: string, config: Record<string, unknown>) {
-  const res = await api.put<PluginInfo>(`/v1/plugins-spi/plugins/${pluginName}/config`, { config });
+  const res = await api.put<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/config`, { config });
   return res.data;
 }
 
@@ -238,7 +238,7 @@ export async function updatePluginConfig(pluginName: string, config: Record<stri
  * 启用插件
  */
 export async function enablePlugin(pluginName: string) {
-  const res = await api.post<PluginInfo>(`/v1/plugins-spi/plugins/${pluginName}/enable`);
+  const res = await api.post<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/enable`);
   return res.data;
 }
 
@@ -246,7 +246,7 @@ export async function enablePlugin(pluginName: string) {
  * 禁用插件
  */
 export async function disablePlugin(pluginName: string) {
-  const res = await api.post<PluginInfo>(`/v1/plugins-spi/plugins/${pluginName}/disable`);
+  const res = await api.post<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/disable`);
   return res.data;
 }
 
@@ -254,7 +254,7 @@ export async function disablePlugin(pluginName: string) {
  * 卸载插件
  */
 export async function uninstallPlugin(pluginName: string) {
-  const res = await api.post<PluginInfo>(`/v1/plugins-spi/plugins/${pluginName}/uninstall`);
+  const res = await api.post<PluginInfo>(`/api/v1/plugins-spi/plugins/${pluginName}/uninstall`);
   return res.data;
 }
 
@@ -262,7 +262,7 @@ export async function uninstallPlugin(pluginName: string) {
  * 获取插件健康状态
  */
 export async function getPluginHealth(pluginName: string) {
-  const res = await api.get<{ status: 'healthy' | 'unhealthy'; message?: string }>(`/v1/plugins-spi/plugins/${pluginName}/health`);
+  const res = await api.get<{ status: 'healthy' | 'unhealthy'; message?: string }>(`/api/v1/plugins-spi/plugins/${pluginName}/health`);
   return res.data;
 }
 
@@ -270,7 +270,7 @@ export async function getPluginHealth(pluginName: string) {
  * 执行插件
  */
 export async function executePlugin(pluginName: string, input?: Record<string, unknown>, timeout?: number) {
-  const res = await api.post<PluginExecutionResult>(`/v1/plugins-spi/plugins/${pluginName}/execute`, { input, timeout });
+  const res = await api.post<PluginExecutionResult>(`/api/v1/plugins-spi/plugins/${pluginName}/execute`, { input, timeout });
   return res.data;
 }
 
@@ -278,6 +278,6 @@ export async function executePlugin(pluginName: string, input?: Record<string, u
  * 发现插件 (扫描插件目录)
  */
 export async function discoverPlugins() {
-  const res = await api.post<{ found: number; plugins: PluginInfo[] }>('/v1/plugins-spi/discover');
+  const res = await api.post<{ found: number; plugins: PluginInfo[] }>('/api/v1/plugins-spi/discover');
   return res.data;
 }

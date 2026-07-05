@@ -148,7 +148,7 @@ export interface SuspensionImpact {
 // ==================== Ticket CRUD ====================
 
 export const createTicket = (data: CreateTicketPayload) =>
-  api.post<Ticket>('/v1/tickets', data);
+  api.post<Ticket>('/api/v1/tickets', data);
 
 export const createTicketFromAlert = (data: {
   alertId: string;
@@ -157,7 +157,7 @@ export const createTicketFromAlert = (data: {
   message: string;
   tags?: Record<string, string>;
   ruleName?: string;
-}) => api.post<Ticket>('/v1/tickets/from-alert', data);
+}) => api.post<Ticket>('/api/v1/tickets/from-alert', data);
 
 export const createTicketFromIncident = (data: {
   incidentId: string;
@@ -165,21 +165,21 @@ export const createTicketFromIncident = (data: {
   severity: string;
   affectedServices: string[];
   rootCause?: string;
-}) => api.post<Ticket>('/v1/tickets/from-incident', data);
+}) => api.post<Ticket>('/api/v1/tickets/from-incident', data);
 
 export const getTicket = (id: string) =>
-  api.get<Ticket>(`/v1/tickets/${id}`);
+  api.get<Ticket>(`/api/v1/tickets/${id}`);
 
 export const getTickets = (params?: Record<string, unknown>) =>
-  api.get<{ items: Ticket[]; total: number }>('/v1/tickets', { params });
+  api.get<{ items: Ticket[]; total: number }>('/api/v1/tickets', { params });
 
 export const listTickets = getTickets;
 
 export const updateTicket = (id: string, data: Partial<Ticket>) =>
-  api.put<Ticket>(`/v1/tickets/${id}`, data);
+  api.put<Ticket>(`/api/v1/tickets/${id}`, data);
 
 export const deleteTicket = (id: string) =>
-  api.delete(`/v1/tickets/${id}`);
+  api.delete(`/api/v1/tickets/${id}`);
 
 // ==================== Workflow ====================
 
@@ -187,154 +187,154 @@ export const transitionStatus = (id: string, data: {
   toStatus: TicketStatus;
   performedBy: string;
   reason?: string;
-}) => api.post(`/v1/tickets/${id}/transition`, data);
+}) => api.post(`/api/v1/tickets/${id}/transition`, data);
 
 export const assignTicket = (id: string, data: string | { assignee: string; assignedBy?: string; reason?: string }) =>
-  api.post(`/v1/tickets/${id}/assign`, typeof data === 'string' ? { assignee: data } : data);
+  api.post(`/api/v1/tickets/${id}/assign`, typeof data === 'string' ? { assignee: data } : data);
 
 export const escalateTicket = (id: string, data: { escalatedBy: string; reason?: string }) =>
-  api.post(`/v1/tickets/${id}/escalate`, data);
+  api.post(`/api/v1/tickets/${id}/escalate`, data);
 
 export const resolveTicket = (id: string, data?: string | { performedBy?: string; resolutionNote?: string }) =>
-  api.post(`/v1/tickets/${id}/resolve`, typeof data === 'string' ? { resolutionNote: data } : data);
+  api.post(`/api/v1/tickets/${id}/resolve`, typeof data === 'string' ? { resolutionNote: data } : data);
 
 export const closeTicket = (id: string, data?: string | { performedBy?: string; reason?: string }) =>
-  api.post(`/v1/tickets/${id}/close`, typeof data === 'string' ? { reason: data } : data);
+  api.post(`/api/v1/tickets/${id}/close`, typeof data === 'string' ? { reason: data } : data);
 
 export const getWorkflowHistory = (ticketId: string) =>
-  api.get<{ items: WorkflowHistoryEntry[] }>(`/v1/tickets/${ticketId}/history`);
+  api.get<{ items: WorkflowHistoryEntry[] }>(`/api/v1/tickets/${ticketId}/history`);
 
 // ==================== Assignment Rules ====================
 
 export const addAssignmentRule = (rule: Omit<AssignmentRule, 'id'>) =>
-  api.post<AssignmentRule>('/v1/ticketing/rules', rule);
+  api.post<AssignmentRule>('/api/v1/ticketing/rules', rule);
 
 export const getAssignmentRules = () =>
-  api.get<{ items: AssignmentRule[] }>('/v1/ticketing/rules');
+  api.get<{ items: AssignmentRule[] }>('/api/v1/ticketing/rules');
 
 export const removeAssignmentRule = (ruleId: string) =>
-  api.delete(`/v1/ticketing/rules/${ruleId}`);
+  api.delete(`/api/v1/ticketing/rules/${ruleId}`);
 
 // ==================== Relations ====================
 
 export const addRelation = (ticketId: string, data: {
   relatedTicketId: string;
   relationType: string;
-}) => api.post(`/v1/tickets/${ticketId}/relations`, data);
+}) => api.post(`/api/v1/tickets/${ticketId}/relations`, data);
 
 export const getRelations = (ticketId: string) =>
-  api.get<{ items: TicketRelation[] }>(`/v1/tickets/${ticketId}/relations`);
+  api.get<{ items: TicketRelation[] }>(`/api/v1/tickets/${ticketId}/relations`);
 
 export const getTicketRelations = getRelations;
 
 export const findRelatedTickets = (ticketId: string, params?: { maxResults?: number; minConfidence?: number }) =>
-  api.get<{ items: TicketRelation[] }>(`/v1/tickets/${ticketId}/related`, { params });
+  api.get<{ items: TicketRelation[] }>(`/api/v1/tickets/${ticketId}/related`, { params });
 
 export const detectDuplicates = (ticketId: string, params?: { threshold?: number }) =>
-  api.get<{ items: TicketRelation[] }>(`/v1/tickets/${ticketId}/duplicates`, { params });
+  api.get<{ items: TicketRelation[] }>(`/api/v1/tickets/${ticketId}/duplicates`, { params });
 
 export const correlateRootCause = (ticketIds: string[]) =>
-  api.post('/v1/tickets/correlate', { ticketIds });
+  api.post('/api/v1/tickets/correlate', { ticketIds });
 
 // ==================== Comments & Attachments ====================
 
 export const getComments = (ticketId: string) =>
-  api.get<{ items: unknown[] }>(`/v1/tickets/${ticketId}/comments`);
+  api.get<{ items: unknown[] }>(`/api/v1/tickets/${ticketId}/comments`);
 
 export const getAttachments = (ticketId: string) =>
-  api.get<{ items: unknown[] }>(`/v1/tickets/${ticketId}/attachments`);
+  api.get<{ items: unknown[] }>(`/api/v1/tickets/${ticketId}/attachments`);
 
 // ==================== SLA ====================
 
 export const addSLATarget = (target: SLATarget) =>
-  api.post('/v1/ticketing/sla', target);
+  api.post('/api/v1/ticketing/sla', target);
 
 export const getTicketSLA = (ticketId: string) =>
-  api.get(`/v1/tickets/${ticketId}/sla`);
+  api.get(`/api/v1/tickets/${ticketId}/sla`);
 
 // ==================== Reports ====================
 
 export const getSLACompliance = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/reports/sla', { params });
+  api.get('/api/v1/tickets/reports/sla', { params });
 
 export const getResolutionStats = () =>
-  api.get('/v1/tickets/reports/resolution');
+  api.get('/api/v1/tickets/reports/resolution');
 
 export const getBacklogAnalysis = () =>
-  api.get('/v1/tickets/reports/backlog');
+  api.get('/api/v1/tickets/reports/backlog');
 
 export const getTrendReport = (params?: { days?: number; granularity?: string }) =>
-  api.get('/v1/tickets/reports/trends', { params });
+  api.get('/api/v1/tickets/reports/trends', { params });
 
 export const getStatistics = () =>
-  api.get('/v1/tickets/reports/statistics');
+  api.get('/api/v1/tickets/reports/statistics');
 
 // ==================== Dispatch ====================
 
 export const registerEngineer = (profile: Omit<EngineerProfile, 'id'>) =>
-  api.post<EngineerProfile>('/v1/tickets/dispatch/engineers', profile);
+  api.post<EngineerProfile>('/api/v1/tickets/dispatch/engineers', profile);
 
 export const listEngineers = () =>
-  api.get<{ items: EngineerProfile[] }>('/v1/tickets/dispatch/engineers');
+  api.get<{ items: EngineerProfile[] }>('/api/v1/tickets/dispatch/engineers');
 
 export const getEngineer = (engineerId: string) =>
-  api.get<EngineerProfile>(`/v1/tickets/dispatch/engineers/${engineerId}`);
+  api.get<EngineerProfile>(`/api/v1/tickets/dispatch/engineers/${engineerId}`);
 
 export const autoDispatch = (ticketId: string, options?: {
   assignedBy?: string;
   forceDispatch?: boolean;
-}) => api.post<DispatchResult>(`/v1/tickets/dispatch/auto/${ticketId}`, options);
+}) => api.post<DispatchResult>(`/api/v1/tickets/dispatch/auto/${ticketId}`, options);
 
 export const manualDispatch = (ticketId: string, engineerId: string, reason?: string) =>
-  api.post<DispatchResult>(`/v1/tickets/dispatch/manual/${ticketId}`, { engineerId, reason });
+  api.post<DispatchResult>(`/api/v1/tickets/dispatch/manual/${ticketId}`, { engineerId, reason });
 
 export const getBestMatch = (ticketId: string) =>
-  api.get<DispatchResult>(`/v1/tickets/dispatch/best-match/${ticketId}`);
+  api.get<DispatchResult>(`/api/v1/tickets/dispatch/best-match/${ticketId}`);
 
 export const calculateDispatchScore = (ticketId: string, engineerId: string) =>
-  api.post('/v1/tickets/dispatch/score', { ticketId, engineerId });
+  api.post('/api/v1/tickets/dispatch/score', { ticketId, engineerId });
 
 export const getDispatchQueueStatus = () =>
-  api.get('/v1/tickets/dispatch/queue/status');
+  api.get('/api/v1/tickets/dispatch/queue/status');
 
 export const getDispatchQueue = () =>
-  api.get<{ entries: unknown[] }>('/v1/tickets/dispatch/queue/entries');
+  api.get<{ entries: unknown[] }>('/api/v1/tickets/dispatch/queue/entries');
 
 export const getSLAAlerts = (params?: { type?: string; limit?: number }) =>
-  api.get('/v1/tickets/dispatch/sla-alerts', { params });
+  api.get('/api/v1/tickets/dispatch/sla-alerts', { params });
 
 export const addDispatchRule = (rule: Omit<DispatchRule, 'id'>) =>
-  api.post<DispatchRule>('/v1/tickets/dispatch/rules', rule);
+  api.post<DispatchRule>('/api/v1/tickets/dispatch/rules', rule);
 
 export const getDispatchRules = () =>
-  api.get<{ items: DispatchRule[] }>('/v1/tickets/dispatch/rules');
+  api.get<{ items: DispatchRule[] }>('/api/v1/tickets/dispatch/rules');
 
 export const getLoadBalanceReport = () =>
-  api.get('/v1/tickets/dispatch/load-balance/report');
+  api.get('/api/v1/tickets/dispatch/load-balance/report');
 
 export const getReassignmentSuggestions = () =>
-  api.get('/v1/tickets/dispatch/load-balance/suggestions');
+  api.get('/api/v1/tickets/dispatch/load-balance/suggestions');
 
 export const getDispatchMetrics = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/dispatch/reports/metrics', { params });
+  api.get('/api/v1/tickets/dispatch/reports/metrics', { params });
 
 export const getAssignmentSuccessMetrics = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/dispatch/reports/assignment-success', { params });
+  api.get('/api/v1/tickets/dispatch/reports/assignment-success', { params });
 
 export const getTimeToAssignmentStats = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/dispatch/reports/time-to-assignment', { params });
+  api.get('/api/v1/tickets/dispatch/reports/time-to-assignment', { params });
 
 export const getEngineerPerformance = (engineerId: string) =>
-  api.get(`/v1/tickets/dispatch/reports/performance/${engineerId}`);
+  api.get(`/api/v1/tickets/dispatch/reports/performance/${engineerId}`);
 
 export const getAllEngineerPerformances = () =>
-  api.get('/v1/tickets/dispatch/reports/performance');
+  api.get('/api/v1/tickets/dispatch/reports/performance');
 
 export const updateDispatchWeights = (weights: Partial<DispatchWeights>) =>
-  api.put('/v1/tickets/dispatch/weights', weights);
+  api.put('/api/v1/tickets/dispatch/weights', weights);
 
 export const getDispatchWeights = () =>
-  api.get<DispatchWeights>('/v1/tickets/dispatch/weights');
+  api.get<DispatchWeights>('/api/v1/tickets/dispatch/weights');
 
 // ==================== Transfer ====================
 
@@ -342,13 +342,13 @@ export const transferTicket = (ticketId: string, data: {
   toEngineer: string;
   initiatedBy: string;
   reason: string;
-}) => api.post(`/v1/tickets/transfer/${ticketId}`, data);
+}) => api.post(`/api/v1/tickets/transfer/${ticketId}`, data);
 
 export const getTransferHistory = (ticketId: string) =>
-  api.get<{ items: TransferRecord[] }>(`/v1/tickets/transfer/${ticketId}/history`);
+  api.get<{ items: TransferRecord[] }>(`/api/v1/tickets/transfer/${ticketId}/history`);
 
 export const getTransferStats = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/transfer/stats', { params });
+  api.get('/api/v1/tickets/transfer/stats', { params });
 
 // ==================== Suspend ====================
 
@@ -362,79 +362,79 @@ export const createSuspend = (data: {
   pauseSLAForPending?: boolean;
   notes?: string;
   createdBy: string;
-}) => api.post<SuspendRecord>('/v1/tickets/suspend', data);
+}) => api.post<SuspendRecord>('/api/v1/tickets/suspend', data);
 
 export const activateSuspend = (suspendId: string) =>
-  api.post<SuspendRecord>(`/v1/tickets/suspend/${suspendId}/activate`);
+  api.post<SuspendRecord>(`/api/v1/tickets/suspend/${suspendId}/activate`);
 
 export const endSuspend = (suspendId: string) =>
-  api.post<SuspendRecord>(`/v1/tickets/suspend/${suspendId}/end`);
+  api.post<SuspendRecord>(`/api/v1/tickets/suspend/${suspendId}/end`);
 
 export const cancelSuspend = (suspendId: string) =>
-  api.post<SuspendRecord>(`/v1/tickets/suspend/${suspendId}/cancel`);
+  api.post<SuspendRecord>(`/api/v1/tickets/suspend/${suspendId}/cancel`);
 
 export const listSuspensions = (params?: { status?: string }) =>
-  api.get<{ items: SuspendRecord[] }>('/v1/tickets/suspend', { params });
+  api.get<{ items: SuspendRecord[] }>('/api/v1/tickets/suspend', { params });
 
 export const getSuspend = (suspendId: string) =>
-  api.get<SuspendRecord>(`/v1/tickets/suspend/${suspendId}`);
+  api.get<SuspendRecord>(`/api/v1/tickets/suspend/${suspendId}`);
 
 export const getEngineerSuspensions = (engineerId: string) =>
-  api.get<{ items: SuspendRecord[] }>(`/v1/tickets/suspend/engineer/${engineerId}`);
+  api.get<{ items: SuspendRecord[] }>(`/api/v1/tickets/suspend/engineer/${engineerId}`);
 
 export const getEngineerSuspendImpact = (engineerId: string) =>
-  api.get<SuspensionImpact>(`/v1/tickets/suspend/engineer/${engineerId}/impact`);
+  api.get<SuspensionImpact>(`/api/v1/tickets/suspend/engineer/${engineerId}/impact`);
 
 // ==================== BI Analytics ====================
 
 export const getExecutiveDashboard = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/bi/dashboard/executive', { params });
+  api.get('/api/v1/tickets/bi/dashboard/executive', { params });
 
 export const getManagerDashboard = (params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get('/v1/tickets/bi/dashboard/manager', { params });
+  api.get('/api/v1/tickets/bi/dashboard/manager', { params });
 
 export const getEngineerDashboard = (engineerId: string, params?: { periodStart?: string; periodEnd?: string }) =>
-  api.get(`/v1/tickets/bi/dashboard/engineer/${engineerId}`, { params });
+  api.get(`/api/v1/tickets/bi/dashboard/engineer/${engineerId}`, { params });
 
 export const getEngineerEfficiency = (engineerId: string, params?: {
   granularity?: string;
   start?: string;
   end?: string;
-}) => api.get(`/v1/tickets/bi/efficiency/${engineerId}`, { params });
+}) => api.get(`/api/v1/tickets/bi/efficiency/${engineerId}`, { params });
 
 export const getEfficiencyScore = (engineerId: string, params?: {
   start?: string;
   end?: string;
-}) => api.get(`/v1/tickets/bi/score/${engineerId}`, { params });
+}) => api.get(`/api/v1/tickets/bi/score/${engineerId}`, { params });
 
 export const comparePeriods = (params: {
   currentStart: string;
   currentEnd: string;
   previousStart: string;
   previousEnd: string;
-}) => api.get('/v1/tickets/bi/compare', { params });
+}) => api.get('/api/v1/tickets/bi/compare', { params });
 
 export const exportBIData = (data: {
   dataset: 'tickets' | 'sla' | 'dispatch' | 'efficiency';
   granularity?: string;
   periodStart?: string;
   periodEnd?: string;
-}) => api.post('/v1/tickets/bi/export', data);
+}) => api.post('/api/v1/tickets/bi/export', data);
 
 export const getTimeTrend = (params?: {
   metric?: 'volume' | 'resolution' | 'sla' | 'load';
   start?: string;
   end?: string;
   granularity?: string;
-}) => api.get('/v1/tickets/bi/trend', { params });
+}) => api.get('/api/v1/tickets/bi/trend', { params });
 
 // ==================== Service Control ====================
 
 export const startTicketingService = () =>
-  api.post('/v1/ticketing/start');
+  api.post('/api/v1/ticketing/start');
 
 export const stopTicketingService = () =>
-  api.post('/v1/ticketing/stop');
+  api.post('/api/v1/ticketing/stop');
 
 export const getTicketingHealth = () =>
-  api.get('/v1/ticketing/health');
+  api.get('/api/v1/ticketing/health');

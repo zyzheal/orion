@@ -150,7 +150,7 @@ export const PERMISSION_GROUPS = [
  * GET /api/v1/roles?tenantId=xxx
  */
 export function getRoles(tenantId: string) {
-  return api.get<Role[]>('/v1/roles', { params: { tenantId } });
+  return api.get<Role[]>('/api/v1/roles', { params: { tenantId } });
 }
 
 /**
@@ -158,7 +158,7 @@ export function getRoles(tenantId: string) {
  * GET /api/v1/roles/:id
  */
 export function getRole(id: string) {
-  return api.get<Role>(`/v1/roles/${id}`);
+  return api.get<Role>(`/api/v1/roles/${id}`);
 }
 
 /**
@@ -166,7 +166,7 @@ export function getRole(id: string) {
  * POST /api/v1/roles
  */
 export function createRole(data: CreateRoleInput) {
-  return api.post<Role>('/v1/roles', data);
+  return api.post<Role>('/api/v1/roles', data);
 }
 
 /**
@@ -174,5 +174,5 @@ export function createRole(data: CreateRoleInput) {
  * DELETE /api/v1/roles/:id
  */
 export function deleteRole(id: string) {
-  return api.delete(`/v1/roles/${id}`);
+  return api.delete(`/api/v1/roles/${id}`);
 }

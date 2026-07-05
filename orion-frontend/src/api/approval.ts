@@ -187,7 +187,7 @@ export function getApprovalFlows(params?: {
   environment?: string;
   riskLevel?: number;
 }) {
-  return api.get<ApprovalFlowConfig[]>('/v1/approvals/flows', { params });
+  return api.get<ApprovalFlowConfig[]>('/api/v1/approvals/flows', { params });
 }
 
 /**
@@ -195,7 +195,7 @@ export function getApprovalFlows(params?: {
  * GET /api/v1/approvals/flows/:id
  */
 export function getApprovalFlow(id: string) {
-  return api.get<ApprovalFlowConfig>(`/v1/approvals/flows/${id}`);
+  return api.get<ApprovalFlowConfig>(`/api/v1/approvals/flows/${id}`);
 }
 
 /**
@@ -203,7 +203,7 @@ export function getApprovalFlow(id: string) {
  * POST /api/v1/approvals/flows
  */
 export function createApprovalFlow(data: CreateApprovalFlowInput) {
-  return api.post<ApprovalFlowConfig>('/v1/approvals/flows', data);
+  return api.post<ApprovalFlowConfig>('/api/v1/approvals/flows', data);
 }
 
 /**
@@ -211,7 +211,7 @@ export function createApprovalFlow(data: CreateApprovalFlowInput) {
  * PUT /api/v1/approvals/flows/:id
  */
 export function updateApprovalFlow(id: string, data: UpdateApprovalFlowInput) {
-  return api.put<ApprovalFlowConfig>(`/v1/approvals/flows/${id}`, data);
+  return api.put<ApprovalFlowConfig>(`/api/v1/approvals/flows/${id}`, data);
 }
 
 /**
@@ -219,7 +219,7 @@ export function updateApprovalFlow(id: string, data: UpdateApprovalFlowInput) {
  * DELETE /api/v1/approvals/flows/:id
  */
 export function deleteApprovalFlow(id: string) {
-  return api.delete(`/v1/approvals/flows/${id}`);
+  return api.delete(`/api/v1/approvals/flows/${id}`);
 }
 
 // ---- 审批记录 ----
@@ -229,7 +229,7 @@ export function deleteApprovalFlow(id: string) {
  * GET /api/v1/approvals
  */
 export function getApprovals() {
-  return api.get<ApprovalListResponse>('/v1/approvals');
+  return api.get<ApprovalListResponse>('/api/v1/approvals');
 }
 
 /**
@@ -237,7 +237,7 @@ export function getApprovals() {
  * GET /api/v1/approvals/requests/:id
  */
 export function getApproval(id: string) {
-  return api.get<ApprovalChainInfo>(`/v1/approvals/requests/${id}`);
+  return api.get<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}`);
 }
 
 /**
@@ -254,7 +254,7 @@ export function submitApprovalRequest(data: {
   mode?: ApprovalMode;
   metadata?: Record<string, unknown>;
 }) {
-  return api.post<ApprovalChainInfo>('/v1/approvals/requests', data);
+  return api.post<ApprovalChainInfo>('/api/v1/approvals/requests', data);
 }
 
 /**
@@ -265,7 +265,7 @@ export function reviewApproval(
   id: string,
   data: { reviewerId: string; action: 'approve' | 'reject'; comment?: string }
 ) {
-  return api.post<ApprovalChainInfo>(`/v1/approvals/requests/${id}/review`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/review`, data);
 }
 
 /**
@@ -273,7 +273,7 @@ export function reviewApproval(
  * POST /api/v1/approvals/requests/:id/approve
  */
 export function approveRequest(id: string, data: { reviewerId: string; comment?: string }) {
-  return api.post<ApprovalChainInfo>(`/v1/approvals/requests/${id}/approve`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/approve`, data);
 }
 
 /**
@@ -281,7 +281,7 @@ export function approveRequest(id: string, data: { reviewerId: string; comment?:
  * POST /api/v1/approvals/requests/:id/reject
  */
 export function rejectRequest(id: string, data: { reviewerId: string; comment?: string }) {
-  return api.post<ApprovalChainInfo>(`/v1/approvals/requests/${id}/reject`, data);
+  return api.post<ApprovalChainInfo>(`/api/v1/approvals/requests/${id}/reject`, data);
 }
 
 /**
@@ -290,7 +290,7 @@ export function rejectRequest(id: string, data: { reviewerId: string; comment?: 
  */
 export function getApprovalHistory(id: string) {
   return api.get<{ requestId: string; title: string; status: string; totalLevels: number; history: ApprovalStepDetail[] }>(
-    `/v1/approvals/requests/${id}/history`
+    `/api/v1/approvals/requests/${id}/history`
   );
 }
 
@@ -299,7 +299,7 @@ export function getApprovalHistory(id: string) {
  * GET /api/v1/approvals/pending
  */
 export function getPendingApprovals(params?: { userId?: string; tenantId?: string }) {
-  return api.get<ApprovalChainInfo[]>('/v1/approvals/pending', { params });
+  return api.get<ApprovalChainInfo[]>('/api/v1/approvals/pending', { params });
 }
 
 // ---- 审批模板 ----
@@ -309,7 +309,7 @@ export function getPendingApprovals(params?: { userId?: string; tenantId?: strin
  * GET /api/v1/approvals/templates
  */
 export function getApprovalTemplates(params?: { tenantId?: string }) {
-  return api.get<ApprovalTemplate[]>('/v1/approvals/templates', { params });
+  return api.get<ApprovalTemplate[]>('/api/v1/approvals/templates', { params });
 }
 
 /**
@@ -325,7 +325,7 @@ export function createApprovalTemplate(data: {
   isDefault?: boolean;
   tenantId?: string;
 }) {
-  return api.post<ApprovalTemplate>('/v1/approvals/templates', data);
+  return api.post<ApprovalTemplate>('/api/v1/approvals/templates', data);
 }
 
 // ---- 超时配置 ----
@@ -335,7 +335,7 @@ export function createApprovalTemplate(data: {
  * GET /api/v1/approvals/timeout-configs
  */
 export function getTimeoutConfigs(params?: { resourceType?: string }) {
-  return api.get<ApprovalTimeoutConfig[]>('/v1/approvals/timeout-configs', { params });
+  return api.get<ApprovalTimeoutConfig[]>('/api/v1/approvals/timeout-configs', { params });
 }
 
 /**
@@ -343,7 +343,7 @@ export function getTimeoutConfigs(params?: { resourceType?: string }) {
  * POST /api/v1/approvals/timeout-configs
  */
 export function createTimeoutConfig(data: Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>) {
-  return api.post<ApprovalTimeoutConfig>('/v1/approvals/timeout-configs', data);
+  return api.post<ApprovalTimeoutConfig>('/api/v1/approvals/timeout-configs', data);
 }
 
 /**
@@ -354,7 +354,7 @@ export function updateTimeoutConfig(
   id: string,
   data: Partial<Omit<ApprovalTimeoutConfig, 'id' | 'createdAt' | 'updatedAt'>>
 ) {
-  return api.put<ApprovalTimeoutConfig>(`/v1/approvals/timeout-configs/${id}`, data);
+  return api.put<ApprovalTimeoutConfig>(`/api/v1/approvals/timeout-configs/${id}`, data);
 }
 
 /**
@@ -362,7 +362,7 @@ export function updateTimeoutConfig(
  * DELETE /api/v1/approvals/timeout-configs/:id
  */
 export function deleteTimeoutConfig(id: string) {
-  return api.delete(`/v1/approvals/timeout-configs/${id}`);
+  return api.delete(`/api/v1/approvals/timeout-configs/${id}`);
 }
 
 // ---- 紧急审批 ----
@@ -382,7 +382,7 @@ export function requestEmergencyApproval(data: {
   approverIds: string[];
   metadata?: Record<string, unknown>;
 }) {
-  return api.post<ApprovalChainInfo>('/v1/approvals/emergency', data);
+  return api.post<ApprovalChainInfo>('/api/v1/approvals/emergency', data);
 }
 
 // ---- Agent 分析 ----
@@ -397,5 +397,5 @@ export function agentAnalyze(data: {
   resourceId?: string;
   context?: Record<string, unknown>;
 }) {
-  return api.post('/v1/approvals/agent/analyze', data);
+  return api.post('/api/v1/approvals/agent/analyze', data);
 }

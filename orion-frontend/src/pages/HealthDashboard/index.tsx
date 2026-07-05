@@ -3,7 +3,7 @@
  * 系统健康仪表盘：KPI 卡片、服务健康列表、告警列表、趋势图
  */
 import React, { useState, useEffect } from 'react';
-import { Typography, Card, Row, Col, Table, Tag, Space, Spin, message, Statistic } from 'antd';
+import { Typography, Card, Row, Col, Table, Tag, Space, Spin, message, Statistic, Empty, Button } from 'antd';
 import {
   HeartOutlined,
   AlertOutlined,
@@ -19,44 +19,11 @@ import {
   type ServiceHealthRow,
   type TrendPoint,
 } from '@/api/health';
-import { colors, spacing, radius } from '@/tokens';
+import type { ColumnsType } from 'antd/es/table';
+import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
-
-// ==================== Mock Data ====================
-
-const mockAlerts: HealthAlert[] = [
-  { id: '1', serviceName: 'api-gateway', severity: 'critical', message: '响应时间 P99 > 2000ms', status: 'active', triggeredAt: new Date(Date.now() - 5 * 60_000).toISOString() },
-  { id: '2', serviceName: 'user-service',  severity: 'warning',  message: '错误率升至 3.2%',       status: 'active', triggeredAt: new Date(Date.now() - 15 * 60_000).toISOString() },
-  { id: '3', serviceName: 'order-service', severity: 'info',     message: '连接池使用率 82%',       status: 'acknowledged', triggeredAt: new Date(Date.now() - 30 * 60_000).toISOString() },
-  { id: '4', serviceName: 'payment-svc',   severity: 'critical', message: '支付接口超时',           status: 'resolved', triggeredAt: new Date(Date.now() - 2 * 3_600_000).toISOString() },
-  { id: '5', serviceName: 'notification-svc', severity: 'warning', message: '消息队列堆积 > 5000',  status: 'active', triggeredAt: new Date(Date.now() - 8 * 60_000).toISOString() },
-];
-
-const mockServices: ServiceHealthRow[] = [
-  { serviceId: 's1', serviceName: 'api-gateway',     status: 'healthy',   latencyMs: 45,  errorRate: 0.1, uptimePercent: 99.98, lastChecked: new Date().toISOString() },
-  { serviceId: 's2', serviceName: 'user-service',    status: 'degraded',  latencyMs: 320, errorRate: 3.2, uptimePercent: 99.85, lastChecked: new Date().toISOString() },
-  { serviceId: 's3', serviceName: 'order-service',   status: 'healthy',   latencyMs: 80,  errorRate: 0.05, uptimePercent: 99.99, lastChecked: new Date().toISOString() },
-  { serviceId: 's4', serviceName: 'payment-svc',     status: 'healthy',   latencyMs: 120, errorRate: 0.2,  uptimePercent: 99.95, lastChecked: new Date().toISOString() },
-  { serviceId: 's5', serviceName: 'notification-svc',status: 'unhealthy', latencyMs: 1500,errorRate: 12.5, uptimePercent: 97.20, lastChecked: new Date().toISOString() },
-  { serviceId: 's6', serviceName: 'inventory-svc',   status: 'healthy',   latencyMs: 60,  errorRate: 0.08, uptimePercent: 99.97, lastChecked: new Date().toISOString() },
-];
-
-function buildMockTrend(): TrendPoint[] {
-  const points: TrendPoint[] = [];
-  const now = Date.now();
-  for (let i = 23; i >= 0; i--) {
-    const t = new Date(now - i * 3_600_000);
-    points.push({
-      timestamp: t.toISOString(),
-      healthScore: 75 + Math.random() * 25,
-      errorRate: Math.random() * 5,
-      latencyMs: 30 + Math.random() * 200,
-    });
-  }
-  return points;
-}
 
 // ==================== Chart Component ====================
 
@@ -142,6 +109,7 @@ const TrendChart: React.FC<{ data: TrendPoint[] }> = ({ data }) => {
 
 const HealthDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [score, setScore] = useState<{ score: number; level: string } | null>(null);
   const [activeAlerts, setActiveAlerts] = useState(0);
   const [avgLatencyMs, setAvgLatencyMs] = useState(0);
@@ -149,10 +117,10 @@ const HealthDashboard: React.FC = () => {
   const [services, setServices] = useState<ServiceHealthRow[]>([]);
   const [alerts, setAlerts] = useState<HealthAlert[]>([]);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
-  const [useMock, setUseMock] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const data = await getHealthDashboard();
       setScore({ score: data.score.score, level: data.score.level });
@@ -162,26 +130,10 @@ const HealthDashboard: React.FC = () => {
       setServices(data.services);
       setAlerts(data.alerts);
       setTrend(data.trend);
-      setUseMock(false);
-    } catch {
-      // 后端尚未实现，回退到 mock 数据
-      setUseMock(true);
-      const mockData = {
-        score: { score: 87, level: 'healthy' as const, updatedAt: new Date().toISOString() },
-        activeAlerts: 3,
-        avgLatencyMs: 95,
-        errorRate: 0.8,
-        services: mockServices,
-        alerts: mockAlerts,
-        trend: buildMockTrend(),
-      };
-      setScore({ score: mockData.score.score, level: mockData.score.level });
-      setActiveAlerts(mockData.activeAlerts);
-      setAvgLatencyMs(mockData.avgLatencyMs);
-      setErrorRate(mockData.errorRate);
-      setServices(mockData.services);
-      setAlerts(mockData.alerts);
-      setTrend(mockData.trend);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '加载健康仪表盘数据失败';
+      setError(msg);
+      message.error(msg);
     } finally {
       setLoading(false);
     }
@@ -228,7 +180,7 @@ const HealthDashboard: React.FC = () => {
 
   // ==================== Alert Columns ====================
 
-  const alertColumns = [
+  const alertColumns: ColumnsType<HealthAlert> = [
     {
       title: '服务',
       dataIndex: 'serviceName',
@@ -259,7 +211,7 @@ const HealthDashboard: React.FC = () => {
         { text: '已确认', value: 'acknowledged' },
         { text: '已解决', value: 'resolved' },
       ],
-      onFilter: (value: string | number | boolean, record: HealthAlert) => record.status === value,
+      onFilter: (value, record: HealthAlert) => record.status === value,
       render: (s: string) => statusTag(s),
     },
     {
@@ -274,7 +226,7 @@ const HealthDashboard: React.FC = () => {
 
   // ==================== Service Health Columns ====================
 
-  const serviceColumns = [
+  const serviceColumns: ColumnsType<ServiceHealthRow> = [
     {
       title: '服务',
       dataIndex: 'serviceName',
@@ -292,7 +244,7 @@ const HealthDashboard: React.FC = () => {
         { text: '降级', value: 'degraded' },
         { text: '异常', value: 'unhealthy' },
       ],
-      onFilter: (value: string | number | boolean, record: ServiceHealthRow) => record.status === value,
+      onFilter: (value, record: ServiceHealthRow) => record.status === value,
       render: (s: string) => serviceStatusTag(s),
     },
     {
@@ -354,8 +306,8 @@ const HealthDashboard: React.FC = () => {
             </Title>
             <Text type="secondary" style={{ color: colors.neutral[500], fontSize: 14 }}>
               全系统健康状态总览与趋势分析
-              {useMock && <Tag color={colors.warning[500]} style={{ marginLeft: 8 }}>Mock 数据</Tag>}
             </Text>
+            {error && <Tag color={colors.error[500]} style={{ marginLeft: 8 }}>加载失败</Tag>}
           </div>
           <Button icon={<ReloadOutlined />} onClick={loadData}>刷新</Button>
         </div>

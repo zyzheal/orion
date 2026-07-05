@@ -1,7 +1,7 @@
 /**
  * Secret Management API Service
  *
- * Aligned with backend /v1/tenants/:tenantId/secrets/* routes (secret-routes.ts)
+ * Aligned with backend /api/v1/tenants/:tenantId/secrets/* routes (secret-routes.ts)
  * Extends the existing secrets.ts with resolve and references endpoints.
  */
 import { api } from './client';
@@ -51,27 +51,27 @@ export interface ResolveSecretResult {
 export const getSecrets = async (tenantId: string, params?: {
   scope?: string;
 }): Promise<Secret[]> => {
-  const response = await api.get<{ data: Secret[] }>(`/v1/tenants/${tenantId}/secrets`, { params });
+  const response = await api.get<{ data: Secret[] }>(`/api/v1/tenants/${tenantId}/secrets`, { params });
   return response.data.data;
 };
 
 export const getSecret = async (tenantId: string, id: string): Promise<Secret> => {
-  const response = await api.get<{ data: Secret }>(`/v1/tenants/${tenantId}/secrets/${id}`);
+  const response = await api.get<{ data: Secret }>(`/api/v1/tenants/${tenantId}/secrets/${id}`);
   return response.data.data;
 };
 
 export const createSecret = async (tenantId: string, data: CreateSecretInput): Promise<Secret> => {
-  const response = await api.post<{ data: Secret }>(`/v1/tenants/${tenantId}/secrets`, data);
+  const response = await api.post<{ data: Secret }>(`/api/v1/tenants/${tenantId}/secrets`, data);
   return response.data.data;
 };
 
 export const updateSecret = async (tenantId: string, id: string, data: UpdateSecretInput): Promise<Secret> => {
-  const response = await api.put<{ data: Secret }>(`/v1/tenants/${tenantId}/secrets/${id}`, data);
+  const response = await api.put<{ data: Secret }>(`/api/v1/tenants/${tenantId}/secrets/${id}`, data);
   return response.data.data;
 };
 
 export const deleteSecret = async (tenantId: string, id: string): Promise<void> => {
-  await api.delete(`/v1/tenants/${tenantId}/secrets/${id}`);
+  await api.delete(`/api/v1/tenants/${tenantId}/secrets/${id}`);
 };
 
 // ==================== Resolve ====================
@@ -79,13 +79,13 @@ export const deleteSecret = async (tenantId: string, id: string): Promise<void> 
 export const resolveSecrets = async (tenantId: string, data: {
   references: string[];
 }): Promise<ResolveSecretResult> => {
-  const response = await api.post<{ data: ResolveSecretResult }>(`/v1/tenants/${tenantId}/secrets/resolve`, data);
+  const response = await api.post<{ data: ResolveSecretResult }>(`/api/v1/tenants/${tenantId}/secrets/resolve`, data);
   return response.data.data;
 };
 
 // ==================== References ====================
 
 export const getSecretReferences = async (tenantId: string, id: string): Promise<SecretReference[]> => {
-  const response = await api.get<{ data: SecretReference[] }>(`/v1/tenants/${tenantId}/secrets/${id}/references`);
+  const response = await api.get<{ data: SecretReference[] }>(`/api/v1/tenants/${tenantId}/secrets/${id}/references`);
   return response.data.data;
 };

@@ -127,27 +127,27 @@ export interface CreateRelationInput {
 // ============================================================================
 
 export const getCIs = async (params?: ListCIsParams) => {
-  const response = await apiClient.get('/v1/cmdb/cis', { params });
+  const response = await apiClient.get('/api/v1/cmdb/cis', { params });
   return response.data as { data?: CIItem[] };
 };
 
 export const getCI = async (id: string) => {
-  const response = await apiClient.get(`/v1/cmdb/cis/${id}`);
+  const response = await apiClient.get(`/api/v1/cmdb/cis/${id}`);
   return response.data as { ci?: CIItem };
 };
 
 export const createCI = async (input: CreateCIInput) => {
-  const response = await apiClient.post('/v1/cmdb/cis', input);
+  const response = await apiClient.post('/api/v1/cmdb/cis', input);
   return response.data as { ci?: CIItem };
 };
 
 export const updateCI = async (id: string, input: UpdateCIInput) => {
-  const response = await apiClient.put(`/v1/cmdb/cis/${id}`, input);
+  const response = await apiClient.put(`/api/v1/cmdb/cis/${id}`, input);
   return response.data as { ci?: CIItem };
 };
 
 export const deleteCI = async (id: string) => {
-  const response = await apiClient.delete(`/v1/cmdb/cis/${id}`);
+  const response = await apiClient.delete(`/api/v1/cmdb/cis/${id}`);
   return response.data;
 };
 
@@ -156,17 +156,17 @@ export const deleteCI = async (id: string) => {
 // ============================================================================
 
 export const getCIRelations = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/cis/${ciId}/relations`);
+  const response = await apiClient.get(`/api/v1/cmdb/cis/${ciId}/relations`);
   return response.data as { data?: CIRelation[] };
 };
 
 export const createRelation = async (input: CreateRelationInput) => {
-  const response = await apiClient.post('/v1/cmdb/relations', input);
+  const response = await apiClient.post('/api/v1/cmdb/relations', input);
   return response.data as { relation?: CIRelation };
 };
 
 export const deleteRelation = async (id: string) => {
-  const response = await apiClient.delete(`/v1/cmdb/relations/${id}`);
+  const response = await apiClient.delete(`/api/v1/cmdb/relations/${id}`);
   return response.data;
 };
 
@@ -175,27 +175,27 @@ export const deleteRelation = async (id: string) => {
 // ============================================================================
 
 export const getHosts = async (params?: { page?: number; pageSize?: number }) => {
-  const response = await apiClient.get('/v1/cmdb/hosts', { params });
+  const response = await apiClient.get('/api/v1/cmdb/hosts', { params });
   return response.data as { data?: HostInfo[] };
 };
 
 export const getHost = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/hosts/${ciId}`);
+  const response = await apiClient.get(`/api/v1/cmdb/hosts/${ciId}`);
   return response.data as { host?: HostInfo };
 };
 
 export const getK8sResources = async (params?: { kind?: string; namespace?: string }) => {
-  const response = await apiClient.get('/v1/cmdb/k8s', { params });
+  const response = await apiClient.get('/api/v1/cmdb/k8s', { params });
   return response.data as { data?: K8sResource[] };
 };
 
 export const getCICDResources = async () => {
-  const response = await apiClient.get('/v1/cmdb/cicd');
+  const response = await apiClient.get('/api/v1/cmdb/cicd');
   return response.data as { data?: CICDResource[] };
 };
 
 export const getTopology = async (params?: { type?: string }) => {
-  const response = await apiClient.get('/v1/cmdb/topology', { params });
+  const response = await apiClient.get('/api/v1/cmdb/topology', { params });
   return response.data as { data?: TopologyData };
 };
 
@@ -204,12 +204,12 @@ export const getTopology = async (params?: { type?: string }) => {
 // ============================================================================
 
 export const startK8sSync = async () => {
-  const response = await apiClient.post('/v1/cmdb/k8s/sync/start');
+  const response = await apiClient.post('/api/v1/cmdb/k8s/sync/start');
   return response.data;
 };
 
 export const stopK8sSync = async () => {
-  const response = await apiClient.post('/v1/cmdb/k8s/sync/stop');
+  const response = await apiClient.post('/api/v1/cmdb/k8s/sync/stop');
   return response.data;
 };
 
@@ -222,7 +222,7 @@ export const executeScript = async (input: {
   script: string;
   timeout?: number;
 }) => {
-  const response = await apiClient.post('/v1/cmdb/execute', input);
+  const response = await apiClient.post('/api/v1/cmdb/execute', input);
   return response.data;
 };
 
@@ -240,7 +240,7 @@ export interface ImpactData {
 }
 
 export const getImpactAnalysis = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/topology/${ciId}/impact`);
+  const response = await apiClient.get(`/api/v1/cmdb/topology/${ciId}/impact`);
   return response.data as { data?: ImpactData };
 };
 
@@ -249,17 +249,17 @@ export const getImpactAnalysis = async (ciId: string) => {
 // ============================================================================
 
 export const getCIVersions = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/cis/${ciId}/versions`);
+  const response = await apiClient.get(`/api/v1/cmdb/cis/${ciId}/versions`);
   return response.data as { versions?: unknown[] };
 };
 
 export const getCICurrentVersion = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/cis/${ciId}/versions/current`);
+  const response = await apiClient.get(`/api/v1/cmdb/cis/${ciId}/versions/current`);
   return response.data as { version?: number };
 };
 
 export const restoreCIVersion = async (ciId: string, version: string, user?: string) => {
-  const response = await apiClient.post(`/v1/cmdb/cis/${ciId}/versions/restore`, { version, user });
+  const response = await apiClient.post(`/api/v1/cmdb/cis/${ciId}/versions/restore`, { version, user });
   return response.data as { ci?: CIItem };
 };
 
@@ -268,7 +268,7 @@ export const restoreCIVersion = async (ciId: string, version: string, user?: str
 // ============================================================================
 
 export const getCIByCiId = async (ciId: string, tenantId?: string) => {
-  const response = await apiClient.get(`/v1/cmdb/cis/by-id/${ciId}`, { params: { tenantId } });
+  const response = await apiClient.get(`/api/v1/cmdb/cis/by-id/${ciId}`, { params: { tenantId } });
   return response.data as { ci?: CIItem };
 };
 
@@ -277,7 +277,7 @@ export const getCIByCiId = async (ciId: string, tenantId?: string) => {
 // ============================================================================
 
 export const getCIDependencies = async (ciId: string) => {
-  const response = await apiClient.get(`/v1/cmdb/topology/${ciId}/dependencies`);
+  const response = await apiClient.get(`/api/v1/cmdb/topology/${ciId}/dependencies`);
   return response.data as { topology?: unknown };
 };
 
@@ -286,6 +286,6 @@ export const getCIDependencies = async (ciId: string) => {
 // ============================================================================
 
 export const getCMDBHealth = async () => {
-  const response = await apiClient.get('/v1/cmdb/health');
+  const response = await apiClient.get('/api/v1/cmdb/health');
   return response.data;
 };

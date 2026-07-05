@@ -56,7 +56,7 @@ export interface ValidationResult {
  * 后端直接返回 { pipelineId, pipelineName, graph }
  */
 export async function getPipelineGraph(pipelineId: string): Promise<PipelineGraph> {
-  const res = await api.get<{ pipelineId: string; pipelineName: string; graph: PipelineGraph }>(`/v1/pipelines/${encodeURIComponent(pipelineId)}/graph`);
+  const res = await api.get<{ pipelineId: string; pipelineName: string; graph: PipelineGraph }>(`/api/v1/pipelines/${encodeURIComponent(pipelineId)}/graph`);
   return res.data.graph;
 }
 
@@ -65,7 +65,7 @@ export async function getPipelineGraph(pipelineId: string): Promise<PipelineGrap
  * 后端直接返回 { graph, valid, errors, warnings }
  */
 export async function parseYamlToGraph(yamlDefinition: string): Promise<YamlParseResult> {
-  const res = await api.post<YamlParseResult>('/v1/pipelines/parse-yaml', {
+  const res = await api.post<YamlParseResult>('/api/v1/pipelines/parse-yaml', {
     yamlDefinition,
   });
   return res.data;
@@ -80,7 +80,7 @@ export async function convertGraphToYaml(graph: {
   nodes: PipelineGraphNode[];
   edges: PipelineGraphEdge[];
 }): Promise<YamlConvertResult> {
-  const res = await api.post<YamlConvertResult>('/v1/pipelines/to-yaml', {
+  const res = await api.post<YamlConvertResult>('/api/v1/pipelines/to-yaml', {
     graph,
   });
   return res.data;
@@ -91,7 +91,7 @@ export async function convertGraphToYaml(graph: {
  * 后端直接返回 ValidationResult
  */
 export async function validatePipelineYaml(yamlDefinition: string): Promise<ValidationResult> {
-  const res = await api.post<ValidationResult>('/v1/pipelines/validate', {
+  const res = await api.post<ValidationResult>('/api/v1/pipelines/validate', {
     yamlDefinition,
   });
   return res.data;

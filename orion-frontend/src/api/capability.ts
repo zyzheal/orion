@@ -186,10 +186,10 @@ export interface TemporaryPermission {
 
 export const capabilityApi = {
   // List capabilities
-  list: (category?: string) => api.get('/v1/capabilities', { params: { category } }),
+  list: (category?: string) => api.get('/api/v1/capabilities', { params: { category } }),
 
   // Get capability tree
-  getTree: () => api.get('/v1/capabilities/tree'),
+  getTree: () => api.get('/api/v1/capabilities/tree'),
 
   // Get capability by ID
   getById: (id: string) => api.get(`/capabilities/${id}`),
@@ -204,7 +204,7 @@ export const capabilityApi = {
     risk_level?: number;
     requires_approval?: boolean;
     approval_role?: string;
-  }) => api.post('/v1/capabilities', data),
+  }) => api.post('/api/v1/capabilities', data),
 
   // Update capability
   update: (
@@ -216,10 +216,10 @@ export const capabilityApi = {
       requires_approval?: boolean;
       approval_role?: string;
     }
-  ) => api.put(`/v1/capabilities/${id}`, data),
+  ) => api.put(`/api/v1/capabilities/${id}`, data),
 
   // Delete capability
-  delete: (id: string) => api.delete(`/v1/capabilities/${id}`),
+  delete: (id: string) => api.delete(`/api/v1/capabilities/${id}`),
 
   // Grant capability to role
   grantToRole: (capabilityId: string, roleName: string) =>
@@ -243,7 +243,7 @@ export const capabilityApi = {
     command_action: string;
     capability_id: string;
     environment_suffix?: string;
-  }) => api.post('/v1/capabilities/commands/mapping', data),
+  }) => api.post('/api/v1/capabilities/commands/mapping', data),
 
   // Get capability for command
   getCommandCapability: (command: string, action: string, environment?: string) =>
@@ -251,7 +251,7 @@ export const capabilityApi = {
 
   // Check permission
   checkPermission: (userId: string, userRoles: string[], capabilityId: string) =>
-    api.post('/v1/capabilities/check', { userId, userRoles, capabilityId }),
+    api.post('/api/v1/capabilities/check', { userId, userRoles, capabilityId }),
 
   // ==================== Temporary Permissions ====================
 
@@ -263,7 +263,7 @@ export const capabilityApi = {
     environment_suffix?: string;
     reason?: string;
     expires_in_hours: number;
-  }) => api.post('/v1/capabilities/temporary', data),
+  }) => api.post('/api/v1/capabilities/temporary', data),
 
   // Get user's active temporary permissions
   getUserTemporaryPermissions: (userId: string, tenantId?: string) =>
@@ -282,7 +282,7 @@ export const capabilityApi = {
     action?: string;
     limit?: number;
     offset?: number;
-  }) => api.get('/v1/capabilities/audit', { params }),
+  }) => api.get('/api/v1/capabilities/audit', { params }),
 
   // ==================== Permission Request ====================
 
@@ -294,19 +294,19 @@ export const capabilityApi = {
     reason: string;
     user_id?: string;
     tenant_id?: string;
-  }) => api.post('/v1/capabilities/request', data),
+  }) => api.post('/api/v1/capabilities/request', data),
 
   // Get permission request by ticket
   getPermissionRequest: (ticketId: number) => api.get(`/capabilities/request/${ticketId}`),
 
   // Cleanup expired permissions (admin)
-  cleanup: () => api.post('/v1/capabilities/cleanup'),
+  cleanup: () => api.post('/api/v1/capabilities/cleanup'),
 
   // ==================== 用户有效能力 ====================
 
   // 获取用户有效能力（角色 + 覆盖）
   getEffectiveCapabilities: (params?: { user_id?: string; roles?: string }) =>
-    api.get('/v1/capabilities/user/effective', { params }),
+    api.get('/api/v1/capabilities/user/effective', { params }),
 
   // ==================== 角色能力管理 ====================
 
@@ -315,10 +315,10 @@ export const capabilityApi = {
 
   // 批量更新角色能力
   updateRoleCapabilities: (data: UpdateRoleCapabilitiesInput) =>
-    api.put('/v1/capabilities/roles', data),
+    api.put('/api/v1/capabilities/roles', data),
 
   // 获取权限矩阵（全部角色）
-  getCapabilityMatrix: () => api.get('/v1/capabilities/matrix'),
+  getCapabilityMatrix: () => api.get('/api/v1/capabilities/matrix'),
 
   // ==================== 用户能力覆盖 ====================
 
@@ -353,7 +353,7 @@ export const capabilityApi = {
     reason?: string;
     environment_suffix?: string;
     tenant_id?: string;
-  }) => api.post('/v1/capabilities/grant', data),
+  }) => api.post('/api/v1/capabilities/grant', data),
 
   // 简化版：撤销临时权限
   revokePermission: (id: number) => api.delete(`/capabilities/grant/${id}`),
@@ -362,7 +362,7 @@ export const capabilityApi = {
 
   // 简化版：申请权限
   submitPermissionRequest: (data: RequestPermissionInput) =>
-    api.post('/v1/capabilities/request/permission', data),
+    api.post('/api/v1/capabilities/request/permission', data),
 
   // 获取用户的权限申请记录
   getUserPermissionRequests: (userId: string) =>

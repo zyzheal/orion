@@ -1,7 +1,7 @@
 /**
  * Mcp API Service
  * Auto-generated from backend mcp-routes.ts
- * Prefix: /v1/mcp
+ * Prefix: /api/v1/mcp
  */
 import { api } from './client';
 
@@ -16,11 +16,11 @@ export interface Mcp {
 }
 
 export const createMcpMcp = async (data?: Partial<Mcp>): Promise<Mcp> => {
-  const response = await api.post<Mcp>('/v1/mcp/mcp', data);
+  const response = await api.post<Mcp>('/api/v1/mcp/mcp', data);
   return response.data;
 };
 
 export const listMcp = async (params?: Record<string, unknown>): Promise<{ data: Mcp[]; total: number }> => {
-  const response = await api.get<{ data: Mcp[]; total: number }>('/v1/mcp/mcp/sse', { params });
+  const response = await api.get<{ data: Mcp[]; total: number }>('/api/v1/mcp/mcp/sse', { params });
   return { data: response.data.data, total: response.data.total };
 };

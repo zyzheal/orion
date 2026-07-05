@@ -49,7 +49,7 @@ export const changeUserStatus = async (userId: string, data: {
   status: UserStatus;
   reason?: string;
 }): Promise<StatusChangeResult> => {
-  const response = await api.patch<{ data: StatusChangeResult }>(`/v1/users/${userId}/status`, data);
+  const response = await api.patch<{ data: StatusChangeResult }>(`/api/v1/users/${userId}/status`, data);
   return response.data.data;
 };
 
@@ -60,20 +60,20 @@ export const batchDisableUsers = async (data: {
   role?: string;
   reason?: string;
 }): Promise<BatchDisableResult> => {
-  const response = await api.post<{ data: BatchDisableResult }>('/v1/users/batch-disable', data);
+  const response = await api.post<{ data: BatchDisableResult }>('/api/v1/users/batch-disable', data);
   return response.data.data;
 };
 
 // ==================== Session Count ====================
 
 export const getUserSessions = async (userId: string): Promise<SessionInfo> => {
-  const response = await api.get<{ data: SessionInfo }>(`/v1/users/${userId}/sessions`);
+  const response = await api.get<{ data: SessionInfo }>(`/api/v1/users/${userId}/sessions`);
   return response.data.data;
 };
 
 // ==================== Status History ====================
 
 export const getUserStatusHistory = async (userId: string): Promise<StatusHistoryEntry[]> => {
-  const response = await api.get<{ data: StatusHistoryEntry[] }>(`/v1/users/${userId}/status-history`);
+  const response = await api.get<{ data: StatusHistoryEntry[] }>(`/api/v1/users/${userId}/status-history`);
   return response.data.data;
 };

@@ -79,13 +79,13 @@ export interface ApprovalResponseInput {
 // ==================== Incident Management ====================
 
 export async function createIncident(data: CreateIncidentInput) {
-  const res = await api.post('/v1/self-healing/incidents', data);
+  const res = await api.post('/api/v1/self-healing/incidents', data);
   const body = res.data as { success: boolean; data: SelfHealingIncident };
   return { data: { data: body.data } };
 }
 
 export async function getIncident(id: string) {
-  const res = await api.get(`/v1/self-healing/incidents/${id}`);
+  const res = await api.get(`/api/v1/self-healing/incidents/${id}`);
   const body = res.data as { success: boolean; data: SelfHealingIncident };
   return { data: { data: body.data } };
 }
@@ -93,7 +93,7 @@ export async function getIncident(id: string) {
 // ==================== Healing History ====================
 
 export async function getHealingHistory(params?: IncidentListParams) {
-  const res = await api.get('/v1/self-healing/history', { params });
+  const res = await api.get('/api/v1/self-healing/history', { params });
   const body = res.data as { success: boolean; data: { items: SelfHealingIncident[]; total: number } };
   return { data: { data: body.data } };
 }
@@ -101,7 +101,7 @@ export async function getHealingHistory(params?: IncidentListParams) {
 // ==================== Effectiveness ====================
 
 export async function getEffectiveness(params?: { startDate?: string; endDate?: string }) {
-  const res = await api.get('/v1/self-healing/effectiveness', { params });
+  const res = await api.get('/api/v1/self-healing/effectiveness', { params });
   const body = res.data as { success: boolean; data: SelfHealingEffectiveness };
   return { data: { data: body.data } };
 }
@@ -109,42 +109,42 @@ export async function getEffectiveness(params?: { startDate?: string; endDate?: 
 // ==================== Strategies ====================
 
 export async function getStrategies(params?: StrategyListParams) {
-  const res = await api.get('/v1/self-healing/strategies', { params });
+  const res = await api.get('/api/v1/self-healing/strategies', { params });
   const body = res.data as { success: boolean; data: { items: SelfHealingStrategy[] } };
   return { data: { data: body.data } };
 }
 
 export async function getStrategy(id: string) {
-  const res = await api.get(`/v1/self-healing/strategies/${id}`);
+  const res = await api.get(`/api/v1/self-healing/strategies/${id}`);
   return (res.data as { success: boolean; data: SelfHealingStrategy }).data;
 }
 
 export async function createStrategy(data: Omit<SelfHealingStrategy, 'id'>) {
-  const res = await api.post('/v1/self-healing/strategies', data);
+  const res = await api.post('/api/v1/self-healing/strategies', data);
   return (res.data as { success: boolean; data: SelfHealingStrategy }).data;
 }
 
 export async function toggleStrategy(id: string) {
-  const res = await api.post(`/v1/self-healing/strategies/${id}/toggle`);
+  const res = await api.post(`/api/v1/self-healing/strategies/${id}/toggle`);
   return res.data;
 }
 
 // ==================== Approvals ====================
 
 export async function getApprovals(params?: ApprovalListParams) {
-  const res = await api.get('/v1/self-healing/approvals', { params });
+  const res = await api.get('/api/v1/self-healing/approvals', { params });
   const body = res.data as { success: boolean; data: { items: SelfHealingApproval[]; total: number } };
   return { data: { data: body.data } };
 }
 
 export async function getApproval(id: string) {
-  const res = await api.get(`/v1/self-healing/approvals/${id}`);
+  const res = await api.get(`/api/v1/self-healing/approvals/${id}`);
   const body = res.data as { success: boolean; data: SelfHealingApproval };
   return { data: { data: body.data } };
 }
 
 export async function respondToApproval(id: string, data: ApprovalResponseInput) {
-  const res = await api.post(`/v1/self-healing/approvals/${id}/respond`, data);
+  const res = await api.post(`/api/v1/self-healing/approvals/${id}/respond`, data);
   const body = res.data as { success: boolean; data: SelfHealingApproval };
   return { data: { data: body.data } };
 }

@@ -1,7 +1,7 @@
 /**
  * ProcessStep API Service
  * Auto-generated from backend process-step-routes.ts
- * Prefix: /v1/process-steps
+ * Prefix: /api/v1/process-steps
  */
 import { api } from './client';
 
@@ -16,16 +16,16 @@ export interface ProcessStep {
 }
 
 export const listProcessStep = async (params?: Record<string, unknown>): Promise<{ data: ProcessStep[]; total: number }> => {
-  const response = await api.get<{ data: ProcessStep[]; total: number }>('/v1/process-steps/definitions', { params });
+  const response = await api.get<{ data: ProcessStep[]; total: number }>('/api/v1/process-steps/definitions', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createProcessStepDefinitions = async (data?: Partial<ProcessStep>): Promise<ProcessStep> => {
-  const response = await api.post<ProcessStep>('/v1/process-steps/definitions', data);
+  const response = await api.post<ProcessStep>('/api/v1/process-steps/definitions', data);
   return response.data;
 };
 
 export const createProcessStepInstances = async (data?: Partial<ProcessStep>): Promise<ProcessStep> => {
-  const response = await api.post<ProcessStep>('/v1/process-steps/instances', data);
+  const response = await api.post<ProcessStep>('/api/v1/process-steps/instances', data);
   return response.data;
 };

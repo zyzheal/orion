@@ -34,7 +34,7 @@ export const getUserActivities = async (userId: string, params?: {
   pageSize?: number;
 }): Promise<ActivityListResult> => {
   const response = await api.get<{ data: UserActivity[]; total: number; page: number; pageSize: number }>(
-    `/v1/users/${userId}/activities`,
+    `/api/v1/users/${userId}/activities`,
     { params }
   );
   return {

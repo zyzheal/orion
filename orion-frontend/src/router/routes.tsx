@@ -1052,7 +1052,25 @@ export const routes: AppRoute[] = [
   // Workflow Designer (Lowcode)
   {
     path: '/workflows',
-    element: React.lazy(() => import('@/pages/WorkflowDesigner')),
+    element: React.lazy(() => import('@/pages/lowcode-svc/FlowDesigner')),
+    protected: true,
+  },
+  // Lowcode: Flow Versions
+  {
+    path: '/lowcode/versions',
+    element: React.lazy(() => import('@/pages/lowcode/FlowVersions')),
+    protected: true,
+  },
+  // Lowcode: Import/Export
+  {
+    path: '/lowcode/import-export',
+    element: React.lazy(() => import('@/pages/lowcode/FlowImportExport')),
+    protected: true,
+  },
+  // Lowcode: Template Market
+  {
+    path: '/lowcode/templates',
+    element: React.lazy(() => import('@/pages/lowcode/TemplateMarket')),
     protected: true,
   },
   // Workflow Tasks
@@ -1513,7 +1531,7 @@ export const routes: AppRoute[] = [
   // Service Registry & Health Dashboard (Task 6.5 + 6.8)
   {
     path: '/observability/service-registry',
-    element: React.lazy(() => import('@/pages/ServiceRegistry')),
+    element: React.lazy(() => import('@/pages/service-registry/ServiceRegistry')),
     protected: true,
     requiredPermission: { resource: 'observability', action: 'read' },
   },
@@ -1522,6 +1540,44 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/HealthDashboard')),
     protected: true,
     requiredPermission: { resource: 'observability', action: 'read' },
+  },
+
+  // ==================== Phase 6: Service Governance (Top-level Routes) ====================
+  {
+    path: '/service-registry',
+    element: React.lazy(() => import('@/pages/service-registry/ServiceRegistry')),
+    protected: true,
+    requiredPermission: { resource: 'observability', action: 'read' },
+  },
+  {
+    path: '/gateway-routes',
+    element: React.lazy(() => import('@/pages/GatewayRoutes')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  {
+    path: '/health-dashboard',
+    element: React.lazy(() => import('@/pages/HealthDashboard')),
+    protected: true,
+    requiredPermission: { resource: 'observability', action: 'read' },
+  },
+  {
+    path: '/service-topology',
+    element: React.lazy(() => import('@/pages/service-topology/ServiceTopology')),
+    protected: true,
+    requiredPermission: { resource: 'apm', action: 'read' },
+  },
+  {
+    path: '/version-management',
+    element: React.lazy(() => import('@/pages/VersionManagement')),
+    protected: true,
+    requiredPermission: { resource: 'artifact', action: 'read' },
+  },
+  {
+    path: '/traffic-governance',
+    element: React.lazy(() => import('@/pages/TrafficGovernance')),
+    protected: true,
+    requiredPermission: { resource: 'canary', action: 'manage' },
   },
 
   // IaC - Infrastructure as Code / Multi-Cloud (Phase 4 - Multi-Cloud)

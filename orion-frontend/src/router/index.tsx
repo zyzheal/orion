@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { routes, type AppRoute } from './routes';
+import { generateRoutes } from './route-generator';
+import { listPageRegistry } from '@/api/page-registry';
 import { Layout } from '@/components/Layout';
 import { Loading } from '@/components/Loading';
 import { useAuthStore } from '@/stores/authStore';
@@ -191,9 +193,66 @@ const renderElement = (el: any) => {
 };
 
 const AppRoutes: React.FC = () => {
+  const [pageRegistryRoutes, setPageRegistryRoutes] = useState<AppRoute[] | null>(null);
+  const [registryLoading, setRegistryLoading] = useState(false);
+  const [registryError, setRegistryError] = useState(false);
+
+  // Phase 4: Dual-track routing — load from page_registry when VITE_USE_PAGE_REGISTRY is enabled
+  useEffect(() => {
+    const usePageRegistry = import.meta.env.VITE_USE_PAGE_REGISTRY === 'true';
+
+    if (!usePageRegistry) {
+      return; // Use static routes (default behavior)
+    }
+
+    let cancelled = false;
+
+    async function loadPageRegistry() {
+      setRegistryLoading(true);
+      setRegistryError(false);
+
+import type { PageRegistry } from './page-registry-types';
+
+// ...
+
+      try {
+        const result = await listPageRegistry({ enabled: true });
+        if (!cancelled) {
+          const registry: PageRegistry = { pages: result.data };
+          const generated = generateRoutes(registry);
+          setPageRegistryRoutes(generated);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[Router] Failed to load page registry, falling back to static routes:', error);
+          setRegistryError(true);
+        }
+      } finally {
+        if (!cancelled) {
+          setRegistryLoading(false);
+        }
+      }
+    }
+
+    loadPageRegistry();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Determine which routes to use
+  const activeRoutes = import.meta.env.VITE_USE_PAGE_REGISTRY === 'true'
+    ? (pageRegistryRoutes ?? routes) // Use registry routes if loaded, fall back to static
+    : routes;
+
+  if (registryLoading) {
+    return <Loading fullscreen />;
+  }
+
   return (
     <Routes>
-      {routes.map((route) => {
+      {activeRoutes.map((route) => {
         // 支持 React.lazy 组件和普通 ReactNode
         const element = (
           <React.Suspense fallback={<Loading fullscreen />}>

@@ -1,7 +1,7 @@
 /**
  * EventTriggerRegistry API Service
  * Auto-generated from backend event-trigger-registry-routes.ts
- * Prefix: /v1/event-registry
+ * Prefix: /api/v1/event-registry
  */
 import { api } from './client';
 
@@ -16,6 +16,6 @@ export interface EventTriggerRegistry {
 }
 
 export const listEventTriggerRegistry = async (params?: Record<string, unknown>): Promise<{ data: EventTriggerRegistry[]; total: number }> => {
-  const response = await api.get<{ data: EventTriggerRegistry[]; total: number }>('/v1/event-registry/event-types', { params });
+  const response = await api.get<{ data: EventTriggerRegistry[]; total: number }>('/api/v1/event-registry/event-types', { params });
   return { data: response.data.data, total: response.data.total };
 };

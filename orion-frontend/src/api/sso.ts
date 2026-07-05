@@ -26,12 +26,12 @@ export interface SsoConfig {
 // ==================== SSO Status & Config ====================
 
 export const getSsoStatus = async (): Promise<SsoStatus> => {
-  const response = await api.get<{ data: SsoStatus }>('/v1/auth/sso/status');
+  const response = await api.get<{ data: SsoStatus }>('/api/v1/auth/sso/status');
   return response.data.data;
 };
 
 export const getSsoConfig = async (): Promise<SsoConfig> => {
-  const response = await api.get<{ data: SsoConfig }>('/v1/auth/sso/config');
+  const response = await api.get<{ data: SsoConfig }>('/api/v1/auth/sso/config');
   return response.data.data;
 };
 
@@ -45,5 +45,5 @@ export const getSsoConfig = async (): Promise<SsoConfig> => {
 export const getSsoLoginUrl = async (): Promise<string> => {
   // SSO login is a redirect endpoint; we construct the URL for frontend use
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-  return `${baseUrl}/v1/auth/sso/login`;
+  return `${baseUrl}/api/v1/auth/sso/login`;
 };

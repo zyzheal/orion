@@ -1,7 +1,7 @@
 /**
  * MaintenanceWindow API Service
  * Auto-generated from backend maintenance-window-routes.ts
- * Prefix: /v1/maintenance-windows
+ * Prefix: /api/v1/maintenance-windows
  */
 import { api } from './client';
 
@@ -16,20 +16,20 @@ export interface MaintenanceWindow {
 }
 
 export const createMaintenanceWindowMaintenanceWindows = async (data?: Partial<MaintenanceWindow>): Promise<MaintenanceWindow> => {
-  const response = await api.post<MaintenanceWindow>('/v1/maintenance-windows/maintenance-windows', data);
+  const response = await api.post<MaintenanceWindow>('/api/v1/maintenance-windows/maintenance-windows', data);
   return response.data;
 };
 
 export const listMaintenanceWindow = async (params?: Record<string, unknown>): Promise<{ data: MaintenanceWindow[]; total: number }> => {
-  const response = await api.get<{ data: MaintenanceWindow[]; total: number }>('/v1/maintenance-windows/maintenance-windows', { params });
+  const response = await api.get<{ data: MaintenanceWindow[]; total: number }>('/api/v1/maintenance-windows/maintenance-windows', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const deleteMaintenanceWindow = async (id: string): Promise<void> => {
-  await api.delete('/v1/maintenance-windows/maintenance-windows/' + id);
+  await api.delete('/api/v1/maintenance-windows/maintenance-windows/' + id);
 };
 
 export const getMaintenanceWindow = async (serviceName: string): Promise<MaintenanceWindow> => {
-  const response = await api.get<MaintenanceWindow>('/v1/maintenance-windows/maintenance-windows/check/' + serviceName);
+  const response = await api.get<MaintenanceWindow>('/api/v1/maintenance-windows/maintenance-windows/check/' + serviceName);
   return response.data;
 };

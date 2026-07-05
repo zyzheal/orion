@@ -48,6 +48,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { api } from '@/api/client';
 import type { Deployment, HealthCheckResult } from '@/api/deployments';
 import { getDeployments, cancelDeployment, rollbackDeployment } from '@/api/deployments';
+import { getReleaseNotes, generateReleaseNotes, type ReleaseNotes, type ReleaseNotesChange } from '@/api/deploy';
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -183,6 +184,11 @@ const DeployPage: React.FC = () => {
   // Detail drawer
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
+
+  // Release Notes state
+  const [releaseNotes, setReleaseNotes] = useState<ReleaseNotes | null>(null);
+  const [releaseNotesLoading, setReleaseNotesLoading] = useState(false);
+  const [generatingNotes, setGeneratingNotes] = useState(false);
 
   // Deploy Window state
   const [deployWindows, setDeployWindows] = useState<DeployWindow[]>([
@@ -501,9 +507,33 @@ const DeployPage: React.FC = () => {
     setProgressiveDetailVisible(true);
   };
 
-  const openDetail = (d: Deployment) => {
+  const openDetail = async (d: Deployment) => {
     setSelectedDeployment(d);
     setDetailDrawerVisible(true);
+    setReleaseNotes(null);
+    // 加载该部署的版本说明
+    try {
+      const notes = await getReleaseNotes(d.id);
+      setReleaseNotes(notes);
+    } catch {
+      // 版本说明不存在时静默处理
+    }
+  };
+
+  const handleGenerateReleaseNotes = async () => {
+    if (!selectedDeployment) return;
+    try {
+      setGeneratingNotes(true);
+      const notes = await generateReleaseNotes(selectedDeployment.id, {
+        toCommit: selectedDeployment.commit,
+      });
+      setReleaseNotes(notes);
+      message.success('版本说明生成成功');
+    } catch (error: unknown) {
+      message.error(`生成版本说明失败: ${(error as Error).message}`);
+    } finally {
+      setGeneratingNotes(false);
+    }
   };
 
   // ---- Table columns ----
@@ -1480,6 +1510,150 @@ const DeployPage: React.FC = () => {
                 </Timeline>
               </div>
             )}
+
+            {/* Release Notes */}
+            <div style={{ marginTop: spacing.lg }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                <Title level={5} style={{ margin: 0 }}>版本说明</Title>
+                {!releaseNotes && (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<CloudUploadOutlined />}
+                    onClick={handleGenerateReleaseNotes}
+                    loading={generatingNotes}
+                  >
+                    生成版本说明
+                  </Button>
+                )}
+              </div>
+
+              {releaseNotesLoading && <Card size="small"><Text type="secondary">加载中...</Text></Card>}
+
+              {!releaseNotesLoading && releaseNotes && (
+                <Card size="small">
+                  <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                    {/* Summary */}
+                    <Alert
+                      message={releaseNotes.summary}
+                      type="info"
+                      showIcon
+                    />
+
+                    {/* Metrics */}
+                    <Row gutter={16}>
+                      <Col span={6}>
+                        <Statistic
+                          title={<Text type="secondary">总 Commits</Text>}
+                          value={releaseNotes.metrics.totalCommits}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title={<Text type="secondary">变更数</Text>}
+                          value={releaseNotes.metrics.totalChanges}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title={<Text type="secondary">新功能</Text>}
+                          value={releaseNotes.metrics.features}
+                          valueStyle={{ color: colors.success[500] }}
+                        />
+                      </Col>
+                      <Col span={6}>
+                        <Statistic
+                          title={<Text type="secondary">Bug 修复</Text>}
+                          value={releaseNotes.metrics.fixes}
+                          valueStyle={{ color: colors.primary[500] }}
+                        />
+                      </Col>
+                    </Row>
+
+                    {releaseNotes.metrics.breakingChanges > 0 && (
+                      <Alert
+                        message={`包含 ${releaseNotes.metrics.breakingChanges} 个 Breaking Changes`}
+                        type="warning"
+                        showIcon
+                      />
+                    )}
+
+                    {/* Changes List */}
+                    {releaseNotes.changes.length > 0 && (
+                      <div>
+                        <Text strong>变更详情</Text>
+                        <div style={{ marginTop: spacing.sm }}>
+                          {releaseNotes.changes.map((change: ReleaseNotesChange, idx: number) => (
+                            <Card
+                              key={idx}
+                              size="small"
+                              style={{ marginBottom: spacing.sm }}
+                              type={change.type === 'breaking' ? 'inner' : undefined}
+                            >
+                              <Space direction="vertical" style={{ width: '100%' }} size={0}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                                  <Tag
+                                    color={
+                                      change.type === 'feature' ? 'green' :
+                                      change.type === 'fix' ? 'blue' :
+                                      change.type === 'breaking' ? 'red' :
+                                      change.type === 'improvement' ? 'cyan' :
+                                      'default'
+                                    }
+                                  >
+                                    {change.type}
+                                  </Tag>
+                                  <Text>{change.description}</Text>
+                                </div>
+                                <Space size="small">
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    {change.commit.slice(0, 7)}
+                                  </Text>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>
+                                    by {change.author}
+                                  </Text>
+                                  {change.prNumber && (
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      #{change.prNumber}
+                                    </Text>
+                                  )}
+                                </Space>
+                              </Space>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Manual Notes */}
+                    {releaseNotes.notes && (
+                      <div>
+                        <Text strong>补充说明</Text>
+                        <div style={{ marginTop: spacing.xs }}>
+                          <Text type="secondary">{releaseNotes.notes}</Text>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timestamps */}
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        生成时间: {dayjs(releaseNotes.generatedAt).format('YYYY-MM-DD HH:mm:ss')}
+                      </Text>
+                    </div>
+                  </Space>
+                </Card>
+              )}
+
+              {!releaseNotesLoading && !releaseNotes && (
+                <Alert
+                  message="暂无版本说明"
+                  description="点击上方按钮从 Git 提交历史自动生成版本说明"
+                  type="info"
+                  showIcon
+                />
+              )}
+            </div>
           </>
         )}
       </Drawer>

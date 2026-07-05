@@ -73,55 +73,55 @@ export interface RiskFilters {
 // ==================== Risk Assessment ====================
 
 export function assessDeploymentRisk(deploymentId: string, params?: Record<string, any>) {
-  return api.post<RiskAssessment>('/v1/risk/assess/deployment', { deploymentId, ...params });
+  return api.post<RiskAssessment>('/api/v1/risk/assess/deployment', { deploymentId, ...params });
 }
 
 export function assessChangeRisk(changeId: string) {
-  return api.post<RiskAssessment>('/v1/risk/assess/change', { changeId });
+  return api.post<RiskAssessment>('/api/v1/risk/assess/change', { changeId });
 }
 
 export function getRiskAssessments(filters?: RiskFilters) {
-  return api.get<{ assessments: RiskAssessment[]; total: number }>('/v1/risk/assessments', {
+  return api.get<{ assessments: RiskAssessment[]; total: number }>('/api/v1/risk/assessments', {
     params: filters,
   });
 }
 
 export function getRiskAssessment(id: string) {
-  return api.get<RiskAssessment>(`/v1/risk/assessments/${id}`);
+  return api.get<RiskAssessment>(`/api/v1/risk/assessments/${id}`);
 }
 
 // ==================== Health Checks ====================
 
 export function runHealthCheck(checkType?: 'pre-deployment' | 'basic' | 'comprehensive') {
-  return api.post<HealthCheckResult>('/v1/risk/health-check', { checkType });
+  return api.post<HealthCheckResult>('/api/v1/risk/health-check', { checkType });
 }
 
 export function runBasicHealthCheck() {
-  return api.post<HealthCheckResult>('/v1/risk/health-check/basic');
+  return api.post<HealthCheckResult>('/api/v1/risk/health-check/basic');
 }
 
 export function getHealthCheckHistory() {
-  return api.get<{ checks: HealthCheckResult[] }>('/v1/risk/health-check/history');
+  return api.get<{ checks: HealthCheckResult[] }>('/api/v1/risk/health-check/history');
 }
 
 // ==================== Risk Reports ====================
 
 export function generateRiskReport(assessmentId: string) {
-  return api.post<{ report: any }>(`/v1/risk/reports/generate/${assessmentId}`);
+  return api.post<{ report: any }>(`/api/v1/risk/reports/generate/${assessmentId}`);
 }
 
 export function getRiskReports() {
-  return api.get<{ reports: any[] }>('/v1/risk/reports');
+  return api.get<{ reports: any[] }>('/api/v1/risk/reports');
 }
 
 // ==================== Risk Events ====================
 
 export function getRiskEvents(status?: 'all' | 'acknowledged' | 'unacknowledged') {
-  return api.get<{ events: RiskEvent[] }>('/v1/risk/events', { params: { status } });
+  return api.get<{ events: RiskEvent[] }>('/api/v1/risk/events', { params: { status } });
 }
 
 export function acknowledgeRiskEvent(id: string) {
-  return api.post<{ acknowledged: boolean }>(`/v1/risk/events/${id}/acknowledge`);
+  return api.post<{ acknowledged: boolean }>(`/api/v1/risk/events/${id}/acknowledge`);
 }
 
 // ==================== Status ====================
@@ -132,5 +132,5 @@ export function getRiskStatus() {
     totalAssessments: number;
     pendingAssessments: number;
     highRiskCount: number;
-  }>('/v1/risk/status');
+  }>('/api/v1/risk/status');
 }

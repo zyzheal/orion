@@ -1,7 +1,7 @@
 /**
  * DecisionExplanation API Service
  * Auto-generated from backend decision-explanation-routes.ts
- * Prefix: /v1/decisions
+ * Prefix: /api/v1/decisions
  */
 import { api } from './client';
 
@@ -16,16 +16,16 @@ export interface DecisionExplanation {
 }
 
 export const getDecisionExplanation = async (id: string): Promise<DecisionExplanation> => {
-  const response = await api.get<DecisionExplanation>('/v1/decisions/decisions/' + id + '/explain');
+  const response = await api.get<DecisionExplanation>('/api/v1/decisions/decisions/' + id + '/explain');
   return response.data;
 };
 
 export const createDecisionExplanationDecisionsFeedback = async (id: string, data?: Partial<DecisionExplanation>): Promise<DecisionExplanation> => {
-  const response = await api.post<DecisionExplanation>('/v1/decisions/decisions/' + id + '/feedback', data);
+  const response = await api.post<DecisionExplanation>('/api/v1/decisions/decisions/' + id + '/feedback', data);
   return response.data;
 };
 
 export const getDecisionExplanationDecisionsQualityTrend = async (scenario: string): Promise<DecisionExplanation> => {
-  const response = await api.get<DecisionExplanation>('/v1/decisions/decisions/quality/' + scenario + '/trend');
+  const response = await api.get<DecisionExplanation>('/api/v1/decisions/decisions/quality/' + scenario + '/trend');
   return response.data;
 };

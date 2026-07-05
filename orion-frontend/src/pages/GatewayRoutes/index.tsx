@@ -12,16 +12,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Typography, Button, Space, Tag, Card, Modal, Form, Input, Select,
   message, Popconfirm, Tooltip, Switch, Drawer, Descriptions, Row, Col,
-  Statistic, Empty, Alert, Divider, Badge, Table, InputNumber,
+  Statistic, Alert, Divider, Badge, Table, InputNumber,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, DeleteOutlined, EditOutlined,
-  EyeOutlined, SearchOutlined, FilterOutlined, ClearOutlined,
+  EyeOutlined, SearchOutlined, ClearOutlined,
   GatewayOutlined, ApiOutlined, CheckCircleOutlined, CloseCircleOutlined,
-  SettingOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
-import type { GatewayRoute, GatewayRouteInput, GatewayRouteStats } from '@/api/gateway-routes';
+import type { GatewayRoute, GatewayRouteStats } from '@/api/gateway-routes';
 import {
   getGatewayRoutes,
   createGatewayRoute,
@@ -29,6 +28,7 @@ import {
   deleteGatewayRoute,
   toggleGatewayRoute,
   getGatewayRouteStats,
+  getGatewayRoute,
 } from '@/api/gateway-routes';
 import dayjs from 'dayjs';
 
@@ -47,25 +47,20 @@ const HTTP_METHOD_COLORS: Record<string, string> = {
   POST: 'green',
   PUT: 'orange',
   DELETE: 'red',
-  PATCH: 'purple',
+  PATCH: 'cyan',
   HEAD: 'default',
   OPTIONS: 'default',
 };
 
 const METHOD_LABELS: Record<string, string> = {
-  GET: '查询',
-  POST: '创建',
-  PUT: '更新',
-  DELETE: '删除',
-  PATCH: '部分更新',
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  DELETE: 'DELETE',
+  PATCH: 'PATCH',
   HEAD: 'HEAD',
   OPTIONS: 'OPTIONS',
 };
-
-const AUTH_REQUIRED_OPTIONS = [
-  { label: '是', value: true },
-  { label: '否', value: false },
-];
 
 // ============================================================================
 // GatewayRoutesPage Component
@@ -704,8 +699,7 @@ const GatewayRoutesPage: React.FC = () => {
                 {dayjs(selectedRoute.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
               </Descriptions.Item>
               {selectedRoute.createdBy && (
-                <Descriptions.Item label="创建人">{selectedRoute.createdBy}</Text>
-                </Descriptions.Item>
+                <Descriptions.Item label="创建人">{selectedRoute.createdBy}</Descriptions.Item>
               )}
             </Descriptions>
           </div>

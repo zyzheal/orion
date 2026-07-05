@@ -100,37 +100,37 @@ export interface AuditStatsParams {
 // ---- Commands ----
 
 export function getCommands(params?: CommandListParams) {
-  return api.get('/v1/chatops/commands', { params });
+  return api.get('/api/v1/chatops/commands', { params });
 }
 
 export function getCommandHelp(name: string) {
-  return api.get(`/v1/chatops/commands/${name}/help`);
+  return api.get(`/api/v1/chatops/commands/${name}/help`);
 }
 
 export function executeCommand(data: CommandExecutionInput) {
-  return api.post('/v1/chatops/execute', data);
+  return api.post('/api/v1/chatops/execute', data);
 }
 
 export function getCommandStatus(id: string) {
-  return api.get(`/v1/chatops/status/${id}`);
+  return api.get(`/api/v1/chatops/status/${id}`);
 }
 
 export function getExecutions(params?: ExecutionListParams) {
-  return api.get('/v1/chatops/executions', { params });
+  return api.get('/api/v1/chatops/executions', { params });
 }
 
 // ---- Audit ----
 
 export function getAuditLogs(params?: AuditLogListParams) {
-  return api.get('/v1/chatops/audit/logs', { params });
+  return api.get('/api/v1/chatops/audit/logs', { params });
 }
 
 export function getAuditStats(params?: AuditStatsParams) {
-  return api.get('/v1/chatops/audit/stats', { params });
+  return api.get('/api/v1/chatops/audit/stats', { params });
 }
 
 export function exportAuditLogs(data: { startDate: string; endDate: string; format?: string }) {
-  return api.post('/v1/chatops/audit/export', data);
+  return api.post('/api/v1/chatops/audit/export', data);
 }
 
 // ---- Recommendations ----
@@ -150,7 +150,7 @@ export interface Recommendation {
 }
 
 export function fetchRecommendations(context?: { currentPage?: string; resourceId?: string }) {
-  return api.post('/v1/chatops/recommendations', { context });
+  return api.post('/api/v1/chatops/recommendations', { context });
 }
 
 // ---- Sessions / Messages ----
@@ -168,7 +168,7 @@ export function getSessionMessages(
   sessionId: string,
   params?: { limit?: number; cursor?: string }
 ) {
-  return api.get(`/v1/chatops/sessions/${sessionId}/messages`, { params });
+  return api.get(`/api/v1/chatops/sessions/${sessionId}/messages`, { params });
 }
 
 // ---- Notification Preferences ----
@@ -185,7 +185,7 @@ export interface NotificationPreference {
 }
 
 export function getNotificationPreferences() {
-  return api.get('/v1/chatops/settings/notification-preferences');
+  return api.get('/api/v1/chatops/settings/notification-preferences');
 }
 
 export function updateNotificationPreferences(data: {
@@ -196,7 +196,7 @@ export function updateNotificationPreferences(data: {
   channelFeishu?: boolean;
   channelDingtalk?: boolean;
 }) {
-  return api.put('/v1/chatops/settings/notification-preferences', data);
+  return api.put('/api/v1/chatops/settings/notification-preferences', data);
 }
 
 // ---- DND Settings ----
@@ -212,7 +212,7 @@ export interface DNDSettings {
 }
 
 export function getDNDSettings() {
-  return api.get('/v1/chatops/settings/dnd');
+  return api.get('/api/v1/chatops/settings/dnd');
 }
 
 export function updateDNDSettings(
@@ -224,11 +224,11 @@ export function updateDNDSettings(
     allowCritical: boolean;
   }>
 ) {
-  return api.put('/v1/chatops/settings/dnd', data);
+  return api.put('/api/v1/chatops/settings/dnd', data);
 }
 
 export function toggleDND(enabled: boolean) {
-  return api.patch('/v1/chatops/settings/dnd/toggle', { enabled });
+  return api.patch('/api/v1/chatops/settings/dnd/toggle', { enabled });
 }
 
 // ---- Platform Config ----
@@ -241,11 +241,11 @@ export interface PlatformConfig {
 }
 
 export function getPlatformConfigs() {
-  return api.get('/v1/chatops/settings/platforms');
+  return api.get('/api/v1/chatops/settings/platforms');
 }
 
 export function updatePlatformConfigs(platforms: PlatformConfig[]) {
-  return api.put('/v1/chatops/settings/platforms', { platforms });
+  return api.put('/api/v1/chatops/settings/platforms', { platforms });
 }
 
 // ---- Alert States ----
@@ -262,19 +262,19 @@ export interface AlertState {
 }
 
 export function getAlertStates() {
-  return api.get('/v1/chatops/alerts/states');
+  return api.get('/api/v1/chatops/alerts/states');
 }
 
 export function markAlertRead(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/read`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/read`);
 }
 
 export function markAlertAcknowledged(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/acknowledge`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/acknowledge`);
 }
 
 export function markAlertDismissed(alertId: string) {
-  return api.post(`/v1/chatops/alerts/${alertId}/dismiss`);
+  return api.post(`/api/v1/chatops/alerts/${alertId}/dismiss`);
 }
 
 // ---- SSE Stream ----
@@ -563,11 +563,11 @@ export interface ToolInfo {
 }
 
 export function sendChatMessage(data: ChatRequest) {
-  return api.post('/v1/chatops/chat', data);
+  return api.post('/api/v1/chatops/chat', data);
 }
 
 export function getAvailableTools() {
-  return api.get('/v1/chatops/tools');
+  return api.get('/api/v1/chatops/tools');
 }
 
 // ---- Dashboard Stats ----
@@ -629,7 +629,7 @@ export function getDashboardStats(params?: {
   startDate?: string;
   endDate?: string;
 }) {
-  return api.get('/v1/chatops/dashboard/stats', { params });
+  return api.get('/api/v1/chatops/dashboard/stats', { params });
 }
 
 // ---- Chat Config (Questions & Commands) ----
@@ -651,18 +651,18 @@ export interface ChatCommandConfig {
 }
 
 export function getQuestionConfigs() {
-  return api.get('/v1/chatops/settings/questions');
+  return api.get('/api/v1/chatops/settings/questions');
 }
 
 export function updateQuestionConfigs(data: { configs: ChatQuestionConfig[] }) {
-  return api.put('/v1/chatops/settings/questions', data);
+  return api.put('/api/v1/chatops/settings/questions', data);
 }
 
 export function getCommandConfigs() {
-  return api.get('/v1/chatops/settings/commands');
+  return api.get('/api/v1/chatops/settings/commands');
 }
 
 export function updateCommandConfigs(data: { configs: ChatCommandConfig[] }) {
-  return api.put('/v1/chatops/settings/commands', data);
+  return api.put('/api/v1/chatops/settings/commands', data);
 }
 

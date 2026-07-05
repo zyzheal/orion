@@ -1,7 +1,7 @@
 /**
  * Script API Service
  * Auto-generated from backend script-routes.ts
- * Prefix: /v1/scripts
+ * Prefix: /api/v1/scripts
  */
 import { api } from './client';
 
@@ -16,36 +16,36 @@ export interface Script {
 }
 
 export const createScriptScan = async (data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/scan', data);
+  const response = await api.post<Script>('/api/v1/scripts/scan', data);
   return response.data;
 };
 
 export const createScriptDryRun = async (data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/dry-run', data);
+  const response = await api.post<Script>('/api/v1/scripts/dry-run', data);
   return response.data;
 };
 
 export const createScriptExecute = async (data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/execute', data);
+  const response = await api.post<Script>('/api/v1/scripts/execute', data);
   return response.data;
 };
 
 export const createScriptApproval = async (data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/approval', data);
+  const response = await api.post<Script>('/api/v1/scripts/approval', data);
   return response.data;
 };
 
 export const getScript = async (approvalId: string): Promise<Script> => {
-  const response = await api.get<Script>('/v1/scripts/approval/' + approvalId);
+  const response = await api.get<Script>('/api/v1/scripts/approval/' + approvalId);
   return response.data;
 };
 
 export const createScriptApprovalDecide = async (approvalId: string, data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/approval/' + approvalId + '/decide', data);
+  const response = await api.post<Script>('/api/v1/scripts/approval/' + approvalId + '/decide', data);
   return response.data;
 };
 
 export const createScriptAiGenerate = async (data?: Partial<Script>): Promise<Script> => {
-  const response = await api.post<Script>('/v1/scripts/ai-generate', data);
+  const response = await api.post<Script>('/api/v1/scripts/ai-generate', data);
   return response.data;
 };

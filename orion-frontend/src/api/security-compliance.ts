@@ -129,7 +129,7 @@ export const defineCompliancePolicy = async (data: {
   enabled?: boolean;
   rules?: Record<string, any>;
 }): Promise<CompliancePolicy> => {
-  const response = await api.post<{ data: CompliancePolicy }>('/v1/compliance/policies', data);
+  const response = await api.post<{ data: CompliancePolicy }>('/api/v1/compliance/policies', data);
   return response.data.data;
 };
 
@@ -138,7 +138,7 @@ export const listCompliancePolicies = async (params?: {
   severity?: string;
   enabled?: boolean;
 }): Promise<CompliancePolicy[]> => {
-  const response = await api.get<{ data: CompliancePolicy[] }>('/v1/compliance/policies', { params });
+  const response = await api.get<{ data: CompliancePolicy[] }>('/api/v1/compliance/policies', { params });
   return response.data.data;
 };
 
@@ -150,14 +150,14 @@ export const evaluateCompliance = async (data: {
   resourceType?: string;
   framework?: string;
 }): Promise<ComplianceEvaluation> => {
-  const response = await api.post<{ data: ComplianceEvaluation }>('/v1/compliance/evaluate', data);
+  const response = await api.post<{ data: ComplianceEvaluation }>('/api/v1/compliance/evaluate', data);
   return response.data.data;
 };
 
 // ==================== Compliance Report ====================
 
 export const getComplianceReport = async (policyId: string): Promise<ComplianceReport> => {
-  const response = await api.get<{ data: ComplianceReport }>(`/v1/compliance/report/${policyId}`);
+  const response = await api.get<{ data: ComplianceReport }>(`/api/v1/compliance/report/${policyId}`);
   return response.data.data;
 };
 
@@ -166,7 +166,7 @@ export const getComplianceReport = async (policyId: string): Promise<ComplianceR
 export const getComplianceScore = async (params?: {
   framework?: string;
 }): Promise<ComplianceScore> => {
-  const response = await api.get<{ data: ComplianceScore }>('/v1/compliance/score', { params });
+  const response = await api.get<{ data: ComplianceScore }>('/api/v1/compliance/score', { params });
   return response.data.data;
 };
 
@@ -177,7 +177,7 @@ export const autoRemediateCompliance = async (data: {
   findingIds?: string[];
   dryRun?: boolean;
 }): Promise<RemediationResult> => {
-  const response = await api.post<{ data: RemediationResult }>('/v1/compliance/remediate', data);
+  const response = await api.post<{ data: RemediationResult }>('/api/v1/compliance/remediate', data);
   return response.data.data;
 };
 
@@ -189,7 +189,7 @@ export const createAuditPlan = async (data: {
   scope?: string;
   scheduledAt?: string;
 }): Promise<AuditPlan> => {
-  const response = await api.post<{ data: AuditPlan }>('/v1/audit/plans', data);
+  const response = await api.post<{ data: AuditPlan }>('/api/v1/audit/plans', data);
   return response.data.data;
 };
 
@@ -198,21 +198,21 @@ export const listAuditPlans = async (params?: {
   limit?: number;
   offset?: number;
 }): Promise<AuditPlan[]> => {
-  const response = await api.get<{ data: AuditPlan[] }>('/v1/audit/plans', { params });
+  const response = await api.get<{ data: AuditPlan[] }>('/api/v1/audit/plans', { params });
   return response.data.data;
 };
 
 // ==================== Audit Execution ====================
 
 export const executeAudit = async (id: string): Promise<AuditReport> => {
-  const response = await api.post<{ data: AuditReport }>(`/v1/audit/${id}/execute`);
+  const response = await api.post<{ data: AuditReport }>(`/api/v1/audit/${id}/execute`);
   return response.data.data;
 };
 
 // ==================== Audit Report ====================
 
 export const getAuditReport = async (id: string): Promise<AuditReport> => {
-  const response = await api.get<{ data: AuditReport }>(`/v1/audit/${id}/report`);
+  const response = await api.get<{ data: AuditReport }>(`/api/v1/audit/${id}/report`);
   return response.data.data;
 };
 
@@ -222,26 +222,26 @@ export const getAuditFindings = async (id: string, params?: {
   severity?: string;
   status?: string;
 }): Promise<ComplianceFinding[]> => {
-  const response = await api.get<{ data: ComplianceFinding[] }>(`/v1/audit/${id}/findings`, { params });
+  const response = await api.get<{ data: ComplianceFinding[] }>(`/api/v1/audit/${id}/findings`, { params });
   return response.data.data;
 };
 
 export const closeFinding = async (id: string, data?: {
   remediation?: string;
 }): Promise<ComplianceFinding> => {
-  const response = await api.post<{ data: ComplianceFinding }>(`/v1/audit/findings/${id}/close`, data);
+  const response = await api.post<{ data: ComplianceFinding }>(`/api/v1/audit/findings/${id}/close`, data);
   return response.data.data;
 };
 
 // ==================== Compliance Frameworks ====================
 
 export const getComplianceFrameworks = async (): Promise<ComplianceFramework[]> => {
-  const response = await api.get<{ data: ComplianceFramework[] }>('/v1/compliance/frameworks');
+  const response = await api.get<{ data: ComplianceFramework[] }>('/api/v1/compliance/frameworks');
   return response.data.data;
 };
 
 export const getComplianceFramework = async (id: string): Promise<ComplianceFramework> => {
-  const response = await api.get<{ data: ComplianceFramework }>(`/v1/compliance/frameworks/${id}`);
+  const response = await api.get<{ data: ComplianceFramework }>(`/api/v1/compliance/frameworks/${id}`);
   return response.data.data;
 };
 
@@ -253,12 +253,12 @@ export const collectEvidence = async (data: {
   source: string;
   content?: Record<string, any>;
 }): Promise<Evidence> => {
-  const response = await api.post<{ data: Evidence }>('/v1/compliance/evidence', data);
+  const response = await api.post<{ data: Evidence }>('/api/v1/compliance/evidence', data);
   return response.data.data;
 };
 
 export const getEvidence = async (policyId: string): Promise<Evidence[]> => {
-  const response = await api.get<{ data: Evidence[] }>(`/v1/compliance/evidence/${policyId}`);
+  const response = await api.get<{ data: Evidence[] }>(`/api/v1/compliance/evidence/${policyId}`);
   return response.data.data;
 };
 
@@ -267,7 +267,7 @@ export const generateEvidenceCollection = async (data: {
   frameworkId?: string;
   autoCollect?: boolean;
 }): Promise<Evidence[]> => {
-  const response = await api.post<{ data: Evidence[] }>('/v1/compliance/evidence/generate', data);
+  const response = await api.post<{ data: Evidence[] }>('/api/v1/compliance/evidence/generate', data);
   return response.data.data;
 };
 
@@ -278,6 +278,6 @@ export const performGapAnalysis = async (data: {
   scope?: string;
   resourceType?: string;
 }): Promise<GapAnalysisResult> => {
-  const response = await api.post<{ data: GapAnalysisResult }>('/v1/compliance/gap-analysis', data);
+  const response = await api.post<{ data: GapAnalysisResult }>('/api/v1/compliance/gap-analysis', data);
   return response.data.data;
 };

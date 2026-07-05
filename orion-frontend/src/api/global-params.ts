@@ -51,32 +51,32 @@ export interface ResolvedKeysResult {
 
 // ==================== API 方法 ====================
 
-// POST /v1/global-params — 创建参数
+// POST /api/v1/global-params — 创建参数
 export function createGlobalParam(data: CreateGlobalParamInput) {
-  return api.post<GlobalParam>('/v1/global-params', data);
+  return api.post<GlobalParam>('/api/v1/global-params', data);
 }
 
-// GET /v1/global-params — 列表查询
+// GET /api/v1/global-params — 列表查询
 export function getGlobalParams(params?: { scope?: string }) {
-  return api.get<GlobalParam[]>('/v1/global-params', { params });
+  return api.get<GlobalParam[]>('/api/v1/global-params', { params });
 }
 
-// GET /v1/global-params/:id — 获取详情
+// GET /api/v1/global-params/:id — 获取详情
 export function getGlobalParam(id: string) {
-  return api.get<GlobalParam>(`/v1/global-params/${id}`);
+  return api.get<GlobalParam>(`/api/v1/global-params/${id}`);
 }
 
-// PUT /v1/global-params/:id — 更新
+// PUT /api/v1/global-params/:id — 更新
 export function updateGlobalParam(id: string, data: UpdateGlobalParamInput) {
-  return api.put<GlobalParam>(`/v1/global-params/${id}`, data);
+  return api.put<GlobalParam>(`/api/v1/global-params/${id}`, data);
 }
 
-// DELETE /v1/global-params/:id — 删除
+// DELETE /api/v1/global-params/:id — 删除
 export function deleteGlobalParam(id: string) {
-  return api.delete(`/v1/global-params/${id}`);
+  return api.delete(`/api/v1/global-params/${id}`);
 }
 
-// POST /v1/global-params/resolve — 批量解析
+// POST /api/v1/global-params/resolve — 批量解析
 export function resolveGlobalParams(data: ResolveKeysInput) {
-  return api.post<ResolvedKeysResult>('/v1/global-params/resolve', data);
+  return api.post<ResolvedKeysResult>('/api/v1/global-params/resolve', data);
 }

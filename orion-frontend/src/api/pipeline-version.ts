@@ -1,7 +1,7 @@
 /**
  * PipelineVersion API Service
  * Auto-generated from backend pipeline-version-routes.ts
- * Prefix: /v1/pipelines/:pipelineId/versions
+ * Prefix: /api/v1/pipelines/:pipelineId/versions
  */
 import { api } from './client';
 
@@ -16,25 +16,25 @@ export interface PipelineVersion {
 }
 
 export const getPipelineVersion = async (pipelineId: string, versionId: string): Promise<PipelineVersion> => {
-  const response = await api.get<PipelineVersion>('/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId);
+  const response = await api.get<PipelineVersion>('/api/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId);
   return response.data;
 };
 
 export const createPipelineVersionVersionsRollback = async (pipelineId: string, versionId: string, data?: Partial<PipelineVersion>): Promise<PipelineVersion> => {
-  const response = await api.post<PipelineVersion>('/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/rollback', data);
+  const response = await api.post<PipelineVersion>('/api/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/rollback', data);
   return response.data;
 };
 
 export const createPipelineVersionVersionsTag = async (pipelineId: string, versionId: string, data?: Partial<PipelineVersion>): Promise<PipelineVersion> => {
-  const response = await api.post<PipelineVersion>('/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/tag', data);
+  const response = await api.post<PipelineVersion>('/api/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/tag', data);
   return response.data;
 };
 
 export const deletePipelineVersion = async (pipelineId: string, versionId: string, tag: string): Promise<void> => {
-  await api.delete('/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/tag/' + tag);
+  await api.delete('/api/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/tag/' + tag);
 };
 
 export const createPipelineVersionVersionsBaseline = async (pipelineId: string, versionId: string, data?: Partial<PipelineVersion>): Promise<PipelineVersion> => {
-  const response = await api.post<PipelineVersion>('/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/baseline', data);
+  const response = await api.post<PipelineVersion>('/api/v1/pipelines/:pipelineId/versions/' + pipelineId + '/versions/' + versionId + '/baseline', data);
   return response.data;
 };

@@ -37,6 +37,7 @@ import {
 import { colors, spacing } from '@/tokens';
 import dayjs from 'dayjs';
 import { capabilityApi, type Capability as ApiCapability } from '@/api/capability';
+import { listUsers, type User as ApiUser } from '@/api/user';
 
 const { Text } = Typography;
 const {} = Collapse;
@@ -84,49 +85,6 @@ interface UserCapabilityOverride {
   expiresAt: string | null;
 }
 
-const mockUsers: User[] = [
-  {
-    id: 'user-1',
-    username: 'zhangsan',
-    name: '张三',
-    email: 'zhangsan@orion.design',
-    roles: ['developer', 'viewer'],
-    roleNames: ['Developer', 'Viewer'],
-    effectiveCount: 28,
-  },
-  {
-    id: 'user-2',
-    username: 'lisi',
-    name: '李四',
-    email: 'lisi@orion.design',
-    roles: ['sre'],
-    roleNames: ['SRE'],
-    effectiveCount: 35,
-  },
-  {
-    id: 'user-3',
-    username: 'wangwu',
-    name: '王五',
-    email: 'wangwu@orion.design',
-    roles: ['developer'],
-    roleNames: ['Developer'],
-    effectiveCount: 18,
-  },
-  {
-    id: 'user-4',
-    username: 'zhaoliu',
-    name: '赵六',
-    email: 'zhaoliu@orion.design',
-    roles: ['viewer'],
-    roleNames: ['Viewer'],
-    effectiveCount: 8,
-  },
-];
-
-
-
-// ==================== 工具函数 ====================
-
 const getCategoryColor = (category: string): string => {
   const colorMap: Record<string, string> = {
     ChatOps: 'blue',
@@ -155,7 +113,8 @@ const getRiskLevelColor = (level: number): string => {
  */
 const UserCapabilityMapping: React.FC = () => {
   // 状态
-  const [users] = useState<User[]>(mockUsers); // 用户列表暂用 mock（无独立用户 API）
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [overrides, setOverrides] = useState<UserCapabilityOverride[]>([]);
   const [searchText, setSearchText] = useState('');
@@ -163,6 +122,30 @@ const UserCapabilityMapping: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+
+  // 加载用户列表
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const resp = await listUsers({ page: 1, limit: 100 });
+      const apiUsers = (resp.data as any)?.data || [];
+      setUsers(
+        apiUsers.map((u: ApiUser) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name || u.username,
+          email: u.email || '',
+          roles: u.role ? [u.role] : [],
+          roleNames: u.role ? [u.role] : [],
+          effectiveCount: 0,
+        }))
+      );
+    } catch {
+      message.error('加载用户列表失败');
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
 
   // 加载能力列表和覆盖数据
   const loadData = useCallback(async () => {
@@ -177,11 +160,11 @@ const UserCapabilityMapping: React.FC = () => {
         category: c.category,
         riskLevel: (c.risk_level || 1) as 1 | 2 | 3 | 4,
         requiresApproval: c.requires_approval ?? false,
-      })));
+      }));
 
       // 加载所有用户的覆盖
       const allOverrides: UserCapabilityOverride[] = [];
-      for (const user of mockUsers) {
+      for (const user of users) {
         try {
           const res = await capabilityApi.getUserOverrides(user.id);
           const data = (res.data as any)?.data || [];
@@ -206,9 +189,12 @@ const UserCapabilityMapping: React.FC = () => {
       message.error('加载数据失败');
     }
     setLoading(false);
-  }, []);
+  }, [users]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadUsers();
+    loadData();
+  }, []);
 
   // 筛选用户
   const filteredUsers = useMemo(() => {

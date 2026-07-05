@@ -26,6 +26,8 @@ import {
   Progress,
   message,
   Tabs,
+  Empty,
+  Spin,
 } from 'antd';
 import {
   PlusOutlined,
@@ -70,64 +72,31 @@ const CACHE_TYPE_COLORS: Record<CacheType, string> = {
   custom: colors.neutral[500],
 };
 
-// ==================== Mock 推荐配置 ====================
-const MOCK_RECOMMENDATIONS: CacheRecommendation[] = [
-  {
-    type: 'npm',
-    name: 'Node.js 依赖缓存',
-    description: '缓存 node_modules 目录，加速 npm install',
-    keyTemplate: 'npm:{{hashFiles(package-lock.json)}}',
-    paths: ['node_modules'],
-    restoreKeys: ['npm:', 'npm-production-'],
-    ttlDays: 7,
-  },
-  {
-    type: 'pip',
-    name: 'Python 依赖缓存',
-    description: '缓存 pip 下载的 Python 包',
-    keyTemplate: 'pip:{{hashFiles(requirements.txt)}}',
-    paths: ['~/.cache/pip'],
-    restoreKeys: ['pip-'],
-    ttlDays: 7,
-  },
-  {
-    type: 'maven',
-    name: 'Maven 依赖缓存',
-    description: '缓存 Maven 本地仓库',
-    keyTemplate: 'maven:{{checksum(pom.xml)}}',
-    paths: ['~/.m2/repository'],
-    restoreKeys: ['maven-', 'maven-snapshot-'],
-    ttlDays: 14,
-  },
-  {
-    type: 'gradle',
-    name: 'Gradle 依赖缓存',
-    description: '缓存 Gradle 依赖和构建缓存',
-    keyTemplate: 'gradle:{{checksum(build.gradle)}}',
-    paths: ['~/.gradle/caches', '.gradle'],
-    restoreKeys: ['gradle-', 'gradle-build-cache-'],
-    ttlDays: 14,
-  },
-  {
-    type: 'go',
-    name: 'Go 模块缓存',
-    description: '缓存 Go 模块下载',
-    keyTemplate: 'go:{{hashFiles(go.sum)}}',
-    paths: ['~/go/pkg/mod'],
-    restoreKeys: ['go-', 'go-build-'],
-    ttlDays: 7,
-  },
-];
-
 // ==================== Main Component ====================
 const CacheConfigPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [strategies, setStrategies] = useState<CacheStrategy[]>([]);
+  const [recommendations, setRecommendations] = useState<CacheRecommendation[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState<CacheStrategy | null>(null);
   const [form] = Form.useForm<CacheStrategyCreateInput>();
+
+  // 加载推荐配置
+  const loadRecommendations = async () => {
+    setRecommendationsLoading(true);
+    try {
+      const data = await cacheStrategyApi.getAllRecommendations();
+      const apiData = (data as any)?.data || data;
+      setRecommendations(Array.isArray(apiData) ? apiData : []);
+    } catch {
+      setRecommendations([]);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
 
   // 加载缓存策略列表
   const loadStrategies = async () => {
@@ -141,44 +110,8 @@ const CacheConfigPage: React.FC = () => {
       const apiData = response.data?.data || response.data || response;
       setStrategies(Array.isArray(apiData) ? apiData : []);
     } catch (error: unknown) {
-      // 使用 mock 数据作为 fallback
-      console.warn('使用 mock 缓存策略数据:', error);
-      setStrategies([
-        {
-          id: 'cache-1',
-          tenantId: 'default',
-          name: 'Node.js 依赖缓存',
-          type: 'npm',
-          keyTemplate: 'npm:{{hashFiles(package-lock.json)}}',
-          paths: ['node_modules'],
-          restoreKeys: ['npm:'],
-          ttlDays: 7,
-          enabled: true,
-          hitCount: 156,
-          missCount: 44,
-          totalSize: 524288000,
-          createdBy: 'admin',
-          createdAt: '2026-01-10T00:00:00Z',
-          updatedAt: '2026-04-15T00:00:00Z',
-        },
-        {
-          id: 'cache-2',
-          tenantId: 'default',
-          name: 'Maven 依赖缓存',
-          type: 'maven',
-          keyTemplate: 'maven:{{checksum(pom.xml)}}',
-          paths: ['~/.m2/repository'],
-          restoreKeys: ['maven-'],
-          ttlDays: 14,
-          enabled: true,
-          hitCount: 89,
-          missCount: 23,
-          totalSize: 1073741824,
-          createdBy: 'admin',
-          createdAt: '2026-02-01T00:00:00Z',
-          updatedAt: '2026-04-20T00:00:00Z',
-        },
-      ]);
+      message.error('加载缓存策略失败，请稍后重试');
+      setStrategies([]);
     } finally {
       setLoading(false);
     }
@@ -186,6 +119,7 @@ const CacheConfigPage: React.FC = () => {
 
   useEffect(() => {
     loadStrategies();
+    loadRecommendations();
   }, [typeFilter]);
 
   // 过滤后的策略列表
@@ -358,9 +292,7 @@ const CacheConfigPage: React.FC = () => {
       message.success('缓存策略已删除');
       loadStrategies();
     } catch (error: unknown) {
-      // Mock 删除
-      setStrategies((prev) => prev.filter((s) => s.id !== id));
-      message.success('缓存策略已删除');
+      message.error('删除缓存策略失败');
     }
   };
 
@@ -371,39 +303,12 @@ const CacheConfigPage: React.FC = () => {
 
       if (editingStrategy) {
         // 更新
-        try {
-          await cacheStrategyApi.update(editingStrategy.id, values);
-          message.success('缓存策略已更新');
-        } catch {
-          // Mock 更新
-          setStrategies((prev) =>
-            prev.map((s) =>
-              s.id === editingStrategy.id ? { ...s, ...values, updatedAt: new Date().toISOString() } : s
-            )
-          );
-          message.success('缓存策略已更新');
-        }
+        await cacheStrategyApi.update(editingStrategy.id, values);
+        message.success('缓存策略已更新');
       } else {
         // 创建
-        try {
-          await cacheStrategyApi.create(values);
-          message.success('缓存策略已创建');
-        } catch {
-          // Mock 创建
-          const newStrategy: CacheStrategy = {
-            id: `cache-${Date.now()}`,
-            tenantId: 'default',
-            ...values,
-            enabled: values.enabled ?? true,
-            hitCount: 0,
-            missCount: 0,
-            totalSize: 0,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setStrategies((prev) => [...prev, newStrategy]);
-          message.success('缓存策略已创建');
-        }
+        await cacheStrategyApi.create(values);
+        message.success('缓存策略已创建');
       }
 
       setModalVisible(false);
@@ -457,8 +362,14 @@ const CacheConfigPage: React.FC = () => {
         </span>
       ),
       children: (
-        <Row gutter={spacing[4]}>
-          {MOCK_RECOMMENDATIONS.map((rec) => (
+        <div>
+          {recommendationsLoading ? (
+            <Spin tip="加载推荐配置中..." style={{ padding: spacing.lg }} />
+          ) : recommendations.length === 0 ? (
+            <Empty description="暂无推荐配置" style={{ marginTop: spacing.lg }} />
+          ) : (
+            <Row gutter={spacing[4]}>
+          {recommendations.map((rec) => (
             <Col span={8} key={rec.type} style={{ marginBottom: spacing[4] }}>
               <Card
                 hoverable
@@ -495,6 +406,8 @@ const CacheConfigPage: React.FC = () => {
             </Col>
           ))}
         </Row>
+      )}
+      </div>
       ),
     },
     {

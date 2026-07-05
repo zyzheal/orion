@@ -41,25 +41,25 @@ export interface CreateQualityRuleInput {
 }
 
 export function listQualityRules() {
-  return api.get<{ data: QualityRule[] }>('/v1/data-quality/rules');
+  return api.get<{ data: QualityRule[] }>('/api/v1/data-quality/rules');
 }
 
 export function createQualityRule(data: CreateQualityRuleInput) {
-  return api.post<{ data: QualityRule }>('/v1/data-quality/rules', data);
+  return api.post<{ data: QualityRule }>('/api/v1/data-quality/rules', data);
 }
 
 export function updateQualityRule(id: string, data: Partial<QualityRule>) {
-  return api.put<{ data: QualityRule }>(`/v1/data-quality/rules/${id}`, data);
+  return api.put<{ data: QualityRule }>(`/api/v1/data-quality/rules/${id}`, data);
 }
 
 export function deleteQualityRule(id: string) {
-  return api.delete(`/v1/data-quality/rules/${id}`);
+  return api.delete(`/api/v1/data-quality/rules/${id}`);
 }
 
 export function runQualityCheck(ruleId: string) {
-  return api.post<{ data: QualityCheck }>(`/v1/data-quality/rules/${ruleId}/run`);
+  return api.post<{ data: QualityCheck }>(`/api/v1/data-quality/rules/${ruleId}/run`);
 }
 
 export function listQualityChecks(ruleId?: string) {
-  return api.get<{ data: QualityCheck[] }>('/v1/data-quality/checks', { params: ruleId ? { ruleId } : {} });
+  return api.get<{ data: QualityCheck[] }>('/api/v1/data-quality/checks', { params: ruleId ? { ruleId } : {} });
 }

@@ -54,7 +54,7 @@ export interface ComplianceValidation {
 // ==================== Tenant Privacy Policy ====================
 
 export const getTenantPrivacyPolicy = async (tenantId: number): Promise<TenantPrivacyPolicy> => {
-  const response = await api.get<TenantPrivacyPolicy>(`/v1/privacy/${tenantId}/policy`);
+  const response = await api.get<TenantPrivacyPolicy>(`/api/v1/privacy/${tenantId}/policy`);
   return response.data;
 };
 
@@ -68,14 +68,14 @@ export const updateTenantPrivacyPolicy = async (tenantId: number, data: {
   piiTypes?: string[];
   customPatterns?: Array<{ type: string; pattern: string }>;
 }): Promise<TenantPrivacyPolicy> => {
-  const response = await api.put<TenantPrivacyPolicy>(`/v1/privacy/${tenantId}/policy`, data);
+  const response = await api.put<TenantPrivacyPolicy>(`/api/v1/privacy/${tenantId}/policy`, data);
   return response.data;
 };
 
 // ==================== Compliance Validation ====================
 
 export const validatePrivacyCompliance = async (tenantId: number): Promise<ComplianceValidation> => {
-  const response = await api.get<ComplianceValidation>(`/v1/privacy/${tenantId}/compliance`);
+  const response = await api.get<ComplianceValidation>(`/api/v1/privacy/${tenantId}/compliance`);
   return response.data;
 };
 
@@ -88,7 +88,7 @@ export const sanitizeContent = async (data: {
     preserveFormat?: boolean;
   };
 }): Promise<SanitizeResult> => {
-  const response = await api.post<SanitizeResult>('/v1/privacy/sanitize', data);
+  const response = await api.post<SanitizeResult>('/api/v1/privacy/sanitize', data);
   return response.data;
 };
 
@@ -97,7 +97,7 @@ export const sanitizeContent = async (data: {
 export const detectSecrets = async (data: {
   content: string;
 }): Promise<{ detected: SecretDetection[]; count: number }> => {
-  const response = await api.post<{ detected: SecretDetection[]; count: number }>('/v1/privacy/detect-secrets', data);
+  const response = await api.post<{ detected: SecretDetection[]; count: number }>('/api/v1/privacy/detect-secrets', data);
   return response.data;
 };
 
@@ -106,6 +106,6 @@ export const detectSecrets = async (data: {
 export const detectPII = async (data: {
   content: string;
 }): Promise<{ detected: PIIDetection[]; count: number }> => {
-  const response = await api.post<{ detected: PIIDetection[]; count: number }>('/v1/privacy/detect-pii', data);
+  const response = await api.post<{ detected: PIIDetection[]; count: number }>('/api/v1/privacy/detect-pii', data);
   return response.data;
 };

@@ -111,6 +111,8 @@ const EfficiencyDashboard: React.FC = () => {
   const [teamComparison, setTeamComparison] = useState<TeamMetrics[]>([]);
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [trends, setTrends] = useState<TrendDataPoint[][] | null>(null);
+  const [trendsLoading, setTrendsLoading] = useState(false);
 
   // Check if user has seen onboarding
   useEffect(() => {
@@ -126,72 +128,42 @@ const EfficiencyDashboard: React.FC = () => {
     setShowOnboarding(false);
   };
 
-  // Generate mock time-series data for trend chart (until backend provides historical API)
-  const trendData: TrendDataPoint[][] = React.useMemo(() => {
-    const now = new Date();
-    const weeks = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now);
-      d.setDate(d.getDate() - (11 - i) * 7);
-      return `${d.getMonth() + 1}/${d.getDate()}`;
-    });
-
-    const baseDeployFreq = dashboardData?.dora?.deploymentFrequency ?? 5;
-    const baseLeadTime = dashboardData?.dora?.leadTime ?? 24;
-
-    return [
-      weeks.map((period, i) => {
-        const variation = (Math.sin(i * 0.5) * 0.3 + 1) * baseDeployFreq * 0.7;
-        return { period, value: Math.round(variation), label: '部署频率' };
-      }),
-      weeks.map((period, i) => {
-        const variation = (Math.cos(i * 0.4) * 0.2 + 1) * baseLeadTime * 0.8;
-        return { period, value: Math.round(variation), label: '交付周期(h)' };
-      }),
-      weeks.map((period, i) => {
-        const variation = (1 - i * 0.05 + Math.random() * 0.1) * baseLeadTime * 0.3;
-        return { period, value: Math.round(variation * 10) / 10, label: 'MTTR(h)' };
-      }),
-    ];
-  }, [dashboardData]);
-
-  // Team-level mock data for deployment frequency chart
-  const deploymentByTeam: BarDataItem[] = React.useMemo(() => {
-    const teams = [
-      { team: '平台组', deployments: 45 },
-      { team: '前端组', deployments: 32 },
-      { team: '后端组', deployments: 58 },
-      { team: 'QA组', deployments: 18 },
-      { team: 'SRE组', deployments: 25 },
-      { team: 'AI组', deployments: 37 },
-    ];
-    const total = teams.reduce((sum, t) => sum + t.deployments, 0);
-    const scale = (dashboardData?.summary?.totalDeployments ?? total) / total;
-    return teams.map((t) => ({
-      label: t.team,
-      value: Math.round(t.deployments * scale),
-    }));
-  }, [dashboardData]);
-
   const loadData = async () => {
     setLoading(true);
+    setTrendsLoading(true);
     try {
-      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes] = await Promise.all([
+      const [metricsRes, benchmarksRes, dashboardRes, statusRes, teamsRes, trendsRes] = await Promise.all([
         getDoraMetrics(),
         getDoraBenchmarks(),
         getEfficiencyDashboard(),
         getClickHouseStatus(),
         getTeams(),
+        getDORTrends({ weeks: 12 }),
       ]);
       setDoraMetrics(metricsRes.data);
       setBenchmarks(benchmarksRes.data);
       setDashboardData(dashboardRes.data as unknown as EfficiencyDashboardData | null);
       setClickHouseStatus(statusRes.data);
       setTeams(teamsRes.data?.teams || []);
+
+      // Map historical trends API response to chart format
+      const trendResult = trendsRes.data as { trends?: Array<{ week: string; deploymentFrequency: number; leadTime: number; mttr: number; changeFailureRate: number }> } | undefined;
+      if (trendResult?.trends && trendResult.trends.length > 0) {
+        const weeks = trendResult.trends.map((t) => t.week);
+        setTrends([
+          trendResult.trends.map((t) => ({ period: t.week, value: t.deploymentFrequency, label: '部署频率' })),
+          trendResult.trends.map((t) => ({ period: t.week, value: t.leadTime, label: '交付周期(h)' })),
+          trendResult.trends.map((t) => ({ period: t.week, value: t.mttr, label: 'MTTR(h)' })),
+        ]);
+      } else {
+        setTrends(null);
+      }
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '加载效能数据失败';
       message.error(msg);
     } finally {
       setLoading(false);
+      setTrendsLoading(false);
     }
   };
 
@@ -569,18 +541,18 @@ const EfficiencyDashboard: React.FC = () => {
           <Card title="近 12 周趋势" style={{ marginBottom: spacing.md }}>
             <TrendLineChart
               title="DORA 指标趋势"
-              data={trendData}
+              data={trends || []}
               height={280}
               smooth={true}
-              loading={loading}
+              loading={trendsLoading}
             />
           </Card>
           <Card title="部署频率分布">
             <BarChart
               title="各团队部署次数"
-              data={deploymentByTeam}
+              data={teamComparison}
               height={200}
-              loading={loading}
+              loading={comparisonLoading}
             />
           </Card>
         </TabPane>

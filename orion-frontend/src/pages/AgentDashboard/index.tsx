@@ -307,6 +307,7 @@ const AgentDashboard: React.FC = () => {
           setDetailDrawerOpen(false);
           setSelectedAgent(null);
         }}
+        onEdit={handleEditAgent}
       />
     </div>
   );

@@ -44,30 +44,30 @@ export interface SsoProviderTestResult {
 // ==================== Provider CRUD ====================
 
 export const listSsoProviders = async (): Promise<SsoProvider[]> => {
-  const response = await api.get<{ data: SsoProvider[] }>('/v1/auth/sso/providers');
+  const response = await api.get<{ data: SsoProvider[] }>('/api/v1/auth/sso/providers');
   return response.data.data;
 };
 
 export const getSsoProvider = async (name: string): Promise<SsoProvider> => {
-  const response = await api.get<{ data: SsoProvider }>(`/v1/auth/sso/providers/${name}`);
+  const response = await api.get<{ data: SsoProvider }>(`/api/v1/auth/sso/providers/${name}`);
   return response.data.data;
 };
 
 export const createSsoProvider = async (data: CreateSsoProviderInput): Promise<void> => {
-  await api.post('/v1/auth/sso/providers', data);
+  await api.post('/api/v1/auth/sso/providers', data);
 };
 
 export const updateSsoProvider = async (name: string, data: UpdateSsoProviderInput): Promise<void> => {
-  await api.patch(`/v1/auth/sso/providers/${name}`, data);
+  await api.patch(`/api/v1/auth/sso/providers/${name}`, data);
 };
 
 export const deleteSsoProvider = async (name: string): Promise<void> => {
-  await api.delete(`/v1/auth/sso/providers/${name}`);
+  await api.delete(`/api/v1/auth/sso/providers/${name}`);
 };
 
 // ==================== Provider Testing ====================
 
 export const testSsoProvider = async (name: string): Promise<SsoProviderTestResult> => {
-  const response = await api.post<{ data: SsoProviderTestResult }>(`/v1/auth/sso/providers/${name}/test`);
+  const response = await api.post<{ data: SsoProviderTestResult }>(`/api/v1/auth/sso/providers/${name}/test`);
   return response.data.data;
 };

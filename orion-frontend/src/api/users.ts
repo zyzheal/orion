@@ -70,7 +70,7 @@ export interface PaginatedUserResult {
  * GET /api/v1/users
  */
 export function listUsers(params?: ListUsersParams) {
-  return api.get<PaginatedUserResult>('/v1/users', { params });
+  return api.get<PaginatedUserResult>('/api/v1/users', { params });
 }
 
 /**
@@ -78,7 +78,7 @@ export function listUsers(params?: ListUsersParams) {
  * GET /api/v1/users/:id
  */
 export function getUser(id: string) {
-  return api.get<User>(`/v1/users/${id}`);
+  return api.get<User>(`/api/v1/users/${id}`);
 }
 
 /**
@@ -86,7 +86,7 @@ export function getUser(id: string) {
  * POST /api/v1/users
  */
 export function createUser(data: CreateUserInput) {
-  return api.post<User>('/v1/users', data);
+  return api.post<User>('/api/v1/users', data);
 }
 
 /**
@@ -94,7 +94,7 @@ export function createUser(data: CreateUserInput) {
  * PUT /api/v1/users/:id
  */
 export function updateUser(id: string, data: UpdateUserInput) {
-  return api.put<User>(`/v1/users/${id}`, data);
+  return api.put<User>(`/api/v1/users/${id}`, data);
 }
 
 /**
@@ -102,7 +102,7 @@ export function updateUser(id: string, data: UpdateUserInput) {
  * DELETE /api/v1/users/:id
  */
 export function deleteUser(id: string) {
-  return api.delete(`/v1/users/${id}`);
+  return api.delete(`/api/v1/users/${id}`);
 }
 
 // ---- Authentication ----
@@ -112,7 +112,7 @@ export function deleteUser(id: string) {
  * POST /api/v1/users/authenticate
  */
 export function authenticateUser(username: string, password: string) {
-  return api.post<User>('/v1/users/authenticate', { username, password });
+  return api.post<User>('/api/v1/users/authenticate', { username, password });
 }
 
 /**
@@ -120,7 +120,7 @@ export function authenticateUser(username: string, password: string) {
  * POST /api/v1/users/:id/change-password
  */
 export function changePassword(id: string, data: ChangePasswordInput) {
-  return api.post(`/v1/users/${id}/change-password`, data);
+  return api.post(`/api/v1/users/${id}/change-password`, data);
 }
 
 // ---- Tenant Management ----
@@ -130,7 +130,7 @@ export function changePassword(id: string, data: ChangePasswordInput) {
  * GET /api/v1/users/by-tenant/:tenantId
  */
 export function getUsersByTenant(tenantId: string) {
-  return api.get<User[]>(`/v1/users/by-tenant/${tenantId}`);
+  return api.get<User[]>(`/api/v1/users/by-tenant/${tenantId}`);
 }
 
 /**
@@ -138,7 +138,7 @@ export function getUsersByTenant(tenantId: string) {
  * POST /api/v1/users/:userId/tenants/:tenantId
  */
 export function addUserToTenant(userId: string, tenantId: string, role?: string) {
-  return api.post(`/v1/users/${userId}/tenants/${tenantId}`, { role });
+  return api.post(`/api/v1/users/${userId}/tenants/${tenantId}`, { role });
 }
 
 /**
@@ -146,5 +146,5 @@ export function addUserToTenant(userId: string, tenantId: string, role?: string)
  * DELETE /api/v1/users/:userId/tenants/:tenantId
  */
 export function removeUserFromTenant(userId: string, tenantId: string) {
-  return api.delete(`/v1/users/${userId}/tenants/${tenantId}`);
+  return api.delete(`/api/v1/users/${userId}/tenants/${tenantId}`);
 }

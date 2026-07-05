@@ -1,7 +1,7 @@
 /**
  * MultiModalTrigger API Service
  * Auto-generated from backend multi-modal-trigger-routes.ts
- * Prefix: /v1/triggers
+ * Prefix: /api/v1/triggers
  */
 import { api } from './client';
 
@@ -16,36 +16,36 @@ export interface MultiModalTrigger {
 }
 
 export const createMultiModalTrigger = async (data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/', data);
   return response.data;
 };
 
 export const listMultiModalTrigger = async (params?: Record<string, unknown>): Promise<{ data: MultiModalTrigger[]; total: number }> => {
-  const response = await api.get<{ data: MultiModalTrigger[]; total: number }>('/v1/triggers/', { params });
+  const response = await api.get<{ data: MultiModalTrigger[]; total: number }>('/api/v1/triggers/', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createMultiModalTriggerEvaluate = async (id: string, data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/' + id + '/evaluate', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/' + id + '/evaluate', data);
   return response.data;
 };
 
 export const createMultiModalTriggerExecute = async (id: string, data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/' + id + '/execute', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/' + id + '/execute', data);
   return response.data;
 };
 
 export const createMultiModalTriggerWebhook = async (data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/webhook', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/webhook', data);
   return response.data;
 };
 
 export const createMultiModalTriggerWebhookProcess = async (data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/webhook/process', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/webhook/process', data);
   return response.data;
 };
 
 export const createMultiModalTriggerChat = async (data?: Partial<MultiModalTrigger>): Promise<MultiModalTrigger> => {
-  const response = await api.post<MultiModalTrigger>('/v1/triggers/chat', data);
+  const response = await api.post<MultiModalTrigger>('/api/v1/triggers/chat', data);
   return response.data;
 };

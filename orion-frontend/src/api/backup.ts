@@ -29,25 +29,25 @@ export interface BackupInput {
 }
 
 export async function getBackupStats() {
-  return api.get<BackupStats>('/v1/backup/stats');
+  return api.get<BackupStats>('/api/v1/backup/stats');
 }
 
 export async function getBackups() {
-  return api.get<BackupRecord[]>('/v1/backup');
+  return api.get<BackupRecord[]>('/api/v1/backup');
 }
 
 export async function createBackup(input: BackupInput) {
-  return api.post<BackupRecord>('/v1/backup', input);
+  return api.post<BackupRecord>('/api/v1/backup', input);
 }
 
 export async function restoreBackup(id: string) {
-  return api.post<void>(`/v1/backup/${id}/restore`);
+  return api.post<void>(`/api/v1/backup/${id}/restore`);
 }
 
 export async function getBackupDownloadUrl(id: string) {
-  return api.post<{ url: string }>(`/v1/backups/${id}/download`);
+  return api.post<{ url: string }>(`/api/v1/backups/${id}/download`);
 }
 
 export async function deleteBackup(id: string) {
-  return api.delete<void>(`/v1/backup/${id}`);
+  return api.delete<void>(`/api/v1/backup/${id}`);
 }

@@ -39,43 +39,43 @@ export const registerDependency = async (pipelineId: string, data: {
   requiredInputs?: Record<string, unknown>;
   blockingStatus?: ('success' | 'failed' | 'any')[];
 }): Promise<PipelineDependency> => {
-  const response = await api.post<PipelineDependency>(`/v1/pipelines/${pipelineId}/dependencies`, data);
+  const response = await api.post<PipelineDependency>(`/api/v1/pipelines/${pipelineId}/dependencies`, data);
   return response.data;
 };
 
 export const getDependency = async (pipelineId: string): Promise<PipelineDependency> => {
-  const response = await api.get<PipelineDependency>(`/v1/pipelines/${pipelineId}/dependencies`);
+  const response = await api.get<PipelineDependency>(`/api/v1/pipelines/${pipelineId}/dependencies`);
   return response.data;
 };
 
 export const unregisterDependency = async (pipelineId: string): Promise<{ message: string }> => {
-  const response = await api.delete<{ message: string }>(`/v1/pipelines/${pipelineId}/dependencies`);
+  const response = await api.delete<{ message: string }>(`/api/v1/pipelines/${pipelineId}/dependencies`);
   return response.data;
 };
 
 // ==================== Graph & Resolution ====================
 
 export const getDependencyGraph = async (): Promise<DependencyGraph> => {
-  const response = await api.get<DependencyGraph>('/v1/pipelines/dependencies/graph');
+  const response = await api.get<DependencyGraph>('/api/v1/pipelines/dependencies/graph');
   return response.data;
 };
 
 export const resolveDependencies = async (pipelineId: string, pipelineResults: Record<string, { status: string; outputs: Record<string, unknown> }>): Promise<DependencyResolution> => {
-  const response = await api.post<DependencyResolution>(`/v1/pipelines/dependencies/resolve/${pipelineId}`, { pipelineResults });
+  const response = await api.post<DependencyResolution>(`/api/v1/pipelines/dependencies/resolve/${pipelineId}`, { pipelineResults });
   return response.data;
 };
 
 export const findCycles = async (): Promise<CycleDetectionResult> => {
-  const response = await api.get<CycleDetectionResult>('/v1/pipelines/dependencies/cycles');
+  const response = await api.get<CycleDetectionResult>('/api/v1/pipelines/dependencies/cycles');
   return response.data;
 };
 
 export const getTopologicalOrder = async (): Promise<{ order: string[] }> => {
-  const response = await api.get<{ order: string[] }>('/v1/pipelines/dependencies/topological');
+  const response = await api.get<{ order: string[] }>('/api/v1/pipelines/dependencies/topological');
   return response.data;
 };
 
 export const resolveAllDependencies = async (pipelineResults: Record<string, { status: string; outputs: Record<string, unknown> }>): Promise<Record<string, DependencyResolution>> => {
-  const response = await api.post<Record<string, DependencyResolution>>('/v1/pipelines/dependencies/resolve-all', { pipelineResults });
+  const response = await api.post<Record<string, DependencyResolution>>('/api/v1/pipelines/dependencies/resolve-all', { pipelineResults });
   return response.data;
 };

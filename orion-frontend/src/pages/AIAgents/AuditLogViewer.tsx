@@ -4,28 +4,36 @@
  * 展示 Agent 的执行历史记录
  */
 import React from 'react';
-import { Table, Tag, Typography, Empty } from 'antd';
+import { Table, Tag, Typography, Empty, Button } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AuditLogEntry } from '@/api/ai-agents';
 import { spacing } from '@/tokens';
+import { RobotOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
 
 interface AuditLogViewerProps {
   logs: AuditLogEntry[];
   loading: boolean;
+  onExecuteAgent?: () => void;
 }
 
 /**
  * 审计日志查看器
  */
-const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading }) => {
+const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading, onExecuteAgent }) => {
   if (logs.length === 0 && !loading) {
     return (
       <Empty
-        description="暂无审计日志"
+        description="暂无审计日志，执行 Agent 后将在此显示操作记录"
         image={Empty.PRESENTED_IMAGE_SIMPLE}
-      />
+      >
+        {onExecuteAgent && (
+          <Button type="primary" icon={<RobotOutlined />} onClick={onExecuteAgent}>
+            执行 Agent
+          </Button>
+        )}
+      </Empty>
     );
   }
 

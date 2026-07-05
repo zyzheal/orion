@@ -33,41 +33,41 @@ export interface TestStats {
   suites: TestSuite[];
 }
 
-// GET /v1/test-selector/cases - 获取测试用例列表
+// GET /api/v1/test-selector/cases - 获取测试用例列表
 export async function getTestCases(filters?: { suite?: string; status?: string }) {
   const params = new URLSearchParams();
   if (filters?.suite) params.append('suite', filters.suite);
   if (filters?.status) params.append('status', filters.status);
   const qs = params.toString();
-  return api.get<TestCase[]>(`/v1/test-selector/cases${qs ? '?' + qs : ''}`);
+  return api.get<TestCase[]>(`/api/v1/test-selector/cases${qs ? '?' + qs : ''}`);
 }
 
-// GET /v1/test-selector/suites - 获取测试套件列表
+// GET /api/v1/test-selector/suites - 获取测试套件列表
 export async function getTestSuites() {
-  return api.get<TestSuite[]>('/v1/test-selector/suites');
+  return api.get<TestSuite[]>('/api/v1/test-selector/suites');
 }
 
-// GET /v1/test-selector/coverage - 获取测试覆盖率
+// GET /api/v1/test-selector/coverage - 获取测试覆盖率
 export async function getTestCoverage() {
-  return api.get<Record<string, number>>('/v1/test-selector/coverage');
+  return api.get<Record<string, number>>('/api/v1/test-selector/coverage');
 }
 
-// GET /v1/test-selector/flaky - 获取抖动测试
+// GET /api/v1/test-selector/flaky - 获取抖动测试
 export async function getFlakyTests(threshold?: number) {
   const params = threshold ? `?threshold=${threshold}` : '';
-  return api.get<{ flakyTests: any[]; threshold: number }>(`/v1/test-selector/flaky${params}`);
+  return api.get<{ flakyTests: any[]; threshold: number }>(`/api/v1/test-selector/flaky${params}`);
 }
 
-// GET /v1/test-selector/history - 获取测试历史
+// GET /api/v1/test-selector/history - 获取测试历史
 export async function getTestHistory() {
-  return api.get<any[]>('/v1/test-selector/history');
+  return api.get<any[]>('/api/v1/test-selector/history');
 }
 
 // 兼容旧接口
 export async function getTestStats() {
   const [casesRes, suitesRes] = await Promise.all([
-    api.get<TestCase[]>('/v1/test-selector/cases'),
-    api.get<TestSuite[]>('/v1/test-selector/suites'),
+    api.get<TestCase[]>('/api/v1/test-selector/cases'),
+    api.get<TestSuite[]>('/api/v1/test-selector/suites'),
   ]);
 
   const cases = casesRes.data ?? [];
@@ -92,5 +92,5 @@ export async function getTestStats() {
 }
 
 export async function runTests(testIds: string[]) {
-  return api.post<{ runId: string }>('/v1/test-selector/run', { testIds });
+  return api.post<{ runId: string }>('/api/v1/test-selector/run', { testIds });
 }

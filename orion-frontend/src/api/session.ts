@@ -25,17 +25,17 @@ export interface SessionStats {
 
 export async function getSessions(tenantId?: string) {
   const qs = tenantId ? `?tenantId=${tenantId}` : '';
-  return api.get<Session[]>(`/v1/sessions${qs}`);
+  return api.get<Session[]>(`/api/v1/sessions${qs}`);
 }
 
 export async function getSession(id: string) {
-  return api.get<Session>(`/v1/sessions/${id}`);
+  return api.get<Session>(`/api/v1/sessions/${id}`);
 }
 
 export async function deleteSession(id: string) {
-  return api.delete<void>(`/v1/sessions/${id}`);
+  return api.delete<void>(`/api/v1/sessions/${id}`);
 }
 
 export async function getSessionStats() {
-  return api.get<SessionStats>('/v1/sessions/stats');
+  return api.get<SessionStats>('/api/v1/sessions/stats');
 }

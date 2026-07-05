@@ -1,7 +1,7 @@
 /**
  * PipelineErrorDetail API Service
  * Auto-generated from backend pipeline-error-detail-routes.ts
- * Prefix: /v1/pipelines
+ * Prefix: /api/v1/pipelines
  */
 import { api } from './client';
 
@@ -16,6 +16,6 @@ export interface PipelineErrorDetail {
 }
 
 export const getPipelineErrorDetail = async (runId: string): Promise<PipelineErrorDetail> => {
-  const response = await api.get<PipelineErrorDetail>('/v1/pipelines/' + runId + '/error-detail');
+  const response = await api.get<PipelineErrorDetail>('/api/v1/pipelines/' + runId + '/error-detail');
   return response.data;
 };

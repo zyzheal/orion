@@ -58,7 +58,7 @@ export interface ReviewInfo {
  * 列出所有代码仓库适配器
  */
 export async function listAdapters(): Promise<AdapterInfo[]> {
-  const res = await api.get<AdapterInfo[]>('/code-repo/adapters');
+  const res = await api.get<AdapterInfo[]>('/api/v1/code-repo/adapters');
   return res.data ?? [];
 }
 
@@ -66,7 +66,7 @@ export async function listAdapters(): Promise<AdapterInfo[]> {
  * 列出指定适配器下的仓库
  */
 export async function listRepositories(adapterId: string): Promise<RepositoryInfo[]> {
-  const res = await api.get<RepositoryInfo[]>(`/code-repo/${encodeURIComponent(adapterId)}/repos`);
+  const res = await api.get<RepositoryInfo[]>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos`);
   return res.data ?? [];
 }
 
@@ -74,7 +74,7 @@ export async function listRepositories(adapterId: string): Promise<RepositoryInf
  * 列出仓库分支
  */
 export async function listBranches(adapterId: string, repoId: string): Promise<BranchInfo[]> {
-  const res = await api.get<BranchInfo[]>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches`);
+  const res = await api.get<BranchInfo[]>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches`);
   return res.data ?? [];
 }
 
@@ -82,7 +82,7 @@ export async function listBranches(adapterId: string, repoId: string): Promise<B
  * 创建分支
  */
 export async function createBranch(adapterId: string, repoId: string, branchName: string, fromBranch?: string): Promise<BranchInfo> {
-  const res = await api.post<BranchInfo>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches`, {
+  const res = await api.post<BranchInfo>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches`, {
     name: branchName,
     sourceRef: fromBranch,
   });
@@ -93,14 +93,14 @@ export async function createBranch(adapterId: string, repoId: string, branchName
  * 删除分支
  */
 export async function deleteBranch(adapterId: string, repoId: string, branchName: string): Promise<void> {
-  await api.delete(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`);
+  await api.delete(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/branches/${encodeURIComponent(branchName)}`);
 }
 
 /**
  * 列出 Pull Requests
  */
 export async function listPullRequests(adapterId: string, repoId: string): Promise<PullRequestInfo[]> {
-  const res = await api.get<PullRequestInfo[]>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls`);
+  const res = await api.get<PullRequestInfo[]>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls`);
   return res.data ?? [];
 }
 
@@ -113,7 +113,7 @@ export async function createPullRequest(adapterId: string, repoId: string, pr: {
   sourceBranch: string;
   targetBranch: string;
 }): Promise<PullRequestInfo> {
-  const res = await api.post<PullRequestInfo>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls`, pr);
+  const res = await api.post<PullRequestInfo>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls`, pr);
   return res.data;
 }
 
@@ -121,21 +121,21 @@ export async function createPullRequest(adapterId: string, repoId: string, pr: {
  * Merge Pull Request
  */
 export async function mergePullRequest(adapterId: string, repoId: string, prId: string): Promise<void> {
-  await api.post(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/merge`);
+  await api.post(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/merge`);
 }
 
 /**
  * Close Pull Request
  */
 export async function closePullRequest(adapterId: string, repoId: string, prId: string): Promise<void> {
-  await api.post(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/close`);
+  await api.post(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/close`);
 }
 
 /**
  * 列出 PR Reviews
  */
 export async function listReviews(adapterId: string, repoId: string, prId: string): Promise<ReviewInfo[]> {
-  const res = await api.get<ReviewInfo[]>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/reviews`);
+  const res = await api.get<ReviewInfo[]>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/reviews`);
   return res.data ?? [];
 }
 
@@ -146,6 +146,6 @@ export async function addReview(adapterId: string, repoId: string, prId: string,
   state: 'approved' | 'changes_requested' | 'commented';
   body?: string;
 }): Promise<ReviewInfo> {
-  const res = await api.post<ReviewInfo>(`/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/reviews`, review);
+  const res = await api.post<ReviewInfo>(`/api/v1/code-repo/${encodeURIComponent(adapterId)}/repos/${encodeURIComponent(repoId)}/pulls/${encodeURIComponent(prId)}/reviews`, review);
   return res.data;
 }

@@ -173,7 +173,7 @@ const AIAgentsManagement: React.FC = () => {
         </span>
       ),
       children: (
-        <AuditLogViewer logs={auditLogs} loading={auditLogLoading} />
+        <AuditLogViewer logs={auditLogs} loading={auditLogLoading} onExecuteAgent={() => { if (selectedAgent) handleExecute(selectedAgent); }} />
       ),
     },
   ];

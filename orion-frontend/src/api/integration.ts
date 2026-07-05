@@ -50,7 +50,7 @@ export const createIntegration = async (data: {
   tenantId?: string;
   createdBy?: string;
 }): Promise<Integration> => {
-  const response = await api.post<{ integration: Integration }>('/v1/integration', data);
+  const response = await api.post<{ integration: Integration }>('/api/v1/integration', data);
   return (response.data as any).integration ?? response.data;
 };
 
@@ -58,12 +58,12 @@ export const listIntegrations = async (params?: {
   tenantId?: string;
   provider?: string;
 }): Promise<{ integrations: Integration[]; total: number }> => {
-  const response = await api.get<{ integrations: Integration[]; total: number }>('/v1/integration', { params });
+  const response = await api.get<{ integrations: Integration[]; total: number }>('/api/v1/integration', { params });
   return response.data as any;
 };
 
 export const getIntegration = async (id: string): Promise<Integration> => {
-  const response = await api.get<{ integration: Integration }>(`/v1/integration/${id}`);
+  const response = await api.get<{ integration: Integration }>(`/api/v1/integration/${id}`);
   return (response.data as any).integration ?? response.data;
 };
 
@@ -72,25 +72,25 @@ export const updateIntegration = async (id: string, data: {
   config?: Record<string, unknown>;
   status?: string;
 }): Promise<Integration> => {
-  const response = await api.put<{ integration: Integration }>(`/v1/integration/${id}`, data);
+  const response = await api.put<{ integration: Integration }>(`/api/v1/integration/${id}`, data);
   return (response.data as any).integration ?? response.data;
 };
 
 export const deleteIntegration = async (id: string): Promise<void> => {
-  await api.delete(`/v1/integration/${id}`);
+  await api.delete(`/api/v1/integration/${id}`);
 };
 
 // ==================== Connectors ====================
 
 export const listConnectors = async (): Promise<{ connectors: ConnectorInfo[]; providers: string[] }> => {
-  const response = await api.get<{ connectors: ConnectorInfo[]; providers: string[] }>('/v1/integration/connectors');
+  const response = await api.get<{ connectors: ConnectorInfo[]; providers: string[] }>('/api/v1/integration/connectors');
   return response.data as any;
 };
 
 // ==================== Connection & Actions ====================
 
 export const testConnection = async (id: string): Promise<ConnectionTestResult> => {
-  const response = await api.post<{ connected: ConnectionTestResult }>(`/v1/integration/${id}/test`);
+  const response = await api.post<{ connected: ConnectionTestResult }>(`/api/v1/integration/${id}/test`);
   return (response.data as any).connected ?? response.data;
 };
 
@@ -98,7 +98,7 @@ export const executeConnectorAction = async (id: string, data: {
   action: string;
   params?: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
-  const response = await api.post<{ result: Record<string, unknown> }>(`/v1/integration/${id}/execute`, data);
+  const response = await api.post<{ result: Record<string, unknown> }>(`/api/v1/integration/${id}/execute`, data);
   return (response.data as any).result ?? response.data;
 };
 
@@ -110,7 +110,7 @@ export const createMapping = async (integrationId: string, data: {
   externalId: string;
   metadata?: Record<string, unknown>;
 }): Promise<ResourceMapping> => {
-  const response = await api.post<{ mapping: ResourceMapping }>(`/v1/integration/${integrationId}/mappings`, data);
+  const response = await api.post<{ mapping: ResourceMapping }>(`/api/v1/integration/${integrationId}/mappings`, data);
   return (response.data as any).mapping ?? response.data;
 };
 
@@ -119,6 +119,6 @@ export const getMappings = async (integrationId: string, params: {
   resourceId?: string;
   externalId?: string;
 }): Promise<ResourceMapping> => {
-  const response = await api.get<{ mapping: ResourceMapping }>(`/v1/integration/${integrationId}/mappings`, { params });
+  const response = await api.get<{ mapping: ResourceMapping }>(`/api/v1/integration/${integrationId}/mappings`, { params });
   return (response.data as any).mapping ?? response.data;
 };

@@ -1,7 +1,7 @@
 /**
  * CiType API Service
  * Auto-generated from backend ci-type-routes.ts
- * Prefix: /v1/ci-types
+ * Prefix: /api/v1/ci-types
  */
 import { api } from './client';
 
@@ -16,40 +16,40 @@ export interface CiType {
 }
 
 export const listCiType = async (params?: Record<string, unknown>): Promise<{ data: CiType[]; total: number }> => {
-  const response = await api.get<{ data: CiType[]; total: number }>('/v1/ci-types/', { params });
+  const response = await api.get<{ data: CiType[]; total: number }>('/api/v1/ci-types/', { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createCiType = async (data?: Partial<CiType>): Promise<CiType> => {
-  const response = await api.post<CiType>('/v1/ci-types/', data);
+  const response = await api.post<CiType>('/api/v1/ci-types/', data);
   return response.data;
 };
 
 export const getCiType = async (id: string): Promise<CiType> => {
-  const response = await api.get<CiType>('/v1/ci-types/' + id);
+  const response = await api.get<CiType>('/api/v1/ci-types/' + id);
   return response.data;
 };
 
 export const updateCiType = async (id: string, data: Partial<CiType>): Promise<CiType> => {
-  const response = await api.put<CiType>('/v1/ci-types/' + id, data);
+  const response = await api.put<CiType>('/api/v1/ci-types/' + id, data);
   return response.data;
 };
 
 export const deleteCiType = async (id: string): Promise<void> => {
-  await api.delete('/v1/ci-types/' + id);
+  await api.delete('/api/v1/ci-types/' + id);
 };
 
 export const createCiTypeValidate = async (id: string, data?: Partial<CiType>): Promise<CiType> => {
-  const response = await api.post<CiType>('/v1/ci-types/' + id + '/validate', data);
+  const response = await api.post<CiType>('/api/v1/ci-types/' + id + '/validate', data);
   return response.data;
 };
 
 export const createCiTypeVersions = async (id: string, data?: Partial<CiType>): Promise<CiType> => {
-  const response = await api.post<CiType>('/v1/ci-types/' + id + '/versions', data);
+  const response = await api.post<CiType>('/api/v1/ci-types/' + id + '/versions', data);
   return response.data;
 };
 
 export const createCiTypeVersionsRollback = async (id: string, versionId: string, data?: Partial<CiType>): Promise<CiType> => {
-  const response = await api.post<CiType>('/v1/ci-types/' + id + '/versions/' + versionId + '/rollback', data);
+  const response = await api.post<CiType>('/api/v1/ci-types/' + id + '/versions/' + versionId + '/rollback', data);
   return response.data;
 };

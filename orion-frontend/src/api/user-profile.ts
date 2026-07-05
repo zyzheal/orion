@@ -44,25 +44,25 @@ export interface UserPermission {
 // ==================== Profile Operations ====================
 
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
-  const response = await api.get<{ data: UserProfile }>(`/v1/users/${userId}/profile`);
+  const response = await api.get<{ data: UserProfile }>(`/api/v1/users/${userId}/profile`);
   return response.data.data;
 };
 
 export const updateUserProfile = async (userId: string, data: UpdateProfileInput): Promise<UserProfile> => {
-  const response = await api.put<{ data: UserProfile }>(`/v1/users/${userId}/profile`, data);
+  const response = await api.put<{ data: UserProfile }>(`/api/v1/users/${userId}/profile`, data);
   return response.data.data;
 };
 
 // ==================== Teams ====================
 
 export const getUserTeams = async (userId: string): Promise<UserTeam[]> => {
-  const response = await api.get<{ data: UserTeam[] }>(`/v1/users/${userId}/teams`);
+  const response = await api.get<{ data: UserTeam[] }>(`/api/v1/users/${userId}/teams`);
   return response.data.data;
 };
 
 // ==================== Permissions ====================
 
 export const getUserPermissions = async (userId: string): Promise<UserPermission[]> => {
-  const response = await api.get<{ data: UserPermission[] }>(`/v1/users/${userId}/permissions`);
+  const response = await api.get<{ data: UserPermission[] }>(`/api/v1/users/${userId}/permissions`);
   return response.data.data;
 };

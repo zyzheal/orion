@@ -44,16 +44,16 @@ export interface AgentExecutionResult {
 
 export const aiAgentApi = {
   // 获取 Agent 列表
-  getList: () => api.get<AgentInfo[]>('/v1/ai-agents/list'),
+  getList: () => api.get<AgentInfo[]>('/api/v1/ai-agents/list'),
 
   // 获取 Agent 详情
-  getById: (id: string) => api.get<AgentInfo>(`/v1/ai-agents/${id}`),
+  getById: (id: string) => api.get<AgentInfo>(`/api/v1/ai-agents/${id}`),
 
   // 获取 Agent 审计日志
   getAuditLogs: (id: string, limit = 100) =>
-    api.get<AuditLogEntry[]>(`/v1/ai-agents/${id}/audit-logs`, { params: { limit } }),
+    api.get<AuditLogEntry[]>(`/api/v1/ai-agents/${id}/audit-logs`, { params: { limit } }),
 
   // 执行 Agent
   execute: (id: string, input: Record<string, any>) =>
-    api.post<AgentExecutionResult>(`/v1/ai-agents/${id}/execute`, input),
+    api.post<AgentExecutionResult>(`/api/v1/ai-agents/${id}/execute`, input),
 };

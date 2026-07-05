@@ -1,9 +1,10 @@
 /**
  * ReportDesigner API Service
  * Auto-generated from backend report-designer-routes.ts
- * Prefix: /v1/reports
+ * Prefix: /api/v1/reports
  */
 import { api } from './client';
+import { API_PATHS } from '@/constants/api-paths';
 
 export interface ReportDesigner {
   id: string;
@@ -16,45 +17,45 @@ export interface ReportDesigner {
 }
 
 export const listReportDesigner = async (params?: Record<string, unknown>): Promise<{ data: ReportDesigner[]; total: number }> => {
-  const response = await api.get<{ data: ReportDesigner[]; total: number }>('/v1/reports/', { params });
+  const response = await api.get<{ data: ReportDesigner[]; total: number }>(API_PATHS.REPORTS.LIST, { params });
   return { data: response.data.data, total: response.data.total };
 };
 
 export const createReportDesigner = async (data?: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.post<ReportDesigner>('/v1/reports/', data);
+  const response = await api.post<ReportDesigner>(API_PATHS.REPORTS.CREATE, data);
   return response.data;
 };
 
 export const createReportDesignerDatasources = async (data?: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.post<ReportDesigner>('/v1/reports/datasources', data);
+  const response = await api.post<ReportDesigner>(API_PATHS.REPORTS.DATASOURCES, data);
   return response.data;
 };
 
 export const updateReportDesigner = async (id: string, data: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.put<ReportDesigner>('/v1/reports/datasources/' + id, data);
+  const response = await api.put<ReportDesigner>(API_PATHS.REPORTS.DATASOURCE_DETAIL(id), data);
   return response.data;
 };
 
 export const deleteReportDesigner = async (id: string): Promise<void> => {
-  await api.delete('/v1/reports/datasources/' + id);
+  await api.delete(API_PATHS.REPORTS.DATASOURCE_DETAIL(id));
 };
 
 export const getReportDesigner = async (id: string): Promise<ReportDesigner> => {
-  const response = await api.get<ReportDesigner>('/v1/reports/' + id);
+  const response = await api.get<ReportDesigner>(API_PATHS.REPORTS.DETAIL(id));
   return response.data;
 };
 
 export const createReportDesignerPreview = async (id: string, data?: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.post<ReportDesigner>('/v1/reports/' + id + '/preview', data);
+  const response = await api.post<ReportDesigner>(API_PATHS.REPORTS.PREVIEW(id), data);
   return response.data;
 };
 
 export const createReportDesignerExecute = async (id: string, data?: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.post<ReportDesigner>('/v1/reports/' + id + '/execute', data);
+  const response = await api.post<ReportDesigner>(API_PATHS.REPORTS.EXECUTE(id), data);
   return response.data;
 };
 
 export const createReportDesignerSchedules = async (id: string, data?: Partial<ReportDesigner>): Promise<ReportDesigner> => {
-  const response = await api.post<ReportDesigner>('/v1/reports/' + id + '/schedules', data);
+  const response = await api.post<ReportDesigner>(API_PATHS.REPORTS.SCHEDULES(id), data);
   return response.data;
 };

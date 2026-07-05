@@ -36,14 +36,14 @@ export interface SsoLoginResult {
 // ==================== Enabled Providers ====================
 
 export const getEnabledSsoProviders = async (): Promise<SsoProviderInfo[]> => {
-  const response = await api.get<{ data: SsoProviderInfo[] }>('/v1/auth/sso/providers-enabled');
+  const response = await api.get<{ data: SsoProviderInfo[] }>('/api/v1/auth/sso/providers-enabled');
   return response.data.data;
 };
 
 // ==================== LDAP Login ====================
 
 export const ldapLogin = async (data: LdapLoginInput): Promise<SsoLoginResult> => {
-  const response = await api.post<{ data: SsoLoginResult }>('/v1/auth/sso/ldap', data);
+  const response = await api.post<{ data: SsoLoginResult }>('/api/v1/auth/sso/ldap', data);
   return response.data.data;
 };
 
@@ -55,7 +55,7 @@ export const ldapLogin = async (data: LdapLoginInput): Promise<SsoLoginResult> =
  */
 export const getSsoLoginUrl = (provider: string): string => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-  return `${baseUrl}/v1/auth/sso/login/${provider}`;
+  return `${baseUrl}/api/v1/auth/sso/login/${provider}`;
 };
 
 /**
@@ -64,5 +64,5 @@ export const getSsoLoginUrl = (provider: string): string => {
  */
 export const getSsoCallbackUrl = (provider: string): string => {
   const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
-  return `${baseUrl}/v1/auth/sso/callback/${provider}`;
+  return `${baseUrl}/api/v1/auth/sso/callback/${provider}`;
 };

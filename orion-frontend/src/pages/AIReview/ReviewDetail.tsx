@@ -25,7 +25,7 @@ import {
   CloseCircleOutlined,
   InfoCircleOutlined,
   FileTextOutlined,} from '@ant-design/icons';
-import { getReviewDetail } from '@/api/ai-review';
+import { getReviewDetail, getReviewComments } from '@/api/ai-review';
 import type { AIReviewResult } from '@/api/ai-review';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -40,6 +40,7 @@ const AIReviewDetail: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<AIReviewResult | null>(null);
+  const [issues, setIssues] = useState<AIReviewResult['comments']>([]);
 
   const loadDetail = async () => {
     if (!reviewId) {
@@ -50,6 +51,14 @@ const AIReviewDetail: React.FC = () => {
     try {
       const res = await getReviewDetail(reviewId);
       setDetail((res.data || null) as unknown as AIReviewResult | null);
+      // Load real issues/comments from API
+      try {
+        const commentsRes = await getReviewComments(reviewId);
+        setIssues(commentsRes.data || []);
+      } catch {
+        // If comments endpoint fails, use empty array (backward compatible)
+        setIssues([]);
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         message.error(`加载评审详情失败：${error.message}`);
@@ -123,26 +132,13 @@ const AIReviewDetail: React.FC = () => {
         <Tag color={s === 'critical' ? 'red' : s === 'warning' ? 'orange' : 'blue'}>{s}</Tag>
       ),
     },
-    { title: '文件', dataIndex: 'file', key: 'file', ellipsis: true },
-    { title: '行号', dataIndex: 'line', key: 'line', width: 80 },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: '文件', dataIndex: 'filePath', key: 'file', ellipsis: true },
+    { title: '行号', dataIndex: 'lineNumber', key: 'line', width: 80 },
+    { title: '描述', dataIndex: 'message', key: 'description', ellipsis: true },
     { title: '建议', dataIndex: 'suggestion', key: 'suggestion', ellipsis: true },
   ];
 
-  // Simulated issues based on counts
-  const mockIssues = Array.from({ length: Math.min(detail.totalIssues, 20) }, (_, i) => ({
-    key: `issue-${i}`,
-    severity:
-      i < detail.criticalCount
-        ? 'critical'
-        : i < detail.criticalCount + detail.warningCount
-          ? 'warning'
-          : 'info',
-    file: `src/components/${['Button', 'Table', 'Form', 'Modal'][i % 4]}.tsx`,
-    line: Math.floor(Math.random() * 200) + 1,
-    description: `Issue #${i + 1}: 代码规范问题`,
-    suggestion: '建议修复...',
-  }));
+  // Real issues loaded from backend API (via getReviewComments)
 
   return (
     <div style={{ padding: spacing.lg }}>
@@ -240,7 +236,8 @@ const AIReviewDetail: React.FC = () => {
       <Card title={`问题列表 (${detail.totalIssues})`}>
         <Table
           columns={issueColumns}
-          dataSource={mockIssues}
+          dataSource={issues}
+          rowKey="id"
           pagination={{ pageSize: 10 }}
           size="small"
         />

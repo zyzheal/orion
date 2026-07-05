@@ -30,15 +30,15 @@ export interface CreateTokenResult {
 // ==================== Token Operations ====================
 
 export const getUserTokens = async (userId: string): Promise<UserToken[]> => {
-  const response = await api.get<{ data: UserToken[] }>(`/v1/users/${userId}/tokens`);
+  const response = await api.get<{ data: UserToken[] }>(`/api/v1/users/${userId}/tokens`);
   return response.data.data;
 };
 
 export const createUserToken = async (userId: string, data: CreateTokenInput): Promise<CreateTokenResult> => {
-  const response = await api.post<{ data: CreateTokenResult }>(`/v1/users/${userId}/tokens`, data);
+  const response = await api.post<{ data: CreateTokenResult }>(`/api/v1/users/${userId}/tokens`, data);
   return response.data.data;
 };
 
 export const deleteUserToken = async (userId: string, tokenId: string): Promise<void> => {
-  await api.delete(`/v1/users/${userId}/tokens/${tokenId}`);
+  await api.delete(`/api/v1/users/${userId}/tokens/${tokenId}`);
 };
