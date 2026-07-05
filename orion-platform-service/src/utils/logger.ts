@@ -49,9 +49,13 @@ const rootLogger = pino({
  * - 支持在调用时手动传入 traceId 覆盖自动值
  */
 export function createLogger(name: string): pino.Logger {
-  const baseLogger = rootLogger.child({
-    module: name,
-  });
+  // 防御性 guard：测试中 jest.mock('pino') 工厂常返回不含 .child 的 mock，
+  // 此处回退到 rootLogger 本身，避免 `rootLogger.child is not a function`。
+  // 生产环境 pino 实例恒有 .child，行为不受影响。
+  const baseLogger: any =
+    typeof (rootLogger as any).child === 'function'
+      ? (rootLogger as any).child({ module: name })
+      : (rootLogger as any);
 
   return new Proxy(baseLogger, {
     get(target, prop: string | symbol) {
