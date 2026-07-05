@@ -59,3 +59,10 @@ orion-cmdb-service/bin/cmdbd
 .understand-anything/
 .claude/worktrees/
 orion-ai-service/src/data/
+
+# Build artifacts
+**/server
+**/*.bak
+
+# Claude worktrees
+.claude/worktrees/
