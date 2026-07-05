@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"orion/canary-svc-go/internal/config"
-	"orion/canary-svc-go/internal/handler"
-	"orion/canary-svc-go/internal/repository"
-	"orion/canary-svc-go/internal/service"
+	"orion/report-designer-svc-go/internal/config"
+	"orion/report-designer-svc-go/internal/handler"
+	"orion/report-designer-svc-go/internal/repository"
+	"orion/report-designer-svc-go/internal/service"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	logger := orionlog.Must(orionlog.DefaultConfig("orion-canary-svc"))
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-report-designer-svc"))
 	defer logger.Sync()
 
 	cfg, err := config.Load()
@@ -53,17 +53,13 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
-	canaryRepo := repository.NewCanaryRepository(db.DB)
-	analysisRunRepo := repository.NewCanaryAnalysisRunRepository(db.DB)
-	metricResultRepo := repository.NewCanaryMetricResultRepository(db.DB)
-	mlResultRepo := repository.NewCanaryMLResultRepository(db.DB)
-	analysisConfigRepo := repository.NewCanaryAnalysisConfigRepository(db.DB)
-	decisionRepo := repository.NewCanaryDecisionRepository(db.DB)
-	retrainJobRepo := repository.NewCanaryRetrainJobRepository(db.DB)
-	trafficConfigRepo := repository.NewTrafficConfigRepository(db.DB)
-	trafficHistoryRepo := repository.NewTrafficHistoryRepository(db.DB)
-	canarySvc := service.NewCanaryService(canaryRepo, analysisRunRepo, metricResultRepo, mlResultRepo, analysisConfigRepo, decisionRepo, retrainJobRepo, trafficConfigRepo, trafficHistoryRepo)
-	h := handler.NewHandler(canarySvc)
+	definitionRepo := repository.NewReportDefinitionRepository(db.DB)
+	datasourceRepo := repository.NewReportDatasourceRepository(db.DB)
+	scheduleRepo := repository.NewReportScheduleRepository(db.DB)
+	executionRepo := repository.NewReportExecutionRepository(db.DB)
+
+	reportDesignerSvc := service.NewReportDesignerService(definitionRepo, datasourceRepo, scheduleRepo, executionRepo)
+	h := handler.NewHandler(reportDesignerSvc)
 
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
@@ -72,7 +68,7 @@ func main() {
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	// Health check (no auth required)
-	r.GET("/healthz", middleware.HealthCheck("orion-canary-svc"))
+	r.GET("/healthz", middleware.HealthCheck("orion-report-designer-svc"))
 
 	// API v1 routes with auth (prefix configurable via env)
 	rg := r.Group(cfg.APIPrefix)
@@ -80,7 +76,7 @@ func main() {
 	h.RegisterRoutes(rg)
 
 	addr := fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort)
-	logger.Info("canary-svc starting",
+	logger.Info("report-designer-svc starting",
 		zap.String("addr", addr),
 		zap.String("api_prefix", cfg.APIPrefix),
 	)

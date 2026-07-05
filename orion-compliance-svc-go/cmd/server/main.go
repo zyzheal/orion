@@ -6,10 +6,10 @@ import (
 	"log"
 	"os"
 
-	"orion/canary-svc-go/internal/config"
-	"orion/canary-svc-go/internal/handler"
-	"orion/canary-svc-go/internal/repository"
-	"orion/canary-svc-go/internal/service"
+	"orion/compliance-svc-go/internal/config"
+	"orion/compliance-svc-go/internal/handler"
+	"orion/compliance-svc-go/internal/repository"
+	"orion/compliance-svc-go/internal/service"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	logger := orionlog.Must(orionlog.DefaultConfig("orion-canary-svc"))
+	logger := orionlog.Must(orionlog.DefaultConfig("orion-compliance-svc"))
 	defer logger.Sync()
 
 	cfg, err := config.Load()
@@ -53,18 +53,15 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
-	canaryRepo := repository.NewCanaryRepository(db.DB)
-	analysisRunRepo := repository.NewCanaryAnalysisRunRepository(db.DB)
-	metricResultRepo := repository.NewCanaryMetricResultRepository(db.DB)
-	mlResultRepo := repository.NewCanaryMLResultRepository(db.DB)
-	analysisConfigRepo := repository.NewCanaryAnalysisConfigRepository(db.DB)
-	decisionRepo := repository.NewCanaryDecisionRepository(db.DB)
-	retrainJobRepo := repository.NewCanaryRetrainJobRepository(db.DB)
-	trafficConfigRepo := repository.NewTrafficConfigRepository(db.DB)
-	trafficHistoryRepo := repository.NewTrafficHistoryRepository(db.DB)
-	canarySvc := service.NewCanaryService(canaryRepo, analysisRunRepo, metricResultRepo, mlResultRepo, analysisConfigRepo, decisionRepo, retrainJobRepo, trafficConfigRepo, trafficHistoryRepo)
-	h := handler.NewHandler(canarySvc)
+	// Initialize repositories
+	reportRepo := repository.NewComplianceReportRepository(db.DB)
+	scheduleRepo := repository.NewComplianceScheduleRepository(db.DB)
 
+	// Initialize service
+	complianceSvc := service.NewComplianceService(reportRepo, scheduleRepo)
+	h := handler.NewHandler(complianceSvc)
+
+	// Setup Gin router
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -72,15 +69,19 @@ func main() {
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	// Health check (no auth required)
-	r.GET("/healthz", middleware.HealthCheck("orion-canary-svc"))
+	r.GET("/healthz", middleware.HealthCheck("orion-compliance-svc"))
 
 	// API v1 routes with auth (prefix configurable via env)
 	rg := r.Group(cfg.APIPrefix)
-	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+	rg.Use(auth.Auth(auth.AuthConfig{
+		JWTSecret:  cfg.JWTSecret,
+		RedisClient: rdb,
+		SkipPaths:  []string{"/healthz"},
+	}))
 	h.RegisterRoutes(rg)
 
 	addr := fmt.Sprintf("%s:%d", cfg.ServerHost, cfg.ServerPort)
-	logger.Info("canary-svc starting",
+	logger.Info("compliance-svc starting",
 		zap.String("addr", addr),
 		zap.String("api_prefix", cfg.APIPrefix),
 	)
