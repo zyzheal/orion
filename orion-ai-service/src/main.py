@@ -125,12 +125,14 @@ from src.api.ai_decision_routes import router as ai_decision_router  # noqa: E40
 from src.api.ai_review_routes import router as ai_review_router  # noqa: E402
 from src.api.ai_routes import router as ai_router  # noqa: E402
 from src.api.ai_gateway_routes import router as ai_gateway_router  # noqa: E402
+from src.api.metric_routes import router as metric_router  # noqa: E402
 
 app.include_router(api_router)
 app.include_router(ai_decision_router)
 app.include_router(ai_review_router)
 app.include_router(ai_router)
 app.include_router(ai_gateway_router)
+app.include_router(metric_router)
 
 
 # ==================== 根路由 ====================
