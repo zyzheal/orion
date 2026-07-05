@@ -1296,7 +1296,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
-| 6.1 | Go 迁移第一阶段：EventBus | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | NATS JetStream 集成：✅ 代码已实现 (2026-07-05) — nats_client.go (JetStream连接+发布) + eventbus_service.go dual-write + config.go NATS配置 + handler.go REST端点 + main.go 初始化 + go build/vet 通过 | 🔴 | 专家评审(2026-07-04)：EventBus 可切换(85%覆盖)，Pipeline/Deploy 补充后切换，Auth 延后(95%缺失)，详见 docs/analysis/go-migration-phase1-review-2026-07-04.md |
+| 6.1 | Go 迁移第一阶段：EventBus | ✅ 已完成 (2026-07-04, B4扩展 2026-07-05) | orion-platform-service: nats_client.go (JetStream+发布) + eventbus_service.go dual-write + config.go NATS配置 + handler.go REST端点 + main.go 初始化；B4扩展: 5个Go微服务(code/deploy/monitor/chaos/incident) pkg/nats/subscriber.go JetStream消费者(3x重试) + config.go NATS字段 + main.go graceful degradation + go vet 通过 | 🔴 | 专家评审(2026-07-04)：EventBus 可切换(85%覆盖)；B4: 5个Go微服务NATS消费者集成完成 |
 | 6.2 | API Gateway 路由改为动态发现 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | gateway-dynamic-routes.ts (7 endpoints: CRUD + toggle + stats) + GatewayRouteRepository + Migration 457 + 前端 GatewayRoutes 页面已存在 | 🔴 | |
 | 6.3 | 服务注册表 Repository（PostgreSQL） | ✅ 已完成 (2026-07-03) | ServiceRegistryRepository + service_registry 表迁移 + 单元测试 | 🟡 | |
 | 6.4 | 服务健康检查器 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | HealthCheckerService + health-check-routes.ts + service-health-routes.ts (2 endpoints: dashboard + service detail) | 🟡 | |
@@ -1325,7 +1325,12 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 6.27 | EventBus 事件契约对齐 | ✅ 已完成 (2026-07-05) | EventLog +3字段(sequence_num/retry_count/last_retry_at) + EventBusConfig模型+Repository + RetryPendingEvents + migration 003 + 共存期双写策略(DB first→NATS fire-and-forget) + 4新增endpoints(/events/stats, /events/retry, /configs) | 🟡 | 依赖 6.1 EventBus 切换 |
 | 6.28 | Go 服务数据库连接统一 | ✅ 已完成 (2026-07-05) | 10个Go服务统一database.Connect(cfg.DatabaseURL)，user/tenant/auth-svc-go/canary-svc-go构建通过 | 🔵 | |
 | 6.29 | Go 服务 JWT 权限中间件对齐 | ✅ 已完成 (2026-07-05) | 3个Go服务(user/tenant/auth-svc-go)统一go-common auth中间件 + JWT claims对齐(sub/tenant_id/roles/status) | 🔵 | 依赖 1.13 ACL 中间件 |
-
+| 6.30 | 部署准备：58个Go服务K8s manifests | ✅ 已完成 (2026-07-05) | infrastructure/k8s/{58 services}/ (deployment/service/configmap/hpa) + 100%端口准确 + NATS env vars + health checks + resource limits | 🔵 | |
+| 6.31 | 部署准备：Helm charts生成 | ✅ 已完成 (2026-07-05) | infrastructure/helm/orion-service/ (Chart.yaml/values.yaml + templates) + 58个values.yaml per-service配置 | 🔵 | |
+| 6.32 | 部署准备：CI/CD pipelines | ✅ 已完成 (2026-07-05) | .github/workflows/ci-cd.yml (Go lint+test+docker+k8s deploy) + ci-cd-ai.yml (Python ruff+pytest) + validate-infra.yml | 🔵 | |
+| 6.33 | 部署准备：5个Go服务Dockerfiles | ✅ 已完成 (2026-07-05) | code/deploy/monitor/chaos/incident 多阶段Alpine Dockerfile (build→scratch, ~15MB) | 🔵 | |
+| 6.34 | 部署准备：MetricCollector前端仪表盘 | ✅ 已完成 (已有实现) | orion-frontend/src/pages/monitor-svc/MetricsDashboard/ (StatCards+TrendLineChart+GaugeChart+ServiceHealth) | 🔵 | 无需修改 |
+| 6.35 | 部署准备：orion-config-svc-go清理 | ✅ 已完成 (2026-07-05) | 删除空目录(仅空子目录，无go.mod，不在go.work中) | 🔵 | |
 ---
 
 ## 十、专项迁移索引
@@ -1333,7 +1338,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 专项 | 迁移计划 | 进度追踪 | 状态 | 依赖 |
 |------|---------|---------|------|------|
 | AI 域 TS → Python | [AI 迁移计划](docs/ai-migration-plan-2026-07-02.md) | [AI 迁移进度](memory/ai-migration-progress.md) | 🔄 进行中 (Phase 4 完成) | Phase 4 辅助能力迁移完成 |
-| TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1 完成 (3/26)，Batch 2/3 进行中 | Phase 1 + 4.67 完成 |
+| TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1-3 蓝图完成，NATS消费者5服务集成完成 | Phase 1 + 4.67 完成 |
 | | | | | **必须先完成 1.17 + 4.67** |
 | Map → PostgreSQL | [清理清单](docs/architecture/清理与待实现清单-2026-07-01.md) | [持久化进度](memory/persistence-migration-progress.md) | ✅ 97% 完成（337 repositories，剩余为缓存/运行时结构） | Phase 1 完成 |
 | AI Python 化 | [AI Python 化计划](docs/ai-python-migration-plan.md) | — | 🔄 进行中 (Phase 4.5-4.11 完成) | Phase 4 辅助能力迁移完成 + 决策端点扩展 |
@@ -1420,6 +1425,26 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 - main.go: NATS 初始化 + health check + graceful shutdown
 - orion-auth-svc/go.mod: 修复 68 个重复/游离依赖 (合并 3 个 require 块)
 - orion-build-svc-go/go.mod: 修复 55 个重复/游离依赖 (合并 3 个 require 块)
+
+### 2026-07-05 执行报告：B4 NATS JetStream 消费者扩展 (5个Go微服务)
+
+**任务**: 为 Code/Deploy/Monitor/Chaos/Incident 服务添加 NATS JetStream 消费者
+**修改文件**: 10 个 (pkg/nats/subscriber.go ×5, cmd/server/main.go ×5, config.go ×2, go.mod ×2)
+**新增文件**: 5 个 (pkg/nats/subscriber.go)
+**编译检查**: ✅ go vet ./orion-{code,deploy,monitor,chaos,incident}-svc-go/... 全部通过
+**模式**: pkg/nats/subscriber.go (非 internal/ — 规避 Go 1.25 workspace internal 包 bug)
+**消费者配置**: durable consumer + AckExplicitPolicy + MaxDeliver:3 + Fetch(10, 1s)
+**事件主题**: <stream>.{CodeEvent|DeploymentEvent|MetricEvent|ChaosEvent|IncidentEvent}.>
+**优雅降级**: NATS 不可用时服务正常启动（WARN 日志，不阻塞)
+**关闭处理**: natsSub.Close() (Drain) 集成到 signal shutdown 流程
+
+| 服务 | 事件类型 | Consumer Name | Config 模式 |
+|------|---------|---------------|------------|
+| orion-code-svc-go | CodeEvent.> | code-svc-consumer | getEnv |
+| orion-deploy-svc-go | DeploymentEvent.> | deploy-svc-consumer | viper |
+| orion-monitor-svc-go | MetricEvent.> | monitor-svc-consumer | getEnv + go.mod 修复 |
+| orion-chaos-svc-go | ChaosEvent.> | chaos-svc-consumer | viper |
+| orion-incident-svc-go | IncidentEvent.> | incident-svc-consumer | viper + config 扩展 |
 
 ### 11.5 每个 Phase 的 Agent 分工
 
