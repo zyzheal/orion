@@ -23,16 +23,16 @@ func validateIdentifier(name string) error {
 // BaseRepository provides common database operations for all repositories.
 // Embed this in service-specific repositories.
 type BaseRepository struct {
-	db *sqlx.DB
+	db *DB
 }
 
 // NewBaseRepository creates a new BaseRepository.
-func NewBaseRepository(db *sqlx.DB) BaseRepository {
+func NewBaseRepository(db *DB) BaseRepository {
 	return BaseRepository{db: db}
 }
 
-// DB returns the underlying sqlx.DB.
-func (r *BaseRepository) DB() *sqlx.DB {
+// DB returns the underlying database.DB.
+func (r *BaseRepository) DB() *DB {
 	return r.db
 }
 

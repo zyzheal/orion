@@ -6,6 +6,7 @@ use (
 	./orion-artifact-svc-go
 	./orion-audit-svc-go
 	./orion-auth-svc
+	./orion-auth-svc-go
 	./orion-build-svc-go
 	./orion-canary-svc-go
 	./orion-capacity-svc-go
@@ -20,6 +21,7 @@ use (
 	./orion-dr-svc-go
 	./orion-efficiency-svc-go
 	./orion-event-bus-svc-go
+	./orion-eventbus-svc-go
 	./orion-feature-flag-svc-go
 	./orion-federation-svc-go
 	./orion-finops-svc-go
@@ -27,6 +29,8 @@ use (
 	./orion-governance-svc-go
 	./orion-graph-svc-go
 	./orion-inception-svc-go
+	./orion-incident-svc-go
+	./orion-knowledge-svc-go
 	./orion-inspection-svc-go
 	./orion-intelligence-svc-go
 	./orion-llm-svc-go
@@ -51,6 +55,9 @@ use (
 	./orion-ticket-svc-go
 	./orion-tool-svc-go
 	./orion-user-svc
+	./orion-user-svc-go
 	./orion-visor-svc-go
 	./orion-workflow-svc-go
+	./orion-compliance-svc-go
+	./orion-report-designer-svc-go
 )
