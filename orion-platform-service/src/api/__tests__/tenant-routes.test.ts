@@ -8,7 +8,18 @@ import jwt from 'jsonwebtoken';
 import tenantRoutes from '../tenant-routes';
 import { setAuthzEngine } from '../../middleware/requirePermission';
 
-// Mock database
+// Mock NamespacePoolService to avoid real DB initialization
+jest.mock('../../services/tenant/NamespacePoolService', () => ({
+  NamespacePoolService: jest.fn(() => ({
+    initialize: jest.fn().mockResolvedValue(undefined),
+    getPoolStatus: jest.fn().mockResolvedValue({ total: 10, allocated: 3, available: 7 }),
+    allocateNamespace: jest.fn(),
+    releaseNamespace: jest.fn(),
+    getTenantNamespaces: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
+// Mock Database
 const mockDb = {
   query: async (sql: string, params?: any[]) => ({ rows: [], rowCount: 0 }),
 };
