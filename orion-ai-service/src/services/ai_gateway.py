@@ -32,6 +32,7 @@ from src.models.ai_gateway_models import (
     PromptSecurityConfig,
 )
 from src.models.prompt_security_models import PromptAnalysis
+from src.services.metric_collector import MetricCollector
 from src.services.prompt_security import PromptSecurity
 
 logger = logging.getLogger(__name__)
@@ -69,10 +70,12 @@ class AIGateway:
         self,
         config: Optional[AIGatewayConfig] = None,
         prompt_security_config: Optional[PromptSecurityConfig] = None,
+        metric_collector: Optional[MetricCollector] = None,
     ):
         self.config = config or _DEFAULT_CONFIG
         self.prompt_security_config = prompt_security_config or _DEFAULT_PROMPT_SECURITY_CONFIG
         self.prompt_security = PromptSecurity(self.prompt_security_config)
+        self.metric_collector = metric_collector
 
         # 每个场景的指标 (in-memory)
         self._metrics: Dict[AIScenario, Dict[str, Any]] = {}
@@ -291,6 +294,11 @@ class AIGateway:
 
         # 4. 更新指标
         self._record_request(scenario, success, latency_ms, error_msg)
+        if self.metric_collector is not None:
+            self.metric_collector.record_ai_request(scenario.value, float(latency_ms), success)
+            if not success:
+                error_type = error_msg or "llm_failed"
+                self.metric_collector.record_ai_error(scenario.value, error_type)
 
         # 5. 熔断器状态更新
         if success:

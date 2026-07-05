@@ -248,6 +248,34 @@ class MetricCollector:
         """重置 NATS 消息计数"""
         self._nats_message_counts.clear()
 
+    # ==================== AI 指标记录 ====================
+
+    def record_ai_request(self, scenario: str, latency_ms: float, success: bool) -> None:
+        """记录 AI 请求指标"""
+        tags: Dict[str, str] = {
+            "scenario": scenario,
+            "success": str(success).lower(),
+        }
+        self.record_metric("ai.requests.count", 1.0, tags)
+        self.record_metric("ai.requests.latency", latency_ms, tags)
+
+    def record_ai_token_usage(
+        self, model: str, prompt_tokens: int, completion_tokens: int
+    ) -> None:
+        """记录 token 消耗"""
+        prompt_tags: Dict[str, str] = {"model": model, "type": "prompt"}
+        completion_tags: Dict[str, str] = {"model": model, "type": "completion"}
+        self.record_metric("ai.tokens.prompt", float(prompt_tokens), prompt_tags)
+        self.record_metric("ai.tokens.completion", float(completion_tokens), completion_tags)
+
+    def record_ai_error(self, scenario: str, error_type: str) -> None:
+        """记录 AI 错误"""
+        tags: Dict[str, str] = {
+            "scenario": scenario,
+            "error_type": error_type,
+        }
+        self.record_metric("ai.errors.count", 1.0, tags)
+
     # ==================== 指标查询 ====================
 
     def get_metric_series(self, query: MetricQuery) -> MetricSeries:

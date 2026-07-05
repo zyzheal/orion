@@ -26,8 +26,18 @@ from src.models.ai_models import (
     AIReviewStatus,
 )
 from src.repositories.ai_result_repository import ai_result_repository
+from src.services.metric_collector import MetricCollector
 
 logger = logging.getLogger(__name__)
+
+# 全局 MetricCollector 实例（可被测试覆盖）
+_metric_collector: Optional[MetricCollector] = None
+
+
+def set_metric_collector(collector: Optional[MetricCollector]) -> None:
+    """设置全局 MetricCollector（测试用）"""
+    global _metric_collector
+    _metric_collector = collector
 
 
 # ==================== 规则引擎 ====================
@@ -303,6 +313,7 @@ class AIService:
         gen_id = str(uuid.uuid4())
         used_model = model or self.config.ai_model_endpoint or "rule-based-fallback"
         tokens_used = len(prompt.split())
+        start_time = datetime.now(timezone.utc)
 
         content = ""
         if self._model_available:
@@ -313,9 +324,18 @@ class AIService:
                     "AI model generation failed, falling back to templates",
                     extra={"error": str(e)},
                 )
+                if _metric_collector is not None:
+                    _metric_collector.record_ai_error("text-generation", type(e).__name__)
                 content = self._template_generate(prompt)
         else:
             content = self._template_generate(prompt)
+
+        latency_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+        if _metric_collector is not None:
+            _metric_collector.record_ai_request("text-generation", float(latency_ms), True)
+            _metric_collector.record_ai_token_usage(
+                used_model, prompt_tokens=len(prompt.split()), completion_tokens=len(content.split())
+            )
 
         response = AIGenerateResponse(
             id=gen_id,
@@ -410,6 +430,10 @@ class AIService:
             result = {"summary": f"Unknown analysis type: {analysis_type}", "details": data}
 
         confidence = self._estimate_confidence(result)
+
+        latency_ms = int((datetime.now(timezone.utc) - now).total_seconds() * 1000)
+        if _metric_collector is not None:
+            _metric_collector.record_ai_request(analysis_type, float(latency_ms), True)
 
         response = AIAnalyzeResponse(
             id=analysis_id,
@@ -619,6 +643,10 @@ class AIService:
                 matched_rule = rule
                 break
 
+        latency_ms = int((datetime.now(timezone.utc) - now).total_seconds() * 1000)
+        if _metric_collector is not None:
+            _metric_collector.record_ai_request("diagnosis", float(latency_ms), True)
+
         if matched_rule:
             diagnosis = matched_rule.root_cause
             recommendations = [matched_rule.suggested_fix]
@@ -681,6 +709,10 @@ class AIService:
         recommendation, confidence = self._generate_recommendation(
             title, description, context, options
         )
+
+        latency_ms = int((datetime.now(timezone.utc) - now).total_seconds() * 1000)
+        if _metric_collector is not None:
+            _metric_collector.record_ai_request("decision", float(latency_ms), True)
 
         response = AIDecisionResponse(
             id=decision_id,
@@ -795,6 +827,11 @@ class AIService:
 
         # 计算质量评分
         score = self._calculate_code_score(code, comments)
+
+        latency_ms = int((datetime.now(timezone.utc) - now).total_seconds() * 1000)
+        if _metric_collector is not None:
+            _metric_collector.record_ai_request("code-review", float(latency_ms), True)
+
         if score >= 80:
             status = AIReviewStatus.APPROVED
         elif score >= 60:
