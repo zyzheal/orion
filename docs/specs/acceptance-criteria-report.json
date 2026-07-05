@@ -1,0 +1,103 @@
+{
+  "generated_at": "2026-07-03T06:08:10.921Z",
+  "min_criteria": 3,
+  "valid_statuses": [
+    "draft",
+    "reviewed",
+    "implementing",
+    "completed",
+    "编写中",
+    "评审中",
+    "实施中",
+    "已验证"
+  ],
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "pass_rate": 100
+  },
+  "results": [
+    {
+      "file": "docs/specs/api-governance-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 23,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/artifact-operations-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 22,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/community-ecosystem-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 23,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/config-mgmt-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 21,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/data-pipeline-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 24,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/digital-twin-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 22,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/federated-scheduling-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 23,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/security-compliance-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 23,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    },
+    {
+      "file": "docs/specs/self-healing-spec.md",
+      "status": "已验证",
+      "has_acceptance_section": true,
+      "criteria_count": 23,
+      "criteria_min_met": true,
+      "pass": true,
+      "issues": []
+    }
+  ]
+}
