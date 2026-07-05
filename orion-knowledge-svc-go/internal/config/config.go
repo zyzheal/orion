@@ -8,14 +8,16 @@ import (
 
 // Config holds all configuration for the knowledge service.
 type Config struct {
-	ServiceName string        `mapstructure:"SERVICE_NAME"`
-	Environment string        `mapstructure:"ENVIRONMENT"`
-	HTTPAddr    string        `mapstructure:"HTTP_ADDR"`
-	DatabaseURL string        `mapstructure:"DATABASE_URL"`
-	RedisAddr   string        `mapstructure:"REDIS_ADDR"`
-	RedisDB     int           `mapstructure:"REDIS_DB"`
-	JWTSecret   string        `mapstructure:"JWT_SECRET"`
-	OTelEndpoint string       `mapstructure:"OTEL_ENDPOINT"`
+	ServiceName  string        `mapstructure:"SERVICE_NAME"`
+	Environment  string        `mapstructure:"ENVIRONMENT"`
+	HTTPAddr     string        `mapstructure:"HTTP_ADDR"`
+	DatabaseURL  string        `mapstructure:"DATABASE_URL"`
+	RedisAddr    string        `mapstructure:"REDIS_ADDR"`
+	RedisDB      int           `mapstructure:"REDIS_DB"`
+	JWTSecret    string        `mapstructure:"JWT_SECRET"`
+	OTelEndpoint string        `mapstructure:"OTEL_ENDPOINT"`
+	NATSAddr     string        `mapstructure:"nats_addr"`
+	NATSStream   string        `mapstructure:"nats_stream"`
 }
 
 // Load reads configuration from environment variables.
@@ -26,6 +28,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("REDIS_ADDR", "localhost:6379")
 	viper.SetDefault("REDIS_DB", 0)
 	viper.SetDefault("OTEL_ENDPOINT", "")
+	viper.SetDefault("nats_addr", "nats://localhost:4222")
+	viper.SetDefault("nats_stream", "EVENTS")
 
 	viper.AutomaticEnv()
 

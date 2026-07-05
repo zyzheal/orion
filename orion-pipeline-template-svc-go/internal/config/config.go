@@ -15,6 +15,8 @@ type Config struct {
 	DBSSLMode  string
 	JWTSecret  string
 	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
 }
 
 func Load() *Config {
@@ -23,6 +25,8 @@ func Load() *Config {
 
 		jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+	natsAddr := getEnv("NATS_ADDR", "nats://localhost:4222")
+	natsStream := getEnv("NATS_STREAM", "EVENTS")
 
 return &Config{
 		Port:       port,
@@ -34,6 +38,8 @@ return &Config{
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
 			JWTSecret:  jwtSecret,
 		RedisAddr:  redisAddr,
+		NATSAddr:   natsAddr,
+		NATSStream: natsStream,
 	}
 }
 

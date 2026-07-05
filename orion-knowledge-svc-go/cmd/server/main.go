@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/go-common/pkg/auth"
+	 nats_subscriber "orion/knowledge-svc-go/internal/nats"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
@@ -19,6 +20,7 @@ import (
 	ksvw "orion/knowledge-svc-go/internal/middleware"
 	"orion/knowledge-svc-go/internal/repository"
 	"orion/knowledge-svc-go/internal/service"
+
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -57,6 +59,20 @@ func main() {
 	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+	    if err != nil {
+	        zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+	    } else {
+	        natsSub = sub
+	        if err := natsSub.Start(context.Background()); err != nil {
+	            zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+	            natsSub = nil
+	        }
+	    }
+	}
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -149,6 +165,11 @@ func main() {
 	zapLogger.Info("shutting down knowledge service (go)...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if natsSub != nil {
+	    if err := natsSub.Close(); err != nil {
+	        zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+	    }
+	}
 	if err := srv.Shutdown(ctx); err != nil {
 		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}

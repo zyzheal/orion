@@ -14,6 +14,7 @@ import (
 	"orion/capacity-svc-go/internal/repository"
 	"orion/capacity-svc-go/internal/service"
 
+	nats_subscriber "orion/capacity-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -45,6 +46,21 @@ func main() {
 
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
+
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+	    if err != nil {
+	        logger.Warn("failed to init NATS subscriber", zap.Error(err))
+	    } else {
+	        natsSub = sub
+	        if err := natsSub.Start(context.Background()); err != nil {
+	            logger.Warn("failed to start NATS subscriber", zap.Error(err))
+	            natsSub = nil
+	        }
+	    }
+	}
 
 
 	poolRepo := repository.NewPoolRepository(db.DB)
@@ -82,5 +98,10 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
+	if natsSub != nil {
+	    if err := natsSub.Close(); err != nil {
+	        logger.Warn("failed to close NATS subscriber", zap.Error(err))
+	    }
+	}
 	srv.Shutdown(shutdownCtx)
 }

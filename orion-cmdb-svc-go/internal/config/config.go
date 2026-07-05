@@ -14,8 +14,10 @@ type Config struct {
 	Redis     RedisConfig    `yaml:"redis"`
 	Otel      OtelConfig     `yaml:"otel"`
 	JWT       JWTConfig      `yaml:"jwt"`
-	JWTSecret  string
-	RedisAddr  string
+	JWTSecret string
+	RedisAddr string
+	NATSAddr  string
+	NATSStream string
 }
 
 type ServerConfig struct {
@@ -101,6 +103,12 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("JWT_SECRET"); v != "" {
 		cfg.JWT.Secret = v
+	}
+	if v := os.Getenv("NATS_ADDR"); v != "" {
+		cfg.NATSAddr = v
+	}
+	if v := os.Getenv("NATS_STREAM"); v != "" {
+		cfg.NATSStream = v
 	}
 
 	// Validate required config

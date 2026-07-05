@@ -10,6 +10,7 @@ import (
 
 	"orion/auth-svc-go/internal/config"
 	"orion/auth-svc-go/internal/handler"
+	nats_subscriber "orion/auth-svc-go/pkg/nats"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
@@ -54,6 +55,24 @@ func main() {
 
 	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+	    if err != nil {
+	        zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+	    } else {
+	        natsSub = sub
+	        if err := natsSub.Start(context.Background()); err != nil {
+	            zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+	            natsSub = nil
+	        }
+	    }
+	}
+
+
+
+
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -121,6 +140,11 @@ func main() {
 	<-quit
 
 	zapLogger.Info("shutting down auth service...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {

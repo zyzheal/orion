@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"orion/report-designer-svc-go/internal/config"
 	"orion/report-designer-svc-go/internal/handler"
 	"orion/report-designer-svc-go/internal/repository"
 	"orion/report-designer-svc-go/internal/service"
 	"orion/go-common/pkg/auth"
+	 nats_subscriber "orion/report-designer-svc-go/internal/nats"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
@@ -53,6 +58,20 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+	    if err != nil {
+	        logger.Warn("failed to init NATS subscriber", zap.Error(err))
+	    } else {
+	        natsSub = sub
+	        if err := natsSub.Start(context.Background()); err != nil {
+	            logger.Warn("failed to start NATS subscriber", zap.Error(err))
+	            natsSub = nil
+	        }
+	    }
+	}
 	definitionRepo := repository.NewReportDefinitionRepository(db.DB)
 	datasourceRepo := repository.NewReportDatasourceRepository(db.DB)
 	scheduleRepo := repository.NewReportScheduleRepository(db.DB)
@@ -80,7 +99,26 @@ func main() {
 		zap.String("addr", addr),
 		zap.String("api_prefix", cfg.APIPrefix),
 	)
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("failed to start server", zap.Error(err))
+
+	srv := &http.Server{Addr: addr, Handler: r}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server failed", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("shutting down report-designer-svc...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if natsSub != nil {
+	    if err := natsSub.Close(); err != nil {
+	        logger.Warn("failed to close NATS subscriber", zap.Error(err))
+	    }
 	}
+	srv.Shutdown(shutdownCtx)
 }

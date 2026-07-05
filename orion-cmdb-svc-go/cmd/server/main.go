@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +25,8 @@ import (
 	"orion-cmdb-svc-go/internal/handler"
 	"orion-cmdb-svc-go/internal/repository"
 	"orion-cmdb-svc-go/internal/service"
+
+	nats_subscriber "orion-cmdb-svc-go/pkg/nats"
 )
 
 func runMigrations(db *database.DB) error {
@@ -111,7 +117,20 @@ func main() {
 
 	rdb := orionredis.NewClient(redis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+	    if err != nil {
+	        logger.Warn("failed to init NATS subscriber", zap.Error(err))
+	    } else {
+	        natsSub = sub
+	        if err := natsSub.Start(context.Background()); err != nil {
+	            logger.Warn("failed to start NATS subscriber", zap.Error(err))
+	            natsSub = nil
+	        }
+	    }
+	}
 	ciRepo := repository.NewCIRepository(db)
 	relRepo := repository.NewCIRelationRepository(db)
 	auditRepo := repository.NewCIAuditRepository(db)
@@ -151,7 +170,26 @@ func main() {
 
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	logger.Info("starting cmdb service", zap.Int("port", cfg.Server.Port))
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("server failed", zap.Error(err))
+
+	srv := &http.Server{Addr: addr, Handler: r}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server failed", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("shutting down cmdb service...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if natsSub != nil {
+	    if err := natsSub.Close(); err != nil {
+	        logger.Warn("failed to close NATS subscriber", zap.Error(err))
+	    }
 	}
+	srv.Shutdown(shutdownCtx)
 }
