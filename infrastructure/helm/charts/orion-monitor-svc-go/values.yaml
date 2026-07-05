@@ -1,0 +1,45 @@
+nameOverride: orion-monitor-svc-go
+fullnameOverride: orion-monitor-svc-go
+replicaCount: 2
+image:
+  repository: orion
+  pullPolicy: IfNotPresent
+  tag: latest
+service:
+  port: 8080
+  targetPort: http
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+environment: development
+database:
+  url: postgres://orion:orion@postgres:5432/orion_orion_monitor_svc_go?sslmode=disable
+redis:
+  addr: redis:6379
+nats:
+  enabled: true
+  addr: nats://nats:4222
+  stream: EVENTS
+health:
+  path: /healthz
+  livenessInitialDelaySeconds: 15
+  livenessPeriodSeconds: 20
+  readinessInitialDelaySeconds: 5
+  readinessPeriodSeconds: 10
+serviceAccount:
+  create: true
+  annotations: {}
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

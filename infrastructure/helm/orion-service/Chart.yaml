@@ -1,0 +1,14 @@
+apiVersion: v2
+name: orion-service
+description: Orion Go microservice Helm chart
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - orion
+  - microservice
+  - go
+
+maintainers:
+  - name: orion-platform

@@ -1,0 +1,94 @@
+{{- $fullname := include "orion-service.fullname" . -}}
+{{- $name := .Values.nameOverride | default .Chart.Name -}}
+{{- if .Values.fullnameOverride }}{{ $fullname = .Values.fullnameOverride }}{{ end -}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  namespace: {{ .Release.Namespace | default "orion" }}
+  labels:
+    app: {{ $fullname }}
+    app.kubernetes.io/name: {{ $fullname }}
+    app.kubernetes.io/part-of: orion-platform
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+        app.kubernetes.io/name: {{ $fullname }}
+        app.kubernetes.io/part-of: orion-platform
+        app.kubernetes.io/version: {{ .Chart.AppVersion }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.serviceAccount.create }}
+      serviceAccountName: {{ $fullname }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ $fullname }}
+        image: "{{ .Values.image.repository }}/{{ $name }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: http
+          protocol: TCP
+        env:
+        - name: SERVICE_NAME
+          value: {{ $name }}
+        - name: ENVIRONMENT
+          value: {{ .Values.environment | quote }}
+        {{- if .Values.database.url }}
+        - name: DATABASE_URL
+          value: {{ .Values.database.url | quote }}
+        {{- end }}
+        {{- if .Values.redis.addr }}
+        - name: REDIS_ADDR
+          value: {{ .Values.redis.addr | quote }}
+        {{- end }}
+        {{- if .Values.jwt.secret }}
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: orion-secrets
+              key: jwt-secret
+        {{- end }}
+        {{- if .Values.nats.enabled }}
+        - name: NATS_ADDR
+          value: {{ .Values.nats.addr | quote }}
+        - name: NATS_STREAM
+          value: {{ .Values.nats.stream | quote }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.health.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.health.livenessInitialDelaySeconds }}
+          periodSeconds: {{ .Values.health.livenessPeriodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.health.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.health.readinessInitialDelaySeconds }}
+          periodSeconds: {{ .Values.health.readinessPeriodSeconds }}
