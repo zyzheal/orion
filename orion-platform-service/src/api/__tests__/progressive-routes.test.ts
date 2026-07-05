@@ -14,17 +14,8 @@ import { describe, it, beforeAll, afterAll, beforeEach, expect } from '@jest/glo
 import progressiveRoutes from '../progressive-routes';
 
 // Mock auth middleware
-jest.mock('../middleware/authMiddleware', () => ({
-  authenticateUser: async (req: any, reply: any) => {
-    const auth = req.headers.authorization;
-    if (!auth) return reply.code(401).send({ error: 'UNAUTHORIZED' });
-    req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'], tenant_id: 'tenant-1' };
-  },
-}));
-
-jest.mock('../middleware/requirePermission', () => ({
-  requirePermission: (_opts: any) => async (req: any, reply: any) => {},
-}));
+jest.mock('../../middleware/authMiddleware');
+jest.mock('../../middleware/requirePermission');
 
 const TEST_TOKEN = jwt.sign(
   { userId: 'test-user', username: 'testuser', roles: ['admin'] },

@@ -1,6 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  moduleFileExtensions: ['js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'json', 'node'],
   testPathIgnorePatterns: ['/node_modules/', '/.worktrees/', '/.claude/worktrees/', '/dist/'],
   modulePathIgnorePatterns: ['/.worktrees/', '/.claude/worktrees/'],
   roots: ['<rootDir>/src', '<rootDir>/__tests__'],
