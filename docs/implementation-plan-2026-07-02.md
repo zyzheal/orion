@@ -69,9 +69,9 @@
 | 属性 | 值 |
 |------|-----|
 | 当前 Git 分支 | `feat/metric-collector-postgres-persistence` (✅ MetricCollector PostgreSQL 持久化完成) |
-| 最近提交 | `feat: generate comprehensive module completion report` |
+| 最近提交 | `feat: add NATS JetStream subscriber to 10 Go microservices (final batch)` |
 | 上次计划更新 | 2026-07-02 (v3.0 领域专家优化) |
-| 执行状态 | Phase 1-6 全部完成，前端 mock 清理 99%，Map→PostgreSQL 97% 完成，AI Python 化 Phase 4 辅助能力迁移完成（code_review/llm_trace/training/mlops + routes）+ 决策端点扩展（feature-importance/confidence/history）+ 前端 AI 代理配置（localhost:8000） |
+| 执行状态 | Phase 1-6 全部完成，前端 mock 清理 99%，Map→PostgreSQL 97% 完成，AI Python 化 Phase 4 辅助能力迁移完成（code_review/llm_trace/training/mlops + routes）+ 决策端点扩展（feature-importance/confidence/history）+ 前端 AI 代理配置（localhost:8000），47个Go微服务NATS JetStream消费者全部集成完成 |
 
 ### Goal 模式执行入口
 
@@ -1331,6 +1331,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 6.33 | 部署准备：5个Go服务Dockerfiles | ✅ 已完成 (2026-07-05) | code/deploy/monitor/chaos/incident 多阶段Alpine Dockerfile (build→scratch, ~15MB) | 🔵 | |
 | 6.34 | 部署准备：MetricCollector前端仪表盘 | ✅ 已完成 (已有实现) | orion-frontend/src/pages/monitor-svc/MetricsDashboard/ (StatCards+TrendLineChart+GaugeChart+ServiceHealth) | 🔵 | 无需修改 |
 | 6.35 | 部署准备：orion-config-svc-go清理 | ✅ 已完成 (2026-07-05) | 删除空目录(仅空子目录，无go.mod，不在go.work中) | 🔵 | |
+| 6.36 | NATS JetStream 消费者集成（剩余10服务） | ✅ 已完成 (2026-07-05) | auth/capacity/knowledge/cmdb/config-mgmt/graph/notify/pandawiki/pipeline-template/report-designer 共10个Go微服务完成NATS订阅者导入+初始化+natsSub.Close()+阻塞→非阻塞转换，全部构建通过 | 🔵 | 接续6.1 |
 ---
 
 ## 十、专项迁移索引
@@ -1338,7 +1339,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 专项 | 迁移计划 | 进度追踪 | 状态 | 依赖 |
 |------|---------|---------|------|------|
 | AI 域 TS → Python | [AI 迁移计划](docs/ai-migration-plan-2026-07-02.md) | [AI 迁移进度](memory/ai-migration-progress.md) | 🔄 进行中 (Phase 4 完成) | Phase 4 辅助能力迁移完成 |
-| TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1-3 蓝图完成，NATS消费者5服务集成完成 | Phase 1 + 4.67 完成 |
+| TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1-3 蓝图完成，NATS JetStream 消费者全部 47 服务集成完成 | Phase 1 + 4.67 完成 |
 | | | | | **必须先完成 1.17 + 4.67** |
 | Map → PostgreSQL | [清理清单](docs/architecture/清理与待实现清单-2026-07-01.md) | [持久化进度](memory/persistence-migration-progress.md) | ✅ 97% 完成（337 repositories，剩余为缓存/运行时结构） | Phase 1 完成 |
 | AI Python 化 | [AI Python 化计划](docs/ai-python-migration-plan.md) | — | 🔄 进行中 (Phase 4.5-4.11 完成) | Phase 4 辅助能力迁移完成 + 决策端点扩展 |
