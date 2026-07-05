@@ -209,7 +209,7 @@ export function generateToken(
 ): string {
   const expiresIn = options?.expiresIn || '24h';
   const secret = jwtKeyManager.getCurrentSecret();
-  return jwt.sign(payload, secret, { expiresIn, algorithms: ['HS256'] } as jwt.SignOptions);
+  return jwt.sign(payload, secret, { expiresIn });
 }
 
 /**
