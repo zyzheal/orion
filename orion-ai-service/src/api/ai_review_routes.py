@@ -2,16 +2,14 @@
 AI Review 路由
 
 提供 AI 代码审查的提交、查询、批准与拒绝能力。
-Phase B 返回模拟数据，Phase C 接入实际审查引擎。
+通过 AIService 规则引擎 + AIResultRepository 持久化实现。
 """
 
 import logging
-import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException
-from fastapi.responses import JSONResponse
 
 from src.models.ai_models import (
     AIReviewApproveRequest,
@@ -21,6 +19,8 @@ from src.models.ai_models import (
     AIReviewResponse,
     AIReviewStatus,
 )
+from src.repositories.ai_result_repository import ai_result_repository
+from src.services.ai_service import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -31,41 +31,12 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     """从 headers 获取或生成 request_id"""
     if x_request_id:
         return x_request_id
+    import uuid
     return str(uuid.uuid4())
 
 
-# ==================== 模拟数据存储 ====================
-
-
-# Phase B 使用内存模拟存储，Phase C 替换为实际存储
-_MOCK_REVIEWS: Dict[str, Dict[str, Any]] = {}
-
-
-def _build_mock_review(review_id: str, request: AIReviewRequest) -> Dict[str, Any]:
-    """构建模拟审查记录"""
-    now = datetime.now(timezone.utc)
-    return {
-        "id": review_id,
-        "status": AIReviewStatus.PENDING,
-        "summary": f"[MOCK] Review for {request.language} code submitted.",
-        "comments": [
-            {
-                "line": 1,
-                "content": "Code structure looks good.",
-                "severity": "info",
-                "suggestion": None,
-            },
-            {
-                "line": 5,
-                "content": "Consider adding error handling.",
-                "severity": "warning",
-                "suggestion": "Wrap the call in try/except.",
-            },
-        ],
-        "score": 85.0,
-        "created_at": now,
-        "completed_at": None,
-    }
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 # ==================== 路由端点 ====================
@@ -75,7 +46,7 @@ def _build_mock_review(review_id: str, request: AIReviewRequest) -> Dict[str, An
     "/review",
     response_model=AIReviewResponse,
     summary="提交代码审查请求",
-    description="提交代码片段进行 AI 审查，返回模拟审查结果。",
+    description="提交代码片段进行 AI 审查，基于规则引擎分析并持久化结果。",
 )
 async def submit_review(
     request: AIReviewRequest,
@@ -99,18 +70,21 @@ async def submit_review(
         },
     )
 
-    review_id = str(uuid.uuid4())
-    review = _build_mock_review(review_id, request)
-    _MOCK_REVIEWS[review_id] = review
+    review = await ai_service.review_code(
+        code=request.code,
+        language=request.language,
+        context=request.context,
+        reviewers=request.reviewers,
+    )
 
-    return AIReviewResponse(**review)
+    return review
 
 
 @router.get(
     "/review/{review_id}",
     response_model=AIReviewResponse,
     summary="获取审查结果",
-    description="根据审查 ID 返回审查结果详情。",
+    description="根据审查 ID 从仓储中返回审查结果详情。",
     responses={404: {"description": "审查不存在"}},
 )
 async def get_review(
@@ -128,7 +102,7 @@ async def get_review(
         extra={"request_id": request_id, "review_id": review_id},
     )
 
-    review = _MOCK_REVIEWS.get(review_id)
+    review = ai_result_repository.get_review(review_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
@@ -139,7 +113,7 @@ async def get_review(
     "/review/{review_id}/approve",
     response_model=AIReviewResponse,
     summary="批准审查",
-    description="批准代码审查，更新审查状态为已批准。",
+    description="批准代码审查，更新审查状态为已批准并持久化。",
     responses={404: {"description": "审查不存在"}},
 )
 async def approve_review(
@@ -159,21 +133,20 @@ async def approve_review(
         extra={"request_id": request_id, "review_id": review_id},
     )
 
-    review = _MOCK_REVIEWS.get(review_id)
+    review = ai_result_repository.get_review(review_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
-    if review["status"] != AIReviewStatus.PENDING:
+    if review["status"] != AIReviewStatus.PENDING.value:
         raise HTTPException(
             status_code=400,
             detail=f"Review {review_id} is not in pending status",
         )
 
-    now = datetime.now(timezone.utc)
-    review["status"] = AIReviewStatus.APPROVED
-    review["completed_at"] = now
+    now = _now_utc()
+    comments = review.get("comments", [])
     if request.comment:
-        review["comments"].append(
+        comments.append(
             {
                 "line": None,
                 "content": request.comment,
@@ -182,14 +155,31 @@ async def approve_review(
             }
         )
 
-    return AIReviewResponse(**review)
+    ai_result_repository.save_review(
+        {
+            "id": review_id,
+            "code": review.get("code", ""),
+            "language": review.get("language", ""),
+            "context": review.get("context"),
+            "reviewers": review.get("reviewers"),
+            "status": AIReviewStatus.APPROVED.value,
+            "summary": review.get("summary", ""),
+            "comments": comments,
+            "score": review.get("score", 0.0),
+            "created_at": review.get("created_at", now.isoformat()),
+            "completed_at": now.isoformat(),
+        }
+    )
+
+    updated = ai_result_repository.get_review(review_id)
+    return AIReviewResponse(**updated)
 
 
 @router.post(
     "/review/{review_id}/reject",
     response_model=AIReviewResponse,
     summary="拒绝审查",
-    description="拒绝代码审查，更新审查状态为已拒绝。",
+    description="拒绝代码审查，更新审查状态为已拒绝并持久化。",
     responses={404: {"description": "审查不存在"}},
 )
 async def reject_review(
@@ -210,20 +200,19 @@ async def reject_review(
         extra={"request_id": request_id, "review_id": review_id, "reason": request.reason},
     )
 
-    review = _MOCK_REVIEWS.get(review_id)
+    review = ai_result_repository.get_review(review_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
-    if review["status"] != AIReviewStatus.PENDING:
+    if review["status"] != AIReviewStatus.PENDING.value:
         raise HTTPException(
             status_code=400,
             detail=f"Review {review_id} is not in pending status",
         )
 
-    now = datetime.now(timezone.utc)
-    review["status"] = AIReviewStatus.REJECTED
-    review["completed_at"] = now
-    review["comments"].append(
+    now = _now_utc()
+    comments = review.get("comments", [])
+    comments.append(
         {
             "line": None,
             "content": f"[REJECTED] {request.reason}",
@@ -232,4 +221,21 @@ async def reject_review(
         }
     )
 
-    return AIReviewResponse(**review)
+    ai_result_repository.save_review(
+        {
+            "id": review_id,
+            "code": review.get("code", ""),
+            "language": review.get("language", ""),
+            "context": review.get("context"),
+            "reviewers": review.get("reviewers"),
+            "status": AIReviewStatus.REJECTED.value,
+            "summary": review.get("summary", ""),
+            "comments": comments,
+            "score": review.get("score", 0.0),
+            "created_at": review.get("created_at", now.isoformat()),
+            "completed_at": now.isoformat(),
+        }
+    )
+
+    updated = ai_result_repository.get_review(review_id)
+    return AIReviewResponse(**updated)

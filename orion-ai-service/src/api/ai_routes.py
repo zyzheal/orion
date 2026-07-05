@@ -2,16 +2,13 @@
 AI 领域基础设施路由
 
 提供 AI 生成、分析、诊断三个核心端点。
-Phase A 返回模拟数据，Phase B 接入实际模型调用。
+通过 AIService 规则引擎 + 模板匹配实现实际业务逻辑。
 """
 
 import logging
-import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Header, HTTPException
-from fastapi.responses import JSONResponse
 
 from src.models.ai_models import (
     AIAnalyzeRequest,
@@ -22,6 +19,7 @@ from src.models.ai_models import (
     AIGenerateRequest,
     AIGenerateResponse,
 )
+from src.services.ai_service import ai_service
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +30,7 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     """从 headers 获取或生成 request_id"""
     if x_request_id:
         return x_request_id
+    import uuid
     return str(uuid.uuid4())
 
 
@@ -42,7 +41,7 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     "/generate",
     response_model=AIGenerateResponse,
     summary="AI 生成",
-    description="接收 prompt，返回模拟生成结果。Phase A 返回固定响应。",
+    description="接收 prompt，调用 AI 服务生成内容，不可用时降级到模板匹配。",
 )
 async def generate(
     request: AIGenerateRequest,
@@ -61,13 +60,10 @@ async def generate(
         extra={"request_id": request_id, "model": request.model},
     )
 
-    # Phase A: 返回模拟响应
-    return AIGenerateResponse(
-        id=str(uuid.uuid4()),
-        content=f"[MOCK] Generated response for: {request.prompt[:100]}...",
-        model=request.model or "mock-model-v1",
-        tokens_used=len(request.prompt.split()) * 2,
-        created_at=datetime.now(timezone.utc),
+    return await ai_service.generate_text(
+        prompt=request.prompt,
+        context=request.context,
+        model=request.model,
     )
 
 
@@ -78,7 +74,7 @@ async def generate(
     "/analyze",
     response_model=AIAnalyzeResponse,
     summary="AI 分析",
-    description="接收分析请求，返回模拟分析结果。Phase A 返回固定响应。",
+    description="接收分析请求，根据类型调用对应分析方法（pipeline/code/cost）。",
 )
 async def analyze(
     request: AIAnalyzeRequest,
@@ -96,20 +92,9 @@ async def analyze(
         extra={"request_id": request_id, "type": request.type.value},
     )
 
-    # Phase A: 返回模拟响应
-    mock_result = {
-        "summary": f"[MOCK] Analysis of type '{request.type.value}' completed.",
-        "details": request.data,
-        "issues_found": 0,
-        "suggestions": [],
-    }
-
-    return AIAnalyzeResponse(
-        id=str(uuid.uuid4()),
-        type=request.type.value,
-        result=mock_result,
-        confidence=0.85,
-        created_at=datetime.now(timezone.utc),
+    return await ai_service.analyze(
+        analysis_type=request.type.value,
+        data=request.data,
     )
 
 
@@ -120,7 +105,7 @@ async def analyze(
     "/diagnose",
     response_model=AIDiagnoseResponse,
     summary="AI 诊断",
-    description="接收症状描述，返回模拟诊断结果。Phase A 返回固定响应。",
+    description="接收症状描述，基于规则引擎匹配返回诊断结论和修复建议。",
 )
 async def diagnose(
     request: AIDiagnoseRequest,
@@ -138,20 +123,7 @@ async def diagnose(
         extra={"request_id": request_id, "symptoms_count": len(request.symptoms)},
     )
 
-    # Phase A: 返回模拟响应
-    severity = AIDiagnoseSeverity.LOW
-    if len(request.symptoms) > 3:
-        severity = AIDiagnoseSeverity.MEDIUM
-    if len(request.symptoms) > 5:
-        severity = AIDiagnoseSeverity.HIGH
-
-    return AIDiagnoseResponse(
-        id=str(uuid.uuid4()),
-        diagnosis=f"[MOCK] Diagnosed {len(request.symptoms)} symptom(s). No critical issues found.",
-        severity=severity,
-        recommendations=[
-            "Review logs for more details.",
-            "Check resource utilization.",
-        ],
-        created_at=datetime.now(timezone.utc),
+    return await ai_service.diagnose(
+        symptoms=request.symptoms,
+        context=request.context,
     )
