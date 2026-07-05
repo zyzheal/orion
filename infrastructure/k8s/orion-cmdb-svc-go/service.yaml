@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-cmdb-svc-go
+  namespace: orion
+  labels:
+    app: orion-cmdb-svc-go
+    app.kubernetes.io/name: orion-cmdb-svc-go
+    app.kubernetes.io/part-of: orion-platform
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app: orion-cmdb-svc-go
