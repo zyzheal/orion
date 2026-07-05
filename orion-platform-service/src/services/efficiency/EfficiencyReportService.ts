@@ -193,6 +193,11 @@ export class EfficiencyReportService {
       this.globalDeploymentsRepo = new EfficiencyGlobalDeploymentRepository(db);
       this.globalPipelinesRepo = new EfficiencyGlobalPipelineRepository(db);
     }
+    // Pre-load all data from DB so reads are DB-backed after restart
+    this.loadAllFromDb().catch(() => {
+      // DB unavailable at startup — in-memory Maps remain empty;
+      // runtime writes will still attempt to persist.
+    });
   }
 
   /**
@@ -397,17 +402,10 @@ export class EfficiencyReportService {
     deployments: DeploymentRecord[]
   ): void {
     this.teamData.set(teamId, { name, members, pipelines, deployments });
-    // PostgreSQL 持久化（异步）
-    if (this.teamDataRepo) {
-      this.teamDataRepo.create({
-        id: teamId,
-        tenantId: 'default',
-        name,
-        members,
-        pipelines,
-        deployments,
-      }).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    // PostgreSQL 同步持久化（UPSERT）
+    this.syncTeamDataToDb(teamId, name, members, pipelines, deployments).catch(() => {
+      // 持久化失败不阻塞主流程
+    });
   }
 
   /**
@@ -421,17 +419,10 @@ export class EfficiencyReportService {
     commits: number = 0
   ): void {
     this.projectData.set(projectId, { name, pipelines, deployments, commits });
-    // PostgreSQL 持久化（异步）
-    if (this.projectDataRepo) {
-      this.projectDataRepo.create({
-        id: projectId,
-        tenantId: 'default',
-        name,
-        pipelines,
-        deployments,
-        commits,
-      }).catch(() => { /* 持久化失败不阻塞 */ });
-    }
+    // PostgreSQL 同步持久化（UPSERT）
+    this.syncProjectDataToDb(projectId, name, pipelines, deployments, commits).catch(() => {
+      // 持久化失败不阻塞主流程
+    });
   }
 
   /**
@@ -444,27 +435,9 @@ export class EfficiencyReportService {
   ): void {
     this.globalDeployments.set(tenantId, deployments);
     this.globalPipelineRecords.set(tenantId, pipelineRecords);
-    // PostgreSQL 持久化（异步）
-    if (this.globalDeploymentsRepo) {
-      for (const d of deployments) {
-        this.globalDeploymentsRepo.create({
-          id: d.id || uuidv4(),
-          tenantId,
-          deploymentData: d as unknown as Record<string, unknown>,
-          deployedAt: d.deployedAt,
-        }).catch(() => { /* 持久化失败不阻塞 */ });
-      }
-    }
-    if (this.globalPipelinesRepo) {
-      for (const p of pipelineRecords) {
-        this.globalPipelinesRepo.create({
-          id: p.id || uuidv4(),
-          tenantId,
-          pipelineData: p as unknown as Record<string, unknown>,
-          completedAt: p.completedAt,
-        }).catch(() => { /* 持久化失败不阻塞 */ });
-      }
-    }
+    // PostgreSQL 全量同步（先删后写，保证幂等）
+    this.syncGlobalDeploymentsToDb(tenantId, deployments).catch(() => {});
+    this.syncGlobalPipelinesToDb(tenantId, pipelineRecords).catch(() => {});
   }
 
   /**
@@ -611,5 +584,220 @@ export class EfficiencyReportService {
       return newValue > 0 ? 100 : 0;
     }
     return Math.round(((newValue - oldValue) / oldValue) * 10000) / 100;
+  }
+
+  // ==================== DB 持久化层 ====================
+
+  /**
+   * 服务启动时从 PostgreSQL 预加载全部数据到内存 Map。
+   * 保证服务重启后数据不丢失，读取仍走内存（性能最优）。
+   */
+  async loadAllFromDb(): Promise<void> {
+    // 加载团队数据
+    if (this.teamDataRepo) {
+      try {
+        const teams = await this.teamDataRepo.findByTenant('default');
+        this.teamData.clear();
+        for (const t of teams) {
+          this.teamData.set(t.id, {
+            name: t.name,
+            members: t.members,
+            pipelines: (t.pipelines ?? []) as PipelineCompletionRecord[],
+            deployments: (t.deployments ?? []) as DeploymentRecord[],
+          });
+        }
+      } catch {
+        // DB 读取失败不影响服务启动，内存 Map 保持空
+      }
+    }
+
+    // 加载项目数据
+    if (this.projectDataRepo) {
+      try {
+        const projects = await this.projectDataRepo.findByTenant('default');
+        this.projectData.clear();
+        for (const p of projects) {
+          this.projectData.set(p.id, {
+            name: p.name,
+            pipelines: (p.pipelines ?? []) as PipelineCompletionRecord[],
+            deployments: (p.deployments ?? []) as DeploymentRecord[],
+            commits: p.commits ?? 0,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 加载报告历史（每个租户保留最近 50 条）
+    if (this.reportHistoryRepo) {
+      try {
+        const reports = await this.reportHistoryRepo.findByTenant('default', 50);
+        this.reportHistory.clear();
+        // reportData 是 JSONB 反序列化后的 EfficiencyReport 对象
+        const reportList: EfficiencyReport[] = reports
+          .map(r => r.reportData as unknown as EfficiencyReport)
+          .sort(
+            (a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime(),
+          );
+        this.reportHistory.set('default', reportList);
+      } catch {
+        // ignore
+      }
+    }
+
+    // 加载全局部署数据
+    if (this.globalDeploymentsRepo) {
+      try {
+        const deployments = await this.globalDeploymentsRepo.findByTenant('default');
+        this.globalDeployments.clear();
+        // deploymentData 是 JSONB 反序列化后的 DeploymentRecord 对象
+        this.globalDeployments.set(
+          'default',
+          deployments.map(d => d.deploymentData as unknown as DeploymentRecord),
+        );
+      } catch {
+        // ignore
+      }
+    }
+
+    // 加载全局 Pipeline 数据
+    if (this.globalPipelinesRepo) {
+      try {
+        const pipelines = await this.globalPipelinesRepo.findByTenant('default');
+        this.globalPipelineRecords.clear();
+        // pipelineData 是 JSONB 反序列化后的 PipelineCompletionRecord 对象
+        this.globalPipelineRecords.set(
+          'default',
+          pipelines.map(p => p.pipelineData as unknown as PipelineCompletionRecord),
+        );
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  /**
+   * 将团队数据同步写入 PostgreSQL（UPSERT）。
+   * 如果已存在则更新，不存在则插入。
+   */
+  private async syncTeamDataToDb(
+    teamId: string,
+    name: string,
+    members: number,
+    pipelines: PipelineCompletionRecord[],
+    deployments: DeploymentRecord[],
+  ): Promise<void> {
+    if (!this.teamDataRepo) return;
+    try {
+      const existing = await this.teamDataRepo.findById(teamId);
+      if (existing) {
+        await this.teamDataRepo.update(teamId, {
+          name,
+          members,
+          pipelines: pipelines as unknown as any,
+          deployments: deployments as unknown as any,
+        });
+      } else {
+        await this.teamDataRepo.create({
+          id: teamId,
+          tenantId: 'default',
+          name,
+          members,
+          pipelines: pipelines as unknown as any,
+          deployments: deployments as unknown as any,
+        });
+      }
+    } catch {
+      // 持久化失败不阻塞主流程
+    }
+  }
+
+  /**
+   * 将项目数据同步写入 PostgreSQL（UPSERT）。
+   */
+  private async syncProjectDataToDb(
+    projectId: string,
+    name: string,
+    pipelines: PipelineCompletionRecord[],
+    deployments: DeploymentRecord[],
+    commits: number,
+  ): Promise<void> {
+    if (!this.projectDataRepo) return;
+    try {
+      const existing = await this.projectDataRepo.findById(projectId);
+      if (existing) {
+        await this.projectDataRepo.update(projectId, {
+          name,
+          pipelines: pipelines as unknown as any,
+          deployments: deployments as unknown as any,
+          commits,
+        });
+      } else {
+        await this.projectDataRepo.create({
+          id: projectId,
+          tenantId: 'default',
+          name,
+          pipelines: pipelines as unknown as any,
+          deployments: deployments as unknown as any,
+          commits,
+        });
+      }
+    } catch {
+      // 持久化失败不阻塞主流程
+    }
+  }
+
+  /**
+   * 将全局部署数据全量同步写入 PostgreSQL（先删后写，保证幂等）。
+   */
+  private async syncGlobalDeploymentsToDb(
+    tenantId: string,
+    deployments: DeploymentRecord[],
+  ): Promise<void> {
+    if (!this.globalDeploymentsRepo) return;
+    try {
+      // 删除该租户旧记录，再批量写入新记录
+      const existing = await this.globalDeploymentsRepo.findByTenant(tenantId);
+      for (const d of existing) {
+        await this.globalDeploymentsRepo.delete(d.id);
+      }
+      for (const d of deployments) {
+        await this.globalDeploymentsRepo.create({
+          id: d.id || uuidv4(),
+          tenantId,
+          deploymentData: d as unknown as Record<string, unknown>,
+          deployedAt: d.deployedAt,
+        });
+      }
+    } catch {
+      // 持久化失败不阻塞主流程
+    }
+  }
+
+  /**
+   * 将全局 Pipeline 数据全量同步写入 PostgreSQL（先删后写，保证幂等）。
+   */
+  private async syncGlobalPipelinesToDb(
+    tenantId: string,
+    pipelineRecords: PipelineCompletionRecord[],
+  ): Promise<void> {
+    if (!this.globalPipelinesRepo) return;
+    try {
+      const existing = await this.globalPipelinesRepo.findByTenant(tenantId);
+      for (const p of existing) {
+        await this.globalPipelinesRepo.delete(p.id);
+      }
+      for (const p of pipelineRecords) {
+        await this.globalPipelinesRepo.create({
+          id: p.id || uuidv4(),
+          tenantId,
+          pipelineData: p as unknown as Record<string, unknown>,
+          completedAt: p.completedAt,
+        });
+      }
+    } catch {
+      // 持久化失败不阻塞主流程
+    }
   }
 }
