@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { describe, it, beforeAll, afterAll, expect, jest } from '@jest/globals';
 
 jest.mock('../../middleware/authMiddleware', () => ({
-  authenticateUser: async (req: any, reply: any) => {
+  authenticateUser: async (req, reply) => {
     const auth = req.headers.authorization;
     if (!auth) return reply.code(401).send({ error: 'UNAUTHORIZED' });
     req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'] };
@@ -17,7 +17,7 @@ jest.mock('../../middleware/authMiddleware', () => ({
 }));
 
 jest.mock('../../middleware/requirePermission', () => ({
-  requirePermission: (_opts: any) => async (req: any, reply: any) => {},
+  requirePermission: () => async (req, reply) => {},
 }));
 
 import routePlugin from '../artifact-lifecycle-routes';
@@ -39,6 +39,43 @@ const mockDb = {
   end: jest.fn(),
 };
 
+// Mock ArtifactLifecycleRepository to avoid real DB schema dependencies
+jest.mock('../../repositories/ArtifactLifecycleRepository', () => ({
+  ArtifactLifecyclePolicyRepository: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockResolvedValue({ id: 'policy-1', artifactId: 'art-1' }),
+    findById: jest.fn().mockResolvedValue(null),
+    findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue({ id: 'policy-1' }),
+    delete: jest.fn().mockResolvedValue(true),
+  })),
+  ArtifactReplicationRepository: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockResolvedValue({ id: 'repl-1', artifactId: 'art-1' }),
+    findById: jest.fn().mockResolvedValue({ id: 'repl-1', artifactId: 'art-1', status: 'completed' }),
+    findAll: jest.fn().mockResolvedValue([]),
+    update: jest.fn().mockResolvedValue({ id: 'repl-1' }),
+  })),
+}));
+
+jest.mock('../../repositories/ArtifactAclRepository', () => ({
+  ArtifactAclRepository: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockImplementation((input) => ({ ...input, id: 'acl-1' })),
+    findByArtifactId: jest.fn().mockResolvedValue([]),
+    findByArtifactAndSubject: jest.fn().mockResolvedValue(null),
+    findById: jest.fn().mockResolvedValue({ id: 'acl-1', permissions: ['read'] }),
+    update: jest.fn().mockImplementation((id, updates) => ({ id, ...updates })),
+    delete: jest.fn().mockResolvedValue(true),
+  })),
+}));
+
+jest.mock('../../repositories/ArtifactRepository', () => ({
+  PostgresArtifactRepository: jest.fn().mockImplementation(() => ({
+    findById: jest.fn().mockResolvedValue({ id: 'art-1', tenantId: 'tenant-1', name: 'test-artifact' }),
+    findAll: jest.fn().mockResolvedValue([]),
+    create: jest.fn().mockResolvedValue({ id: 'art-1' }),
+    update: jest.fn().mockResolvedValue({ id: 'art-1' }),
+  })),
+}));
+
 describe('Artifact Lifecycle Routes', () => {
   let app: Fastify;
 
@@ -53,14 +90,13 @@ describe('Artifact Lifecycle Routes', () => {
   });
 
   it('should have registered routes', () => {
-    const routes = app.printRoutes();
-    expect(routes).toBeTruthy();
-    // Verify all major route groups exist
-    expect(routes).toContain('promote');
-    expect(routes).toContain('expire');
-    expect(routes).toContain('replicate');
-    expect(routes).toContain('replication-status');
-    expect(routes).toContain('acl');
+    // Verify all major routes exist via hasRoute
+    expect(app.hasRoute({ method: 'POST', url: '/lifecycle/promote' })).toBe(true);
+    expect(app.hasRoute({ method: 'POST', url: '/lifecycle/expire' })).toBe(true);
+    expect(app.hasRoute({ method: 'POST', url: '/replicate' })).toBe(true);
+    expect(app.hasRoute({ method: 'GET', url: '/replication-status/:id' })).toBe(true);
+    expect(app.hasRoute({ method: 'POST', url: '/acl' })).toBe(true);
+    expect(app.hasRoute({ method: 'PUT', url: '/acl/:id' })).toBe(true);
   });
 
   describe('POST /lifecycle/promote', () => {
