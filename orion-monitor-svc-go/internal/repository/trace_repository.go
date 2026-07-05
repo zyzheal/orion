@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/models"
+	"orion/monitor-svc-go/internal/models"
 	"go.uber.org/zap"
 )
 

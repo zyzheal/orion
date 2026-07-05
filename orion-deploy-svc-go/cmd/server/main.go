@@ -10,6 +10,7 @@ import (
 
 	"orion/deploy-svc-go/internal/config"
 	"orion/deploy-svc-go/internal/handler"
+	nats_subscriber "orion/deploy-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
@@ -115,6 +116,21 @@ func main() {
 		}
 	}
 
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	zapLogger.Info("deploy service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
@@ -129,6 +145,11 @@ func main() {
 	<-quit
 
 	zapLogger.Info("shutting down deploy service...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {

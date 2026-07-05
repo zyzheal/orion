@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/models"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/repository"
+	"orion/monitor-svc-go/internal/models"
+	"orion/monitor-svc-go/internal/repository"
 	"go.uber.org/zap"
 )
 

@@ -15,6 +15,8 @@ type Config struct {
 	DBSSLMode  string
 	JWTSecret  string
 	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
 }
 
 func Load() *Config {
@@ -32,8 +34,10 @@ return &Config{
 		DBPassword: requireEnv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "orion_code"),
 		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-			JWTSecret:  jwtSecret,
+		JWTSecret:  jwtSecret,
 		RedisAddr:  redisAddr,
+		NATSAddr:   getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream: getEnv("NATS_STREAM", "EVENTS"),
 	}
 }
 

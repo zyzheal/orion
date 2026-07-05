@@ -10,6 +10,7 @@ import (
 	"orion/code-svc-go/internal/handler"
 	"orion/code-svc-go/internal/repository"
 	"orion/code-svc-go/internal/service"
+	nats_subscriber "orion/code-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -47,7 +48,6 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
-
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
 	h := handler.NewHandler(svc)
@@ -62,6 +62,21 @@ func main() {
 	h.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-code-svc"))
+
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(ctx); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	logger.Info("code-svc listening", zap.String("addr", addr))

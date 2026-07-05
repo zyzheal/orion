@@ -18,7 +18,9 @@ type Config struct {
 	RedisDB     int
 	OTLPEndpoint string
 	Environment string
-	JWTSecret  string
+	JWTSecret   string
+	NATSAddr     string
+	NATSStream   string
 }
 
 func Load() (*Config, error) {
@@ -53,6 +55,8 @@ return &Config{
 		OTLPEndpoint: getEnv("OTLP_ENDPOINT", "localhost:4317"),
 		Environment:  getEnv("ENVIRONMENT", "development"),
 		JWTSecret:    jwtSecret,
+		NATSAddr:     getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream:   getEnv("NATS_STREAM", "EVENTS"),
 	}, nil
 }
 

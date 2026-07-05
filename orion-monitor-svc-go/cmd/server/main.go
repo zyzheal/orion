@@ -19,10 +19,12 @@ import (
 	"orion/go-common/pkg/otel"
 	orionredis "orion/go-common/pkg/redis"
 
-	"github.com/orion-platform/orion-monitor-svc-go/internal/config"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/handler"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/repository"
-	"github.com/orion-platform/orion-monitor-svc-go/internal/service"
+	nats_subscriber "orion/monitor-svc-go/pkg/nats"
+
+	"orion/monitor-svc-go/internal/config"
+	"orion/monitor-svc-go/internal/handler"
+	"orion/monitor-svc-go/internal/repository"
+	"orion/monitor-svc-go/internal/service"
 )
 
 func main() {
@@ -142,6 +144,21 @@ func main() {
 		v1.GET("/count", h.Count)
 	}
 
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(ctx); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	// Start HTTP server
 	srv := &http.Server{
 		Addr:              cfg.Addr(),
@@ -164,6 +181,11 @@ func main() {
 	<-quit
 
 	logger.Info("shutting down server...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
