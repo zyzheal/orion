@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"orion/chaos-svc-go/internal/models"
 )
 

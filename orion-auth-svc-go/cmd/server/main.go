@@ -85,7 +85,7 @@ func main() {
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, zapLogger, cfg)
+	h := handler.New(db, zapLogger, cfg.JWTSecret)
 
 	api := r.Group("/api/v1")
 	{

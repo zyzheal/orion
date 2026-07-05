@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"time"

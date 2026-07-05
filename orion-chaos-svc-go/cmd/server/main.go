@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 
 	"orion/chaos-svc-go/internal/config"
 	"orion/chaos-svc-go/internal/handler"
 	"orion/chaos-svc-go/internal/repository"
 	"orion/chaos-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
