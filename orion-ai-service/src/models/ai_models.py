@@ -144,6 +144,35 @@ class AIExplanationResponse(BaseModel):
     alternatives: Optional[List[str]] = Field(default=None, description="备选方案")
 
 
+class AIDecisionFeatureImportance(BaseModel):
+    """决策特征重要性"""
+
+    decision_id: str = Field(..., description="决策 ID")
+    features: Dict[str, float] = Field(..., description="特征权重映射")
+    top_factor: str = Field(..., description="最重要特征")
+
+
+class AIDecisionConfidence(BaseModel):
+    """决策置信度详情"""
+
+    decision_id: str = Field(..., description="决策 ID")
+    overall_confidence: float = Field(..., ge=0.0, le=1.0, description="综合置信度")
+    factors: Dict[str, float] = Field(..., description="各因素贡献权重")
+    confidence_level: str = Field(..., description="置信度等级 (high/medium/low/very_low)")
+    recommendation: str = Field(..., description="基于置信度的建议")
+
+
+class AIDecisionHistoryItem(BaseModel):
+    """决策历史条目"""
+
+    id: str = Field(..., description="决策 ID")
+    title: str = Field(..., description="决策标题")
+    status: str = Field(..., description="决策状态")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="置信度")
+    created_at: Optional[datetime] = Field(default=None, description="创建时间")
+    recommendation: Optional[str] = Field(default=None, description="推荐方案")
+
+
 # ==================== AI Review ====================
 
 
@@ -200,3 +229,79 @@ class AIReviewRejectRequest(BaseModel):
 
     reason: str = Field(..., min_length=1, max_length=1000, description="拒绝原因")
     comment: Optional[str] = Field(default=None, max_length=500, description="补充评论")
+
+
+# ==================== AI Chat ====================
+
+
+class AIChatMessage(BaseModel):
+    """聊天消息"""
+
+    role: str = Field(..., description="消息角色 (user/assistant/system)")
+    content: str = Field(..., description="消息内容")
+
+
+class AIChatRequest(BaseModel):
+    """AI 对话请求"""
+
+    messages: List[AIChatMessage] = Field(..., min_length=1, description="消息列表")
+    model: Optional[str] = Field(default=None, description="指定模型，留空使用默认模型")
+
+
+class AIChatResponse(BaseModel):
+    """AI 对话响应"""
+
+    id: str = Field(..., description="对话 ID")
+    message: str = Field(..., description="AI 回复内容")
+    model: str = Field(..., description="使用的模型")
+    tokens_used: int = Field(..., description="消耗的 token 数量")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        description="创建时间",
+    )
+
+
+# ==================== AI Embed ====================
+
+
+class AIEmbedRequest(BaseModel):
+    """代码嵌入请求"""
+
+    code: str = Field(..., min_length=1, description="代码文本")
+    model: Optional[str] = Field(default="text-embedding-ada-002", description="嵌入模型")
+
+
+class AIEmbedResponse(BaseModel):
+    """代码嵌入响应"""
+
+    id: str = Field(..., description="嵌入任务 ID")
+    embedding: List[float] = Field(..., description="嵌入向量")
+    model: str = Field(..., description="使用的模型")
+    dimension: int = Field(..., description="向量维度")
+
+
+# ==================== AI Search ====================
+
+
+class AISearchRequest(BaseModel):
+    """语义搜索请求"""
+
+    query: str = Field(..., min_length=1, description="搜索查询文本")
+    top_k: int = Field(default=10, ge=1, le=100, description="返回前 k 个结果")
+
+
+class AISearchResultItem(BaseModel):
+    """语义搜索结果项"""
+
+    code_id: str = Field(..., description="代码片段唯一标识")
+    similarity: float = Field(..., description="余弦相似度 (0-1)")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="附加元数据")
+
+
+class AISearchResponse(BaseModel):
+    """语义搜索响应"""
+
+    id: str = Field(..., description="搜索任务 ID")
+    query: str = Field(..., description="搜索查询")
+    results: List[AISearchResultItem] = Field(..., description="搜索结果列表")
+    total: int = Field(..., description="结果总数")

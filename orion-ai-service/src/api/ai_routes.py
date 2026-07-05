@@ -13,11 +13,17 @@ from fastapi import APIRouter, Header, HTTPException
 from src.models.ai_models import (
     AIAnalyzeRequest,
     AIAnalyzeResponse,
+    AIChatRequest,
+    AIChatResponse,
     AIDiagnoseRequest,
     AIDiagnoseResponse,
     AIDiagnoseSeverity,
+    AIEmbedRequest,
+    AIEmbedResponse,
     AIGenerateRequest,
     AIGenerateResponse,
+    AISearchRequest,
+    AISearchResponse,
 )
 from src.repositories.ai_result_repository import ai_result_repository
 from src.services.ai_service import ai_service
@@ -186,3 +192,121 @@ async def diagnose(
     )
 
     return response
+
+
+# ==================== AI 对话 ====================
+
+
+@router.post(
+    "/chat",
+    response_model=AIChatResponse,
+    summary="AI 对话",
+    description="多轮对话接口，使用规则引擎 + 模板匹配作为降级方案。",
+)
+async def chat(
+    request: AIChatRequest,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> AIChatResponse:
+    """AI 多轮对话端点"""
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+    logger.info(
+        "AI chat request received",
+        extra={"request_id": request_id, "messages_count": len(request.messages), "tenant_id": tenant_id},
+    )
+
+    messages = [m.dict() for m in request.messages]
+    response = await ai_service.chat(
+        messages=messages,
+        model=request.model,
+        tenant_id=tenant_id,
+    )
+    return response
+
+
+# ==================== AI 嵌入 ====================
+
+
+@router.post(
+    "/embed",
+    response_model=AIEmbedResponse,
+    summary="代码嵌入",
+    description="将代码片段转换为向量嵌入（TF-IDF + 哈希）。",
+)
+async def embed(
+    request: AIEmbedRequest,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> AIEmbedResponse:
+    """代码嵌入端点"""
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+    logger.info(
+        "AI embed request received",
+        extra={"request_id": request_id, "code_length": len(request.code), "tenant_id": tenant_id},
+    )
+
+    response = await ai_service.embed(
+        code=request.code,
+        model=request.model,
+        tenant_id=tenant_id,
+    )
+    return response
+
+
+# ==================== AI 语义搜索 ====================
+
+
+@router.post(
+    "/search",
+    response_model=AISearchResponse,
+    summary="语义搜索",
+    description="基于 TF-IDF + 余弦相似度的代码语义搜索。",
+)
+async def search(
+    request: AISearchRequest,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> AISearchResponse:
+    """语义搜索端点"""
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+    logger.info(
+        "AI search request received",
+        extra={"request_id": request_id, "query": request.query, "top_k": request.top_k, "tenant_id": tenant_id},
+    )
+
+    response = await ai_service.search(
+        query=request.query,
+        top_k=request.top_k,
+        tenant_id=tenant_id,
+    )
+    return response
+
+
+# ==================== 模型列表 ====================
+
+
+@router.get(
+    "/models",
+    summary="列出可用模型",
+    description="返回当前可用的 AI 模型和 Provider 信息。",
+)
+async def list_models(
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> Dict[str, Any]:
+    """列出可用的 AI 模型"""
+    request_id = _get_request_id(x_request_id)
+    logger.info("List AI models", extra={"request_id": request_id})
+
+    return {
+        "request_id": request_id,
+        "data": {
+            "models": [
+                {"id": "rule-based-fallback", "name": "Rule-based Fallback", "type": "rule"},
+                {"id": "tfidf-hash-128", "name": "TF-IDF Hash Embedding", "type": "embedding"},
+            ],
+            "default_model": self.config.ai_model_endpoint or "rule-based-fallback",
+        },
+    }

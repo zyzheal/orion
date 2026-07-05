@@ -12,6 +12,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Header, HTTPException
 
 from src.models.ai_models import (
+    AIDecisionConfidence,
+    AIDecisionFeatureImportance,
+    AIDecisionHistoryItem,
     AIDecisionRequest,
     AIDecisionResponse,
     AIDecisionStatus,
@@ -161,6 +164,96 @@ async def get_decision_explanation(
 
     return AIExplanationResponse(**explanation)
 
+
+
+
+@router.get(
+    "/decisions/feature-importance",
+    response_model=AIDecisionFeatureImportance,
+    summary="决策特征重要性",
+    description="返回指定决策的特征权重分布，说明各因素对决策的贡献度。",
+    responses={404: {"description": "决策不存在"}},
+)
+async def get_decision_feature_importance(
+    decision_id: str,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> AIDecisionFeatureImportance:
+    """获取决策特征重要性"""
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+    logger.info(
+        "Get decision feature importance",
+        extra={"request_id": request_id, "decision_id": decision_id, "tenant_id": tenant_id},
+    )
+
+    result = ai_service.get_decision_feature_importance(decision_id, tenant_id=tenant_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Decision {decision_id} not found")
+    return AIDecisionFeatureImportance(**result)
+
+
+@router.get(
+    "/decisions/{decision_id}/confidence",
+    response_model=AIDecisionConfidence,
+    summary="决策置信度详情",
+    description="返回指定决策的置信度分布、等级和建议。",
+    responses={404: {"description": "决策不存在"}},
+)
+async def get_decision_confidence(
+    decision_id: str,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> AIDecisionConfidence:
+    """获取决策置信度详情"""
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+    logger.info(
+        "Get decision confidence",
+        extra={"request_id": request_id, "decision_id": decision_id, "tenant_id": tenant_id},
+    )
+
+    result = ai_service.get_decision_confidence(decision_id, tenant_id=tenant_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Decision {decision_id} not found")
+    return AIDecisionConfidence(**result)
+
+
+@router.get(
+    "/decisions/history",
+    response_model=List[AIDecisionHistoryItem],
+    summary="决策历史查询",
+    description="按状态、时间范围等条件查询决策历史。",
+)
+async def list_decision_history(
+    status: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    limit: int = 50,
+    x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
+) -> List[AIDecisionHistoryItem]:
+    """获取决策历史"""
+    from datetime import datetime as dt
+    request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
+
+    start_dt = dt.fromisoformat(start_time) if start_time else None
+    end_dt = dt.fromisoformat(end_time) if end_time else None
+
+    logger.info(
+        "List decision history",
+        extra={"request_id": request_id, "status": status, "tenant_id": tenant_id},
+    )
+
+    history = ai_service.get_decision_history(
+        tenant_id=tenant_id,
+        status=status,
+        start_time=start_dt,
+        end_time=end_dt,
+        limit=limit,
+    )
+    return [AIDecisionHistoryItem(**item) for item in history]
 
 # ==================== 辅助方法 ====================
 

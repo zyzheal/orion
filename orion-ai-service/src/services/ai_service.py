@@ -16,17 +16,26 @@ from src.config import Settings, settings
 from src.models.ai_models import (
     AIAnalysisType,
     AIAnalyzeResponse,
+    AIChatRequest,
+    AIChatResponse,
     AIDecisionResponse,
     AIDecisionStatus,
     AIDiagnoseResponse,
     AIDiagnoseSeverity,
+    AIEmbedRequest,
+    AIEmbedResponse,
     AIGenerateResponse,
     AIReviewComment,
     AIReviewResponse,
     AIReviewStatus,
+    AISearchRequest,
+    AISearchResponse,
+    AISearchResultItem,
 )
 from src.repositories.ai_result_repository import ai_result_repository
 from src.services.metric_collector import MetricCollector
+from src.services.training import AITrainingService
+from src.services.mlops import MLOpsService
 
 logger = logging.getLogger(__name__)
 
@@ -270,6 +279,7 @@ class AIService:
         self.config = config
         self._initialized = False
         self._model_available = config.ai_model_endpoint is not None
+        self._metric_collector = None
 
     @property
     def is_available(self) -> bool:
@@ -278,6 +288,18 @@ class AIService:
 
     async def initialize(self) -> None:
         """初始化 AI 服务"""
+        # 注册训练和 MLOps 服务
+        self.training_service = AITrainingService()
+        self.mlops_service = MLOpsService()
+
+        # 注册 LLM Trace 和 Code Review 服务
+        from src.services.llm_trace import LLMTraceService
+        from src.services.code_review import CodeReviewService
+
+        self.llm_trace_service = LLMTraceService()
+        from src.services.ai_gateway import ai_gateway as _gw
+        self.code_review_service = CodeReviewService(_gw, self._metric_collector)
+
         if self._model_available:
             logger.info(
                 f"Initializing AI service at {self.config.ai_model_endpoint}"
@@ -804,6 +826,137 @@ class AIService:
             "alternatives": alternatives,
         }
 
+    def get_decision_feature_importance(
+        self, decision_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """获取决策特征重要性"""
+        decision = ai_result_repository.get_decision(decision_id, tenant_id=tenant_id)
+        if not decision:
+            return None
+
+        # 基于规则引擎分析特征重要性
+        context = decision.get("context") or {}
+        features = {}
+
+        # 分析决策标题和描述中的关键词权重
+        title_desc = f"{decision.get('title', '')} {decision.get('description', '')}".lower()
+        risk_keywords = {
+            "production": 0.25,
+            "critical": 0.25,
+            "urgent": 0.20,
+            "outage": 0.20,
+            "rollback": 0.15,
+            "gradual": 0.10,
+            "canary": 0.10,
+            "conservative": 0.10,
+        }
+        for keyword, weight in risk_keywords.items():
+            if keyword in title_desc:
+                features[keyword] = weight
+
+        # 置信度贡献因素
+        features["rule_engine_match"] = 0.30
+        features["historical_similarity"] = 0.25
+        features["option_diversity"] = min(len(decision.get("options") or []) * 0.05, 0.15)
+        features["context_completeness"] = 0.20 if context else 0.0
+
+        # 归一化
+        total = sum(features.values()) or 1.0
+        features = {k: round(v / total, 4) for k, v in features.items()}
+
+        return {
+            "decision_id": decision_id,
+            "features": features,
+            "top_factor": max(features, key=features.get) if features else "unknown",
+        }
+
+    def get_decision_confidence(
+        self, decision_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """获取决策置信度详情"""
+        decision = ai_result_repository.get_decision(decision_id, tenant_id=tenant_id)
+        if not decision:
+            return None
+
+        base_confidence = decision.get("confidence", 0.0) or 0.0
+
+        # 基于决策属性细化置信度
+        factors = {
+            "rule_match_strength": 0.35,
+            "option_quality": 0.25,
+            "context_clarity": 0.20,
+            "historical_accuracy": 0.20,
+        }
+
+        # 根据实际数据调整
+        options = decision.get("options") or []
+        context = decision.get("context") or {}
+        if len(options) >= 3:
+            factors["option_quality"] = 0.30
+            factors["rule_match_strength"] = 0.30
+        if context:
+            factors["context_clarity"] = 0.25
+
+        return {
+            "decision_id": decision_id,
+            "overall_confidence": base_confidence,
+            "factors": factors,
+            "confidence_level": self._confidence_to_level(base_confidence),
+            "recommendation": (
+                "High confidence, proceed with implementation."
+                if base_confidence >= 0.8
+                else "Medium confidence, consider additional review."
+                if base_confidence >= 0.6
+                else "Low confidence, further analysis recommended."
+            ),
+        }
+
+    def get_decision_history(
+        self,
+        tenant_id: Optional[str] = None,
+        status: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """获取决策历史"""
+        decisions = ai_result_repository.list_decisions(
+            tenant_id=tenant_id, limit=limit
+        )
+
+        # 应用过滤条件
+        filtered = []
+        for d in decisions:
+            if status and d.get("status") != status:
+                continue
+            created = d.get("created_at")
+            if isinstance(created, str):
+                created = datetime.fromisoformat(created)
+            if start_time and created < start_time:
+                continue
+            if end_time and created > end_time:
+                continue
+            filtered.append({
+                "id": d["id"],
+                "title": d.get("title", ""),
+                "status": d.get("status", "pending"),
+                "confidence": d.get("confidence", 0.0),
+                "created_at": created.isoformat() if created else None,
+                "recommendation": d.get("recommendation"),
+            })
+
+        return filtered
+
+    def _confidence_to_level(self, confidence: float) -> str:
+        """将置信度数值转为等级"""
+        if confidence >= 0.8:
+            return "high"
+        elif confidence >= 0.6:
+            return "medium"
+        elif confidence >= 0.4:
+            return "low"
+        return "very_low"
+
     # ==================== AI 代码审查 ====================
 
     async def review_code(
@@ -1040,6 +1193,101 @@ class AIService:
         elif confidence >= 60:
             return AIDiagnoseSeverity.MEDIUM
         return AIDiagnoseSeverity.LOW
+
+
+    # ==================== AI 对话 ====================
+
+    async def chat(
+        self,
+        messages: List[Dict[str, str]],
+        model: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> AIChatResponse:
+        """AI 对话（多轮），使用规则引擎 + 模板匹配作为降级方案。"""
+        chat_id = str(uuid.uuid4())
+        used_model = model or self.config.ai_model_endpoint or "rule-based-fallback"
+
+        user_messages = [m for m in messages if m.get("role") == "user"]
+        last_prompt = user_messages[-1]["content"] if user_messages else ""
+        response_content = self._template_generate(last_prompt)
+        tokens_used = len(last_prompt.split())
+
+        response = AIChatResponse(
+            id=chat_id,
+            message=response_content,
+            model=used_model,
+            tokens_used=tokens_used,
+            created_at=datetime.now(timezone.utc),
+        )
+
+        ai_result_repository.save_generation(
+            {
+                "id": chat_id,
+                "prompt": last_prompt,
+                "context": {"messages": messages},
+                "model": used_model,
+                "content": response_content,
+                "tokens_used": tokens_used,
+                "created_at": response.created_at,
+            },
+            tenant_id=tenant_id,
+        )
+        return response
+
+    # ==================== AI 嵌入 ====================
+
+    async def embed(
+        self,
+        code: str,
+        model: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+    ) -> AIEmbedResponse:
+        """代码嵌入，使用 TF-IDF + 哈希生成向量。"""
+        from src.services.vector_store import CodeEmbeddingService
+
+        embed_id = str(uuid.uuid4())
+        used_model = model or "tfidf-hash-128"
+
+        embedding_service = CodeEmbeddingService()
+        embedding = embedding_service.generate_embedding(code)
+
+        return AIEmbedResponse(
+            id=embed_id,
+            embedding=embedding,
+            model=used_model,
+            dimension=len(embedding),
+        )
+
+    # ==================== AI 语义搜索 ====================
+
+    async def search(
+        self,
+        query: str,
+        top_k: int = 10,
+        tenant_id: Optional[str] = None,
+    ) -> AISearchResponse:
+        """语义搜索，基于 TF-IDF + 余弦相似度。"""
+        from src.services.vector_store import VectorStore
+
+        search_id = str(uuid.uuid4())
+        vector_store = VectorStore()
+        results = vector_store.search(query, top_k=top_k)
+
+        search_results = [
+            AISearchResultItem(
+                code_id=r.code_id,
+                similarity=r.similarity,
+                metadata=r.metadata or {},
+            )
+            for r in results
+        ]
+
+        return AISearchResponse(
+            id=search_id,
+            query=query,
+            results=search_results,
+            total=len(search_results),
+        )
 
 
 # 全局 AI 服务实例

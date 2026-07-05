@@ -177,6 +177,16 @@ from src.models.ai_gateway_models import (
     DegradationStrategy,
 )
 
+# ==================== Trace 模型 ====================
+
+
+from src.models.trace import LLMTraceRecord
+
+# ==================== Review 模型 ====================
+
+
+from src.models.review import ReviewFinding, ReviewResult, ReviewSeverity
+
 __all__ = [
     # 基础模型
     "HealthStatus",
@@ -226,4 +236,10 @@ __all__ = [
     "DegradationConfig",
     "DegradationResult",
     "DegradationStrategy",
+    # Trace 模型
+    "LLMTraceRecord",
+    # Review 模型
+    "ReviewFinding",
+    "ReviewResult",
+    "ReviewSeverity",
 ]

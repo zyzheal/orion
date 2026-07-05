@@ -68,6 +68,8 @@ export default defineConfig({
       '/api/v1/multi-cloud-advanced': { target: 'http://localhost:3017', changeOrigin: true },
       '/api/v1/dba': { target: 'http://localhost:3030', changeOrigin: true },
       '/api/v1/visor': { target: 'http://localhost:3003', changeOrigin: true },
+      // AI 服务 (orion-ai-service Python) — 端口 8000
+      '/api/v1/ai': { target: 'http://localhost:8000', changeOrigin: true },
 
       // 其他 API 请求到 platform-service (3001)
       '/api': {

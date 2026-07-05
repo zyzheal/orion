@@ -120,10 +120,12 @@
 | 4.2 | 迁移 CostOptimizer | src/services/cost_optimizer.py | ⏳ 待开始 |
 | 4.3 | 迁移 AIDiagnosis + DecisionExplanation | src/services/diagnosis.py + explanation.py | ⏳ 待开始 |
 | 4.4 | 迁移 RuleEngine + DegradationRouter | src/services/rule_engine.py + degradation_router.py | ⏳ 待开始 |
-| 4.5 | 迁移 ai-review 能力 | src/services/code_review.py | ⏳ 待开始 |
-| 4.6 | 迁移 llm-trace 能力 | src/services/llm_trace.py | ⏳ 待开始 |
-| 4.7 | 迁移 ai-training 能力 | src/services/training.py | ⏳ 待开始 |
-| 4.8 | 迁移 mlops 能力（合并到 model_version.py） | src/services/mlops.py | ⏳ 待开始 |
+| 4.5 | 迁移 ai-review 能力 | src/services/code_review.py | ✅ 已完成 | 规则引擎 + 安全/风格检测，28 tests pass
+| 4.6 | 迁移 llm-trace 能力 | src/services/llm_trace.py | ✅ 已完成 | 仓储+内存双写，18 tests pass
+| 4.7 | 迁移 ai-training 能力 | src/services/training.py | ✅ 已完成 | 异步后台模拟，12 tests pass
+| 4.8 | 迁移 mlops 能力 | src/services/mlops.py | ✅ 已完成 | 独立服务，11 tests pass
+| 4.9 | 新增 training API 路由（start/get/cancel/list） | src/api/training_routes.py | ✅ 已完成 | 4 endpoints, 已注册到 main.py
+| 4.10 | 新增 mlops API 路由（register/deploy/get/list） | src/api/mlops_routes.py | ✅ 已完成 | 4 endpoints, 已注册到 main.py
 
 ### Phase 5: 双写验证 + TS 下线（1 周）
 
@@ -513,7 +515,10 @@
 | 4.5 | ai-review 能力 | ⏳ 待开始 | — |
 | 4.6 | llm-trace 能力 | ⏳ 待开始 | — |
 | 4.7 | ai-training 能力 | ⏳ 待开始 | — |
-| 4.8 | mlops 能力 | ⏳ 待开始 | — |
+| 4.8 | mlops 能力 | ✅ 已完成 (2026-07-05) | MLOpsService ModelDeployment identity 保持 | 🔵 | 11 tests pass
+| 4.9 | training API 路由 | ✅ 已完成 (2026-07-05) | 4 endpoints (start/get/cancel/list) + main.py 注册 | 🔵 | 已注册
+| 4.10 | mlops API 路由 | ✅ 已完成 (2026-07-05) | 4 endpoints (register/deploy/get/list) + main.py 注册 | 🔵 | 已注册
+| 4.11 | 决策扩展端点 (feature-importance/confidence/history) | ✅ 已完成 (2026-07-05) | 3 新决策端点 + 服务方法 + 前端代理 | 🔵 | 193 tests pass
 
 ### Phase 5: 双写验证 + TS 下线
 

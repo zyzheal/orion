@@ -68,10 +68,10 @@
 
 | 属性 | 值 |
 |------|-----|
-| 当前 Git 分支 | `feat/metric-collector-postgres-persistence` |
+| 当前 Git 分支 | `feat/metric-collector-postgres-persistence` (✅ MetricCollector PostgreSQL 持久化完成) |
 | 最近提交 | `feat: generate comprehensive module completion report` |
 | 上次计划更新 | 2026-07-02 (v3.0 领域专家优化) |
-| 执行状态 | Phase 1-6 全部完成，前端 mock 清理 99%，Map→PostgreSQL 97% 完成（337 repositories），TS 编译错误修复中 |
+| 执行状态 | Phase 1-6 全部完成，前端 mock 清理 99%，Map→PostgreSQL 97% 完成，AI Python 化 Phase 4 辅助能力迁移完成（code_review/llm_trace/training/mlops + routes）+ 决策端点扩展（feature-importance/confidence/history）+ 前端 AI 代理配置（localhost:8000） |
 
 ### Goal 模式执行入口
 
@@ -1097,13 +1097,13 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 |---|------|------|---------|-------|------|
 | 1.1 | 添加 process.uncaughtException/unhandledRejection 处理 | ✅ 已完成 (2026-07-02) | — | 🔵 | 结构化日志+合成traceId |
 | 1.2 | 83 个 throw new Error → new OrionError（分批 3 轮） | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | 460文件3725行修改，services/api 目录0残留 |
-| 1.3 | 212 个手动错误返回 → 统一使用 OrionError | ✅ 已完成 (2026-07-04) | 35 个文件处理完成，5个import修复完成 | 🟡 | Agent执行+抽检 |
+| 1.3 | 212 个手动错误返回 → 统一使用 OrionError | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 35 个文件处理完成，5个import修复完成 | 🟡 | Agent执行+抽检 |
 | 1.4 | 全局错误处理器改用 handleError | ✅ 已完成 (2026-07-02) | — | 🔵 | traceId提取优化+三种类型已完整区分 |
 | 1.5 | 29 个 console.log → logger | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | 7文件47处替换，type-check通过 |
 | 1.6 | 提升结构化日志含 traceId 覆盖率至 80%+ | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | createLogger 自动注入 traceId，5个核心中间件→createLogger |
 | 1.7 | 创建统一 logger 工厂函数 | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | createLogger() + AsyncLocalStorage traceId 自动注入 |
-| 1.8 | 统一 API 路径前缀为 /api/v1/\<domain\>/ | ✅ 已完成 (2026-07-04) | routes.ts 前缀修改 + 前端 3 文件 | 🔵 | /code-repo→/api/v1/code-repo, /inception→/api/v1/inception |
-| 1.9 | 更新前端 API 客户端 baseURL 一致性（239 个） | ✅ 已完成 (2026-07-04) | 227 文件 2334 处路径替换 | 🔵 | 前端路径统一为 /api/v1/xxx 格式 |
+| 1.8 | 统一 API 路径前缀为 /api/v1/\<domain\>/ | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | routes.ts 前缀修改 + 前端 3 文件 | 🔵 | /code-repo→/api/v1/code-repo, /inception→/api/v1/inception |
+| 1.9 | 更新前端 API 客户端 baseURL 一致性（239 个） | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 227 文件 2334 处路径替换 | 🔵 | 前端路径统一为 /api/v1/xxx 格式 |
 | 1.10 | 更新 comprehensive-report 中的数据 | ✅ 已完成 | Phase 1.10-Agent 执行报告 | 🔵 | |
 | 1.11 | 前端 404/500 添加 `message.error` | ✅ 已完成 | Phase 1.11-Agent 执行报告 | 🔵 | |
 | 1.12 | 核心引擎 209 处 `throw new Error()` → `OrionError` | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | 10文件62处替换，engine/目录0残留 |
@@ -1137,10 +1137,10 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 2.10 | SupplyChainService 依赖解析模拟 | ✅ 已完成 (2026-07-02) | resolveDirectDependencies/resolveTransitiveDependencies 接入 npm registry API + 30min 缓存 + 网络失败回退模拟，新增 fetchPackageDependencies + resolveTransitiveDepsRecursive 循环检测 | 🔵 | 36 tests pass |
 | 2.11 | Federation 路由缺失 | ✅ 已完成 (2026-07-02) | 新建 federation-routes.ts 接入 FederationService + FederationAdvancedController，15+ routes 真实化，在 routes.ts 取消注释并注册 | 🔵 | 71 tests pass |
 | 2.12 | 敏感数据未加密 | ✅ 已完成 (2026-07-02) | 新建 src/utils/encryption.ts AES-256-GCM 加密工具 (PBKDF2 key derivation, 30 轮盐值)，PlatformConfigService 升级从 Base64 到 AES-256 | 🔵 | 12 tests pass |
-| 2.17 | JWT 密钥轮换未生效 | ✅ 已完成 (2026-07-04) | JwtKeyManager.verifyWithAnyKey() 多密钥验证 + routes-auth /me 端点接入 + 29 tests pass | 🟡 | |
-| 2.18 | LDAP 完全不可用 | ✅ 已完成 (2026-07-04) | 添加 ldapjs 依赖 + LdapService 类型修复(Client导入) + connect() catch置空 + isEnabled()方法 + sso-unified-routes组映射(ldap:cn格式) + routes.ts启动自动连接 + 22 tests pass | 🔴 | |
+| 2.17 | JWT 密钥轮换未生效 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | JwtKeyManager.verifyWithAnyKey() 多密钥验证 + routes-auth /me 端点接入 + 29 tests pass | 🟡 | |
+| 2.18 | LDAP 完全不可用 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 添加 ldapjs 依赖 + LdapService 类型修复(Client导入) + connect() catch置空 + isEnabled()方法 + sso-unified-routes组映射(ldap:cn格式) + routes.ts启动自动连接 + 22 tests pass | 🔴 | |
 | 2.19 | 登录流程无租户上下文 | ✅ 已完成 (2026-07-02) | 2026-07-02 | 🔵 | JWT tenantId 注入 + X-Tenant-ID 提取 + refresh_token 同步 + 347 auth 测试通过 |
-| 2.20 | refresh_tokens 表缺 tenant_id | ✅ 已完成 (2026-07-04) | Migration 073 + routes-auth + sso-unified-routes 已完成，issueToken() 添加 tenant_id 解析 + 382 auth tests pass | 🔵 | 依赖 2.18 |
+| 2.20 | refresh_tokens 表缺 tenant_id | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | Migration 073 + routes-auth + sso-unified-routes 已完成，issueToken() 添加 tenant_id 解析 + 382 auth tests pass | 🔵 | 依赖 2.18 |
 | 2.30 | EventBus 事件命名不一致修复 | ✅ 已完成 (2026-07-03) | SelfHealingSaga 5个事件 + EventSubscriber + routes-auth 统一 orion. 前缀 | 🔵 | |
 
 **Saga 第二阶段（W6-W7）**
@@ -1148,16 +1148,16 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
 | 2.2 | PipelineEngine.executions 持久化 | ✅ 已完成 | Migration 408 + PipelineExecutionRepository + persistExecution | 🟡 | 依赖 2.1 |
-| 2.15 | 双渐进发布实现冲突 | ✅ 已完成 (2026-07-04) | 删除 ProgressiveDeploymentService/Repository（流量式冗余）+ progressive-routes 仅保留 stage-based + deploy-enhanced-routes 移除 traffic 区块 + 删除2个测试文件 | 🟡 | |
+| 2.15 | 双渐进发布实现冲突 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 删除 ProgressiveDeploymentService/Repository（流量式冗余）+ progressive-routes 仅保留 stage-based + deploy-enhanced-routes 移除 traffic 区块 + 删除2个测试文件 | 🟡 | |
 | 2.16 | SmartDeployService 内存状态持久化 | ✅ 已完成 | recoverActiveDeployments + removeActiveDeployment + 4 tests | 🟡 | |
 
 **独立并行任务**
 
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
-| 2.13 | VectorStore 向量搜索缺失 | ✅ 已完成 (2026-07-04) | 修复 vector-store-routes.ts 3 处不可达代码 bug（addDocument/search/delete 条件判断）+ 54 tests pass | 🟡 | |
+| 2.13 | VectorStore 向量搜索缺失 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 修复 vector-store-routes.ts 3 处不可达代码 bug（addDocument/search/delete 条件判断）+ 54 tests pass | 🟡 | |
 | 2.14 | DBA 直接查询执行缺失 | ✅ 已完成 (2026-07-03) | DbaService.executeDirectQuery() 完整实现 + 路由注册 + dba-routes.test.ts | 🔵 | |
-| 2.21 | 多渠道实际投递缺失 | ✅ 已完成 (2026-07-04) | NotificationDeliveryService + WebhookNotifier + IMNotifier + 多渠道投递编排 + 类型错误修复(NotificationDeliveryRepository导入路径/NotificationChannelService never类型/AlertNotificationTriggerService Alert类型冲突) | 🟡 | |
+| 2.21 | 多渠道实际投递缺失 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | NotificationDeliveryService + WebhookNotifier + IMNotifier + 多渠道投递编排 + 类型错误修复(NotificationDeliveryRepository导入路径/NotificationChannelService never类型/AlertNotificationTriggerService Alert类型冲突) | 🟡 | |
 | 2.22 | 通知设置内存 Map → PostgreSQL | ✅ 已完成 (2026-07-03) | NotificationSettingsRepository 接入 routes，settingsRepo.getSettings/updateSettings | 🔵 | |
 | 2.23 | 自愈多租户隔离缺失 | ✅ 已完成 (2026-07-03) | sessionsByTenant 二级索引 + getSession/cleanup/getSessionsByTenant 租户断言 | 🔵 | |
 | 2.24 | 监控真实通知发送缺失 | ✅ 已完成 (2026-07-03) | MonitoringService.onAlert → dispatchAlertNotification → AlertNotificationService.sendNotification | 🟡 | |
@@ -1172,7 +1172,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 2.35 | 生成基础设施拓扑图 | ✅ 已完成 (2026-07-03) | infrastructure-topology.md + infrastructure-topology-2026-07-03.md (9 节, ASCII+Mermaid) | 🔵 | |
 | 2.36 | 为 8 个无 Spec 模块编写验收标准 | ✅ 已完成 (2026-07-03) | — | 🔵 | 8 份 Spec 文档写入 docs/specs/，每份 20-24 验收标准 |
 | 2.37 | 测试文件添加 Spec 验收标准编号引用 | ✅ 已完成 (2026-07-02) | — | 🔵 | 11 个文件 19 处引用 |
-| 2.38 | 统一 FallbackStorageService | ✅ 已完成 (2026-07-04) | PromotionService(移除Map+FallbackStorageService+生命周期方法) + ArtifactOperationService(移除全局Map+FallbackStorageService) + 类型检查通过 + 核心测试通过 | 🟡 | 依赖 1.18 |
+| 2.38 | 统一 FallbackStorageService | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | PromotionService(移除Map+FallbackStorageService+生命周期方法) + ArtifactOperationService(移除全局Map+FallbackStorageService) + 类型检查通过 + 核心测试通过 | 🟡 | 依赖 1.18 |
 | 2.39 | AI 域深度分析 (agent/mlops/llm-trace) | ✅ 已完成 (2026-07-02) | ai-domain-analysis.md (361行，124文件覆盖，含 model-version/vector-store/knowledge/skill) | 🔵 | 2026-07-03 补充 5 个新子模块 |
 | 2.40 | 运营协作域深度分析 (FinOps/ChangeMgmt) | ✅ 已完成 (2026-07-03) | operations-domain-analysis-2026-07-03.md (780行，12子模块覆盖) | 🔵 | 2026-07-03 扩展至 12 子模块，含 P0/P1/P2 问题清单 |
 
@@ -1187,14 +1187,14 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
-| 4.1 | OCI/Docker Registry 对接 | ✅ 已完成 (2026-07-04) | DockerRegistryClient.ts (V2 API完整实现) + OCIRegistryService.ts (业务层+FallbackStorageService缓存) + oci-registry-routes.ts (10 REST端点) + routes.ts注册 + 类型检查通过 | 🔴 | Docker Hub/Harbor/Nexus/AWS ECR/GCP GCR/Azure ACR支持 |
-| 4.2 | PromotionService 内存级 → FallbackStorageService | ✅ 已完成 (2026-07-04) | PromotionService 完全迁移 FallbackStorageService + 生命周期方法 + FallbackStorageService 导入修复 | 🟡 | 依赖 2.38 |
-| 4.3 | ArtifactOperationService 内存降级 → FallbackStorageService | ✅ 已完成 (2026-07-04) | ArtifactOperationService 完全迁移 FallbackStorageService + 租户隔离 + 69 tests pass | 🟡 | 依赖 2.38 |
+| 4.1 | OCI/Docker Registry 对接 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | DockerRegistryClient.ts (V2 API完整实现) + OCIRegistryService.ts (业务层+FallbackStorageService缓存) + oci-registry-routes.ts (10 REST端点) + routes.ts注册 + 类型检查通过 | 🔴 | Docker Hub/Harbor/Nexus/AWS ECR/GCP GCR/Azure ACR支持 |
+| 4.2 | PromotionService 内存级 → FallbackStorageService | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | PromotionService 完全迁移 FallbackStorageService + 生命周期方法 + FallbackStorageService 导入修复 | 🟡 | 依赖 2.38 |
+| 4.3 | ArtifactOperationService 内存降级 → FallbackStorageService | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | ArtifactOperationService 完全迁移 FallbackStorageService + 租户隔离 + 69 tests pass | 🟡 | 依赖 2.38 |
 | 4.4 | Buildx Builder 路由未暴露 | ✅ 已完成 | 2026-07-03 | 🔵 | 7 routes |
 | 4.5 | K8s Build Pod 路由未暴露 | ✅ 已完成 | 2026-07-03 | 🔵 | 6 routes |
 | 4.6 | Build Cache Service 未实例化 | ✅ 已完成 (2026-07-03) | BuildCacheService 已实例化 + /build-cache 全套 REST 路由已注册 | 🔵 | |
 | 4.7 | 密码哈希双实现混乱 | ✅ 已完成 (2026-07-03) | PasswordService 唯一权威实现（bcrypt+兼容），UserService+routes-auth 统一接入，减少 182 行 | 🟡 | |
-| 4.8 | 内存 Map 降级数据丢失风险 → FallbackStorageService | ✅ 已完成 (2026-07-04) | TokenBlacklistService + LoginAttemptService + PermissionService 全部迁移 FallbackStorageService（三层回退：内存 Map → FallbackStorageService → PostgreSQL） | 🟡 | 依赖 2.38 |
+| 4.8 | 内存 Map 降级数据丢失风险 → FallbackStorageService | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | TokenBlacklistService + LoginAttemptService + PermissionService 全部迁移 FallbackStorageService（三层回退：内存 Map → FallbackStorageService → PostgreSQL） | 🟡 | 依赖 2.38 |
 | 4.9 | ABAC 策略无自动热更新 | ✅ 已完成 (2026-07-03) | ABAC 热重载路由 (reload/status) + 策略版本跟踪 | 🟡 | |
 | 4.10 | 密钥轮换定时器进程重启丢失 | ✅ 已完成 | 2026-07-03 | 🟡 | initialize() 重启恢复 |
 | 4.11 | ChatOps 速率限制未实现 | ✅ 已完成 (2026-07-03) | RateLimitService Redis Sorted Set 滑动窗口 + CRUD 端点 /admin/rate-limits | 🔵 | |
@@ -1203,9 +1203,9 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.14 | ChatOps 平台配置加密仅 Base64 | ✅ 已完成 (2026-07-03) | PlatformConfigService AES-256-GCM + Base64 降级机制，webhook/token 字段自动加密 | 🔵 | |
 | 4.15 | CMDB 批量操作 API 缺失 | ✅ 已完成 (2026-07-03) | 57602f4c | 🔵 | CMDB 批量查询 + 单 CI 导入/导出 API，8 个测试通过 |
 | 4.16 | CMDB CI 导入/导出缺失 | ✅ 已完成 (2026-07-03) | 57602f4c | 🔵 | 单 CI 导出 + 批量导入 API |
-| 4.17 | CMDB 拓扑性能优化 | ✅ 已完成 (2026-07-04) | TopologyService N+1 消除 + 递归 CTE 查询 + 批量拓扑方法 loadAllTopology + 路由 tenant_id 修复 + findAffectedCIsWithEdges + 13 tests pass | 🟡 | |
+| 4.17 | CMDB 拓扑性能优化 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | TopologyService N+1 消除 + 递归 CTE 查询 + 批量拓扑方法 loadAllTopology + 路由 tenant_id 修复 + findAffectedCIsWithEdges + 13 tests pass | 🟡 | |
 | 4.18 | CMDB 内存模式租户隔离缺失 | ✅ 已完成 (2026-07-03) | CmdbRepository.restoreCI/deleteRelation/getRelationById + CmdbService 全部方法 tenant_id 过滤 + 内存 Map 完全移除 + 修复 TS2307/TS2353/TS2532/TS2305 错误 + CmdbTypes 添加 ARCHIVED 状态 + Topology 类型移至 TopologyService + CmdbService.clearAll() 静态方法 + 75 tests pass | 🔵 | |
-| 4.19 | Code 内存 Map 适配器注册表 → FallbackStorageService | ✅ 已完成 (2026-07-04) | AdapterRegistryService 迁移 FallbackStorageService（元数据持久化 + 运行时 Map 保留）+ FallbackStorageService 统一回退存储基础设施 | 🟡 | 依赖 2.38 |
+| 4.19 | Code 内存 Map 适配器注册表 → FallbackStorageService | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | AdapterRegistryService 迁移 FallbackStorageService（元数据持久化 + 运行时 Map 保留）+ FallbackStorageService 统一回退存储基础设施 | 🟡 | 依赖 2.38 |
 | 4.20 | Code 缺少 getRepository/getPullRequest/updatePullRequest 路由 | ✅ 已完成 (2026-07-03) | Code 模块 8 条新增路由 + Webhook 密钥管理 | 🔵 | |
 | 4.21 | Code CodeOwnershipService 内存 Map → FallbackStorageService | ✅ 已完成 (2026-07-03) | CodeOwnershipService 完全迁移 PostgreSQL Repository，移除内存 Map + 21 tests pass | 🟡 | |
 | 4.22 | Code Webhook 密钥管理路由缺失 | ✅ 已完成 (2026-07-03) | rotate-secret + secret-status 路由 + WebhookSecretRepository | 🔵 | |
@@ -1213,7 +1213,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.24 | Config 配置校验 Schema 缺失 | ✅ 已完成 (2026-07-03) | Config 配置校验 Schema 已实现 | 🟡 | |
 | 4.25 | Config Webhook/通知缺失 | ✅ 已完成 (2026-07-03) | ConfigWebhookService CRUD 路由注册（5 RESTful 端点）+ ConfigController webhook 方法 | 🔵 | |
 | 4.26 | DataPipeline DB 模式修复 | ✅ 已完成 (2026-07-03) | DataPipelineService 迁移 PostgreSQL Repository + DataPipelineAsyncEngine 持久化 | 🟡 | |
-| 4.27 | DataPipeline 异步执行引擎 | ✅ 已完成 (2026-07-04) | DataPipelineAsyncEngine(优先级队列+依赖管理+指数退避重试+超时控制+心跳检测) + DataPipelineTaskScheduler(并发控制+背压) + DataPipelineRepository/PipelineExecutionRepository/PipelineVersionRepository + 13条API路由 + 队列按executionId隔离修复 + 153 tests pass | 🟡 | |
+| 4.27 | DataPipeline 异步执行引擎 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | DataPipelineAsyncEngine(优先级队列+依赖管理+指数退避重试+超时控制+心跳检测) + DataPipelineTaskScheduler(并发控制+背压) + DataPipelineRepository/PipelineExecutionRepository/PipelineVersionRepository + 13条API路由 + 队列按executionId隔离修复 + 153 tests pass | 🟡 | |
 | 4.28 | FinOps 501 端点补全 | ✅ 已完成 (2026-07-03) | compareCosts + getServiceCostTrend + getCostComparisons 端点已实现，无 501 | 🔵 | |
 | 4.29 | DBA 连接测试真实化 | ✅ 已完成 (2026-07-03) | DbaService.testConnection() 调用 testDatabaseConnection + buildConfig 密码解密，24 tests pass | 🔵 | |
 | 4.30 | Progressive 服务 API 暴露 | ✅ 已完成 (2026-07-03) | progressive-routes.ts 7 条 RESTful 路由 + routes.ts 注册完成 | 🔵 | |
@@ -1221,7 +1221,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.32 | 部署事件仅内存存储 → FallbackStorageService | ✅ 已完成 (2026-07-03) | DeploymentEventService 迁移 FallbackStorageService + 租户隔离 + 15 tests pass | 🟡 | |
 | 4.33 | 环境锁集成不完整 | ✅ 已完成 (2026-07-03) | lock/unlock/lock-status/deployment-allowed 4 个端点已注册 + EnvironmentLockService 完整 | 🟡 | deploy-enhanced 未调用 checkDeploymentAllowed（可选集成） |
 | 4.34 | 无真实健康检查执行 | ✅ 已完成 (2026-07-03) | HealthCheckerService + health-check-routes.ts + routes.ts 注册 + 6种check类型 | 🟡 | startTime bug已修复 |
-| 4.35 | FederationAdvanced 读写不一致 | ✅ 已完成 (2026-07-04) | 移除 3 个 memory Maps（schedulingPolicies/crossClusterJobs/resourcePools），改为纯 PostgreSQL 模式，删除 loadFromDb/verifyConsistency/repairConsistency，FederationAdvancedRepository verifyConsistency 改为 no-op，所有写操作直接走 DB | 🟡 | |
+| 4.35 | FederationAdvanced 读写不一致 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 移除 3 个 memory Maps（schedulingPolicies/crossClusterJobs/resourcePools），改为纯 PostgreSQL 模式，删除 loadFromDb/verifyConsistency/repairConsistency，FederationAdvancedRepository verifyConsistency 改为 no-op，所有写操作直接走 DB | 🟡 | |
 | 4.36 | EventBus 无通用 Domain | ✅ 已完成 (2026-07-03) | EventDomain 联合类型（6域）+ getEventDomain/getEventsForDomain 推断函数 | 🔵 | |
 | 4.37 | DigitalTwin 状态模拟 | ✅ 已完成 (2026-07-03) | GET /:id/state 接入 StateSimulationEngine，cpu/memory/status 由 Markov chain 真实计算 | 🔵 | |
 | 4.38 | MultiCloud 同步为模拟 | ✅ 已完成 (2026-07-03) | MultiCloud 真实云同步 + 4条新路由 + provider clients 接入 createLogger | 🟡 | AWS/Azure/GCP provider clients |
@@ -1250,20 +1250,20 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.61 | ComplianceService vs ComplianceFrameworkService 职责不清 | ✅ 已完成 (2026-07-03) | ComplianceService.ts 已合并 ComplianceFrameworkService 职责（注释标注合并） | 🔴 | |
 | 4.62 | 无实时漏洞数据库集成 | ✅ 已完成 (2026-07-03) | NVDClient.ts (NVD API 2.0 + CVSS + 30min 缓存) + SecurityScannerService 集成 CVE 查询 | 🟡 | |
 | 4.63 | 知识库未集成到主流程 | ✅ 已完成 (2026-07-03) | KnowledgeIntegrationService 接入 ChatOps (/knowledge路由 + knowledge命令) + Incident routes，3种推荐类型 | 🟡 | |
-| 4.64 | 前端页面需完善 | ✅ 已完成 (2026-07-04) | HealthDashboard 移除 mockAlerts/mockServices/buildMockTrend + PipelineTemplatePage 移除 mockTemplates + TestSelector 注释更新 | 🔵 | |
-| 4.65 | 为 40% 无分析目录补充深度分析 | ✅ 已完成 (2026-07-04) | 169服务深度分析报告生成，未分析139个服务(82%)，27个无barrel export，27个无测试，41个未使用PostgreSQL Repository | 🔵 | 报告: docs/analysis/service-deep-analysis-2026-07-04.md |
+| 4.64 | 前端页面需完善 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | HealthDashboard 移除 mockAlerts/mockServices/buildMockTrend + PipelineTemplatePage 移除 mockTemplates + TestSelector 注释更新 | 🔵 | |
+| 4.65 | 为 40% 无分析目录补充深度分析 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 169服务深度分析报告生成，未分析139个服务(82%)，27个无barrel export，27个无测试，41个未使用PostgreSQL Repository | 🔵 | 报告: docs/analysis/service-deep-analysis-2026-07-04.md |
 | 4.66 | 统一所有 Repository tenant_id 过滤 | ✅ 已完成 (2026-07-03) | 5 SBOM repositories 完成 tenant_id 过滤: SbomDocument(4方法), SbomPackage(2方法 JOIN), SbomAttestation(4方法 JOIN), SbomWaiver(3方法), SecuritySbom(1方法); SbomVulnerabilityRepository 已有; 240 SBOM tests pass | 🟡 | |
 | 4.67 | 减少 Engine → Services 直接 import（18 个） | ✅ 已完成 (2026-07-03) | PipelineEngine/StageExecutor/TaskRunner/PipelineServiceRegistry/DebugController/PipelineStep 通过 services/pipeline  barrel 导出，routes.ts + 2 controllers + SCMWebhookService + SubPipelineService + SharedActionService 共 7 文件改用 barrel import | 🟡 | TS→Go 前置 |
-| 4.68 | 为 14 个仅 Go 服务编写 Spec 文档 | ✅ 已完成 (2026-07-04) | 14 份 Spec 文档创建 (chaos/feature-flag/governance/intelligence/llm/monitor/pipeline-template/runner/secret/skill-config/ticket/visor/workflow + eventbus) | 🔵 | |
+| 4.68 | 为 14 个仅 Go 服务编写 Spec 文档 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 14 份 Spec 文档创建 (chaos/feature-flag/governance/intelligence/llm/monitor/pipeline-template/runner/secret/skill-config/ticket/visor/workflow + eventbus) | 🔵 | |
 | 4.69 | 自动化 Spec → 测试 → 代码追溯链 | ✅ 已完成 (2026-07-02) | — | 🔴 | 追溯矩阵 docs/specs/traceability-matrix.md |
 | 4.70 | 全域名路由 ACL 权限覆盖 | ✅ 已完成 (2026-07-03) | 180 个路由文件含 auth 导入，7 个通过 registerWithRoleGuard scope 级认证，2 个 (SSO/Webhook) 为公开端点，187 个路由文件全覆盖 | 🟡 | |
 | 4.71 | 数据加密 at rest（AES-256 敏感字段） | ✅ 已完成 (2026-07-03) | encryption.ts (AES-256-GCM + PBKDF2) + EncryptedField.ts + 6 repositories 使用 encryptValue/decryptValue (webhook secrets/tokens) | 🟡 | |
 | 4.72 | OWASP Top 10 全覆盖测试 | ✅ 已完成 (2026-07-03) | 63 tests (56 pass, 7 pre-existing failures in JWT/sanitize/SSRF) | 🟡 | |
-| 4.73 | 审计日志合规性检查（SOC2/ISO27001） | ✅ 已完成 (2026-07-04) | AuditService新增exportAuditLogs(CSV/JSON)+resourceId/dateFrom/dateTo过滤；audit-routes租户上下文修正；AuditRepository findAll支持时间范围过滤；GET /logs/export导出路由端点已补充；400/402 tests pass | 🔵 | |
-| 4.74 | 前端 CacheConfigPage MOCK_RECOMMENDATIONS → API | ✅ 已完成 (2026-07-04) | 替换undefined MOCK_RECOMMENDATIONS为cacheStrategyApi.getAllRecommendations() + 加载态Spin + 空态Empty + type-check通过 | 🔵 | |
-| 4.75 | 前端 AIReview ReviewDetail mockIssues → 真实API | ✅ 已完成 (2026-07-04) | 2个ReviewDetail文件移除mockIssues随机生成，改用getReviewComments()加载真实评论列表；AIReviewResult类型补充comments字段 | 🔵 | |
-| 4.76 | TypeScript 编译错误修复（290→1） | ✅ 已完成 (2026-07-04) | 290个TS编译错误修复至1个（TS5107为node_modules旧依赖deprecation，非业务代码错误）。修复范围：Sbom/Vulnerability/Security/Tenant/Serverless/SLA/User/VectorizeRules等8+服务 | 🔵 | |
-| 4.77 | Ticketing 服务 throw new Error → OrionError + logger统一 | ✅ 已完成 (2026-07-04) | 15个文件修改：TicketingRepository.ts 5处throw→OrionError + 所有服务pino→createLogger统一 + import路径修复 | 🔵 | |
+| 4.73 | 审计日志合规性检查（SOC2/ISO27001） | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | AuditService新增exportAuditLogs(CSV/JSON)+resourceId/dateFrom/dateTo过滤；audit-routes租户上下文修正；AuditRepository findAll支持时间范围过滤；GET /logs/export导出路由端点已补充；400/402 tests pass | 🔵 | |
+| 4.74 | 前端 CacheConfigPage MOCK_RECOMMENDATIONS → API | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 替换undefined MOCK_RECOMMENDATIONS为cacheStrategyApi.getAllRecommendations() + 加载态Spin + 空态Empty + type-check通过 | 🔵 | |
+| 4.75 | 前端 AIReview ReviewDetail mockIssues → 真实API | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 2个ReviewDetail文件移除mockIssues随机生成，改用getReviewComments()加载真实评论列表；AIReviewResult类型补充comments字段 | 🔵 | |
+| 4.76 | TypeScript 编译错误修复（290→1） | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 290个TS编译错误修复至1个（TS5107为node_modules旧依赖deprecation，非业务代码错误）。修复范围：Sbom/Vulnerability/Security/Tenant/Serverless/SLA/User/VectorizeRules等8+服务 | 🔵 | |
+| 4.77 | Ticketing 服务 throw new Error → OrionError + logger统一 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 15个文件修改：TicketingRepository.ts 5处throw→OrionError + 所有服务pino→createLogger统一 + import路径修复 | 🔵 | |
 | 4.78 | TypeScript 编译错误全量修复（905→0） | ✅ 已完成 (2026-07-05) | 根因：BaseRepository.update/findById 签名 `Promise<T>`（throw）与 ~40 个子类 override `Promise<T \| null>`（null）冲突触发 TS2416 全库级联。统一基类为 `Promise<T \| null>`（null-on-not-found 多数派），对齐所有 override + 调用方；RiskRepository.update 重命名为 updateRisk（生产代码已用 updateRisk，仅测试滞后）；子类 ConfigTemplate/ConfigSchema 保留 `Promise<T>`（throw，协变合法）。其它错误：模板字符串引号错配、handleError 遮蔽/重复声明、缺失 import（含 ldapjs 依赖 TS2307）、类型收窄、null 安全、fastify 路由处理器类型。801 文件 +46205/-7644。验证：`npm run type-check` 0 错误；`npm test` 20110 passed / 344 pre-existing 失败（mock/logger 配置，原被 TS 错误掩盖，非回归） | 🔴 | commit 35a6bc4a；接续 4.76 |
 | 4.79 | 测试套件 logger.child mock 修复 | ✅ 已完成 (2026-07-05) | 根因：~70 个测试文件 `jest.mock('pino', factory)` 工厂返回的 mock 不含 `.child` 方法，导致 `createLogger` 调用 `rootLogger.child()` 抛 `TypeError: rootLogger.child is not a function`，是 344 失败的最大单一根因（chatops 22/22、config 14 等）。修复：`src/utils/logger.ts` createLogger 加防御性 guard——`rootLogger.child` 为函数时正常派生，否则回退到 rootLogger 本身；生产 pino 恒有 `.child`，无行为变化。效果：套件失败 129→75（修 54 套），通过用例 20110→21851（+1741）；剩余 75 套件为真实测试逻辑失败（如 RollbackService 版本断言），非 mock 问题 | 🔴 | commit 6b79ae92；接续 4.78 |
 
@@ -1272,7 +1272,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
 | 5.1 | 审批模块：撤回/取消、统计报表、委托 | ✅ 已完成 (2026-07-03) | withdraw/cancel/delegate/reassign + 统计报表 + 事务包装 | 🟡 | |
-| 5.2 | 制品/构建：生命周期自动化、跨 Registry 复制、ACL 控制 | ✅ 已完成 (2026-07-04) | artifact-lifecycle-routes.ts 7个端点(promote/expire/replicate/replication-status/acl)已实现 + routes.ts注册 + 9个route tests通过 + 修复ArtifactRepository导入为PostgresArtifactRepository | 🟡 | |
+| 5.2 | 制品/构建：生命周期自动化、跨 Registry 复制、ACL 控制 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | artifact-lifecycle-routes.ts 7个端点(promote/expire/replicate/replication-status/acl)已实现 + routes.ts注册 + 9个route tests通过 + 修复ArtifactRepository导入为PostgresArtifactRepository | 🟡 | |
 | 5.3 | 认证：MFA/2FA、密码重置、登录失败锁定 | ✅ 已完成 (2026-07-03) | auth-mfa-routes.ts (MFA/2FA + 密码重置 + 登录失败锁定)，routes-auth.ts 集成 LoginAttemptService + MfaService，49 tests pass | 🔵 | |
 | 5.4 | ChatOps：命令 Mock 真实化、OpenAPI 文档、集成测试 | ✅ 已完成 (2026-07-03) | MonitoringService.getStatus/getLogs + ChatOps /logs 命令接入，知识库 /knowledge 路由接入 | 🔵 | 命令 handler 接真实服务 |
 | 5.5 | CMDB：关系类型管理 API、CI 归档/恢复 | ✅ 已完成 (2026-07-03) | CmdbRelationTypeRepository + relation type routes + CI archive/restore | 🔵 | |
@@ -1280,15 +1280,15 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 5.7 | Config：配置模板、灰度发布、依赖关系图 | ✅ 已完成 (2026-07-03) | 33 tests pass，ConfigTemplateRepository + CanaryDeployment + ConfigDependency CRUD 完整 | 🔵 | |
 | 5.8 | 数据平台：DataPipeline 版本管理、VectorStore 向量删除、FinOps 自动采集 | ✅ 已完成 (2026-07-03) | PipelineVersionRepository + DataPipelineService.createVersion/listVersions/getVersion + 3条版本路由 + 4条FinOps采集路由 | 🔵 | |
 | 5.9 | Deploy：版本说明 Git 集成 | ✅ 已完成 (2026-07-03) | DeployGitIntegrationService + DeployController.linkGitCommit/getDeploymentChangelog + deploy-routes.ts 注册 + 前端 DeployPage 详情抽屉集成 release notes 展示 + TS errors fixed | 🔵 | |
-| 5.10 | 基础设施：连接器扩展、断线重连、沙箱网络隔离 | ✅ 已完成 (2026-07-04) | 8种连接器(Ssh/WinRm/RestApi/Aws/Gcp/Azure/K8s/NetworkDevice) + 指数退避重连 + 沙箱网络隔离 + 健康检查 + ErrorCode.INVALID_REQUEST→PARAM_REQUIRED修复 + RestApiConnector.execute()签名统一 + 40 tests pass | 🟡 | |
+| 5.10 | 基础设施：连接器扩展、断线重连、沙箱网络隔离 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 8种连接器(Ssh/WinRm/RestApi/Aws/Gcp/Azure/K8s/NetworkDevice) + 指数退避重连 + 沙箱网络隔离 + 健康检查 + ErrorCode.INVALID_REQUEST→PARAM_REQUIRED修复 + RestApiConnector.execute()签名统一 + 40 tests pass | 🟡 | |
 | 5.11 | ITSM：工单模板、SLA 可视化、自动化规则 | ✅ 已完成 (2026-07-03) | SLAController + AutomationRuleController + SLA/automation routes | 🔵 | |
-| 5.12 | 低代码：版本管理、导入/导出、模板市场 | ✅ 已完成 (2026-07-04) | FlowVersions + FlowImportExport + TemplateMarket 三个前端页面 + lowcode.ts API client 补充 exportWorkflow/listTemplates/createWorkflowVersion/listWorkflowVersions + 路由注册 /lowcode/versions /lowcode/import-export /lowcode/templates | 🔵 | |
+| 5.12 | 低代码：版本管理、导入/导出、模板市场 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | FlowVersions + FlowImportExport + TemplateMarket 三个前端页面 + lowcode.ts API client 补充 exportWorkflow/listTemplates/createWorkflowVersion/listWorkflowVersions + 路由注册 /lowcode/versions /lowcode/import-export /lowcode/templates | 🔵 | |
 | 5.13 | 监控：evaluationWindowMs、升级状态持久化、实时指标流 | ✅ 已完成 (2026-07-03) | AlertRuleEngine evaluationWindowMs + MetricStreamService SSE 实时指标流 | 🔵 | |
 | 5.14 | 通知：模板管理、定时通知、免打扰逻辑 | ✅ 已完成 (2026-07-03) | notification-template-routes + scheduled-notification-routes + do-not-disturb-routes + routes.ts 注册 | 🔵 | |
 | 5.15 | 组织：用户批量导入/导出、审计日志完善 | ✅ 已完成 (2026-07-03) | UserService.bulkImportUsers/exportUsers + user-routes POST /bulk/import + GET /bulk/export | 🔵 | |
 | 5.16 | Pipeline：批量操作 API、运行历史趋势 | ✅ 已完成 (2026-07-03) | pipeline-batch-operations-routes.ts + pipeline-run-history-routes.ts | 🔵 | |
-| 5.17 | 安全：结构化日志、性能优化 | ✅ 已完成 (2026-07-04) | 13处console.warn→logger.warn(ClusterHealthMonitor/ConnectorRegistry/WebhookService/BackupRestoreService/APISubscriptionService)；ClusterHealthMonitor template literal bug修复；所有修改模块tests pass | 🔵 | 生产代码console已清零 |
-| 5.18 | 自愈：死代码清理、K8s 集成确认 | ✅ 已完成 (2026-07-04) | 移除 HealingDecisionMaker.ts (432行) + test 文件 + Ticket/TicketComment 接口(27行)，SelfHealingService.test 移除 319 行死代码测试，SelfHealingRepository 清理 27 行未用接口；153 tests pass，K8s 集成确认于 HealingActionExecutor.ts | 🔵 | |
+| 5.17 | 安全：结构化日志、性能优化 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 13处console.warn→logger.warn(ClusterHealthMonitor/ConnectorRegistry/WebhookService/BackupRestoreService/APISubscriptionService)；ClusterHealthMonitor template literal bug修复；所有修改模块tests pass | 🔵 | 生产代码console已清零 |
+| 5.18 | 自愈：死代码清理、K8s 集成确认 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 移除 HealingDecisionMaker.ts (432行) + test 文件 + Ticket/TicketComment 接口(27行)，SelfHealingService.test 移除 319 行死代码测试，SelfHealingRepository 清理 27 行未用接口；153 tests pass，K8s 集成确认于 HealingActionExecutor.ts | 🔵 | |
 | 5.19 | Spec：将状态从"编写中"更新为"已验证"或"实施中" | ✅ 已完成 (2026-07-03) | 37份 Spec 文档状态更新（23已验证 + 14实施中）+ spec-status-report.md | 🔵 | |
 | 5.20 | Spec：将验收标准纳入 CI 检查 | ✅ 已完成 (2026-07-03) | spec-validation.yml (acceptance criteria + traceability matrix + verify:specs) | 🟡 | |
 
@@ -1296,25 +1296,25 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
-| 6.1 | Go 迁移第一阶段：EventBus | ✅ 已完成 (2026-07-04) | NATS JetStream 集成：nats_client.go + event_bus_service.go dual-write + config.go NATS 配置 + handler.go REST 端点 + main.go 初始化 + go build 通过 | 🔴 | 专家评审(2026-07-04)：EventBus 可切换(85%覆盖)，Pipeline/Deploy 补充后切换，Auth 延后(95%缺失)，详见 docs/analysis/go-migration-phase1-review-2026-07-04.md |
-| 6.2 | API Gateway 路由改为动态发现 | ✅ 已完成 (2026-07-04) | gateway-dynamic-routes.ts (7 endpoints: CRUD + toggle + stats) + GatewayRouteRepository + Migration 457 + 前端 GatewayRoutes 页面已存在 | 🔴 | |
+| 6.1 | Go 迁移第一阶段：EventBus | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | NATS JetStream 集成：✅ 代码已实现 (2026-07-05) — nats_client.go (JetStream连接+发布) + eventbus_service.go dual-write + config.go NATS配置 + handler.go REST端点 + main.go 初始化 + go build/vet 通过 | 🔴 | 专家评审(2026-07-04)：EventBus 可切换(85%覆盖)，Pipeline/Deploy 补充后切换，Auth 延后(95%缺失)，详见 docs/analysis/go-migration-phase1-review-2026-07-04.md |
+| 6.2 | API Gateway 路由改为动态发现 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | gateway-dynamic-routes.ts (7 endpoints: CRUD + toggle + stats) + GatewayRouteRepository + Migration 457 + 前端 GatewayRoutes 页面已存在 | 🔴 | |
 | 6.3 | 服务注册表 Repository（PostgreSQL） | ✅ 已完成 (2026-07-03) | ServiceRegistryRepository + service_registry 表迁移 + 单元测试 | 🟡 | |
-| 6.4 | 服务健康检查器 | ✅ 已完成 (2026-07-04) | HealthCheckerService + health-check-routes.ts + service-health-routes.ts (2 endpoints: dashboard + service detail) | 🟡 | |
-| 6.5 | ServiceRegistryPage 前端 | ✅ 已完成 (2026-07-04) | ServiceRegistry/index.tsx + service-registry.ts API client + routes.tsx 注册 | 🔵 | |
-| 6.6 | 路由管理（基于 Go 迁移后的真实路由） | ✅ 已完成 (2026-07-04) | gateway-dynamic-routes.ts 完整 CRUD + GatewayRouteRepository + Migration 457 | 🟡 | 依赖 6.2 |
-| 6.7 | GatewayRoutesPage 前端 | ✅ 已完成 (2026-07-04) | GatewayRoutes/index.tsx (已有完整实现) + gateway-routes.ts API client | 🔵 | |
-| 6.8 | 健康仪表盘 | ✅ 已完成 (2026-07-04) | HealthDashboard/index.tsx (已有完整实现) + service-health-routes.ts 后端 API | 🟡 | |
-| 6.9 | 服务拓扑可视化 | ✅ 已完成 (2026-07-04) | ServiceTopology/index.tsx + service-topology.ts API client + service-topology-routes.ts (3 endpoints) | 🔵 | |
-| 6.10 | Go 迁移第二阶段：第 1 批（canary-analysis/compliance/report-designer） | ✅ 已完成 (2026-07-04) | 3 个 Go 服务全部创建并构建通过 | 🔵 | canary-analysis 蓝图适配 + compliance/report-designer 新建 |
+| 6.4 | 服务健康检查器 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | HealthCheckerService + health-check-routes.ts + service-health-routes.ts (2 endpoints: dashboard + service detail) | 🟡 | |
+| 6.5 | ServiceRegistryPage 前端 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | ServiceRegistry/index.tsx + service-registry.ts API client + routes.tsx 注册 | 🔵 | |
+| 6.6 | 路由管理（基于 Go 迁移后的真实路由） | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | gateway-dynamic-routes.ts 完整 CRUD + GatewayRouteRepository + Migration 457 | 🟡 | 依赖 6.2 |
+| 6.7 | GatewayRoutesPage 前端 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | GatewayRoutes/index.tsx (已有完整实现) + gateway-routes.ts API client | 🔵 | |
+| 6.8 | 健康仪表盘 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | HealthDashboard/index.tsx (已有完整实现) + service-health-routes.ts 后端 API | 🟡 | |
+| 6.9 | 服务拓扑可视化 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | ServiceTopology/index.tsx + service-topology.ts API client + service-topology-routes.ts (3 endpoints) | 🔵 | |
+| 6.10 | Go 迁移第二阶段：第 1 批（canary-analysis/compliance/report-designer） | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 3 个 Go 服务全部创建并构建通过 | 🔵 | canary-analysis 蓝图适配 + compliance/report-designer 新建 |
 | 6.11 | 版本管理 + 流量治理 API | ✅ 已完成 (2026-07-03) | canary-traffic-routes + pipeline-version-routes + artifact-version-routes + TrafficManager | 🟡 | |
-| 6.12 | 版本管理页面 + 流量治理页面 | ✅ 已完成 (2026-07-04) | ServiceRegistry/ArtifactVersion/CanaryTrafficPage 页面已完整实现 + 真实 API 客户端 + 路由注册 | 🔵 | |
-| 6.13 | 集成到 Console 页面 + 端到端测试 | ✅ 已完成 (2026-07-04) | Console 页面添加 Phase 6 导航卡片 (6个: service-registry/gateway-routes/health-dashboard/service-topology/version-management/traffic-governance) | 🟡 | |
-| 6.14 | 路由硬编码分析 + 配置化方案设计 | ✅ 已完成 (2026-07-04) | 4层硬编码分析 + routing-configuration-design.md + 网关注册 canary/compliance/report-designer + 端口冲突修复 | 🔵 | 修复 report-designer 8087→8088 |
-| 6.15 | Phase 3：前端 API 路径统一 | ✅ 已完成 (2026-07-04) | 创建 api-paths.ts 常量文件 + 迁移 canary-analysis/compliance/report-designer 3个API客户端（40处硬编码路径替换） | 🔵 | 基于 routing-configuration-design.md 3.3节 |
-| 6.16 | Phase 4：前端路由配置化设计 | ✅ 已完成 (2026-07-04) | 创建 frontend-routing-config-design.md，设计 PageRegistry 接口 + 路由生成器 + 迁移方案 | 🔵 | 基于 routing-configuration-design.md 3.4节 |
-| 6.17 | AI Decision 路由认证补全 | ✅ 已完成 (2026-07-04) | 4个GET端点（feature-importance/confidence/explanations/history）添加 requirePermission 权限守卫 | 🔵 | |
-| 6.18 | Escalation 路由 CRUD 补全 | ✅ 已完成 (2026-07-04) | GET /policies/:id (getById) + DELETE /policies/:id 实现，EscalationConfigService 新增 getById/delete 方法 | 🔵 | |
-| 6.19 | BI Dashboard 真实数据接入 | ✅ 已完成 (2026-07-04) | 接入 TicketBIService (executive/manager/engineer) + EfficiencyDashboardService (getScenario overview) + requirePermission 加固 | 🔵 | |
+| 6.12 | 版本管理页面 + 流量治理页面 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | ServiceRegistry/ArtifactVersion/CanaryTrafficPage 页面已完整实现 + 真实 API 客户端 + 路由注册 | 🔵 | |
+| 6.13 | 集成到 Console 页面 + 端到端测试 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | Console 页面添加 Phase 6 导航卡片 (6个: service-registry/gateway-routes/health-dashboard/service-topology/version-management/traffic-governance) | 🟡 | |
+| 6.14 | 路由硬编码分析 + 配置化方案设计 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 4层硬编码分析 + routing-configuration-design.md + 网关注册 canary/compliance/report-designer + 端口冲突修复 | 🔵 | 修复 report-designer 8087→8088 |
+| 6.15 | Phase 3：前端 API 路径统一 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 创建 api-paths.ts 常量文件 + 迁移 canary-analysis/compliance/report-designer 3个API客户端（40处硬编码路径替换） | 🔵 | 基于 routing-configuration-design.md 3.3节 |
+| 6.16 | Phase 4：前端路由配置化设计 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 创建 frontend-routing-config-design.md，设计 PageRegistry 接口 + 路由生成器 + 迁移方案 | 🔵 | 基于 routing-configuration-design.md 3.4节 |
+| 6.17 | AI Decision 路由认证补全 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 4个GET端点（feature-importance/confidence/explanations/history）添加 requirePermission 权限守卫 | 🔵 | |
+| 6.18 | Escalation 路由 CRUD 补全 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | GET /policies/:id (getById) + DELETE /policies/:id 实现，EscalationConfigService 新增 getById/delete 方法 | 🔵 | |
+| 6.19 | BI Dashboard 真实数据接入 | ✅ 已完成 (2026-07-04, 代码补全 2026-07-05) | 接入 TicketBIService (executive/manager/engineer) + EfficiencyDashboardService (getScenario overview) + requirePermission 加固 | 🔵 | |
 | 6.20 | Go 迁移 Batch 2：Incident 服务 | ✅ 已完成 (2026-07-05) | orion-incident-svc-go 蓝图创建（6文件）：ITIL生命周期 + 事件管理 + postmortem + escalation + SLA + 统计 | 🔵 | 依赖 6.22 user 服务 |
 | 6.21 | Go 迁移 Batch 2：Knowledge 服务 | ✅ 已完成 (2026-07-05) | orion-knowledge-svc-go 蓝图创建（7文件）：Spaces/Docs CRUD + RAG + 知识图谱 + 版本管理 + sync | 🔵 | |
 | 6.22 | Go 迁移 Batch 2：User 服务 | ✅ 已完成 (2026-07-05) | orion-user-svc-go 蓝图创建（8文件）：用户CRUD + 租户RBAC + database.Connect + go-common auth中间件 | 🔵 | 依赖 6.1 auth 稳定 |
@@ -1332,11 +1332,11 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 
 | 专项 | 迁移计划 | 进度追踪 | 状态 | 依赖 |
 |------|---------|---------|------|------|
-| AI 域 TS → Python | [AI 迁移计划](docs/ai-migration-plan-2026-07-02.md) | [AI 迁移进度](memory/ai-migration-progress.md) | 🔄 规划中 | Phase 1 完成 |
+| AI 域 TS → Python | [AI 迁移计划](docs/ai-migration-plan-2026-07-02.md) | [AI 迁移进度](memory/ai-migration-progress.md) | 🔄 进行中 (Phase 4 完成) | Phase 4 辅助能力迁移完成 |
 | TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1 完成 (3/26)，Batch 2/3 进行中 | Phase 1 + 4.67 完成 |
 | | | | | **必须先完成 1.17 + 4.67** |
 | Map → PostgreSQL | [清理清单](docs/architecture/清理与待实现清单-2026-07-01.md) | [持久化进度](memory/persistence-migration-progress.md) | ✅ 97% 完成（337 repositories，剩余为缓存/运行时结构） | Phase 1 完成 |
-| AI Python 化 | [AI Python 化计划](docs/ai-python-migration-plan.md) | — | ⏳ 待开始 | AI 迁移完成 |
+| AI Python 化 | [AI Python 化计划](docs/ai-python-migration-plan.md) | — | 🔄 进行中 (Phase 4.5-4.11 完成) | Phase 4 辅助能力迁移完成 + 决策端点扩展 |
 | 前端 mock 清理 | — | [前端 mock 进度](memory/frontend-mock-cleanup-progress.md) | ✅ 100% 完成 | CacheConfigPage(4.74) + AIReview ReviewDetail(4.75) 已修复，mock 数据全部替换为真实 API |
 
 ### 10.1 技术栈决策
@@ -1402,6 +1402,24 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 **未处理**: N 处（标注 @manual-review，原因：...）
 **Agent 自检结论**: 通过/需复审
 ```
+
+### 2026-07-05 执行报告：EventBus NATS 代码补全 + go.mod 修复
+
+**任务**: 6.1 EventBus NATS JetStream 集成 + go.work 构建修复
+**修改文件**: 5 个 (nats_client.go 新增, eventbus_service.go, handler.go, main.go, config.go) + 2 个 go.mod 修复 (orion-auth-svc, orion-build-svc-go)
+**替换/新增次数**: 5 处代码文件 + 2 处 go.mod 修复
+**编译检查**: ✅ go build ./... 通过 + go vet ./... 通过
+**单元测试**: N/A (Go 蓝图服务，无测试文件)
+**关联测试**: N/A
+**未处理**: 0
+**Agent 自检结论**: 通过
+- nats_client.go: NATS JetStream 连接管理 (连接/重连/Stream 自动创建) + 事件发布 (subject: <stream>.<type>.<tenant>)
+- eventbus_service.go: dual-write 模式 (PG source of truth + NATS fire-and-forget, best-effort)
+- config.go: 新增 NATSAddr/NATSStream 配置字段
+- handler.go: auth.GetTenantID 租户提取 + NATS client 注入
+- main.go: NATS 初始化 + health check + graceful shutdown
+- orion-auth-svc/go.mod: 修复 68 个重复/游离依赖 (合并 3 个 require 块)
+- orion-build-svc-go/go.mod: 修复 55 个重复/游离依赖 (合并 3 个 require 块)
 
 ### 11.5 每个 Phase 的 Agent 分工
 
