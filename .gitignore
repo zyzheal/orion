@@ -58,3 +58,4 @@ orion-cmdb-service/bin/cmdbd
 .codegraph/
 .understand-anything/
 .claude/worktrees/
+orion-ai-service/src/data/
