@@ -11,6 +11,7 @@ import (
 	"orion/eventbus-svc-go/internal/config"
 	"orion/eventbus-svc-go/internal/handler"
 	natspkg "orion/eventbus-svc-go/internal"
+	nats_subscriber "orion/eventbus-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
@@ -54,7 +55,7 @@ func main() {
 	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
-	// Initialize NATS JetStream client
+	// Initialize NATS JetStream client (for publishing events)
 	nc, err := natspkg.NewNATSClient(cfg.NATSAddr, cfg.NATSStream, zapLogger)
 	if err != nil {
 		zapLogger.Warn("failed to connect to NATS, running without event bus", zap.Error(err))
@@ -65,6 +66,21 @@ func main() {
 			nc.Close()
 		}
 	}()
+
+	// Initialize NATS JetStream subscriber (for consuming events)
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -134,6 +150,11 @@ func main() {
 	<-quit
 
 	zapLogger.Info("shutting down eventbus service...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
