@@ -13,6 +13,7 @@ import (
 	"orion/pipeline-svc-go/internal/handler"
 	"orion/pipeline-svc-go/internal/repository"
 	"orion/pipeline-svc-go/internal/service"
+	"orion/pipeline-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
@@ -84,6 +85,21 @@ func main() {
 	approvalGateSvc := service.NewApprovalGateService(db.DB)
 	sseSvc := service.NewSSEService()
 
+	// NATS subscriber (graceful degradation)
+	var natsSub *nats.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger, pipelineSvc)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(ctx); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	h := handler.NewHandler(pipelineSvc)
 	templateHandler := handler.NewTemplateHandler(templateSvc)
 	triggerHandler := handler.NewTriggerHandler(triggerSvc)
@@ -131,6 +147,11 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
