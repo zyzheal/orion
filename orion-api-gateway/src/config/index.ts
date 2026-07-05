@@ -230,6 +230,21 @@ const defaultConfig: AppConfig = {
       url: process.env.VISOR_SERVICE_URL || 'http://localhost:3034',
       timeout: parseInt(process.env.VISOR_TIMEOUT || '30000', 10),
     },
+    // Canary service
+    canary: {
+      url: process.env.CANARY_SERVICE_URL || 'http://localhost:8086',
+      timeout: parseInt(process.env.CANARY_TIMEOUT || '60000', 10),
+    },
+    // Compliance service
+    compliance: {
+      url: process.env.COMPLIANCE_SERVICE_URL || 'http://localhost:8087',
+      timeout: parseInt(process.env.COMPLIANCE_TIMEOUT || '30000', 10),
+    },
+    // Report Designer service
+    'report-designer': {
+      url: process.env.REPORT_DESIGNER_SERVICE_URL || 'http://localhost:8088',
+      timeout: parseInt(process.env.REPORT_DESIGNER_TIMEOUT || '30000', 10),
+    },
   },
 };
 
@@ -433,6 +448,21 @@ export function reloadConfig(): AppConfig {
       visor: {
         url: process.env.VISOR_SERVICE_URL || 'http://localhost:3034',
         timeout: parseInt(process.env.VISOR_TIMEOUT || '30000', 10),
+      },
+      // Canary service
+      canary: {
+        url: process.env.CANARY_SERVICE_URL || 'http://localhost:8086',
+        timeout: parseInt(process.env.CANARY_TIMEOUT || '60000', 10),
+      },
+      // Compliance service
+      compliance: {
+        url: process.env.COMPLIANCE_SERVICE_URL || 'http://localhost:8087',
+        timeout: parseInt(process.env.COMPLIANCE_TIMEOUT || '30000', 10),
+      },
+      // Report Designer service
+      'report-designer': {
+        url: process.env.REPORT_DESIGNER_SERVICE_URL || 'http://localhost:8088',
+        timeout: parseInt(process.env.REPORT_DESIGNER_TIMEOUT || '30000', 10),
       },
     },
   };

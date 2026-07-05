@@ -487,12 +487,7 @@ const routeConfigs: RouteConfig[] = [
     timeout: 30000,
     stripPrefix: false,
   },
-  {
-    prefix: '/api/v1/compliance',
-    target: services().governance?.url || 'http://localhost:3022',
-    timeout: 30000,
-    stripPrefix: false,
-  },
+  // NOTE: /api/v1/compliance is now routed to the dedicated compliance service (port 8087)
 
   // ========== Skill Service (3023) ==========
   {
@@ -676,6 +671,78 @@ const routeConfigs: RouteConfig[] = [
   {
     prefix: '/api/v1/visualization',
     target: services().visor?.url || 'http://localhost:3034',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Canary Service (8086) ==========
+  {
+    prefix: '/api/v1/canary',
+    target: services().canary?.url || 'http://localhost:8086',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/canary-analysis',
+    target: services().canary?.url || 'http://localhost:8086',
+    timeout: 60000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/canary-ml',
+    target: services().canary?.url || 'http://localhost:8086',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/canary-config',
+    target: services().canary?.url || 'http://localhost:8086',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Compliance Service (8087) ==========
+  {
+    prefix: '/api/v1/compliance',
+    target: services().compliance?.url || 'http://localhost:8087',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/compliance-reports',
+    target: services().compliance?.url || 'http://localhost:8087',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/compliance-schedules',
+    target: services().compliance?.url || 'http://localhost:8087',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+
+  // ========== Report Designer Service (8088) ==========
+  {
+    prefix: '/api/v1/reports',
+    target: services()['report-designer']?.url || 'http://localhost:8088',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/report-definitions',
+    target: services()['report-designer']?.url || 'http://localhost:8088',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/report-datasources',
+    target: services()['report-designer']?.url || 'http://localhost:8088',
+    timeout: 30000,
+    stripPrefix: false,
+  },
+  {
+    prefix: '/api/v1/report-schedules',
+    target: services()['report-designer']?.url || 'http://localhost:8088',
     timeout: 30000,
     stripPrefix: false,
   },

@@ -20,8 +20,11 @@ import { tokenBlacklistChecker, TokenBlacklistChecker } from '../services/token-
 
 export interface JwtPayload {
   sub: string;
+  username?: string;
   email?: string;
+  role?: string;
   roles?: string[];
+  tenant_id?: string;
   permissions?: string[];
   iat?: number;
   exp?: number;

@@ -13,11 +13,13 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-testing'
 jest.mock('../../services/auth/JwtKeyManager', () => ({
   jwtKeyManager: {
     getCurrentSecret: jest.fn(),
+    verifyWithAnyKey: jest.fn(),
   },
 }));
 
 import { jwtKeyManager } from '../../services/auth/JwtKeyManager';
 const mockGetCurrentSecret = (jwtKeyManager as any).getCurrentSecret;
+const mockVerifyWithAnyKey = (jwtKeyManager as any).verifyWithAnyKey;
 
 // Mock TokenBlacklistService
 const mockIsRevoked = jest.fn();
@@ -46,6 +48,10 @@ describe('jwtAuth', () => {
     jest.clearAllMocks();
     initJwtAuth(mockTokenBlacklist as any, mockDbPool as any);
     mockGetCurrentSecret.mockReturnValue('test-jwt-secret-for-testing');
+    // verifyWithAnyKey 接收一个 (secret) => decoded 工厂，用当前 mock secret 实际验签
+    mockVerifyWithAnyKey.mockImplementation((token: string, verifyFn: (secret: string) => any) => {
+      return verifyFn('test-jwt-secret-for-testing');
+    });
   });
 
   test('returns 503 when token blacklist check fails', async () => {
