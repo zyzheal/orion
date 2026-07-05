@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
@@ -18,6 +22,7 @@ import (
 	"orion-ticket-svc-go/internal/handler"
 	"orion-ticket-svc-go/internal/repository"
 	"orion-ticket-svc-go/internal/service"
+	nats_subscriber "orion-ticket-svc-go/pkg/nats"
 )
 
 func runMigrations(db *database.DB) error {
@@ -385,9 +390,44 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// Initialize NATS JetStream subscriber (for consuming events)
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATS.Addr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATS.Addr, cfg.NATS.Stream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	zapLogger.Info("starting ticket service", zap.Int("port", cfg.Server.Port))
-	if err := r.Run(addr); err != nil {
-		zapLogger.Fatal("server failed", zap.Error(err))
+
+	srv := &http.Server{Addr: addr, Handler: r}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			zapLogger.Fatal("server failed", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	zapLogger.Info("shutting down ticket-svc...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }
