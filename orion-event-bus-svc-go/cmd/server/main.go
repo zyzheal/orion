@@ -8,11 +8,12 @@ import (
 
 	"orion/event-bus-svc-go/internal/config"
 	"orion/event-bus-svc-go/internal/handler"
+	"orion/event-bus-svc-go/internal/nats"
+	orionlog "orion/go-common/pkg/logger"
 	"orion/event-bus-svc-go/internal/repository"
 	"orion/event-bus-svc-go/internal/service"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
-	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 
 	orionredis "orion/go-common/pkg/redis"
@@ -47,10 +48,20 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
+	// Initialize NATS client (graceful fallback if unavailable)
+	natsClient := nats.NewClient(&nats.Config{
+		URLs:      cfg.NATSURLs,
+		User:      cfg.NATSUser,
+		Password:  cfg.NATSPassword,
+	}, logger)
+	defer natsClient.Close()
+	if err := natsClient.Connect(ctx); err != nil {
+		logger.Warn("NATS not available, running without event streaming", zap.Error(err))
+	}
 
 	repo := repository.NewRepository(db.DB)
-	svc := service.NewService(repo)
-	h := handler.NewHandler(svc)
+	svc := service.NewService(repo, natsClient)
+	h := handler.NewHandler(svc, logger)
 
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))

@@ -17,8 +17,30 @@ func TestEventLogFields(t *testing.T) {
 	if log.TenantID != "t1" {
 		t.Errorf("expected t1, got %s", log.TenantID)
 	}
+	if log.EventType != "deploy.started" {
+		t.Errorf("expected deploy.started, got %s", log.EventType)
+	}
+	if log.Status != "" {
+		t.Errorf("expected empty status by default, got %s", log.Status)
+	}
 	if log.Processed != false {
 		t.Errorf("expected processed=false by default")
+	}
+}
+
+func TestEventStatusValues(t *testing.T) {
+	validStatuses := []EventStatus{
+		EventStatusPendingPublished,
+		EventStatusPublished,
+		EventStatusDelivered,
+		EventStatusPendingFallback,
+		EventStatusFailed,
+		EventStatusDeadLetter,
+	}
+	for _, s := range validStatuses {
+		if string(s) == "" {
+			t.Errorf("event status should not be empty")
+		}
 	}
 }
 

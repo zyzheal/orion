@@ -44,14 +44,48 @@ type EventSubscription struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
+// EventStatus represents the lifecycle status of an event.
+// Aligned with TS EventBusEventEntity status enum for cross-language compatibility.
+type EventStatus string
+
+const (
+	EventStatusPendingPublished EventStatus = "pending_published"
+	EventStatusPublished        EventStatus = "published"
+	EventStatusDelivered        EventStatus = "delivered"
+	EventStatusPendingFallback  EventStatus = "pending_fallback"
+	EventStatusFailed           EventStatus = "failed"
+	EventStatusDeadLetter       EventStatus = "dead_letter"
+)
+
 // EventLog represents a published event record. Maps to the event_logs table.
+// CloudEvents 1.0 compatible with Orion extensions.
+// Aligned with TS EventBusEventEntity for cross-language compatibility.
 type EventLog struct {
-	ID        string `db:"id"         json:"id"`
-	TenantID  string `db:"tenant_id"  json:"tenant_id"`
-	EventType string `db:"event_type" json:"event_type"`
-	Payload   JSONB  `db:"payload"    json:"payload"`
-	Processed bool   `db:"processed"  json:"processed"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID          string      `db:"id"           json:"id"`
+	TenantID    string      `db:"tenant_id"    json:"tenant_id"`
+	EventType   string      `db:"event_type"   json:"event_type"`
+	Subject     string      `db:"subject"      json:"subject"`
+	Source      string      `db:"source"       json:"source"`
+	Payload     JSONB       `db:"payload"      json:"payload"`
+	SequenceNum *int64      `db:"sequence_num" json:"sequence_num,omitempty"`
+	Status      EventStatus `db:"status"       json:"status"`
+	PublishedBy string      `db:"published_by" json:"published_by"`
+	PublishedAt time.Time   `db:"published_at" json:"published_at"`
+	RetryCount  int         `db:"retry_count"  json:"retry_count"`
+	LastRetryAt *time.Time  `db:"last_retry_at" json:"last_retry_at,omitempty"`
+	Processed   bool        `db:"processed"    json:"processed"`
+	CreatedAt   time.Time   `db:"created_at"   json:"created_at"`
+}
+
+// EventBusConfig represents a key-value configuration entry.
+// Maps to the event_bus_config table (aligned with TS EventBusConfigEntity).
+type EventBusConfig struct {
+	ID          string    `db:"id"          json:"id"`
+	ConfigKey   string    `db:"config_key"  json:"config_key"`
+	ConfigValue JSONB     `db:"config_value" json:"config_value"`
+	Description string    `db:"description" json:"description"`
+	CreatedAt   time.Time `db:"created_at"  json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"   json:"updated_at"`
 }
 
 // CreateSubscriptionRequest is the request body for subscribing to an event type.
