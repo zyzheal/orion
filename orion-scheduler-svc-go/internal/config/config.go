@@ -1,35 +1,56 @@
 package config
 
 import (
-	"github.com/spf13/viper"
+	"os"
+	"strconv"
 )
 
 type Config struct {
-	ServerPort int    `mapstructure:"server_port"`
-	DBHost     string `mapstructure:"db_host"`
-	DBPort     int    `mapstructure:"db_port"`
-	DBUser     string `mapstructure:"db_user"`
-	DBPassword string `mapstructure:"db_password"`
-	DBName     string `mapstructure:"db_name"`
-	DBSSLMode  string `mapstructure:"db_ssl_mode"`
-	JWTSecret  string
-	RedisAddr  string
+	Port        int
+	DBHost      string
+	DBPort      int
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBSSLMode   string
+	JWTSecret   string
+	RedisAddr   string
+	NATSAddr    string
+	NATSStream  string
 }
 
-func Load() (*Config, error) {
-	viper.SetDefault("server_port", 8087)
-	viper.SetDefault("db_host", "localhost")
-	viper.SetDefault("db_port", 5432)
-	viper.SetDefault("db_user", "postgres")
-	viper.SetDefault("db_password", "postgres")
-	viper.SetDefault("db_name", "orion_scheduler")
-	viper.SetDefault("db_ssl_mode", "disable")
+func Load() *Config {
+	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
+	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 
-	viper.AutomaticEnv()
+	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 
-	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
-		return nil, err
+	return &Config{
+		Port:       port,
+		DBHost:     getEnv("DB_HOST", "localhost"),
+		DBPort:     dbPort,
+		DBUser:     requireEnv("DB_USER"),
+		DBPassword: requireEnv("DB_PASSWORD"),
+		DBName:     getEnv("DB_NAME", "orion_scheduler"),
+		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
+		JWTSecret:  jwtSecret,
+		RedisAddr:  redisAddr,
+		NATSAddr:   getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream: getEnv("NATS_STREAM", "EVENTS"),
 	}
-	return &cfg, nil
+}
+
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
+}
+
+func requireEnv(key string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	panic("required environment variable not set: " + key)
 }

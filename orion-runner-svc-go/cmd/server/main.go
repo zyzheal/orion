@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,7 +17,7 @@ import (
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-
+	nats_subscriber "orion/runner-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -46,7 +45,7 @@ func main() {
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			log.Printf("warning: failed to run migrations: %v", err)
+			logger.Warn("warning: failed to run migrations", zap.Error(err))
 		}
 	}
 
@@ -57,6 +56,21 @@ func main() {
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
 	h := handler.NewHandler(svc)
+
+	// Initialize NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
 
 	// Configure Gin router
 	r := gin.New()
@@ -95,13 +109,19 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("shutting down runner-svc...")
+	logger.Info("shutting down runner-svc...")
+
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("server forced to shutdown: %v", err)
+		logger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 
-	log.Println("runner-svc stopped")
+	logger.Info("runner-svc stopped")
 }

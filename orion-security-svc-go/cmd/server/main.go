@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"orion/security-svc-go/internal/config"
 	"orion/security-svc-go/internal/handler"
@@ -14,8 +17,8 @@ import (
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
+	nats_subscriber "orion/security-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
-
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -33,14 +36,14 @@ func main() {
 	ctx := context.Background()
 	db, err := database.Connect(ctx, dbCfg)
 	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			log.Printf("warning: failed to run migrations: %v", err)
+			logger.Warn("warning: failed to run migrations", zap.Error(err))
 		}
 	}
 
@@ -56,16 +59,46 @@ func main() {
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
-
-	r.GET("/healthz", middleware.HealthCheck("orion-security-svc"))
-
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
-	logger.Info("security-svc-go listening", zap.String("addr", addr))
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("server error", zap.Error(err))
+	r.GET("/healthz", middleware.HealthCheck("orion-security-svc"))
+
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
 	}
+
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	srv := &http.Server{Addr: addr, Handler: r}
+	go func() {
+		logger.Info("security-svc listening", zap.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("shutting down security-svc...")
+
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	srv.Shutdown(shutdownCtx)
 }

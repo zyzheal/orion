@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"orion/risk-svc-go/internal/config"
 	"orion/risk-svc-go/internal/handler"
@@ -14,7 +17,7 @@ import (
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-
+	nats_subscriber "orion/risk-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -40,13 +43,12 @@ func main() {
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			log.Printf("warning: failed to run migrations: %v", err)
+			logger.Warn("warning: failed to run migrations", zap.Error(err))
 		}
 	}
 
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
@@ -63,9 +65,40 @@ func main() {
 
 	r.GET("/healthz", middleware.HealthCheck("orion-risk-svc"))
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
-	logger.Info("risk-svc listening", zap.String("addr", addr))
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("server error", zap.Error(err))
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
 	}
+
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	srv := &http.Server{Addr: addr, Handler: r}
+	go func() {
+		logger.Info("risk-svc listening", zap.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("shutting down risk-svc...")
+
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	srv.Shutdown(shutdownCtx)
 }

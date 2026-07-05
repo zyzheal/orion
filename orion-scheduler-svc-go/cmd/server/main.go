@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"orion/scheduler-svc-go/internal/config"
 	"orion/scheduler-svc-go/internal/handler"
@@ -14,7 +17,7 @@ import (
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-
+	nats_subscriber "orion/scheduler-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -24,10 +27,7 @@ func main() {
 	logger := orionlog.Must(orionlog.DefaultConfig("orion-scheduler-svc"))
 	defer logger.Sync()
 
-	cfg, err := config.Load()
-	if err != nil {
-		logger.Fatal("failed to load config", zap.Error(err))
-	}
+	cfg := config.Load()
 
 	// Build DSN from config
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
@@ -46,14 +46,13 @@ func main() {
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			log.Printf("warning: failed to run migrations: %v", err)
+			logger.Warn("warning: failed to run migrations", zap.Error(err))
 		}
 	}
 
-	// Wire repository → services → handler
+	// Wire repository -> services -> handler
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	repo := repository.NewSchedulerRepository(db.DB)
 	schedulerSvc := service.NewSchedulerService(repo)
@@ -63,6 +62,21 @@ func main() {
 	// Start the scheduler tick loop.
 	go schedulerSvc.Start(ctx)
 	defer schedulerSvc.Stop()
+
+	// Initialize NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
 
 	h := handler.NewHandler(schedulerSvc, onCallSvc, lockSvc)
 
@@ -77,9 +91,27 @@ func main() {
 
 	r.GET("/healthz", middleware.HealthCheck("orion-scheduler-svc"))
 
-	addr := fmt.Sprintf(":%d", cfg.ServerPort)
-	logger.Info("scheduler-svc starting", zap.String("addr", addr))
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("failed to start server", zap.Error(err))
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	srv := &http.Server{Addr: addr, Handler: r}
+
+	go func() {
+		logger.Info("scheduler-svc listening", zap.String("addr", addr))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	logger.Info("shutting down scheduler-svc...")
+
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
 	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	srv.Shutdown(shutdownCtx)
 }
