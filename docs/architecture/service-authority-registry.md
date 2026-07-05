@@ -21,7 +21,7 @@
 
 ## 权威实现总表
 
-### Wave 1: Go 已为权威（8 服务）
+### Wave 1: Go 已为权威（11 服务）
 
 | 服务 | Go 目录 | 端口 | Go 行数 | Node.js 行数 | 权威 | 状态 |
 |------|---------|------|---------|-------------|------|------|
@@ -32,7 +32,9 @@
 | Config-Mgmt | orion-config-mgmt-svc-go | 3029 | 2551 | 1376 | **Go** | 构建通过 |
 | Skill | orion-skill-svc-go | 3023 | 2577 | 1366 | **Go** | 构建通过 |
 | Digital-Twin | orion-digital-twin-svc-go | 3008 | 2261 | 1149 | **Go** | 构建通过 |
-| Canary | orion-canary-svc-go | - | 2396 | N/A | **Go** | 构建通过 |
+| Canary | orion-canary-svc-go | 8086 | 2396 | N/A | **Go** | 构建通过 |
+| Compliance | orion-compliance-svc-go | 8087 | 375 | N/A | **Go** | 新建 |
+| Report-Designer | orion-report-designer-svc-go | 8088 | 350 | N/A | **Go** | 新建 |
 
 ### Wave 2: Go 需补充后切换（18 服务）
 
@@ -83,9 +85,10 @@
 | Artifact | orion-artifact-svc-go | 3014 | 通过 |
 | Audit | orion-audit-svc-go | 3026 | 通过 |
 | Build | orion-build-svc-go | - | 通过 |
-| Canary | orion-canary-svc-go | - | 通过 |
+| Canary | orion-canary-svc-go | 8086 | 通过 |
 | Capacity | orion-capacity-svc-go | - | 通过 |
 | Community | orion-community-svc-go | 3033 | 通过 |
+| Compliance | orion-compliance-svc-go | 8087 | 通过 |
 | Cron | orion-cron-svc-go | - | 通过 |
 | DR | orion-dr-svc-go | 3016 | 通过 |
 | Efficiency | orion-efficiency-svc-go | 3015 | 通过 |
@@ -93,11 +96,14 @@
 | Feature-Flag | orion-feature-flag-svc-go | - | 通过 |
 | Federation | orion-federation-svc-go | 3017 | 通过 |
 | Governance | orion-governance-svc-go | 3022 | 通过 |
+| Incident | orion-incident-svc-go | 8085 | 通过 |
+| Knowledge | orion-knowledge-svc-go | 8089 | 通过 |
 | Inspection | orion-inspection-svc-go | - | 通过 |
 | Middleware-Ops | orion-middleware-ops-svc-go | - | 通过 |
 | Monitor | orion-monitor-svc-go | 3005 | 通过 |
 | Notification | orion-notification-svc-go | - | 通过 |
 | Pipeline-Template | orion-pipeline-template-svc-go | - | 通过 |
+| Report-Designer | orion-report-designer-svc-go | 8088 | 通过 |
 | Risk | orion-risk-svc-go | 3025 | 通过 |
 | Scheduler | orion-scheduler-svc-go | - | 通过 |
 | Secret | orion-secret-svc-go | - | 通过 |
@@ -146,6 +152,12 @@
 | /api/v1/community | 3033 | community-svc | 3033 | Go |
 | /api/v1/visor | 3034 | visor-svc | 3034 | **Go** |
 | /api/v1/tools | 3036 | tool-svc | 3036 | **Go** |
+| /api/v1/canary | 8086 | canary-svc | 8086 | **Go** |
+| /api/v1/canary-analysis | 8086 | canary-svc | 8086 | **Go** |
+| /api/v1/compliance | 8087 | compliance-svc | 8087 | **Go** |
+| /api/v1/compliance-reports | 8087 | compliance-svc | 8087 | **Go** |
+| /api/v1/reports | 8088 | report-designer-svc | 8088 | **Go** |
+| /api/v1/report-definitions | 8088 | report-designer-svc | 8088 | **Go** |
 
 ---
 
