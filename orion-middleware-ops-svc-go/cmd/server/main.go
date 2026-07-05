@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,14 +12,14 @@ import (
 	"orion/middleware-ops-svc-go/internal/handler"
 	"orion/middleware-ops-svc-go/internal/repository"
 	"orion/middleware-ops-svc-go/internal/service"
-
-	orionredis "orion/go-common/pkg/redis"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
+	nats_subscriber "orion/middleware-ops-svc-go/pkg/nats"
+	orionredis "orion/go-common/pkg/redis"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -40,12 +39,11 @@ func main() {
 	defer db.Close()
 
 	if err := database.RunMigrations(db, "migrations"); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
+		logger.Warn("warning: failed to run migrations", zap.Error(err))
 	}
 
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
-
 
 	instanceRepo := repository.NewInstanceRepository(db.DB)
 	backupRepo := repository.NewBackupRepository(db.DB)
@@ -68,11 +66,26 @@ func main() {
 
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+		if err != nil {
+			logger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				logger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: r}
 
 	go func() {
+		logger.Info("middleware-ops-svc listening", zap.String("addr", ":"+cfg.Port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %v", err)
+			logger.Fatal("listen", zap.Error(err))
 		}
 	}()
 
@@ -80,6 +93,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
+	logger.Info("shutting down middleware-ops-svc...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			logger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
 	srv.Shutdown(shutdownCtx)
