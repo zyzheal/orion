@@ -922,7 +922,7 @@
 | W23 | 🔴 Go 迁移第二阶段：Batch 1（canary/compliance/report-designer） | 3 个 Go 服务构建通过 + Gateway 路由注册 | 🔴 |
 | W23 | 🔴 Go 迁移第二阶段：Batch 2（incident/knowledge/user/approval） | 4 个 Go 服务迁移 | 🔴 |
 | W24 | 🔴 Go 迁移第二阶段：Batch 3（config/monitoring/chatops） | 3 个 Go 服务迁移 | 🔴 |
-| W24 | 🟡 事件契约对齐 + 数据库连接统一 + JWT 对齐 | 6.27/6.28/6.29 | 🟡 |
+| W24 | ✅ 事件契约对齐 + 数据库连接统一 + JWT 对齐 | 6.27/6.28/6.29 | ✅ |
 | W23 | 🟡 版本管理 + 流量治理 API | 治理 API | 🟡 |
 | W24 | 🔵 版本管理页面 + 流量治理页面 | 前端页面 | 🔵 |
 | W24 | 🟡 集成到 Console 页面 + 端到端测试 | 统一入口 | 🟡 |
@@ -1322,7 +1322,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 6.24 | Go 迁移 Batch 3：Config 服务 | ✅ 已完成 (2026-07-05) | orion-config-mgmt-svc-go 蓝图扩展（16文件）：配置CRUD + Git同步 + 漂移检测 + 特性标志 + middleware | 🔵 | |
 | 6.25 | Go 迁移 Batch 3：Monitoring 服务 | ✅ 已完成 (2026-07-05) | orion-monitor-svc-go 蓝图扩展（11文件）：告警CRUD + 指标查询 + 仪表盘 + 链路追踪 + middleware | 🔵 | |
 | 6.26 | Go 迁移 Batch 3：ChatOps 服务 | ✅ 已完成 (2026-07-05) | orion-chatops-svc-go 蓝图扩展（22文件）：命令处理 + 会话管理 + 消息 + 审计 + Webhook + 推荐 + middleware | 🔵 | |
-| 6.27 | EventBus 事件契约对齐 | ⏳ 待开始 | TS/Go 事件格式验证（id/tenantId/timestamp）+ 共存期双写策略 | 🟡 | 依赖 6.1 EventBus 切换 |
+| 6.27 | EventBus 事件契约对齐 | ✅ 已完成 (2026-07-05) | EventLog +3字段(sequence_num/retry_count/last_retry_at) + EventBusConfig模型+Repository + RetryPendingEvents + migration 003 + 共存期双写策略(DB first→NATS fire-and-forget) + 4新增endpoints(/events/stats, /events/retry, /configs) | 🟡 | 依赖 6.1 EventBus 切换 |
 | 6.28 | Go 服务数据库连接统一 | ✅ 已完成 (2026-07-05) | 10个Go服务统一database.Connect(cfg.DatabaseURL)，user/tenant/auth-svc-go/canary-svc-go构建通过 | 🔵 | |
 | 6.29 | Go 服务 JWT 权限中间件对齐 | ✅ 已完成 (2026-07-05) | 3个Go服务(user/tenant/auth-svc-go)统一go-common auth中间件 + JWT claims对齐(sub/tenant_id/roles/status) | 🔵 | 依赖 1.13 ACL 中间件 |
 
