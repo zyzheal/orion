@@ -4,12 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"orion/workflow-svc-go/internal/config"
 	"orion/workflow-svc-go/internal/handler"
 	"orion/workflow-svc-go/internal/repository"
 	"orion/workflow-svc-go/internal/service"
+	"orion/workflow-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -47,7 +52,6 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
-
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
 	h := handler.NewHandler(svc)
@@ -65,7 +69,41 @@ func main() {
 
 	addr := fmt.Sprintf(":%d", cfg.Port)
 	logger.Info("workflow-svc listening", zap.String("addr", addr))
-	if err := r.Run(addr); err != nil {
-		logger.Fatal("server error", zap.Error(err))
+
+	// Initialize NATS JetStream subscriber (graceful degradation)
+	var natssub *nats.NATSSubscriber
+	if natssub, err = nats.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger); err != nil {
+		logger.Warn("NATS subscriber unavailable, continuing without event streaming",
+			zap.String("addr", cfg.NATSAddr), zap.Error(err))
+		natssub = nil
+	}
+
+	srv := &http.Server{Addr: addr, Handler: r}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatal("server failed", zap.Error(err))
+		}
+	}()
+
+	// Start NATS subscriber after server is running
+	if natssub != nil {
+		if err := natssub.Start(ctx); err != nil {
+			logger.Warn("failed to start NATS subscriber", zap.Error(err))
+		}
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	logger.Info("shutting down workflow-svc...")
+	if natssub != nil {
+		natssub.Close()
+	}
+	ctxShut, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctxShut); err != nil {
+		logger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }

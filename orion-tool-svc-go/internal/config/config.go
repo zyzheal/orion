@@ -16,6 +16,7 @@ type Config struct {
 	Otel     OtelConfig     `yaml:"otel"`
 	JWT      JWTConfig      `yaml:"jwt"`
 	CORS     CORSConfig     `yaml:"cors"`
+	NATS     NATSConfig     `yaml:"nats"`
 }
 
 type ServerConfig struct {
@@ -57,6 +58,11 @@ type CORSConfig struct {
 	Origins []string `yaml:"origins"`
 }
 
+type NATSConfig struct {
+	Addr   string `yaml:"addr"`
+	Stream string `yaml:"stream"`
+}
+
 func Load() (*Config, error) {
 	var cfg Config
 
@@ -70,6 +76,8 @@ func Load() (*Config, error) {
 	cfg.Otel.Endpoint = "localhost:4318"
 	cfg.Otel.ServiceName = "orion-tool-svc"
 	cfg.CORS.Origins = []string{"http://localhost:3000", "http://localhost:5173"}
+	cfg.NATS.Addr = "nats://localhost:4222"
+	cfg.NATS.Stream = "EVENTS"
 
 	if data, err := os.ReadFile("config.yaml"); err == nil {
 		if err := yaml.Unmarshal(data, &cfg); err != nil {
@@ -117,6 +125,12 @@ func Load() (*Config, error) {
 	}
 	if v := os.Getenv("CORS_ORIGINS"); v != "" {
 		cfg.CORS.Origins = strings.Split(v, ",")
+	}
+	if v := os.Getenv("NATS_ADDR"); v != "" {
+		cfg.NATS.Addr = v
+	}
+	if v := os.Getenv("NATS_STREAM"); v != "" {
+		cfg.NATS.Stream = v
 	}
 
 	if cfg.Database.User == "" || cfg.Database.Password == "" {

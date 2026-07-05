@@ -22,6 +22,7 @@ import (
 	"orion-tool-svc-go/internal/handler"
 	"orion-tool-svc-go/internal/repository"
 	"orion-tool-svc-go/internal/service"
+	"orion-tool-svc-go/pkg/nats"
 )
 
 func runMigrations(db *database.DB) error {
@@ -185,11 +186,31 @@ func main() {
 		}
 	}()
 
+	// Initialize NATS JetStream subscriber (graceful degradation)
+	var natssub *nats.NATSSubscriber
+	if natssub, err = nats.NewNATSSubscriber(cfg.NATS.Addr, cfg.NATS.Stream, zapLogger); err != nil {
+		zapLogger.Warn("NATS subscriber unavailable, continuing without event streaming",
+			zap.String("addr", cfg.NATS.Addr), zap.Error(err))
+		natssub = nil
+	}
+
+	// Start NATS subscriber after server is running
+	if natssub != nil {
+		go func() {
+			if err := natssub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+			}
+		}()
+	}
+
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	zapLogger.Info("shutting down tool service...")
+	if natssub != nil {
+		natssub.Close()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
