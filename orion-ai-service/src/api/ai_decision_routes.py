@@ -33,6 +33,11 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     return str(uuid.uuid4())
 
 
+def _get_tenant_id(x_tenant_id: Optional[str]) -> str:
+    """从 headers 获取 tenant_id，默认 'default'"""
+    return x_tenant_id or "default"
+
+
 # ==================== 路由端点 ====================
 
 
@@ -44,6 +49,7 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
 )
 async def list_decisions(
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> List[AIDecisionResponse]:
     """
     列出 AI 决策历史
@@ -51,12 +57,13 @@ async def list_decisions(
     - 返回所有已持久化的决策记录
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "List AI decisions request received",
-        extra={"request_id": request_id},
+        extra={"request_id": request_id, "tenant_id": tenant_id},
     )
 
-    decisions = ai_result_repository.list_decisions()
+    decisions = ai_result_repository.list_decisions(tenant_id=tenant_id)
     return [_decision_dict_to_response(d) for d in decisions]
 
 
@@ -70,6 +77,7 @@ async def list_decisions(
 async def get_decision(
     decision_id: str,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIDecisionResponse:
     """
     获取单个决策详情
@@ -77,12 +85,13 @@ async def get_decision(
     - **decision_id**: 决策 ID
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Get AI decision detail",
-        extra={"request_id": request_id, "decision_id": decision_id},
+        extra={"request_id": request_id, "decision_id": decision_id, "tenant_id": tenant_id},
     )
 
-    decision = ai_result_repository.get_decision(decision_id)
+    decision = ai_result_repository.get_decision(decision_id, tenant_id=tenant_id)
     if not decision:
         raise HTTPException(status_code=404, detail=f"Decision {decision_id} not found")
 
@@ -98,6 +107,7 @@ async def get_decision(
 async def create_decision(
     request: AIDecisionRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIDecisionResponse:
     """
     创建新决策
@@ -108,9 +118,10 @@ async def create_decision(
     - **options**: 候选选项列表（可选）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Create AI decision request received",
-        extra={"request_id": request_id, "title": request.title},
+        extra={"request_id": request_id, "title": request.title, "tenant_id": tenant_id},
     )
 
     return await ai_service.make_decision(
@@ -118,6 +129,7 @@ async def create_decision(
         description=request.description,
         context=request.context,
         options=request.options,
+        tenant_id=tenant_id,
     )
 
 

@@ -19,6 +19,7 @@ from src.models.ai_models import (
     AIGenerateRequest,
     AIGenerateResponse,
 )
+from src.repositories.ai_result_repository import ai_result_repository
 from src.services.ai_service import ai_service
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,11 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     return str(uuid.uuid4())
 
 
+def _get_tenant_id(x_tenant_id: Optional[str]) -> str:
+    """从 headers 获取 tenant_id，默认 'default'"""
+    return x_tenant_id or "default"
+
+
 # ==================== AI 生成 ====================
 
 
@@ -46,6 +52,7 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
 async def generate(
     request: AIGenerateRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIGenerateResponse:
     """
     AI 生成端点
@@ -55,16 +62,33 @@ async def generate(
     - **model**: 指定模型（可选，默认使用系统配置）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "AI generate request received",
-        extra={"request_id": request_id, "model": request.model},
+        extra={"request_id": request_id, "model": request.model, "tenant_id": tenant_id},
     )
 
-    return await ai_service.generate_text(
+    response = await ai_service.generate_text(
         prompt=request.prompt,
         context=request.context,
         model=request.model,
     )
+
+    # 持久化生成结果
+    ai_result_repository.save_generation(
+        {
+            "id": response.id,
+            "prompt": request.prompt,
+            "context": request.context,
+            "model": response.model,
+            "content": response.content,
+            "tokens_used": response.tokens_used,
+            "created_at": response.created_at,
+        },
+        tenant_id=tenant_id,
+    )
+
+    return response
 
 
 # ==================== AI 分析 ====================
@@ -79,6 +103,7 @@ async def generate(
 async def analyze(
     request: AIAnalyzeRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIAnalyzeResponse:
     """
     AI 分析端点
@@ -87,15 +112,31 @@ async def analyze(
     - **data**: 待分析数据
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "AI analyze request received",
-        extra={"request_id": request_id, "type": request.type.value},
+        extra={"request_id": request_id, "type": request.type.value, "tenant_id": tenant_id},
     )
 
-    return await ai_service.analyze(
+    response = await ai_service.analyze(
         analysis_type=request.type.value,
         data=request.data,
     )
+
+    # 持久化分析结果
+    ai_result_repository.save_analysis(
+        {
+            "id": response.id,
+            "type": request.type.value,
+            "data": request.data,
+            "result": response.result,
+            "confidence": response.confidence,
+            "created_at": response.created_at,
+        },
+        tenant_id=tenant_id,
+    )
+
+    return response
 
 
 # ==================== AI 诊断 ====================
@@ -110,6 +151,7 @@ async def analyze(
 async def diagnose(
     request: AIDiagnoseRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIDiagnoseResponse:
     """
     AI 诊断端点
@@ -118,12 +160,29 @@ async def diagnose(
     - **context**: 上下文信息（可选）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "AI diagnose request received",
-        extra={"request_id": request_id, "symptoms_count": len(request.symptoms)},
+        extra={"request_id": request_id, "symptoms_count": len(request.symptoms), "tenant_id": tenant_id},
     )
 
-    return await ai_service.diagnose(
+    response = await ai_service.diagnose(
         symptoms=request.symptoms,
         context=request.context,
     )
+
+    # 持久化诊断结果
+    ai_result_repository.save_diagnosis(
+        {
+            "id": response.id,
+            "symptoms": request.symptoms,
+            "context": request.context,
+            "diagnosis": response.diagnosis,
+            "severity": response.severity.value,
+            "recommendations": [r.dict() for r in response.recommendations],
+            "created_at": response.created_at,
+        },
+        tenant_id=tenant_id,
+    )
+
+    return response

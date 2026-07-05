@@ -293,6 +293,7 @@ class AIService:
         prompt: str,
         context: Optional[Dict[str, Any]] = None,
         model: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> AIGenerateResponse:
         """
         AI 文本生成
@@ -334,7 +335,8 @@ class AIService:
                 "content": content,
                 "tokens_used": tokens_used,
                 "created_at": response.created_at,
-            }
+            },
+            tenant_id=tenant_id,
         )
 
         return response
@@ -386,6 +388,7 @@ class AIService:
         self,
         analysis_type: str,
         data: Dict[str, Any],
+        tenant_id: Optional[str] = None,
     ) -> AIAnalyzeResponse:
         """
         AI 分析入口
@@ -425,7 +428,8 @@ class AIService:
                 "result": result,
                 "confidence": confidence,
                 "created_at": now,
-            }
+            },
+            tenant_id=tenant_id,
         )
 
         return response
@@ -594,6 +598,7 @@ class AIService:
         self,
         symptoms: List[str],
         context: Optional[Dict[str, Any]] = None,
+        tenant_id: Optional[str] = None,
     ) -> AIDiagnoseResponse:
         """
         AI 诊断
@@ -648,7 +653,8 @@ class AIService:
                 "severity": severity.value,
                 "recommendations": recommendations,
                 "created_at": now,
-            }
+            },
+            tenant_id=tenant_id,
         )
 
         return response
@@ -661,6 +667,7 @@ class AIService:
         description: str,
         context: Optional[Dict[str, Any]] = None,
         options: Optional[List[str]] = None,
+        tenant_id: Optional[str] = None,
     ) -> AIDecisionResponse:
         """
         AI 决策
@@ -700,7 +707,8 @@ class AIService:
                 "options": options,
                 "created_at": now,
                 "updated_at": None,
-            }
+            },
+            tenant_id=tenant_id,
         )
 
         return response
@@ -737,10 +745,10 @@ class AIService:
         return options[0], 0.6
 
     async def get_decision_explanation(
-        self, decision_id: str
+        self, decision_id: str, tenant_id: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """获取决策解释"""
-        decision = ai_result_repository.get_decision(decision_id)
+        decision = ai_result_repository.get_decision(decision_id, tenant_id=tenant_id)
         if not decision:
             return None
 
@@ -772,6 +780,7 @@ class AIService:
         language: str,
         context: Optional[Dict[str, Any]] = None,
         reviewers: Optional[List[str]] = None,
+        tenant_id: Optional[str] = None,
     ) -> AIReviewResponse:
         """
         AI 代码审查
@@ -831,7 +840,8 @@ class AIService:
                 "score": score,
                 "created_at": now,
                 "completed_at": now,
-            }
+            },
+            tenant_id=tenant_id,
         )
 
         return response

@@ -35,6 +35,11 @@ def _get_request_id(x_request_id: Optional[str]) -> str:
     return str(uuid.uuid4())
 
 
+def _get_tenant_id(x_tenant_id: Optional[str]) -> str:
+    """从 headers 获取 tenant_id，默认 'default'"""
+    return x_tenant_id or "default"
+
+
 def _now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -51,6 +56,7 @@ def _now_utc() -> datetime:
 async def submit_review(
     request: AIReviewRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIReviewResponse:
     """
     提交代码审查请求
@@ -61,12 +67,14 @@ async def submit_review(
     - **reviewers**: 指定审查人列表（可选）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Submit AI review request received",
         extra={
             "request_id": request_id,
             "language": request.language,
             "code_length": len(request.code),
+            "tenant_id": tenant_id,
         },
     )
 
@@ -75,6 +83,7 @@ async def submit_review(
         language=request.language,
         context=request.context,
         reviewers=request.reviewers,
+        tenant_id=tenant_id,
     )
 
     return review
@@ -90,6 +99,7 @@ async def submit_review(
 async def get_review(
     review_id: str,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIReviewResponse:
     """
     获取审查结果
@@ -97,12 +107,13 @@ async def get_review(
     - **review_id**: 审查 ID
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Get AI review result",
-        extra={"request_id": request_id, "review_id": review_id},
+        extra={"request_id": request_id, "review_id": review_id, "tenant_id": tenant_id},
     )
 
-    review = ai_result_repository.get_review(review_id)
+    review = ai_result_repository.get_review(review_id, tenant_id=tenant_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
@@ -120,6 +131,7 @@ async def approve_review(
     review_id: str,
     request: AIReviewApproveRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIReviewResponse:
     """
     批准审查
@@ -128,12 +140,13 @@ async def approve_review(
     - **comment**: 批准备注（可选）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Approve AI review",
-        extra={"request_id": request_id, "review_id": review_id},
+        extra={"request_id": request_id, "review_id": review_id, "tenant_id": tenant_id},
     )
 
-    review = ai_result_repository.get_review(review_id)
+    review = ai_result_repository.get_review(review_id, tenant_id=tenant_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
@@ -168,10 +181,11 @@ async def approve_review(
             "score": review.get("score", 0.0),
             "created_at": review.get("created_at", now.isoformat()),
             "completed_at": now.isoformat(),
-        }
+        },
+        tenant_id=tenant_id,
     )
 
-    updated = ai_result_repository.get_review(review_id)
+    updated = ai_result_repository.get_review(review_id, tenant_id=tenant_id)
     return AIReviewResponse(**updated)
 
 
@@ -186,6 +200,7 @@ async def reject_review(
     review_id: str,
     request: AIReviewRejectRequest,
     x_request_id: Optional[str] = Header(default=None, convert_underscores=False),
+    x_tenant_id: Optional[str] = Header(default=None, convert_underscores=False),
 ) -> AIReviewResponse:
     """
     拒绝审查
@@ -195,12 +210,13 @@ async def reject_review(
     - **comment**: 补充评论（可选）
     """
     request_id = _get_request_id(x_request_id)
+    tenant_id = _get_tenant_id(x_tenant_id)
     logger.info(
         "Reject AI review",
-        extra={"request_id": request_id, "review_id": review_id, "reason": request.reason},
+        extra={"request_id": request_id, "review_id": review_id, "reason": request.reason, "tenant_id": tenant_id},
     )
 
-    review = ai_result_repository.get_review(review_id)
+    review = ai_result_repository.get_review(review_id, tenant_id=tenant_id)
     if not review:
         raise HTTPException(status_code=404, detail=f"Review {review_id} not found")
 
@@ -234,8 +250,9 @@ async def reject_review(
             "score": review.get("score", 0.0),
             "created_at": review.get("created_at", now.isoformat()),
             "completed_at": now.isoformat(),
-        }
+        },
+        tenant_id=tenant_id,
     )
 
-    updated = ai_result_repository.get_review(review_id)
+    updated = ai_result_repository.get_review(review_id, tenant_id=tenant_id)
     return AIReviewResponse(**updated)
