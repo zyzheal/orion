@@ -6,8 +6,6 @@ import (
 
 	"orion/tenant-svc/internal/models"
 	"orion/go-common/pkg/database"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // TenantRepository provides data access for tenant entities.
@@ -15,7 +13,7 @@ type TenantRepository struct {
 	database.BaseRepository
 }
 
-func NewTenantRepository(db *sqlx.DB) *TenantRepository {
+func NewTenantRepository(db *database.DB) *TenantRepository {
 	return &TenantRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}
@@ -85,8 +83,7 @@ func (r *TenantRepository) Update(ctx context.Context, tenant *models.Tenant) er
 func (r *TenantRepository) UpdateSettings(ctx context.Context, id, displayName string) error {
 	_, err := r.DB().ExecContext(ctx,
 		"UPDATE tenants SET display_name = $1, updated_at = now() WHERE id = $2",
-		displayName, id,
-	)
+		displayName, id)
 	return err
 }
 

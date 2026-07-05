@@ -6,14 +6,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type TicketRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewTicketRepository(db *sqlx.DB) *TicketRepository {
+func NewTicketRepository(db *database.DB) *TicketRepository {
 	return &TicketRepository{db: db}
 }
 

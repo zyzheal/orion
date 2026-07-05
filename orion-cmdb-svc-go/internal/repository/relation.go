@@ -4,16 +4,16 @@ import (
 	"context"
 	"orion-cmdb-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 // CIRelationRepository handles all database operations for the ci_relations table.
 // All queries scope by tenant_id and exclude soft-deleted rows.
 type CIRelationRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewCIRelationRepository(db *sqlx.DB) *CIRelationRepository {
+func NewCIRelationRepository(db *database.DB) *CIRelationRepository {
 	return &CIRelationRepository{db: db}
 }
 

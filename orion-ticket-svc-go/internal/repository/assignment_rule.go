@@ -7,14 +7,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type AssignmentRuleRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewAssignmentRuleRepository(db *sqlx.DB) *AssignmentRuleRepository {
+func NewAssignmentRuleRepository(db *database.DB) *AssignmentRuleRepository {
 	return &AssignmentRuleRepository{db: db}
 }
 

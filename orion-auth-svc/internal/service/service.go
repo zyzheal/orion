@@ -4,8 +4,7 @@ import (
 	"time"
 
 	"orion/auth-svc/internal/repository"
-
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 // Services holds all service instances.
@@ -15,7 +14,7 @@ type Services struct {
 	Password *PasswordService
 }
 
-func New(db *sqlx.DB, jwtSecret string, jwtExpiry, refreshExpiry time.Duration) *Services {
+func New(db *database.DB, jwtSecret string, jwtExpiry, refreshExpiry time.Duration) *Services {
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	blacklistRepo := repository.NewBlacklistRepository(db)

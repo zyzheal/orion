@@ -6,14 +6,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type SLARepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewSLARepository(db *sqlx.DB) *SLARepository {
+func NewSLARepository(db *database.DB) *SLARepository {
 	return &SLARepository{db: db}
 }
 

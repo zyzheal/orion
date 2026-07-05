@@ -13,6 +13,7 @@ import (
 	tenmw "orion/tenant-svc/internal/middleware"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
@@ -21,7 +22,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -49,14 +49,11 @@ func main() {
 	}
 	defer shutdown(context.Background())
 
-	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	db, err := database.Connect(context.Background(), database.DefaultConfig(cfg.DatabaseURL))
 	if err != nil {
 		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := runMigrations(cfg.DatabaseURL, zapLogger); err != nil {
 		zapLogger.Fatal("migration failed", zap.Error(err))
@@ -76,7 +73,7 @@ func main() {
 	r.GET("/healthz", middleware.HealthCheck("orion-tenant-svc"))
 	r.GET("/health", func(c *gin.Context) {
 		status := gin.H{"status": "healthy", "service": "orion-tenant-svc", "timestamp": time.Now().UTC().Format(time.RFC3339)}
-		if err := db.Ping(); err != nil {
+		if err := db.Health(c.Request.Context()); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
 			c.JSON(http.StatusServiceUnavailable, status)
@@ -90,7 +87,7 @@ func main() {
 
 	// Tenant routes (system admin only)
 	admin := r.Group("/api/v1/tenants")
-	admin.Use(tenmw.Auth(cfg.JWTSecret))
+	admin.Use(tenmw.Auth(nil, cfg.JWTSecret))
 	admin.Use(tenmw.RequireRole("admin"))
 	{
 		admin.POST("", auth.RequirePermission("tenant", "write"), h.CreateTenant)
@@ -102,7 +99,7 @@ func main() {
 	}
 
 	self := r.Group("/api/v1/tenant")
-	self.Use(tenmw.Auth(cfg.JWTSecret))
+	self.Use(tenmw.Auth(nil, cfg.JWTSecret))
 	self.Use(tenmw.TenantID())
 	{
 		self.GET("/info", h.GetMyTenant)

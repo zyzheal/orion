@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"orion/deploy-svc-go/internal/models"
 	"time"
-
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type DeploymentRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewDeploymentRepository(db *sqlx.DB) *DeploymentRepository {
+func NewDeploymentRepository(db *database.DB) *DeploymentRepository {
 	return &DeploymentRepository{db: db}
 }
 

@@ -4,14 +4,14 @@ import (
 	"context"
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type SuspendRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewSuspendRepository(db *sqlx.DB) *SuspendRepository {
+func NewSuspendRepository(db *database.DB) *SuspendRepository {
 	return &SuspendRepository{db: db}
 }
 

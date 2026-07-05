@@ -13,6 +13,7 @@ import (
 
 	"orion/go-common/pkg/auth"
 	orionlog "orion/go-common/pkg/logger"
+	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
 	"orion/go-common/pkg/redis"
@@ -21,8 +22,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
@@ -45,14 +44,11 @@ func main() {
 	}
 	defer shutdown(context.Background())
 
-	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	db, err := database.Connect(context.Background(), database.DefaultConfig(cfg.DatabaseURL))
 	if err != nil {
 		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := runMigrations(cfg.DatabaseURL, logger); err != nil {
 		logger.Fatal("migration failed", zap.Error(err))
@@ -78,7 +74,7 @@ func main() {
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}
 
-		if err := db.Ping(); err != nil {
+		if err := db.Health(c.Request.Context()); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
 			status["db_error"] = err.Error()

@@ -7,14 +7,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type TransferRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewTransferRepository(db *sqlx.DB) *TransferRepository {
+func NewTransferRepository(db *database.DB) *TransferRepository {
 	return &TransferRepository{db: db}
 }
 

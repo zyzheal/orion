@@ -13,6 +13,7 @@ import (
 	usmw "orion/user-svc/internal/middleware"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
@@ -22,7 +23,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -50,14 +50,11 @@ func main() {
 	}
 	defer shutdown(context.Background())
 
-	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	db, err := database.Connect(context.Background(), database.DefaultConfig(cfg.DatabaseURL))
 	if err != nil {
 		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
 
 	if err := runMigrations(cfg.DatabaseURL, zapLogger); err != nil {
 		zapLogger.Fatal("migration failed", zap.Error(err))
@@ -80,7 +77,7 @@ func main() {
 	r.GET("/healthz", middleware.HealthCheck("orion-user-svc"))
 	r.GET("/health", func(c *gin.Context) {
 		status := gin.H{"status": "healthy", "service": "orion-user-svc", "timestamp": time.Now().UTC().Format(time.RFC3339)}
-		if err := db.Ping(); err != nil {
+		if err := db.Health(c.Request.Context()); err != nil {
 			status["status"] = "unhealthy"
 			status["db"] = "error"
 			c.JSON(http.StatusServiceUnavailable, status)
@@ -100,7 +97,7 @@ func main() {
 	h := handler.New(db, rdb, zapLogger, cfg)
 
 	users := r.Group("/api/v1/users")
-	users.Use(usmw.Auth(cfg.JWTSecret))
+	users.Use(usmw.Auth(rdb, cfg.JWTSecret))
 	{
 		users.GET("", h.ListUsers)
 		users.GET("/:id", h.GetUser)
@@ -110,7 +107,7 @@ func main() {
 	}
 
 	roles := r.Group("/api/v1/roles")
-	roles.Use(usmw.Auth(cfg.JWTSecret))
+	roles.Use(usmw.Auth(rdb, cfg.JWTSecret))
 	roles.Use(usmw.RequireRole("admin"))
 	{
 		roles.POST("", auth.RequirePermission("user", "write"), h.CreateRole)
@@ -121,7 +118,7 @@ func main() {
 	}
 
 	perms := r.Group("/api/v1/permissions")
-	perms.Use(usmw.Auth(cfg.JWTSecret))
+	perms.Use(usmw.Auth(rdb, cfg.JWTSecret))
 	perms.Use(usmw.RequireRole("admin"))
 	{
 		perms.POST("", auth.RequirePermission("user", "write"), h.CreatePermission)
@@ -131,7 +128,7 @@ func main() {
 	}
 
 	rp := r.Group("/api/v1/role-permissions")
-	rp.Use(usmw.Auth(cfg.JWTSecret))
+	rp.Use(usmw.Auth(rdb, cfg.JWTSecret))
 	rp.Use(usmw.RequireRole("admin"))
 	{
 		rp.POST("", auth.RequirePermission("user", "write"), h.AssignPermissionToRole)

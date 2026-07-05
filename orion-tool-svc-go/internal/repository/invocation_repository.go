@@ -3,17 +3,16 @@ package repository
 import (
 	"context"
 
-	"github.com/jmoiron/sqlx"
-
+	"orion/go-common/pkg/database"
 	"orion-tool-svc-go/internal/models"
 )
 
 // InvocationRepository handles tool invocation records.
 type InvocationRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewInvocationRepository(db *sqlx.DB) *InvocationRepository {
+func NewInvocationRepository(db *database.DB) *InvocationRepository {
 	return &InvocationRepository{db: db}
 }
 
@@ -43,10 +42,10 @@ func (r *InvocationRepository) CountByTool(ctx context.Context, tenantID, toolID
 
 // VersionRepository handles tool version history.
 type VersionRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewVersionRepository(db *sqlx.DB) *VersionRepository {
+func NewVersionRepository(db *database.DB) *VersionRepository {
 	return &VersionRepository{db: db}
 }
 

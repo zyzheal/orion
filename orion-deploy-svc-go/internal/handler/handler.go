@@ -5,9 +5,9 @@ import (
 	"orion/deploy-svc-go/internal/models"
 	"orion/deploy-svc-go/internal/repository"
 	"orion/deploy-svc-go/internal/service"
+	"orion/go-common/pkg/database"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
@@ -16,7 +16,7 @@ type Handler struct {
 	logger *zap.Logger
 }
 
-func New(db *sqlx.DB, logger *zap.Logger) *Handler {
+func New(db *database.DB, logger *zap.Logger) *Handler {
 	repo := repository.NewDeploymentRepository(db)
 	svc := service.NewDeployService(repo, logger)
 	return &Handler{svc: svc, logger: logger}

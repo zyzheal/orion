@@ -7,17 +7,17 @@ import (
 
 	"orion-cmdb-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 // CIRepository handles all database operations for the ci_items table.
 // Every query scopes by tenant_id and excludes soft-deleted rows
 // unless explicitly noted.
 type CIRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewCIRepository(db *sqlx.DB) *CIRepository {
+func NewCIRepository(db *database.DB) *CIRepository {
 	return &CIRepository{db: db}
 }
 

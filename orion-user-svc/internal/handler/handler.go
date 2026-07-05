@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/database"
 	"orion/user-svc/internal/config"
 	"orion/user-svc/internal/models"
 	"orion/user-svc/internal/repository"
 	"orion/user-svc/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -28,7 +28,7 @@ type Handler struct {
 }
 
 // New creates a new Handler with full service layer.
-func New(db *sqlx.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
+func New(db *database.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
 	userRepo := repository.NewUserRepository(db)
 	roleRepo := repository.NewRoleRepository(db)
 	permRepo := repository.NewPermissionRepository(db)
@@ -126,7 +126,6 @@ func (h *Handler) UpdateUser(c *gin.Context) {
 		case service.ErrUserNotFound:
 			h.err(c, http.StatusNotFound, "user not found")
 		default:
-			h.logger.Error("failed to update user", zap.Error(err))
 			h.err(c, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -145,7 +144,6 @@ func (h *Handler) DeleteUser(c *gin.Context) {
 		case service.ErrUserNotFound:
 			h.err(c, http.StatusNotFound, "user not found")
 		default:
-			h.logger.Error("failed to delete user", zap.Error(err))
 			h.err(c, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -171,7 +169,6 @@ func (h *Handler) UpdateUserStatus(c *gin.Context) {
 		case service.ErrUserNotFound:
 			h.err(c, http.StatusNotFound, "user not found")
 		default:
-			h.logger.Error("failed to update user status", zap.Error(err))
 			h.err(c, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -245,7 +242,6 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 		case service.ErrRoleNotFound:
 			h.err(c, http.StatusNotFound, "role not found")
 		default:
-			h.logger.Error("failed to update role", zap.Error(err))
 			h.err(c, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -263,7 +259,6 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 		case service.ErrRoleNotFound:
 			h.err(c, http.StatusNotFound, "role not found")
 		default:
-			h.logger.Error("failed to delete role", zap.Error(err))
 			h.err(c, http.StatusInternalServerError, "internal error")
 		}
 		return
@@ -314,7 +309,6 @@ func (h *Handler) UpdatePermission(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.rbacSvc.UpdatePermission(ctx, id, req); err != nil {
-		h.logger.Error("failed to update permission", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -327,7 +321,6 @@ func (h *Handler) DeletePermission(c *gin.Context) {
 
 	ctx := c.Request.Context()
 	if err := h.rbacSvc.DeletePermission(ctx, id); err != nil {
-		h.logger.Error("failed to delete permission", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}

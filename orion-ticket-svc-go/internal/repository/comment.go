@@ -4,14 +4,14 @@ import (
 	"context"
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type CommentRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewCommentRepository(db *sqlx.DB) *CommentRepository {
+func NewCommentRepository(db *database.DB) *CommentRepository {
 	return &CommentRepository{db: db}
 }
 

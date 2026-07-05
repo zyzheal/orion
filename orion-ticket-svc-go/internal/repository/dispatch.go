@@ -8,14 +8,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type DispatchRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewDispatchRepository(db *sqlx.DB) *DispatchRepository {
+func NewDispatchRepository(db *database.DB) *DispatchRepository {
 	return &DispatchRepository{db: db}
 }
 

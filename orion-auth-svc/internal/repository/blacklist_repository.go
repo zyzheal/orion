@@ -6,8 +6,6 @@ import (
 
 	"orion/auth-svc/internal/models"
 	"orion/go-common/pkg/database"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // BlacklistRepository provides data access for token blacklist entries.
@@ -15,7 +13,7 @@ type BlacklistRepository struct {
 	database.BaseRepository
 }
 
-func NewBlacklistRepository(db *sqlx.DB) *BlacklistRepository {
+func NewBlacklistRepository(db *database.DB) *BlacklistRepository {
 	return &BlacklistRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}

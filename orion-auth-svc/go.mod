@@ -12,9 +12,10 @@ require (
 	github.com/spf13/viper v1.19.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.51.0
+	orion/go-common v0.0.0
 )
 
-require (
+replace orion/go-common => ../orion-go-common
 	github.com/bytedance/sonic/loader v0.2.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect

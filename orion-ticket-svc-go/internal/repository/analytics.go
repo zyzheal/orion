@@ -7,14 +7,14 @@ import (
 
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type AnalyticsRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewAnalyticsRepository(db *sqlx.DB) *AnalyticsRepository {
+func NewAnalyticsRepository(db *database.DB) *AnalyticsRepository {
 	return &AnalyticsRepository{db: db}
 }
 

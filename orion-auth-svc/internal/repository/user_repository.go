@@ -6,8 +6,6 @@ import (
 
 	"orion/auth-svc/internal/models"
 	"orion/go-common/pkg/database"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // UserRepository provides data access for user entities.
@@ -15,7 +13,7 @@ type UserRepository struct {
 	database.BaseRepository
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepository {
+func NewUserRepository(db *database.DB) *UserRepository {
 	return &UserRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}

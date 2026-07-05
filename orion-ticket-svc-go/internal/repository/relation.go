@@ -4,14 +4,14 @@ import (
 	"context"
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type RelationRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewRelationRepository(db *sqlx.DB) *RelationRepository {
+func NewRelationRepository(db *database.DB) *RelationRepository {
 	return &RelationRepository{db: db}
 }
 

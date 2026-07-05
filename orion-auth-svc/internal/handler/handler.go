@@ -13,9 +13,9 @@ import (
 	"orion/auth-svc/internal/models"
 	"orion/auth-svc/internal/repository"
 	"orion/auth-svc/internal/service"
+	"orion/go-common/pkg/database"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
@@ -32,7 +32,7 @@ type Handler struct {
 }
 
 // New creates a new Handler with full service layer.
-func New(db *sqlx.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
+func New(db *database.DB, rdb *redis.Client, logger *zap.Logger, cfg *config.Config) *Handler {
 	svcs := service.New(db, cfg.JWTSecret, cfg.JWTExpiration, cfg.JWTRefreshExpiration)
 	return &Handler{
 		userRepo:      repository.NewUserRepository(db),

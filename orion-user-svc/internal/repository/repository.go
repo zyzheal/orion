@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"orion/user-svc/internal/models"
 	"orion/go-common/pkg/database"
-
-	"github.com/jmoiron/sqlx"
+	"orion/user-svc/internal/models"
 )
 
 // UserRepository provides data access for user entities (within tenant context).
@@ -15,7 +13,7 @@ type UserRepository struct {
 	database.BaseRepository
 }
 
-func NewUserRepository(db *sqlx.DB) *UserRepository {
+func NewUserRepository(db *database.DB) *UserRepository {
 	return &UserRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}
@@ -110,7 +108,7 @@ type RoleRepository struct {
 	database.BaseRepository
 }
 
-func NewRoleRepository(db *sqlx.DB) *RoleRepository {
+func NewRoleRepository(db *database.DB) *RoleRepository {
 	return &RoleRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}
@@ -159,7 +157,7 @@ type PermissionRepository struct {
 	database.BaseRepository
 }
 
-func NewPermissionRepository(db *sqlx.DB) *PermissionRepository {
+func NewPermissionRepository(db *database.DB) *PermissionRepository {
 	return &PermissionRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}

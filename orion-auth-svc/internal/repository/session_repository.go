@@ -6,8 +6,6 @@ import (
 
 	"orion/auth-svc/internal/models"
 	"orion/go-common/pkg/database"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // SessionRepository provides data access for session entities.
@@ -15,7 +13,7 @@ type SessionRepository struct {
 	database.BaseRepository
 }
 
-func NewSessionRepository(db *sqlx.DB) *SessionRepository {
+func NewSessionRepository(db *database.DB) *SessionRepository {
 	return &SessionRepository{
 		BaseRepository: database.NewBaseRepository(db),
 	}

@@ -4,14 +4,14 @@ import (
 	"context"
 	"orion-ticket-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type WorkflowRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewWorkflowRepository(db *sqlx.DB) *WorkflowRepository {
+func NewWorkflowRepository(db *database.DB) *WorkflowRepository {
 	return &WorkflowRepository{db: db}
 }
 

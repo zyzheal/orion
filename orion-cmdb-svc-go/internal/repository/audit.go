@@ -4,14 +4,14 @@ import (
 	"context"
 	"orion-cmdb-svc-go/internal/models"
 
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 type CIAuditRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewCIAuditRepository(db *sqlx.DB) *CIAuditRepository {
+func NewCIAuditRepository(db *database.DB) *CIAuditRepository {
 	return &CIAuditRepository{db: db}
 }
 

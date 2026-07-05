@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/database"
 	"orion/tenant-svc/internal/config"
 	"orion/tenant-svc/internal/models"
 	"orion/tenant-svc/internal/repository"
 	"orion/tenant-svc/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +23,7 @@ type Handler struct {
 }
 
 // New creates a new Handler.
-func New(db *sqlx.DB, logger *zap.Logger, cfg *config.Config) *Handler {
+func New(db *database.DB, logger *zap.Logger, cfg *config.Config) *Handler {
 	repo := repository.NewTenantRepository(db)
 	return &Handler{
 		repo:   repo,
@@ -228,12 +228,10 @@ func (h *Handler) GetQuota(c *gin.Context) {
 		return
 	}
 
-	// In production, query the user count from orion_user database
-	// For now return the tenant quota
 	h.success(c, gin.H{
-		"users_used":      0,
-		"users_quota":     tenant.QuotaUsers,
-		"storage_used_mb": 0,
+		"users_used":       0,
+		"users_quota":      tenant.QuotaUsers,
+		"storage_used_mb":  0,
 		"storage_quota_mb": tenant.QuotaStorageMB,
 	})
 }

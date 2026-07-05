@@ -6,17 +6,16 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
-
+	"orion/go-common/pkg/database"
 	"orion-tool-svc-go/internal/models"
 )
 
 // ToolRepository handles tool data access.
 type ToolRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewToolRepository(db *sqlx.DB) *ToolRepository {
+func NewToolRepository(db *database.DB) *ToolRepository {
 	return &ToolRepository{db: db}
 }
 

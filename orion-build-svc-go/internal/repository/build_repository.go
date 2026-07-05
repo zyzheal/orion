@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"orion/build-svc-go/internal/models"
 	"strings"
-
-	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/database"
 )
 
 // BuildRepository handles all database operations for builds, environments, and artifacts.
 type BuildRepository struct {
-	db *sqlx.DB
+	db *database.DB
 }
 
-func NewBuildRepository(db *sqlx.DB) *BuildRepository {
+func NewBuildRepository(db *database.DB) *BuildRepository {
 	return &BuildRepository{db: db}
 }
 

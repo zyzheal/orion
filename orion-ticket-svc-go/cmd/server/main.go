@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"net/http"
 
-	_ "github.com/lib/pq"
-
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
@@ -22,7 +20,7 @@ import (
 	"orion-ticket-svc-go/internal/service"
 )
 
-func runMigrations(db *sqlx.DB) error {
+func runMigrations(db *database.DB) error {
 	migrations := []string{
 		`CREATE TABLE IF NOT EXISTS tickets (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -230,7 +228,7 @@ func main() {
 	}
 	defer shutdown(context.Background())
 
-	db, err := sqlx.Connect("postgres", cfg.Database.DSN())
+	db, err := database.Connect(context.Background(), database.DefaultConfig(cfg.Database.DSN()))
 	if err != nil {
 		zapLogger.Fatal("failed to connect to database", zap.Error(err))
 	}
@@ -376,7 +374,7 @@ func main() {
 	}
 
 	r.GET("/healthz", func(c *gin.Context) {
-		if err := db.Ping(); err != nil {
+		if err := db.Health(c.Request.Context()); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "unhealthy", "db": err.Error()})
 			return
 		}
