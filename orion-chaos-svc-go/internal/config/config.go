@@ -14,6 +14,8 @@ type Config struct {
 	DBSSLMode  string `mapstructure:"db_ssl_mode"`
 	JWTSecret  string
 	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
 }
 
 func Load() (*Config, error) {
@@ -24,6 +26,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("db_password", "postgres")
 	viper.SetDefault("db_name", "orion_chaos")
 	viper.SetDefault("db_ssl_mode", "disable")
+	viper.SetDefault("nats_addr", "nats://localhost:4222")
+	viper.SetDefault("nats_stream", "EVENTS")
 
 	viper.AutomaticEnv()
 

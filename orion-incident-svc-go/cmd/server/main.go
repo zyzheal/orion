@@ -11,6 +11,7 @@ import (
 	"orion/incident-svc-go/internal/config"
 	"orion/incident-svc-go/internal/handler"
 	isvw "orion/incident-svc-go/internal/middleware"
+	nats_subscriber "orion/incident-svc-go/pkg/nats"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
@@ -87,6 +88,21 @@ func main() {
 		c.JSON(http.StatusOK, status)
 	})
 
+	// NATS JetStream subscriber
+	var natsSub *nats_subscriber.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(ctx); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	h := handler.New(db, rdb, zapLogger, cfg)
 
 	incidents := r.Group("/api/v1/incidents")
@@ -127,9 +143,14 @@ func main() {
 	<-quit
 
 	zapLogger.Info("shutting down incident service (go)...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		zapLogger.Fatal("server forced to shutdown", zap.Error(err))
 	}
 }
