@@ -1,0 +1,763 @@
+{
+  "generated_at": "2026-07-02T23:25:48.711Z",
+  "requirements": [
+    {
+      "name": "platform-capability-enhancement",
+      "features": [
+        {
+          "id": "F001",
+          "description": "通用熔断器服务层 (CircuitBreakerService) - 构建在现有 CircuitBreaker 工具类之上，提供熔断器注册表、配置管理、状态查询能力",
+          "test_cases": [
+            {
+              "case": "熔断器注册/获取/删除",
+              "status": "MATCHED",
+              "found_in": "TransactionLog.test.ts"
+            },
+            {
+              "case": "CLOSED→OPEN→HALF_OPEN→CLOSED 状态转换",
+              "status": "MATCHED",
+              "found_in": "IdempotencyChecker.test.ts"
+            },
+            {
+              "case": "配置热更新后生效",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "事件日志正确写入数据库",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F002",
+          "description": "熔断器 Fastify 中间件 - 在请求处理前检查目标依赖的熔断状态",
+          "test_cases": [
+            {
+              "case": "CLOSED 状态请求正常通过",
+              "status": "MATCHED",
+              "found_in": "CodeEventPublisher.test.ts"
+            },
+            {
+              "case": "OPEN 状态返回 503",
+              "status": "MATCHED",
+              "found_in": "circuitBreakerMiddleware.test.ts"
+            },
+            {
+              "case": "HALF_OPEN 状态允许探测请求",
+              "status": "MATCHED",
+              "found_in": "AIGateway.test.ts"
+            },
+            {
+              "case": "Retry-After 头正确设置",
+              "status": "MATCHED",
+              "found_in": "circuitBreakerMiddleware.test.ts"
+            }
+          ],
+          "matched": 4,
+          "unmatched": 0,
+          "status": "PASS"
+        },
+        {
+          "id": "F003",
+          "description": "熔断器 API 路由 - 提供熔断器 CRUD 和状态查询接口",
+          "test_cases": [
+            {
+              "case": "列表返回所有熔断器",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "详情返回指定目标键状态",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "重置后状态为 CLOSED",
+              "status": "MATCHED",
+              "found_in": "CodeEventPublisher.test.ts"
+            },
+            {
+              "case": "触发后状态为 OPEN",
+              "status": "MATCHED",
+              "found_in": "mcp-routes.test.ts"
+            },
+            {
+              "case": "配置更新后熔断阈值变更",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 3,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F004",
+          "description": "Pipeline 服务集成熔断器 - Pipeline 外部调用（SCM、镜像仓库、通知）通过熔断器保护",
+          "test_cases": [
+            {
+              "case": "SCM 不可用时熔断器打开",
+              "status": "MATCHED",
+              "found_in": "circuitBreakerMiddleware.test.ts"
+            },
+            {
+              "case": "熔断后 Pipeline 不卡死快速失败",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "恢复后熔断器自动关闭",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "Pipeline 详情返回熔断器状态",
+              "status": "MATCHED",
+              "found_in": "artifact-version-routes.test.ts"
+            }
+          ],
+          "matched": 2,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F005",
+          "description": "消息队列核心服务 (MessageQueueService) - 任务入队/消费/确认/重试",
+          "test_cases": [
+            {
+              "case": "任务入队后出队顺序正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "消费确认后任务移除",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "消费失败后自动重试（最多 N 次）",
+              "status": "MATCHED",
+              "found_in": "CacheMonitorService.extended.test.ts"
+            },
+            {
+              "case": "指数退避延迟正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "并发消费者不重复消费同一任务",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 4,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F006",
+          "description": "消息队列延迟队列 + 死信队列",
+          "test_cases": [
+            {
+              "case": "延迟任务在指定时间后执行",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "重试超限任务进入死信队列",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信任务可查看",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信任务可重放回主队列",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 4,
+          "status": "FAIL"
+        },
+        {
+          "id": "F007",
+          "description": "消息队列消费者组 - 支持多消费者并发消费",
+          "test_cases": [
+            {
+              "case": "多消费者并发消费不重复",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "消费者下线后任务重新分配",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "消费超时后任务重新入队",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "心跳超时触发消费者剔除",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 4,
+          "status": "FAIL"
+        },
+        {
+          "id": "F008",
+          "description": "消息队列 API 路由 - 提供队列管理接口",
+          "test_cases": [
+            {
+              "case": "入队返回 taskId",
+              "status": "MATCHED",
+              "found_in": "RunnerDispatcher.test.ts"
+            },
+            {
+              "case": "出队返回任务内容",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "确认后任务不在出队列表",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "重试后任务重新进入队列",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "延迟任务不出现在立即出队",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信列表包含超限任务",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信重放后任务回到主队列",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 6,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F009",
+          "description": "消息队列与 NATS JetStream 集成 - 事件桥接",
+          "test_cases": [
+            {
+              "case": "MQ 任务完成触发 NATS 事件",
+              "status": "MATCHED",
+              "found_in": "NatsConnectionManager.test.ts"
+            },
+            {
+              "case": "NATS 事件正确路由到 MQ",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "双写一致性",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F010",
+          "description": "L1 内存缓存层 - 本地热点数据缓存",
+          "test_cases": [
+            {
+              "case": "get/set/del 操作正确",
+              "status": "MATCHED",
+              "found_in": "api-key-routes.test.ts"
+            },
+            {
+              "case": "TTL 过期后返回 null",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "容量满时 LRU 淘汰",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "并发读写安全",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F011",
+          "description": "多级缓存服务 (CacheStrategyService) - L1 + L2 整合",
+          "test_cases": [
+            {
+              "case": "L1 命中时不查询 L2",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "L1 未命中时查询 L2",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "L2 未命中时调用 loader",
+              "status": "MATCHED",
+              "found_in": "FallbackStorageService.test.ts"
+            },
+            {
+              "case": "写入同时更新 L1 和 L2",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "删除同时清除 L1 和 L2",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            }
+          ],
+          "matched": 5,
+          "unmatched": 0,
+          "status": "PASS"
+        },
+        {
+          "id": "F012",
+          "description": "缓存防护策略 - 防穿透 + 防击穿 + 防雪崩",
+          "test_cases": [
+            {
+              "case": "空值缓存生效（穿透防护）",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "并发请求同一 key 仅一个加载（击穿防护）",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "TTL 含随机偏移（雪崩防护）",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "防穿透+防击穿+防雪崩同时生效",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 4,
+          "status": "FAIL"
+        },
+        {
+          "id": "F013",
+          "description": "缓存预热与失效策略",
+          "test_cases": [
+            {
+              "case": "预热启动后 L1/L2 有数据",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "按 pattern 批量失效生效",
+              "status": "MATCHED",
+              "found_in": "apm-routes.test.ts"
+            },
+            {
+              "case": "预热配置 CRUD 正确",
+              "status": "MATCHED",
+              "found_in": "PlanService.test.ts"
+            },
+            {
+              "case": "定时预热任务执行",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 3,
+          "unmatched": 1,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F014",
+          "description": "缓存管理 API 路由",
+          "test_cases": [
+            {
+              "case": "统计返回 L1/L2 命中率",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "预热触发后数据加载",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "批量失效后缓存清空",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "健康检查返回正常状态",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 3,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F015",
+          "description": "Pipeline 缓存加速 - Pipeline 模板/配置/参数通过多级缓存",
+          "test_cases": [
+            {
+              "case": "Pipeline 模板二次查询命中缓存",
+              "status": "MATCHED",
+              "found_in": "artifact-version-routes.test.ts"
+            },
+            {
+              "case": "Pipeline 配置变更后缓存失效",
+              "status": "MATCHED",
+              "found_in": "artifact-version-routes.test.ts"
+            },
+            {
+              "case": "缓存命中时响应时间显著降低",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 1,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F016",
+          "description": "统一容灾策略引擎 (DRPolicyEngine) - 评估各组件容灾能力",
+          "test_cases": [
+            {
+              "case": "DB 主从正常时 RTO 达标",
+              "status": "MATCHED",
+              "found_in": "mcp-routes.test.ts"
+            },
+            {
+              "case": "Redis 单节点时 RPO 不达标",
+              "status": "MATCHED",
+              "found_in": "redis-cache.test.ts"
+            },
+            {
+              "case": "整体 RTO = max(各组件 RTO)",
+              "status": "MATCHED",
+              "found_in": "mcp-routes.test.ts"
+            },
+            {
+              "case": "整体 RPO = max(各组件 RPO)",
+              "status": "MATCHED",
+              "found_in": "DisasterRecoveryRepository.test.ts"
+            }
+          ],
+          "matched": 4,
+          "unmatched": 0,
+          "status": "PASS"
+        },
+        {
+          "id": "F017",
+          "description": "容灾演练编排器 (DrillOrchestrator) - 自动化容灾演练",
+          "test_cases": [
+            {
+              "case": "DB 恢复演练成功",
+              "status": "MATCHED",
+              "found_in": "abac-policy-routes.test.ts"
+            },
+            {
+              "case": "Redis 恢复演练成功",
+              "status": "MATCHED",
+              "found_in": "health.test.ts"
+            },
+            {
+              "case": "演练报告包含 RTO/RPO 实际值",
+              "status": "MATCHED",
+              "found_in": "DisasterRecoveryRepository.test.ts"
+            },
+            {
+              "case": "定时调度正确触发",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 3,
+          "unmatched": 1,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F018",
+          "description": "RTO/RPO 跟踪与告警",
+          "test_cases": [
+            {
+              "case": "RTO 超标触发告警",
+              "status": "MATCHED",
+              "found_in": "mcp-routes.test.ts"
+            },
+            {
+              "case": "RPO 超标触发告警",
+              "status": "MATCHED",
+              "found_in": "DisasterRecoveryRepository.test.ts"
+            },
+            {
+              "case": "历史趋势数据正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "达标率统计准确",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F019",
+          "description": "容灾管理 API 路由",
+          "test_cases": [
+            {
+              "case": "状态返回各组件容灾能力",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "RTO/RPO 返回当前值与目标",
+              "status": "MATCHED",
+              "found_in": "DisasterRecoveryRepository.test.ts"
+            },
+            {
+              "case": "触发演练返回执行 ID",
+              "status": "MATCHED",
+              "found_in": "task-type-plugin-mapper.test.ts"
+            },
+            {
+              "case": "演练历史包含最近执行",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "容灾报告包含健康评分",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 2,
+          "unmatched": 3,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F020",
+          "description": "熔断器状态面板前端 (CircuitBreakerDashboard)",
+          "test_cases": [
+            {
+              "case": "列表正确展示熔断器数据",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "状态卡片数字正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "重置操作成功刷新",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "触发操作成功刷新",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "详情弹窗展示配置和历史",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 5,
+          "status": "FAIL"
+        },
+        {
+          "id": "F021",
+          "description": "消息队列监控面板前端 (MessageQueueDashboard)",
+          "test_cases": [
+            {
+              "case": "统计卡片数字正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "任务列表正确展示",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信 Tab 展示超限任务",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "重试操作成功",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "死信重放操作成功",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 5,
+          "status": "FAIL"
+        },
+        {
+          "id": "F022",
+          "description": "容灾管理面板前端 (DisasterRecoveryDashboard)",
+          "test_cases": [
+            {
+              "case": "状态卡片展示各组件状态",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "RTO/RPO 超标时告警展示",
+              "status": "MATCHED",
+              "found_in": "DisasterRecoveryRepository.test.ts"
+            },
+            {
+              "case": "演练历史正确展示",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "触发演练成功",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "容灾报告可查看",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 4,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F023",
+          "description": "Pipeline 列表增加熔断器状态列",
+          "test_cases": [
+            {
+              "case": "Pipeline 列表显示外部依赖熔断状态",
+              "status": "MATCHED",
+              "found_in": "artifact-version-routes.test.ts"
+            },
+            {
+              "case": "点击可跳转到熔断器面板",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 1,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F024",
+          "description": "缓存监控页面增加多级缓存统计",
+          "test_cases": [
+            {
+              "case": "L1/L2 命中率正确展示",
+              "status": "MATCHED",
+              "found_in": "cache-routes.test.ts"
+            },
+            {
+              "case": "防护事件统计正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "预热任务状态正确",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 1,
+          "unmatched": 2,
+          "status": "PARTIAL"
+        },
+        {
+          "id": "F025",
+          "description": "备份管理页面增加容灾演练入口",
+          "test_cases": [
+            {
+              "case": "容灾演练 Tab 可访问",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "触发演练成功",
+              "status": "UNMATCHED",
+              "found_in": null
+            },
+            {
+              "case": "演练结果正确展示",
+              "status": "UNMATCHED",
+              "found_in": null
+            }
+          ],
+          "matched": 0,
+          "unmatched": 3,
+          "status": "FAIL"
+        }
+      ],
+      "total_criteria": 104,
+      "matched_criteria": 40,
+      "unmatched_criteria": 64
+    }
+  ],
+  "total_features": 25,
+  "total_criteria": 104,
+  "matched_criteria": 40,
+  "unmatched_criteria": 64,
+  "coverage_percent": 38
+}
