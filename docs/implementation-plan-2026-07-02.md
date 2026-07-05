@@ -1265,6 +1265,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 4.76 | TypeScript 编译错误修复（290→1） | ✅ 已完成 (2026-07-04) | 290个TS编译错误修复至1个（TS5107为node_modules旧依赖deprecation，非业务代码错误）。修复范围：Sbom/Vulnerability/Security/Tenant/Serverless/SLA/User/VectorizeRules等8+服务 | 🔵 | |
 | 4.77 | Ticketing 服务 throw new Error → OrionError + logger统一 | ✅ 已完成 (2026-07-04) | 15个文件修改：TicketingRepository.ts 5处throw→OrionError + 所有服务pino→createLogger统一 + import路径修复 | 🔵 | |
 | 4.78 | TypeScript 编译错误全量修复（905→0） | ✅ 已完成 (2026-07-05) | 根因：BaseRepository.update/findById 签名 `Promise<T>`（throw）与 ~40 个子类 override `Promise<T \| null>`（null）冲突触发 TS2416 全库级联。统一基类为 `Promise<T \| null>`（null-on-not-found 多数派），对齐所有 override + 调用方；RiskRepository.update 重命名为 updateRisk（生产代码已用 updateRisk，仅测试滞后）；子类 ConfigTemplate/ConfigSchema 保留 `Promise<T>`（throw，协变合法）。其它错误：模板字符串引号错配、handleError 遮蔽/重复声明、缺失 import（含 ldapjs 依赖 TS2307）、类型收窄、null 安全、fastify 路由处理器类型。801 文件 +46205/-7644。验证：`npm run type-check` 0 错误；`npm test` 20110 passed / 344 pre-existing 失败（mock/logger 配置，原被 TS 错误掩盖，非回归） | 🔴 | commit 35a6bc4a；接续 4.76 |
+| 4.79 | 测试套件 logger.child mock 修复 | ✅ 已完成 (2026-07-05) | 根因：~70 个测试文件 `jest.mock('pino', factory)` 工厂返回的 mock 不含 `.child` 方法，导致 `createLogger` 调用 `rootLogger.child()` 抛 `TypeError: rootLogger.child is not a function`，是 344 失败的最大单一根因（chatops 22/22、config 14 等）。修复：`src/utils/logger.ts` createLogger 加防御性 guard——`rootLogger.child` 为函数时正常派生，否则回退到 rootLogger 本身；生产 pino 恒有 `.child`，无行为变化。效果：套件失败 129→75（修 54 套），通过用例 20110→21851（+1741）；剩余 75 套件为真实测试逻辑失败（如 RollbackService 版本断言），非 mock 问题 | 🔴 | commit 6b79ae92；接续 4.78 |
 
 ### Phase 5: P2 改进与优化（W14-W18）
 
@@ -1314,16 +1315,16 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | 6.17 | AI Decision 路由认证补全 | ✅ 已完成 (2026-07-04) | 4个GET端点（feature-importance/confidence/explanations/history）添加 requirePermission 权限守卫 | 🔵 | |
 | 6.18 | Escalation 路由 CRUD 补全 | ✅ 已完成 (2026-07-04) | GET /policies/:id (getById) + DELETE /policies/:id 实现，EscalationConfigService 新增 getById/delete 方法 | 🔵 | |
 | 6.19 | BI Dashboard 真实数据接入 | ✅ 已完成 (2026-07-04) | 接入 TicketBIService (executive/manager/engineer) + EfficiencyDashboardService (getScenario overview) + requirePermission 加固 | 🔵 | |
-| 6.20 | Go 迁移 Batch 2：Incident 服务 | ⏳ 待开始 | orion-incident-svc-go 蓝图创建 + 事件管理 CRUD + 依赖 knowledge/notification/user | 🔴 | 依赖 6.22 user 服务 |
-| 6.21 | Go 迁移 Batch 2：Knowledge 服务 | ⏳ 待开始 | orion-knowledge-svc-go 蓝图创建 + 知识库搜索 + 依赖 self-healing/ticket/auth | 🔴 | 需确认 self-healing Go 迁移计划 |
-| 6.22 | Go 迁移 Batch 2：User 服务 | ⏳ 待开始 | orion-user-svc-go 蓝图创建 + 用户 CRUD + 租户绑定 + 依赖 auth(Phase1完成) | 🔴 | 依赖 6.1 auth 稳定 |
-| 6.23 | Go 迁移 Batch 2：Approval 服务 | ⏳ 待开始 | orion-approval-svc-go 蓝图扩展 + 审批工作流 + 依赖 auth/user/knowledge | 🔴 | 工作流复杂，需状态机重构 |
-| 6.24 | Go 迁移 Batch 3：Config 服务 | ⏳ 待开始 | orion-config-mgmt-svc-go 蓝图扩展 + GitOps + JSON Schema 校验 + 依赖 cache/event-bus/auth | 🔴 | GitOps 使用 go-git 库 |
-| 6.25 | Go 迁移 Batch 3：Monitoring 服务 | ⏳ 待开始 | orion-monitor-svc-go 蓝图扩展 + 监控告警 + Prometheus 规则引擎 + 依赖 alert/event-bus | 🔴 | alert 服务状态已确认(TS monolith) |
-| 6.26 | Go 迁移 Batch 3：ChatOps 服务 | ⏳ 待开始 | orion-chatops-svc-go 蓝图扩展 + 113 个 API + 多平台 SSE + 依赖 6 个 Phase1 服务 | 🔴 | 风险最高，最后迁移 |
+| 6.20 | Go 迁移 Batch 2：Incident 服务 | ✅ 已完成 (2026-07-05) | orion-incident-svc-go 蓝图创建（6文件）：ITIL生命周期 + 事件管理 + postmortem + escalation + SLA + 统计 | 🔵 | 依赖 6.22 user 服务 |
+| 6.21 | Go 迁移 Batch 2：Knowledge 服务 | ✅ 已完成 (2026-07-05) | orion-knowledge-svc-go 蓝图创建（7文件）：Spaces/Docs CRUD + RAG + 知识图谱 + 版本管理 + sync | 🔵 | |
+| 6.22 | Go 迁移 Batch 2：User 服务 | ✅ 已完成 (2026-07-05) | orion-user-svc-go 蓝图创建（8文件）：用户CRUD + 租户RBAC + database.Connect + go-common auth中间件 | 🔵 | 依赖 6.1 auth 稳定 |
+| 6.23 | Go 迁移 Batch 2：Approval 服务 | ✅ 已完成 (2026-07-05) | orion-approval-svc-go 蓝图扩展（9文件）：审批CRUD + 工作流 + 通知 + 报表 + middleware | 🔵 | |
+| 6.24 | Go 迁移 Batch 3：Config 服务 | ✅ 已完成 (2026-07-05) | orion-config-mgmt-svc-go 蓝图扩展（16文件）：配置CRUD + Git同步 + 漂移检测 + 特性标志 + middleware | 🔵 | |
+| 6.25 | Go 迁移 Batch 3：Monitoring 服务 | ✅ 已完成 (2026-07-05) | orion-monitor-svc-go 蓝图扩展（11文件）：告警CRUD + 指标查询 + 仪表盘 + 链路追踪 + middleware | 🔵 | |
+| 6.26 | Go 迁移 Batch 3：ChatOps 服务 | ✅ 已完成 (2026-07-05) | orion-chatops-svc-go 蓝图扩展（22文件）：命令处理 + 会话管理 + 消息 + 审计 + Webhook + 推荐 + middleware | 🔵 | |
 | 6.27 | EventBus 事件契约对齐 | ⏳ 待开始 | TS/Go 事件格式验证（id/tenantId/timestamp）+ 共存期双写策略 | 🟡 | 依赖 6.1 EventBus 切换 |
-| 6.28 | Go 服务数据库连接统一 | ⏳ 待开始 | 所有服务统一使用 orion/go-common/pkg/database (当前 deploy 直接 sqlx.Connect) | 🟡 | 低风险 |
-| 6.29 | Go 服务 JWT 权限中间件对齐 | ⏳ 待开始 | TS/Go JWT payload 字段名对齐 + 权限中间件行为验证 | 🟡 | 依赖 1.13 ACL 中间件 |
+| 6.28 | Go 服务数据库连接统一 | ✅ 已完成 (2026-07-05) | 10个Go服务统一database.Connect(cfg.DatabaseURL)，user/tenant/auth-svc-go/canary-svc-go构建通过 | 🔵 | |
+| 6.29 | Go 服务 JWT 权限中间件对齐 | ✅ 已完成 (2026-07-05) | 3个Go服务(user/tenant/auth-svc-go)统一go-common auth中间件 + JWT claims对齐(sub/tenant_id/roles/status) | 🔵 | 依赖 1.13 ACL 中间件 |
 
 ---
 
