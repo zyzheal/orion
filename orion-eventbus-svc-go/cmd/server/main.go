@@ -10,6 +10,8 @@ import (
 
 	"orion/eventbus-svc-go/internal/config"
 	"orion/eventbus-svc-go/internal/handler"
+	natspkg "orion/eventbus-svc-go/internal"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
@@ -52,6 +54,18 @@ func main() {
 	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
 	defer rdb.Close()
 
+	// Initialize NATS JetStream client
+	nc, err := natspkg.NewNATSClient(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+	if err != nil {
+		zapLogger.Warn("failed to connect to NATS, running without event bus", zap.Error(err))
+		nc = nil
+	}
+	defer func() {
+		if nc != nil {
+			nc.Close()
+		}
+	}()
+
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -79,13 +93,18 @@ func main() {
 			return
 		}
 		status["redis"] = "ok"
+		if nc == nil {
+			status["nats"] = "disconnected"
+		} else {
+			status["nats"] = "ok"
+		}
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, zapLogger)
+	h := handler.New(db, zapLogger, nc)
 
 	api := r.Group("/api/v1")
-	api.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz", "/health", "/metrics"}}))
+	api.Use(auth.Auth(auth.AuthConfig{SkipPaths: []string{"/healthz", "/health", "/metrics"}}))
 	{
 		events := api.Group("/events")
 		{

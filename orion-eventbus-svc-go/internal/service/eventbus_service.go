@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	natspkg "orion/eventbus-svc-go/internal"
 	"orion/eventbus-svc-go/internal/model"
 	"orion/eventbus-svc-go/internal/repository"
 	"go.uber.org/zap"
@@ -11,16 +12,33 @@ import (
 
 type EventBusService struct {
 	repo *repository.EventBusRepository
+	nats *natspkg.NATSClient
 	log  *zap.Logger
 }
 
-func NewEventBusService(repo *repository.EventBusRepository, log *zap.Logger) *EventBusService {
-	return &EventBusService{repo: repo, log: log}
+func NewEventBusService(repo *repository.EventBusRepository, nats *natspkg.NATSClient, log *zap.Logger) *EventBusService {
+	return &EventBusService{repo: repo, nats: nats, log: log}
 }
 
 func (s *EventBusService) PublishEvent(ctx context.Context, e *model.Event) error {
 	e.CreatedAt = time.Now()
-	return s.repo.CreateEvent(ctx, e)
+
+	// Dual-write: PostgreSQL (source of truth) + NATS JetStream (messaging)
+	if err := s.repo.CreateEvent(ctx, e); err != nil {
+		return err
+	}
+
+	// Best-effort NATS publish (do not block DB write on messaging failure)
+	if s.nats != nil {
+		if pubErr := s.nats.Publish(ctx, e); pubErr != nil {
+			s.log.Warn("nats publish failed, event persisted to DB",
+				zap.String("event_id", e.ID),
+				zap.Error(pubErr),
+			)
+		}
+	}
+
+	return nil
 }
 
 func (s *EventBusService) ListEvents(ctx context.Context, tenantID, eventType string, page, pageSize int) ([]model.Event, error) {

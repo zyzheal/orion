@@ -14,6 +14,8 @@ type Config struct {
 	RedisAddr    string
 	RedisDB      int
 	OTelEndpoint string
+	NATSAddr     string
+	NATSStream   string
 }
 
 func Load() (*Config, error) {
@@ -30,6 +32,8 @@ func Load() (*Config, error) {
 	v.SetDefault("redis_addr", "localhost:6379")
 	v.SetDefault("redis_db", 0)
 	v.SetDefault("otel_endpoint", "")
+	v.SetDefault("nats_addr", "nats://localhost:4222")
+	v.SetDefault("nats_stream", "EVENTS")
 
 	_ = v.ReadInConfig()
 	v.AutomaticEnv()
@@ -42,6 +46,8 @@ func Load() (*Config, error) {
 		RedisAddr:    getEnvOrConfig("REDIS_ADDR", v.GetString("redis_addr")),
 		RedisDB:      v.GetInt("redis_db"),
 		OTelEndpoint: getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
+		NATSAddr:     getEnvOrConfig("NATS_ADDR", v.GetString("nats_addr")),
+		NATSStream:   getEnvOrConfig("NATS_STREAM", v.GetString("nats_stream")),
 	}
 
 	return cfg, nil
