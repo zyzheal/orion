@@ -21,6 +21,14 @@ export interface User {
   created_at: Date;
   updated_at: Date;
   created_by: string | null;
+  // MFA fields
+  mfa_secret?: string;
+  mfa_enabled?: boolean;
+  mfa_backup_codes?: string;
+  password_reset_token?: string;
+  password_reset_expires?: Date;
+  failed_login_attempts?: number;
+  locked_until?: Date;
 }
 
 export interface CreateUserInput {
@@ -43,13 +51,13 @@ export interface UpdateUserInput {
   status?: string;
   settings?: Record<string, any>;
   password_hash?: string;
-  mfa_secret?: string;
-  mfa_enabled?: boolean;
-  mfa_backup_codes?: string;
-  password_reset_token?: string;
-  password_reset_expires?: Date;
+  mfa_secret?: string | null;
+  mfa_enabled?: boolean | null;
+  mfa_backup_codes?: string | null;
+  password_reset_token?: string | null;
+  password_reset_expires?: Date | null;
   failed_login_attempts?: number;
-  locked_until?: Date;
+  locked_until?: Date | null;
 }
 
 interface FindAllOptions {
@@ -351,6 +359,38 @@ export class UserRepository {
     await this.pool.query(
       'DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id = $2',
       [tenantId, userId]
+    );
+  }
+
+  /**
+   * Find user by password reset token
+   */
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    const result = await this.pool.query(
+      'SELECT * FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()',
+      [token]
+    );
+    if (result.rows.length === 0) return null;
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Update user password
+   */
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [passwordHash, userId]
+    );
+  }
+
+  /**
+   * Reset login attempts counter
+   */
+  async resetLoginAttempts(userId: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1',
+      [userId]
     );
   }
 }

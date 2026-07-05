@@ -3,7 +3,7 @@
  * Docker Buildx 多架构构建服务
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { ArtifactRegistryServiceImpl } from '../artifact/ArtifactRegistryService';
@@ -12,7 +12,7 @@ import { ArtifactType } from '../../models/Artifact';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('BuildxBuilderService');
 const execAsync = promisify(exec);
 
 export interface BuildOptions {

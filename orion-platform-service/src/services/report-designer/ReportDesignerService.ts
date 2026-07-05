@@ -5,14 +5,14 @@
  * Combines ReportDefinition, ReportDatasource, ReportSchedule, and ReportExecution repositories.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ReportDefinitionRepository, ReportDefinitionEntity, ReportDefinitionFilters } from './ReportDefinitionRepository';
 import { ReportDatasourceRepository, ReportDatasourceEntity } from './ReportDatasourceRepository';
 import { ReportScheduleRepository, ReportScheduleEntity } from './ReportScheduleRepository';
 import { ReportExecutionRepository, ReportExecutionEntity } from './ReportExecutionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ReportDesignerService');
 
 export interface CreateReportInput {
   name: string;

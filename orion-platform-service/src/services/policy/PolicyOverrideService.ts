@@ -5,12 +5,12 @@
  * policy overrides in the system.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PolicyOverrideRepository, PolicyOverrideEntity, CreatePolicyOverrideInput } from '../../repositories/PolicyOverrideRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyOverrideService');
 
 // ==================== Input Interfaces ====================
 

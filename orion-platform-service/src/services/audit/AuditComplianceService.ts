@@ -63,8 +63,6 @@ export class AuditComplianceService {
     this.retentionService = new AuditRetentionService(database);
   }
 
-  // ==================== SOC2 Type II Checks ====================
-
   /**
    * CC6.1: 逻辑访问安全 - 审计日志记录所有对系统和数据的访问
    */
@@ -237,6 +235,101 @@ export class AuditComplianceService {
   }
 
   /**
+   * CC6.3: 敏感操作审计覆盖 - 确保关键操作（用户管理、配置变更、密钥访问）都被审计
+   */
+  async checkSensitiveOperationsCoverage(tenantId: string): Promise<ComplianceCheckResult> {
+    const result = await this.auditRepository.findAll({ tenantId, limit: 2000 });
+    const actions = new Set(result.map(log => log.action.toUpperCase()));
+
+    // SOC2/ISO27001 要求覆盖的关键操作类型
+    const sensitiveActionGroups = {
+      userManagement: ['USER_CREATE', 'USER_UPDATE', 'USER_DELETE', 'USER_DISABLE', 'USER_ENABLE'],
+      configChange: ['CONFIG_UPDATE', 'CONFIG_CHANGE', 'CONFIG_ROLLBACK'],
+      keyAccess: ['KEY_ACCESS', 'KEY_CREATE', 'KEY_DELETE', 'SECRET_ACCESS', 'API_KEY_CREATE', 'API_KEY_DELETE'],
+      permissionChange: ['PERMISSION_CHANGE', 'ROLE_CHANGE', 'GRANT', 'REVOKE'],
+      loginEvents: ['LOGIN', 'LOGOUT', 'LOGIN_FAILURE', 'MFA_CHANGE'],
+    };
+
+    const coveredGroups: string[] = [];
+    const missingGroups: string[] = [];
+
+    for (const [groupName, groupActions] of Object.entries(sensitiveActionGroups)) {
+      const hasAny = groupActions.some(a => actions.has(a));
+      if (hasAny) {
+        coveredGroups.push(groupName);
+      } else {
+        missingGroups.push(groupName);
+      }
+    }
+
+    const coveragePercent = Math.round((coveredGroups.length / Object.keys(sensitiveActionGroups).length) * 100);
+    const status = coveragePercent >= 80 ? 'PASS' : coveragePercent >= 50 ? 'WARNING' : 'FAIL';
+    const severity = coveragePercent < 50 ? 'high' : coveragePercent < 80 ? 'medium' : 'low';
+
+    return {
+      checkId: `CC6.3-${Date.now()}`,
+      framework: 'SOC2',
+      controlId: 'CC6.3',
+      controlName: 'Sensitive Operations Audit Coverage',
+      status,
+      severity,
+      description: `Sensitive operations audit coverage: ${coveredGroups.length}/${Object.keys(sensitiveActionGroups).length} groups covered (${coveragePercent}%). Missing: ${missingGroups.join(', ') || 'none'}.`,
+      evidence: {
+        coveragePercent,
+        coveredGroups,
+        missingGroups,
+        totalUniqueActions: actions.size,
+        sampleActions: Array.from(actions).slice(0, 20),
+      },
+      remediation: missingGroups.length > 0
+        ? `Add audit logging for missing sensitive operation groups: ${missingGroups.join(', ')}`
+        : undefined,
+    };
+  }
+
+  /**
+   * A.14.2.2: 系统变更控制 - ISO27001 要求记录系统变更
+   */
+  async checkSystemChangeControl(tenantId: string): Promise<ComplianceCheckResult> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 30);
+
+    const result = await this.auditRepository.findAll({ tenantId, limit: 2000 });
+    const recentLogs = result.filter(log => new Date(log.created_at) >= cutoffDate);
+
+    // 检查变更类操作
+    const changeActions = ['CREATE', 'UPDATE', 'DELETE', 'CONFIG_UPDATE', 'CONFIG_CHANGE', 'DEPLOY'];
+    const changeLogs = recentLogs.filter(log => changeActions.includes(log.action.toUpperCase()));
+
+    const hasChangeLogs = changeLogs.length > 0;
+    const hasUserId = changeLogs.every(log => log.user_id !== null);
+    const hasIpAddress = changeLogs.every(log => log.ip_address !== null);
+
+    const issues: string[] = [];
+    if (!hasUserId) issues.push(`${changeLogs.filter(l => !l.user_id).length} change logs missing user identity`);
+    if (!hasIpAddress) issues.push(`${changeLogs.filter(l => !l.ip_address).length} change logs missing IP address`);
+
+    const status = hasChangeLogs && issues.length === 0 ? 'PASS' : hasChangeLogs ? 'WARNING' : 'FAIL';
+    const severity = !hasChangeLogs ? 'critical' : issues.length > 0 ? 'medium' : 'low';
+
+    return {
+      checkId: `A.14.2.2-${Date.now()}`,
+      framework: 'ISO27001',
+      controlId: 'A.14.2.2',
+      controlName: 'System Change Control',
+      status,
+      severity,
+      description: `System change control check. ${changeLogs.length} change operations in last 30 days. ${issues.length} issues found.`,
+      evidence: {
+        changeLogCount: changeLogs.length,
+        missingUserId: !hasUserId ? changeLogs.filter(l => !l.user_id).length : 0,
+        missingIpAddress: !hasIpAddress ? changeLogs.filter(l => !l.ip_address).length : 0,
+      },
+      remediation: issues.length > 0 ? `Ensure all change logs include user_id and ip_address: ${issues.join(', ')}` : undefined,
+    };
+  }
+
+  /**
    * 审计日志覆盖率统计
    */
   async getAuditCoverageStats(tenantId: string): Promise<AuditCoverageStats> {
@@ -273,6 +366,7 @@ export class AuditComplianceService {
       this.checkLogicalAccessAudit(tenantId),
       this.checkSystemOperationsMonitoring(tenantId),
       this.checkAnomalyDetection(tenantId),
+      this.checkSensitiveOperationsCoverage(tenantId),
     ]);
 
     return this.buildReport(tenantId, 'SOC2', checks);
@@ -287,6 +381,7 @@ export class AuditComplianceService {
       this.checkEventLogging(tenantId),
       this.checkLogicalAccessAudit(tenantId),
       this.checkSystemOperationsMonitoring(tenantId),
+      this.checkSystemChangeControl(tenantId),
     ]);
 
     return this.buildReport(tenantId, 'ISO27001', checks);
@@ -300,11 +395,13 @@ export class AuditComplianceService {
       this.checkLogicalAccessAudit(tenantId),
       this.checkSystemOperationsMonitoring(tenantId),
       this.checkAnomalyDetection(tenantId),
+      this.checkSensitiveOperationsCoverage(tenantId),
     ]);
 
     const iso27001Checks = await Promise.all([
       this.checkSecurityLogging(tenantId),
       this.checkEventLogging(tenantId),
+      this.checkSystemChangeControl(tenantId),
     ]);
 
     const allChecks = [...soc2Checks, ...iso27001Checks];

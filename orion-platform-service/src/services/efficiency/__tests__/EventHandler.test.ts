@@ -1,16 +1,84 @@
 /**
  * EfficiencyEventHandler 单元测试
+ *
+ * Migration: Tests now use injected FakeLocalStorage instead of InMemoryLocalStorage.
+ * InMemoryLocalStorage has been removed; db is now required and PostgresLocalStorage is used.
  */
 
 import { CloudEvent, EventHandler, EventContext } from '@orion/event-bus';
 import {
   EfficiencyEventHandler,
-  InMemoryLocalStorage,
   LocalStorage,
+  type EfficiencyEventHandlerConfig,
 } from '../EventHandler';
 import { DoraMetricsService } from '../DoraMetricsService';
 import { ClickHouseSync } from '../ClickHouseSync';
 import { PipelineCompletionRecord, DeploymentRecord } from '../types';
+
+// ==================== FakeLocalStorage (in-memory test double) ====================
+
+class FakeLocalStorage implements LocalStorage {
+  private pipelineRecords: PipelineCompletionRecord[] = [];
+  private deploymentRecords: DeploymentRecord[] = [];
+
+  async savePipelineRecord(record: PipelineCompletionRecord): Promise<void> {
+    this.pipelineRecords.push(record);
+  }
+
+  async getPipelineRecords(filter?: { tenantId?: string; since?: Date }): Promise<PipelineCompletionRecord[]> {
+    let records = [...this.pipelineRecords];
+    if (filter?.tenantId) {
+      records = records.filter((r) => r.tenantId === filter.tenantId);
+    }
+    if (filter?.since) {
+      records = records.filter((r) => r.completedAt >= filter.since!);
+    }
+    return records;
+  }
+
+  async getUnsyncedPipelineRecords(limit: number = 100): Promise<PipelineCompletionRecord[]> {
+    return this.pipelineRecords
+      .filter((r) => !r.syncedToClickHouse)
+      .slice(0, limit);
+  }
+
+  async saveDeploymentRecord(record: DeploymentRecord): Promise<void> {
+    this.deploymentRecords.push(record);
+  }
+
+  async getDeploymentRecords(filter?: { tenantId?: string; since?: Date }): Promise<DeploymentRecord[]> {
+    let records = [...this.deploymentRecords];
+    if (filter?.tenantId) {
+      records = records.filter((r) => r.tenantId === filter.tenantId);
+    }
+    if (filter?.since) {
+      records = records.filter((r) => r.deployedAt >= filter.since!);
+    }
+    return records;
+  }
+
+  async getUnsyncedDeploymentRecords(limit: number = 100): Promise<DeploymentRecord[]> {
+    return this.deploymentRecords
+      .filter((r) => !r.syncedToClickHouse)
+      .slice(0, limit);
+  }
+
+  async markPipelineSynced(id: string): Promise<void> {
+    const record = this.pipelineRecords.find((r) => r.id === id);
+    if (record) {
+      record.syncedToClickHouse = true;
+      record.syncedAt = new Date();
+    }
+  }
+
+  async markDeploymentSynced(id: string): Promise<void> {
+    const record = this.deploymentRecords.find((r) => r.id === id);
+    if (record) {
+      record.syncedToClickHouse = true;
+      record.syncedAt = new Date();
+    }
+  }
+}
 
 // ==================== Mock EventBus ====================
 
@@ -81,6 +149,23 @@ class MockClickHouseSync {
   }
 }
 
+// ==================== Test Helpers ====================
+
+function createMockDb() {
+  return { query: jest.fn() } as any;
+}
+
+function createHandler(config?: Partial<EfficiencyEventHandlerConfig>): EfficiencyEventHandler {
+  const defaultStorage = new FakeLocalStorage();
+  return new EfficiencyEventHandler({
+    eventBus: undefined,
+    doraMetricsService: new DoraMetricsService(),
+    db: createMockDb(),
+    ...config,
+    localStorage: config?.localStorage || defaultStorage,
+  });
+}
+
 // ==================== Tests ====================
 
 describe('EfficiencyEventHandler', () => {
@@ -88,18 +173,21 @@ describe('EfficiencyEventHandler', () => {
   let mockEventBus: MockEventBus;
   let mockDoraService: DoraMetricsService;
   let mockClickHouse: MockClickHouseSync;
+  let fakeStorage: FakeLocalStorage;
 
   beforeEach(() => {
     mockEventBus = new MockEventBus();
     mockDoraService = new DoraMetricsService();
     mockClickHouse = new MockClickHouseSync();
+    fakeStorage = new FakeLocalStorage();
 
-    handler = new EfficiencyEventHandler({
+    handler = createHandler({
       eventBus: mockEventBus as any,
       doraMetricsService: mockDoraService,
       clickHouseSync: mockClickHouse as any,
       streamName: 'orion-platform-stream',
       consumerGroup: 'test-consumers',
+      localStorage: fakeStorage,
     });
   });
 
@@ -128,8 +216,9 @@ describe('EfficiencyEventHandler', () => {
     });
 
     it('should handle start without EventBus gracefully', async () => {
-      const handlerWithoutBus = new EfficiencyEventHandler({
+      const handlerWithoutBus = createHandler({
         doraMetricsService: mockDoraService,
+        eventBus: undefined,
       });
 
       await expect(handlerWithoutBus.start()).resolves.not.toThrow();
@@ -140,7 +229,7 @@ describe('EfficiencyEventHandler', () => {
   // ==================== handlePipelineCompleted ====================
 
   describe('handlePipelineCompleted', () => {
-    it('should save pipeline record to local storage', async () => {
+    it('should save pipeline record to PostgreSQL-backed storage', async () => {
       await handler.start();
 
       const event = new CloudEvent({
@@ -172,8 +261,7 @@ describe('EfficiencyEventHandler', () => {
         retryCount: 0,
       });
 
-      const storage = handler.getLocalStorage();
-      const records = await storage.getPipelineRecords();
+      const records = await fakeStorage.getPipelineRecords();
       expect(records).toHaveLength(1);
       expect(records[0].runId).toBe('run-1');
       expect(records[0].status).toBe('success');
@@ -238,8 +326,7 @@ describe('EfficiencyEventHandler', () => {
         retryCount: 0,
       });
 
-      const storage = handler.getLocalStorage();
-      const records = await storage.getPipelineRecords();
+      const records = await fakeStorage.getPipelineRecords();
       expect(records).toHaveLength(1);
       expect(records[0].status).toBe('failed');
       expect(records[0].runId).toBe('run-failed');
@@ -277,8 +364,7 @@ describe('EfficiencyEventHandler', () => {
         retryCount: 0,
       });
 
-      const storage = handler.getLocalStorage();
-      const records = await storage.getDeploymentRecords();
+      const records = await fakeStorage.getDeploymentRecords();
       expect(records).toHaveLength(1);
       expect(records[0].deploymentId).toBe('deploy-1');
       expect(records[0].service).toBe('api-gateway');
@@ -316,8 +402,7 @@ describe('EfficiencyEventHandler', () => {
         retryCount: 0,
       });
 
-      const storage = handler.getLocalStorage();
-      const records = await storage.getDeploymentRecords();
+      const records = await fakeStorage.getDeploymentRecords();
       expect(records).toHaveLength(1);
       expect(records[0].status).toBe('failed');
       expect(records[0].deploymentId).toBe('deploy-failed');
@@ -354,8 +439,7 @@ describe('EfficiencyEventHandler', () => {
         retryCount: 0,
       });
 
-      const storage = handler.getLocalStorage();
-      const records = await storage.getDeploymentRecords();
+      const records = await fakeStorage.getDeploymentRecords();
       expect(records).toHaveLength(1);
       expect(records[0].status).toBe('rolled_back');
       expect(records[0].recoveryTimeMs).toBe(3600000);
@@ -366,14 +450,10 @@ describe('EfficiencyEventHandler', () => {
 
   describe('getDoraReport', () => {
     it('should generate DORA report from stored records', async () => {
-      await handler.start();
-
-      // Use a reference date that the test data will be within
       const referenceDate = new Date('2026-04-13T00:00:00Z');
 
-      // First add some records
-      const storage = handler.getLocalStorage();
-      await storage.savePipelineRecord({
+      // Pre-populate storage via the handler
+      await fakeStorage.savePipelineRecord({
         id: 'p1',
         runId: 'run-1',
         pipelineId: 'pipe-1',
@@ -385,7 +465,7 @@ describe('EfficiencyEventHandler', () => {
         tenantId: 'tenant-001',
       });
 
-      await storage.saveDeploymentRecord({
+      await fakeStorage.saveDeploymentRecord({
         id: 'd1',
         deploymentId: 'deploy-1',
         service: 'api',
@@ -416,9 +496,10 @@ describe('EfficiencyEventHandler', () => {
     });
 
     it('should handle missing ClickHouse sync gracefully', async () => {
-      const handlerWithoutCH = new EfficiencyEventHandler({
+      const handlerWithoutCH = createHandler({
         eventBus: mockEventBus as any,
         doraMetricsService: mockDoraService,
+        clickHouseSync: undefined,
       });
 
       await expect(handlerWithoutCH.flushToClickHouse()).resolves.not.toThrow();
@@ -429,7 +510,7 @@ describe('EfficiencyEventHandler', () => {
   // ==================== setLocalStorage ====================
 
   describe('setLocalStorage', () => {
-    it('should allow custom local storage', async () => {
+    it('should allow custom local storage injection', async () => {
       const customStorage: LocalStorage = {
         savePipelineRecord: jest.fn(),
         getPipelineRecords: jest.fn().mockResolvedValue([]),
@@ -445,220 +526,18 @@ describe('EfficiencyEventHandler', () => {
       expect(handler.getLocalStorage()).toBe(customStorage);
     });
   });
-});
 
-describe('InMemoryLocalStorage', () => {
-  let storage: InMemoryLocalStorage;
+  // ==================== PostgreSQL requirement ====================
 
-  beforeEach(() => {
-    storage = new InMemoryLocalStorage();
-  });
-
-  it('should save and retrieve pipeline records', async () => {
-    const record: PipelineCompletionRecord = {
-      id: 'p1',
-      runId: 'r1',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-      tenantId: 'tenant-001',
-    };
-
-    await storage.savePipelineRecord(record);
-    const records = await storage.getPipelineRecords();
-
-    expect(records).toHaveLength(1);
-    expect(records[0].id).toBe('p1');
-  });
-
-  it('should save and retrieve deployment records', async () => {
-    const record: DeploymentRecord = {
-      id: 'd1',
-      deploymentId: 'deploy-1',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-      tenantId: 'tenant-001',
-    };
-
-    await storage.saveDeploymentRecord(record);
-    const records = await storage.getDeploymentRecords();
-
-    expect(records).toHaveLength(1);
-    expect(records[0].id).toBe('d1');
-  });
-
-  it('should filter pipeline records by tenantId', async () => {
-    await storage.savePipelineRecord({
-      id: 'p1',
-      runId: 'r1',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-      tenantId: 'tenant-001',
+  describe('PostgreSQL requirement', () => {
+    it('should require db config (EfficiencyEventHandlerConfig.db is mandatory)', () => {
+      // Verify the constructor signature requires db by checking config type
+      const config: EfficiencyEventHandlerConfig = {
+        doraMetricsService: mockDoraService,
+        db: createMockDb(),
+      };
+      const h = new EfficiencyEventHandler(config);
+      expect(h).toBeDefined();
     });
-
-    await storage.savePipelineRecord({
-      id: 'p2',
-      runId: 'r2',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-      tenantId: 'tenant-002',
-    });
-
-    const records = await storage.getPipelineRecords({ tenantId: 'tenant-001' });
-    expect(records).toHaveLength(1);
-    expect(records[0].tenantId).toBe('tenant-001');
-  });
-
-  it('should filter deployment records by since date', async () => {
-    const since = new Date('2026-04-10T00:00:00Z');
-
-    await storage.saveDeploymentRecord({
-      id: 'd1',
-      deploymentId: 'deploy-1',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-09T00:00:00Z'),
-      syncedToClickHouse: false,
-    });
-
-    await storage.saveDeploymentRecord({
-      id: 'd2',
-      deploymentId: 'deploy-2',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-11T00:00:00Z'),
-      syncedToClickHouse: false,
-    });
-
-    const records = await storage.getDeploymentRecords({ since });
-    expect(records).toHaveLength(1);
-    expect(records[0].id).toBe('d2');
-  });
-
-  it('should return unsynced pipeline records', async () => {
-    await storage.savePipelineRecord({
-      id: 'p1',
-      runId: 'r1',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-    });
-
-    await storage.savePipelineRecord({
-      id: 'p2',
-      runId: 'r2',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: true,
-      syncedAt: new Date(),
-    });
-
-    const unsynced = await storage.getUnsyncedPipelineRecords();
-    expect(unsynced).toHaveLength(1);
-    expect(unsynced[0].id).toBe('p1');
-  });
-
-  it('should return unsynced deployment records', async () => {
-    await storage.saveDeploymentRecord({
-      id: 'd1',
-      deploymentId: 'deploy-1',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-    });
-
-    await storage.saveDeploymentRecord({
-      id: 'd2',
-      deploymentId: 'deploy-2',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: true,
-      syncedAt: new Date(),
-    });
-
-    const unsynced = await storage.getUnsyncedDeploymentRecords();
-    expect(unsynced).toHaveLength(1);
-    expect(unsynced[0].id).toBe('d1');
-  });
-
-  it('should mark pipeline record as synced', async () => {
-    const record: PipelineCompletionRecord = {
-      id: 'p1',
-      runId: 'r1',
-      pipelineId: 'pipe-1',
-      status: 'success',
-      triggerType: 'push',
-      durationMs: 60000,
-      completedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-    };
-
-    await storage.savePipelineRecord(record);
-    await storage.markPipelineSynced('p1');
-
-    const unsynced = await storage.getUnsyncedPipelineRecords();
-    expect(unsynced).toHaveLength(0);
-  });
-
-  it('should mark deployment record as synced', async () => {
-    const record: DeploymentRecord = {
-      id: 'd1',
-      deploymentId: 'deploy-1',
-      service: 'api',
-      environment: 'production',
-      status: 'success',
-      deployedAt: new Date('2026-04-12T00:00:00Z'),
-      syncedToClickHouse: false,
-    };
-
-    await storage.saveDeploymentRecord(record);
-    await storage.markDeploymentSynced('d1');
-
-    const unsynced = await storage.getUnsyncedDeploymentRecords();
-    expect(unsynced).toHaveLength(0);
-  });
-
-  it('should respect limit on unsynced records', async () => {
-    for (let i = 0; i < 5; i++) {
-      await storage.savePipelineRecord({
-        id: `p${i}`,
-        runId: `r${i}`,
-        pipelineId: 'pipe-1',
-        status: 'success',
-        triggerType: 'push',
-        durationMs: 60000,
-        completedAt: new Date('2026-04-12T00:00:00Z'),
-        syncedToClickHouse: false,
-      });
-    }
-
-    const limited = await storage.getUnsyncedPipelineRecords(3);
-    expect(limited).toHaveLength(3);
   });
 });

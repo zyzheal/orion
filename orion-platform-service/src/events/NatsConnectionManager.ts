@@ -14,7 +14,7 @@ import { EventEmitter } from 'events';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ name: 'nats-connection-manager' });
+const logger = createLogger('nats-connection-manager');
 
 /** 连接状态 */
 export type NatsConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'closed';

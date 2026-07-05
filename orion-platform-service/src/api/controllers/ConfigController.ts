@@ -6,31 +6,37 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { ConfigService } from '../../services/config-mgmt/ConfigService';
 import { GitOpsService } from '../../services/config-mgmt/GitOpsService';
 import { ConfigApprovalService } from '../../services/config-mgmt/ConfigApprovalService';
 import { ConfigDiffService } from '../../services/config-mgmt/ConfigDiffService';
 import { ConfigSnapshotService } from '../../services/config-mgmt/ConfigSnapshotService';
+import { ConfigWebhookService } from '../../services/config/ConfigWebhookService';
 
-export class ConfigController {
+export class ConfigController extends BaseController {
   private configService: ConfigService;
   private gitOpsService: GitOpsService;
   private approvalService: ConfigApprovalService;
   private diffService: ConfigDiffService;
   private snapshotService: ConfigSnapshotService;
+  private webhookService: ConfigWebhookService | undefined;
 
   constructor(
     configService: ConfigService,
     gitOpsService: GitOpsService,
     approvalService: ConfigApprovalService,
     diffService: ConfigDiffService,
-    snapshotService: ConfigSnapshotService
+    snapshotService: ConfigSnapshotService,
+    webhookService?: ConfigWebhookService
   ) {
+    super();
     this.configService = configService;
     this.gitOpsService = gitOpsService;
     this.approvalService = approvalService;
     this.diffService = diffService;
     this.snapshotService = snapshotService;
+    this.webhookService = webhookService;
   }
 
   // ==================== Config CRUD ====================
@@ -40,7 +46,7 @@ export class ConfigController {
       const body = request.body as any;
       const { key, value, environment, description, encrypted, tags, createdBy } =
         body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!key || !value || !environment || !createdBy) {
         await reply.status(400).send({
@@ -102,7 +108,7 @@ export class ConfigController {
       const body = request.body as any;
       const { configId } = params;
       const { value, description, status, tags, updatedBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!value || !updatedBy) {
         await reply.status(400).send({
@@ -189,7 +195,7 @@ export class ConfigController {
     try {
       const query = request.query as any;
       const { environment, status, keyPrefix, tags, limit, offset } = query;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const configs = await this.configService.list(tenantId, {
         environment: environment as any,
@@ -251,7 +257,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { configId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const config = await this.configService.getConfigById(configId);
       const versions = await this.configService.getConfigVersions(tenantId, config?.key || configId);
@@ -294,7 +300,7 @@ export class ConfigController {
         return;
       }
 
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const config = await this.configService.rollbackConfig(
         tenantId,
@@ -351,7 +357,7 @@ export class ConfigController {
         return;
       }
 
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const config = await this.configService.cloneConfig(
         tenantId,
@@ -406,7 +412,7 @@ export class ConfigController {
     try {
       const body = request.body as any;
       const { snapshotName, description, createdBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!snapshotName || !createdBy) {
         await reply.status(400).send({
@@ -436,7 +442,7 @@ export class ConfigController {
   async listSnapshots(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const query = request.query as any;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const limit = query.limit ? parseInt(query.limit as string) : 20;
 
       const snapshots = await this.snapshotService.listSnapshots(tenantId, limit);
@@ -458,7 +464,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const snapshot = await this.snapshotService.getSnapshot(tenantId, id);
       if (!snapshot) {
@@ -486,7 +492,7 @@ export class ConfigController {
       const { id } = params;
       const body = request.body as any;
       const { restoredBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!restoredBy) {
         await reply.status(400).send({
@@ -525,7 +531,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const deleted = await this.snapshotService.deleteSnapshot(tenantId, id);
       if (!deleted) {
@@ -551,7 +557,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { configId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as any;
       const limit = query.limit ? parseInt(query.limit as string) : 50;
 
@@ -1063,7 +1069,7 @@ export class ConfigController {
     try {
       const body = request.body as any;
       const { name, description, category, configData, targetEnvironment, createdBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!name || !configData || !createdBy) {
         await reply.status(400).send({
@@ -1107,7 +1113,7 @@ export class ConfigController {
     try {
       const query = request.query as any;
       const { category } = query;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const templates = await this.configService.listTemplates(tenantId, category);
 
@@ -1139,7 +1145,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const template = await this.configService.getTemplate(tenantId, id);
       if (!template) {
@@ -1178,7 +1184,7 @@ export class ConfigController {
       const body = request.body as any;
       const { id } = params;
       const { name, description, category, configData, targetEnvironment, isActive, updatedBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!updatedBy) {
         await reply.status(400).send({
@@ -1231,7 +1237,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const deleted = await this.configService.deleteTemplate(tenantId, id);
       if (!deleted) {
@@ -1259,7 +1265,7 @@ export class ConfigController {
       const body = request.body as any;
       const { id } = params;
       const { configData, changeLog, changedBy } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!configData || !changedBy) {
         await reply.status(400).send({
@@ -1302,7 +1308,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const versions = await this.configService.listTemplateVersions(tenantId, id);
 
@@ -1333,7 +1339,7 @@ export class ConfigController {
     try {
       const body = request.body as any;
       const { configId, percentage, canaryValue, targetValue, configKey } = body;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!configId || percentage === undefined || !canaryValue || !targetValue) {
         await reply.status(400).send({
@@ -1355,7 +1361,7 @@ export class ConfigController {
 
       await reply.status(201).send({
         id: canary.id,
-        tenantId: canary.tenantId,
+        tenantId: canary.tenant_id,
         configId: canary.configId,
         configKey: canary.configKey,
         environment: canary.environment,
@@ -1379,7 +1385,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const canary = await this.configService.promoteCanary(tenantId, id);
 
@@ -1410,7 +1416,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const canary = await this.configService.rollbackCanary(tenantId, id);
 
@@ -1443,7 +1449,7 @@ export class ConfigController {
     try {
       const params = request.params as any;
       const { configId } = params;
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const graph = await this.configService.getDependencyGraph(tenantId, configId);
 
@@ -1470,6 +1476,222 @@ export class ConfigController {
         error: 'INTERNAL_ERROR',
         code: 'DEPENDENCY_500',
         message: error.message || 'Failed to get dependency graph',
+      });
+    }
+  }
+
+  // ==================== Webhooks ====================
+
+  async createWebhook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      if (!this.webhookService) {
+        await reply.status(503).send({
+          error: 'SERVICE_UNAVAILABLE',
+          code: 'WEBHOOK_503',
+          message: 'Webhook service is not configured',
+        });
+        return;
+      }
+      const body = request.body as any;
+      const tenantId = this.getTenantId(request);
+      const { name, url, method, headers, secret, eventTypes, domains, enabled, retryCount, timeoutMs, createdBy } = body;
+
+      if (!name || !url || !createdBy) {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: 'WEBHOOK_001',
+          message: 'Missing required fields: name, url, createdBy',
+        });
+        return;
+      }
+
+      const webhook = await this.webhookService.createWebhook(tenantId, {
+        name,
+        url,
+        method: method || 'POST',
+        headers: headers || {},
+        secret,
+        eventTypes: eventTypes || [],
+        domains: domains || [],
+        enabled: enabled ?? true,
+        retryCount: retryCount ?? 3,
+        timeoutMs: timeoutMs ?? 5000,
+        createdBy,
+      });
+
+      await reply.status(201).send({
+        id: webhook.id,
+        name: webhook.name,
+        url: webhook.url,
+        method: webhook.method,
+        eventTypes: webhook.eventTypes,
+        domains: webhook.domains,
+        enabled: webhook.enabled,
+        retryCount: webhook.retryCount,
+        timeoutMs: webhook.timeoutMs,
+        createdAt: webhook.createdAt,
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'WEBHOOK_500',
+        message: error.message || 'Failed to create webhook',
+      });
+    }
+  }
+
+  async getWebhook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      if (!this.webhookService) {
+        await reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', code: 'WEBHOOK_503', message: 'Webhook service is not configured' });
+        return;
+      }
+      const params = request.params as any;
+      const { id } = params;
+      const tenantId = this.getTenantId(request);
+
+      const webhook = await this.webhookService.getWebhook(id, tenantId);
+      if (!webhook) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'WEBHOOK_404',
+          message: `Webhook '${id}' not found`,
+        });
+        return;
+      }
+
+      await reply.send({
+        id: webhook.id,
+        name: webhook.name,
+        url: webhook.url,
+        method: webhook.method,
+        headers: webhook.headers,
+        eventTypes: webhook.eventTypes,
+        domains: webhook.domains,
+        enabled: webhook.enabled,
+        retryCount: webhook.retryCount,
+        timeoutMs: webhook.timeoutMs,
+        createdAt: webhook.createdAt,
+        updatedAt: webhook.updatedAt,
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'WEBHOOK_500',
+        message: error.message || 'Failed to get webhook',
+      });
+    }
+  }
+
+  async listWebhooks(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      if (!this.webhookService) {
+        await reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', code: 'WEBHOOK_503', message: 'Webhook service is not configured' });
+        return;
+      }
+      const tenantId = this.getTenantId(request);
+      const query = request.query as any;
+      const enabled = query.enabled !== undefined ? query.enabled === 'true' : undefined;
+
+      const result = await this.webhookService.listWebhooks(tenantId, {
+        enabled: enabled,
+        limit: query.limit ? parseInt(query.limit as string) : 50,
+        offset: query.offset ? parseInt(query.offset as string) : 0,
+      });
+
+      await reply.send({
+        data: result.data.map((w) => ({
+          id: w.id,
+          name: w.name,
+          url: w.url,
+          method: w.method,
+          eventTypes: w.eventTypes,
+          domains: w.domains,
+          enabled: w.enabled,
+          retryCount: w.retryCount,
+          timeoutMs: w.timeoutMs,
+          createdAt: w.createdAt,
+          updatedAt: w.updatedAt,
+        })),
+        total: result.total,
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'WEBHOOK_500',
+        message: error.message || 'Failed to list webhooks',
+      });
+    }
+  }
+
+  async updateWebhook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      if (!this.webhookService) {
+        await reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', code: 'WEBHOOK_503', message: 'Webhook service is not configured' });
+        return;
+      }
+      const params = request.params as any;
+      const { id } = params;
+      const body = request.body as any;
+      const tenantId = this.getTenantId(request);
+
+      const webhook = await this.webhookService.updateWebhook(id, tenantId, body);
+      if (!webhook) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'WEBHOOK_404',
+          message: `Webhook '${id}' not found`,
+        });
+        return;
+      }
+
+      await reply.send({
+        id: webhook.id,
+        name: webhook.name,
+        url: webhook.url,
+        method: webhook.method,
+        eventTypes: webhook.eventTypes,
+        domains: webhook.domains,
+        enabled: webhook.enabled,
+        retryCount: webhook.retryCount,
+        timeoutMs: webhook.timeoutMs,
+        updatedAt: webhook.updatedAt,
+      });
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'WEBHOOK_500',
+        message: error.message || 'Failed to update webhook',
+      });
+    }
+  }
+
+  async deleteWebhook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      if (!this.webhookService) {
+        await reply.status(503).send({ error: 'SERVICE_UNAVAILABLE', code: 'WEBHOOK_503', message: 'Webhook service is not configured' });
+        return;
+      }
+      const params = request.params as any;
+      const { id } = params;
+      const tenantId = this.getTenantId(request);
+
+      const deleted = await this.webhookService.deleteWebhook(id, tenantId);
+      if (!deleted) {
+        await reply.status(404).send({
+          error: 'NOT_FOUND',
+          code: 'WEBHOOK_404',
+          message: `Webhook '${id}' not found`,
+        });
+        return;
+      }
+
+      await reply.status(204).send();
+    } catch (error: any) {
+      await reply.status(500).send({
+        error: 'INTERNAL_ERROR',
+        code: 'WEBHOOK_500',
+        message: error.message || 'Failed to delete webhook',
       });
     }
   }

@@ -36,6 +36,17 @@ export interface DataSourceEntity {
   updatedAt: Date;
 }
 
+export interface SavedQueryEntity {
+  id: string;
+  tenantId: string;
+  userId: string;
+  name: string;
+  sql: string;
+  params: Record<string, any> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AuditRuleEntity {
   id: string;
   tenantId: string;
@@ -161,6 +172,49 @@ export class DataSourceRepository extends BaseRepository<DataSourceEntity> {
       passwordEncrypted: row.password_encrypted ?? null,
       status: row.status,
       lastChecked: row.last_checked ?? null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+}
+
+export class SavedQueryRepository extends BaseRepository<SavedQueryEntity> {
+  constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    super(db, 'dba_saved_queries');
+  }
+
+  async findByTenant(tenantId: string): Promise<SavedQueryEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM dba_saved_queries WHERE tenant_id = $1 ORDER BY created_at DESC',
+      [tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findByTenantAndUser(tenantId: string, userId: string): Promise<SavedQueryEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM dba_saved_queries WHERE tenant_id = $1 AND user_id = $2 ORDER BY created_at DESC',
+      [tenantId, userId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  async findByName(tenantId: string, userId: string, name: string): Promise<SavedQueryEntity | undefined> {
+    const result = await this.db.query(
+      'SELECT * FROM dba_saved_queries WHERE tenant_id = $1 AND user_id = $2 AND name = $3 LIMIT 1',
+      [tenantId, userId, name],
+    );
+    return result.rows[0] ? this.mapRowToEntity(result.rows[0]) : undefined;
+  }
+
+  protected mapRowToEntity(row: any): SavedQueryEntity {
+    return {
+      id: row.id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      name: row.name,
+      sql: row.sql_text ?? row.sql,
+      params: row.params ?? null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

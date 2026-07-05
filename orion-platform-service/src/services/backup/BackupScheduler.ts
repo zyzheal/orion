@@ -7,7 +7,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { BackupPlanRepository, BackupPlanEntity } from '../../repositories/BackupPlanRepository';
 import {
@@ -20,7 +20,7 @@ import {
   BackupSchedule,
 } from './types';
 
-const logger = pino({ name: 'LBackup-LScheduler' });
+const logger = createLogger('LBackup-LScheduler');
 
 /**
  * Parse a cron expression and calculate the next run time.

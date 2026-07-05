@@ -23,7 +23,7 @@ import {
 import { CommandService } from './CommandService';
 import { CommandRouter } from './CommandRouter';
 import { InputValidator, ParsedCommand } from './InputValidator';
-import { ShellCommandExecutor } from './ShellCommandExecutor';
+import { ShellCommandExecutor, ExecutionResult } from './ShellCommandExecutor';
 import { OrionError } from '../../errors';
 import { createLogger } from '../../utils/logger';
 
@@ -75,6 +75,10 @@ export class ExecutionService {
   private commandRouter?: CommandRouter;
   /** 输入校验器 (可选，用于安全校验) */
   private inputValidator?: InputValidator;
+  /** 命令执行超时时间 (毫秒)，默认 30000 (30秒) */
+  private commandTimeoutMs: number;
+  /** Task 5.4: Shell 执行器 fallback（commandRouter 未命中时使用） */
+  private shellExecutor: ShellCommandExecutor;
 
   constructor(options: {
     commandService: CommandService;
@@ -183,7 +187,7 @@ export class ExecutionService {
       const executionPromise = (this.commandRouter)
         ? this.commandRouter.routeAndExecute(input.commandId, input.params ?? {})
         : this.shellExecutor.execute(input.commandId, this.commandTimeoutMs)
-            .then(result => ({
+            .then((result: ExecutionResult) => ({
               output: result.output,
               exitCode: result.exitCode,
               durationMs: result.durationMs,

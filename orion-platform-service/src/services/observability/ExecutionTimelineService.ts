@@ -3,11 +3,11 @@
 //
 // Migrated from in-memory Map() storage to PostgreSQL via ExecutionTimelineRepository.
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ExecutionTimelineRepository } from '../../repositories/ExecutionTimelineRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ExecutionTimelineService');
 
 export interface TimelineEntry {
   id: string;

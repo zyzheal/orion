@@ -13,6 +13,9 @@ import {
   ClusterMetricsRepository,
   ClusterAnomalyRepository,
 } from '../../repositories/ClusterHealthRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('cluster-health-monitor');
 
 export interface ClusterRecord {
   id: string;
@@ -126,9 +129,9 @@ export class ClusterHealthMonitor {
         }
         this.tenantClusterCache.set(cluster.tenantId, tenantClusters);
       }
-      console.log(`[ClusterHealthMonitor] Loaded ${allClusters.entities.length} clusters from repository`);
+      logger.info({ clusterCount: allClusters.entities.length }, 'ClusterHealthMonitor loaded clusters from repository');
     } catch (err) {
-      console.warn('[ClusterHealthMonitor] Failed to load from repository:', err);
+      logger.warn({ err }, '[ClusterHealthMonitor] Failed to load from repository');
     }
   }
 

@@ -203,7 +203,8 @@ export class SLADefinitionRepository extends BaseRepository<SLADefinitionEntity>
     }
 
     if (fields.length === 0) {
-      return this.findById(id);
+      const found = await this.findById(id);
+      return found ?? undefined;
     }
 
     fields.push(`updated_at = NOW()`);

@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { OrionError, ErrorCode } from '../../errors';
 import { DevPortalMockRuleRepository, DevPortalMockRuleEntity } from '../../repositories/DevPortalMockRuleRepository';
 
 // ==================== Type Definitions ====================
@@ -79,7 +80,7 @@ export class MockServiceManager {
 
   constructor(repository: DevPortalMockRuleRepository) {
     if (!repository) {
-      throw new Error('DevPortalMockRuleRepository is required');
+      throw new OrionError('DevPortalMockRuleRepository is required', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repository;
   }

@@ -11,11 +11,11 @@
 
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { LLMTraceRepository } from '../../repositories/LLMTraceRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('LLMTraceService');
 
 // Model pricing (CNY per token)
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {

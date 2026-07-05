@@ -15,7 +15,7 @@ import { CreateApiContractInput, CreateApiVersionInput, CreateGovernanceRuleInpu
 import { createLogger } from '../utils/logger';
 import { ValidationError, NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'api-governance-routes' });
+const logger = createLogger('api-governance-routes');
 
 // ============================================================================
 // Route Registration

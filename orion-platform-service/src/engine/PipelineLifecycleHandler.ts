@@ -22,7 +22,7 @@ import type { PipelineExecution, RunCompletionCallback } from './PipelineEngine'
 
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineLifecycleHandler');
 
 export interface LifecycleHandlerDeps {
   runService: PipelineRunService;

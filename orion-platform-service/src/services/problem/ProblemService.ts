@@ -6,7 +6,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ProblemRepository,
   KnownErrorRepository,
@@ -18,7 +18,7 @@ import {
 } from '../../repositories/ProblemRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProblemService');
 
 // Valid status transitions for problem lifecycle
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -153,6 +153,7 @@ export class ProblemService {
     }
 
     const updated = await this.problemRepo.update(id, updates);
+    if (!updated) throw new OrionError('Failed to update problem', ErrorCode.OPERATION_FAILED);
     logger.info({ problemId: id, tenantId }, '[ProblemService] Problem updated');
     return updated;
   }
@@ -294,6 +295,7 @@ export class ProblemService {
     if (Object.keys(updates).length === 0) return existing;
 
     const updated = await this.knownErrorRepo.update(id, updates);
+    if (!updated) throw new OrionError('Failed to update known error', ErrorCode.OPERATION_FAILED);
     logger.info({ knownErrorId: id, tenantId }, '[ProblemService] Known error updated');
     return updated;
   }

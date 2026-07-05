@@ -34,6 +34,7 @@ import { AlertStateService } from '../services/chatops/AlertStateService';
 import { PlatformConfigService } from '../services/chatops/PlatformConfigService';
 import { ChatConfigService } from '../services/chatops/ChatConfigService';
 import { ChatOpsEventSubscriber } from '../services/chatops/EventSubscriber';
+import { KnowledgeIntegrationService } from '../services/knowledge/KnowledgeIntegrationService';
 import { SSEConnectionManager } from '../services/chatops/SSEConnectionManager';
 import { InputValidator } from '../services/chatops/InputValidator';
 import { DeployService } from '../services/deploy/DeployService';
@@ -66,6 +67,8 @@ interface ChatOpsRoutesOptions {
   monitoringService?: any;
   diagnosticService?: any;
   selfHealingService?: any;
+  /** 知识库集成服务 (Task 4.63) */
+  knowledgeIntegration?: KnowledgeIntegrationService;
 }
 
 export default async function chatopsRoutes(
@@ -169,7 +172,7 @@ export default async function chatopsRoutes(
     const service = params.service as string;
     const environment = params.environment as string;
     const version = params.version as string;
-    const tenantId = (params.tenantId as string) || 'default';
+    const tenantId = params.tenantId as string;
     if (!service || !environment) {
       return { status: 'error', command: 'deploy', error: 'service 和 environment 必填', timestamp: new Date().toISOString() };
     }
@@ -231,7 +234,7 @@ export default async function chatopsRoutes(
   commandRouter.registerHandler('diagnose', async (params: Record<string, unknown>) => {
     const target = params.target as string;
     const type = params.type as string;
-    const tenantId = (params.tenantId as string) || 'default';
+    const tenantId = params.tenantId as string;
     if (!target) {
       return { status: 'error', command: 'diagnose', error: 'target 必填', timestamp: new Date().toISOString() };
     }
@@ -258,6 +261,30 @@ export default async function chatopsRoutes(
       return { status: 'error', command: 'selfhealing_trigger', error: 'policy 必填', timestamp: new Date().toISOString() };
     }
     return { status: 'ok', command: 'selfhealing_trigger', policy, target: target || 'auto', message: 'Self-healing policy triggered', timestamp: new Date().toISOString() };
+  });
+
+  // Knowledge integration handler (Task 4.63)
+  commandRouter.registerHandler('knowledge', async (params: Record<string, unknown>) => {
+    const context = (params.context as string) || 'general';
+    const limit = (params.limit as number) || 5;
+    try {
+      const recommendations = await knowledgeIntegration.search('', context, { limit });
+      return {
+        status: 'ok',
+        command: 'knowledge',
+        context,
+        count: recommendations.length,
+        recommendations,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (err) {
+      return {
+        status: 'error',
+        command: 'knowledge',
+        error: err instanceof Error ? err.message : 'Knowledge search failed',
+        timestamp: new Date().toISOString(),
+      };
+    }
   });
 
   const executionService = new ExecutionService({
@@ -292,6 +319,9 @@ export default async function chatopsRoutes(
 
   // Chat Config (Questions & Commands)
   const chatConfigService = new ChatConfigService(db);
+
+  // Knowledge Integration (Task 4.63)
+  const knowledgeIntegration = new KnowledgeIntegrationService(db);
 
   // ==================== Admin Services ====================
   // Capability Mapping Service (管理命令-Capability 映射)
@@ -345,6 +375,7 @@ export default async function chatopsRoutes(
     permissionService,
     rateLimitService,
     chatConfigService,
+    knowledgeIntegration,
   });
 
   // Seed default commands
@@ -624,6 +655,37 @@ export default async function chatopsRoutes(
     },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getRecommendations(request, reply);
+  });
+
+  // ==================== Knowledge Recommendations (Task 4.63) ====================
+
+  app.get('/knowledge', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'chatops', action: 'read' })],
+    schema: {
+      description: 'Get knowledge base recommendations for ChatOps context',
+      tags: ['chatops', 'knowledge'],
+      summary: '获取知识库推荐',
+      querystring: {
+        type: 'object',
+        properties: {
+          context: { type: 'string', description: 'Knowledge context (e.g. deployment, incident, approval)' },
+          limit: { type: 'integer', minimum: 1, maximum: 50 },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: { type: 'array', items: { type: 'object' } },
+            total: { type: 'integer' },
+          },
+        },
+        503: { description: 'Knowledge service not configured' },
+      },
+    },
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getKnowledgeRecommendations(request, reply);
   });
 
   // ==================== Sessions / Messages (Phase 1a) ====================

@@ -8,7 +8,7 @@
  * 4. 统一的错误处理
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import {
   AgentConfig,
   AgentExecutionContext,
@@ -22,7 +22,7 @@ import { AIGateway } from '../../ai/AIGateway';
 import { OrionError, ErrorCode } from '../../../errors';
 import { AgentAuditLogRepository } from '../../../repositories/AgentAuditLogRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('BaseAgent');
 
 /**
  * Agent 抽象基类

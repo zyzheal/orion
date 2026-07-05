@@ -5,7 +5,9 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { DatabasePool } from '../../services/database';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   ComplianceService,
   CompliancePolicyInput,
@@ -85,11 +87,12 @@ interface GapAnalysisBody {
   frameworkId: string;
 }
 
-export class SecurityComplianceController {
+export class SecurityComplianceController extends BaseController {
   private complianceService: ComplianceService;
   private auditService: SecurityAuditService;
 
   constructor(db?: DatabasePool) {
+    super();
     this.complianceService = new ComplianceService(db);
     this.auditService = new SecurityAuditService(db);
   }
@@ -102,7 +105,7 @@ export class SecurityComplianceController {
    */
   async definePolicy(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as DefinePolicyBody;
 
       const { name, description, frameworkType, requirements, rules, severityThreshold, createdBy } = body;
@@ -149,7 +152,7 @@ export class SecurityComplianceController {
    */
   async listPolicies(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const query = request.query as ListPoliciesQuery;
       const frameworkType = query?.frameworkType;
 
@@ -183,7 +186,7 @@ export class SecurityComplianceController {
    */
   async evaluateCompliance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as EvaluateComplianceBody;
       const { policyId } = body;
 
@@ -226,7 +229,7 @@ export class SecurityComplianceController {
    */
   async getComplianceReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as PolicyParams;
       const { policyId } = params;
 
@@ -268,7 +271,7 @@ export class SecurityComplianceController {
    */
   async getComplianceScore(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const score = await this.complianceService.getComplianceScore(tenantId);
 
@@ -296,7 +299,7 @@ export class SecurityComplianceController {
    */
   async autoRemediateCompliance(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as RemediateComplianceBody;
       const { gaps } = body;
 
@@ -338,7 +341,7 @@ export class SecurityComplianceController {
    */
   async createAuditPlan(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as CreateAuditPlanBody;
 
       const { name, description, scope, auditType, scheduleType, cronExpression, reviewers, createdBy } = body;
@@ -387,7 +390,7 @@ export class SecurityComplianceController {
    */
   async listAuditPlans(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
 
       const plans = await this.auditService.listAuditPlans(tenantId);
 
@@ -419,11 +422,15 @@ export class SecurityComplianceController {
    */
   async executeAudit(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as AuditParams;
       const { id } = params;
 
       const execution = await this.auditService.executeAudit(tenantId, id);
+
+      if (!execution) {
+        throw new OrionError(`Audit execution not found: ${id}`, ErrorCode.NOT_FOUND);
+      }
 
       await reply.status(201).send({
         id: execution.id,
@@ -451,7 +458,7 @@ export class SecurityComplianceController {
    */
   async getAuditReport(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as AuditParams;
       const { id } = params;
 
@@ -499,7 +506,7 @@ export class SecurityComplianceController {
    */
   async getAuditFindings(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as AuditParams;
       const { id } = params;
 
@@ -536,13 +543,17 @@ export class SecurityComplianceController {
    */
   async closeFinding(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const params = request.params as AuditParams;
       const body = request.body as CloseFindingBody;
       const { id } = params;
       const { resolution } = body;
 
       const finding = await this.auditService.closeFinding(tenantId, id, resolution);
+
+      if (!finding) {
+        throw new OrionError(`Compliance finding not found: ${id}`, ErrorCode.NOT_FOUND);
+      }
 
       await reply.send({
         id: finding.id,
@@ -614,7 +625,7 @@ export class SecurityComplianceController {
    */
   async collectEvidence(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as CollectEvidenceBody;
       const { policyId, controlId, evidenceType, description, source } = body;
 
@@ -670,7 +681,7 @@ export class SecurityComplianceController {
    */
   async generateEvidenceCollection(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as GenerateEvidenceBody;
       const { frameworkId } = body;
 
@@ -703,7 +714,7 @@ export class SecurityComplianceController {
    */
   async performGapAnalysis(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const body = request.body as GapAnalysisBody;
       const { frameworkId } = body;
 

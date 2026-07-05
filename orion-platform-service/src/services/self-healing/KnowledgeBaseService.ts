@@ -6,6 +6,7 @@
  */
 
 import { KnowledgeBasePatternRepository, KnowledgeBasePatternEntity } from '../../repositories/KnowledgeBasePatternRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import { DatabasePool } from '../../services/database';
 import { createLogger } from '../../utils/logger';
 
@@ -373,7 +374,7 @@ export class KnowledgeBaseService {
   private repository: KnowledgeBasePatternRepository;
 
   constructor(db: DatabasePool) {
-    if (!db) throw new Error('DatabasePool is required for KnowledgeBaseService');
+    if (!db) throw new OrionError('DatabasePool is required for KnowledgeBaseService', ErrorCode.INTERNAL_ERROR);
     this.repository = new KnowledgeBasePatternRepository(db);
     // Seed built-in patterns if DB is empty
     this.seedPatterns().catch(err => {

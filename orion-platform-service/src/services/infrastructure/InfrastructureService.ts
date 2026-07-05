@@ -12,10 +12,10 @@
  * 使用 PostgreSQL Repository pattern，支持优雅降级到内存存储。
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'Infrastructure-LService' });
+const logger = createLogger('Infrastructure-LService');
 
 // ============================================================================
 // Types and Enums
@@ -27,6 +27,10 @@ const logger = pino({ name: 'Infrastructure-LService' });
 export enum ConnectorType {
   Kubernetes = 'kubernetes',
   Docker = 'docker',
+  Ssh = 'ssh',
+  WinRm = 'winrm',
+  Rest = 'rest',
+  NetworkDevice = 'network_device',
   Aws = 'aws',
   Azure = 'azure',
   Gcp = 'gcp',
@@ -41,6 +45,28 @@ export enum ConnectorStatus {
   Connected = 'connected',
   Error = 'error',
   Reconnecting = 'reconnecting',
+}
+
+/**
+ * 熔断器状态
+ */
+export enum CircuitBreakerState {
+  Closed = 'closed',
+  Open = 'open',
+  HalfOpen = 'half_open',
+}
+
+/**
+ * 熔断器统计信息
+ */
+export interface CircuitBreakerStats {
+  connectorId: string;
+  state: CircuitBreakerState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime?: Date;
+  lastStateChangeTime: Date;
+  halfOpenAttempts: number;
 }
 
 /**
@@ -177,6 +203,7 @@ export class InfrastructureService {
   private sandboxes: Map<string, SandboxInfo> = new Map();
   private networkPolicies: Map<string, SandboxNetworkPolicy> = new Map();
   private healthMetrics: Map<string, ConnectionHealthMetrics> = new Map();
+  private circuitBreakers: Map<string, CircuitBreakerStats> = new Map();
   private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
   private readonly policy: ReconnectPolicy;
@@ -209,6 +236,17 @@ export class InfrastructureService {
     };
 
     this.connectors.set(id, connector);
+
+    // 初始化熔断器状态
+    this.circuitBreakers.set(id, {
+      connectorId: id,
+      state: CircuitBreakerState.Closed,
+      failureCount: 0,
+      successCount: 0,
+      lastStateChangeTime: new Date(),
+      halfOpenAttempts: 0,
+    });
+
     logger.info({ connectorId: id, type, name: config.name }, 'Connector registered');
 
     return connector;
@@ -243,9 +281,143 @@ export class InfrastructureService {
     if (deleted) {
       this.cancelReconnect(connectorId);
       this.healthMetrics.delete(connectorId);
+      this.circuitBreakers.delete(connectorId);
       logger.info({ connectorId }, 'Connector unregistered');
     }
     return deleted;
+  }
+
+  // ==========================================================================
+  // Circuit Breaker
+  // ==========================================================================
+
+  /**
+   * 获取所有熔断器统计信息
+   */
+  getAllCircuitBreakerStats(): CircuitBreakerStats[] {
+    return Array.from(this.circuitBreakers.values()).map(stats => ({
+      ...stats,
+      lastFailureTime: stats.lastFailureTime ? new Date(stats.lastFailureTime) : undefined,
+      lastStateChangeTime: new Date(stats.lastStateChangeTime),
+    }));
+  }
+
+  /**
+   * 获取指定连接器的熔断器统计信息
+   */
+  getCircuitBreakerStats(connectorId: string): CircuitBreakerStats | undefined {
+    const stats = this.circuitBreakers.get(connectorId);
+    if (!stats) return undefined;
+    return {
+      ...stats,
+      lastFailureTime: stats.lastFailureTime ? new Date(stats.lastFailureTime) : undefined,
+      lastStateChangeTime: new Date(stats.lastStateChangeTime),
+    };
+  }
+
+  /**
+   * 手动打开熔断器
+   */
+  openCircuit(connectorId: string): void {
+    const connector = this.connectors.get(connectorId);
+    if (!connector) {
+      throw new OrionError(`Connector not found: ${connectorId}`, ErrorCode.NOT_FOUND);
+    }
+
+    const stats = this.circuitBreakers.get(connectorId);
+    if (!stats) {
+      throw new OrionError(`Circuit breaker not found for connector: ${connectorId}`, ErrorCode.NOT_FOUND);
+    }
+
+    stats.state = CircuitBreakerState.Open;
+    stats.lastStateChangeTime = new Date();
+    this.circuitBreakers.set(connectorId, stats);
+
+    connector.status = ConnectorStatus.Error;
+    connector.lastError = 'Circuit breaker manually opened';
+    connector.updatedAt = new Date();
+
+    logger.info({ connectorId }, 'Circuit breaker manually opened');
+  }
+
+  /**
+   * 手动关闭熔断器
+   */
+  closeCircuit(connectorId: string): void {
+    const connector = this.connectors.get(connectorId);
+    if (!connector) {
+      throw new OrionError(`Connector not found: ${connectorId}`, ErrorCode.NOT_FOUND);
+    }
+
+    const stats = this.circuitBreakers.get(connectorId);
+    if (!stats) {
+      throw new OrionError(`Circuit breaker not found for connector: ${connectorId}`, ErrorCode.NOT_FOUND);
+    }
+
+    stats.state = CircuitBreakerState.Closed;
+    stats.failureCount = 0;
+    stats.successCount = 0;
+    stats.halfOpenAttempts = 0;
+    stats.lastStateChangeTime = new Date();
+    this.circuitBreakers.set(connectorId, stats);
+
+    connector.status = ConnectorStatus.Disconnected;
+    connector.lastError = undefined;
+    connector.updatedAt = new Date();
+
+    logger.info({ connectorId }, 'Circuit breaker manually closed');
+  }
+
+  /**
+   * 记录连接成功
+   */
+  private recordSuccess(connectorId: string): void {
+    const stats = this.circuitBreakers.get(connectorId);
+    if (!stats) return;
+
+    stats.successCount += 1;
+
+    if (stats.state === CircuitBreakerState.HalfOpen) {
+      stats.halfOpenAttempts += 1;
+      // 成功后关闭熔断器
+      if (stats.halfOpenAttempts >= 1) {
+        stats.state = CircuitBreakerState.Closed;
+        stats.failureCount = 0;
+        stats.successCount = 0;
+        stats.halfOpenAttempts = 0;
+        stats.lastStateChangeTime = new Date();
+        logger.info({ connectorId }, 'Circuit breaker closed after successful half-open attempt');
+      }
+    }
+
+    this.circuitBreakers.set(connectorId, stats);
+  }
+
+  /**
+   * 记录连接失败
+   */
+  private recordFailure(connectorId: string): void {
+    const stats = this.circuitBreakers.get(connectorId);
+    if (!stats) return;
+
+    stats.failureCount += 1;
+    stats.lastFailureTime = new Date();
+
+    if (stats.state === CircuitBreakerState.HalfOpen) {
+      // 半开状态失败，重新打开熔断器
+      stats.state = CircuitBreakerState.Open;
+      stats.lastStateChangeTime = new Date();
+      logger.warn({ connectorId }, 'Circuit breaker reopened after half-open failure');
+    } else if (stats.state === CircuitBreakerState.Closed) {
+      // 闭链状态失败，检查是否达到阈值
+      if (stats.failureCount >= 5) {
+        stats.state = CircuitBreakerState.Open;
+        stats.lastStateChangeTime = new Date();
+        logger.warn({ connectorId, failureCount: stats.failureCount }, 'Circuit breaker opened due to failures');
+      }
+    }
+
+    this.circuitBreakers.set(connectorId, stats);
   }
 
   // ==========================================================================
@@ -261,6 +433,16 @@ export class InfrastructureService {
       throw new OrionError(`Connector not found: ${connectorId}`, ErrorCode.NOT_FOUND);
     }
 
+    // 检查熔断器状态
+    const cbStats = this.circuitBreakers.get(connectorId);
+    if (cbStats && cbStats.state === CircuitBreakerState.Open) {
+      logger.warn({ connectorId }, 'Connection blocked: circuit breaker is open');
+      throw new OrionError(
+        `Connection blocked: circuit breaker is open for connector ${connectorId}`,
+        ErrorCode.SERVICE_UNAVAILABLE
+      );
+    }
+
     connector.status = ConnectorStatus.Connecting;
     connector.updatedAt = new Date();
     logger.info({ connectorId, type: connector.type }, 'Connecting to infrastructure');
@@ -273,6 +455,11 @@ export class InfrastructureService {
       connector.reconnectCount = 0;
       connector.updatedAt = new Date();
 
+      this.recordSuccess(connectorId);
+
+      const currentMetrics = this.healthMetrics.get(connectorId);
+      const totalReconnects = currentMetrics?.totalReconnects ?? 0;
+
       this.updateHealthMetrics(connectorId, {
         connectorId,
         status: ConnectorStatus.Connected,
@@ -280,7 +467,7 @@ export class InfrastructureService {
         lastCheckAt: new Date(),
         consecutiveFailures: 0,
         uptimePercentage: 100,
-        totalReconnects: 0,
+        totalReconnects,
       });
 
       logger.info({ connectorId, type: connector.type }, 'Connected successfully');
@@ -291,14 +478,20 @@ export class InfrastructureService {
       connector.lastError = message;
       connector.updatedAt = new Date();
 
+      this.recordFailure(connectorId);
+
+      const currentMetrics = this.healthMetrics.get(connectorId);
+      const consecutiveFailures = (currentMetrics?.consecutiveFailures ?? 0) + 1;
+      const totalReconnects = currentMetrics?.totalReconnects ?? 0;
+
       this.updateHealthMetrics(connectorId, {
         connectorId,
         status: ConnectorStatus.Error,
         latencyMs: 0,
         lastCheckAt: new Date(),
-        consecutiveFailures: 1,
-        uptimePercentage: 0,
-        totalReconnects: 0,
+        consecutiveFailures,
+        uptimePercentage: Math.max(0, 100 - consecutiveFailures * 10),
+        totalReconnects,
       });
 
       logger.warn({ connectorId, error: message }, 'Connection failed');
@@ -484,6 +677,8 @@ export class InfrastructureService {
       connector.lastError = message;
       connector.updatedAt = new Date();
 
+      this.recordFailure(connectorId);
+
       this.updateHealthMetrics(connectorId, {
         connectorId,
         status: ConnectorStatus.Error,
@@ -523,6 +718,39 @@ export class InfrastructureService {
    */
   private updateHealthMetrics(connectorId: string, metrics: ConnectionHealthMetrics): void {
     this.healthMetrics.set(connectorId, metrics);
+  }
+
+  // ==========================================================================
+  // Connector Config Update
+  // ==========================================================================
+
+  /**
+   * 更新连接器配置
+   */
+  updateConnectorConfig(
+    connectorId: string,
+    partial: Partial<Pick<ConnectorConfig, 'timeoutMs' | 'maxRetries' | 'metadata'>>
+  ): ConnectorInfo {
+    const connector = this.connectors.get(connectorId);
+    if (!connector) {
+      throw new OrionError(`Connector not found: ${connectorId}`, ErrorCode.NOT_FOUND);
+    }
+
+    if (partial.timeoutMs !== undefined) {
+      connector.config.timeoutMs = partial.timeoutMs;
+    }
+    if (partial.maxRetries !== undefined) {
+      connector.config.maxRetries = partial.maxRetries;
+    }
+    if (partial.metadata !== undefined) {
+      connector.config.metadata = { ...connector.config.metadata, ...partial.metadata };
+    }
+
+    connector.updatedAt = new Date();
+    this.connectors.set(connectorId, connector);
+
+    logger.info({ connectorId, updated: partial }, 'Connector config updated');
+    return connector;
   }
 
   // ==========================================================================
@@ -665,7 +893,7 @@ export class InfrastructureService {
   async releaseSandbox(sandboxId: string): Promise<SandboxInfo> {
     const sandbox = this.sandboxes.get(sandboxId);
     if (!sandbox) {
-      throw new OrionError(`Sandbox not found: ${sandboxId}`, ErrorCode.NOT_FOUND);
+      throw new OrionError(`Sandbox NOT_FOUND: ${sandboxId}`, ErrorCode.NOT_FOUND);
     }
 
     // 删除关联的网络策略
@@ -788,6 +1016,7 @@ export class InfrastructureService {
     this.sandboxes.clear();
     this.networkPolicies.clear();
     this.healthMetrics.clear();
+    this.circuitBreakers.clear();
     logger.info('InfrastructureService destroyed');
   }
 }

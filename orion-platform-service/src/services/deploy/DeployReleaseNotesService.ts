@@ -10,11 +10,11 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ReleaseNotesRepository, ReleaseNotesEntity } from '../../repositories/ReleaseNotesRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'DeployReleaseNotes' });
+const logger = createLogger('DeployReleaseNotes');
 
 // ==================== Types ====================
 
@@ -328,7 +328,7 @@ export class DeployReleaseNotesService {
     let prUrl: string | undefined;
 
     for (const pattern of patterns) {
-      const match = commit.message.match(pattern) || commit.description.match(pattern);
+      const match = commit.description.match(pattern) || commit.description.match(pattern);
       if (match) {
         prNumber = match[1];
         // Assume GitHub-style PR URL (can be configured per repo)
@@ -370,7 +370,7 @@ export class DeployReleaseNotesService {
     return commits
       .filter(c => {
         // Filter out merge commits and empty messages
-        return !c.message.startsWith('Merge') && c.description.length > 0;
+        return !c.description.startsWith('Merge') && c.description.length > 0;
       })
       .map(commit => {
         const mappedType = typeMapping[commit.type] || 'chore';

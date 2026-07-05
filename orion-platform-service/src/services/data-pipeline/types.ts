@@ -31,7 +31,7 @@ export interface PipelineExecution {
   id: string;
   pipelineId: string;
   tenantId: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   startedAt?: string;
   completedAt?: string;
   stagesResults: StageResult[];
@@ -40,7 +40,7 @@ export interface PipelineExecution {
 export interface StageResult {
   stageId: string;
   stageName: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   recordsProcessed: number;
   startedAt?: string;
   completedAt?: string;

@@ -17,7 +17,7 @@ import { WebhookConfigRepository } from '../repositories/WebhookConfigRepository
 import { PipelineExecution } from './PipelineEngine';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('NotificationDispatcher');
 
 export interface NotificationDispatcherDeps {
   pipelineService: PipelineService;

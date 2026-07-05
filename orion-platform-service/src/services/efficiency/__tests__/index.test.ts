@@ -32,10 +32,15 @@ describe('Efficiency module exports', () => {
     expect(typeof mod.EfficiencyEventHandler).toBe('function');
   });
 
-  it('should export InMemoryLocalStorage', async () => {
+  it('should export LocalStorage interface type', async () => {
     const mod = await import('../index');
-    expect(mod.InMemoryLocalStorage).toBeDefined();
-    expect(typeof mod.InMemoryLocalStorage).toBe('function');
+    // LocalStorage is a type-only export, verify it is not a runtime value
+    expect(mod.LocalStorage).toBeUndefined();
+  });
+
+  it('should not export InMemoryLocalStorage (removed in Map→PG migration)', async () => {
+    const mod = await import('../index');
+    expect(mod.InMemoryLocalStorage).toBeUndefined();
   });
 
   it('should export EfficiencyReportService', async () => {

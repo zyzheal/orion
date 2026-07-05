@@ -18,7 +18,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { NotificationRepository } from '../services/notification';
+import { NotificationRepository, NotificationSettingsRepository } from '../services/notification';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
@@ -35,12 +35,11 @@ interface NotificationQuery {
   userId?: string;
 }
 
-// In-memory notification settings store (temporary until NotificationSettingsRepository is wired)
-const notificationSettingsStore = new Map<string, Record<string, unknown>>();
 
 export default async function notificationRoutes(app: FastifyInstance, options: NotificationRoutesOptions): Promise<void> {
   const pool = options.database;
   const notificationRepo = pool ? new NotificationRepository(pool) : null;
+  const settingsRepo = pool ? new NotificationSettingsRepository(pool) : null;
 
   // Helper: extract userId from params, query, or auth
   const extractUserId = (request: FastifyRequest): string => {
@@ -348,11 +347,15 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     },
     async (request: FastifyRequest<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>, reply: FastifyReply) => {
       try {
+        if (!settingsRepo) {
+          return reply.status(500).send({ success: false, error: 'Repository not available' });
+        }
+
         const user_id = extractUserId(request);
         // Tenant comes from auth context, not from query param
         const tenant_id = getContextTenantId(request);
-        const key = `${tenant_id}:${user_id}`;
-        const settings = notificationSettingsStore.get(key) || {
+
+        const settings = await settingsRepo.findByUser(user_id, tenant_id) || {
           email_enabled: true,
           sms_enabled: false,
           webhook_enabled: false,
@@ -405,16 +408,20 @@ export default async function notificationRoutes(app: FastifyInstance, options: 
     },
     async (request: FastifyRequest<{ Params: { userId?: string }; Querystring: { tenantId?: string } }>, reply: FastifyReply) => {
       try {
+        if (!settingsRepo) {
+          return reply.status(500).send({ success: false, error: 'Repository not available' });
+        }
+
         const user_id = extractUserId(request);
         // Tenant comes from auth context, not from query param
         const tenant_id = getContextTenantId(request);
-        const key = `${tenant_id}:${user_id}`;
         const body = request.body as Record<string, unknown>;
 
-        // Merge with existing settings
-        const existing = notificationSettingsStore.get(key) || {};
-        const updated = { ...existing, ...body };
-        notificationSettingsStore.set(key, updated);
+        const updated = await settingsRepo.upsert({
+          user_id,
+          tenant_id,
+          ...body,
+        });
 
         return reply.send({ success: true, data: updated });
       } catch (error) {

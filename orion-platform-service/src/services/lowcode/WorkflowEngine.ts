@@ -12,7 +12,7 @@
  * Phase 1.3: 支持注入真实服务实例（ApprovalFlowEngine、NotificationService、WebhookService）
  * 替代 placeholder 实现，同时保持向后兼容。
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
@@ -50,7 +50,7 @@ import { NotificationService } from '../notification/NotificationService';
 import { WebhookService } from '../webhook/WebhookService';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'WorkflowEngine' });
+const logger = createLogger('WorkflowEngine');
 
 /**
  * 工作流引擎依赖注入接口

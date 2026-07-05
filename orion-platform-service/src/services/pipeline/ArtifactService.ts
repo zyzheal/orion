@@ -14,12 +14,12 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactRecordRepository } from '../../repositories/ArtifactRecordRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ArtifactService');
 
 export interface ArtifactMetadata {
   name: string;

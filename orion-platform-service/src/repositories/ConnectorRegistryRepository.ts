@@ -42,7 +42,7 @@ export class ConnectorRegistryRepository extends BaseRepository<ConnectorRegistr
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async upsertByName(name: string, data: { version: string; capabilities: string; config?: string; tenantId?: string }): Promise<ConnectorRegistryEntity> {
+  async upsertByName(name: string, data: { version: string; capabilities: string; config?: string; tenantId?: string }): Promise<ConnectorRegistryEntity | null> {
     const existing = await this.findByName(name);
     if (existing) {
       return this.update(existing.id, {

@@ -19,10 +19,10 @@ import {
   ConfigEvents,
 } from './types';
 import { ConfigApprovalRepository } from '../../repositories/ConfigApprovalRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LConfig-LApproval-LService' });
+const logger = createLogger('LConfig-LApproval-LService');
 
 export interface ConfigApprovalServiceConfig {
   configService: ConfigService;
@@ -39,7 +39,7 @@ export class ConfigApprovalService {
   private autoApply: boolean;
 
   constructor(config: ConfigApprovalServiceConfig) {
-    if (!config.repository) throw new Error('ConfigApprovalRepository is required');
+    if (!config.repository) throw new OrionError('ConfigApprovalRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = config.repository;
     this.configService = config.configService;
     this.eventPublisher = config.eventPublisher || null;

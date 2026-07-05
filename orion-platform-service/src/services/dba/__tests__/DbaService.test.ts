@@ -354,7 +354,9 @@ describe('DbaService', () => {
       const result = await service.testConnection(created.id);
 
       expect(result.success).toBe(true);
-      expect(result.message).toContain('myhost');
+      expect(result.message).toBe('Connected');
+      expect(result.latency).toBe(42);
+      expect(result.version).toBe('PostgreSQL 15.4 (mock)');
     });
 
     it('should fail for non-existent data source', async () => {

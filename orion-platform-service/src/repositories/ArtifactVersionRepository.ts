@@ -303,12 +303,12 @@ export class ArtifactVersionRepository extends BaseRepository<ArtifactVersion> {
   /**
    * 根据 ID 查找制品版本
    */
-  async findById(id: string): Promise<ArtifactVersion | undefined> {
+  async findById(id: string): Promise<ArtifactVersion | null> {
     const result = await this.db.query(
       `SELECT * FROM artifact_version_tracking WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

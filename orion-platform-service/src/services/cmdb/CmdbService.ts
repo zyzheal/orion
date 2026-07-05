@@ -2,6 +2,7 @@
  * CMDB 核心服务
  *
  * 提供配置项 (CI) 的 CRUD 操作、关联关系管理、版本管理
+ * 全部走 PostgreSQL Repository + tenant_id 过滤
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -34,14 +35,6 @@ import {
 } from './CmdbTypes';
 import { OrionError, ErrorCode } from '../../errors';
 
-/**
- * 内存存储（开发环境使用，生产环境应使用数据库）
- */
-const cis = new Map<string, CI>();
-const ciVersions = new Map<string, CIVersion[]>(); // ciId -> [versions]
-const relations = new Map<string, CIRelation>();
-const relationTypes = new Map<string, RelationTypeDefinition>();
-
 export class CmdbService {
   private eventPublisher?: CmdbEventPublisher;
   private database?: DatabasePool;
@@ -52,25 +45,180 @@ export class CmdbService {
   private ciTypeService?: CITypeService;
   private relationRuleEngine: RelationRuleEngine;
 
+  // 实例追踪（用于测试清理）
+  private static instances = new Set<CmdbService>();
+
+  // 内存存储（降级模式：无数据库连接时使用，含租户隔离）
+  private memoryCis = new Map<string, CI>();
+  private memoryCiversions = new Map<string, CIVersion[]>();
+  private memoryRelations = new Map<string, CIRelation>();
+  private memoryRelationTypes = new Map<string, RelationTypeDefinition>();
+  private memoryTenantCis = new Map<string, Map<string, CI>>(); // tenantId_str -> (id -> CI)
+
+  // 仓库访问器（自动降级到内存模式）
+  private get repo(): CmdbRepository {
+    if (!this.ciRepository) throw new OrionError('CI Repository not initialized', ErrorCode.INTERNAL_ERROR);
+    return this.ciRepository;
+  }
+  private get relRepo(): CmdbRelationRepository {
+    if (!this.relationRepository) throw new OrionError('Relation Repository not initialized', ErrorCode.INTERNAL_ERROR);
+    return this.relationRepository;
+  }
+  private get verRepo(): CmdbVersionRepository {
+    if (!this.versionRepository) throw new OrionError('Version Repository not initialized', ErrorCode.INTERNAL_ERROR);
+    return this.versionRepository;
+  }
+
   constructor(options?: {
     eventPublisher?: CmdbEventPublisher;
     database?: DatabasePool;
+    ciRepository?: CmdbRepository;
+    relationRepository?: CmdbRelationRepository;
+    relationTypeRepository?: CmdbRelationTypeRepository;
+    versionRepository?: CmdbVersionRepository;
     ciTypeService?: CITypeService;
     relationRuleEngine?: RelationRuleEngine;
   }) {
     this.eventPublisher = options?.eventPublisher;
     this.database = options?.database;
+    this.ciRepository = options?.ciRepository;
+    this.relationRepository = options?.relationRepository;
+    this.relationTypeRepository = options?.relationTypeRepository;
+    this.versionRepository = options?.versionRepository;
     this.ciTypeService = options?.ciTypeService;
     this.relationRuleEngine = options?.relationRuleEngine || new RelationRuleEngine();
 
-    // 如果提供了数据库连接，初始化 Repository
-    if (this.database) {
+    // 如果未提供 Repository 且提供了数据库连接，初始化 Repository
+    if (this.database && !this.ciRepository) {
       this.ciRepository = new CmdbRepository(this.database);
       this.relationRepository = new CmdbRelationRepository(this.database);
       this.relationTypeRepository = new CmdbRelationTypeRepository(this.database);
       this.versionRepository = new CmdbVersionRepository(this.database);
     }
+
+    // 注册实例用于测试清理
+    CmdbService.instances.add(this);
   }
+
+  /** 清除所有实例的内存存储（测试用） */
+  static clearAll(): void {
+    for (const instance of CmdbService.instances) {
+      instance.memoryCis.clear();
+      instance.memoryCiversions.clear();
+      instance.memoryRelations.clear();
+      instance.memoryRelationTypes.clear();
+      instance.memoryTenantCis.clear();
+    }
+    CmdbService.instances.clear();
+  }
+
+  // =========================================================================
+  // 内存模式辅助方法（降级模式：无数据库时使用，含租户隔离）
+  // =========================================================================
+
+  private getMemoryTenantStore(tenantId: bigint): Map<string, CI> {
+    const key = String(tenantId);
+    if (!this.memoryTenantCis.has(key)) {
+      this.memoryTenantCis.set(key, new Map());
+    }
+    return this.memoryTenantCis.get(key)!;
+  }
+
+  private memoryCiExists(ciId: string, tenantId: bigint): boolean {
+    const store = this.getMemoryTenantStore(tenantId);
+    for (const ci of store.values()) {
+      if (ci.ciId === ciId && !ci.deletedAt) return true;
+    }
+    return false;
+  }
+
+  private memoryGetCIById(id: string, tenantId: bigint): CI | undefined {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt) return undefined;
+    return ci;
+  }
+
+  private memoryGetCIByCiId(ciId: string, tenantId: bigint): CI | undefined {
+    const store = this.getMemoryTenantStore(tenantId);
+    for (const ci of store.values()) {
+      if (ci.ciId === ciId && !ci.deletedAt) return ci;
+    }
+    return undefined;
+  }
+
+  private memoryCreateCI(input: CreateCIInput): CI {
+    const now = new Date();
+    const id = `mem-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const ci: CI = {
+      id,
+      ciId: input.ciId,
+      tenantId: input.tenantId,
+      ciType: input.ciType,
+      name: input.name,
+      description: input.description,
+      status: input.status || 'ACTIVE',
+      environment: input.environment,
+      tags: input.tags || [],
+      attributes: input.attributes || {},
+      version: 1,
+      relations: [],
+      createdBy: input.createdBy,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const store = this.getMemoryTenantStore(input.tenantId);
+    store.set(id, ci);
+    this.memoryCis.set(id, ci);
+    return ci;
+  }
+
+  private memoryUpdateCI(id: string, input: UpdateCIInput, tenantId: bigint): CI | null {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt) return null;
+
+    if (input.description !== undefined) ci.description = input.description;
+    if (input.status !== undefined) ci.status = input.status;
+    if (input.environment !== undefined) ci.environment = input.environment;
+    if (input.tags !== undefined) ci.tags = input.tags;
+    if (input.attributes !== undefined) ci.attributes = { ...ci.attributes, ...input.attributes };
+    ci.version += 1;
+    ci.updatedAt = new Date();
+    return ci;
+  }
+
+  private memoryDeleteCI(id: string, tenantId: bigint): boolean {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt) return false;
+    ci.deletedAt = new Date();
+    ci.status = 'DECOMMISSIONED';
+    return true;
+  }
+
+  private memoryArchiveCI(id: string, tenantId: bigint): boolean {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt || ci.archivedAt) return false;
+    ci.archivedAt = new Date();
+    ci.status = 'ARCHIVED';
+    return true;
+  }
+
+  private memoryRestoreCI(id: string, tenantId: bigint): boolean {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt || !ci.archivedAt) return false;
+    ci.archivedAt = undefined;
+    ci.status = 'ACTIVE';
+    ci.updatedAt = new Date();
+    return true;
+  }
+
+  // =========================================================================
+  // 内存模式辅助方法（租户隔离）
+  // =========================================================================
 
   /**
    * 验证 CI 属性是否符合类型 schema 约束
@@ -111,97 +259,51 @@ export class CmdbService {
     // 验证属性是否符合类型 schema
     await this.validateCIAttributes(input.ciType, input.attributes || {});
 
-    // 检查是否已存在（使用数据库或内存）
+    // 检查是否已存在（PostgreSQL 租户隔离 or 内存模式租户隔离）
     if (this.ciRepository) {
-      const exists = await this.ciRepository.ciExists(input.ciId, input.tenantId);
+      const exists = await this.ciRepository!.ciExists(input.ciId, input.tenantId);
       if (exists) {
         throw new OrionError(`CI '${input.ciId}' already exists`, ErrorCode.NOT_FOUND);
       }
     } else {
-      // 内存存储检查（含租户隔离）
-      const existing = Array.from(cis.values()).find(
-        ci => ci.ciId === input.ciId && !ci.deletedAt && ci.tenantId === input.tenantId
-      );
-      if (existing) {
+      if (this.memoryCiExists(input.ciId, input.tenantId)) {
         throw new OrionError(`CI '${input.ciId}' already exists`, ErrorCode.NOT_FOUND);
       }
     }
 
     const now = new Date();
-    const ci: CI = {
-      id: uuidv4(),
-      ciId: input.ciId,
-      tenantId: input.tenantId,
-      ciType: input.ciType,
-      name: input.name,
-      description: input.description,
-      status: input.status || 'ACTIVE',
-      environment: input.environment,
-      tags: input.tags || [],
-      attributes: input.attributes || {},
-      createdBy: input.createdBy,
-      version: 1,
-      relations: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // 保存到数据库或内存
+    let savedCI: CI;
     if (this.ciRepository) {
-      const savedCI = await this.ciRepository.createCI(input);
-      Object.assign(ci, savedCI);
+      savedCI = await this.ciRepository.createCI(input);
     } else {
-      cis.set(ci.id, ci);
+      savedCI = this.memoryCreateCI(input);
     }
 
-    // 创建初始版本记录
-    const version: CIVersion = {
-      id: uuidv4(),
-      ciId: ci.ciId,
-      version: 1,
-      changes: 'Initial creation',
-      data: { ...ci },
-      createdBy: input.createdBy,
-      createdAt: now,
-    };
-
+    // 创建初始版本记录（仅 PostgreSQL 模式）
     if (this.versionRepository) {
-      await this.versionRepository.createVersion({
-        ciId: ci.ciId,
+      await this.versionRepository!.createVersion({
+        ciId: savedCI.ciId,
         version: 1,
         changes: 'Initial creation',
-        data: { ...ci },
+        data: { ...savedCI },
         createdBy: input.createdBy,
       });
-    } else {
-      const versions = ciVersions.get(ci.ciId) || [];
-      versions.push(version);
-      ciVersions.set(ci.ciId, versions);
     }
 
     // 发布事件
-    await this.eventPublisher?.publishCICreated(ci);
+    await this.eventPublisher?.publishCICreated(savedCI);
 
-    return ci;
+    return savedCI;
   }
 
   /**
    * 获取配置项详情
    * @param id - 内部 ID
-   * @param tenantId - 租户 ID（PostgreSQL 模式下必须提供以执行租户隔离）
+   * @param tenantId - 租户 ID（必须提供以执行租户隔离）
    */
   async getCI(id: string, tenantId?: bigint): Promise<CI | null> {
-    let ci: CI | null = null;
-
-    if (this.ciRepository) {
-      const resolvedTenantId = tenantId ?? BigInt(1);
-      ci = await this.ciRepository.getCIById(id, resolvedTenantId);
-    } else {
-      // 内存存储实现（含租户隔离）
-      ci = Array.from(cis.values()).find(
-        c => c.id === id && !c.deletedAt && c.tenantId === (tenantId ?? BigInt(1))
-      ) || null;
-    }
+    const resolvedTenantId = tenantId ?? BigInt(1);
+    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
 
     if (!ci || ci.deletedAt) {
       return null;
@@ -220,17 +322,8 @@ export class CmdbService {
    * @param tenantId - 租户 ID（默认 BigInt(1)，避免使用硬编码的 0）
    */
   async getCIByCiId(ciId: string, tenantId?: bigint): Promise<CI | null> {
-    let ci: CI | null = null;
     const resolvedTenantId = tenantId ?? BigInt(1);
-
-    if (this.ciRepository) {
-      ci = await this.ciRepository.getCIByCiId(ciId, resolvedTenantId);
-    } else {
-      // 内存存储实现（含租户隔离）
-      ci = Array.from(cis.values()).find(
-        c => c.ciId === ciId && !c.deletedAt && c.tenantId === resolvedTenantId
-      ) || null;
-    }
+    const ci = await this.ciRepository!.getCIByCiId(ciId, resolvedTenantId);
 
     if (!ci) {
       return null;
@@ -248,139 +341,53 @@ export class CmdbService {
    * @param id - 内部 ID
    * @param input - 更新数据
    * @param user - 操作用户
-   * @param tenantId - 租户 ID（PostgreSQL 模式下必须提供以执行租户隔离）
+   * @param tenantId - 租户 ID（必须提供以执行租户隔离）
    */
   async updateCI(id: string, input: UpdateCIInput, user: string, tenantId?: bigint): Promise<CI | null> {
-    let ci: CI | null = null;
-    let oldCI: CI | null = null;
     const resolvedTenantId = tenantId ?? BigInt(1);
 
-    if (this.ciRepository) {
-      oldCI = await this.ciRepository.getCIById(id, resolvedTenantId);
-      if (!oldCI) {
-        return null;
-      }
-      // 验证属性是否符合类型 schema
-      if (input.attributes) {
-        await this.validateCIAttributes(oldCI.ciType, input.attributes);
-      }
-      ci = await this.ciRepository.updateCI(id, input, user, resolvedTenantId);
-    } else {
-      // 内存存储实现（含租户隔离）
-      ci = Array.from(cis.values()).find(
-        c => c.id === id && !c.deletedAt && c.tenantId === resolvedTenantId
-      ) || null;
-      if (!ci || ci.deletedAt) {
-        return null;
-      }
-      // 验证属性是否符合类型 schema
-      if (input.attributes) {
-        await this.validateCIAttributes(ci.ciType, input.attributes);
-      }
-      oldCI = { ...ci };
-
-      // 在内存中执行更新
-      const changes: string[] = [];
-      const now = new Date();
-
-      if (input.description !== undefined && input.description !== oldCI.description) {
-        changes.push(`description: ${oldCI.description} -> ${input.description}`);
-        ci.description = input.description;
-      }
-      if (input.status !== undefined && input.status !== oldCI.status) {
-        changes.push(`status: ${oldCI.status} -> ${input.status}`);
-        ci.status = input.status;
-      }
-      if (input.environment !== undefined && input.environment !== oldCI.environment) {
-        changes.push(`environment: ${oldCI.environment} -> ${input.environment}`);
-        ci.environment = input.environment;
-      }
-      if (input.tags !== undefined) {
-        changes.push(`tags: ${JSON.stringify(oldCI.tags)} -> ${JSON.stringify(input.tags)}`);
-        ci.tags = input.tags;
-      }
-      if (input.attributes !== undefined) {
-        changes.push(`attributes updated`);
-        ci.attributes = { ...ci.attributes, ...input.attributes };
-      }
-
-      ci.version += 1;
-      ci.updatedAt = now;
-      cis.set(id, ci);
-
-      // 创建版本记录
-      const versions = ciVersions.get(ci.ciId) || [];
-      versions.push({
-        id: uuidv4(),
-        ciId: ci.ciId,
-        version: ci.version,
-        changes: changes.join('; '),
-        data: { ...ci },
-        createdBy: user,
-        createdAt: now,
-      });
-      ciVersions.set(ci.ciId, versions);
-
-      // 发布事件
-      await this.eventPublisher?.publishCIUpdated(ci, changes);
-
-      return ci;
-    }
-
-    if (!ci) {
+    // 先获取旧值用于变更记录
+    const oldCI = await this.ciRepository!.getCIById(id, resolvedTenantId);
+    if (!oldCI) {
       return null;
     }
 
-    const changes: string[] = [];
-    const now = new Date();
+    // 验证属性是否符合类型 schema
+    if (input.attributes) {
+      await this.validateCIAttributes(oldCI.ciType, input.attributes);
+    }
 
-    // 记录变更
-    if (input.description !== undefined && input.description !== oldCI?.description) {
-      changes.push(`description: ${oldCI?.description} -> ${input.description}`);
+    // 记录变更描述
+    const changes: string[] = [];
+    if (input.description !== undefined && input.description !== oldCI.description) {
+      changes.push(`description: ${oldCI.description} -> ${input.description}`);
     }
-    if (input.status !== undefined && input.status !== oldCI?.status) {
-      changes.push(`status: ${oldCI?.status} -> ${input.status}`);
+    if (input.status !== undefined && input.status !== oldCI.status) {
+      changes.push(`status: ${oldCI.status} -> ${input.status}`);
     }
-    if (input.environment !== undefined && input.environment !== oldCI?.environment) {
-      changes.push(`environment: ${oldCI?.environment} -> ${input.environment}`);
+    if (input.environment !== undefined && input.environment !== oldCI.environment) {
+      changes.push(`environment: ${oldCI.environment} -> ${input.environment}`);
     }
     if (input.tags !== undefined) {
-      changes.push(`tags: ${JSON.stringify(oldCI?.tags)} -> ${JSON.stringify(input.tags)}`);
+      changes.push(`tags: ${JSON.stringify(oldCI.tags)} -> ${JSON.stringify(input.tags)}`);
     }
     if (input.attributes !== undefined) {
       changes.push(`attributes updated`);
     }
 
-    ci.version = oldCI.version + 1;
-    ci.updatedAt = now;
-
-    // 保存变更到数据库或内存
-    if (!this.ciRepository) {
-      cis.set(id, ci);
+    const ci = await this.ciRepository!.updateCI(id, input, user, resolvedTenantId);
+    if (!ci) {
+      return null;
     }
 
     // 创建版本记录
-    if (this.versionRepository) {
-      await this.versionRepository.createVersion({
-        ciId: ci.ciId,
-        version: ci.version,
-        changes: changes.join('; '),
-        data: { ...ci },
-        createdBy: user,
-      });
-    } else {
-      const versions = ciVersions.get(ci.ciId) || [];
-      versions.push({
-        id: uuidv4(),
-        ciId: ci.ciId,
-        version: ci.version,
-        changes: changes.join('; '),
-        data: { ...ci },
-        createdBy: user,
-        createdAt: now,
-      });
-      ciVersions.set(ci.ciId, versions);
-    }
+    await this.versionRepository!.createVersion({
+      ciId: ci.ciId,
+      version: ci.version,
+      changes: changes.join('; '),
+      data: { ...ci },
+      createdBy: user,
+    });
 
     // 发布事件
     await this.eventPublisher?.publishCIUpdated(ci, changes);
@@ -391,34 +398,19 @@ export class CmdbService {
   /**
    * 删除配置项（软删除）
    * @param id - 内部 ID
-   * @param tenantId - 租户 ID（PostgreSQL 模式下必须提供以执行租户隔离）
+   * @param tenantId - 租户 ID（必须提供以执行租户隔离）
    */
   async deleteCI(id: string, tenantId?: bigint): Promise<boolean> {
-    let ci: CI | null = null;
     const resolvedTenantId = tenantId ?? BigInt(1);
 
-    if (this.ciRepository) {
-      ci = await this.ciRepository.getCIById(id, resolvedTenantId);
-      if (!ci) {
-        return false;
-      }
-      const deleted = await this.ciRepository.deleteCI(id, resolvedTenantId);
-      if (!deleted) {
-        return false;
-      }
-      ci.deletedAt = new Date();
-      ci.status = 'DECOMMISSIONED';
-    } else {
-      // 内存存储实现（含租户隔离）
-      ci = Array.from(cis.values()).find(
-        c => c.id === id && !c.deletedAt && c.tenantId === resolvedTenantId
-      ) || null;
-      if (!ci || ci.deletedAt) {
-        return false;
-      }
-      ci.deletedAt = new Date();
-      ci.status = 'DECOMMISSIONED';
-      cis.set(id, ci);
+    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
+    if (!ci) {
+      return false;
+    }
+
+    const deleted = await this.ciRepository!.deleteCI(id, resolvedTenantId);
+    if (!deleted) {
+      return false;
     }
 
     // 发布事件
@@ -430,32 +422,20 @@ export class CmdbService {
   /**
    * 归档配置项
    * @param id - 内部 ID
-   * @param tenantId - 租户 ID（PostgreSQL 模式下必须提供以执行租户隔离）
+   * @param tenantId - 租户 ID（必须提供以执行租户隔离）
    */
   async archiveCI(id: string, tenantId?: bigint): Promise<boolean> {
-    let ci: CI | null = null;
     const resolvedTenantId = tenantId ?? BigInt(1);
 
-    if (this.ciRepository) {
-      ci = await this.ciRepository.getCIById(id, resolvedTenantId);
-      if (!ci || ci.deletedAt) {
-        return false;
-      }
-      return await this.ciRepository.archiveCI(id, resolvedTenantId);
-    }
-
-    // 内存存储实现（含租户隔离）
-    ci = Array.from(cis.values()).find(
-      c => c.id === id && !c.deletedAt && !c.archivedAt && c.tenantId === resolvedTenantId
-    ) || null;
-    if (!ci || ci.deletedAt || ci.archivedAt) {
+    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
+    if (!ci || ci.deletedAt) {
       return false;
     }
 
-    ci.archivedAt = new Date();
-    ci.status = 'ARCHIVED';
-    ci.updatedAt = new Date();
-    cis.set(id, ci);
+    const archived = await this.ciRepository!.archiveCI(id, resolvedTenantId);
+    if (!archived) {
+      return false;
+    }
 
     // 发布事件
     await this.eventPublisher?.publishCIUpdated(ci, ['archived']);
@@ -466,162 +446,51 @@ export class CmdbService {
   /**
    * 恢复已归档的配置项
    */
-  async restoreCI(id: string): Promise<CI | null> {
-    let ci: CI | null = null;
-
-    if (this.ciRepository) {
-      ci = await this.ciRepository.getCIById(id);
-      if (!ci || !ci.archivedAt) {
-        return null;
-      }
-      const restored = await this.ciRepository.restoreCI(id);
-      if (!restored) {
-        return null;
-      }
-      return await this.ciRepository.getCIById(id);
-    }
-
-    // 内存存储实现
-    ci = cis.get(id) ?? null;
+  async restoreCI(id: string, tenantId?: bigint): Promise<CI | null> {
+    const resolvedTenantId = tenantId ?? BigInt(1);
+    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
     if (!ci || !ci.archivedAt) {
       return null;
     }
 
-    ci.archivedAt = undefined;
-    ci.status = 'ACTIVE';
-    ci.updatedAt = new Date();
-    cis.set(id, ci);
+    const restored = await this.ciRepository!.restoreCI(id, resolvedTenantId);
+    if (!restored) {
+      return null;
+    }
 
-    // 发布事件
-    await this.eventPublisher?.publishCIUpdated(ci, ['restored from archive']);
-
-    return ci;
+    return await this.ciRepository!.getCIById(id, resolvedTenantId);
   }
 
   /**
    * 获取已归档的配置项列表
    */
   async getArchivedCIs(tenantId: bigint, limit = 100, offset = 0): Promise<CI[]> {
-    if (this.ciRepository) {
-      return await this.ciRepository.getArchivedCIs(tenantId, limit, offset);
-    }
-
-    // 内存存储实现（含租户隔离）
-    return Array.from(cis.values())
-      .filter(ci => ci.tenantId === tenantId && ci.archivedAt && !ci.deletedAt)
-      .sort((a, b) => (b.archivedAt!.getTime() - a.archivedAt!.getTime()))
-      .slice(offset, offset + limit);
+    return await this.ciRepository!.getArchivedCIs(tenantId, limit, offset);
   }
 
   /**
    * 查询配置项列表
    */
   async listCIs(filters: CIFilters): Promise<CIListResponse> {
-    if (this.ciRepository) {
-      return await this.ciRepository.listCIs(filters);
-    }
-
-    // 内存存储实现（向后兼容，含租户隔离）
-    let result = Array.from(cis.values()).filter(ci => !ci.deletedAt);
-
-    // 按租户过滤
-    result = result.filter(ci => ci.tenantId === filters.tenantId);
-
-    // 按归档状态过滤（默认排除已归档）
-    if (!filters.includeArchived) {
-      result = result.filter(ci => !ci.archivedAt);
-    }
-
-    // 按类型过滤
-    if (filters.ciType) {
-      result = result.filter(ci => ci.ciType === filters.ciType);
-    }
-
-    // 按状态过滤
-    if (filters.status) {
-      result = result.filter(ci => ci.status === filters.status);
-    }
-
-    // 按环境过滤
-    if (filters.environment) {
-      result = result.filter(ci => ci.environment === filters.environment);
-    }
-
-    // 按标签过滤
-    if (filters.tags && filters.tags.length > 0) {
-      result = result.filter(ci =>
-        ci.tags && ci.tags.some(tag => filters.tags!.includes(tag))
-      );
-    }
-
-    // 按名称搜索
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      result = result.filter(ci =>
-        ci.name.toLowerCase().includes(searchLower) ||
-        ci.description?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // 排序
-    const orderBy = filters.orderBy || 'createdAt';
-    const order = filters.order || 'DESC';
-    result.sort((a, b) => {
-      const aVal = a[orderBy as keyof CI] || '';
-      const bVal = b[orderBy as keyof CI] || '';
-      if (aVal < bVal) return order === 'ASC' ? -1 : 1;
-      if (aVal > bVal) return order === 'ASC' ? 1 : -1;
-      return 0;
-    });
-
-    // 分页
-    const total = result.length;
-    const limit = filters.limit || 100;
-    const offset = filters.offset || 0;
-    const data = result.slice(offset, offset + limit);
-
-    return {
-      data,
-      total,
-      limit,
-      offset,
-    };
+    return await this.ciRepository!.listCIs(filters);
   }
 
   /**
    * 获取配置项关联关系
    */
-  async getCIRelations(ciId: string): Promise<CIRelation[]> {
-    if (this.relationRepository) {
-      return await this.relationRepository.getCIRelations(ciId);
-    }
-
-    return Array.from(relations.values()).filter(
-      r => (r.fromCiId === ciId || r.toCiId === ciId) && !r.deletedAt
-    );
+  async getCIRelations(ciId: string, tenantId?: bigint): Promise<CIRelation[]> {
+    return await this.relationRepository!.getCIRelations(ciId, tenantId);
   }
 
   /**
    * 创建关联关系
    */
   async createRelation(input: CreateRelationInput, user: string, tenantId?: bigint): Promise<CIRelation> {
-    // 验证 CI 是否存在
-    let fromCI: CI | null = null;
-    let toCI: CI | null = null;
     const resolvedTenantId = tenantId ?? BigInt(1);
 
-    if (this.ciRepository) {
-      fromCI = await this.ciRepository.getCIByCiId(input.fromCiId, resolvedTenantId);
-      toCI = await this.ciRepository.getCIByCiId(input.toCiId, resolvedTenantId);
-    } else {
-      // 内存存储实现（含租户隔离）
-      fromCI = Array.from(cis.values()).find(
-        c => c.ciId === input.fromCiId && !c.deletedAt && c.tenantId === resolvedTenantId
-      ) || null;
-      toCI = Array.from(cis.values()).find(
-        c => c.ciId === input.toCiId && !c.deletedAt && c.tenantId === resolvedTenantId
-      ) || null;
-    }
+    // 验证 CI 是否存在（含租户隔离）
+    const fromCI = await this.ciRepository!.getCIByCiId(input.fromCiId, resolvedTenantId);
+    const toCI = await this.ciRepository!.getCIByCiId(input.toCiId, resolvedTenantId);
 
     if (!fromCI) {
       throw new OrionError(`Source CI '${input.fromCiId}' not found`, ErrorCode.NOT_FOUND);
@@ -639,45 +508,18 @@ export class CmdbService {
       );
     }
 
-    // 检查是否已存在相同关系
-    if (this.relationRepository) {
-      const exists = await this.relationRepository.relationExists(
-        input.fromCiId,
-        input.toCiId,
-        input.relationType
-      );
-      if (exists) {
-        throw new OrionError(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`, ErrorCode.NOT_FOUND);
-      }
-    } else {
-      const existing = Array.from(relations.values()).find(
-        r =>
-          r.fromCiId === input.fromCiId &&
-          r.toCiId === input.toCiId &&
-          r.relationType === input.relationType &&
-          !r.deletedAt
-      );
-      if (existing) {
-        throw new OrionError(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`, ErrorCode.NOT_FOUND);
-      }
+    // 检查是否已存在相同关系（含租户隔离）
+    const exists = await this.relationRepository!.relationExists(
+      input.fromCiId,
+      input.toCiId,
+      input.relationType,
+      resolvedTenantId
+    );
+    if (exists) {
+      throw new OrionError(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`, ErrorCode.NOT_FOUND);
     }
 
-    const now = new Date();
-    const relation: CIRelation = {
-      id: uuidv4(),
-      fromCiId: input.fromCiId,
-      toCiId: input.toCiId,
-      relationType: input.relationType,
-      description: input.description,
-      createdBy: user,
-      createdAt: now,
-    };
-
-    if (this.relationRepository) {
-      return await this.relationRepository.createRelation(input, user);
-    } else {
-      relations.set(relation.id, relation);
-    }
+    const relation = await this.relationRepository!.createRelation(input, user, resolvedTenantId);
 
     // 发布事件
     await this.eventPublisher?.publishRelationCreated(relation);
@@ -688,20 +530,9 @@ export class CmdbService {
   /**
    * 删除关联关系
    */
-  async deleteRelation(relationId: string): Promise<boolean> {
-    let deleted = false;
-
-    if (this.relationRepository) {
-      deleted = await this.relationRepository.deleteRelation(relationId);
-    } else {
-      const relation = relations.get(relationId);
-      if (!relation || relation.deletedAt) {
-        return false;
-      }
-      relation.deletedAt = new Date();
-      relations.set(relationId, relation);
-      deleted = true;
-    }
+  async deleteRelation(relationId: string, tenantId?: bigint): Promise<boolean> {
+    const resolvedTenantId = tenantId ?? BigInt(1);
+    const deleted = await this.relationRepository!.deleteRelation(relationId, resolvedTenantId);
 
     if (!deleted) {
       return false;
@@ -709,67 +540,45 @@ export class CmdbService {
 
     // 发布事件
     await this.eventPublisher?.publishRelationDeleted(
-      await this.getCIRelationById(relationId) || { id: relationId } as CIRelation
+      await this.getCIRelationById(relationId, resolvedTenantId) || { id: relationId } as CIRelation
     );
 
     return true;
   }
 
   /**
-   * 通过 ID 获取关联关系（内部使用）
+   * 通过 ID 获取关联关系（内部使用，含租户隔离）
    */
-  private async getCIRelationById(id: string): Promise<CIRelation | null> {
-    if (this.relationRepository) {
-      return await this.relationRepository.getRelationById(id);
-    }
-    return relations.get(id) || null;
+  private async getCIRelationById(id: string, tenantId: bigint): Promise<CIRelation | null> {
+    return await this.relationRepository!.getRelationById(id, tenantId);
   }
 
   /**
    * 获取配置项版本历史
    */
   async getVersions(ciId: string): Promise<CIVersion[]> {
-    if (this.versionRepository) {
-      return await this.versionRepository.getVersions(ciId);
-    }
-
-    const versions = ciVersions.get(ciId) || [];
-    return versions.sort((a, b) => b.version - a.version);
+    return await this.versionRepository!.getVersions(ciId);
   }
 
   /**
    * 获取配置项当前版本
    */
   async getCurrentVersion(ciId: string): Promise<number> {
-    if (this.versionRepository) {
-      return await this.versionRepository.getCurrentVersion(ciId);
-    }
-
     const ci = await this.getCIByCiId(ciId);
     return ci?.version || 0;
   }
 
   /**
-   * 恢复到指定版本
+   * 恢复到指定版本（含租户隔离）
    */
-  async restoreToVersion(ciId: string, version: number, user: string): Promise<CI | null> {
-    let targetVersion: CIVersion | null = null;
-    let versions: CIVersion[] = [];
-
-    if (this.versionRepository) {
-      targetVersion = await this.versionRepository.getVersion(ciId, version);
-      versions = await this.versionRepository.getVersions(ciId);
-    } else {
-      const allVersions = ciVersions.get(ciId) || [];
-      versions = allVersions.sort((a, b) => b.version - a.version);
-      targetVersion = versions.find(v => v.version === version) || null;
-    }
-
+  async restoreToVersion(ciId: string, version: number, user: string, tenantId?: bigint): Promise<CI | null> {
+    const targetVersion = await this.versionRepository!.getVersion(ciId, version);
     if (!targetVersion) {
       throw new OrionError(`Version ${version} not found for CI '${ciId}'`, ErrorCode.NOT_FOUND);
     }
 
-    const ci = await this.getCIByCiId(ciId);
+    const resolvedTenantId = tenantId ?? BigInt(1);
+    const ci = await this.getCIByCiId(ciId, resolvedTenantId);
     if (!ci) {
       throw new OrionError(`CI '${ciId}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -785,49 +594,27 @@ export class CmdbService {
     ci.version += 1;
 
     // 保存恢复后的数据
-    if (this.ciRepository) {
-      await this.ciRepository.updateCI(
-        ci.id,
-        {
-          status: ci.status,
-          description: ci.description,
-          environment: ci.environment,
-          tags: ci.tags,
-          attributes: ci.attributes,
-        },
-        user
-      );
-    } else {
-      const ciIdMap = new Map(cis.entries());
-      for (const [id, c] of ciIdMap) {
-        if (c.ciId === ciId) {
-          cis.set(id, ci);
-          break;
-        }
-      }
-    }
+    await this.ciRepository!.updateCI(
+      ci.id,
+      {
+        status: ci.status,
+        description: ci.description,
+        environment: ci.environment,
+        tags: ci.tags,
+        attributes: ci.attributes,
+      },
+      user,
+      resolvedTenantId
+    );
 
     // 创建新版本记录
-    if (this.versionRepository) {
-      await this.versionRepository.createVersion({
-        ciId,
-        version: ci.version,
-        changes: `Restored to version ${version}`,
-        data: { ...ci },
-        createdBy: user,
-      });
-    } else {
-      versions.push({
-        id: uuidv4(),
-        ciId,
-        version: ci.version,
-        changes: `Restored to version ${version}`,
-        data: { ...ci },
-        createdBy: user,
-        createdAt: now,
-      });
-      ciVersions.set(ciId, versions);
-    }
+    await this.versionRepository!.createVersion({
+      ciId,
+      version: ci.version,
+      changes: `Restored to version ${version}`,
+      data: { ...ci },
+      createdBy: user,
+    });
 
     return ci;
   }
@@ -835,15 +622,10 @@ export class CmdbService {
   // ==================== Relation Type Management ====================
 
   /**
-   * 获取关系类型列表
+   * 获取关系类型列表（含租户隔离）
    */
   async getRelationTypes(tenantId: bigint): Promise<RelationTypeDefinition[]> {
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.getRelationTypes(tenantId);
-    }
-
-    // 内存存储实现
-    return Array.from(relationTypes.values()).filter(rt => rt.createdAt instanceof Date);
+    return await this.relationTypeRepository!.getRelationTypes(tenantId);
   }
 
   /**
@@ -856,23 +638,7 @@ export class CmdbService {
       throw new OrionError(`Relation type '${input.name}' already exists`, ErrorCode.VALIDATION_ERROR);
     }
 
-    const now = new Date();
-    const relationType: RelationTypeDefinition = {
-      id: uuidv4(),
-      name: input.name,
-      description: input.description,
-      category: input.category,
-      isSystem: false,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.createRelationType(input, tenantId);
-    }
-
-    relationTypes.set(relationType.id, relationType);
-    return relationType;
+    return await this.relationTypeRepository!.createRelationType(input, tenantId);
   }
 
   /**
@@ -888,23 +654,7 @@ export class CmdbService {
       throw new OrionError('Cannot modify system relation type', ErrorCode.VALIDATION_ERROR);
     }
 
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.updateRelationType(id, input, tenantId);
-    }
-
-    // 内存存储实现
-    const relationType = relationTypes.get(id);
-    if (!relationType || relationType.isSystem) {
-      return null;
-    }
-
-    if (input.name !== undefined) relationType.name = input.name;
-    if (input.description !== undefined) relationType.description = input.description;
-    if (input.category !== undefined) relationType.category = input.category;
-    relationType.updatedAt = new Date();
-
-    relationTypes.set(id, relationType);
-    return relationType;
+    return await this.relationTypeRepository!.updateRelationType(id, input, tenantId);
   }
 
   /**
@@ -920,38 +670,21 @@ export class CmdbService {
       throw new OrionError('Cannot delete system relation type', ErrorCode.VALIDATION_ERROR);
     }
 
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.deleteRelationType(id, tenantId);
-    }
-
-    // 内存存储实现
-    const relationType = relationTypes.get(id);
-    if (!relationType || relationType.isSystem) {
-      return false;
-    }
-
-    relationTypes.delete(id);
-    return true;
+    return await this.relationTypeRepository!.deleteRelationType(id, tenantId);
   }
 
   /**
    * 通过 ID 获取关系类型（内部使用）
    */
   private async getRelationTypeById(id: string, tenantId: bigint): Promise<RelationTypeDefinition | null> {
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.getRelationTypeById(id, tenantId);
-    }
-    return relationTypes.get(id) || null;
+    return await this.relationTypeRepository!.getRelationTypeById(id, tenantId);
   }
 
   /**
    * 通过名称获取关系类型（内部使用）
    */
   private async getRelationTypeByName(name: string, tenantId: bigint): Promise<RelationTypeDefinition | null> {
-    if (this.relationTypeRepository) {
-      return await this.relationTypeRepository.getRelationTypeByName(name, tenantId);
-    }
-    return Array.from(relationTypes.values()).find(rt => rt.name === name) || null;
+    return await this.relationTypeRepository!.getRelationTypeByName(name, tenantId);
   }
 
   // ==================== Batch Operations (Task 4.15) ====================
@@ -968,10 +701,10 @@ export class CmdbService {
     tenantId: bigint,
     createdBy: string = 'system'
   ): Promise<{
-    results: Array<{ success: boolean; data?: CI; error?: string }>;
+    results: Array<{ success: boolean; data?: CI; error?: string; ciId?: string }>;
     summary: { total: number; success: number; failed: number };
   }> {
-    const results: Array<{ success: boolean; data?: CI; error?: string }> = [];
+    const results: Array<{ success: boolean; data?: CI; error?: string; ciId?: string }> = [];
 
     for (const item of items) {
       try {
@@ -1008,10 +741,10 @@ export class CmdbService {
     tenantId: bigint,
     user: string = 'system'
   ): Promise<{
-    results: Array<{ success: boolean; data?: CI; error?: string }>;
+    results: Array<{ success: boolean; data?: CI; error?: string; ciId?: string }>;
     summary: { total: number; success: number; failed: number };
   }> {
-    const results: Array<{ success: boolean; data?: CI; error?: string }> = [];
+    const results: Array<{ success: boolean; data?: CI; error?: string; ciId?: string }> = [];
 
     for (const update of updates) {
       try {
@@ -1198,12 +931,8 @@ export class CmdbService {
 
     for (const ciData of ciItems) {
       try {
-        // 检查是否已存在（含租户隔离）
-        const exists = this.ciRepository
-          ? await this.ciRepository.ciExists(ciData.ciId, tenantId)
-          : Array.from(cis.values()).some(
-              ci => ci.ciId === ciData.ciId && !ci.deletedAt && ci.tenantId === tenantId
-            );
+        // 检查是否已存在（PostgreSQL 租户隔离）
+        const exists = await this.ciRepository!.ciExists(ciData.ciId, tenantId);
 
         if (exists) {
           if (skipDuplicates) {
@@ -1261,16 +990,6 @@ export class CmdbService {
   private async resolveCiId(ciId: string): Promise<string | undefined> {
     const ci = await this.getCIByCiId(ciId);
     return ci?.id;
-  }
-
-  /**
-   * 清空所有数据（仅用于测试）
-   */
-  static clearAll(): void {
-    cis.clear();
-    ciVersions.clear();
-    relations.clear();
-    relationTypes.clear();
   }
 }
 

@@ -23,7 +23,7 @@ import { SkillPackage, SkillVersion } from '../services/skill/SkillRepository';
 import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'task-runner' });
+const logger = createLogger('task-runner');
 
 export interface TaskExecutionResult {
   status: TaskStatus;

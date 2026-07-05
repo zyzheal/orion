@@ -24,7 +24,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const user = (request as any).user;
       const problem = await problemService.createProblem({
         title: body.title,
@@ -47,7 +47,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const query = request.query as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const result = await problemService.listProblems(tenantId, {
         status: query.status,
         severity: query.severity,
@@ -66,7 +66,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     onRequest: [authenticateUser, requirePermission({ resource: 'problem', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const stats = await problemService.getStats(tenantId);
       return reply.send({ data: stats });
     } catch (error: any) {
@@ -79,7 +79,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const query = request.query as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const result = await problemService.listKnownErrors(tenantId, {
         status: query.status,
         problemId: query.problemId,
@@ -97,7 +97,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const query = request.query as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       if (!query.q) {
         return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
@@ -113,7 +113,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const user = (request as any).user;
       const knownError = await problemService.createKnownError({
         problemId: body.problemId,
@@ -138,7 +138,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const problem = await problemService.getProblem(id, tenantId);
       return reply.send({ data: problem });
     } catch (error: any) {
@@ -153,7 +153,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     try {
       const { id } = request.params as any;
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const problem = await problemService.updateProblem(id, body, tenantId);
       return reply.send({ data: problem });
     } catch (error: any) {
@@ -167,7 +167,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       await problemService.deleteProblem(id, tenantId);
       return reply.send({ success: true });
     } catch (error: any) {
@@ -184,7 +184,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     try {
       const { id } = request.params as any;
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       if (!body.status) {
         return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
@@ -204,7 +204,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     try {
       const { id } = request.params as any;
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       if (!body.incidentId) {
         return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
@@ -222,7 +222,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     try {
       const { id } = request.params as any;
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       if (!body.changeId) {
         return handleError(reply, new ValidationError('VALIDATION_ERROR'));
       }
@@ -242,7 +242,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
     try {
       const { id } = request.params as any;
       const body = request.body as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       const knownError = await problemService.updateKnownError(id, body, tenantId);
       return reply.send({ data: knownError });
     } catch (error: any) {
@@ -256,7 +256,7 @@ export default async function problemRoutes(app: FastifyInstance): Promise<void>
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as any;
-      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+      const tenantId = (request as any).tenantContext?.getCurrentTenant()?.tenantId || (request as any).user?.tenantId;
       await problemService.deleteKnownError(id, tenantId);
       return reply.send({ success: true });
     } catch (error: any) {

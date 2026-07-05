@@ -21,11 +21,12 @@
 import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import { K8sApi } from '@kubernetes/client-node';
+import { KubeConfig, CoreV1Api } from '@kubernetes/client-node';
 import {
   ServiceHealthCheckRepository,
   ServiceHealthCheckEntity,
   ServiceHealthResultRepository,
+  ServiceHealthResultEntity,
 } from '../../repositories/ServiceHealthRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { createLogger } from '../../utils/logger';
@@ -113,7 +114,7 @@ export class HealthCheckerService {
         { traceId: '', checkId: existing.id },
         'Health check already registered, updating',
       );
-      return this.checkRepo.update(existing.id, {
+      const updated = await this.checkRepo.update(existing.id, {
         intervalSeconds: config.intervalSeconds ?? existing.intervalSeconds,
         timeoutSeconds: config.timeoutSeconds ?? existing.timeoutSeconds,
         retryCount: config.retryCount ?? existing.retryCount,
@@ -123,6 +124,10 @@ export class HealthCheckerService {
         failureThreshold: config.failureThreshold ?? existing.failureThreshold,
         isActive: true,
       });
+      if (!updated) {
+        throw new OrionError(`Health check not found: ${existing.id}`, ErrorCode.NOT_FOUND);
+      }
+      return updated;
     }
 
     const id = randomUUID();
@@ -270,11 +275,11 @@ export class HealthCheckerService {
     timeoutMs: number,
     _attemptNumber: number,
   ): Promise<CheckResult> {
+    const start = Date.now();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const start = Date.now();
       const response = await fetch(check.serviceUrl, {
         method: 'GET',
         signal: controller.signal,
@@ -436,6 +441,7 @@ export class HealthCheckerService {
 
       socket.setTimeout(timeoutMs, () => {
         socket.destroy();
+        const latencyMs = Date.now() - start;
         resolve({
           status: 'timeout',
           latencyMs,
@@ -468,7 +474,6 @@ export class HealthCheckerService {
       return {
         ...result,
         latencyMs: Date.now() - start,
-        attemptNumber,
       };
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
@@ -793,16 +798,21 @@ export class HealthCheckerService {
     const start = Date.now();
 
     try {
-      const kc = kubeconfig ? new K8sApi({ config: kubeconfig }) : new K8sApi();
-      const k8sApi = kc.makeApiClient(kc.getCoreApi());
+      const kc = new KubeConfig();
+      if (kubeconfig) {
+        kc.loadFromString(kubeconfig);
+      } else {
+        kc.loadFromDefault();
+      }
+      const k8sApi = kc.makeApiClient(CoreV1Api);
 
       const nodesResponse = await k8sApi.listNode();
       const latencyMs = Date.now() - start;
 
-      const totalNodes = nodesResponse.body.items?.length ?? 0;
-      const readyNodes = nodesResponse.body.items?.filter(node => {
+      const totalNodes = nodesResponse.items?.length ?? 0;
+      const readyNodes = nodesResponse.items?.filter((node: { status?: { conditions?: { type: string; status: string }[] } }) => {
         const conditions = node.status?.conditions || [];
-        return conditions.some(c => c.type === 'Ready' && c.status === 'True');
+        return conditions.some((c: { type: string; status: string }) => c.type === 'Ready' && c.status === 'True');
       }).length ?? 0;
 
       if (totalNodes === 0) {

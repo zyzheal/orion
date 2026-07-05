@@ -1,5 +1,5 @@
-import { createLogger } from '../utils/logger';
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+import { createLogger } from '../../utils/logger';
+const logger = createLogger('DegradationConfigService');
 import { DatabasePool } from '../database';
 /**
  * DegradationConfigService - Business logic for AI Degradation Dynamic Configuration

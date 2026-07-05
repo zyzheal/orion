@@ -18,7 +18,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'branch-policy-routes' });
+const logger = createLogger('branch-policy-routes');
 
 interface BranchPolicyRoutesOptions {
   database?: DatabasePool;

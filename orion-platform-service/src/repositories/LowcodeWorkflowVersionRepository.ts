@@ -3,7 +3,7 @@
  *
  * 负责工作流版本快照的持久化操作，继承 BaseRepository 获得标准 CRUD。
  */
-import { BaseRepository } from '../../db/base-repository';
+import { BaseRepository } from '../db/base-repository';
 
 export interface LowcodeWorkflowVersionEntity {
   id: string;

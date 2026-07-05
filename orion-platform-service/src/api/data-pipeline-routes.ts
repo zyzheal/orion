@@ -63,4 +63,21 @@ export default async function dataPipelineRoutes(
   app.get('/executions', { onRequest: [authenticateUser, requirePermission({ resource: 'data_pipeline', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getAllExecutions(request, reply);
   });
+
+  // ==================== Version Management (Task 5.8) ====================
+
+  // POST /v1/data-pipelines/:id/versions - Create version snapshot
+  app.post('/:id/versions', { onRequest: [authenticateUser, requirePermission({ resource: 'data_pipeline', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.createVersion(request, reply);
+  });
+
+  // GET /v1/data-pipelines/:id/versions - List all versions
+  app.get('/:id/versions', { onRequest: [authenticateUser, requirePermission({ resource: 'data_pipeline', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.listVersions(request, reply);
+  });
+
+  // GET /v1/data-pipelines/:id/versions/:version - Get specific version
+  app.get('/:id/versions/:version', { onRequest: [authenticateUser, requirePermission({ resource: 'data_pipeline', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return controller.getVersion(request, reply);
+  });
 }

@@ -34,6 +34,7 @@ export async function registerApprovalRoutes(
   let multiLevelService: MultiLevelApprovalService;
   let emergencyService: EmergencyApprovalService;
   let templateService: ApprovalTemplateService;
+  let controller: ApprovalController | null = null;
 
   if (db) {
     multiLevelService = new MultiLevelApprovalService(db);
@@ -42,14 +43,16 @@ export async function registerApprovalRoutes(
     const approvalService = new ApprovalService(db);
     const gateRepository = new ApprovalGateRepository(db);
     const gateService = new ApprovalGateService(gateRepository);
-    const controller = new ApprovalController(
+    controller = new ApprovalController(
       multiLevelService,
       emergencyService,
       templateService,
       gateService,
       approvalService,
     );
-  } else {
+  }
+
+  if (!controller) {
     // Fallback: return early without database
     logger.warn('[ApprovalRoutes] No database, skipping routes');
     return;

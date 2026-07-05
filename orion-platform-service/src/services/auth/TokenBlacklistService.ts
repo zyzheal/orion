@@ -12,15 +12,17 @@
  */
 import crypto from 'crypto';
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 import {
   BlacklistedTokenRepository,
   BlacklistedTokenEntity,
 } from '../../repositories/BlacklistedTokenRepository';
+import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { FallbackStorageRepository } from '../../repositories/FallbackStorageRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TokenBlacklistService');
 
 // ---------------------------------------------------------------------------
 // Redis client type definition (ioredis) — optional dependency
@@ -77,13 +79,15 @@ const DEFAULT_CONFIG: TokenBlacklistConfig = {
 export class TokenBlacklistService extends EventEmitter {
   private config: TokenBlacklistConfig;
   private repository: BlacklistedTokenRepository | null;
+  private dbPool: DatabasePool | null;
   private redisClient: RedisClient | null = null;
+  private cache: Map<string, BlacklistedTokenEntity> = new Map();
 
   // --- persistence layers -------------------------------------------------
   // Tier 1: Redis (distributed, TTL-based) — optional
   // Tier 2: PostgreSQL via BlacklistedTokenRepository (source-of-truth)
-  // Tier 3: local Map (fallback when DB unavailable)
-  private cache: Map<string, BlacklistedTokenEntity> = new Map();
+  // Tier 3: FallbackStorageService (local read-through / write-through fallback)
+  private fallbackStore!: FallbackStorageService;
   private dbDown = false;    // global DB-down sentinel
 
   // Periodic cleanup timer
@@ -91,10 +95,25 @@ export class TokenBlacklistService extends EventEmitter {
   // Redis connection state
   private redisConnected = false;
 
-  constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}) {
+  constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}, fallbackStore?: FallbackStorageService) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.dbPool = dbPool;
     this.repository = dbPool ? new BlacklistedTokenRepository(dbPool) : null;
+
+    // FallbackStorageService for unified cache/persistence layer
+    if (fallbackStore) {
+      this.fallbackStore = fallbackStore;
+    } else {
+      this.fallbackStore = new FallbackStorageService({
+        prefix: 'token:blacklist',
+        maxSize: 5000,
+        ttlMs: this.config.ttlSeconds * 1000,
+        persistToDb: false,
+        tenantId: '0',
+      });
+    }
+
     this.connectRedis();
   }
 
@@ -141,6 +160,12 @@ export class TokenBlacklistService extends EventEmitter {
 
   async connect(): Promise<void> {
     logger.info('[TokenBlacklist] Service connected');
+
+    // Start FallbackStorageService with optional repository
+    const repo = this.dbPool ? new FallbackStorageRepository(this.dbPool) : null;
+    this.fallbackStore.start(repo);
+    await this.fallbackStore.loadFromDb();
+
     await this.warmCache();
     this.startPeriodicCleanup();
   }
@@ -150,7 +175,7 @@ export class TokenBlacklistService extends EventEmitter {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    this.cache.clear();
+    await this.fallbackStore.clear();
     this.dbDown = false;
     this.removeAllListeners();
 
@@ -167,20 +192,21 @@ export class TokenBlacklistService extends EventEmitter {
   // Cache warming & periodic cleanup
   // -----------------------------------------------------------------------
 
-  /** Warm local cache from PostgreSQL on startup. */
+  /** Warm local cache from FallbackStorageService on startup. */
   private async warmCache(): Promise<void> {
-    if (!this.repository) {
+    if (!this.repository && !this.fallbackStore) {
       logger.warn('[TokenBlacklist] No DB connection, cache warm skipped');
       return;
     }
 
     try {
-      const stats = await this.repository.getStats();
-      logger.info({ totalRevoked: stats.totalRevoked, traceId: getCurrentTraceId() }, '[TokenBlacklist] Cache warmed');
+      const stats = await this.fallbackStore.getStats();
+      const totalRevoked = (stats as any).liveEntries || 0;
+      logger.info({ totalRevoked, traceId: getCurrentTraceId() }, '[TokenBlacklist] Cache warmed');
       this.dbDown = false;
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
-      logger.error({ err, traceId: getCurrentTraceId() }, '[TokenBlacklist] Failed to warm cache from DB, falling back to memory');
+      logger.error({ err, traceId: getCurrentTraceId() }, '[TokenBlacklist] Failed to warm cache from storage, falling back to memory');
       this.dbDown = true;
     }
   }

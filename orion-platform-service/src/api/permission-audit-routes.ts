@@ -47,7 +47,7 @@ export default async function permissionAuditRoutes(
   }
 
   // Error handler
-  function handleError(error: Error, reply: FastifyReply) {
+  function handleRouteError(error: Error, reply: FastifyReply) {
     return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR))
   }
 
@@ -61,7 +61,7 @@ export default async function permissionAuditRoutes(
       const data = await auditRepo.queryDenied(limit, request.user!.tenantId);
       return reply.send({ data, total: data.length, offset });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleRouteError(err as Error, reply);
     }
   });
 
@@ -75,7 +75,7 @@ export default async function permissionAuditRoutes(
       const data = await auditRepo.queryByUser(userId, limit, request.user!.tenantId);
       return reply.send({ data, total: data.length });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleRouteError(err as Error, reply);
     }
   });
 
@@ -89,7 +89,7 @@ export default async function permissionAuditRoutes(
       const data = await auditRepo.queryByResource(resourceType, resourceId, parseInt(limit || '100', 10), request.user!.tenantId);
       return reply.send({ data, total: data.length });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleRouteError(err as Error, reply);
     }
   });
 
@@ -102,7 +102,7 @@ export default async function permissionAuditRoutes(
       const data = await auditRepo.countDeniedByUser(hours, request.user!.tenantId);
       return reply.send({ data, hours });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleRouteError(err as Error, reply);
     }
   });
 }

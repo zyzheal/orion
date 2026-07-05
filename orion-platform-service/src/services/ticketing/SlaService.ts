@@ -6,8 +6,8 @@
  */
 
 import { createLogger } from '../../utils/logger';
-import { getCurrentTenantId, getCurrentUserId } from '../../db/tenant-context-storage';
-import { SlaRepository } from '../repositories/SlaRepository';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
+import { SlaRepository, SLAPolicyEntity, TicketSLAEntity } from '../../repositories/SlaRepository';
 import {
   SLATarget,
   CreateSLAPolicyInput,
@@ -32,6 +32,37 @@ export class SlaService {
     this.repository = repository;
   }
 
+  // ==================== Entity Mapping Helpers ====================
+
+  private toSLATarget(entity: SLAPolicyEntity): SLATarget {
+    return {
+      id: entity.id,
+      tenantId: entity.tenantId,
+      name: entity.name,
+      priority: entity.priority as TicketPriority,
+      targetResponseTimeMs: entity.targetResponseTimeMs,
+      targetResolutionTimeMs: entity.targetResolutionTimeMs,
+      enabled: entity.enabled,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
+
+  private toTicketSLA(entity: TicketSLAEntity): TicketSLA {
+    return {
+      id: entity.id,
+      ticketId: entity.ticketId,
+      slaTargetId: entity.slaTargetId,
+      targetResolutionTimeMs: entity.targetResolutionTimeMs,
+      actualResolutionTimeMs: entity.actualResolutionTimeMs,
+      breached: entity.breached,
+      breachedAt: entity.breachedAt,
+      resolvedAt: entity.resolvedAt,
+      firstResponseAt: entity.firstResponseAt,
+      responseBreached: entity.responseBreached,
+    };
+  }
+
   // ==================== SLA Policy Management ====================
 
   /**
@@ -39,12 +70,11 @@ export class SlaService {
    */
   async createSlaPolicy(input: CreateSLAPolicyInput): Promise<SLATarget> {
     const tenantId = input.tenantId || getCurrentTenantId();
-    const userId = getCurrentUserId();
 
     const policyInput: CreateSLAPolicyInput = {
       ...input,
       tenantId,
-      createdBy: userId || input.createdBy,
+      createdBy: input.createdBy,
     };
 
     const policy = await this.repository.createPolicy(policyInput);
@@ -52,21 +82,23 @@ export class SlaService {
       { traceId: getCurrentTenantId(), tenantId, policyId: policy.id, name: policy.name },
       '[SlaService] SLA policy created'
     );
-    return policy;
+    return this.toSLATarget(policy);
   }
 
   /**
    * Get SLA policy by ID
    */
   async getSlaPolicy(tenantId: string, policyId: string): Promise<SLATarget | null> {
-    return this.repository.findPolicyById(policyId);
+    const policy = await this.repository.findPolicyById(policyId);
+    return policy ? this.toSLATarget(policy) : null;
   }
 
   /**
    * List SLA policies for a tenant
    */
   async listSlaPolicies(tenantId: string, options?: { enabled?: boolean; priority?: TicketPriority }): Promise<SLATarget[]> {
-    return this.repository.findAllPolicies(tenantId, options);
+    const policies = await this.repository.findAllPolicies(tenantId, options);
+    return policies.map(p => this.toSLATarget(p));
   }
 
   /**
@@ -81,7 +113,7 @@ export class SlaService {
       { traceId: getCurrentTenantId(), tenantId, policyId },
       '[SlaService] SLA policy updated'
     );
-    return policy;
+    return this.toSLATarget(policy);
   }
 
   /**

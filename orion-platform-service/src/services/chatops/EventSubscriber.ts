@@ -18,7 +18,7 @@ import { EventEmitter } from 'events';
 import { EventBusService, EventBusError } from '../event-bus-service';
 import { ChatOpsRecommendationRepository } from '../../repositories/ChatOpsRecommendationRepository';
 import { ChatOpsSubscriptionFailureRepository } from '../../repositories/ChatOpsSubscriptionFailureRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = createLogger('EventSubscriber');

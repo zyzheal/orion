@@ -5,19 +5,12 @@
  * Uses @aws-sdk/client-ec2, @aws-sdk/client-s3, @aws-sdk/client-sts.
  */
 
-import {
-  CloudProviderClient,
-  ProviderResource,
-  ProviderSyncResult,
-  ProviderHealthStatus,
-  ProviderCostEntry,
-  CredentialValidationResult,
-  DEFAULT_RETRY_CONFIG,
-} from './CloudProviderClient';
-import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../../errors';
+import { createLogger } from '../../../utils/logger';
 import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
 import { EC2Client, DescribeInstancesCommand, DescribeInstancesCommandOutput } from '@aws-sdk/client-ec2';
 import { S3Client, ListBucketsCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { CloudProviderClient, ProviderResource, ProviderCostEntry, ProviderHealthStatus, CredentialValidationResult, DEFAULT_RETRY_CONFIG } from './CloudProviderClient';
 
 const logger = createLogger('aws-provider-client');
 
@@ -156,7 +149,7 @@ export class AwsProviderClient implements CloudProviderClient {
 
   async discoverResources(resourceTypes?: string[]): Promise<ProviderResource[]> {
     if (!this.ec2Client || !this.s3Client) {
-      throw new Error('Client not initialized - call initialize() first');
+      throw new OrionError('Client not initialized - call initialize() first', ErrorCode.UNAUTHORIZED);
     }
 
     const resources: ProviderResource[] = [];
@@ -178,7 +171,7 @@ export class AwsProviderClient implements CloudProviderClient {
                 type: 'ec2',
                 region: instance.Placement?.AvailabilityZone ?? this.region,
                 status: instance.State?.Name ?? 'unknown',
-                tags: (instance.Tags ?? []).reduce((acc, t) => ({ ...acc, [t.Key]: t.Value }), {}),
+                tags: Object.fromEntries((instance.Tags ?? []).filter(t => t.Key).map(t => [t.Key, t.Value ?? ''])),
                 spec: {
                   instanceType: instance.InstanceType,
                   imageId: instance.ImageId,
@@ -267,7 +260,7 @@ export class AwsProviderClient implements CloudProviderClient {
 
   async getResource(providerResourceId: string): Promise<ProviderResource | null> {
     if (!this.ec2Client || !this.s3Client) {
-      throw new Error('Client not initialized - call initialize() first');
+      throw new OrionError('Client not initialized - call initialize() first', ErrorCode.UNAUTHORIZED);
     }
 
     // Try EC2 instance lookup
@@ -286,7 +279,7 @@ export class AwsProviderClient implements CloudProviderClient {
               type: 'ec2',
               region: instance.Placement?.AvailabilityZone ?? this.region,
               status: instance.State?.Name ?? 'unknown',
-              tags: (instance.Tags ?? []).reduce((acc, t) => ({ ...acc, [t.Key]: t.Value }), {}),
+              tags: Object.fromEntries((instance.Tags ?? []).filter(t => t.Key).map(t => [t.Key, t.Value ?? ''])),
               spec: {
                 instanceType: instance.InstanceType,
                 imageId: instance.ImageId,
@@ -312,8 +305,8 @@ export class AwsProviderClient implements CloudProviderClient {
       const bucket = result.Buckets?.find(b => b.Name === providerResourceId);
       if (bucket) {
         return {
-          id: bucket.Name,
-          name: bucket.Name,
+          id: bucket.Name ?? '',
+          name: bucket.Name ?? '',
           type: 's3',
           region: this.region,
           status: 'active',

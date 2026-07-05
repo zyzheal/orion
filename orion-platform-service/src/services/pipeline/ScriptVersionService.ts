@@ -7,14 +7,14 @@
  * P3 feature from neatlogic-autoexec comparison analysis.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ScriptVersionRepository } from '../../repositories/ScriptVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import type {
   ScriptVersion, CreateScriptVersion, ScriptVersionFilter, ScriptVersionDiff, ScriptVersionEntity,
 } from '../../models/ScriptVersion';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ScriptVersionService');
 
 export class ScriptVersionServiceError extends Error {
   constructor(message: string, public code: string) {

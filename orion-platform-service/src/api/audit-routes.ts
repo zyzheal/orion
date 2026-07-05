@@ -5,6 +5,9 @@
  * Prefix: /api/v1/audit
  *
  * Endpoints:
+ *   GET    /logs/export     - Export audit logs (JSON/CSV) via query params
+ *   POST   /export          - Export audit logs as CSV (body params)
+ *   POST   /export/json     - Export audit logs as JSON (body params)
  *   GET    /logs           - List audit logs (paginated)
  *   GET    /logs/:id       - Get audit log by ID
  *   POST   /logs           - Create audit log
@@ -19,7 +22,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { AuditRepository } from '../services/audit/AuditRepository';
-import { AuditService } from '../services/audit/AuditService';
+import { AuditService, type ExportFormat } from '../services/audit/AuditService';
 import { AuditComplianceService, ComplianceCheckResult, AuditComplianceReport, AuditCoverageStats } from '../services/audit/AuditComplianceService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
@@ -43,6 +46,16 @@ interface AuditLogCreateBody {
   requestBody?: Record<string, any>;
   responseCode?: number;
   responseBody?: Record<string, any>;
+}
+
+interface AuditExportBody {
+  tenantId?: string;
+  userId?: string;
+  action?: string;
+  resourceType?: string;
+  resourceId?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 /**
@@ -73,9 +86,9 @@ function toAuditLogEntry(log: any): any {
 /**
  * Map frontend create body to CreateAuditLogInput
  */
-function toCreateInput(body: AuditLogCreateBody): any {
+function toCreateInput(body: AuditLogCreateBody, fallbackTenantId?: string): any {
   return {
-    tenant_id: body.tenantId || 'default',
+    tenant_id: body.tenantId || fallbackTenantId,
     user_id: body.userId,
     action: body.action,
     resource_type: body.resourceType || 'audit',
@@ -165,9 +178,10 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as AuditLogCreateBody;
+    const fallbackTenantId = (request as any).user?.tenantId;
 
     try {
-      const input = toCreateInput(body);
+      const input = toCreateInput(body, fallbackTenantId);
       const log = await service.createAuditLog(input);
       return reply.status(201).send({ entry: toAuditLogEntry(log) });
     } catch (error: any) {
@@ -204,7 +218,7 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as { tenantId?: string } | undefined;
-    const tenantId = body?.tenantId || 'default';
+    const tenantId = body?.tenantId ?? '';
 
     try {
       const result = await service.verifyChain(tenantId);
@@ -235,10 +249,10 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const actions = await service.getActions(tenantId);
+      const actions = await service.getActions(tenantId ?? '');
       return reply.send({ actions });
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -252,10 +266,10 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const resourceTypes = await service.getResourceTypes(tenantId);
+      const resourceTypes = await service.getResourceTypes(tenantId ?? '');
       return reply.send({ resourceTypes });
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -272,11 +286,11 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const complianceService = new AuditComplianceService(pool);
-      const report = await complianceService.generateSOC2Report(tenantId);
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateSOC2Report(tenantId ?? '');
       return reply.send(report);
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -290,11 +304,11 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const complianceService = new AuditComplianceService(pool);
-      const report = await complianceService.generateISO27001Report(tenantId);
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateISO27001Report(tenantId ?? '');
       return reply.send(report);
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -308,11 +322,11 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const complianceService = new AuditComplianceService(pool);
-      const report = await complianceService.generateCombinedReport(tenantId);
+      const complianceService = new AuditComplianceService(pool!);
+      const report = await complianceService.generateCombinedReport(tenantId ?? '');
       return reply.send(report);
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -326,11 +340,11 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
-      const complianceService = new AuditComplianceService(pool);
-      const stats = await complianceService.getAuditCoverageStats(tenantId);
+      const complianceService = new AuditComplianceService(pool!);
+      const stats = await complianceService.getAuditCoverageStats(tenantId ?? '');
       return reply.send(stats);
     } catch (error: any) {
       return handleRouteError(error, reply);
@@ -344,22 +358,22 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const body = request.body as { framework?: 'SOC2' | 'ISO27001' | 'COMBINED'; tenantId?: string } | undefined;
-    const tenantId = body?.tenantId || 'default';
+    const tenantId = body?.tenantId;
     const framework = body?.framework || 'COMBINED';
 
     try {
-      const complianceService = new AuditComplianceService(pool);
+      const complianceService = new AuditComplianceService(pool!);
       let report: AuditComplianceReport;
 
       switch (framework) {
         case 'SOC2':
-          report = await complianceService.generateSOC2Report(tenantId);
+          report = await complianceService.generateSOC2Report(tenantId ?? '');
           break;
         case 'ISO27001':
-          report = await complianceService.generateISO27001Report(tenantId);
+          report = await complianceService.generateISO27001Report(tenantId ?? '');
           break;
         default:
-          report = await complianceService.generateCombinedReport(tenantId);
+          report = await complianceService.generateCombinedReport(tenantId ?? '');
       }
 
       return reply.send(report);
@@ -378,7 +392,7 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const [logs, total] = await Promise.all([
@@ -405,7 +419,7 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const total = await service.listAuditLogs({ page: 1, limit: 1, tenantId });
@@ -445,7 +459,7 @@ export default async function auditRoutes(
     if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
 
     const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId;
 
     try {
       const result = await service.listAuditLogs({ page: 1, limit: 1, tenantId });
@@ -453,6 +467,97 @@ export default async function auditRoutes(
         return handleError(reply, new NotFoundError('NOT_FOUND'));
       }
       return reply.send(toAuditLogEntry(result.data[0]));
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // GET /logs/export - Export audit logs (CSV/JSON)
+  app.get('/logs/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const query = request.query as Record<string, any>;
+    const format = (query.format as ExportFormat) || 'json';
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: query.tenantId,
+        userId: query.userId,
+        action: query.action,
+        resourceType: query.resourceType,
+        resourceId: query.resourceId,
+        dateFrom: query.dateFrom,
+        dateTo: query.dateTo,
+        format,
+      });
+
+      if (format === 'csv') {
+        reply.type('text/csv');
+        reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      } else {
+        reply.type('application/json');
+        reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      }
+
+      return reply.send(result.content);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /export - Export audit logs as CSV (body params)
+  app.post('/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as AuditExportBody;
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: body.tenantId,
+        userId: body.userId,
+        action: body.action,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        dateFrom: body.dateFrom,
+        dateTo: body.dateTo,
+        format: 'csv',
+      });
+
+      reply.type('text/csv');
+      reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      return reply.send(result.content);
+    } catch (error: any) {
+      return handleRouteError(error, reply);
+    }
+  });
+
+  // POST /export/json - Export audit logs as JSON (body params)
+  app.post('/export/json', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'audit', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!service) return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+
+    const body = request.body as AuditExportBody;
+
+    try {
+      const result = await service.exportAuditLogs({
+        tenantId: body.tenantId,
+        userId: body.userId,
+        action: body.action,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        dateFrom: body.dateFrom,
+        dateTo: body.dateTo,
+        format: 'json',
+      });
+
+      reply.type('application/json');
+      reply.header('Content-Disposition', `attachment; filename="${result.filename}"`);
+      return reply.send(result.content);
     } catch (error: any) {
       return handleRouteError(error, reply);
     }

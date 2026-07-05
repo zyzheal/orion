@@ -317,10 +317,12 @@ export class SupplyChainService {
         });
 
         for (const vuln of vulnReport.vulnerabilities) {
-          if (this.isSeverityAtLeast(vuln.severity, activePolicy.maxVulnerabilitySeverity)) {
+          // Map 'info' severity to 'low' since ComplianceViolation doesn't support 'info'
+          const normalizedVulnSeverity = vuln.severity === 'info' ? 'low' : vuln.severity;
+          if (this.isSeverityAtLeast(normalizedVulnSeverity, activePolicy.maxVulnerabilitySeverity)) {
             violations.push({
               type: 'vulnerability',
-              severity: vuln.severity,
+              severity: normalizedVulnSeverity,
               component: component.name,
               version: component.version,
               reason: `CVE ${vuln.cveId}: ${vuln.description}`,
@@ -388,7 +390,9 @@ export class SupplyChainService {
         });
 
         for (const vuln of vulnReport.vulnerabilities) {
-          vulnerabilitySummary[vuln.severity]++;
+          // Map 'info' severity to 'low' since vulnerabilitySummary doesn't have 'info' key
+          const sev = vuln.severity === 'info' ? 'low' : vuln.severity;
+          vulnerabilitySummary[sev]++;
           vulnerabilitySummary.total++;
         }
       } catch {
@@ -428,9 +432,11 @@ export class SupplyChainService {
   /**
    * 判断 severity A 是否大于等于 severity B
    */
-  private isSeverityAtLeast(a: ComplianceViolation['severity'], b: ComplianceViolation['severity']): boolean {
-    const order: ComplianceViolation['severity'][] = ['info', 'low', 'medium', 'high', 'critical'];
-    return order.indexOf(a) >= order.indexOf(b);
+  private isSeverityAtLeast(a: 'critical' | 'high' | 'medium' | 'low', b: 'critical' | 'high' | 'medium' | 'low' | 'info'): boolean {
+    // Map 'info' to 'low' since it's the lowest meaningful severity
+    const normalizedB = b === 'info' ? 'low' : b;
+    const order: ('low' | 'medium' | 'high' | 'critical')[] = ['low', 'medium', 'high', 'critical'];
+    return order.indexOf(a) >= order.indexOf(normalizedB);
   }
 }
 

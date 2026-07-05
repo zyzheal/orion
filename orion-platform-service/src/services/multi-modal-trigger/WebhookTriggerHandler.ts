@@ -91,7 +91,7 @@ export class WebhookTriggerHandler {
 
   async getWebhook(endpointId: string): Promise<WebhookEndpointEntity | undefined> {
     if (!this.webhookRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
-    return this.webhookRepo.findById(endpointId);
+    return await this.webhookRepo.findById(endpointId) ?? undefined;
   }
 
   async getWebhookByPath(path: string): Promise<WebhookEndpointEntity | undefined> {

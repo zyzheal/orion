@@ -5,9 +5,9 @@
  * to provide full CRUD, schema validation, versioning, and rollback capabilities.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import { getCurrentTenantId } from '../../../db/tenant-context-storage';
-import { OrionError } from '../../../errors';
+import { OrionError, ErrorCode } from '../../../errors';
 import { CITypeRepository, CITypeEntity, CITypeFilters } from './CITypeRepository';
 import {
   CIAttributeRepository,
@@ -19,7 +19,7 @@ import {
   CITypeVersionEntity,
 } from './CITypeVersionRepository';
 
-const logger = pino({ name: 'CITypeService' });
+const logger = createLogger('CITypeService');
 
 export interface CreateTypeInput {
   name: string;
@@ -145,6 +145,9 @@ export class CITypeService {
     if (input.metadata !== undefined) updateData.metadata = JSON.stringify(input.metadata);
 
     const updated = await this.typeRepo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`CI type not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ typeId: id }, 'CI type updated');
     return updated;
   }

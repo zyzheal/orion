@@ -2,7 +2,7 @@
  * OnCall Scheduling Service
  * Schedule CRUD + rotation assignment + override + escalation
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { OnCallSchedule, OnCallAssignment, OnCallOverride, OnCallCheckResult, EscalationRule } from './types';
 import { OnCallScheduleRepository, OnCallScheduleEntity } from '../../repositories/OnCallScheduleRepository';
@@ -19,7 +19,7 @@ import { OnCallOverrideRepository, OnCallOverrideEntity } from '../../repositori
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('OnCallService');
 
 export class OnCallService {
   private scheduleRepository?: OnCallScheduleRepository;

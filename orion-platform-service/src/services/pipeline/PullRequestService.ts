@@ -7,11 +7,11 @@
  * - PR 事件防抖（30s 窗口）
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'pull-request-service' });
+const logger = createLogger('pull-request-service');
 
 export type PRProvider = 'github' | 'gitlab';
 

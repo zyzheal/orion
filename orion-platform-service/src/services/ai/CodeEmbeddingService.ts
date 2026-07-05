@@ -9,7 +9,7 @@
  * - Batch processing with rate limiting
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
 import {
   CodeEmbedding,
@@ -25,7 +25,7 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CodeEmbeddingService');
 
 export type EmbeddingProviderType = 'openai' | 'voyage' | 'claude' | 'hash';
 

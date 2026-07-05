@@ -4,10 +4,10 @@
  * 配置变更事件总线 - PostgreSQL 持久化 + 内存降级
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ConfigEventRepository } from '../../repositories/ConfigEventRepository';
 
-const logger = pino({ name: 'ConfigEventBus' });
+const logger = createLogger('ConfigEventBus');
 
 // ==================== 事件类型 ====================
 

@@ -5,10 +5,10 @@
  * for canary deployments.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CanaryTrafficService, TrafficSplitConfig } from './CanaryTrafficService';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TrafficSplitter');
 
 export interface TrafficSplitResult {
   canaryId: string;

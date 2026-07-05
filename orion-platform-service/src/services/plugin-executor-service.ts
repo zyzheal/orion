@@ -32,7 +32,7 @@ import {
 } from './plugin';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('plugin-executor-service');
 
 /**
  * 任务执行请求

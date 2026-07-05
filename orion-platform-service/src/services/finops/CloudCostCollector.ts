@@ -10,9 +10,6 @@ import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { CloudCostResourceRepository } from '../../repositories/CloudCostResourceRepository';
 import { CloudCostScheduleRepository } from '../../repositories/CloudCostScheduleRepository';
-import { CustomCostModel, ICloudCostAdapter } from './types';
-
-const logger = createLogger('cloud-cost-collector');
 import {
   CloudResource,
   CloudProvider,
@@ -22,6 +19,8 @@ import {
   CustomCostModel,
 } from './types';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+
+const logger = createLogger('CloudCostCollector');
 
 /**
  * AWS Cost Explorer 适配器（Mock 实现）

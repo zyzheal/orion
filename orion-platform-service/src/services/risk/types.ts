@@ -85,6 +85,7 @@ export interface RiskUpdateInput {
   status?: RiskStatus;
   assignedTo?: string;
   findings?: RiskFinding[];
+  mitigations?: RiskMitigation[];
   metadata?: Record<string, unknown>;
 }
 

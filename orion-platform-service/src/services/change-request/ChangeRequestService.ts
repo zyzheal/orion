@@ -5,14 +5,14 @@
  * and execution step management.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { ChangeRequestRepository, ChangeRequestEntity, ChangeRequestFilters } from './ChangeRequestRepository';
 import { ChangeApprovalRepository, ChangeApprovalEntity } from './ChangeApprovalRepository';
 import { ChangeExecutionRepository, ChangeExecutionEntity } from './ChangeExecutionRepository';
 
-const logger = pino({ name: 'ChangeRequestService' });
+const logger = createLogger('ChangeRequestService');
 
 // Approval chain configuration by risk level
 const APPROVAL_CHAIN: Record<string, { role: string; order: number }[]> = {
@@ -139,6 +139,9 @@ export class ChangeRequestService {
     if (input.scheduledEnd !== undefined) updateData.scheduledEnd = input.scheduledEnd;
 
     const updated = await this.requestRepo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`Change request not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ requestId: id }, 'Change request updated');
     return updated;
   }

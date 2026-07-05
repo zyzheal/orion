@@ -55,17 +55,6 @@ export {
   DeployProgress,
 } from './ProgressiveDeployService';
 
-// Progressive Deploy (Traffic-based - simplified version)
-export {
-  ProgressiveDeploymentService,
-  ProgressiveDeploymentServiceError,
-  ProgressiveDeployConfig,
-  ProgressiveDeployStatus,
-  ProgressiveDeployResult,
-  DeploymentStrategy,
-  DeploymentPhase,
-} from './ProgressiveDeploymentService';
-
 // Emergency Deploy
 export {
   EmergencyDeployRepository,

@@ -14,9 +14,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../utils/logger';
 import { CloudProviderClient, ProviderResource, DEFAULT_RETRY_CONFIG } from './providers/CloudProviderClient';
 import { ProviderClientFactory } from './providers/ProviderClientFactory';
-import { MultiCloudRepository, CloudSyncJobEntity, CloudResourceSyncStateEntity } from '../repositories/MultiCloudRepository';
-import { CloudAccountEntity } from '../repositories/MultiCloudRepository';
-import { NotFoundError } from '../errors';
+import { MultiCloudRepository, CloudSyncJobEntity, CloudResourceSyncStateEntity } from '../../repositories/MultiCloudRepository';
+import { CloudAccountEntity } from '../../repositories/MultiCloudRepository';
+import {  NotFoundError , OrionError, ErrorCode } from '../../errors';
 
 const logger = createLogger('cloud-sync-service');
 
@@ -114,7 +114,7 @@ export class CloudSyncService {
       // Validate credentials before sync
       const validation = await client.validateCredentials();
       if (!validation.valid) {
-        throw new Error(`Credential validation failed: ${validation.message}`);
+        throw new OrionError(`Credential validation failed: ${validation.message}`, ErrorCode.INTERNAL_ERROR);
       }
 
       // Discover resources from provider
@@ -129,7 +129,7 @@ export class CloudSyncService {
         // Get existing sync state for this account
         const existingStates = await this.repo.findCloudResourceSyncStateByAccount(tenantId, account.id);
         const existingMap = new Map(
-          existingStates.map(s => [s.provider_resource_id, s])
+          existingStates.map((s: CloudResourceSyncStateEntity) => [s.provider_resource_id, s] as [string, CloudResourceSyncStateEntity])
         );
 
         // Process each discovered resource
@@ -343,7 +343,7 @@ export class CloudSyncService {
    */
   async getSyncHistory(tenantId: string, accountId?: string): Promise<SyncJob[]> {
     const entities = await this.repo.findCloudSyncJobsByTenant(tenantId, accountId);
-    return entities.map(e => this.entityToJob(e));
+    return entities.map((e: CloudSyncJobEntity) => this.entityToJob(e));
   }
 
   /**
@@ -357,7 +357,7 @@ export class CloudSyncService {
   ): Promise<void> {
     // Find the sync state
     const states = await this.repo.findCloudResourceSyncStateByAccount(tenantId, accountId);
-    const state = states.find(s => s.provider_resource_id === providerResourceId);
+    const state = states.find((s: CloudResourceSyncStateEntity) => s.provider_resource_id === providerResourceId);
 
     if (!state || state.sync_status !== 'conflict') {
       throw new NotFoundError('Conflict not found for resource');

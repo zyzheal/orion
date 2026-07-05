@@ -16,7 +16,7 @@ import { EventTriggerRuleRepository, EventTriggerLogRepository } from '../servic
 import { EventTriggerService } from '../services/event-trigger/EventTriggerService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'event-trigger-routes' });
+const logger = createLogger('event-trigger-routes');
 
 interface EventTriggerRoutesOptions {
   database: DatabasePool;

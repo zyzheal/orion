@@ -17,7 +17,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CircuitState } from './types';
 import {
   ProviderCBStateRepository,
@@ -26,7 +26,7 @@ import {
 } from '../../repositories/ProviderCircuitBreakerRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProviderCircuitBreaker');
 
 /**
  * Provider熔断器配置

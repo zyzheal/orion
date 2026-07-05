@@ -29,15 +29,17 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   };
 
   const vectorStore = options.database
-    ? new VectorStore(config, options.database)
-    : new VectorStore(config, { query: async () => ({ rows: [], rowCount: 0 }) });
+    ? new VectorStore(config, options.database, true)
+    : new VectorStore(config, { query: async () => ({ rows: [], rowCount: 0 }) }, false);
 
   // POST /vector-store/documents - Add document
   app.post('/documents', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { content, metadata } = request.body as { content: string; metadata?: Record<string, any> };
-    return handleError(reply, new ValidationError('CONTENT_REQUIRED'));
+    if (!content) {
+      return handleError(reply, new ValidationError('CONTENT_REQUIRED'));
+    }
 
     const id = await vectorStore.addDocument(content, metadata);
     return reply.send({ id, persistent: vectorStore.isPersistent });
@@ -45,14 +47,16 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
 
   // POST /vector-store/search - Semantic search
   app.post('/search', {
-    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
+    onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { query, topK, filter } = request.body as {
       query: string;
       topK?: number;
       filter?: Record<string, any>;
     };
-    return handleError(reply, new ValidationError('QUERY_REQUIRED'));
+    if (!query) {
+      return handleError(reply, new ValidationError('QUERY_REQUIRED'));
+    }
 
     const results = await vectorStore.search({ query, topK, filter });
     return reply.send({ results });
@@ -64,7 +68,9 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as { id: string };
     const deleted = await vectorStore.deleteDocument(id);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    if (!deleted) {
+      return handleError(reply, new NotFoundError('NOT_FOUND'));
+    }
     return reply.send({ success: true });
   });
 

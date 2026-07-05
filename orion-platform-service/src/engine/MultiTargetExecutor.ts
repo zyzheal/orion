@@ -7,7 +7,7 @@ import { Stage } from '../models/Stage';
 import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('MultiTargetExecutor');
 
 export interface TargetResult {
   target: string;

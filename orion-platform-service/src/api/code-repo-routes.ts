@@ -146,6 +146,62 @@ export default async function codeRepoRoutes(
     return reply.send({ success: true, data: { logs: [] } });
   });
 
+  // ==================== Task 5.6: Commit History ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/commits', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.listCommits({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.get('/code-repo/:adapterId/repos/:repoId/commits/:sha', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, sha } = req.params as { adapterId: string; repoId: string; sha: string };
+      const res = await ctrl.getCommit({ ...req, params: { adapterId, repoId, sha } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Task 5.6: File Diff ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/diff', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId } = req.params as { adapterId: string; repoId: string };
+      const res = await ctrl.getFileDiff({ ...req, params: { adapterId, repoId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Task 5.6: PR Comments ====================
+
+  app.get('/code-repo/:adapterId/repos/:repoId/pulls/:prId/comments', { onRequest: [authenticateUser] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.listComments({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  app.post('/code-repo/:adapterId/repos/:repoId/pulls/:prId/comments', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
+    try {
+      const { adapterId, repoId, prId } = req.params as { adapterId: string; repoId: string; prId: string };
+      const res = await ctrl.addComment({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.status(201).send(res);
+    } catch (e) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
   // ==================== 4.20 Repository & PR 补充路由 ====================
 
   // GET /code-repo/:adapterId/repos/:repoId — 获取仓库详情
@@ -170,15 +226,30 @@ export default async function codeRepoRoutes(
     }
   });
 
+  // GET /code-repo/:adapterId/pull-requests/:prId — 获取 PR 详情
+  app.get('/code-repo/:adapterId/pull-requests/:prId', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'read' })] }, async (req, reply) => {
+    try {
+      const { adapterId, prId } = req.params as { adapterId: string; prId: string };
+      const repoId = (req.query as any)?.repoId as string | undefined;
+      if (!repoId) {
+        return reply.status(400).send({ success: false, error: 'repoId query parameter is required' });
+      }
+      const res = await ctrl.getPullRequest({ ...req, params: { adapterId, repoId, prId } }, reply);
+      return reply.send(res);
+    } catch (e) {
+      return handleError(reply, e instanceof Error ? new OrionError(e.message, ErrorCode.INTERNAL_ERROR) : new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
   // PUT /code-repo/:adapterId/pull-requests/:prId — 更新 PR
   app.put('/code-repo/:adapterId/pull-requests/:prId', { onRequest: [authenticateUser, requirePermission({ resource: 'code_repo', action: 'write' })] }, async (req, reply) => {
     try {
       const { adapterId, prId } = req.params as { adapterId: string; prId: string };
-      const body = req.body as { title?: string; body?: string };
-      // repoId 由客户端在 body 中提供，或从 PR 上下文推断
-      const repoId = (req.body as any)?.repoId as string | undefined;
+      const body = req.body as { title?: string; body?: string; state?: string; assignees?: string[] };
+      // repoId 由客户端在 query 或 body 中提供
+      const repoId = (req.query as any)?.repoId || (req.body as any)?.repoId as string | undefined;
       if (!repoId) {
-        return reply.status(400).send({ success: false, error: 'repoId is required in request body' });
+        return reply.status(400).send({ success: false, error: 'repoId is required in query or request body' });
       }
       const res = await ctrl.updatePullRequest({ ...req, params: { adapterId, repoId, prId }, body }, reply);
       return reply.send(res);
@@ -226,6 +297,10 @@ export default async function codeRepoRoutes(
 
       const repo = new WebhookSecretRepository(getDbQuery());
       const result = await repo.upsertByRepoId(repoId, body.secret);
+
+      if (!result) {
+        return reply.status(500).send({ success: false, error: 'Failed to create webhook secret' });
+      }
 
       logger.info({ repoId }, 'Webhook secret set successfully');
       return reply.status(201).send({
@@ -283,6 +358,10 @@ export default async function codeRepoRoutes(
 
       const repo = new WebhookSecretRepository(getDbQuery());
       const result = await repo.upsertByRepoId(repoId, newSecret);
+
+      if (!result) {
+        return reply.status(500).send({ success: false, error: 'Failed to rotate webhook secret' });
+      }
 
       logger.info({ repoId }, 'Webhook secret rotated successfully');
       return reply.send({

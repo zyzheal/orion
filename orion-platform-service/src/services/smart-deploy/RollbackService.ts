@@ -22,10 +22,10 @@ import {
 } from './types';
 import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackRepository';
 import { DeploymentVerifier } from './DeploymentVerifier';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LRollback-LService' });
+const logger = createLogger('LRollback-LService');
 
 /**
  * Rollback service for managing deployment rollbacks

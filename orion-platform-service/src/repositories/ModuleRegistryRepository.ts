@@ -54,7 +54,7 @@ export class ModuleRegistryRepository extends BaseRepository<ModuleRegistryEntit
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async upsertModule(id: string, data: Partial<ModuleRegistryEntity>): Promise<ModuleRegistryEntity> {
+  async upsertModule(id: string, data: Partial<ModuleRegistryEntity>): Promise<ModuleRegistryEntity | null> {
     const existing = await this.findById(id);
     if (existing) {
       const updateData: Record<string, any> = {};
@@ -89,7 +89,7 @@ export class ModuleRegistryRepository extends BaseRepository<ModuleRegistryEntit
     });
   }
 
-  async updateState(id: string, state: string, error?: string): Promise<ModuleRegistryEntity> {
+  async updateState(id: string, state: string, error?: string): Promise<ModuleRegistryEntity | null> {
     return this.update(id, {
       state,
       error: error || null,

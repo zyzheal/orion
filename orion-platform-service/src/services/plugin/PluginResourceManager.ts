@@ -8,7 +8,7 @@
  * - 配额回收机制
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import {
   ResourceQuota,
@@ -20,7 +20,7 @@ import {
 import { PluginResourceQuotaRepository } from '../../repositories/PluginResourceQuotaRepository';
 import { PluginTenantQuotaRepository } from '../../repositories/PluginTenantQuotaRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginResourceManager');
 
 /**
  * 配额分配记录

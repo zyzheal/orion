@@ -19,10 +19,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ServiceCatalogService } from '../services/service-catalog/ServiceCatalogService';
 import { requirePermission } from '../middleware/requirePermission';
-import { handleError } from '../errors';
+import { handleError, ValidationError, NotFoundError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'service-catalog-routes' });
+const logger = createLogger('service-catalog-routes');
 
 interface ServiceCatalogRoutesOptions {
   database?: DatabasePool;

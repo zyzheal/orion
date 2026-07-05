@@ -28,8 +28,8 @@ export class CacheMetricsRepository extends BaseRepository<CacheMetricsEntity> {
   }
 
   // Override BaseRepository methods: build_cache_metrics uses cache_id, not id
-  async findById(id: string): Promise<CacheMetricsEntity | undefined> {
-    return this.findByCacheId(id) as Promise<CacheMetricsEntity | undefined>;
+  async findById(id: string): Promise<CacheMetricsEntity | null> {
+    return this.findByCacheId(id);
   }
 
   async create(data: any): Promise<CacheMetricsEntity> {
@@ -44,7 +44,7 @@ export class CacheMetricsRepository extends BaseRepository<CacheMetricsEntity> {
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async update(id: string, data: any): Promise<CacheMetricsEntity> {
+  async update(id: string, data: any): Promise<CacheMetricsEntity | null> {
     const entries = Object.entries(data).filter(([k]) => k !== 'id');
     const columns = entries.map(([k]) => k.replace(/([A-Z])/g, '_$1').toLowerCase());
     const values = entries.map(([, v]) => v);
@@ -53,6 +53,7 @@ export class CacheMetricsRepository extends BaseRepository<CacheMetricsEntity> {
       `UPDATE build_cache_metrics SET ${setClause}, last_updated = NOW() WHERE cache_id = $${columns.length + 1} RETURNING *`,
       [...values, id],
     );
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

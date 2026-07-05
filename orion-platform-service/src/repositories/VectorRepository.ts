@@ -162,7 +162,7 @@ export class VectorRepository {
       id: row.id,
       collection: row.collection,
       content: row.content,
-      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+      metadata: typeof row.metadata === 'string' ? VectorRepository.safeJsonParse(row.metadata) : row.metadata,
       embedding: this.parseEmbedding(row.embedding),
       score: parseFloat(row.similarity_score) || 0,
     }));
@@ -204,13 +204,21 @@ export class VectorRepository {
 
   // ==================== Helpers ====================
 
+  private static safeJsonParse(value: string, fallback: Record<string, any> = {}): Record<string, any> {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+
   private rowToEntity(row: any): VectorEntity {
     return {
       id: row.id,
       collection: row.collection,
       content: row.content,
       contentHash: row.content_hash,
-      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata,
+      metadata: typeof row.metadata === 'string' ? VectorRepository.safeJsonParse(row.metadata) : row.metadata,
       embedding: this.parseEmbedding(row.embedding),
       createdAt: row.created_at,
       updatedAt: row.updated_at,

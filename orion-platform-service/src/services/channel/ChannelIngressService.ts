@@ -2,9 +2,9 @@ import { ChannelConfigRepository, ChannelConfig, CreateChannelConfigInput, Updat
 import { ChannelMessageRepository, ChannelMessage, CreateChannelMessageInput } from './ChannelMessageRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ChannelIngressService');
 
 export interface ParsedMessage {
   title?: string;

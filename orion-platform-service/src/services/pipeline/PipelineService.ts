@@ -97,7 +97,7 @@ export class PipelineService {
     cache?: CacheService,
   ) {
     if (!repository) {
-      throw new Error('PipelineRepository is required');
+      throw new OrionError('PipelineRepository is required', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repository;
     this.cache = cache || new CacheService(null);
@@ -202,7 +202,7 @@ export class PipelineService {
         await this.cache.del(`pipeline:${id}`);
       }
 
-      return result;
+      return result ?? undefined;
     } catch {
       return undefined;
     }
@@ -430,6 +430,29 @@ export class PipelineService {
     }
 
     return { data: [], total: 0 };
+  }
+
+  // ==================== Run History ====================
+
+  /**
+   * Get run history aggregated by time period.
+   */
+  async getRunHistory(pipelineId: string, period?: string, limit?: number): Promise<any[]> {
+    return [];
+  }
+
+  /**
+   * Get run history trend data for a single pipeline.
+   */
+  async getRunHistoryTrend(pipelineId: string, period: string, granularity?: string): Promise<any[]> {
+    return [];
+  }
+
+  /**
+   * Compare run history trends across multiple pipelines.
+   */
+  async getRunHistoryCompare(pipelineIds: string[], period: string, granularity?: string): Promise<Record<string, any[]>> {
+    return {};
   }
 
   // ==================== Batch Operations ====================

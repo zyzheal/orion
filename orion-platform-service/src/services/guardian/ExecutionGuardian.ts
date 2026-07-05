@@ -1,11 +1,12 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 import { EventEmitter } from 'events';
 import { HeartbeatWatchdog } from './HeartbeatWatchdog';
 import { ProcessKiller } from './ProcessKiller';
 import { GuardianTaskRepository } from '../../repositories/GuardianTaskRepository';
 import { v4 as uuidv4 } from 'uuid';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ExecutionGuardian');
 
 export interface GuardianConfig {
   globalTimeoutMs: number;
@@ -43,7 +44,7 @@ export class ExecutionGuardian extends EventEmitter {
   ) {
     super();
     if (!db) {
-      throw new Error('ExecutionGuardian requires a database connection');
+      throw new OrionError('ExecutionGuardian requires a database connection', ErrorCode.INTERNAL_ERROR);
     }
     this.config = { ...DEFAULT_GUARDIAN_CONFIG, ...config };
     this.heartbeatWatchdog = new HeartbeatWatchdog(db);

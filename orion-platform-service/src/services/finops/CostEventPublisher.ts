@@ -6,10 +6,10 @@
  */
 
 import { CostEvent, CostEventType } from './types';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LCost-LEvent-LPublisher' });
+const logger = createLogger('LCost-LEvent-LPublisher');
 
 /**
  * 事件总线接口（兼容 EventBusService）

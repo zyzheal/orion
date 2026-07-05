@@ -103,7 +103,7 @@ export class ComplianceScheduleRepository extends BaseRepository<ComplianceSched
     return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
-  async updateLastRun(id: string): Promise<ComplianceScheduleEntity> {
+  async updateLastRun(id: string): Promise<ComplianceScheduleEntity | null> {
     return this.update(id, { lastRunAt: new Date() });
   }
 

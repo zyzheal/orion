@@ -3,7 +3,7 @@
  *
  * 负责模板市场的 CRUD 操作，继承 BaseRepository 获得标准 CRUD。
  */
-import { BaseRepository } from '../../db/base-repository';
+import { BaseRepository } from '../db/base-repository';
 
 export interface LowcodeFlowTemplateEntity {
   id: string;
@@ -75,6 +75,19 @@ export class LowcodeFlowTemplatePgRepository extends BaseRepository<LowcodeFlowT
     );
     if (result.rows.length === 0) return undefined;
     return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * 按租户查找模板
+   */
+  async findByTenantId(tenantId: string, options?: { limit?: number; offset?: number }): Promise<LowcodeFlowTemplateEntity[]> {
+    const limit = options?.limit ?? 50;
+    const offset = options?.offset ?? 0;
+    const result = await this.db.query(
+      `SELECT * FROM lowcode_flow_template WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [tenantId, limit, offset],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   /**

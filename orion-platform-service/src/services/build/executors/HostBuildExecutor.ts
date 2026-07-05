@@ -5,9 +5,9 @@
  * Supports C++, Android, and Linux/macOS/Windows desktop applications.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
-const logger = pino({ name: 'LHost-LBuild-LExecutor' });
+const logger = createLogger('LHost-LBuild-LExecutor');
 import {
   BuildExecutor,
   BuildType,

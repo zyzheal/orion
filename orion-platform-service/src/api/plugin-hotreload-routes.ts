@@ -77,7 +77,7 @@ export default async function registerPluginHotReloadRoutes(
         message: `Plugin "${pluginId}" hot reload completed`,
       });
     } catch (error) {
-      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
+      return handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 
@@ -99,7 +99,7 @@ export default async function registerPluginHotReloadRoutes(
         message: `Plugin "${pluginId}" rolled back to version ${result.manifest.version}`,
       });
     } catch (error) {
-      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
+      return handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 

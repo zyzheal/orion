@@ -349,7 +349,7 @@ describe('RiskService', () => {
         targetType,
         targetId,
       });
-      await riskRepository.update(highRisk.id, tenantId, {
+      await riskRepository.updateRisk(highRisk.id, tenantId, {
         score: 90,
         riskLevel: RiskLevel.CRITICAL,
       });
@@ -360,7 +360,7 @@ describe('RiskService', () => {
         targetType,
         targetId,
       });
-      await riskRepository.update(lowRisk.id, tenantId, {
+      await riskRepository.updateRisk(lowRisk.id, tenantId, {
         score: 10,
         riskLevel: RiskLevel.LOW,
       });
@@ -435,7 +435,7 @@ describe('RiskService', () => {
         targetId,
       });
 
-      const updated = await riskRepository.update(risk.id, tenantId, {
+      const updated = await riskRepository.updateRisk(risk.id, tenantId, {
         name: 'Updated Name',
         score: 45,
       });
@@ -465,7 +465,7 @@ describe('RiskService', () => {
         targetType,
         targetId,
       });
-      await riskRepository.update(high.id, tenantId, { score: 80, riskLevel: RiskLevel.HIGH });
+      await riskRepository.updateRisk(high.id, tenantId, { score: 80, riskLevel: RiskLevel.HIGH });
 
       const critical = await riskRepository.create({
         tenantId,
@@ -473,7 +473,7 @@ describe('RiskService', () => {
         targetType,
         targetId,
       });
-      await riskRepository.update(critical.id, tenantId, { score: 95, riskLevel: RiskLevel.CRITICAL });
+      await riskRepository.updateRisk(critical.id, tenantId, { score: 95, riskLevel: RiskLevel.CRITICAL });
 
       const highRisks = await riskRepository.findHighRisk({ tenantId, limit: 10 });
 
@@ -500,7 +500,7 @@ describe('RiskService', () => {
         targetId,
         category: RiskCategory.OPERATIONAL,
       });
-      await riskRepository.update(opRisk.id, tenantId, { status: RiskStatus.CLOSED });
+      await riskRepository.updateRisk(opRisk.id, tenantId, { status: RiskStatus.CLOSED });
 
       const stats = await riskRepository.getStats(tenantId);
 

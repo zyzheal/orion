@@ -1,10 +1,10 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { HeartbeatWatchdogRepository } from '../../repositories/HeartbeatWatchdogRepository';
 import { HeartbeatWatchdogEntity } from '../../repositories/HeartbeatWatchdogRepository';
 import { v4 as uuidv4 } from 'uuid';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('HeartbeatWatchdog');
 
 interface HeartbeatCallback {
   taskId: string;

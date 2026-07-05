@@ -16,7 +16,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'user-routes' });
+const logger = createLogger('user-routes');
 
 interface UserRoutesOptions {
   database?: DatabasePool;
@@ -189,5 +189,61 @@ export default async function userRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.removeUserFromTenant(request, reply);
+  });
+
+  // ==================== Bulk Import / Export ====================
+
+  // POST /api/v1/users/bulk/import — Bulk import users from CSV
+  app.post('/bulk/import', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const tenantId = (request as any).user?.tenantId;
+      const createdBy = (request as any).user?.username || 'system';
+      if (!tenantId) {
+        return reply.status(400).send({ success: false, error: 'tenantId missing from auth context' });
+      }
+
+      const body = request.body as { csv?: string };
+      if (!body.csv) {
+        return reply.status(400).send({ success: false, error: 'csv field is required (CSV text content)' });
+      }
+
+      const result = await service.bulkImportUsers(body.csv, tenantId, createdBy);
+      return reply.send({ success: true, data: result });
+    } catch (err: any) {
+      logger.error({ err }, '[UserRoutes] Error bulk importing users');
+      return reply.status(500).send({ success: false, error: err.message || 'Bulk import failed' });
+    }
+  });
+
+  // GET /api/v1/users/bulk/export — Export users as CSV or JSON
+  app.get('/bulk/export', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'user', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const tenantId = (request as any).user?.tenantId;
+      if (!tenantId) {
+        return reply.status(400).send({ success: false, error: 'tenantId missing from auth context' });
+      }
+
+      const query = request.query as { format?: string; role?: string; status?: string };
+      const format = (query.format || 'csv').toLowerCase() === 'json' ? 'json' : 'csv';
+
+      const content = await service.exportUsers({
+        tenantId,
+        role: query.role,
+        status: query.status,
+        format,
+      });
+
+      const contentType = format === 'json' ? 'application/json' : 'text/csv';
+      reply.header('Content-Type', contentType);
+      reply.header('Content-Disposition', `attachment; filename="users-export.${format}"`);
+      return reply.send(content);
+    } catch (err: any) {
+      logger.error({ err }, '[UserRoutes] Error exporting users');
+      return reply.status(500).send({ success: false, error: err.message || 'Export failed' });
+    }
   });
 }

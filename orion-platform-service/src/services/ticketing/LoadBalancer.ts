@@ -55,13 +55,13 @@ export class LoadBalancer {
   /** Repository for engineer profiles */
   private ticketingRepository?: TicketingRepository;
 
-  /** Ticket load records - migrated to repository */
+  /** Ticket load records - runtime cache */
   private loadRecordRepository?: TicketLoadRecordRepository;
-  private ticketLoads: Map<string, TicketLoadRecord> = new Map(); // in-memory cache
+  private ticketLoads: Map<string, TicketLoadRecord> = new Map(); // in-memory runtime cache
 
-  /** Assignment history - migrated to repository */
+  /** Assignment history - runtime cache */
   private assignmentHistoryRepository?: AssignmentHistoryRepository;
-  private assignmentHistory: TicketAssignment[] = []; // in-memory cache
+  private assignmentHistory: TicketAssignment[] = []; // in-memory runtime cache
 
   /** Overload threshold */
   private overloadThreshold: number;
@@ -76,37 +76,6 @@ export class LoadBalancer {
     if (options.db) {
       this.loadRecordRepository = new TicketLoadRecordRepository(options.db);
       this.assignmentHistoryRepository = new AssignmentHistoryRepository(options.db);
-    }
-  }
-
-  /**
-   * Load cached data from PostgreSQL on startup
-   */
-  async loadFromDb(): Promise<void> {
-    if (this.loadRecordRepository) {
-      const records = await this.loadRecordRepository.findAllRecords();
-      this.ticketLoads.clear();
-      for (const r of records) {
-        this.ticketLoads.set(r.ticketId, {
-          ticketId: r.ticketId,
-          engineerId: r.engineerId,
-          category: r.category as any,
-          assignedAt: r.assignedAt,
-          estimatedEffortHours: r.estimatedEffortHours ?? undefined,
-        });
-      }
-    }
-    if (this.assignmentHistoryRepository) {
-      const { entities } = await this.assignmentHistoryRepository.findAll();
-      this.assignmentHistory = entities.map(e => ({
-        id: e.id,
-        ticketId: e.ticketId,
-        assignee: e.assignee,
-        assignedBy: e.assignedBy,
-        assignedAt: e.assignedAt,
-        reason: e.reason ?? 'auto',
-        matchScore: e.matchScore ?? undefined,
-      }));
     }
   }
 

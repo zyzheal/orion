@@ -11,10 +11,10 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EnvironmentExecutorRepository, CreateEnvironmentExecutorStateInput } from '../../repositories/EnvironmentExecutorRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EnvironmentExecutorService');
 
 // K8s types - imported conditionally to allow running without @kubernetes/client-node
 let KubeConfig: any;

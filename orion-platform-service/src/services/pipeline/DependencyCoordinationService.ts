@@ -14,10 +14,10 @@
  */
 
 import { PipelineDependencyRepository } from '../../repositories/PipelineDependencyRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'dependency-coordination-service' });
+const logger = createLogger('dependency-coordination-service');
 
 export interface PipelineDependency {
   pipelineId: string;

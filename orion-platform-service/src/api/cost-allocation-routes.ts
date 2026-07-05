@@ -17,7 +17,7 @@ import { BudgetRepository } from '../services/finops/k8s-cost/BudgetRepository';
 import { CostAllocationService } from '../services/finops/k8s-cost/CostAllocationService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'cost-allocation-routes' });
+const logger = createLogger('cost-allocation-routes');
 
 interface CostAllocationRoutesOptions {
   database: DatabasePool;

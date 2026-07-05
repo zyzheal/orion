@@ -19,7 +19,7 @@ import { CITypeVersionRepository } from '../services/cmdb/ci-type/CITypeVersionR
 import { CITypeService } from '../services/cmdb/ci-type/CITypeService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'ci-type-routes' });
+const logger = createLogger('ci-type-routes');
 
 interface CITypeRoutesOptions {
   database: DatabasePool;

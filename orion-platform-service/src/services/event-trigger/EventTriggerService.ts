@@ -1,6 +1,6 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   EventTriggerRuleRepository,
   EventTriggerRuleEntity,
@@ -10,7 +10,7 @@ import {
   ActionResult,
 } from './EventTriggerRepository';
 
-const logger = pino({ name: 'EventTriggerService' });
+const logger = createLogger('EventTriggerService');
 
 export interface CreateTriggerRuleInput {
   name: string;
@@ -104,6 +104,9 @@ export class EventTriggerService {
     if (input.cooldownSeconds !== undefined) updateData.cooldownSeconds = input.cooldownSeconds;
 
     const updated = await this.ruleRepo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`Trigger rule not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ ruleId: id }, 'Trigger rule updated');
     return updated;
   }

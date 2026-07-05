@@ -27,7 +27,7 @@ import { createLogger } from '../utils/logger';
 import fs from 'fs';
 import path from 'path';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SelfHealingEventPublisher');
 
 // Fallback 日志目录
 const FALLBACK_LOG_DIR = process.env.EVENT_FALLBACK_LOG_DIR || '/tmp/orion-events';

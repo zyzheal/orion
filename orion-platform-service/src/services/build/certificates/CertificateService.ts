@@ -1,5 +1,5 @@
-import { createLogger } from '../utils/logger';
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+import { createLogger } from '../../../utils/logger';
+const logger = createLogger('CertificateService');
 import * as crypto from 'crypto';
 
 export interface Certificate {

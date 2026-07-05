@@ -475,7 +475,7 @@ handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
         reason: body.reason,
         durationHours: body.duration_hours,
         environmentSuffix: body.environment_suffix,
-        tenantId: body.tenant_id || user?.tenantId || 'default',
+        tenantId: body.tenant_id || user?.tenantId,
         userRoles: user?.roles || [],
       });
       reply.status(201).send({ data: result });
@@ -499,7 +499,7 @@ handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
       const result = await capService.approveRequest({
         ticketId: parseInt(params.ticketId, 10),
         approverId: userId,
-        tenantId: body.tenant_id || user?.tenantId || 'default',
+        tenantId: body.tenant_id || user?.tenantId,
         approverRoles: user?.roles || [],
       });
       reply.send({ data: result });
@@ -551,7 +551,7 @@ handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
         capabilityId: body.capability_id,
         durationHours: body.duration_hours,
         grantorId: userId,
-        tenantId: body.tenant_id || user?.tenantId || 'default',
+        tenantId: body.tenant_id || user?.tenantId,
         reason: body.reason,
         environmentSuffix: body.environment_suffix,
       });

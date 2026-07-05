@@ -25,12 +25,12 @@ import {
   ClientSecretPost,
   type TokenEndpointResponseHelpers,
 } from 'openid-client';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { SsoStateRepository } from '../../repositories/SsoStateRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SsoService');
 
 const STATE_TTL_SECONDS = 600; // 10 minutes
 

@@ -196,7 +196,8 @@ export class ComplianceService {
 
   async getPolicy(policyId: string): Promise<CompliancePolicyEntity | undefined> {
     if (!this.policyRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
-    return this.policyRepo.findById(policyId);
+    const entity = await this.policyRepo.findById(policyId);
+    return entity ?? undefined;
   }
 
   async listPolicies(tenantId: string, frameworkType?: string): Promise<CompliancePolicyEntity[]> {
@@ -269,6 +270,10 @@ export class ComplianceService {
       gaps: gaps as any,
       completed_at: new Date(),
     });
+
+    if (!updatedEvaluation) {
+      throw new OrionError(`Failed to update evaluation: ${id}`, ErrorCode.OPERATION_FAILED);
+    }
 
     return updatedEvaluation;
   }
@@ -830,6 +835,9 @@ export class ComplianceService {
 
     const updated = await this.reportRepo.update(id, updateData);
     logger.info({ reportId: id }, 'Compliance report updated');
+    if (!updated) {
+      throw new OrionError(`Failed to update report: ${id}`, ErrorCode.OPERATION_FAILED);
+    }
     return updated;
   }
 
@@ -911,18 +919,24 @@ export class ComplianceService {
 
     const updated = await this.scheduleRepo.update(id, updateData);
     logger.info({ scheduleId: id }, 'Compliance schedule updated');
+    if (!updated) {
+      throw new OrionError(`Failed to update schedule: ${id}`, ErrorCode.OPERATION_FAILED);
+    }
     return updated;
   }
 
   async deleteSchedule(id: string): Promise<void> {
     if (!this.scheduleRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
+    if (!this.reportRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
     const existing = await this.scheduleRepo.findById(id);
     if (!existing) {
       throw new OrionError(`Compliance schedule not found: ${id}`, 'NOT_FOUND');
     }
     const reports = await this.reportRepo.findByScheduleId(id);
     for (const report of reports) {
-      await this.reportRepo.delete(report.id);
+      if (report) {
+        await this.reportRepo.delete(report.id);
+      }
     }
     await this.scheduleRepo.delete(id);
     logger.info({ scheduleId: id }, 'Compliance schedule deleted');

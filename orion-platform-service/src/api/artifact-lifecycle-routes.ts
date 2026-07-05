@@ -11,7 +11,7 @@ import { ReplicationService } from '../services/artifact/ReplicationService';
 import { AclService } from '../services/artifact/AclService';
 import { ArtifactLifecyclePolicyRepository, ArtifactReplicationRepository } from '../repositories/ArtifactLifecycleRepository';
 import { ArtifactAclRepository } from '../repositories/ArtifactAclRepository';
-import { ArtifactRepository } from '../repositories/ArtifactRepository';
+import { PostgresArtifactRepository } from '../repositories/ArtifactRepository';
 import { OrionError, ValidationError, NotFoundError, handleError } from '../errors';
 
 interface ArtifactLifecycleRoutesOptions {
@@ -27,7 +27,7 @@ export default async function artifactLifecycleRoutes(
   const lifecyclePolicyRepository = db ? new ArtifactLifecyclePolicyRepository(db) : null;
   const replicationRepository = db ? new ArtifactReplicationRepository(db) : null;
   const aclRepository = db ? new ArtifactAclRepository(db) : null;
-  const artifactRepository = db ? new ArtifactRepository(db) : null;
+  const artifactRepository = db ? new PostgresArtifactRepository(db) : null;
 
   const lifecycleService = lifecyclePolicyRepository && artifactRepository
     ? new LifecycleService(lifecyclePolicyRepository, artifactRepository)

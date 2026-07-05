@@ -1,9 +1,9 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { TicketKnowledgeMappingRepository, TicketKnowledgeMappingEntity } from '../../repositories/TicketKnowledgeMappingRepository';
 import { OrionError } from '../../errors';
 
-const logger = pino({ name: 'TicketToKnowledgeService' });
+const logger = createLogger('TicketToKnowledgeService');
 
 export interface TicketData {
   id: string;

@@ -12,10 +12,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DoraMetricsService } from './DoraMetricsService';
 import { PipelineCompletionRecord, DeploymentRecord, TimeWindow, DoraMetricsReport } from './types';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LWeekly-LReport-LService' });
+const logger = createLogger('LWeekly-LReport-LService');
 
 // Loose TicketService interface to avoid circular imports
 // Supports both sync (in-memory fallback) and async (PostgreSQL-backed) implementations

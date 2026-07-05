@@ -8,11 +8,11 @@
  * - 提供策略状态报告
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RLSPolicyManager');
 
 /**
  * RLS 策略配置

@@ -44,6 +44,12 @@ export interface DependencyNode {
   scope: 'prod' | 'dev' | 'peer' | 'optional';
   children: DependencyNode[];
   depth: number;
+  /** Resolved semver version (set after npm registry resolution) */
+  resolvedVersion?: string;
+  /** Alias for children, used by npm resolution code */
+  dependencies?: DependencyNode[];
+  /** Dependency type: 'dependency' | 'devDependency' | 'peer' | 'optional' */
+  type?: string;
 }
 
 export interface DependencyTree {

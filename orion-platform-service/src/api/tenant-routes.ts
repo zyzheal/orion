@@ -22,7 +22,7 @@ import { success, created, noContent, badRequest, notFound, internalError, confl
 import { ErrorCodes } from '../types/error-codes';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'tenant-routes' });
+const logger = createLogger('tenant-routes');
 
 interface TenantQuotaUpdate {
   maxPipelines?: number;
@@ -223,7 +223,7 @@ export default async function tenantRoutes(
   app.get('/namespace/pool', {
     onRequest: [authenticateUser, requirePermission({ resource: 'tenant', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const status = namespacePool.getPoolStatus();
+    const status = await namespacePool.getPoolStatus();
     return success(reply, request, { status });
   });
 
@@ -267,7 +267,7 @@ export default async function tenantRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const {  tenantId  } = request.params as any as { tenantId: string };
 
-    const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10));
+    const namespaces = await namespacePool.getTenantNamespaces(parseInt(tenantId, 10));
 
     return success(reply, request, namespaces, { count: namespaces.length });
   });
@@ -654,7 +654,7 @@ export default async function tenantRoutes(
 
     if (!options.database) {
       // Fallback to namespace pool service if no database
-      const namespaces = namespacePool.getTenantNamespaces(parseInt(tenantId, 10) || 0);
+      const namespaces = await namespacePool.getTenantNamespaces(parseInt(tenantId, 10) || 0);
       const namespaceDetails = namespaces.map(ns => ({
         id: ns.id,
         namespaceName: ns.namespaceName,

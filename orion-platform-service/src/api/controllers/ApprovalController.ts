@@ -4,6 +4,7 @@
  * Phase 2: 处理多级审批、紧急审批、审批模板相关的 HTTP 请求。
  */
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { MultiLevelApprovalService, ApprovalAction, ApprovalMode, ApprovalRequestInput, ApprovalRequestDetail } from '../../services/approval/MultiLevelApprovalService';
 import { EmergencyApprovalService, EmergencyReason, EmergencyApprovalInput } from '../../services/approval/EmergencyApprovalService';
 import { ApprovalTemplateService, ApprovalTemplateInput } from '../../services/approval/ApprovalTemplateService';
@@ -71,7 +72,7 @@ interface FastifyRequestWithAuth extends FastifyRequest {
   userId?: string;
 }
 
-export class ApprovalController {
+export class ApprovalController extends BaseController {
   private multiLevelService: MultiLevelApprovalService;
   private emergencyService: EmergencyApprovalService;
   private templateService: ApprovalTemplateService;
@@ -85,6 +86,7 @@ export class ApprovalController {
     approvalGateService?: ApprovalGateService,
     approvalService?: ApprovalService,
   ) {
+    super();
     this.multiLevelService = multiLevelService;
     this.emergencyService = emergencyService;
     this.templateService = templateService;
@@ -111,7 +113,7 @@ export class ApprovalController {
       }
 
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = authRequest.tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const input: ApprovalRequestInput = {
         title,
@@ -144,7 +146,7 @@ export class ApprovalController {
     try {
       const query = request.query as ListQueryParams;
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       // Reuse listPending from the existing approval-routes approach
       // For full listing, we return pending approvals for the tenant
@@ -222,7 +224,7 @@ export class ApprovalController {
       const query = request.query as ListQueryParams;
       const authRequest = request as FastifyRequestWithAuth;
       const userId = query.userId || authRequest.userId;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!userId) {
         return reply.status(400).send({
@@ -258,7 +260,7 @@ export class ApprovalController {
       }
 
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = authRequest.tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const input: EmergencyApprovalInput = {
         title,
@@ -299,7 +301,7 @@ export class ApprovalController {
       }
 
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = authRequest.tenantId || body.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const input: ApprovalTemplateInput = {
         name,
@@ -330,7 +332,7 @@ export class ApprovalController {
     try {
       const query = request.query as ListQueryParams;
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const templates = await this.templateService.getTemplates(tenantId);
       return reply.status(200).send({ success: true, data: templates });
@@ -554,7 +556,7 @@ export class ApprovalController {
       const query = request.query as { tenantId?: string };
       const authRequest = request as FastifyRequestWithAuth;
       const userId = authRequest.userId;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       if (!userId) {
         return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'userId is required' });
@@ -580,7 +582,7 @@ export class ApprovalController {
     try {
       const query = request.query as { tenantId?: string; startDate?: string; endDate?: string };
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const periodStart = query.startDate ? new Date(query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const periodEnd = query.endDate ? new Date(query.endDate) : new Date();
@@ -601,7 +603,7 @@ export class ApprovalController {
     try {
       const query = request.query as { tenantId?: string; startDate?: string; endDate?: string };
       const authRequest = request as FastifyRequestWithAuth;
-      const tenantId = query.tenantId || authRequest.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const periodStart = query.startDate ? new Date(query.startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const periodEnd = query.endDate ? new Date(query.endDate) : new Date();

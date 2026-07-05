@@ -5,9 +5,9 @@
  */
 
 import Redis, { Cluster, RedisOptions } from 'ioredis';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'ConfigRedisCache' });
+const logger = createLogger('ConfigRedisCache');
 
 // ==================== 缓存配置 ====================
 

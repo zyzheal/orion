@@ -16,7 +16,7 @@ import {
   ConfigVersionRepository,
   ConfigVersionEntity,
   ConfigSnapshotEntity,
-} from '../repositories/ConfigVersionRepository';
+} from '../../repositories/ConfigVersionRepository';
 import { ConfigRepository, ConfigEntry } from './ConfigRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { CacheService } from '../cache/CacheService';
@@ -159,7 +159,7 @@ export class ConfigSnapshotService {
 
     const snapshots = await this.versionRepo.findSnapshots({ tenantId, limit });
 
-    const result: ConfigSnapshotInfo[] = snapshots.map((s) => {
+    const result: ConfigSnapshotInfo[] = snapshots.map((s: ConfigSnapshotEntity) => {
       try {
         const configData = JSON.parse(s.configData);
         const configKeys = Object.keys(configData);
@@ -322,7 +322,7 @@ export class ConfigSnapshotService {
     const configEntry = await this.configRepo.findByKey(tenantId, key);
     const configId = configEntry?.id || `config-${uuidv4()}`;
 
-    const nextVersion = await this.versionRepo.getMaxVersion(tenantId, domain, key) + 1;
+    const nextVersion = await this.versionRepo.getMaxVersion(domain, key) + 1;
     const oldValueStr = oldValue ? JSON.stringify(oldValue) : null;
     const newValueStr = JSON.stringify(newValue);
     const checksum = createHash('sha256')
@@ -331,10 +331,9 @@ export class ConfigSnapshotService {
 
     const versionEntity: ConfigVersionEntity = {
       id: uuidv4(),
-      tenantId,
-      domain,
+      domain: tenantId,
       key,
-      oldValue: oldValueStr,
+      oldValue: oldValueStr ?? '',
       newValue: newValueStr,
       changedBy,
       changedAt: new Date(),
@@ -366,7 +365,7 @@ export class ConfigSnapshotService {
     if (cached) return cached;
 
     const versions = await this.versionRepo.findVersions({
-      tenantId,
+      domain: tenantId,
       key,
       limit,
     });
@@ -385,11 +384,11 @@ export class ConfigSnapshotService {
     version: number,
   ): Promise<ConfigVersionInfo | null> {
     const versions = await this.versionRepo.findVersions({
-      tenantId,
+      domain: tenantId,
       key,
       limit: 1000,
     });
-    const found = versions.find((v) => v.version === version);
+    const found = versions.find((v: ConfigVersionEntity) => v.version === version);
     return found ? this.mapVersionEntityToInfo(found) : null;
   }
 
@@ -554,7 +553,7 @@ export class ConfigSnapshotService {
 
     return {
       id: entity.id,
-      tenantId: entity.tenantId,
+      tenantId: entity.domain,
       domain: entity.domain,
       key: entity.key,
       version: entity.version,

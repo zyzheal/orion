@@ -76,7 +76,7 @@ export function auditGuard(options: AuditGuardOptions) {
 
     const service = getAuditService();
     if (!service) {
-      console.warn('[AuditGuard] AuditService not initialized, skipping audit log');
+      logger.warn({ tenant_id: getCurrentTenantId() }, '[AuditGuard] AuditService not initialized, skipping audit log');
       return;
     }
 
@@ -105,7 +105,7 @@ export function auditGuard(options: AuditGuardOptions) {
       await service.createAuditLog(input);
     } catch (error) {
       // 审计日志写入失败不影响主请求响应（非阻塞）
-      console.error('[AuditMiddleware] Failed to write audit log:', error, { tenant_id: tenantId, action: input.action, resource_type: resourceType });
+      logger.error({ err: error as Error, stack: (error as Error).stack, tenant_id: tenantId, action: input.action, resource_type: resourceType }, '[AuditMiddleware] Failed to write audit log');
     }
   };
 }

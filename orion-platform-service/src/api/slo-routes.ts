@@ -16,7 +16,7 @@ import { SLOTrackingService } from '../services/observability/SLOTrackingService
 import { handleError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'slo-routes' });
+const logger = createLogger('slo-routes');
 
 interface SLORoutesOptions {
   database: DatabasePool;

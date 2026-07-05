@@ -26,7 +26,7 @@ export class DbFailoverAlertTimeRepository extends BaseRepository<DbFailoverAler
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async upsertAlertTime(degradationLevel: number, alertTime: Date, tenantId?: string): Promise<DbFailoverAlertTimeEntity> {
+  async upsertAlertTime(degradationLevel: number, alertTime: Date, tenantId?: string): Promise<DbFailoverAlertTimeEntity | null> {
     const existing = await this.findByLevel(degradationLevel, tenantId);
     if (existing) {
       return this.update(existing.id, { last_alert_time: alertTime, updated_at: new Date() });

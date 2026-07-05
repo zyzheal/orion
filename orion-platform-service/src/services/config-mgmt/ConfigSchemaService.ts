@@ -5,10 +5,10 @@
  * for common schema patterns (string, number, boolean, array, object, enum, formats).
  */
 
-import { ConfigSchemaRepository, ConfigSchemaEntity } from '../repositories/ConfigSchemaRepository';
+import { ConfigSchemaRepository, ConfigSchemaEntity } from '../../repositories/ConfigSchemaRepository';
 import { JsonSchema, ConfigValidationService, ValidationResult } from './ConfigValidationService';
 import { OrionError, ErrorCode } from '../../errors';
-import { CacheService } from './cache/CacheService';
+import { CacheService } from '../cache/CacheService';
 import { CreateConfigSchemaInput, UpdateConfigSchemaInput, ListConfigSchemasFilter, ConfigSchema } from './types';
 
 const SCHEMA_CACHE_TTL = 300; // 5 minutes
@@ -35,7 +35,7 @@ export class ConfigSchemaService {
     // Validate the schema itself is valid JSON Schema
     this.validationService.validateSchemaSyntax(input.schema);
 
-    const entity = await this.repository.create(tenantId, {
+    const entity = await this.repository.create({
       name: input.name,
       description: input.description,
       schema: input.schema,
@@ -58,7 +58,7 @@ export class ConfigSchemaService {
     const cached = await this.cache.get<ConfigSchema>(cacheKey);
     if (cached) return cached;
 
-    const entity = await this.repository.findById(schemaId, tenantId);
+    const entity = await this.repository.findById(schemaId);
     if (!entity) return null;
 
     const schema = this.entityToSchema(entity);
@@ -93,7 +93,7 @@ export class ConfigSchemaService {
       this.validationService.validateSchemaSyntax(updates.schema);
     }
 
-    const entity = await this.repository.update(schemaId, tenantId, {
+    const entity = await this.repository.update(schemaId, {
       name: updates.name,
       description: updates.description,
       schema: updates.schema,
@@ -101,6 +101,10 @@ export class ConfigSchemaService {
       isActive: updates.isActive,
       updatedBy: updates.updatedBy,
     });
+
+    if (!entity) {
+      throw new ConfigSchemaServiceError(`Schema '${schemaId}' not found`, ErrorCode.NOT_FOUND);
+    }
 
     // Invalidate cache
     await this.invalidateSchemaCache(tenantId, schemaId);
@@ -115,7 +119,7 @@ export class ConfigSchemaService {
     const entities = await this.repository.findByTenantId(tenantId, filter);
     const total = await this.repository.countByTenantId(tenantId, filter);
     return {
-      data: entities.map(e => this.entityToSchema(e)),
+      data: entities.map((e: ConfigSchemaEntity) => this.entityToSchema(e)),
       total,
     };
   }
@@ -125,6 +129,12 @@ export class ConfigSchemaService {
    */
   async deactivateSchema(tenantId: string, schemaId: string, updatedBy: string): Promise<ConfigSchema> {
     const entity = await this.repository.deactivate(schemaId, tenantId, updatedBy);
+    if (!entity) {
+      throw new OrionError(
+        `Config schema '${schemaId}' not found for deactivation`,
+        ErrorCode.NOT_FOUND,
+      );
+    }
     await this.invalidateSchemaCache(tenantId, schemaId);
     return this.entityToSchema(entity);
   }
@@ -133,7 +143,7 @@ export class ConfigSchemaService {
    * Delete a schema permanently.
    */
   async deleteSchema(tenantId: string, schemaId: string): Promise<boolean> {
-    const deleted = await this.repository.delete(schemaId, tenantId);
+    const deleted = await this.repository.delete(schemaId);
     if (deleted) {
       await this.invalidateSchemaCache(tenantId, schemaId);
     }
@@ -318,7 +328,7 @@ export class ConfigSchemaService {
     await this.cache.del(`config:schema:${tenantId}:${schemaId}`);
     // Pattern delete for config key caches
     const pattern = `config:schema:${tenantId}:key:*`;
-    await this.cache.delPattern(pattern);
+    await this.cache.invalidate(pattern);
   }
 
   /**

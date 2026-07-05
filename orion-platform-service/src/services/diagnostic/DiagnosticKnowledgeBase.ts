@@ -112,6 +112,7 @@ export class DiagnosticKnowledgeBase {
         const existing = await this.patternRepo.findById(patternId);
         if (!existing) return null;
         const updated = await this.patternRepo.update(patternId, updates);
+        if (!updated) return null;
         return this.entityToPattern(updated);
       } catch {
         // Fall back to in-memory

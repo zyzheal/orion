@@ -4,7 +4,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ArtifactRepository } from '../../repositories/ArtifactRepository';
 import { ArtifactStorage } from '../../storage/ArtifactStorage';
 import {
@@ -19,7 +19,7 @@ import {
 } from '../../models/Artifact';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ArtifactRegistryService');
 
 export class ArtifactRegistryServiceImpl implements ArtifactRegistryService {
   constructor(

@@ -14,10 +14,10 @@
  */
 
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LError-LClassifier' });
+const logger = createLogger('LError-LClassifier');
 
 export type ErrorType = 'transient' | 'permanent' | 'flaky' | 'config';
 export type RetryStrategy = 'immediate' | 'backoff' | 'skip';

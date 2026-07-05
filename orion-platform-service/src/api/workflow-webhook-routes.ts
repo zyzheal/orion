@@ -16,7 +16,7 @@ import { WorkflowTriggerLogRepository } from '../repositories/WorkflowTriggerLog
 import { createLogger } from '../utils/logger';
 import { OrionError, NotFoundError, UnauthorizedError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'workflow-webhook-routes' });
+const logger = createLogger('workflow-webhook-routes');
 
 /**
  * 默认导出函数

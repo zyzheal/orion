@@ -12,7 +12,7 @@ import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'backup-routes' });
+const logger = createLogger('backup-routes');
 
 interface BackupRoutesOptions {
   database?: DatabasePool;

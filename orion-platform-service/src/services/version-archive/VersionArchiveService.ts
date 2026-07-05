@@ -1,9 +1,9 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import { VersionArchiveRepository, VersionArchiveEntity } from './VersionArchiveRepository';
 
-const logger = pino({ name: 'VersionArchiveService' });
+const logger = createLogger('VersionArchiveService');
 
 export interface ArchiveVersionInput {
   resourceType: string;

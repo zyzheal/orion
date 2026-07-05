@@ -24,7 +24,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'user-status-routes' });
+const logger = createLogger('user-status-routes');
 
 interface UserStatusRoutesOptions {
   database?: DatabasePool;

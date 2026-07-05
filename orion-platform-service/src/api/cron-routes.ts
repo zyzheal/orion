@@ -156,7 +156,7 @@ handleError(reply, new NotFoundError('Cron job not found'));
         data: execution
       });
     } catch (error) {
-handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
+handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 

@@ -22,7 +22,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'decision-explanation-routes' });
+const logger = createLogger('decision-explanation-routes');
 
 interface DecisionExplanationRoutesOptions {
   database?: DatabasePool;

@@ -11,7 +11,7 @@
  * 2. 二次超时（超过 reminderInterval * 2）- 自动批准或拒绝
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ApprovalRepository, ApprovalEntity, ApprovalStepEntity } from '../../repositories/ApprovalRepository';
 import { CronSchedulerService } from '../scheduler/CronSchedulerService';
 
@@ -20,7 +20,7 @@ interface NotificationSender {
   send(input: { tenant_id: string; user_id: string; type: string; title: string; message: string }): Promise<unknown>;
 }
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ApprovalTimeoutScheduler');
 
 // 超时配置
 export interface ApprovalTimeoutConfig {

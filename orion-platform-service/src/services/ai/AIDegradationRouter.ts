@@ -16,14 +16,14 @@ import {
   AI_SCENARIO_PRIORITY,
 } from './types';
 import { RuleEngine } from './RuleEngine';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   AIDegradationConfigRepository,
   AIDegradationResultCacheRepository,
 } from '../../repositories/AIDegradationConfigRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AIDegradationRouter');
 
 // 默认降级配置映射
 const DEFAULT_DEGRADATION_CONFIGS: Record<AIScenario, DegradationConfig> = {

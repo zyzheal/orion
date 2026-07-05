@@ -14,11 +14,11 @@
 
 import * as crypto from 'crypto';
 import { SecretRepository, SecretEntity, SecretScope, SecretCreateInput } from '../../repositories/SecretRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'secrets-service' });
+const logger = createLogger('secrets-service');
 
 /**
  * Secret 引用语法正则: ${secrets.XXX} 或 ${secrets.XXX:default_value}

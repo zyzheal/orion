@@ -13,7 +13,7 @@
  * - Platform -> Runner: POST {runnerEndpoint}/execute (HTTP)
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   Runner,
   RunnerCreateInput,
@@ -28,7 +28,7 @@ import { PostgresRunnerJobRepository, RunnerJobRepository } from '../../reposito
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'runner-pool-service' });
+const logger = createLogger('runner-pool-service');
 
 export interface TaskExecutionPayload {
   id: string;

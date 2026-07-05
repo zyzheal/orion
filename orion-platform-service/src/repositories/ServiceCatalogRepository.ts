@@ -93,7 +93,7 @@ export class ServiceCatalogRepository extends BaseRepository<CatalogServiceEntit
   /**
    * Update a catalog service
    */
-  async updateService(id: string, input: CatalogServiceUpdateInput): Promise<CatalogServiceEntity | undefined> {
+  async updateService(id: string, input: CatalogServiceUpdateInput): Promise<CatalogServiceEntity | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
@@ -144,7 +144,7 @@ export class ServiceCatalogRepository extends BaseRepository<CatalogServiceEntit
     }
 
     if (fields.length === 0) {
-      return this.findById(id);
+      return this.findById(id) ?? null;
     }
 
     fields.push(`updated_at = NOW()`);
@@ -154,7 +154,7 @@ export class ServiceCatalogRepository extends BaseRepository<CatalogServiceEntit
       `UPDATE catalog_services SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
       values,
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

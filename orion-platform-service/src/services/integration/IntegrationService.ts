@@ -16,6 +16,9 @@ import { JiraConnector } from './connectors/JiraConnector';
 import { OrionError, ErrorCode } from '../../errors';
 import { IntegrationConfigRepository } from '../../repositories/IntegrationConfigRepository';
 import { IntegrationMappingRepository } from '../../repositories/IntegrationMappingRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('integration-service');
 
 // Auto-register built-in connectors
 let connectorsRegistered = false;
@@ -143,7 +146,7 @@ export class IntegrationService {
         syncStatus: null,
         errorMessage: null,
         createdBy: integration.createdBy,
-      }).catch((err) => console.warn('[IntegrationService] Failed to persist integration:', err));
+      }).catch((err) => logger.warn({ err: err as Error, stack: (err as Error).stack, integrationId: integration.id }, '[IntegrationService] Failed to persist integration'));
     }
 
     return integration;

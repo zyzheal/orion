@@ -5,9 +5,9 @@
  * Supports iOS, macOS desktop applications, and HarmonyOS builds.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
-const logger = pino({ name: 'LMac-LBuild-LExecutor' });
+const logger = createLogger('LMac-LBuild-LExecutor');
 import {
   BuildExecutor,
   BuildType,

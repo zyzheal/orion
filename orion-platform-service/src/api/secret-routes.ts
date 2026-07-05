@@ -18,7 +18,7 @@ import { SecretsService } from '../services/pipeline/SecretsService';
 import { SecretRepository } from '../repositories/SecretRepository';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'secret-routes' });
+const logger = createLogger('secret-routes');
 
 // Global secrets service instance shared across the application
 let globalSecretsService: SecretsService | null = null;

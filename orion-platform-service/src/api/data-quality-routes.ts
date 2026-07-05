@@ -10,10 +10,10 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { DataQualityService } from '../services/data-quality/DataQualityService';
 import { DatabasePool } from '../services/database';
-import { handleError } from '../errors';
+import { handleError, ServiceUnavailableError, NotFoundError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('data-quality-routes');
 
 interface DataQualityRoutesOptions {
   database?: DatabasePool;
@@ -23,9 +23,10 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   const pool = options.database;
   if (!pool) {
     logger.warn('[DataQualityRoutes] Database not available, routes will return 503');
+    return;
   }
 
-  const service = pool ? new DataQualityService(pool) : null;
+  const service = new DataQualityService(pool);
 
   // POST /data-quality/rules - Create a quality rule
   app.post('/data-quality/rules', {
@@ -34,7 +35,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as any;
-      const tenantId = String((request as any).user?.tenantId || 'default');
+      const tenantId = String((request as any).user?.tenantId);
       const rule = await service.createRule({ ...body, tenant_id: tenantId });
       return reply.status(201).send({ success: true, data: rule });
     } catch (error) {
@@ -48,7 +49,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
-      const tenantId = String((request as any).user?.tenantId || 'default');
+      const tenantId = String((request as any).user?.tenantId);
       const rules = await service.listRules(tenantId);
       return reply.send({ success: true, data: rules });
     } catch (error) {
@@ -122,7 +123,7 @@ export default async function dataQualityRoutes(app: FastifyInstance, options: D
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
-      const tenantId = String((request as any).user?.tenantId || 'default');
+      const tenantId = String((request as any).user?.tenantId);
       const query = request.query as any;
       const checks = await service.listChecks(tenantId, query.ruleId);
       return reply.send({ success: true, data: checks });

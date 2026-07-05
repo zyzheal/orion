@@ -480,7 +480,7 @@ export class TriggerManager {
    * 根据ID获取触发器
    */
   async getTriggerById(id: string): Promise<WorkflowTrigger | undefined> {
-    return await this.triggerRepo.findById(id);
+    return await this.triggerRepo.findById(id) ?? undefined;
   }
 
   /**

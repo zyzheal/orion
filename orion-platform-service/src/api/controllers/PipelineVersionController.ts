@@ -3,14 +3,16 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { PipelineVersionService } from '../../services/pipeline/PipelineVersionService';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 
-export class PipelineVersionController {
+export class PipelineVersionController extends BaseController {
   private versionService: PipelineVersionService;
   private pipelineService: PipelineService;
 
   constructor(versionService: PipelineVersionService, pipelineService: PipelineService) {
+    super();
     this.versionService = versionService;
     this.pipelineService = pipelineService;
   }
@@ -164,7 +166,7 @@ export class PipelineVersionController {
       const { pipelineId, versionId } = params;
       const { reason } = body;
 
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const createdBy = (request.headers['x-user-id'] as string) || undefined;
 
       const newVersion = await this.versionService.rollbackToVersion(pipelineId, versionId, {

@@ -16,7 +16,7 @@ import { NotificationPolicyRepository, NotificationWorkflowRepository } from '..
 import { NotificationPolicyService } from '../services/notification-policy/NotificationPolicyService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'notification-policy-routes' });
+const logger = createLogger('notification-policy-routes');
 
 interface NotificationPolicyRoutesOptions {
   database: DatabasePool;

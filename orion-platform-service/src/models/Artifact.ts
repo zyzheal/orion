@@ -38,6 +38,7 @@ export interface Artifact {
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date;
+  tenantId?: string;
 }
 
 export interface ArtifactTag {

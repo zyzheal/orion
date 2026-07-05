@@ -13,7 +13,7 @@ import { promisify } from 'util';
 import { resolve, isAbsolute } from 'path';
 import { realpathSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
 import { BaseAgent } from '../base/BaseAgent';
 import { AgentConfig, AgentExecutionContext } from '../base/types';
@@ -35,7 +35,7 @@ import {
 import { OrionError, ErrorCode } from '../../../errors';
 
 const execFileAsync = promisify(execFile);
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ReleaseNotesAgent');
 
 /**
  * 允许的仓库根目录白名单

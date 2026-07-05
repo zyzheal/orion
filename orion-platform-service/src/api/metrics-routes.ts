@@ -14,7 +14,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'metrics-routes' });
+const logger = createLogger('metrics-routes');
 
 interface MetricsRoutesOptions {
   database?: DatabasePool;

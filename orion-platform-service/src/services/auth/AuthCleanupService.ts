@@ -17,10 +17,10 @@ import { DatabasePool } from '../../services/database';
 import { TokenBlacklistService } from '../auth/TokenBlacklistService';
 import { TracingService } from '../monitoring/TracingService';
 import { DatabaseProfiler } from '../monitoring/DatabaseProfiler';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AuthCleanupService');
 
 export interface AuthCleanupConfig {
   /** Cron schedule (default: every 5 minutes) */

@@ -19,9 +19,9 @@ import {
 } from './types';
 import { DiffAnalyzer } from './DiffAnalyzer';
 import { ReviewRuleRepository, ReviewRuleEntity } from '../../repositories/ReviewRuleRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LReview-LRule-LEngine' });
+const logger = createLogger('LReview-LRule-LEngine');
 
 /** 默认配置 */
 const DEFAULT_RULES: ReviewRule[] = [

@@ -12,19 +12,13 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import { OrionError, ErrorCode } from '../../errors';
-import {
-  DataPipeline,
-  PipelineStage,
-  PipelineExecution,
-  StageResult,
-  ExecutionStatus,
-} from './types';
 import { DataPipelineRepository, PipelineExecutionRepository, StageResultEntity } from '../../repositories/DataPipelineRepository';
+import { DataPipeline, PipelineExecution, StageResult, PipelineStage } from './types';
 
-const logger = pino({ name: 'data-pipeline-async-engine' });
+const logger = createLogger('data-pipeline-async-engine');
 
 // ==================== Type Definitions ====================
 
@@ -32,6 +26,7 @@ export type TaskState = 'pending' | 'running' | 'completed' | 'failed' | 'cancel
 
 export interface DataPipelineTask {
   id: string;
+  executionId: string;
   pipelineId: string;
   tenantId: string;
   stageId: string;
@@ -105,8 +100,8 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   private executions = new Map<string, PipelineExecution>();
   private stageResults = new Map<string, StageResult[]>();
 
-  // Concurrency control
-  private runningCount = 0;
+  // Concurrency control: per-execution running count (queue isolation fix)
+  private runningCount = new Map<string, number>();
   private queue: DataPipelineTask[] = [];
 
   // Timeout watchers
@@ -160,31 +155,32 @@ export class DataPipelineAsyncEngine extends EventEmitter {
     }
 
     // 4. 启动调度
-    this.scheduleTasks(tasks, execId, tenantId);
+    this.scheduleTasks(tasks, execId, pipeline.tenantId);
 
     return execution;
   }
 
   /**
    * 取消执行
+   * 同时从队列中移除 cancelled 任务，避免 processQueue 继续处理已取消的任务
    */
   async cancelExecution(executionId: string): Promise<boolean> {
     const tasks = this.getTasksByExecution(executionId);
     let cancelled = false;
 
     for (const task of tasks) {
-      if (task.state === 'pending' || task.state === 'retrying') {
-        this.updateTaskState(task.id, 'cancelled');
-        this.clearTaskTimers(task.id);
-        this.stopTaskHeartbeat(task.id);
-        cancelled = true;
-      } else if (task.state === 'running') {
+      if (task.state === 'pending' || task.state === 'retrying' || task.state === 'running') {
         this.updateTaskState(task.id, 'cancelled');
         this.clearTaskTimers(task.id);
         this.stopTaskHeartbeat(task.id);
         cancelled = true;
       }
     }
+
+    // 从队列中移除该 execution 的所有 cancelled/retrying 任务
+    this.queue = this.queue.filter(
+      (t) => !(t.executionId === executionId && (t.state === 'cancelled' || t.state === 'retrying'))
+    );
 
     // 更新执行记录
     const execution = this.executions.get(executionId);
@@ -248,7 +244,7 @@ export class DataPipelineAsyncEngine extends EventEmitter {
     this.executions.clear();
     this.stageResults.clear();
     this.queue = [];
-    this.runningCount = 0;
+    this.runningCount.clear();
   }
 
   // ==================== Task Scheduling ====================
@@ -266,22 +262,27 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   }
 
   /**
-   * 处理队列（并发控制）
+   * 处理队列（并发控制）- 按 executionId 隔离
    */
   private processQueue(executionId: string, tenantId: string): void {
-    if (this.runningCount >= this.config.maxConcurrency) {
+    const execRunning = this.runningCount.get(executionId) || 0;
+    if (execRunning >= this.config.maxConcurrency) {
       logger.debug(
-        { running: this.runningCount, max: this.config.maxConcurrency },
-        'Queue full, waiting for slot'
+        { executionId, running: execRunning, max: this.config.maxConcurrency },
+        'Queue full for execution, waiting for slot'
       );
       return;
     }
+
+    // 仅处理属于当前 execution 的任务（队列隔离）
+    const tasksForExecution = this.queue.filter((t) => t.executionId === executionId);
+    const otherTasks = this.queue.filter((t) => t.executionId !== executionId);
 
     // 找到可运行的任务（依赖已满足）
     const ready: DataPipelineTask[] = [];
     const remaining: DataPipelineTask[] = [];
 
-    for (const task of this.queue) {
+    for (const task of tasksForExecution) {
       if (task.state !== 'pending') {
         remaining.push(task);
         continue;
@@ -299,11 +300,12 @@ export class DataPipelineAsyncEngine extends EventEmitter {
       }
     }
 
-    this.queue = remaining;
+    this.queue = [...otherTasks, ...remaining];
 
-    // 启动就绪任务
+    // 启动就绪任务（受 execution 级并发限制）
     for (const task of ready) {
-      if (this.runningCount >= this.config.maxConcurrency) break;
+      const currentRunning = this.runningCount.get(executionId) || 0;
+      if (currentRunning >= this.config.maxConcurrency) break;
       this.runTask(task, executionId, tenantId);
     }
   }
@@ -313,13 +315,17 @@ export class DataPipelineAsyncEngine extends EventEmitter {
    */
   private async runTask(task: DataPipelineTask, executionId: string, tenantId: string): Promise<void> {
     this.updateTaskState(task.id, 'running');
-    this.runningCount++;
+
+    // Per-execution running count (queue isolation)
+    const currentRunning = this.runningCount.get(executionId) || 0;
+    this.runningCount.set(executionId, currentRunning + 1);
 
     const startedAt = Date.now();
     this.startTaskHeartbeat(task.id);
 
     try {
-      // 超时控制
+      // 超时控制：timeoutPromise 和 executionPromise 都 resolve，
+      // executeStage 内部捕获错误并返回 { success: false, error }
       const timeoutPromise = this.createTimeout(task.id, task.timeoutMs);
       const executionPromise = this.executeStage(task);
 
@@ -329,14 +335,25 @@ export class DataPipelineAsyncEngine extends EventEmitter {
       this.stopTaskHeartbeat(task.id);
 
       if (result.timedOut) {
+        // 超时触发
         this.updateTaskState(task.id, 'failed', 'Task timed out');
         await this.handleTaskFailure(task, executionId, tenantId, 'timeout');
+      } else if (!result.success) {
+        // 执行失败（executeStage 返回错误而非抛异常）
+        this.updateTaskState(task.id, 'failed', result.error);
+        await this.handleTaskFailure(task, executionId, tenantId, result.error || 'unknown');
       } else {
-        const durationMs = Date.now() - startedAt;
-        this.updateTaskState(task.id, 'completed', undefined, {
-          recordsProcessed: result.recordsProcessed,
-          durationMs,
-        });
+        // 成功：检查是否已被取消
+        const currentTask = this.tasks.get(task.id);
+        if (currentTask?.state === 'cancelled') {
+          this.updateTaskState(task.id, 'cancelled');
+        } else {
+          const durationMs = Date.now() - startedAt;
+          this.updateTaskState(task.id, 'completed', undefined, {
+            recordsProcessed: result.recordsProcessed,
+            durationMs,
+          });
+        }
 
         // 触发队列处理
         this.processQueue(executionId, tenantId);
@@ -346,11 +363,18 @@ export class DataPipelineAsyncEngine extends EventEmitter {
       this.stopTaskHeartbeat(task.id);
 
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.updateTaskState(task.id, 'failed', errorMessage);
+      const currentTask = this.tasks.get(task.id);
 
-      await this.handleTaskFailure(task, executionId, tenantId, errorMessage);
+      if (currentTask?.state === 'cancelled') {
+        this.updateTaskState(task.id, 'cancelled');
+      } else {
+        this.updateTaskState(task.id, 'failed', errorMessage);
+        await this.handleTaskFailure(task, executionId, tenantId, errorMessage);
+      }
     } finally {
-      this.runningCount = Math.max(0, this.runningCount - 1);
+      // Per-execution running count decrement
+      const execRunning = this.runningCount.get(executionId) || 0;
+      this.runningCount.set(executionId, Math.max(0, execRunning - 1));
 
       // 尝试处理更多任务
       this.processQueue(executionId, tenantId);
@@ -371,7 +395,7 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   ): Promise<void> {
     if (task.retryCount >= task.maxRetries) {
       logger.warn(
-        { taskId: task.id, retries: task.retryCount, error },
+        { taskId: task.id, executionId, retries: task.retryCount, error },
         'Task failed after max retries'
       );
       this.emit('task:failed', { taskId: task.id, executionId, error });
@@ -384,13 +408,13 @@ export class DataPipelineAsyncEngine extends EventEmitter {
     task.state = 'retrying';
 
     logger.info(
-      { taskId: task.id, attempt: task.retryCount, delayMs },
+      { taskId: task.id, executionId, attempt: task.retryCount, delayMs },
       'Retrying task with exponential backoff'
     );
 
     this.emit('task:retrying', { taskId: task.id, attempt: task.retryCount, delayMs });
 
-    // 延迟后重新加入队列
+    // 延迟后重新加入队列（按 executionId 隔离重试）
     setTimeout(() => {
       task.state = 'pending';
       this.queue.push(task);
@@ -415,17 +439,33 @@ export class DataPipelineAsyncEngine extends EventEmitter {
 
   /**
    * 执行单个 stage（实际业务逻辑由外部注入或通过 processor 模拟）
+   *
+   * 注意：不抛异常，所有错误通过 result.success=false 返回，确保 Promise.race
+   * 中 timeoutPromise 和 executionPromise 都 resolve，使超时控制生效。
    */
-  private async executeStage(task: DataPipelineTask): Promise<{ success: boolean; recordsProcessed: number; timedOut: boolean }> {
+  private async executeStage(task: DataPipelineTask): Promise<{ success: boolean; recordsProcessed: number; timedOut: boolean; error?: string }> {
     logger.info({ taskId: task.id, stageName: task.stageName }, 'Executing stage');
 
-    // 模拟 stage 执行：根据 config 决定处理耗时
+    // 分段睡眠以支持取消检查
     const baseDuration = this.estimateStageDuration(task);
-    await this.sleep(baseDuration);
+    const chunks = 10;
+    const chunkSize = baseDuration / chunks;
+    for (let i = 0; i < chunks; i++) {
+      await this.sleep(chunkSize);
+      const currentTask = this.tasks.get(task.id);
+      if (currentTask?.state === 'cancelled') {
+        return { success: false, recordsProcessed: 0, timedOut: false, error: 'TASK_CANCELLED' };
+      }
+    }
 
     // 模拟：10% 概率失败（用于测试重试）
     if (Math.random() < 0.1) {
-      throw new Error(`Stage ${task.stageName} failed: simulated transient error`);
+      return {
+        success: false,
+        recordsProcessed: 0,
+        timedOut: false,
+        error: `Stage ${task.stageName} failed: simulated transient error`,
+      };
     }
 
     return {
@@ -665,6 +705,7 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   private buildTasks(pipeline: DataPipeline, executionId: string): DataPipelineTask[] {
     return pipeline.stages.map((stage: PipelineStage, index: number) => ({
       id: this.generateTaskId(executionId, stage.id),
+      executionId,
       pipelineId: pipeline.id,
       tenantId: pipeline.tenantId,
       stageId: stage.id,

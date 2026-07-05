@@ -5,8 +5,8 @@
  * configuration values. Supports multi-tenant isolation via tenant_id.
  */
 
-import { BaseRepository } from '../../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
+import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 export interface ConfigSchemaEntity {
   id: string;
@@ -31,13 +31,14 @@ export class ConfigSchemaRepository extends BaseRepository<ConfigSchemaEntity> {
   /**
    * Create a new config schema for a tenant.
    */
-  async create(tenantId: string, input: {
+  async create(input: {
     name: string;
     description?: string;
     schema: Record<string, any>;
     configKey?: string;
     createdBy: string;
   }): Promise<ConfigSchemaEntity> {
+    const tenantId = this.getTenantId();
     const id = `config-schema-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.db.query(
       `INSERT INTO config_schemas (id, tenant_id, name, description, schema, config_key, version, is_active, created_by, updated_by, created_at, updated_at)
@@ -51,12 +52,13 @@ export class ConfigSchemaRepository extends BaseRepository<ConfigSchemaEntity> {
   /**
    * Find schema by ID (tenant-scoped).
    */
-  async findById(id: string, tenantId: string): Promise<ConfigSchemaEntity | undefined> {
+  async findById(id: string): Promise<ConfigSchemaEntity | null> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
       `SELECT * FROM config_schemas WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -118,7 +120,7 @@ export class ConfigSchemaRepository extends BaseRepository<ConfigSchemaEntity> {
   /**
    * Update an existing schema.
    */
-  async update(id: string, tenantId: string, updates: {
+  async update(id: string, updates: {
     name?: string;
     description?: string;
     schema?: Record<string, any>;
@@ -126,7 +128,8 @@ export class ConfigSchemaRepository extends BaseRepository<ConfigSchemaEntity> {
     isActive?: boolean;
     updatedBy: string;
   }): Promise<ConfigSchemaEntity> {
-    const existing = await this.findById(id, tenantId);
+    const tenantId = this.getTenantId();
+    const existing = await this.findById(id);
     if (!existing) {
       throw new OrionError(`Config schema '${id}' not found`, ErrorCode.NOT_FOUND);
     }
@@ -186,17 +189,17 @@ export class ConfigSchemaRepository extends BaseRepository<ConfigSchemaEntity> {
   /**
    * Soft-delete a schema by setting is_active = false.
    */
-  async deactivate(id: string, tenantId: string, updatedBy: string): Promise<ConfigSchemaEntity> {
-    return this.update(id, tenantId, { isActive: false, updatedBy });
+  async deactivate(id: string, tenantId: string, updatedBy: string): Promise<ConfigSchemaEntity | null> {
+    return this.update(id, { isActive: false, updatedBy });
   }
 
   /**
    * Delete a schema permanently.
    */
-  async delete(id: string, tenantId: string): Promise<boolean> {
+  async delete(id: string): Promise<boolean> {
     const result = await this.db.query(
       `DELETE FROM config_schemas WHERE id = $1 AND tenant_id = $2`,
-      [id, tenantId]
+      [id, this.getTenantId()],
     );
     return (result.rowCount ?? 0) > 0;
   }

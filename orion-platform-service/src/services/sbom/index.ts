@@ -12,11 +12,17 @@ export {
 } from './SBOMGeneratorService';
 export {
   VulnerabilityDatabaseClient,
-  VulnerabilityCache,
-  VulnerabilityCacheScheduler,
-  VulnerabilityDatabaseService,
   VulnerabilityQueryResult,
   NVDVulnerability,
   OSVVulnerability,
 } from './VulnerabilityDatabaseClient';
+export {
+  VulnerabilityCache,
+} from './VulnerabilityCache';
+export {
+  VulnerabilityCacheScheduler,
+} from './VulnerabilityCacheScheduler';
+export {
+  VulnerabilityDatabaseService,
+} from './VulnerabilityDatabaseService';
 export { VulnerabilityCache as default } from './VulnerabilityCache';

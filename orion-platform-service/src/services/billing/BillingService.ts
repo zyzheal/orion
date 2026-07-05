@@ -9,9 +9,9 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
 import { BillingRepository } from '../../repositories/BillingRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'BillingService' });
+const logger = createLogger('BillingService');
 
 // ============================================================================
 // Types

@@ -119,12 +119,12 @@ export class WorkflowTriggerRepository extends BaseRepository<WorkflowTrigger> {
   /**
    * 根据ID获取工作流触发器
    */
-  async findById(id: string): Promise<WorkflowTrigger | undefined> {
+  async findById(id: string): Promise<WorkflowTrigger | null> {
     const result = await this.db.query(
       `SELECT * FROM workflow_triggers WHERE id = $1`,
       [id],
     );
-    if ((result as any).rows.length === 0) return undefined;
+    if ((result as any).rows.length === 0) return null;
     return this.mapRowToEntity((result as any).rows[0]);
   }
 

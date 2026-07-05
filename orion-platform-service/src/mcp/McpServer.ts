@@ -9,7 +9,7 @@
 
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'LMcp-LServer' });
+const logger = createLogger('LMcp-LServer');
 import {
   McpConfig,
   McpContext,

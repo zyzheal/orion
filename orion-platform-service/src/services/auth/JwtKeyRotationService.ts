@@ -95,7 +95,7 @@ export class JwtKeyRotationService extends EventEmitter {
     }
 
     // Schedule next rotation
-    this.scheduleNextRotation();
+    await this.scheduleNextRotation();
 
     logger.info('[JwtKeyRotation] Service initialized');
   }
@@ -185,7 +185,7 @@ export class JwtKeyRotationService extends EventEmitter {
     return nextDate;
   }
 
-  private scheduleNextRotation(): void {
+  private async scheduleNextRotation(): Promise<void> {
     if (!this.currentKey?.expiresAt) {
       return;
     }
@@ -198,19 +198,20 @@ export class JwtKeyRotationService extends EventEmitter {
     const delay = overlapStart.getTime() - now.getTime();
 
     if (delay > 0) {
+      // Cap delay to avoid Node.js TimeoutOverflowWarning for very long intervals
+      const maxDelay = 2147483647; // 2^31 - 1 ms (~24.8 days)
+      const cappedDelay = Math.min(delay, maxDelay);
+
       this.rotationTimer = setTimeout(async () => {
         await this.startRotation();
-      }, delay);
+      }, cappedDelay);
 
       logger.info(`[JwtKeyRotation] Next rotation scheduled at: ${overlapStart.toISOString()}`);
     } else {
       // Overlap window already started (e.g. process restarted past the scheduled time)
       // Trigger rotation immediately to avoid skipping the rotation cycle
       logger.warn(`[JwtKeyRotation] Overlap window already passed (${delay}ms), triggering rotation immediately`);
-      this.startRotation().catch((error) => {
-        logger.error('[JwtKeyRotation] Immediate rotation failed:', error);
-        this.emit('rotation:failed', error);
-      });
+      await this.startRotation();
     }
   }
 
@@ -227,7 +228,7 @@ export class JwtKeyRotationService extends EventEmitter {
       });
 
       // Schedule next rotation
-      this.scheduleNextRotation();
+      await this.scheduleNextRotation();
     } catch (error) {
       logger.error('[JwtKeyRotation] Rotation failed:', error);
       this.emit('rotation:failed', error);

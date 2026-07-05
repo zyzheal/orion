@@ -33,7 +33,7 @@ export class TransactionLogRepository {
   // ==================== CRUD ====================
 
   async save(entry: TransactionLogEntry): Promise<void> {
-    const tenantId = (entry.metadata?.tenantId as string) || 'default';
+    const tenantId = entry.metadata?.tenantId as string;
     await this.pool.query(
       `INSERT INTO saga_checkpoints
         (transaction_id, request_id, saga_name, status, input, output, error, metadata, step_executions, created_at, updated_at, completed_at)

@@ -12,7 +12,7 @@ import { DatabasePool } from '../services/database';
 import { SecurityComplianceController } from './controllers/SecurityComplianceController';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'security-compliance-routes' });
+const logger = createLogger('security-compliance-routes');
 
 interface SecurityComplianceRoutesOptions {
   database?: DatabasePool;

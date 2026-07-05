@@ -22,8 +22,19 @@ import { createLogger } from '../utils/logger';
 import { NotificationPolicyService } from '../services/notification-policy/NotificationPolicyService';
 import { NotificationPolicyRepository, NotificationWorkflowRepository } from '../services/notification-policy/NotificationPolicyRepository';
 import { AlertNotificationService } from '../services/monitoring/AlertNotificationService';
+import type { Alert as MonitoringAlert } from '../services/monitoring/types';
 
-const logger = pino({ name: 'alert-routes' });
+// Adapter: convert alert module Alert → monitoring Alert for sendNotification
+function toMonitoringAlert(alert: Alert): MonitoringAlert {
+  return {
+    ...alert,
+    ruleId: alert.id,
+    metric: (alert as any).metric || alert.labels?.metric || 'unknown',
+    triggeredAt: (alert as any).startsAt || new Date(),
+  } as MonitoringAlert;
+}
+
+const logger = createLogger('alert-routes');
 
 interface AlertRoutesOptions {
   database?: DatabasePool;
@@ -72,7 +83,7 @@ export default async function alertRoutes(
         annotations: (body.annotations as Record<string, string>) || {},
         value: (body.value as number) || 0,
         threshold: (body.threshold as number) || 0,
-        tenantId: (body.tenantId as string) || 'default',
+        tenantId: (body.tenantId as string) || (request as any).user?.tenantId,
         startsAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -127,7 +138,7 @@ export default async function alertRoutes(
               }
 
               if (channelIds.length > 0) {
-                const records = await alertNotificationService.sendNotification(alert, channelIds);
+                const records = await alertNotificationService.sendNotification(toMonitoringAlert(alert), channelIds);
                 logger.info(
                   {
                     alertId: alert.id,

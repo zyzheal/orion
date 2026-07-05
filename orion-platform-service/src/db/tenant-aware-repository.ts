@@ -14,10 +14,7 @@
 import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-repository';
 import { tenantContextStorage, SYSTEM_TENANT_ID } from '../db/tenant-context-storage';
 import { tenantContext } from '../services/tenant/TenantContext';
-import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
-
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
 /**
  * 租户感知查询选项
@@ -101,7 +98,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
   /**
    * 按ID查询（自动添加 tenant_id 过滤）
    */
-  async findById(id: string, options?: TenantAwareFindOptions): Promise<T | undefined> {
+  async findById(id: string, options?: TenantAwareFindOptions): Promise<T | null> {
     const tenantId = options?.forceTenantId ?? this.getCurrentTenantId();
 
     // 系统租户模式或租户隔离禁用时，不添加 tenant_id 过滤
@@ -115,7 +112,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
       [id, tenantId],
     );
 
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -190,7 +187,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
   /**
    * 更新记录（自动验证 tenant_id）
    */
-  async update(id: string, data: Partial<Omit<T, 'id' | 'created_at'>>, options?: TenantAwareFindOptions): Promise<T> {
+  async update(id: string, data: Partial<Omit<T, 'id' | 'created_at'>>, options?: TenantAwareFindOptions): Promise<T | null> {
     const tenantId = options?.forceTenantId ?? this.getCurrentTenantId();
 
     // 系统租户模式或租户隔离禁用时，不添加 tenant_id 过滤
@@ -218,7 +215,7 @@ export abstract class TenantAwareRepository<T extends { id: string }> extends Ba
     const result = await this.db.query(query, [...values, id, tenantId]);
 
     if (result.rows.length === 0) {
-      throw new OrionError(`UPDATE on ${this.tableName} affected no rows (id: ${id}, tenant_id: ${tenantId}) - possible tenant mismatch`, 'OPERATION_FAILED')
+      return null;
     }
 
     return this.mapRowToEntity(result.rows[0]);

@@ -16,7 +16,7 @@ import { RunbookDefinitionRepository, RunbookExecutionRepository } from '../serv
 import { RunbookService } from '../services/runbook/RunbookService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'runbook-routes' });
+const logger = createLogger('runbook-routes');
 
 interface RunbookRoutesOptions {
   database: DatabasePool;

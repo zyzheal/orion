@@ -19,10 +19,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ChangeService, CreateChangeRequestInput, UpdateChangeRequestInput, CreateRFCInput, UpdateRFCInput, CreateCABMeetingInput, UpdateCABMeetingInput } from '../services/change/ChangeService';
 import { requirePermission } from '../middleware/requirePermission';
-import { handleError } from '../errors';
+import { handleError, ValidationError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'change-routes' });
+const logger = createLogger('change-routes');
 
 interface ChangeRoutesOptions {
   database?: DatabasePool;

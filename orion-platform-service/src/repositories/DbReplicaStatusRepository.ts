@@ -64,7 +64,7 @@ export class DbReplicaStatusRepository extends BaseRepository<DbReplicaStatusEnt
     retrievedGtidSet?: string;
     executedGtidSet?: string;
     tenantId?: string;
-  }): Promise<DbReplicaStatusEntity> {
+  }): Promise<DbReplicaStatusEntity | null> {
     const existing = await this.findByHost(data.host, data.port, data.tenantId);
     if (existing) {
       return this.update(existing.id, {

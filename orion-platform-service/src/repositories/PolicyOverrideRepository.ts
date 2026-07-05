@@ -154,7 +154,10 @@ export class PolicyOverrideRepository extends BaseRepository<PolicyOverrideEntit
       }
     }
 
-    if (fields.length === 0) return this.findById(id);
+    if (fields.length === 0) {
+      const found = await this.findById(id);
+      return found ?? undefined;
+    }
 
     values.push(id);
     const result = await this.db.query(

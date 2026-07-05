@@ -8,7 +8,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   DeploymentHistoryRepository,
   DeploymentHistoryEntity,
@@ -26,7 +26,7 @@ import type { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
 import { DeployReleaseNotesService } from '../deploy/DeployReleaseNotesService';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SmartDeployService');
 
 // ==================== Domain Types ====================
 

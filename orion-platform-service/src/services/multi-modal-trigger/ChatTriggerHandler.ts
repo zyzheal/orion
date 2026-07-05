@@ -13,9 +13,9 @@ import {
   TriggerEventEntity,
 } from '../../repositories/Phase3Repository';
 import { UnifiedTriggerService } from './UnifiedTriggerService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LChat-LTrigger-LHandler' });
+const logger = createLogger('LChat-LTrigger-LHandler');
 
 export interface ChatCommand {
   command: string;

@@ -9,6 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import {
@@ -29,7 +30,7 @@ export class HealingStrategyEngine {
   private repository: HealingStrategyRepository;
 
   constructor(db: DatabasePool) {
-    if (!db) throw new Error('DatabasePool is required for HealingStrategyEngine');
+    if (!db) throw new OrionError('DatabasePool is required for HealingStrategyEngine', ErrorCode.INTERNAL_ERROR);
     this.repository = new HealingStrategyRepository(db);
     // Seed built-in strategies (blocking - must complete before engine is usable)
     this.registerBuiltInStrategies().catch(err => {

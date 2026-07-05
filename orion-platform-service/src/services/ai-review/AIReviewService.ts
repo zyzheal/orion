@@ -29,9 +29,9 @@ import { ReviewRuleRepository } from '../../repositories/ReviewRuleRepository';
 import { ReviewAggregator } from './ReviewAggregator';
 import { ReviewIntegrationService } from './ReviewIntegrationService';
 import { createLLMClient, LLMClient } from './LLMClient';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LA-LI-LReview-LService' });
+const logger = createLogger('LA-LI-LReview-LService');
 
 /** 审查历史记录存储 (内存版，生产环境应使用数据库) */
 interface ReviewHistoryEntry {

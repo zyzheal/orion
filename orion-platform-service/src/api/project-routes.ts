@@ -14,7 +14,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'project-routes' });
+const logger = createLogger('project-routes');
 
 interface ProjectRoutesOptions {
   database?: DatabasePool;

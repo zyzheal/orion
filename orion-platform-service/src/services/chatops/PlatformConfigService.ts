@@ -13,8 +13,8 @@
 
 import { ChatOpsPlatformConfigRepository, ChatOpsPlatformConfigEntity } from '../../repositories/ChatOpsRepository';
 import { DatabasePool } from '../database';
-import { OrionError } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
 import crypto from 'crypto';
 
 const logger = createLogger('PlatformConfigService');
@@ -61,7 +61,7 @@ function decryptValue(value: string): string {
 
       const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
       if (!keyHex || keyHex.length !== 64) {
-        throw new Error('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption');
+        throw new OrionError('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption', ErrorCode.INTERNAL_ERROR);
       }
 
       const key = Buffer.from(keyHex, 'hex');
@@ -104,6 +104,13 @@ function validateWebhook(webhook: string, platform: string): boolean {
   } catch {
     return false;
   }
+}
+
+export interface PlatformConfig {
+  platform: string;
+  enabled: boolean;
+  webhook: string;
+  token: string;
 }
 
 export class PlatformConfigService {

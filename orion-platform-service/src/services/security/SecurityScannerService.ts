@@ -1,6 +1,6 @@
 // orion-platform-service/src/services/security/SecurityScannerService.ts
 import { SecretSanitizer } from '../privacy/SecretSanitizer';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { spawn } from 'child_process';
 import path from 'path';
 import {
@@ -14,8 +14,9 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { DegradationManager, DEGRADATION_LEVELS, DegradationLevel, DegradationEvent, DegradationStateChange } from './DegradationManager';
 import { InMemoryScanStore, ScanStats } from './InMemoryScanStore';
+import { NVDClient, NVDCVE } from './NVDClient';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SecurityScannerService');
 
 export interface ScanResult {
   id: string;
@@ -104,18 +105,21 @@ export class SecurityScannerService {
   private findingRepository: SecurityFindingRepository | null = null;
   private degradationManager: DegradationManager;
   private memoryStore: InMemoryScanStore;
+  private nvdClient: NVDClient;
 
   constructor(options?: {
     scanRepository?: SecurityScanRepository;
     findingRepository?: SecurityFindingRepository;
     degradationManager?: DegradationManager;
     memoryStore?: InMemoryScanStore;
+    nvdClient?: NVDClient;
   }) {
     this.secretSanitizer = new SecretSanitizer();
     this.scanRepository = options?.scanRepository ?? null;
     this.findingRepository = options?.findingRepository ?? null;
     this.degradationManager = options?.degradationManager ?? new DegradationManager();
     this.memoryStore = options?.memoryStore ?? new InMemoryScanStore();
+    this.nvdClient = options?.nvdClient ?? new NVDClient();
   }
 
   /**
@@ -124,6 +128,20 @@ export class SecurityScannerService {
   setRepositories(scanRepo: SecurityScanRepository, findingRepo: SecurityFindingRepository): void {
     this.scanRepository = scanRepo;
     this.findingRepository = findingRepo;
+  }
+
+  /**
+   * Set tenant ID for NVD cache isolation
+   */
+  setTenantId(tenantId: string | null): void {
+    this.nvdClient.setTenantId(tenantId);
+  }
+
+  /**
+   * Get NVD client instance (for advanced use or testing)
+   */
+  getNVDClient(): NVDClient {
+    return this.nvdClient;
   }
 
   /**
@@ -621,6 +639,42 @@ export class SecurityScannerService {
       const results = JSON.parse(stdout || '{"Results": []}');
       for (const result of results.Results || []) {
         for (const vuln of result.Vulnerabilities || []) {
+          const findingMetadata: Record<string, unknown> = {
+            package: vuln.PkgName,
+            version: vuln.InstalledVersion,
+            fixedVersion: vuln.FixedVersion,
+          };
+
+          // 集成 NVD 实时漏洞数据库
+          if (vuln.VulnerabilityID) {
+            try {
+              const nvdCves = await this.nvdClient.searchCVE({ keyword: vuln.VulnerabilityID });
+              if (nvdCves.length > 0) {
+                const nvdCve = nvdCves[0];
+                findingMetadata.nvd = {
+                  cvssScore: nvdCve.cvssScore,
+                  cvssSeverity: nvdCve.cvssSeverity,
+                  description: nvdCve.description,
+                  references: nvdCve.references?.slice(0, 5),
+                  fixAvailable: nvdCve.fixAvailable,
+                  fixedVersion: nvdCve.fixedVersion ?? vuln.FixedVersion,
+                } as NVDCVE;
+
+                // 如果 NVD 提供了更具体的修复版本建议，使用它
+                const nvdInfo = findingMetadata.nvd as NVDCVE;
+                if (nvdInfo.fixedVersion && (!vuln.FixedVersion || nvdInfo.fixedVersion !== vuln.FixedVersion)) {
+                  nvdInfo.fixedVersion = nvdCve.fixedVersion;
+                  findingMetadata.nvd = nvdInfo;
+                }
+              }
+            } catch (nvdError) {
+              logger.warn(
+                { vulnerabilityId: vuln.VulnerabilityID, error: nvdError },
+                '[SecurityScanner] NVD query failed, using Trivy data only',
+              );
+            }
+          }
+
           findings.push({
             id: this.generateFindingId(),
             ruleId: vuln.VulnerabilityID,
@@ -630,12 +684,10 @@ export class SecurityScannerService {
             description: vuln.Description,
             file: result.Target,
             confidence: 0.9,
-            remediation: vuln.FixedVersion ? `Upgrade to ${vuln.FixedVersion}` : 'No fix available',
-            metadata: {
-              package: vuln.PkgName,
-              version: vuln.InstalledVersion,
-              fixedVersion: vuln.FixedVersion,
-            },
+            remediation: vuln.FixedVersion || (findingMetadata.nvd as NVDCVE | undefined)?.fixedVersion
+              ? `Upgrade to ${(findingMetadata.nvd as NVDCVE | undefined)?.fixedVersion || vuln.FixedVersion}`
+              : 'No fix available',
+            metadata: findingMetadata,
           });
         }
       }

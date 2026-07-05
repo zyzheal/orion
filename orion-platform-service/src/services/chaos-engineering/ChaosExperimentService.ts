@@ -1,5 +1,5 @@
-import { createLogger } from '../utils/logger';
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+import { createLogger } from '../../utils/logger';
+const logger = createLogger('ChaosExperimentService');
 import { DatabasePool } from '../database';
 /**
  * ChaosExperimentService - Business logic for Chaos Engineering

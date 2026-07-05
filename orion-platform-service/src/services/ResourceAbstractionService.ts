@@ -14,7 +14,7 @@ import {
   DeploymentResultEntity,
 } from '../repositories/ResourceAbstractionRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ResourceAbstractionService');
 
 export interface UnifiedResourceInput {
   tenantId: string;
@@ -115,7 +115,7 @@ export class ResourceAbstractionService {
    * Get deployment by ID
    */
   async getDeployment(id: string): Promise<DeploymentResultEntity | undefined> {
-    return this.deploymentResultRepo.findById(id);
+    return await this.deploymentResultRepo.findById(id) ?? undefined;
   }
 
   /**

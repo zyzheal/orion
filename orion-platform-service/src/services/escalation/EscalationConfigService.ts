@@ -6,9 +6,9 @@
 
 import { DatabasePool } from '../database';
 import { EscalationPolicyRepository } from '../../repositories/EscalationPolicyRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LEscalation-LConfig-LService' });
+const logger = createLogger('LEscalation-LConfig-LService');
 
 export interface EscalationPolicy {
   id: string;
@@ -227,6 +227,43 @@ export class EscalationConfigService {
   getPolicies(entityType: string, severity?: string): EscalationPolicy[] {
     const key = `${entityType}_${severity || 'default'}`;
     return this.cache.get(key) || [];
+  }
+
+  /**
+   * 根据 ID 获取单个升级策略
+   */
+  getById(id: string): EscalationPolicy | undefined {
+    for (const policies of this.cache.values()) {
+      const found = policies.find(p => p.id === id);
+      if (found) return found;
+    }
+    return undefined;
+  }
+
+  /**
+   * 删除升级策略
+   */
+  async delete(id: string): Promise<boolean> {
+    let deleted = false;
+    for (const [key, policies] of this.cache.entries()) {
+      const idx = policies.findIndex(p => p.id === id);
+      if (idx >= 0) {
+        policies.splice(idx, 1);
+        deleted = true;
+        if (policies.length === 0) {
+          this.cache.delete(key);
+        }
+      }
+    }
+    // 同时尝试从数据库删除
+    if (this.db) {
+      try {
+        await this.db.query('DELETE FROM escalation_policies WHERE id = $1', [id]);
+      } catch {
+        // 忽略数据库删除错误（表可能不存在）
+      }
+    }
+    return deleted;
   }
 
   /**

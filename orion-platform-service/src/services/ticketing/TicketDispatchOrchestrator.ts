@@ -9,9 +9,9 @@
  * - Load balancing and analytics
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TicketDispatchOrchestrator');
 import { DispatchEngine } from './DispatchEngine';
 import { DispatchQueueManager } from './DispatchQueueManager';
 import { LoadBalancer } from './LoadBalancer';

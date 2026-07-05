@@ -3,7 +3,7 @@
  * Git 提交状态管理服务
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';
@@ -22,7 +22,7 @@ export enum GitProvider {
   GITHUB = 'github',
 }
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CommitStatusService');
 
 /** Pipeline run status as seen by SCM integration */
 export type PipelineRunOutcome = 'success' | 'failure' | 'cancelled';

@@ -32,7 +32,7 @@ export class LifecycleService {
 
     const policy: ArtifactLifecyclePolicyEntity = {
       id: uuidv4(),
-      tenantId: artifact.tenant_id || '00000000-0000-0000-0000-000000000000',
+      tenantId: artifact.tenantId || '00000000-0000-0000-0000-000000000000',
       artifactId: input.artifactId,
       policyType: input.policyType,
       config: input.config,
@@ -61,6 +61,10 @@ export class LifecycleService {
       ...updates,
       updatedAt: new Date(),
     });
+
+    if (!updated) {
+      throw new OrionError(`Lifecycle policy not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
 
     logger.info({ policyId: id, updates }, 'Lifecycle policy updated');
     return updated;

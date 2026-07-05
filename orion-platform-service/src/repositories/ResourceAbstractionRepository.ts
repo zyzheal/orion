@@ -120,12 +120,12 @@ export class DeploymentResultRepository extends BaseRepository<DeploymentResultE
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async findById(id: string): Promise<DeploymentResultEntity | undefined> {
+  async findById(id: string): Promise<DeploymentResultEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM deployment_results WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

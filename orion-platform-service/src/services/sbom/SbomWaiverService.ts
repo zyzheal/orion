@@ -5,11 +5,11 @@
  * in SBOM documents.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { SbomWaiverRepository, SbomWaiverEntity } from '../../repositories/SbomWaiverRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SbomWaiverService');
 
 // ==================== Input Interfaces ====================
 
@@ -65,6 +65,7 @@ export class SbomWaiverService {
       const mockId = this.generateId();
       return {
         id: mockId,
+        tenantId: 'system',
         cveId: input.cveId,
         packageName: input.packageName,
         packageVersion: input.packageVersion,

@@ -3,6 +3,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from '../BaseController';
 import { SlaService, SlaServiceError } from '../../../services/ticketing/SlaService';
 import {
   SLATarget,
@@ -16,14 +17,11 @@ import {
 
 const VALID_PRIORITIES: TicketPriority[] = ['critical', 'high', 'medium', 'low'];
 
-function getTenantId(request: FastifyRequest): string {
-  return (request as any).user?.tenantId || (request.headers['x-tenant-id'] as string) || 'default';
-}
-
-export class SLAController {
+export class SLAController extends BaseController {
   private slaService: SlaService;
 
   constructor(slaService: SlaService) {
+    super();
     this.slaService = slaService;
   }
 
@@ -71,7 +69,7 @@ export class SLAController {
 
   async getPolicy(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { policyId } = request.params as { policyId: string };
 
       const policy = await this.slaService.getSlaPolicy(tenantId, policyId);
@@ -88,7 +86,7 @@ export class SLAController {
 
   async listPolicies(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const query = request.query as any || {};
       const { enabled, priority } = query;
 
@@ -105,7 +103,7 @@ export class SLAController {
 
   async updatePolicy(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { policyId } = request.params as { policyId: string };
       const body = request.body as any || {};
 
@@ -129,7 +127,7 @@ export class SLAController {
 
   async deletePolicy(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { policyId } = request.params as { policyId: string };
 
       await this.slaService.deleteSlaPolicy(tenantId, policyId);
@@ -147,7 +145,7 @@ export class SLAController {
 
   async getTicketSLAStatus(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { ticketId } = request.params as { ticketId: string };
 
       const status = await this.slaService.getSlaStatus(tenantId, ticketId);
@@ -164,7 +162,7 @@ export class SLAController {
 
   async getBreaches(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const query = request.query as any || {};
       const start = query.start ? new Date(query.start as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const end = query.end ? new Date(query.end as string) : new Date();
@@ -178,7 +176,7 @@ export class SLAController {
 
   async getCompliance(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { policyId } = request.params as { policyId: string };
       const query = request.query as any || {};
       const start = query.start ? new Date(query.start as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

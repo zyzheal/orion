@@ -100,15 +100,21 @@ export default async function escalationRoutes(
   // GET /escalation/policies/:id - 获取单个策略
   app.get<{ Params: { id: string } }>('/policies/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'read' })] }, async (request, reply) => {
     const { id } = request.params;
-    // TODO: 实现 getById
-    return reply.send({ id, message: 'Not implemented' });
+    const policy = configService.getById(id);
+    if (!policy) {
+      return reply.status(404).send({ code: 'NOT_FOUND', message: 'Policy ' + id + ' not found' });
+    }
+    return reply.send({ policy });
   });
 
   // DELETE /escalation/policies/:id - 删除策略
   app.delete<{ Params: { id: string } }>('/policies/:id', { onRequest: [authenticateUser, requirePermission({ resource: 'escalation', action: 'delete' })] }, async (request, reply) => {
     const { id } = request.params;
-    // TODO: 实现删除
-    return reply.send({ id, message: 'Not implemented' });
+    const deleted = await configService.delete(id);
+    if (!deleted) {
+      return reply.status(404).send({ code: 'NOT_FOUND', message: 'Policy ' + id + ' not found' });
+    }
+    return reply.send({ message: 'Policy deleted', id });
   });
 
   // ==================== 全局配置 ====================

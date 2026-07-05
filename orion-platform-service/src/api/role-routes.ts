@@ -15,7 +15,7 @@ import { requirePermission, getAuthzEngine } from '../middleware/requirePermissi
 import { createLogger } from '../utils/logger';
 import { ServiceUnavailableError, handleError } from '../errors';
 
-const logger = pino({ name: 'role-routes' });
+const logger = createLogger('role-routes');
 
 interface RoleRoutesOptions {
   database?: DatabasePool;

@@ -18,7 +18,7 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   CircuitState,
   AIScenario,
@@ -31,7 +31,7 @@ import {
 } from '../../repositories/CircuitBreakerManagerRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CircuitBreakerManager');
 
 /**
  * LLM Provider 定义

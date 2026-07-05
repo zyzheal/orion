@@ -27,14 +27,14 @@ import { AIDegradationRouter } from './AIDegradationRouter';
 import { PromptInjectionDetector, ExtendedPromptAnalysis } from './PromptInjectionDetector';
 import { PromptSanitizer, SanitizationResult } from './PromptSanitizer';
 import { CircuitBreakerManager, DualCircuitState } from './CircuitBreakerManager';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { AIGatewayMetricsRepository } from '../../repositories/AIGatewayMetricsRepository';
 import { AIGatewayCircuitStateRepository } from '../../repositories/AIGatewayCircuitStateRepository';
 import { AIGatewayRequestHistoryRepository } from '../../repositories/AIGatewayRequestHistoryRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AIGateway');
 
 // 默认配置
 const DEFAULT_CONFIG: AIGatewayConfig = {

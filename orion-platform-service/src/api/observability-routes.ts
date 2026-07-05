@@ -14,7 +14,7 @@ import { ExecutionTimelineRepository } from '../repositories/ExecutionTimelineRe
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'observability-routes' });
+const logger = createLogger('observability-routes');
 
 interface ObservabilityRoutesOptions {
   database?: DatabasePool;

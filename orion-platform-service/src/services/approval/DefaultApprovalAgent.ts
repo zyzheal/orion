@@ -12,7 +12,7 @@
  * - 安全约束：生产环境永不自动批准高风险操作
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import {
@@ -29,7 +29,7 @@ import {
   AutoApproveResult,
 } from './ApprovalAgentPlugin';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('DefaultApprovalAgent');
 
 /** 最小数据库查询接口，避免强依赖 DatabasePool */
 interface DbQuery {

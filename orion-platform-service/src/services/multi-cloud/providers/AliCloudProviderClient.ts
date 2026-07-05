@@ -9,7 +9,7 @@
  * 2. Replace simulate* methods with real SDK calls
  */
 
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import {
   CloudProviderClient,
   ProviderResource,
@@ -58,7 +58,7 @@ export class AliCloudProviderClient implements CloudProviderClient {
         healthy: validation.valid,
         latencyMs: Date.now() - startTime,
         apiVersion: 'AliCloud ECS API (simulated)',
-        details: validation.details,
+        details: validation.details ?? {},
       };
     } catch (error: any) {
       return {

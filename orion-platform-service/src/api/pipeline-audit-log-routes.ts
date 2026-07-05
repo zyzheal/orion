@@ -22,7 +22,7 @@ import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogSe
 import { PipelineAuditLogRepository } from '../repositories/PipelineAuditLogRepository';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'pipeline-audit-log-routes' });
+const logger = createLogger('pipeline-audit-log-routes');
 
 interface PipelineAuditLogRoutesOptions {
   database: DatabasePool;

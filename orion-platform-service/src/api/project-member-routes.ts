@@ -41,7 +41,7 @@ export default async function projectMemberRoutes(
     return;
   }
 
-  function handleError(error: Error, reply: FastifyReply) {
+  function handleRouteError(error: Error, reply: FastifyReply) {
     return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
   }
 
@@ -53,7 +53,7 @@ export default async function projectMemberRoutes(
       const members = await relService.getProjectMembers(request.params.projectId, request.user!.tenantId);
       return reply.send({ data: members, total: members.length });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 
@@ -72,7 +72,7 @@ export default async function projectMemberRoutes(
       }
       return reply.status(201).send({ message: 'Member added', userId, role });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 
@@ -90,7 +90,7 @@ export default async function projectMemberRoutes(
       }
       return reply.send({ message: 'Member removed' });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 
@@ -103,7 +103,7 @@ export default async function projectMemberRoutes(
       const isMember = await relService.isProjectMember(projectId, userId, request.user!.tenantId);
       return reply.send({ isMember });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 }

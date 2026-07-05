@@ -11,7 +11,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   AlertRule,
   Alert,
@@ -33,7 +33,7 @@ import {
 } from '../../repositories/MonitoringAlertEscalationRepository';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LAlert-LRule-LEngine' });
+const logger = createLogger('LAlert-LRule-LEngine');
 
 type DbConnection = { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 
@@ -87,9 +87,9 @@ export class AlertRuleEngine {
   constructor(metricCollector?: MetricCollector, db?: DbConnection) {
     this.metricCollector = metricCollector;
     if (db) {
-      this.ruleRepo = new MonitoringAlertRuleRepository(db);
-      this.alertRepo = new MonitoringAlertInstanceRepository(db);
-      this.escalationRepo = new MonitoringAlertEscalationRepository(db);
+      this.ruleRepo = new MonitoringAlertRuleRepository(db as any);
+      this.alertRepo = new MonitoringAlertInstanceRepository(db as any);
+      this.escalationRepo = new MonitoringAlertEscalationRepository(db as any);
     }
   }
 
@@ -716,6 +716,7 @@ export class AlertRuleEngine {
       resolvedAt: entity.resolved_at ?? undefined,
       tags: entity.tags,
       message: entity.message ?? undefined,
+      tenantId: entity.tenant_id,
     };
   }
 

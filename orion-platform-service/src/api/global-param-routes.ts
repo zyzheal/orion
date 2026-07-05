@@ -24,7 +24,7 @@ import { GlobalParamRepository } from '../repositories/GlobalParamRepository';
 import { createLogger } from '../utils/logger';
 import { ConflictError, handleError } from '../errors';
 
-const logger = pino({ name: 'global-param-routes' });
+const logger = createLogger('global-param-routes');
 
 interface GlobalParamRoutesOptions {
   database: DatabasePool;

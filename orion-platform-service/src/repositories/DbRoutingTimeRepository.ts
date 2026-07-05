@@ -26,7 +26,7 @@ export class DbRoutingTimeRepository extends BaseRepository<DbRoutingTimeEntity>
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async upsertRoutingTime(nodeId: string, routingTime: Date, tenantId?: string): Promise<DbRoutingTimeEntity> {
+  async upsertRoutingTime(nodeId: string, routingTime: Date, tenantId?: string): Promise<DbRoutingTimeEntity | null> {
     const existing = await this.findByNodeId(nodeId, tenantId);
     if (existing) {
       return this.update(existing.id, { last_routing_time: routingTime, updated_at: new Date() });

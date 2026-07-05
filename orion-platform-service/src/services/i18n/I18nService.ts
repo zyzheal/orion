@@ -1,8 +1,8 @@
 import { I18nLocaleRepository, I18nTranslationRepository } from './I18nRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'i18n-service' });
+const logger = createLogger('i18n-service');
 
 export class I18nService {
   private localeRepo: I18nLocaleRepository;

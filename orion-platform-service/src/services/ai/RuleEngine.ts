@@ -20,10 +20,10 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { RuleEngineRuleSetRepository } from '../../repositories/RuleEngineRuleSetRepository';
 import { RuleEngineAuditLogRepository } from '../../repositories/RuleEngineAuditLogRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RuleEngine');
 
 // 默认配置
 const DEFAULT_CONFIG: RuleEngineConfig = {

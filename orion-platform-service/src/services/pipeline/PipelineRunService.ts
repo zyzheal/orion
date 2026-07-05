@@ -5,13 +5,7 @@
  * All in-memory fallback paths have been removed.
  */
 
-import {
-  PipelineRun,
-  PipelineRunStatus,
-  TriggerType,
-  PipelineRunCreateInput,
-  PipelineRunFilter,
-} from '../../models/PipelineRun';
+import { OrionError, ErrorCode } from '../../errors';
 import { Stage, StageStatus } from '../../models/Stage';
 import { Task, TaskStatus } from '../../models/Task';
 import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
@@ -23,6 +17,7 @@ import {
   CreateRunInput,
 } from './PipelineRunRepository';
 import { EnvironmentService, ResolvedVariables } from './EnvironmentService';
+import { PipelineRun, PipelineRunStatus, PipelineRunCreateInput, PipelineRunFilter, TriggerType } from '../../models/PipelineRun';
 
 export interface RunHistoryTrend {
   period: string;
@@ -43,7 +38,7 @@ export class PipelineRunService {
   private environmentService: EnvironmentService | null = null;
 
   constructor(eventPublisher: PipelineEventPublisher, repository: PipelineRunRepository, environmentService?: EnvironmentService) {
-    if (!repository) throw new Error('PipelineRunRepository is required');
+    if (!repository) throw new OrionError('PipelineRunRepository is required', ErrorCode.INTERNAL_ERROR);
     this.eventPublisher = eventPublisher || new PipelineEventPublisher();
     this.repository = repository;
     this.environmentService = environmentService || null;

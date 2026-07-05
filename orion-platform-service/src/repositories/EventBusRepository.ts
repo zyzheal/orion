@@ -71,7 +71,7 @@ export class EventBusConfigRepository extends BaseRepository<EventBusConfigEntit
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async upsert(key: string, value: Record<string, any>, description?: string): Promise<EventBusConfigEntity> {
+  async upsert(key: string, value: Record<string, any>, description?: string): Promise<EventBusConfigEntity | null> {
     const existing = await this.findByKey(key);
     if (existing) {
       return this.update(existing.id, { configValue: value, description });

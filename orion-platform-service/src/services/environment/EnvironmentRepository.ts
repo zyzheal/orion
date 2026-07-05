@@ -1,5 +1,8 @@
 import { DatabasePool } from '../database';
 import { EnvironmentConfigRepository } from '../../repositories/EnvironmentConfigRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('environment-repo');
 /**
  * EnvironmentRepository - Database layer for Environment operations
  *
@@ -99,7 +102,7 @@ export class EnvironmentRepository {
     // Also persist to BaseRepository (fire-and-forget)
     this.configRepo?.create({
       id: row.id,
-      tenant_id: row.tenant_id || 'default',
+      tenant_id: row.tenant_id,
       project_id: row.project_id,
       name: row.name,
       type: row.type,
@@ -111,7 +114,7 @@ export class EnvironmentRepository {
       locked_by: row.locked_by || null,
       locked_at: row.locked_at || null,
       locked_reason: row.locked_reason || null,
-    }).catch((err) => console.warn('[EnvironmentRepository] Failed to persist environment:', err));
+    }).catch((err) => logger.warn({ err: err as Error, stack: (err as Error).stack, environmentId: row.id }, '[EnvironmentRepository] Failed to persist environment'));
 
     return row;
   }

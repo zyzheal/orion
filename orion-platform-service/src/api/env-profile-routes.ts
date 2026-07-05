@@ -25,7 +25,7 @@ import { EnvProfileRepository } from '../repositories/EnvProfileRepository';
 import { createLogger } from '../utils/logger';
 import { ConflictError, handleError } from '../errors';
 
-const logger = pino({ name: 'env-profile-routes' });
+const logger = createLogger('env-profile-routes');
 
 interface EnvProfileRoutesOptions {
   database: DatabasePool;

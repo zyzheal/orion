@@ -14,10 +14,10 @@
 
 import { ErrorClassifier, ErrorClassification, StageContext } from './ErrorClassifier';
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LAuto-LRetry-LService' });
+const logger = createLogger('LAuto-LRetry-LService');
 
 export interface RetryConfig {
   maxRetries: number;

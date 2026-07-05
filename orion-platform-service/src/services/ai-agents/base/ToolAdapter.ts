@@ -7,7 +7,7 @@
  * 3. 统一的工具执行接口
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import {
   ToolDefinition,
   ToolHandler,
@@ -16,7 +16,7 @@ import {
   AgentExecutionContext,
 } from './types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ToolAdapter');
 
 /**
  * Tool Adapter 核心类

@@ -18,9 +18,9 @@
 import * as pg from 'pg';
 import Redis from 'ioredis';
 import { decryptValue } from '../../utils/encryption';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'dba-connection' });
+const logger = createLogger('dba-connection');
 
 // ============================================================================
 // Types
@@ -405,13 +405,13 @@ export async function testDatabaseConnection(
 // ============================================================================
 
 /** Allowed read-only SQL keywords (case-insensitive first token check) */
-const READ_ONLY_KEYWORDS = ['SELECT', 'WITH', 'EXPLAIN', 'SHOW', 'DESCRIBE'];
+export const READ_ONLY_KEYWORDS = ['SELECT', 'WITH', 'EXPLAIN', 'SHOW', 'DESCRIBE'];
 
 /** Blocked DML keywords */
-const DML_KEYWORDS = ['INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CALL'];
+export const DML_KEYWORDS = ['INSERT', 'UPDATE', 'DELETE', 'MERGE', 'CALL'];
 
 /** Blocked DDL keywords */
-const DDL_KEYWORDS = ['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'RENAME', 'GRANT', 'REVOKE', 'COMMIT', 'ROLLBACK', 'SAVEPOINT'];
+export const DDL_KEYWORDS = ['CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'RENAME', 'GRANT', 'REVOKE', 'COMMIT', 'ROLLBACK', 'SAVEPOINT'];
 
 export interface QueryExecutionResult {
   success: boolean;
@@ -427,7 +427,7 @@ export interface QueryExecutionResult {
 /**
  * Strip SQL comments (single-line -- and multi-line /* ... *​/) to extract the first statement keyword.
  */
-function extractFirstKeyword(sql: string): string {
+export function extractFirstKeyword(sql: string): string {
   // Remove multi-line comments
   let cleaned = sql.replace(/\/\*[\s\S]*?\*\//g, '');
   // Remove single-line comments

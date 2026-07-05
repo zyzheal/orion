@@ -3,13 +3,15 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { PipelineStatus } from '../../models/Pipeline';
 
-export class PipelineController {
+export class PipelineController extends BaseController {
   private pipelineService: PipelineService;
 
   constructor(pipelineService: PipelineService) {
+    super();
     this.pipelineService = pipelineService;
   }
 
@@ -20,7 +22,7 @@ export class PipelineController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any || {};
-      const tenantId = (request.headers['x-tenant-id'] as string) || '00000000-0000-0000-0000-000000000000';
+      const tenantId = this.getTenantId(request);
       const { name, version, description, yamlDefinition, createdBy } = body;
 
       if (!name || !version || !yamlDefinition) {
@@ -84,7 +86,7 @@ export class PipelineController {
     try {
       const query = request.query as any;
       const { name, status, limit, offset } = query;
-      const tenantId = (request.headers['x-tenant-id'] as string) || undefined;
+      const tenantId = this.getTenantId(request);
 
       const pipelines = await this.pipelineService.list(tenantId);
 
@@ -167,7 +169,7 @@ export class PipelineController {
         return;
       }
 
-      const tenantId = (request.headers['x-tenant-id'] as string) || 'default';
+      const tenantId = this.getTenantId(request);
       const versions = await this.pipelineService.getVersions(tenantId, pipeline.id);
 
       await reply.send({

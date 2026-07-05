@@ -11,5 +11,5 @@ export { ChatOpsRedisService } from './ChatOpsRedisService';
 export { SSEConnectionManager, SSEConnection } from './SSEConnectionManager';
 export { PlatformConfigService } from './PlatformConfigService';
 export { WebhookService, WebhookConfig, WebhookLog, CreateWebhookInput, UpdateWebhookInput } from './WebhookService';
-export { EventSubscriber, ChatOpsRecommendation } from './EventSubscriber';
+export { ChatOpsEventSubscriber, ChatOpsRecommendation } from './EventSubscriber';
 export { RateLimitService, RateLimitConfig, CreateRateLimitInput, UpdateRateLimitInput } from './RateLimitService';

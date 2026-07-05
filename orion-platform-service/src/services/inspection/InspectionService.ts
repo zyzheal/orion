@@ -6,6 +6,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   InspectionRuleRepository,
   InspectionTaskRepository,
@@ -215,6 +216,7 @@ export class InspectionService {
       delete updateData.tenantId;
       delete updateData.createdAt;
       const saved = await this.ruleRepo.update(id, updateData);
+      if (!saved) return undefined;
       return entityToRule(saved);
     }
 
@@ -276,7 +278,7 @@ export class InspectionService {
 
       // Re-fetch task to get final state
       const finalTask = await this.taskRepo.findById(taskEntity.id);
-      if (!finalTask) throw new Error('Task not found after creation');
+      if (!finalTask) throw new OrionError('Task not found after creation', ErrorCode.NOT_FOUND);
       return entityToTask(finalTask, resultEntity ? entityToResult(resultEntity) : undefined);
     }
 

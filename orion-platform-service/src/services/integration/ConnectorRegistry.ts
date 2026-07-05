@@ -1,6 +1,9 @@
 import { OrionError } from '../../errors';
 import { ConnectorRegistryRepository } from '../../repositories/ConnectorRegistryRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('connector-registry');
 /**
  * Connector Registry - Unified connector system for external integrations
  *
@@ -82,7 +85,7 @@ export class ConnectorRegistry {
       version: connector.version,
       capabilities: JSON.stringify(connector.capabilities),
       tenantId: this.tenantId,
-    }).catch((err) => console.warn('[ConnectorRegistry] Failed to persist connector registration:', err));
+    }).catch((err) => logger.warn({ err: err as Error, stack: (err as Error).stack, connectorName: connector.name, tenantId: this.tenantId }, '[ConnectorRegistry] Failed to persist connector registration'));
   }
 
   /**
@@ -136,9 +139,9 @@ export class ConnectorRegistry {
     if (deleted && this.repo) {
       this.repo.findByName(name).then(entity => {
         if (entity) {
-          this.repo!.delete(entity.id).catch((err) => console.warn('[ConnectorRegistry] Failed to delete connector from DB:', err));
+          this.repo!.delete(entity.id).catch((err) => logger.warn({ err }, '[ConnectorRegistry] Failed to delete connector from DB'));
         }
-      }).catch((err) => console.warn('[ConnectorRegistry] Failed to find connector for deletion:', err));
+      }).catch((err) => logger.warn({ err }, '[ConnectorRegistry] Failed to find connector for deletion'));
     }
     return deleted;
   }

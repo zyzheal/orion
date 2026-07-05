@@ -210,6 +210,7 @@ export class BuilderImageService {
       if (!current) return null;
       const updated = updateBuilderImage(entityToImage(current), input);
       const saved = await this.repo.update(id, updated);
+      if (!saved) throw new OrionError('Failed to update builder image', ErrorCode.OPERATION_FAILED);
       return entityToImage(saved);
     }
     const image = images.get(id);

@@ -19,7 +19,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode , ValidationError, NotFoundError, handleError} from '../errors';
 
-const logger = pino({ name: 'knowledge-routes' });
+const logger = createLogger('knowledge-routes');
 
 interface KnowledgeRoutesOptions {
   database?: DatabasePool;

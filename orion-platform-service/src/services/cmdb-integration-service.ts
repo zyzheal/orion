@@ -17,7 +17,7 @@ import type { CI, CiType, CreateCIInput } from './cmdb/CmdbTypes';
 import { Client as SSHClient, ConnectConfig } from 'ssh2';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('cmdb-integration-service');
 
 /**
  * K8s 资源信息

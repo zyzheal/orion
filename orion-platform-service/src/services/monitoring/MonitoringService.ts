@@ -25,13 +25,14 @@ import { MetricCollector } from './MetricCollector';
 import { PostgresMetricStorageRepository } from './MetricStorageRepository';
 import { AlertRuleEngine } from './AlertRuleEngine';
 import { AlertNotificationService } from './AlertNotificationService';
+import { AlertService } from '../alert/AlertService';
 import { MonitoringDashboard } from './MonitoringDashboard';
-import { MonitoringAlertEscalationRepository } from '../repositories/MonitoringAlertEscalationRepository';
+import { MonitoringAlertEscalationRepository } from '../../repositories/MonitoringAlertEscalationRepository';
 import { AlertRule, AlertChannel, EscalationPolicy } from './types';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LMonitoring-LService' });
+const logger = createLogger('LMonitoring-LService');
 
 /** Default evaluation window in milliseconds (5 minutes), overridable via env var */
 const DEFAULT_EVALUATION_WINDOW_MS = parseInt(process.env.MONITORING_DEFAULT_EVALUATION_WINDOW_MS || '300000', 10);
@@ -95,10 +96,12 @@ export class MonitoringService {
     this.notificationService = new AlertNotificationService(dbPool);
     this.dashboard = new MonitoringDashboard(this.metricCollector);
 
-    // Wire alert callbacks
+    // Auto-trigger notifications when alerts fire (Task 4.44)
+    const alertService = new AlertService(null, this.notificationService);
     this.alertRuleEngine.onAlert = (alert) => {
-      // Auto-send notifications for new alerts via registered channels
-      // In production, this would trigger the notification pipeline
+      alertService.onAlert(alert).catch((err) => {
+        logger.warn({ err, alertId: alert.id }, '[MonitoringService] Alert notification failed');
+      });
     };
   }
 
@@ -407,6 +410,44 @@ export class MonitoringService {
   async getAlertStats(tenantId?: string) {
     if (!this.repository) throw new MonitoringServiceError('Database not configured', 'NO_DATABASE');
     return this.repository.getAlertStats(tenantId);
+  }
+
+  // ==================== ChatOps Integration (Task 5.4) ====================
+
+  /**
+   * Get system status for ChatOps /status command
+   */
+  async getStatus(tenantId?: string): Promise<Record<string, unknown>> {
+    const health = this.getHealthStatus();
+    const activeAlerts = this.getActiveAlerts();
+    const metrics = this.getMetrics();
+    return {
+      status: health.status || 'healthy',
+      running: health.running,
+      uptime: health.uptime,
+      metricsCount: health.metricsCount,
+      rulesCount: health.rulesCount,
+      activeAlerts: activeAlerts.length,
+      alerts: activeAlerts.slice(0, 10),
+      metrics: Array.isArray(metrics) ? metrics.slice(0, 20) : (metrics.dataPoints || []).slice(0, 20),
+    };
+  }
+
+  /**
+   * Get recent logs for ChatOps /logs command
+   */
+  async getLogs(params: { service?: string; lines?: number; tenantId?: string }): Promise<Record<string, unknown>> {
+    const lines = params.lines || 100;
+    const serviceName = params.service || 'all';
+    // Return metric collector data as log substitute
+    const metrics = this.metricCollector.getRegisteredMetrics();
+    return {
+      service: serviceName,
+      lines: Math.min(lines, 500),
+      output: `Showing ${Math.min(lines, metrics.length)} metric data points`,
+      metrics: metrics.slice(0, lines),
+      timestamp: new Date().toISOString(),
+    };
   }
 
   // ==================== Dashboard ====================

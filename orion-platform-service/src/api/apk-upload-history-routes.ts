@@ -24,7 +24,7 @@ let globalHistoryService: ApkUploadHistoryService | null = null;
 export function getApkUploadHistoryService(db?: DatabasePool): ApkUploadHistoryService {
   if (!globalHistoryService) {
     if (!db) {
-      throw new Error('ApkUploadHistoryService requires a database connection');
+      throw new OrionError('ApkUploadHistoryService requires a database connection', ErrorCode.INTERNAL_ERROR);
     }
     globalHistoryService = new ApkUploadHistoryService(db);
   }

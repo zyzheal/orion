@@ -68,7 +68,7 @@ class DependencyRepository {
   private pool: DatabasePool;
 
   constructor(pool: DatabasePool) {
-    if (!pool) throw new Error('DatabasePool is required');
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
     this.pool = pool;
   }
 
@@ -135,7 +135,7 @@ export class DependencyTracker {
   private repository: DependencyRepository;
 
   constructor(database: DatabasePool) {
-    if (!database) throw new Error('DatabasePool is required for DependencyTracker');
+    if (!database) throw new OrionError('DatabasePool is required for DependencyTracker', ErrorCode.INTERNAL_ERROR);
     this.repository = new DependencyRepository(database);
   }
 

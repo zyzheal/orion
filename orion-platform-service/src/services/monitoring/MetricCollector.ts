@@ -7,6 +7,7 @@
  */
 
 import os from 'os';
+import { OrionError, ErrorCode } from '../../errors';
 import { v4 as uuidv4 } from 'uuid';
 import {
   Metric,
@@ -14,9 +15,9 @@ import {
   MetricAggregation,
   DataPoint,
 } from './types';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LMetric-LCollector' });
+const logger = createLogger('LMetric-LCollector');
 import {
   MetricStorageRepository,
 } from './MetricStorageRepository';
@@ -101,7 +102,7 @@ export class MetricCollector {
     this.retentionMs = options?.retentionMs ?? 24 * 60 * 60 * 1000; // 24 hours
     this.maxDataPoints = options?.maxDataPointsPerMetric ?? 10000;
     if (!options?.repository) {
-      throw new Error('MetricStorageRepository is required for MetricCollector');
+      throw new OrionError('MetricStorageRepository is required for MetricCollector', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = options.repository;
   }

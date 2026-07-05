@@ -26,6 +26,8 @@ import { EventBusService } from '../../services/event-bus-service';
 import { PermissionService } from '../../services/chatops/PermissionService';
 import { RateLimitService } from '../../services/chatops/RateLimitService';
 import { ChatConfigService } from '../../services/chatops/ChatConfigService';
+import { KnowledgeIntegrationService } from '../../services/knowledge/KnowledgeIntegrationService';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
 export class ChatOpsController {
   private commandService: CommandService;
@@ -47,6 +49,8 @@ export class ChatOpsController {
   private rateLimitService: RateLimitService | null;
   /** 问答卡片与快捷命令配置服务 */
   private chatConfigService: ChatConfigService | null;
+  /** 知识库集成服务 (Task 4.63) */
+  private knowledgeIntegration: KnowledgeIntegrationService | null;
 
   constructor(options: {
     commandService: CommandService;
@@ -64,6 +68,7 @@ export class ChatOpsController {
     permissionService?: PermissionService | null;
     rateLimitService?: RateLimitService | null;
     chatConfigService?: ChatConfigService | null;
+    knowledgeIntegration?: KnowledgeIntegrationService | null;
   }) {
     this.commandService = options.commandService;
     this.executionService = options.executionService;
@@ -79,6 +84,7 @@ export class ChatOpsController {
     this.permissionService = options.permissionService ?? null;
     this.rateLimitService = options.rateLimitService ?? null;
     this.chatConfigService = options.chatConfigService ?? null;
+    this.knowledgeIntegration = options.knowledgeIntegration ?? null;
   }
 
   // ==================== Helpers ====================
@@ -533,6 +539,35 @@ export class ChatOpsController {
       const recommendations = this.eventSubscriber
         ? this.eventSubscriber.getFilteredRecommendations(user.role)
         : await this.recommendationService.getRecommendations(user.userId, user.role);
+      await reply.send({ success: true, data: recommendations, total: recommendations.length });
+    } catch (err) {
+      await reply.status(500).send({
+        success: false,
+        error: err instanceof Error ? err.message : 'Internal server error',
+      });
+    }
+  }
+
+  // ==================== Knowledge Recommendations (Task 4.63) ====================
+
+  async getKnowledgeRecommendations(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    try {
+      const user = this.getUser(request);
+      if (!user) {
+        await reply.status(401).send({ success: false, error: 'UNAUTHORIZED' });
+        return;
+      }
+      const query = request.query as { context?: string; limit?: string };
+      const tenantId = getCurrentTenantId() || user.userId;
+      if (!this.knowledgeIntegration) {
+        await reply.status(503).send({ success: false, error: '知识库服务未配置' });
+        return;
+      }
+      const recommendations = await this.knowledgeIntegration.search(
+        tenantId,
+        query.context || 'general',
+        { limit: query.limit ? parseInt(query.limit) : 10 }
+      );
       await reply.send({ success: true, data: recommendations, total: recommendations.length });
     } catch (err) {
       await reply.status(500).send({

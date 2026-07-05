@@ -146,7 +146,7 @@ export class HealingActionExecutor {
   private repository: HealingActionResultRepository;
 
   constructor(db: DatabasePool) {
-    if (!db) throw new Error('DatabasePool is required for HealingActionExecutor');
+    if (!db) throw new OrionError('DatabasePool is required for HealingActionExecutor', ErrorCode.INTERNAL_ERROR);
     this.repository = new HealingActionResultRepository(db);
     // Initialize K8s client on construction (non-blocking)
     k8sManager.initialize().catch(() => {

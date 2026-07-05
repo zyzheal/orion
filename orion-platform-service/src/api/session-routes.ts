@@ -14,7 +14,7 @@ import { SessionService } from '../services/session/SessionService';
 import { SessionController } from './controllers/SessionController';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'session-routes' });
+const logger = createLogger('session-routes');
 
 interface SessionRoutesOptions {
   database?: DatabasePool;

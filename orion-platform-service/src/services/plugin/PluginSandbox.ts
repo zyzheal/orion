@@ -9,7 +9,7 @@
  * - 执行记录 PostgreSQL 持久化
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,7 +24,7 @@ import { PluginResourceManager } from './PluginResourceManager';
 import { PluginAuditLogger } from './PluginAuditLogger';
 import { PluginSandboxRepository } from '../../repositories/PluginSandboxRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginSandbox');
 
 /**
  * 沙箱配置

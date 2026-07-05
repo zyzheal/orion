@@ -42,7 +42,7 @@ export function setAuditComplianceServices(
 }
 
 export function getAuditComplianceServices(): { auditService: AuditService | null; complianceService: AuditComplianceService | null } {
-  return { auditService, auditComplianceService };
+  return { auditService, complianceService: auditComplianceService };
 }
 
 /**

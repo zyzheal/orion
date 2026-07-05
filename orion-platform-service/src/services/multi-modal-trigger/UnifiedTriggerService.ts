@@ -91,7 +91,7 @@ export class UnifiedTriggerService {
 
   async getTrigger(triggerId: string): Promise<TriggerEntity | undefined> {
     if (!this.triggerRepo) throw new OrionError('Database not configured', ErrorCode.SERVICE_UNAVAILABLE);
-    return this.triggerRepo.findById(triggerId);
+    return await this.triggerRepo.findById(triggerId) ?? undefined;
   }
 
   async listTriggers(tenantId: string, type?: string): Promise<TriggerEntity[]> {
@@ -119,7 +119,11 @@ export class UnifiedTriggerService {
     if (updates.pipelineId !== undefined) entity.pipeline_id = updates.pipelineId;
     if (updates.enabled !== undefined) entity.enabled = updates.enabled;
 
-    return this.triggerRepo.update(triggerId, entity);
+    const updated = await this.triggerRepo.update(triggerId, entity);
+    if (!updated) {
+      throw new OrionError(`Trigger not found: ${triggerId}`, ErrorCode.NOT_FOUND);
+    }
+    return updated;
   }
 
   async deleteTrigger(triggerId: string): Promise<boolean> {

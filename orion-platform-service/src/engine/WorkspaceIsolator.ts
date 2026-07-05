@@ -18,7 +18,7 @@ import * as path from 'path';
 import { createLogger } from '../utils/logger';
 import { OrionError } from '../errors';
 
-const logger = pino({ name: 'workspace-isolator' });
+const logger = createLogger('workspace-isolator');
 
 /**
  * 默认 workspace 根目录

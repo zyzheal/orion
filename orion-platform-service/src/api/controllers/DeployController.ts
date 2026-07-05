@@ -9,11 +9,12 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from './BaseController';
 import { SmartDeployService } from '../../services/smart-deploy/SmartDeployService';
 import { DeployReleaseNotesService } from '../../services/deploy/DeployReleaseNotesService';
 import { DeployGitIntegrationService, DeployGitIntegrationError } from '../../services/deploy/DeployGitIntegrationService';
 
-export class DeployController {
+export class DeployController extends BaseController {
   private smartDeployService: SmartDeployService;
   private releaseNotesService: DeployReleaseNotesService;
   private gitIntegrationService: DeployGitIntegrationService;
@@ -23,6 +24,7 @@ export class DeployController {
     releaseNotesService?: DeployReleaseNotesService,
     gitIntegrationService?: DeployGitIntegrationService
   ) {
+    super();
     this.smartDeployService = smartDeployService;
     this.releaseNotesService = releaseNotesService || ({} as any);
     this.gitIntegrationService = gitIntegrationService || ({} as any);
@@ -586,7 +588,7 @@ export class DeployController {
       const params = request.params as any;
       const { id } = params;
       const body = request.body as any;
-      const tenantId = request.user?.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
 
       const { commitSha, branch, prNumber, prUrl } = body;
 
@@ -641,7 +643,7 @@ export class DeployController {
       const params = request.params as any;
       const { id } = params;
       const query = request.query as any;
-      const tenantId = request.user?.tenantId || 'default';
+      const tenantId = this.getTenantId(request);
       const repoPath = query?.repoPath;
 
       const changelog = await this.gitIntegrationService.getDeploymentChangelog(id, tenantId, repoPath);

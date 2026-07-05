@@ -14,14 +14,19 @@
  *   LDAP_GROUP_FILTER - Group search filter (default: (member={userdn}))
  */
 
-// ldapjs is not installed - stubbed for development
-const ldap = {} as any;
-type Client = any;
-import { createLogger } from '../utils/logger';
-import crypto from 'crypto';
+import { createClient, type Client } from 'ldapjs';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ldap-auth');
+
+/**
+ * Escape special characters in LDAP filter strings.
+ * RFC 4515: \, *, (, ), NUL must be escaped with backslash
+ */
+function escapeFilter(input: string): string {
+  return input.replace(/[\\*()\0]/g, '\\$&');
+}
 
 export interface LdapConfig {
   enabled: boolean;
@@ -72,7 +77,7 @@ export class LdapService {
     }
 
     try {
-      this.client = ldap.createClient({
+      this.client = createClient({
         url: this.config.url,
         tlsOptions: this.config.tls,
       });
@@ -88,12 +93,13 @@ export class LdapService {
       });
 
       // Bind with service account
-      await this.client.bind(this.config.bindDn, this.config.bindPassword);
+      await (this.client as any).bind(this.config.bindDn, this.config.bindPassword);
       this.connected = true;
 
       logger.info('[LdapService] LDAP connection established');
     } catch (error: any) {
       logger.error('[LdapService] Failed to connect to LDAP:', error);
+      this.client = null;
       this.connected = false;
       throw error;
     }
@@ -104,6 +110,13 @@ export class LdapService {
    */
   isConnected(): boolean {
     return this.connected && this.client !== null;
+  }
+
+  /**
+   * Check if LDAP is enabled in config
+   */
+  isEnabled(): boolean {
+    return this.config.enabled;
   }
 
   /**
@@ -123,12 +136,12 @@ export class LdapService {
     }
 
     const userFilter = this.config.userFilter || '(uid={username})';
-    const searchFilter = userFilter.replace('{username}', ldap.escapeFilter(username));
+    const searchFilter = userFilter.replace('{username}', escapeFilter(username));
 
     try {
       // First, bind with the provided credentials to verify password
       // Use a temporary client for this authentication
-      const authClient = ldap.createClient({
+      const authClient = createClient({
         url: this.config.url,
         tlsOptions: this.config.tls,
       });
@@ -142,7 +155,7 @@ export class LdapService {
         }
 
         // Bind with user's DN and provided password
-        await authClient.bind(searchResult.dn, password);
+        await (authClient as any).bind(searchResult.dn, password);
 
         // Authentication successful, return user profile
         const profile: LdapUserProfile = {
@@ -225,7 +238,7 @@ export class LdapService {
     }
 
     const groupFilter = this.config.groupFilter || '(member={userdn})';
-    const searchFilter = groupFilter.replace('{userdn}', ldap.escapeFilter(username));
+    const searchFilter = groupFilter.replace('{userdn}', escapeFilter(username));
 
     try {
       const entries: any[] = [];
@@ -296,12 +309,12 @@ export class LdapService {
       }
 
       // Try to bind
-      const tempClient = ldap.createClient({
+      const tempClient = createClient({
         url: this.config.url,
         tlsOptions: this.config.tls,
       });
 
-      await tempClient.bind(this.config.bindDn, this.config.bindPassword);
+      await (tempClient as any).bind(this.config.bindDn, this.config.bindPassword);
       await tempClient.unbind();
 
       return { success: true, message: 'LDAP connection successful' };

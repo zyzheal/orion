@@ -21,7 +21,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'policy-routes' });
+const logger = createLogger('policy-routes');
 
 interface PolicyRoutesOptions {
   database?: DatabasePool;

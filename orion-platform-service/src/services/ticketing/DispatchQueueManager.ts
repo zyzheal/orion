@@ -7,7 +7,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   Ticket,
   TicketPriority,
@@ -18,7 +18,7 @@ import {
 } from './types';
 import { DispatchQueueEntryRepository, SLATargetRepository, SLAAlertRepository } from '../../repositories/DispatchQueueRepository';
 
-const logger = pino({ name: 'LDispatch-LQueue-LManager' });
+const logger = createLogger('LDispatch-LQueue-LManager');
 
 /**
  * Default SLA warning thresholds (percentage of time elapsed)
@@ -48,17 +48,17 @@ const DEFAULT_REPRIORITY_INTERVAL_MS = 60 * 1000; // 1 minute
  * handling SLA-aware ordering and dynamic re-prioritization.
  */
 export class DispatchQueueManager {
-  /** Queue entries indexed by ticket ID - migrated to repository */
+  /** Queue entries indexed by ticket ID (runtime cache) */
   private queueEntryRepository?: DispatchQueueEntryRepository;
-  private queue: Map<string, DispatchQueueEntry> = new Map(); // in-memory cache
+  private queue: Map<string, DispatchQueueEntry> = new Map();
 
-  /** SLA targets - migrated to repository */
+  /** SLA targets (runtime cache) */
   private slaTargetRepository?: SLATargetRepository;
-  private slaTargets: Map<string, SLATarget> = new Map(); // in-memory cache
+  private slaTargets: Map<string, SLATarget> = new Map();
 
-  /** SLA alerts - migrated to repository */
+  /** SLA alerts (runtime cache) */
   private slaAlertRepository?: SLAAlertRepository;
-  private alerts: Map<string, SLAAlert> = new Map(); // in-memory cache
+  private alerts: Map<string, SLAAlert> = new Map();
 
   /** Re-prioritization timer */
   private repriorityTimer?: NodeJS.Timeout;
@@ -84,35 +84,6 @@ export class DispatchQueueManager {
       this.slaAlertRepository = new SLAAlertRepository(options.db);
     }
   }
-
-  /**
-   * Load cached data from PostgreSQL on startup
-   */
-  async loadFromDb(): Promise<void> {
-    if (this.queueEntryRepository) {
-      const entries = await this.queueEntryRepository.findAllSorted();
-      this.queue.clear();
-      for (const entry of entries) {
-        this.queue.set(entry.ticketId, entry as any);
-      }
-    }
-    if (this.slaTargetRepository) {
-      const targets = await this.slaTargetRepository.findEnabled();
-      this.slaTargets.clear();
-      for (const t of targets) {
-        this.slaTargets.set(t.priority, t as any);
-      }
-    }
-    if (this.slaAlertRepository) {
-      const { entities } = await this.slaAlertRepository.findAll();
-      this.alerts.clear();
-      for (const alert of entities) {
-        this.alerts.set(alert.id, alert as any);
-      }
-    }
-  }
-
-  // ==================== Queue Operations ====================
 
   /**
    * Enqueue a ticket for dispatch

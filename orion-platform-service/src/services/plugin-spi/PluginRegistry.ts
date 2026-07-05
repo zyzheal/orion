@@ -10,7 +10,7 @@ import { ErrorCode } from '../../errors';
  * - Plugin lookup and listing
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import * as fs from 'fs';
 import * as path from 'path';
 import { OrionError } from '../../errors';
@@ -25,7 +25,7 @@ import {
 import { PluginRegistryRepository } from '../../repositories/PluginRegistryRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginRegistry');
 
 /**
  * Plugin Registry
@@ -39,7 +39,7 @@ export class PluginRegistry {
   private repository: PluginRegistryRepository;
 
   constructor(repository: PluginRegistryRepository, options?: { pluginDirectory?: string }) {
-    if (!repository) throw new Error('PluginRegistryRepository is required');
+    if (!repository) throw new OrionError('PluginRegistryRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = repository;
     this.pluginDirectory = options?.pluginDirectory || path.join(process.cwd(), 'plugins');
   }

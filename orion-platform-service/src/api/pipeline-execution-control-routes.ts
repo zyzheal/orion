@@ -23,7 +23,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'pipeline-execution-control-routes' });
+const logger = createLogger('pipeline-execution-control-routes');
 
 interface PipelineExecutionControlRoutesOptions {
   database?: DatabasePool;
@@ -265,15 +265,4 @@ export default async function pipelineExecutionControlRoutes(
       }
     }
   );
-}
-
-// Inline OrionError
-class OrionError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-  ) {
-    super(message);
-    this.name = 'OrionError';
-  }
 }

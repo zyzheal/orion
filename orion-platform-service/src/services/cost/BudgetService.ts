@@ -26,10 +26,10 @@ import {
 } from '../../models/CostRecord';
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LBudget-LService' });
+const logger = createLogger('LBudget-LService');
 import {
   CostRecordRepository,
   AlertRuleRepository,

@@ -10,14 +10,14 @@
  * 后续可以接入真实的 SHAP 库进行精确计算。
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DecisionExplanationRepository,
   DecisionExplanationEntity,
 } from '../../repositories/DecisionExplanationRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('DecisionExplanationService');
 
 // ==================== 类型定义 ====================
 

@@ -13,10 +13,10 @@
  */
 
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LAdaptive-LTimeout-LService' });
+const logger = createLogger('LAdaptive-LTimeout-LService');
 
 export interface TimeoutBaseline {
   stageName: string;

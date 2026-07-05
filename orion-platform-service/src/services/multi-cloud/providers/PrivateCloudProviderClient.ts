@@ -5,7 +5,7 @@
  * Currently provides simulated behavior with the correct interface.
  */
 
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import {
   CloudProviderClient,
   ProviderResource,
@@ -45,7 +45,7 @@ export class PrivateCloudProviderClient implements CloudProviderClient {
         healthy: validation.valid,
         latencyMs: Date.now() - startTime,
         apiVersion: 'Private Cloud API',
-        details: validation.details,
+        details: validation.details ?? {},
       };
     } catch (error: any) {
       return {

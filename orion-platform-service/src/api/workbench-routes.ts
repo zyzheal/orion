@@ -28,7 +28,7 @@ export default async function workbenchRoutes(app: FastifyInstance, options: Wor
     }
 
     const query = request.query as { tenantId?: string; userId?: string };
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || (request as any).user?.tenantId;
     const userId = query.userId || (request as any).user?.id || 'anonymous';
 
     const data = await workbenchService.getWorkbench(userId, tenantId);

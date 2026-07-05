@@ -4,7 +4,7 @@
  * 将告警升级状态持久化到 PostgreSQL，支持升级历史查询和审计。
  */
 
-import { DatabasePool } from '../../database';
+import { DatabasePool } from '../services/database';
 
 export interface MonitoringAlertEscalationEntity {
   id: string;
@@ -99,13 +99,13 @@ export class MonitoringAlertEscalationRepository {
         'SELECT * FROM monitoring_alert_escalations WHERE alert_id = $1 AND tenant_id = $2 ORDER BY triggered_at DESC',
         [alertId, tenantId]
       );
-      return result.rows.map(row => this.mapRowToEntity(row));
+      return result.rows.map((row: any) => this.mapRowToEntity(row));
     }
     const result = await this.db.query(
       'SELECT * FROM monitoring_alert_escalations WHERE alert_id = $1 ORDER BY triggered_at DESC',
       [alertId]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row: any) => this.mapRowToEntity(row));
   }
 
   async findByRuleId(ruleId: string, tenantId?: string): Promise<MonitoringAlertEscalationEntity[]> {
@@ -114,13 +114,13 @@ export class MonitoringAlertEscalationRepository {
         'SELECT * FROM monitoring_alert_escalations WHERE rule_id = $1 AND tenant_id = $2 ORDER BY triggered_at DESC',
         [ruleId, tenantId]
       );
-      return result.rows.map(row => this.mapRowToEntity(row));
+      return result.rows.map((row: any) => this.mapRowToEntity(row));
     }
     const result = await this.db.query(
       'SELECT * FROM monitoring_alert_escalations WHERE rule_id = $1 ORDER BY triggered_at DESC',
       [ruleId]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row: any) => this.mapRowToEntity(row));
   }
 
   async findAll(tenantId?: string, limit = 100): Promise<MonitoringAlertEscalationEntity[]> {
@@ -129,13 +129,13 @@ export class MonitoringAlertEscalationRepository {
         'SELECT * FROM monitoring_alert_escalations WHERE tenant_id = $1 ORDER BY triggered_at DESC LIMIT $2',
         [tenantId, limit]
       );
-      return result.rows.map(row => this.mapRowToEntity(row));
+      return result.rows.map((row: any) => this.mapRowToEntity(row));
     }
     const result = await this.db.query(
       'SELECT * FROM monitoring_alert_escalations ORDER BY triggered_at DESC LIMIT $1',
       [limit]
     );
-    return result.rows.map(row => this.mapRowToEntity(row));
+    return result.rows.map((row: any) => this.mapRowToEntity(row));
   }
 
   async updateCompletedAt(id: string, completedAt: Date, errorMessage?: string | null, tenantId?: string): Promise<MonitoringAlertEscalationEntity | null> {

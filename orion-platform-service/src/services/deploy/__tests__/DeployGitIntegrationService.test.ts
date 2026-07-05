@@ -19,7 +19,7 @@ const mockDeployRepository = {
 const mockReleaseNotesCreate = jest.fn();
 const mockReleaseNotesFindByDeploymentId = jest.fn();
 
-jest.mock('../../repositories/ReleaseNotesRepository', () => ({
+jest.mock('../../../repositories/ReleaseNotesRepository', () => ({
   ReleaseNotesRepository: jest.fn().mockImplementation(() => ({
     create: mockReleaseNotesCreate,
     findByDeploymentId: mockReleaseNotesFindByDeploymentId,
@@ -30,7 +30,7 @@ jest.mock('../../repositories/ReleaseNotesRepository', () => ({
 const mockGitCommitLinkFindByDeploymentId = jest.fn();
 const mockGitCommitLinkUpsertByDeploymentId = jest.fn();
 
-jest.mock('../../repositories/DeployGitCommitLinkRepository', () => ({
+jest.mock('../../../repositories/DeployGitCommitLinkRepository', () => ({
   DeployGitCommitLinkRepository: jest.fn().mockImplementation(() => ({
     findByDeploymentId: mockGitCommitLinkFindByDeploymentId,
     upsertByDeploymentId: mockGitCommitLinkUpsertByDeploymentId,
@@ -248,7 +248,7 @@ describe('DeployGitIntegrationService', () => {
       mockFindById.mockResolvedValue(null);
 
       await expect(
-        service.linkGitCommit('deploy-1', 'tenant-1', 'abc123'),
+        service.linkGitCommit('deploy-1', 'tenant-1', 'abc12345'),
       ).rejects.toThrow('Deployment not found');
     });
 

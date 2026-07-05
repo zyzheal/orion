@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import {
@@ -9,7 +9,7 @@ import {
   BreakerConfig,
 } from './AlertBreakerRepository';
 
-const logger = pino({ name: 'AlertBreakerService' });
+const logger = createLogger('AlertBreakerService');
 
 export interface CreateBreakerRuleInput {
   name: string;
@@ -104,6 +104,9 @@ export class AlertBreakerService {
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
     const updated = await this.ruleRepo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`Breaker rule not found: ${id}`, 'NOT_FOUND');
+    }
     logger.info({ ruleId: id }, 'Breaker rule updated');
     return updated;
   }

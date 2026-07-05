@@ -10,9 +10,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { ConfigDriftRepository, ConfigDriftEntity } from '../../repositories/ConfigDriftRepository';
 import { ConfigService } from './ConfigService';
 import { OrionError, ErrorCode } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'ConfigDriftDetector' });
+const logger = createLogger('ConfigDriftDetector');
 
 // ============================================================
 // Types
@@ -119,7 +119,7 @@ export class ConfigDriftDetector {
     configService?: ConfigService;
   } = {}) {
     if (!options.repository) {
-      throw new Error('ConfigDriftRepository is required');
+      throw new OrionError('ConfigDriftRepository is required', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = options.repository;
     this.configService = options.configService;

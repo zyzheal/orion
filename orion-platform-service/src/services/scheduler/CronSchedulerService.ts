@@ -9,14 +9,14 @@
  * - UTC timezone by default
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CronExpressionParser } from 'cron-parser';
 import { CronJobRepository, CronJobEntity } from '../../repositories/CronJobRepository';
 import { CronExecutionRepository } from '../../repositories/CronExecutionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CronSchedulerService');
 
 // ─── Domain Types (as expected by cron-routes.ts) ───────────────────────────
 

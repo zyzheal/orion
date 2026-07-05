@@ -31,7 +31,7 @@ import { AgentProfileService } from './agent-profile-service';
 import { EventBusService } from './event-bus-service';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'agent-run-service' });
+const logger = createLogger('agent-run-service');
 
 // ==================== Interfaces ====================
 

@@ -18,11 +18,12 @@ import {
   PullRequestStatus,
   Review,
   FileComment,
+  FileDiff,
+  DiffHunk,
+  PRComment,
   WebhookConfig,
   WebhookEventType,
   MergeStrategy,
-  FileDiff,
-  Comment,
 } from './types';
 
 /** Bitbucket 适配器配置 */
@@ -62,7 +63,7 @@ class BitbucketApiClient {
 
   /** 构建 API URL */
   private apiUrl(path: string): string {
-    return `${this.baseUrl}/api/${path}`;
+    return `${this.baseUrl}${path}`;
   }
 
   /** 获取请求头 */
@@ -202,7 +203,6 @@ export class BitbucketAdapter implements ICodeRepoAdapter {
       name: repoId.split('/').pop() || 'unknown',
       fullName: `${this.client['workspace']}/${repoId}`,
       type: RepoType.BITBUCKET,
-      provider: 'bitbucket',
       url: `${this.baseUrl}/${this.client['workspace']}/${repoId}`,
       defaultBranch: 'main',
       isPrivate: true,
@@ -711,75 +711,127 @@ export class BitbucketAdapter implements ICodeRepoAdapter {
     );
   }
 
-  // ==================== Diff 管理 ====================
-
   /**
-   * 获取文件 diff
+   * 列出标签
    *
-   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/diffspec/{spec}
+   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/refs/tags
    */
-  async getFileDiff(repoId: string, baseCommitSha: string, headCommitSha: string, options?: { path?: string }): Promise<FileDiff[]> {
+  async listTags(repoId: string): Promise<{ tags: string[]; total: number }> {
     const data: any = await this.client.get(
-      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/diffspec/${encodeURIComponent(headCommitSha)}..${encodeURIComponent(baseCommitSha)}`,
+      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/refs/tags?pagelen=100`,
       { values: [] }
     );
 
-    if (!data || !Array.isArray(data.values)) {
-      return [];
-    }
+    const tags = (data.values || []).map((t: any) => t.name || '').filter(Boolean);
+    return { tags, total: tags.length };
+  }
+
+  /**
+   * 更新 Webhook
+   *
+   * Bitbucket API: PUT /2.0/repositories/{workspace}/{repo_slug}/hooks/{hook_uuid}
+   */
+  async updateWebhook(repoId: string, webhookId: string, input: { url?: string; events?: WebhookEventType[]; active?: boolean; secret?: string }): Promise<WebhookConfig> {
+    const eventsMap: Record<string, string> = {
+      pr_opened: 'pullrequest:created',
+      pr_merged: 'pullrequest:fulfilled',
+      pr_closed: 'pullrequest:rejected',
+      pr_updated: 'pullrequest:updated',
+      pr_reviewed: 'pullrequest:comment_created',
+      push: 'repo:push',
+    };
+
+    const bbEvents = (input.events || []).map(e => eventsMap[e]).filter(Boolean);
+
+    const data: any = await this.client.put(
+      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/hooks/${encodeURIComponent(webhookId)}`,
+      {
+        url: input.url || '',
+        active: input.active ?? true,
+        events: bbEvents,
+      },
+      { uuid: webhookId }
+    );
+
+    return {
+      id: data.uuid || webhookId,
+      url: data.url || input.url || '',
+      events: input.events || [],
+      active: data.active,
+      secret: input.secret,
+    };
+  }
+
+  // ==================== Diff 与评论（Task 5.6） ====================
+
+  /**
+   * 获取文件 diff（两个 ref 之间）
+   *
+   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/diffstat/{from}..{to}
+   */
+  async getFileDiff(repoId: string, fromRef: string, toRef: string, options?: { path?: string }): Promise<FileDiff[]> {
+    const data: any = await this.client.get(
+      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/diffstat/${encodeURIComponent(fromRef)}..${encodeURIComponent(toRef)}`,
+      { values: [] }
+    );
+
+    if (!data || !Array.isArray(data.values)) return [];
 
     return data.values.map((diff: any) => ({
-      oldPath: diff.old?.path || diff.new?.path || '',
-      newPath: diff.new?.path || diff.old?.path || '',
-      status: diff.status === 'added' ? 'added' : diff.status === 'removed' ? 'removed' : diff.status === 'renamed' ? 'renamed' : 'modified',
-      diff: diff.diff || '',
-      additions: diff.changes?.filter((c: any) => c.type === 'added').length,
-      deletions: diff.changes?.filter((c: any) => c.type === 'removed').length,
-      changes: diff.changes?.length || 0,
+      path: diff.new?.path || diff.old?.path || '',
+      oldBlobId: diff.old?.hash,
+      newBlobId: diff.new?.hash,
+      isNew: diff.status === 'added',
+      isDeleted: diff.status === 'removed',
+      isRenamed: diff.status === 'renamed',
+      hunks: [],
+      stats: {
+        additions: diff.changes?.filter((c: any) => c.type === 'added').length || 0,
+        deletions: diff.changes?.filter((c: any) => c.type === 'removed').length || 0,
+        changes: diff.changes?.length || 0,
+      },
     }));
   }
 
-  // ==================== 提交历史 ====================
-
   /**
-   * 获取提交历史
+   * 列出 PR 评论
    *
-   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/commits/{branch}
+   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments
    */
-  async getCommitHistory(repoId: string, branch: string, limit = 20): Promise<{ commits: Commit[]; total: number }> {
-    const params = new URLSearchParams();
-    params.set('pagelen', String(limit));
-
-    const data: any = await this.client.get(
-      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/commits/${encodeURIComponent(branch)}?${params}`,
-      { values: [] }
+  async listComments(repoId: string, prId: string): Promise<PRComment[]> {
+    const comments: any[] = await this.client.get(
+      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/pullrequests/${prId}/comments`,
+      []
     );
 
-    const commits = (data.values || []).map((c: any) => ({
-      sha: c.hash || '',
-      message: c.message || '',
-      author: {
-        name: c.author?.raw || '',
-        email: c.author?.user?.email || '',
-        date: new Date(c.date || Date.now()),
-      },
-      url: `${this.baseUrl}/${this.client['workspace']}/${repoId}/commits/${c.hash}`,
+    return comments.map((c: any) => ({
+      id: String(c.id || Date.now()),
+      prId,
+      path: c.inline?.path,
+      line: c.inline?.line,
+      body: c.content?.raw || '',
+      author: c.user?.display_name || '',
+      createdAt: new Date(c.created_on || Date.now()),
+      updatedAt: new Date(c.updated_on || c.created_on || Date.now()),
     }));
-    return { commits, total: commits.length };
   }
 
-  // ==================== 评论管理 ====================
-
   /**
-   * 创建评论
+   * 添加 PR 评论
    *
    * Bitbucket API: POST /2.0/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments
    */
-  async createComment(repoId: string, prId: string, input: { body: string; path?: string; line?: number }): Promise<Comment> {
+  async addComment(repoId: string, prId: string, input: { body: string; path?: string; line?: number }): Promise<PRComment> {
     const body: Record<string, any> = {
       content: { raw: input.body },
-      inline: input.path ? { path: input.path, line: input.line } : undefined,
     };
+
+    if (input.path) {
+      body.inline = {
+        path: input.path,
+        line: input.line || 1,
+      };
+    }
 
     const comment: any = await this.client.post(
       `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/pullrequests/${prId}/comments`,
@@ -789,70 +841,14 @@ export class BitbucketAdapter implements ICodeRepoAdapter {
 
     return {
       id: String(comment?.id || Date.now()),
-      body: input.body,
-      author: comment?.user?.display_name || 'current-user',
-      createdAt: new Date(comment?.created_on || Date.now()),
-      updatedAt: new Date(comment?.updated_on || Date.now()),
+      prId,
       path: input.path,
       line: input.line,
-      prId,
-    };
-  }
-
-  /**
-   * 获取评论列表
-   *
-   * Bitbucket API: GET /2.0/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments
-   */
-  async getComments(repoId: string, prId: string): Promise<Comment[]> {
-    const comments: any[] = await this.client.get(
-      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/pullrequests/${prId}/comments`,
-      []
-    );
-
-    return comments.map((comment: any) => ({
-      id: String(comment.id || `comment-${Date.now()}`),
-      body: comment.content?.raw || '',
-      author: comment.user?.display_name || '',
-      createdAt: new Date(comment.created_on || Date.now()),
-      updatedAt: new Date(comment.updated_on || comment.created_on || Date.now()),
-      path: comment?.inline?.path,
-      line: comment?.inline?.line,
-      prId,
-    }));
-  }
-
-  /**
-   * 更新评论
-   *
-   * Bitbucket API: PUT /2.0/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments/{comment_id}
-   */
-  async updateComment(repoId: string, prId: string, commentId: string, body: string): Promise<Comment> {
-    const comment: any = await this.client.put(
-      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/pullrequests/${prId}/comments/${commentId}`,
-      { content: { raw: body } },
-      null
-    );
-
-    return {
-      id: String(comment?.id || commentId),
-      body: comment?.content?.raw || body,
+      body: comment?.content?.raw || input.body,
       author: comment?.user?.display_name || 'current-user',
       createdAt: new Date(comment?.created_on || Date.now()),
-      updatedAt: new Date(comment?.updated_on || Date.now()),
-      prId,
+      updatedAt: new Date(comment?.updated_on || comment?.created_on || Date.now()),
     };
-  }
-
-  /**
-   * 删除评论
-   *
-   * Bitbucket API: DELETE /2.0/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments/{comment_id}
-   */
-  async deleteComment(repoId: string, prId: string, commentId: string): Promise<void> {
-    await this.client.delete(
-      `/repositories/${encodeURIComponent(this.client['workspace'])}/${encodeURIComponent(repoId)}/pullrequests/${prId}/comments/${commentId}`
-    );
   }
 
   // ==================== 数据映射方法 ====================
@@ -864,7 +860,6 @@ export class BitbucketAdapter implements ICodeRepoAdapter {
       name: data.name || '',
       fullName: `${data.workspace?.slug || this.client['workspace']}/${data.slug || data.name}`,
       type: RepoType.BITBUCKET,
-      provider: 'bitbucket',
       url: data.links?.html?.href || `${this.baseUrl}/${this.client['workspace']}/${data.slug}`,
       defaultBranch: data.mainbranch?.name || 'main',
       isPrivate: data.is_private !== false,

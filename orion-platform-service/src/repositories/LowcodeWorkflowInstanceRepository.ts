@@ -68,7 +68,7 @@ export class LowcodeWorkflowInstancePgRepository extends BaseRepository<LowcodeW
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async updateStatus(id: string, status: string, error?: string): Promise<LowcodeWorkflowInstanceEntity | undefined> {
+  async updateStatus(id: string, status: string, error?: string): Promise<LowcodeWorkflowInstanceEntity | null> {
     const updates: any = { status };
     if (status === 'completed' || status === 'failed' || status === 'terminated') {
       updates.completed_at = new Date().toISOString();

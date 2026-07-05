@@ -1,6 +1,6 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   NotificationPolicyRepository,
   NotificationPolicyEntity,
@@ -10,7 +10,7 @@ import {
   WorkflowStep,
 } from './NotificationPolicyRepository';
 
-const logger = pino({ name: 'NotificationPolicyService' });
+const logger = createLogger('NotificationPolicyService');
 
 export interface CreatePolicyInput {
   name: string;
@@ -114,6 +114,7 @@ export class NotificationPolicyService {
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
     const updated = await this.policyRepo.update(id, updateData);
+    if (!updated) throw new OrionError('Failed to update notification policy', ErrorCode.OPERATION_FAILED);
     logger.info({ policyId: id }, 'Notification policy updated');
     return updated;
   }
@@ -260,6 +261,7 @@ export class NotificationPolicyService {
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
     const updated = await this.workflowRepo.update(id, updateData);
+    if (!updated) throw new OrionError('Failed to update notification workflow', ErrorCode.OPERATION_FAILED);
     logger.info({ workflowId: id }, 'Notification workflow updated');
     return updated;
   }

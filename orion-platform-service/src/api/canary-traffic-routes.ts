@@ -13,7 +13,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'canary-traffic-routes' });
+const logger = createLogger('canary-traffic-routes');
 
 interface CanaryTrafficOptions {
   database?: DatabasePool;

@@ -7,9 +7,9 @@
  * 协议参考: https://docs.docker.com/registry/spec/api/
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info', name: 'docker-registry-client' });
+const logger = createLogger('docker-registry-client');
 
 // ==================== Types ====================
 
@@ -208,8 +208,9 @@ async function registryFetch(
 
   if (body) {
     fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
-    if (!fetchOptions.headers!['Content-Type']) {
-      fetchOptions.headers!['Content-Type'] = 'application/json';
+    const hdrs = fetchOptions.headers as Record<string, string> | undefined;
+    if (hdrs && !hdrs['Content-Type']) {
+      hdrs['Content-Type'] = 'application/json';
     }
   }
 
@@ -235,8 +236,9 @@ async function registryFetch(
 
       if (body) {
         retryOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
-        if (!retryOptions.headers!['Content-Type']) {
-          retryOptions.headers!['Content-Type'] = 'application/json';
+        const retryHdrs = retryOptions.headers as Record<string, string> | undefined;
+        if (retryHdrs && !retryHdrs['Content-Type']) {
+          retryHdrs['Content-Type'] = 'application/json';
         }
       }
 

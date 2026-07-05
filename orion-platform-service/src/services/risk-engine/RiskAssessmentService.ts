@@ -6,11 +6,11 @@
  * Now uses RiskPredictionRepository for persistence.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { RiskPredictionRepository, RiskPredictionEntity, CreatePredictionInput } from '../../repositories/RiskPredictionRepository';
 import { OrionError } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RiskAssessmentService');
 
 export interface RiskFeature {
   // Core features (26 total as per design)

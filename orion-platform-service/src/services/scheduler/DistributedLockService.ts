@@ -3,11 +3,11 @@
  * 分布式锁服务
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('DistributedLockService');
 
 export interface LockOptions {
   ttl?: number; // 锁的生存时间（毫秒）

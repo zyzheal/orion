@@ -14,7 +14,7 @@ import { tenantContextStorage } from '../db/tenant-context-storage';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ name: 'database' });
+const logger = createLogger('database');
 
 const { Pool } = pg;
 

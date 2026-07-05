@@ -19,10 +19,10 @@
 
 import { PipelineRun } from '../../models/PipelineRun';
 import { IMNotificationChannelRepository } from '../../repositories/IMNotificationChannelRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('IMNotifier');
 
 // ============================================================================
 // 接口定义

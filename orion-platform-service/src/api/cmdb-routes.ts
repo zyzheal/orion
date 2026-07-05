@@ -363,8 +363,9 @@ export default async function cmdbRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
+    const tenantId = BigInt((request as any).user?.tenantId || '1');
     try {
-      const deleted = await cmdbService.deleteRelation(params.relationId);
+      const deleted = await cmdbService.deleteRelation(params.relationId, tenantId);
       if (!deleted) {
         handleError(reply, new NotFoundError('NOT_FOUND'));
         return;
@@ -409,8 +410,9 @@ export default async function cmdbRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
     const body = request.body as any;
+    const tenantId = BigInt((request as any).user?.tenantId || '1');
     try {
-      const ci = await cmdbService.restoreToVersion(params.ciId, body.version, body.user || 'system');
+      const ci = await cmdbService.restoreToVersion(params.ciId, body.version, body.user || 'system', tenantId);
       if (!ci) {
         handleError(reply, new NotFoundError('NOT_FOUND'));
         return;
@@ -445,8 +447,10 @@ export default async function cmdbRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
+    const query = request.query as any;
     try {
-      const topology = await topologyService.getServiceDependencies(params.ciId);
+      const tenantId = query.tenantId ? BigInt(query.tenantId) : BigInt(1);
+      const topology = await topologyService.getServiceDependencies(tenantId, params.ciId);
       return reply.send({ success: true, data: topology });
     } catch (error: any) {
       handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));
@@ -458,8 +462,10 @@ export default async function cmdbRoutes(
     onRequest: [authenticateUser, requirePermission({ resource: 'cmdb', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as any;
+    const query = request.query as any;
     try {
-      const impact = await topologyService.getImpactAnalysis(params.ciId);
+      const tenantId = query.tenantId ? BigInt(query.tenantId) : BigInt(1);
+      const impact = await topologyService.getImpactAnalysis(tenantId, params.ciId);
       return reply.send({ success: true, data: impact });
     } catch (error: any) {
       handleError(reply, new OrionError('FETCH_ERROR', ErrorCode.INTERNAL_ERROR));

@@ -15,6 +15,7 @@ export interface ApprovalEntity {
   result: Record<string, any> | null;
   completedAt: Date | null;
   createdAt: Date;
+  metadata?: Record<string, any>;
 }
 
 export interface ApprovalStepEntity {

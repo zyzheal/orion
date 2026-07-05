@@ -15,9 +15,9 @@ import {
   CanaryAnalysisRunEntity,
 } from '../../repositories/CanaryAnalysisRepository';
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LCanary-LAnalysis-LService' });
+const logger = createLogger('LCanary-LAnalysis-LService');
 import {
   CanaryAnalysisRun,
   CanaryAnalysisRunCreateInput,

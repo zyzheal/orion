@@ -6,9 +6,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { BuildxBuilderService } from '../../../services/build/BuildxBuilderService';
 import { ArtifactRegistryServiceImpl } from '../../../services/artifact/ArtifactRegistryService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
-const logger = pino({ name: 'LBuildx-LBuilder-LController' });
+const logger = createLogger('LBuildx-LBuilder-LController');
 
 export class BuildxBuilderController {
   constructor(

@@ -104,7 +104,7 @@ export class AuditRetentionService {
   async executeCleanup(tenantId?: string): Promise<RetentionCleanupResult> {
     const policies = tenantId
       ? [await this.getPolicy(tenantId)].filter(Boolean) as AuditRetentionPolicy[]
-      : await this.listPolicies().filter(p => p.enabled);
+      : await (await this.listPolicies()).filter(p => p.enabled);
 
     if (policies.length === 0) {
       return { totalScanned: 0, archivedCount: 0, deletedCount: 0, skippedCount: 0, errors: ['No enabled retention policies found'] };

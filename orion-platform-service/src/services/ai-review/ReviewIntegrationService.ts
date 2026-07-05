@@ -8,9 +8,9 @@
  * 4. 生成审查摘要报告
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LReview-LIntegration-LService' });
+const logger = createLogger('LReview-LIntegration-LService');
 import {
   ReviewResult,
   ReviewComment,

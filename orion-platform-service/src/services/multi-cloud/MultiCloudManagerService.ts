@@ -98,8 +98,9 @@ export class MultiCloudManagerService {
 
   constructor(db?: DatabasePool) {
     if (db) {
-      this.setRepository(new MultiCloudRepository(db));
-      this.cloudSyncService = new CloudSyncService(this.repo);
+      const repo = new MultiCloudRepository(db);
+      this.setRepository(repo);
+      this.cloudSyncService = new CloudSyncService(repo);
     }
   }
 
@@ -428,7 +429,7 @@ export class MultiCloudManagerService {
       tenantId: job.tenantId,
       accountId: job.accountId,
       provider: job.provider,
-      status: job.status,
+      status: job.status as ResourceSyncJob['status'],
       startedAt: job.startedAt?.toISOString() ?? new Date().toISOString(),
       completedAt: job.completedAt?.toISOString(),
       resourcesDiscovered: job.resourcesDiscovered,

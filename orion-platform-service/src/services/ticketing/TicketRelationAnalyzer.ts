@@ -19,10 +19,10 @@ import {
 } from './types';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
 import { TicketRelationAnalysisRepository } from '../../repositories/TicketRelationAnalysisRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LTicket-LRelation-LAnalyzer' });
+const logger = createLogger('LTicket-LRelation-LAnalyzer');
 
 /**
  * Ticket Relation Analyzer

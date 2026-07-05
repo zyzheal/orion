@@ -16,7 +16,7 @@ import { AlertBreakerRuleRepository, AlertBreakerStateRepository } from '../serv
 import { AlertBreakerService } from '../services/alert-breaker/AlertBreakerService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'alert-breaker-routes' });
+const logger = createLogger('alert-breaker-routes');
 
 interface AlertBreakerRoutesOptions {
   database: DatabasePool;

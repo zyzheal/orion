@@ -35,11 +35,11 @@ import {
   DiagnosticReportRepository,
   DiagnosticReportEntity,
 } from '../../repositories/DiagnosticReportRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LDiagnostic-LAgent-LService' });
+const logger = createLogger('LDiagnostic-LAgent-LService');
 
 /**
  * 诊断 Agent 服务配置

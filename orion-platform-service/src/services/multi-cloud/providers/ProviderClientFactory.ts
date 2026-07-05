@@ -6,12 +6,13 @@
  */
 
 import { CloudProviderClient } from './CloudProviderClient';
+import { OrionError, ErrorCode } from '../../../errors';
 import { AwsProviderClient } from './AwsProviderClient';
 import { GcpProviderClient } from './GcpProviderClient';
 import { AzureProviderClient } from './AzureProviderClient';
 import { AliCloudProviderClient } from './AliCloudProviderClient';
 import { PrivateCloudProviderClient } from './PrivateCloudProviderClient';
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../../../utils/logger';
 
 const logger = createLogger('provider-client-factory');
 
@@ -47,7 +48,7 @@ export class ProviderClientFactory {
         client = new PrivateCloudProviderClient();
         break;
       default:
-        throw new Error(`Unsupported cloud provider: ${provider}`);
+        throw new OrionError(`Unsupported cloud provider: ${provider}`, ErrorCode.INTERNAL_ERROR);
     }
 
     this.clients.set(normalizedProvider, client);

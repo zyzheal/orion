@@ -4,18 +4,11 @@
  * Real GCP integration using @google-cloud/compute and @google-cloud/storage.
  */
 
-import {
-  CloudProviderClient,
-  ProviderResource,
-  ProviderSyncResult,
-  ProviderHealthStatus,
-  ProviderCostEntry,
-  CredentialValidationResult,
-  DEFAULT_RETRY_CONFIG,
-} from './CloudProviderClient';
-import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../../errors';
+import { createLogger } from '../../../utils/logger';
 import { Storage } from '@google-cloud/storage';
-import { Compute } from '@google-cloud/compute';
+import ComputeModule from '@google-cloud/compute';
+import { CloudProviderClient, ProviderResource, ProviderCostEntry, ProviderHealthStatus, CredentialValidationResult } from './CloudProviderClient';
 
 const logger = createLogger('gcp-provider-client');
 
@@ -25,7 +18,7 @@ export class GcpProviderClient implements CloudProviderClient {
   private region: string = '';
   private credentials: Record<string, string> = {};
   private storage: Storage | null = null;
-  private compute: Compute | null = null;
+  private compute: any = null;
 
   async initialize(credentials: Record<string, string>, region: string): Promise<void> {
     this.credentials = credentials;
@@ -33,7 +26,7 @@ export class GcpProviderClient implements CloudProviderClient {
     this.projectId = credentials.projectId ?? credentials.project_id ?? '';
 
     if (!this.projectId) {
-      throw new Error('GCP projectId is required in credentials');
+      throw new OrionError('GCP projectId is required in credentials', ErrorCode.VALIDATION_ERROR);
     }
 
     // Build Google Cloud client options
@@ -48,7 +41,9 @@ export class GcpProviderClient implements CloudProviderClient {
 
     try {
       this.storage = new Storage(clientOptions);
-      this.compute = new Compute(clientOptions);
+      // @google-cloud/compute v4+ types diverged from the v3 unified API.
+      // Cast to any since the runtime module still supports the old unified constructor.
+      this.compute = new (ComputeModule as any)(clientOptions);
     } catch (error: any) {
       logger.error({ error: error.message }, '[GcpProviderClient] Failed to initialize GCP clients');
       throw error;
@@ -121,7 +116,7 @@ export class GcpProviderClient implements CloudProviderClient {
 
   async discoverResources(resourceTypes?: string[]): Promise<ProviderResource[]> {
     if (!this.projectId) {
-      throw new Error('GCP projectId is required - call initialize() first');
+      throw new OrionError('GCP projectId is required - call initialize() first', ErrorCode.VALIDATION_ERROR);
     }
 
     const resources: ProviderResource[] = [];
@@ -166,7 +161,7 @@ export class GcpProviderClient implements CloudProviderClient {
 
   async getResource(providerResourceId: string): Promise<ProviderResource | null> {
     if (!this.projectId) {
-      throw new Error('GCP projectId is required - call initialize() first');
+      throw new OrionError('GCP projectId is required - call initialize() first', ErrorCode.VALIDATION_ERROR);
     }
 
     // Try as Compute Engine instance
@@ -192,7 +187,7 @@ export class GcpProviderClient implements CloudProviderClient {
 
   private async discoverComputeInstances(): Promise<ProviderResource[]> {
     if (!this.compute) {
-      throw new Error('Compute client not initialized');
+      throw new OrionError('Compute client not initialized', ErrorCode.UNAUTHORIZED);
     }
 
     const instances: ProviderResource[] = [];
@@ -240,7 +235,7 @@ export class GcpProviderClient implements CloudProviderClient {
 
   private async discoverStorageBuckets(): Promise<ProviderResource[]> {
     if (!this.storage) {
-      throw new Error('Storage client not initialized');
+      throw new OrionError('Storage client not initialized', ErrorCode.UNAUTHORIZED);
     }
 
     const buckets: ProviderResource[] = [];
@@ -249,20 +244,21 @@ export class GcpProviderClient implements CloudProviderClient {
       const [bucketsList] = await this.storage.getBuckets({ autoPaginate: false });
 
       for (const bucket of bucketsList) {
-        if (!bucket.name) continue;
+        const b = bucket as any;
+        if (!b.name) continue;
 
         buckets.push({
-          id: bucket.name,
-          name: bucket.name,
+          id: b.name,
+          name: b.name,
           type: 'cloud_storage',
           region: this.region || 'global',
           status: 'active',
-          tags: bucket.labels || {},
+          tags: b.labels || {},
           spec: {
-            storageClass: bucket.storageClass,
-            location: bucket.location,
-            locationType: bucket.locationType,
-            createdAt: bucket.timeCreated,
+            storageClass: b.storageClass,
+            location: b.location,
+            locationType: b.locationType,
+            createdAt: b.timeCreated,
           },
           monthlyCost: 0,
         });
@@ -315,18 +311,19 @@ export class GcpProviderClient implements CloudProviderClient {
     try {
       const [bucket] = await this.storage.bucket(bucketId).get();
 
-      if (bucket) {
+      const b = bucket as any;
+      if (b) {
         return {
-          id: bucket.name,
-          name: bucket.name,
+          id: b.name,
+          name: b.name,
           type: 'cloud_storage',
-          region: bucket.location || this.region || 'global',
+          region: b.location || this.region || 'global',
           status: 'active',
-          tags: bucket.labels || {},
+          tags: b.labels || {},
           spec: {
-            storageClass: bucket.storageClass,
-            location: bucket.location,
-            locationType: bucket.locationType,
+            storageClass: b.storageClass,
+            location: b.location,
+            locationType: b.locationType,
           },
         };
       }
@@ -353,7 +350,7 @@ export class GcpProviderClient implements CloudProviderClient {
         autoPaginate: false,
       });
 
-      return zones.map(zone => zone.name || '').filter(name => name.length > 0);
+      return zones.map((zone: { name?: string }) => zone.name || '').filter((name: string) => name.length > 0);
     } catch (error: any) {
       logger.warn({ error: error.message }, '[GcpProviderClient] Failed to list zones, using defaults');
       return [

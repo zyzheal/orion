@@ -33,7 +33,7 @@ export class WebhookSecretRepository extends BaseRepository<WebhookSecretEntity>
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async upsertByRepoId(repoId: string, secret: string, tenantId?: string): Promise<WebhookSecretEntity> {
+  async upsertByRepoId(repoId: string, secret: string, tenantId?: string): Promise<WebhookSecretEntity | null> {
     const existing = await this.findByRepoId(repoId);
     if (existing) {
       return this.update(existing.id, { secret: encryptValue(secret) });

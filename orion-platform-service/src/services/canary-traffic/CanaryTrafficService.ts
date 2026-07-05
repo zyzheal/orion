@@ -5,7 +5,7 @@
  * promotion, and rollback.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   TrafficConfigRepository,
   TrafficConfigEntity,
@@ -15,7 +15,7 @@ import {
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CanaryTrafficService');
 
 // ==================== Input Interfaces ====================
 
@@ -104,7 +104,7 @@ export class CanaryTrafficService {
 
     const existing = await this.configRepo.findByCanaryId(rules.canary_id, rules.tenant_id);
     if (existing) {
-      return this.configRepo.update(rules.canary_id, {
+      const updated = await this.configRepo.update(rules.canary_id, {
         strategy: rules.strategy,
         baseline_weight: rules.baseline_weight,
         canary_weight: rules.canary_weight,
@@ -113,6 +113,10 @@ export class CanaryTrafficService {
         host: rules.host,
         namespace: rules.namespace,
       });
+      if (!updated) {
+        throw new OrionError(`Traffic config not found: ${rules.canary_id}`, ErrorCode.NOT_FOUND);
+      }
+      return updated;
     }
 
     const config = await this.configRepo.upsertConfig({

@@ -6,7 +6,7 @@
 import { createLogger } from '../utils/logger';
 import { OrionError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('GitHubClient');
 
 export interface GitHubConfig {
   baseUrl: string;

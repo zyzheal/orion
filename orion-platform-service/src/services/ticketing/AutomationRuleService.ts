@@ -5,8 +5,8 @@
  */
 
 import { createLogger } from '../../utils/logger';
-import { getCurrentTenantId, getCurrentUserId } from '../../db/tenant-context-storage';
-import { AutomationRuleRepository } from '../repositories/AutomationRuleRepository';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
+import { AutomationRuleRepository } from '../../repositories/AutomationRuleRepository';
 import {
   AutomationRule,
   AutomationRuleExecution,
@@ -36,11 +36,10 @@ export class AutomationRuleService {
    */
   async createRule(input: CreateAutomationRuleInput): Promise<AutomationRule> {
     const tenantId = getCurrentTenantId();
-    const userId = getCurrentUserId();
 
     const ruleInput: CreateAutomationRuleInput = {
       ...input,
-      createdBy: userId || input.createdBy,
+      createdBy: input.createdBy,
     };
 
     const rule = await this.repository.createRule(ruleInput, tenantId);
@@ -138,7 +137,6 @@ export class AutomationRuleService {
         // Update execution log
         await this.repository.updateExecution(execution.id, {
           status: 'success',
-          actionsTaken,
           completedAt: new Date(),
         });
 

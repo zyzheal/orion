@@ -6,16 +6,13 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CodeOwnershipService } from '../../../services/code-repo';
-
-// 共享实例
-const codeOwnershipService = new CodeOwnershipService();
+import { CodeOwnershipRepository } from '../../../repositories/CodeOwnershipRepository';
 
 export class CodeOwnershipController {
-  /**
-   * 获取服务实例 (用于测试注入)
-   */
-  getService(): CodeOwnershipService {
-    return codeOwnershipService;
+  private codeOwnershipService: CodeOwnershipService;
+
+  constructor(codeOwnershipRepository: CodeOwnershipRepository) {
+    this.codeOwnershipService = new CodeOwnershipService(codeOwnershipRepository);
   }
 
   /**
@@ -38,7 +35,7 @@ export class CodeOwnershipController {
         });
       }
 
-      const file = await codeOwnershipService.registerCodeOwnersFile(
+      const file = await this.codeOwnershipService.registerCodeOwnersFile(
         body.repoId,
         body.content,
         body.filePath
@@ -61,7 +58,7 @@ export class CodeOwnershipController {
   async get(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { repoId } = request.params as { repoId: string };
-      const file = await codeOwnershipService.getCodeOwnersFile(repoId);
+      const file = await this.codeOwnershipService.getCodeOwnersFile(repoId);
 
       if (!file) {
         return reply.status(404).send({
@@ -87,7 +84,7 @@ export class CodeOwnershipController {
   async remove(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { repoId } = request.params as { repoId: string };
-      const removed = await codeOwnershipService.removeCodeOwnersFile(repoId);
+      const removed = await this.codeOwnershipService.removeCodeOwnersFile(repoId);
 
       if (!removed) {
         return reply.status(404).send({
@@ -124,7 +121,7 @@ export class CodeOwnershipController {
         });
       }
 
-      const result = codeOwnershipService.validateCodeOwnersContent(body.content);
+      const result = this.codeOwnershipService.validateCodeOwnersContent(body.content);
 
       return reply.send({ success: true, data: result });
     } catch (error: any) {
@@ -154,7 +151,7 @@ export class CodeOwnershipController {
         });
       }
 
-      const recommendations = await codeOwnershipService.recommendOwners(
+      const recommendations = await this.codeOwnershipService.recommendOwners(
         body.repoId,
         body.filePaths
       );
@@ -194,7 +191,7 @@ export class CodeOwnershipController {
         });
       }
 
-      const result = await codeOwnershipService.getRequiredApproversForPR(
+      const result = await this.codeOwnershipService.getRequiredApproversForPR(
         body.repoId,
         body.changedFiles
       );

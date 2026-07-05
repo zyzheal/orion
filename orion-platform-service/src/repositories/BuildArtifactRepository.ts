@@ -72,12 +72,12 @@ export class BuildArtifactRepository extends BaseRepository<Artifact> {
   /**
    * Find artifact by ID
    */
-  async findById(id: string): Promise<Artifact | undefined> {
+  async findById(id: string): Promise<Artifact | null> {
     const result = await this.db.query(
       `SELECT * FROM artifacts WHERE id = $1`,
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

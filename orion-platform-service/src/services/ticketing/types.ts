@@ -1271,7 +1271,7 @@ export interface AutomationRuleExecution {
   /** What triggered the rule */
   triggeredBy: 'create' | 'update' | 'manual';
   /** Conditions that matched */
-  conditionsMet: Record<string, any>;
+  conditionsMet: Record<string, any> | boolean;
   /** Actions that were executed */
   actionsTaken: AutomationAction[];
   /** Execution status */
@@ -1321,5 +1321,37 @@ export interface TicketSLAStatus {
   breachAt?: Date;
   /** Warning threshold percentage (e.g., 0.8 = 80%) */
   warningThreshold: number;
+}
+
+/**
+ * SLA violation record
+ */
+export interface SLAViolation {
+  /** Violation record ID */
+  id: string;
+  /** Ticket ID */
+  ticketId: string;
+  /** SLA target ID */
+  slaTargetId: string;
+  /** Target resolution time in milliseconds */
+  targetResolutionTimeMs: number;
+  /** Actual resolution time in milliseconds */
+  actualResolutionTimeMs?: number;
+  /** Whether SLA was breached */
+  breached: boolean;
+  /** When the SLA was breached */
+  breachedAt?: Date;
+  /** When the ticket was resolved */
+  resolvedAt?: Date;
+  /** First response timestamp */
+  firstResponseAt?: Date;
+  /** Response SLA breached */
+  responseBreached: boolean;
+  /** Ticket title */
+  ticketTitle?: string;
+  /** Ticket priority */
+  ticketPriority?: string;
+  /** Ticket status */
+  ticketStatus?: string;
 }
 

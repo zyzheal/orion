@@ -1,9 +1,9 @@
 // orion-platform-service/src/services/privacy/TenantPrivacyPolicyService.ts
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 import { TenantPrivacyPolicyRepository } from '../../repositories/TenantPrivacyPolicyRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantPrivacyPolicyService');
 
 export interface TenantPrivacyPolicy {
   tenantId: number;

@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { OrionError, ErrorCode } from '../../errors';
 import { DevPortalSDKTaskRepository } from '../../repositories/DevPortalSDKTaskRepository';
 
 // ==================== Type Definitions ====================
@@ -97,7 +98,7 @@ export class SDKGeneratorService {
 
   constructor(repository: DevPortalSDKTaskRepository) {
     if (!repository) {
-      throw new Error('DevPortalSDKTaskRepository is required');
+      throw new OrionError('DevPortalSDKTaskRepository is required', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repository;
   }

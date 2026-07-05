@@ -7,13 +7,13 @@
  * Wired via AlertRuleEngine.onAlert callback in MonitoringService.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { Alert } from '../monitoring/types';
 import { NotificationService } from '../notification/NotificationService';
 import { AlertNotificationService } from '../monitoring/AlertNotificationService';
-import { getCurrentTenantId } from '../db/tenant-context-storage';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LAlert-LService' });
+const logger = createLogger('LAlert-LService');
 
 /**
  * Resolve user IDs for a tenant (for in-app notification broadcast).

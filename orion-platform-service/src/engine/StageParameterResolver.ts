@@ -2,7 +2,7 @@ import { createLogger } from '../utils/logger';
 import { VariableContext } from './VariableContext';
 import { Task, TaskStatus } from '../models/Task';
 
-const logger = pino({ name: 'StageParameterResolver' });
+const logger = createLogger('StageParameterResolver');
 
 /**
  * StageParameterResolver - Stage-to-stage parameter passing

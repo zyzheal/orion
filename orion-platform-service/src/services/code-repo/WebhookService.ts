@@ -25,6 +25,10 @@ import {
 } from './types';
 import { WebhookSecretRepository } from '../../repositories/WebhookSecretRepository';
 import { WebhookEventLogRepository } from '../../repositories/WebhookEventLogRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('webhook-service');
+
 
 /** EventBus 接口 (复用现有 EventBusService) */
 export interface IEventPublisher {
@@ -115,7 +119,7 @@ export class CodeRepoWebhookService extends EventEmitter {
   registerWebhookSecret(repoId: string, secret: string): void {
     this.webhookSecrets.set(repoId, secret);
     // Persist to PostgreSQL (fire-and-forget)
-    this.secretRepo?.upsertByRepoId(repoId, secret).catch((err) => console.warn('[WebhookService] Failed to persist webhook secret:', err));
+    this.secretRepo?.upsertByRepoId(repoId, secret).catch((err) => logger.warn({ err }, '[WebhookService] Failed to persist webhook secret'));
   }
 
   /**
@@ -163,7 +167,7 @@ export class CodeRepoWebhookService extends EventEmitter {
         if (entity) {
           this.webhookSecrets.set(repoId, entity.secret);
         }
-      }).catch((err) => console.warn('[WebhookService] Failed to sync webhook secret from repo:', err));
+      }).catch((err) => logger.warn({ err }, '[WebhookService] Failed to sync webhook secret from repo'));
     }
     if (!secret) {
       // 没有配置密钥，跳过验证
@@ -716,7 +720,7 @@ export class CodeRepoWebhookService extends EventEmitter {
       success: entry.success,
       error: entry.error || null,
       tenant_id: 'default',
-    }).catch((err) => console.warn('[WebhookService] Failed to persist event log:', err));
+    }).catch((err) => logger.warn({ err }, '[WebhookService] Failed to persist event log'));
   }
 
   /** 获取事件日志 */

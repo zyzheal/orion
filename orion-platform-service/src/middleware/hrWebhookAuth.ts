@@ -19,7 +19,7 @@ import crypto from 'crypto';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('hrWebhookAuth');
 
 const ALLOWED_TIMESTAMP_SKEW_MS = 5 * 60 * 1000; // 5 minutes
 

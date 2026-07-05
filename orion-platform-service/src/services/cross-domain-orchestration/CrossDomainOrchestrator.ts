@@ -22,10 +22,10 @@ import {
   createSagaContext,
 } from '../../saga/types';
 import { DomainConnector } from './DomainConnector';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LCross-LDomain-LOrchestrator' });
+const logger = createLogger('LCross-LDomain-LOrchestrator');
 
 // ============================================================
 // Types
@@ -159,7 +159,7 @@ class OrchestrationRepository {
   private pool: DatabasePool;
 
   constructor(pool: DatabasePool) {
-    if (!pool) throw new Error('DatabasePool is required');
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
     this.pool = pool;
   }
 
@@ -340,7 +340,7 @@ export class CrossDomainOrchestrator {
   private domainConnector: DomainConnector;
 
   constructor(database: DatabasePool, domainConnector?: DomainConnector) {
-    if (!database) throw new Error('DatabasePool is required for CrossDomainOrchestrator');
+    if (!database) throw new OrionError('DatabasePool is required for CrossDomainOrchestrator', ErrorCode.INTERNAL_ERROR);
     this.repository = new OrchestrationRepository(database);
     this.domainConnector = domainConnector || new DomainConnector(database);
 

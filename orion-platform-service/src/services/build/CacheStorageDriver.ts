@@ -9,10 +9,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { createHash } from 'crypto';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'cache-storage-driver' });
+const logger = createLogger('cache-storage-driver');
 
 export interface CacheEntry {
   key: string;

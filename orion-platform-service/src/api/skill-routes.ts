@@ -23,7 +23,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'skill-routes' });
+const logger = createLogger('skill-routes');
 
 /**
  * Skill permissions matrix

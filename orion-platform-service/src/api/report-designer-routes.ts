@@ -17,7 +17,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
-import { handleError } from '../errors';
+import { handleError, ValidationError } from '../errors';
 import { ReportDesignerService } from '../services/report-designer/ReportDesignerService';
 import { ReportDefinitionRepository } from '../services/report-designer/ReportDefinitionRepository';
 import { ReportDatasourceRepository } from '../services/report-designer/ReportDatasourceRepository';
@@ -25,7 +25,7 @@ import { ReportScheduleRepository } from '../services/report-designer/ReportSche
 import { ReportExecutionRepository } from '../services/report-designer/ReportExecutionRepository';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'report-designer-routes' });
+const logger = createLogger('report-designer-routes');
 
 export default async function reportDesignerRoutes(
   app: FastifyInstance,

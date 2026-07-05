@@ -8,14 +8,14 @@
  * P2 feature from neatlogic-autoexec comparison analysis.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { GlobalParamRepository } from '../../repositories/GlobalParamRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import type {
   GlobalParam, CreateGlobalParam, UpdateGlobalParam, GlobalParamScope, GlobalParamEntity,
 } from '../../models/GlobalParam';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('GlobalParamService');
 
 export class GlobalParamServiceError extends Error {
   constructor(message: string, public code: string) {

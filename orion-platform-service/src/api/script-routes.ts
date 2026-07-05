@@ -10,7 +10,7 @@ import { AIGenerateService } from '../services/ai/AIGenerateService';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('script-routes');
 
 // Input validation schema
 const scanSchema = {

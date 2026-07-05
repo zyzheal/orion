@@ -15,7 +15,7 @@ import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'ai-cost-routes' });
+const logger = createLogger('ai-cost-routes');
 
 export interface AICostRoutesOptions {
   database?: DatabasePool;
@@ -45,7 +45,7 @@ export default async function aiCostRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const body = request.body as { tenantId?: string };
-        const tenantId = body.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+        const tenantId = body.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
         const analysis = service.analyzeCostSavings(tenantId);
         const recommendations = await service.recommendOptimization(tenantId);
@@ -80,7 +80,7 @@ export default async function aiCostRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const query = request.query as { tenantId?: string };
-        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
         const history = await service.getSavingsHistory(tenantId);
 
@@ -112,7 +112,7 @@ export default async function aiCostRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const query = request.query as { tenantId?: string };
-        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
         const analysis = service.analyzeCostSavings(tenantId);
         const totalSavings = await service.getTotalSavings(tenantId);
@@ -147,7 +147,7 @@ export default async function aiCostRoutes(
     async (request: FastifyRequest, reply: FastifyReply) => {
       try {
         const query = request.query as { tenantId?: string };
-        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId || 'default';
+        const tenantId = query.tenantId || (request as any).tenantContext?.getCurrentTenant()?.tenantId;
 
         const analysis = service.analyzeCostSavings(tenantId);
 

@@ -7,10 +7,10 @@
 import simpleGit, { SimpleGit } from 'simple-git';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'ConfigGitOps' });
+const logger = createLogger('ConfigGitOps');
 
 // ==================== 配置 ====================
 

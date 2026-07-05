@@ -9,11 +9,11 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LDomain-LConnector' });
+const logger = createLogger('LDomain-LConnector');
 
 // ============================================================
 // Types
@@ -75,7 +75,7 @@ class DomainConnectorRepository {
   private pool: DatabasePool;
 
   constructor(pool: DatabasePool) {
-    if (!pool) throw new Error('DatabasePool is required');
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
     this.pool = pool;
   }
 
@@ -152,7 +152,7 @@ export class DomainConnector {
   private transactionLog = new Map<string, CrossDomainTransaction>();
 
   constructor(database: DatabasePool) {
-    if (!database) throw new Error('DatabasePool is required for DomainConnector');
+    if (!database) throw new OrionError('DatabasePool is required for DomainConnector', ErrorCode.INTERNAL_ERROR);
     this.repository = new DomainConnectorRepository(database);
   }
 

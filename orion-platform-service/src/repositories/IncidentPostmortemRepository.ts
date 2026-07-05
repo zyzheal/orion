@@ -187,7 +187,8 @@ export class IncidentPostmortemRepository extends BaseRepository<IncidentPostmor
     }
 
     if (updates.length === 0) {
-      return this.findById(id);
+      const found = await this.findById(id);
+      return found ?? undefined;
     }
 
     params.push(id);

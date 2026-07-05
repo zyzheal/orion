@@ -19,7 +19,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'pipeline-budget-routes' });
+const logger = createLogger('pipeline-budget-routes');
 
 export function registerBudgetRoutes(
   app: FastifyInstance,

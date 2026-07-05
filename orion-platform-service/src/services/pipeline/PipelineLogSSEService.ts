@@ -7,10 +7,10 @@
 import { EventEmitter } from 'events';
 import { FastifyReply } from 'fastify';
 import { SSEConnectionManager, SSEConnection } from '../chatops/SSEConnectionManager';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LPipeline-LLog-LS-LS-LE-LService' });
+const logger = createLogger('LPipeline-LLog-LS-LS-LE-LService');
 
 export interface PipelineLogEvent {
   pipelineId: string;

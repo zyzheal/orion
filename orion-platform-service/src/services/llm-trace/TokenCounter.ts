@@ -11,10 +11,10 @@
  * - o200k_base: GPT-4o, GPT-4o-mini
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { Tiktoken, encoding_for_model, get_encoding } from 'tiktoken';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TokenCounter');
 
 export interface TokenUsage {
   inputTokens: number;

@@ -311,7 +311,8 @@ export class CostOptimizerService {
     let entity: CostRecommendationEntity | undefined;
     if (this.recommendationRepository) {
       try {
-        entity = await this.recommendationRepository.findById(recommendationId);
+        const result = await this.recommendationRepository.findById(recommendationId);
+        entity = result ?? undefined;
       } catch {
         // Degraded: no DB available
       }

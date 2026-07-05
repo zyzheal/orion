@@ -1,11 +1,11 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { SLODefinitionRepository, SLODefinitionEntity } from '../../repositories/SLODefinitionRepository';
 import { SLIMeasurementRepository, SLIMeasurementEntity } from '../../repositories/SLIMeasurementRepository';
 import { ErrorBudgetRepository, ErrorBudgetEntity } from '../../repositories/ErrorBudgetRepository';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'SLOTrackingService' });
+const logger = createLogger('SLOTrackingService');
 
 export interface CreateSLOInput {
   name: string;
@@ -106,6 +106,7 @@ export class SLOTrackingService {
     }
 
     const updated = await this.sloRepo.update(sloId, input);
+    if (!updated) throw new OrionError('Failed to update SLO', ErrorCode.OPERATION_FAILED);
     logger.info({ sloId }, 'SLO definition updated');
     return updated;
   }

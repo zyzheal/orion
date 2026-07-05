@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
 import { ScriptLibraryRepository, ScriptLibraryEntity } from './ScriptLibraryRepository';
@@ -7,7 +7,7 @@ import { ScriptParameterRepository, ScriptParameterEntity } from './ScriptParame
 import { ScriptExecutionRepository, ScriptExecutionEntity } from './ScriptExecutionRepository';
 import { createHash } from 'crypto';
 
-const logger = pino({ name: 'ScriptLibraryService' });
+const logger = createLogger('ScriptLibraryService');
 
 export interface CreateScriptInput {
   name: string;
@@ -134,6 +134,9 @@ export class ScriptLibraryService {
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
     const updated = await this.libraryRepo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`Script not found: ${id}`, 'NOT_FOUND');
+    }
     logger.info({ scriptId: id }, 'Script updated');
     return updated;
   }

@@ -54,6 +54,8 @@ export interface UpdateDeploymentInput {
   config?: Record<string, any>;
   error_message?: string;
   rollback_to?: string;
+  commit_sha?: string;
+  commit_committed_at?: Date;
 }
 
 export interface CreateDeploymentEventInput {
@@ -216,6 +218,16 @@ export class DeployRepository {
     if (input.rollback_to !== undefined) {
       params.push(input.rollback_to);
       updates.push(`rollback_to = $${paramIndex++}`);
+    }
+
+    if (input.commit_sha !== undefined) {
+      params.push(input.commit_sha);
+      updates.push(`commit_sha = $${paramIndex++}`);
+    }
+
+    if (input.commit_committed_at !== undefined) {
+      params.push(input.commit_committed_at);
+      updates.push(`commit_committed_at = $${paramIndex++}`);
     }
 
     if (updates.length === 0) {

@@ -1,6 +1,7 @@
 // orion-platform-service/src/services/inline-script/InlineScriptService.ts
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 import { parse } from '@babel/parser';
 import traverse, { NodePath } from '@babel/traverse';
 import { CallExpression, Identifier, MemberExpression, Node, StringLiteral } from '@babel/types';
@@ -10,7 +11,7 @@ import { InlineScriptApprovalRepository } from '../../repositories/InlineScriptA
 import { InlineScriptRepository } from '../../repositories/InlineScriptRepository';
 import { createHash } from 'crypto';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('InlineScriptService');
 
 export interface InlineScriptExecutionRequest {
   taskId: string;
@@ -599,7 +600,7 @@ export class InlineScriptService {
       // Check for duplicate name within tenant
       const exists = await this.scriptRepo.existsByTenantAndName(params.tenantId, params.name);
       if (exists) {
-        throw new Error(`Script with name '${params.name}' already exists for this tenant`);
+        throw new OrionError(`Script with name '${params.name}' already exists for this tenant`, ErrorCode.CONFLICT);
       }
 
       const script = await this.scriptRepo.create({

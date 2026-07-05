@@ -11,7 +11,7 @@ import {
 } from '../../models/IacWorkspace';
 import { WorkspaceService } from './WorkspaceService';
 import { IaCPlanRepository, IaCPlanEntity } from '../../repositories/IaCPlanRepository';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface IaCPlanListFilter {
   workspaceId?: string;
@@ -85,7 +85,7 @@ export class PlanService {
 
   async getById(id: string): Promise<IaCPlanEntity | undefined> {
     if (this.planRepository) {
-      return await this.planRepository.findById(id);
+      return await this.planRepository.findById(id) ?? undefined;
     }
     return undefined;
   }
@@ -143,6 +143,6 @@ export class PlanService {
     await this.eventBus?.publish('iac.plan.applied', {
       planId,
     });
-    return await this.planRepository.findById(planId);
+    return await this.planRepository.findById(planId) ?? undefined;
   }
 }

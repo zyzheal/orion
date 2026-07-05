@@ -14,7 +14,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '../config-mgmt/ConfigService';
 import { ConfigApprovalService } from '../config-mgmt/ConfigApprovalService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import {
   ConfigChangeRequestRepository,
@@ -23,7 +23,7 @@ import {
   ChangeHistoryEntity,
 } from '../../repositories/ConfigChangeRepository';
 
-const logger = pino({ name: 'LConfig-LChange-LService' });
+const logger = createLogger('LConfig-LChange-LService');
 
 export type ChangeRequestType = 'create' | 'modify' | 'delete';
 export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected' | 'executing' | 'executed' | 'failed' | 'rolled_back';
@@ -116,8 +116,8 @@ export class ConfigChangeService {
     configService?: ConfigService;
     approvalService?: ConfigApprovalService;
   }) {
-    if (!options.repository) throw new Error('ConfigChangeRequestRepository is required');
-    if (!options.historyRepository) throw new Error('ConfigChangeHistoryRepository is required');
+    if (!options.repository) throw new OrionError('ConfigChangeRequestRepository is required', ErrorCode.INTERNAL_ERROR);
+    if (!options.historyRepository) throw new OrionError('ConfigChangeHistoryRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = options.repository;
     this.historyRepository = options.historyRepository;
     this.configService = options.configService;

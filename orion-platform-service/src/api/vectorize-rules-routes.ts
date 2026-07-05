@@ -8,10 +8,10 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { VectorizeRulesService } from '../services/vectorize-rules/VectorizeRulesService';
 import { DatabasePool } from '../services/database';
-import { handleError } from '../errors';
+import { handleError, ServiceUnavailableError, NotFoundError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('vectorize-rules-routes');
 
 interface VectorizeRulesRoutesOptions {
   database?: DatabasePool;
@@ -21,9 +21,10 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   const pool = options.database;
   if (!pool) {
     logger.warn('[VectorizeRulesRoutes] Database not available, routes will return 503');
+    return;
   }
 
-  const service = pool ? new VectorizeRulesService(pool) : null;
+  const service = new VectorizeRulesService(pool);
 
   app.post('/vectorize-rules', {
     onRequest: [authenticateUser, requirePermission({ resource: 'vector', action: 'write' })],
@@ -31,7 +32,7 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as any;
-      const tenantId = String((request as any).user?.tenantId || 'default');
+      const tenantId = String((request as any).user?.tenantId);
       const rule = await service.createRule({ ...body, tenant_id: tenantId });
       return reply.status(201).send({ success: true, data: rule });
     } catch (error) {
@@ -44,7 +45,7 @@ export default async function vectorizeRulesRoutes(app: FastifyInstance, options
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
-      const tenantId = String((request as any).user?.tenantId || 'default');
+      const tenantId = String((request as any).user?.tenantId);
       const rules = await service.listRules(tenantId);
       return reply.send({ success: true, data: rules });
     } catch (error) {

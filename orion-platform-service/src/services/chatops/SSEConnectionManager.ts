@@ -17,7 +17,7 @@ import { FastifyReply } from 'fastify';
 import { ChatOpsRedisService } from './ChatOpsRedisService';
 import { ChatOpsSSEConnectionRepository } from '../../repositories/ChatOpsSSEConnectionRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('SSEConnectionManager');
 

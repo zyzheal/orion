@@ -8,7 +8,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   CostRecordRepository,
   CostRecordEntity,
@@ -17,7 +17,7 @@ import {
 import type { DatabasePool } from '../database';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CostOptimizationService');
 
 // ==================== Domain Types ====================
 

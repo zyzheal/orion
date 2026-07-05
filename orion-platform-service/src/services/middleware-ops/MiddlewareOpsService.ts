@@ -9,10 +9,10 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { MiddlewareOpsRepository } from '../../repositories/MiddlewareOpsRepository';
 
-const logger = pino({ name: 'MiddlewareOpsService' });
+const logger = createLogger('MiddlewareOpsService');
 
 export interface MiddlewareInstance {
   id: string;

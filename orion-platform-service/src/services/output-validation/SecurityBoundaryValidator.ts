@@ -1,8 +1,8 @@
 // orion-platform-service/src/services/output-validation/SecurityBoundaryValidator.ts
 import { minimatch } from 'minimatch';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SecurityBoundaryValidator');
 
 const DISALLOWED_PATTERNS = [
   '**/.env*',

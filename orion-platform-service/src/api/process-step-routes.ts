@@ -7,10 +7,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ProcessDefinitionRepository, ProcessInstanceRepository, ProcessStepEngineService } from '../services/process-step';
-import { handleError } from '../errors';
+import { handleError, ServiceUnavailableError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('process-step-routes');
 
 interface ProcessStepRoutesOptions {
   database?: DatabasePool;
@@ -20,13 +20,12 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   const pool = options.database;
   if (!pool) {
     logger.warn('[ProcessStepRoutes] Database not available, routes will return 503');
+    return;
   }
 
-  const defRepo = pool ? new ProcessDefinitionRepository(pool) : null;
-  const instRepo = pool ? new ProcessInstanceRepository(pool) : null;
-  const engineService = pool && defRepo && instRepo
-    ? new ProcessStepEngineService(defRepo, instRepo)
-    : null;
+  const defRepo = new ProcessDefinitionRepository(pool);
+  const instRepo = new ProcessInstanceRepository(pool);
+  const engineService = new ProcessStepEngineService(defRepo, instRepo);
 
   // ---- Definition Endpoints ----
 

@@ -191,36 +191,36 @@ export class RateLimitService {
 
       const count = results[1][1] as number;
 
+      // Calculate reset time: score of the oldest entry in window + windowSeconds
+      const oldest = await client.zrangebyscore(
+        scopeKey,
+        windowStart,
+        now,
+        'LIMIT',
+        0,
+        1,
+      );
+
+      const limitResetAt = oldest.length > 0
+        ? new Date(parseInt(oldest[0].split(':')[0]) + windowSeconds * 1000)
+        : new Date(now + windowSeconds * 1000);
+
       if (count >= limitCount) {
-        // Calculate reset time: score of the oldest entry in window + windowSeconds
-        const oldest = await client.zrangebyscore(
-          scopeKey,
-          windowStart,
-          now,
-          'LIMIT',
-          0,
-          1,
-        );
-
-        const resetAt = oldest.length > 0
-          ? new Date(parseInt(oldest[0].split(':')[0]) + windowSeconds * 1000)
-          : new Date(now + windowSeconds * 1000);
-
         logger.warn(
-          { userId, commandName, limitType: limit.limit_type, count, limitCount, resetAt },
+          { userId, commandName, limitType: limit.limit_type, count, limitCount, resetAt: limitResetAt },
           'Rate limit exceeded',
         );
 
         return {
           allowed: false,
           remaining: 0,
-          resetAt,
+          resetAt: limitResetAt,
         };
       }
 
       // Track the earliest reset across all matching limits
-      if (!minResetAt || resetAt < minResetAt) {
-        minResetAt = resetAt;
+      if (!minResetAt || limitResetAt < minResetAt) {
+        minResetAt = limitResetAt;
       }
     }
 

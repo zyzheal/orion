@@ -3,6 +3,7 @@
  * Data access layer for sprint table
  */
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
+import { OrionError, ErrorCode } from '../../errors';
 
 export interface SprintEntity {
   id: string;
@@ -80,7 +81,7 @@ export class SprintRepository {
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
         if (!SprintRepository.ALLOWED_COLUMNS.has(key)) {
-          throw new Error(`Invalid column name: ${key}`);
+          throw new OrionError(`Invalid column name: ${key}`, ErrorCode.VALIDATION_ERROR);
         }
         sets.push(`${key} = $${idx}`);
         params.push(value);

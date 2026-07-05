@@ -31,7 +31,7 @@ import { DatabasePool } from '../services/database';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'sla-routes' });
+const logger = createLogger('sla-routes');
 
 interface SLARoutesOptions {
   database?: DatabasePool;

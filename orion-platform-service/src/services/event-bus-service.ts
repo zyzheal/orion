@@ -83,7 +83,7 @@ export interface EventBusRepositories {
   eventRepo?: EventBusEventRepository;
 }
 
-const logger = pino({ name: 'event-bus-service' });
+const logger = createLogger('event-bus-service');
 
 export class EventBusService extends EventEmitter {
   private config: EventBusServiceConfig;

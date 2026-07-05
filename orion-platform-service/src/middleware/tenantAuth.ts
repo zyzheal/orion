@@ -11,7 +11,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { jwtAuth, JwtPayload } from './jwtAuth';
+import { jwtAuth, JwtPayload, requireRoles } from './jwtAuth';
 import { requirePermission } from './requirePermission';
 import { tenantContext } from '../services/tenant/TenantContext';
 
@@ -36,7 +36,7 @@ export function getTenantIdFromRequest(request: FastifyRequest): number {
   const tenantId = user.tenantId || user.tenant_id;
 
   if (tenantId !== undefined && tenantId !== null) {
-    const parsed = typeof tenantId === 'string' ? parseInt(tenantId, 10) : tenantId;
+    const parsed = typeof tenantId === 'string' ? parseInt(tenantId, 10) : tenantId as number;
     return parsed > 0 ? parsed : 0;
   }
 

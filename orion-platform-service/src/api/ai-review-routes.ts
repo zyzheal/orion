@@ -15,7 +15,7 @@ import { DiffAnalyzer } from '../services/ai-review/DiffAnalyzer';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'ai-review-routes' });
+const logger = createLogger('ai-review-routes');
 
 export interface AIReviewRoutesOptions {
   reviewService?: AIReviewService;

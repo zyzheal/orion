@@ -17,9 +17,10 @@ export class SecuritySbomRepository extends BaseRepository<SecuritySbomEntity> {
   }
 
   async findByImageName(imageName: string, limit: number = 5): Promise<SecuritySbomEntity[]> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `SELECT * FROM security_sbom_documents WHERE image_name = $1 ORDER BY created_at DESC LIMIT $2`,
-      [imageName, limit],
+      'SELECT * FROM security_sbom_documents WHERE image_name = $1 AND tenant_id = $2 ORDER BY created_at DESC LIMIT $3',
+      [imageName, tenantId, limit],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }

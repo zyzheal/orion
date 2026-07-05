@@ -8,11 +8,11 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { PipelineService } from '../../services/pipeline/PipelineService';
-import { authenticateUser } from '../../middleware/authMiddleware';
-import { requirePermission } from '../../middleware/requirePermission';
-import { createLogger } from '../../utils/logger';
-import { OrionError, ValidationError, ErrorCode, handleError } from '../../errors';
+import { PipelineService } from '../services/pipeline/PipelineService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
+import { createLogger } from '../utils/logger';
+import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
 const logger = createLogger('pipeline-batch-operations');
 
@@ -38,11 +38,11 @@ export default async function pipelineBatchOperationsRoutes(
         const pipelineIds = body.pipelineIds as string[];
 
         if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'pipelineIds must be a non-empty array'));
+        return handleError(reply, new ValidationError('pipelineIds must be a non-empty array'));
         }
 
         if (pipelineIds.length > 50) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'Maximum 50 pipelines can be started in a single batch'));
+        return handleError(reply, new ValidationError('Maximum 50 pipelines can be started in a single batch'));
         }
 
         const results = await pipelineService.batchStart(pipelineIds, {
@@ -80,11 +80,11 @@ export default async function pipelineBatchOperationsRoutes(
         const executionIds = body.executionIds as string[];
 
         if (!Array.isArray(executionIds) || executionIds.length === 0) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'executionIds must be a non-empty array'));
+        return handleError(reply, new ValidationError('executionIds must be a non-empty array'));
         }
 
         if (executionIds.length > 50) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'Maximum 50 executions can be stopped in a single batch'));
+        return handleError(reply, new ValidationError('Maximum 50 executions can be stopped in a single batch'));
         }
 
         const results = await pipelineService.batchStop(executionIds);
@@ -119,11 +119,11 @@ export default async function pipelineBatchOperationsRoutes(
         const pipelineIds = body.pipelineIds as string[];
 
         if (!Array.isArray(pipelineIds) || pipelineIds.length === 0) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'pipelineIds must be a non-empty array'));
+        return handleError(reply, new ValidationError('pipelineIds must be a non-empty array'));
         }
 
         if (pipelineIds.length > 50) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR', 'Maximum 50 pipelines can be deleted in a single batch'));
+        return handleError(reply, new ValidationError('Maximum 50 pipelines can be deleted in a single batch'));
         }
 
         const results = await pipelineService.batchDelete(pipelineIds);

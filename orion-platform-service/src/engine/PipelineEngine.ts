@@ -52,7 +52,7 @@ import type { ScriptVersionService } from '../services/pipeline/ScriptVersionSer
 import type { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineEngine');
 
 export type RunCompletionCallback = (run: PipelineRun) => void;
 
@@ -71,7 +71,7 @@ export class PipelineEngine {
   private grayscaleController: GrayScaleController;
   private multiTargetExecutor: MultiTargetExecutor;
   private lifecycleHandler: PipelineLifecycleHandler;
-  private crashRecovery: PipelineCrashRecovery;
+  private crashRecovery: PipelineCrashRecovery = null!;
   private notificationDispatcher: NotificationDispatcher;
   private scmStatusReporter: ScmStatusReporter;
   private gateController: PipelineGateController;
@@ -174,6 +174,7 @@ export class PipelineEngine {
       scmStatusReporter: this.scmStatusReporter,
       gateController: this.gateController,
       executions: this.executions,
+      onRunComplete: null,
     });
   }
 

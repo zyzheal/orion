@@ -23,10 +23,10 @@ import {
 } from '../../models/QualityGate';
 import { QualityGateRepository } from '../../repositories/QualityGateRepository';
 import { QualityGateResultRepository } from '../../repositories/QualityGateResultRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('QualityGateService');
 
 export class QualityGateServiceError extends Error {
   constructor(message: string, public code: string) {
@@ -130,7 +130,7 @@ export class QualityGateService {
     if (!this.gateRepository) {
       return undefined;
     }
-    return this.gateRepository.findById(id);
+    return (await this.gateRepository.findById(id)) ?? undefined;
   }
 
   /**

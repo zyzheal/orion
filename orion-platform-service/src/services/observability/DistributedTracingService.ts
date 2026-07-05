@@ -1,11 +1,11 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { TraceSpanRepository, TraceSpanEntity, TraceSearchOptions } from '../../repositories/TraceSpanRepository';
 import { TraceSamplingConfigRepository, TraceSamplingConfigEntity } from '../../repositories/TraceSamplingConfigRepository';
 import { OtelCollectorConfigRepository, OtelCollectorConfigEntity } from '../../repositories/OtelCollectorConfigRepository';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'DistributedTracingService' });
+const logger = createLogger('DistributedTracingService');
 
 export interface CreateSpanInput {
   traceId: string;
@@ -189,7 +189,9 @@ export class DistributedTracingService {
     if (!existing) {
       throw new OrionError(`OTel collector config not found: ${id}`, 'NOT_FOUND');
     }
-    return this.otelConfigRepo.update(id, input);
+    const result = await this.otelConfigRepo.update(id, input);
+    if (!result) throw new OrionError('Failed to update OTel config', ErrorCode.OPERATION_FAILED);
+    return result;
   }
 
   async deleteOtelConfig(id: string): Promise<void> {

@@ -16,7 +16,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'pipeline-version-routes' });
+const logger = createLogger('pipeline-version-routes');
 
 interface PipelineVersionRoutesOptions {
   database?: DatabasePool;

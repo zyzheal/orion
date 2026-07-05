@@ -23,7 +23,7 @@ import { ScriptVersionService } from '../services/pipeline/ScriptVersionService'
 import { createLogger } from '../utils/logger';
 import { ConflictError, handleError } from '../errors';
 
-const logger = pino({ name: 'script-version-routes' });
+const logger = createLogger('script-version-routes');
 
 interface ScriptVersionRoutesOptions {
   database: DatabasePool;

@@ -14,7 +14,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'api-market-routes' });
+const logger = createLogger('api-market-routes');
 
 type AuthenticatedRequest = FastifyRequest & {
   user: { id: string; [key: string]: unknown };

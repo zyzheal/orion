@@ -1,6 +1,6 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('Metrics');
 /**
  * ChatOps Metrics - Prometheus 监控指标
  *
@@ -207,6 +207,13 @@ export class ChatOpsMetrics {
     } else {
       this.incrementCounter('chatops_command_executions_failed', { command, platform });
     }
+  }
+
+  /**
+   * 记录命令超时
+   */
+  recordCommandTimeout(command: string, platform: string): void {
+    this.incrementCounter('chatops_command_executions_failed', { command, platform, reason: 'timeout' });
   }
 
   /**

@@ -1,6 +1,6 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   RunbookDefinitionRepository,
   RunbookDefinitionEntity,
@@ -9,7 +9,7 @@ import {
   RunbookStep,
 } from './RunbookRepository';
 
-const logger = pino({ name: 'RunbookService' });
+const logger = createLogger('RunbookService');
 
 export interface CreateRunbookInput {
   name: string;
@@ -99,6 +99,7 @@ export class RunbookService {
     if (input.enabled !== undefined) updateData.enabled = input.enabled;
 
     const updated = await this.definitionRepo.update(id, updateData);
+    if (!updated) throw new OrionError('Failed to update runbook', ErrorCode.OPERATION_FAILED);
     logger.info({ runbookId: id }, 'Runbook definition updated');
     return updated;
   }

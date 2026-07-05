@@ -40,7 +40,6 @@ export default async function apiKeyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const { tenantId } = request.query as { tenantId: string };
-    return handleError(reply, new ValidationError('MISSING_TENANT_ID'));
     try {
       const keys = await service.listKeys(tenantId);
       return reply.send({ data: keys, total: keys.length });
@@ -55,7 +54,6 @@ export default async function apiKeyRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!service) return unavailableHandler(request, reply);
     const body = request.body as Record<string, unknown>;
-    return handleError(reply, new ValidationError('INVALID_INPUT'));
     try {
       const result = await service.createKey(
         body.tenantId as string,

@@ -3,7 +3,7 @@ import { Stage, StageStatus } from '../models/Stage';
 import { PipelineExecution } from './PipelineEngine';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('StageGroupOrchestrator');
 
 /**
  * StageGroupOrchestrator — Multi-stage batch execution (Phase Group)

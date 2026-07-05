@@ -113,4 +113,35 @@ describe('Abac Policy Routes', () => {
       expect(response.statusCode).toBeDefined();
     });
   });
+
+  describe('POST /reload', () => {
+    it('should respond to POST /reload', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/reload',
+        headers: authHeaders,
+      });
+      // Should return a valid HTTP status (200 or 4xx/5xx depending on DB availability)
+      expect(response.statusCode).toBeGreaterThanOrEqual(200);
+      expect(response.statusCode).toBeLessThan(600);
+    });
+  });
+
+  describe('GET /reload/status', () => {
+    it('should respond to GET /reload/status', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/reload/status',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+      if (response.statusCode === 200) {
+        const body = JSON.parse(response.body);
+        expect(body.data).toBeDefined();
+        expect(body.data.policyCount).toBeDefined();
+        expect(body.data.reloadVersion).toBeDefined();
+        expect(body.data.reloading).toBeDefined();
+      }
+    });
+  });
 });

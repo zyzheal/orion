@@ -13,24 +13,20 @@
  * 持久化操作通过 repository 始终写入数据库。
  */
 
-import {
-  BuildLog,
-  LogEntry,
-  LogLevel,
-  LogStreamConfig,
-  BuildLogQueryOptions,
-  createBuildLog,
-  appendLogEntry,
-  appendLogEntries,
-  completeBuildLog,
-  createLogEntry,
-  parseLogLine,
-} from '../../models/BuildLog';
+import { OrionError, ErrorCode } from '../../errors';
 import { BuildLogRepository } from '../../repositories/BuildLogRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import {
+  LogLevel, LogEntry, BuildLog, LogStreamConfig, BuildLogQueryOptions,
+  createBuildLog, appendLogEntry, appendLogEntries, completeBuildLog,
+  createLogEntry, parseLogLine,
+} from '../../models/BuildLog';
 
-const logger = pino({ name: 'LBuild-LLog-LService' });
+const logger = createLogger('LBuild-LLog-LService');
+
+/** In-memory error log cache (holds recent errors for diagnostics) */
+const errorLogCache: Map<string, LogEntry[]> = new Map();
 
 /**
  * 日志订阅者（用于 WebSocket/SSE 推送）
@@ -55,7 +51,7 @@ export class BuildLogService {
 
   constructor(repository: BuildLogRepository) {
     if (!repository) {
-      throw new Error('BuildLogRepository is required for BuildLogService');
+      throw new OrionError('BuildLogRepository is required for BuildLogService', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repository;
     this.logs = new Map();

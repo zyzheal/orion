@@ -6,6 +6,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from '../BaseController';
 import { TicketService } from '../../../services/ticketing/TicketService';
 import { TicketingService, TicketingServiceError } from '../../../services/ticketing/TicketingService';
 import {
@@ -27,16 +28,12 @@ const VALID_RELATION_TYPES: TicketRelationType[] = [
   'duplicate', 'caused-by', 'related', 'blocks', 'blocked-by',
 ];
 
-/** Extract tenantId from authenticated request */
-function getTenantId(request: FastifyRequest): string {
-  return (request as any).user?.tenantId || (request.headers['x-tenant-id'] as string) || 'default';
-}
-
-export class TicketingController {
+export class TicketingController extends BaseController {
   private ticketService: TicketService;
   private ticketingService: TicketingService;
 
   constructor(ticketService: TicketService, ticketingService: TicketingService) {
+    super();
     this.ticketService = ticketService;
     this.ticketingService = ticketingService;
   }
@@ -98,7 +95,7 @@ export class TicketingController {
       }
 
       const input = {
-        tenant_id: getTenantId(request),
+        tenant_id: this.getTenantId(request),
         title,
         description,
         type: category,
@@ -210,7 +207,7 @@ export class TicketingController {
     try {
       const result = await this.ticketingService.listTickets({
         page, limit,
-        tenantId: getTenantId(request),
+        tenantId: this.getTenantId(request),
         status: query.status,
         assigneeId: query.assignee,
         priority: query.priority,

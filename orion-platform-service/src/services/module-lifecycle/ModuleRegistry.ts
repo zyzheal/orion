@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ModuleDescriptor,
   ModuleState,
@@ -7,7 +7,7 @@ import {
 import { OrionError, ErrorCode } from '../../errors';
 import { ModuleRegistryRepository } from '../../repositories/ModuleRegistryRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ModuleRegistry');
 
 export { ModuleDescriptor, ModuleState, DependencyValidationResult } from './types';
 

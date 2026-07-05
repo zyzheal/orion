@@ -29,7 +29,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'pipeline-batch-routes' });
+const logger = createLogger('pipeline-batch-routes');
 
 interface PipelineBatchRoutesOptions {
   database?: DatabasePool;

@@ -4,19 +4,12 @@
  * Real Azure SDK integration using @azure/arm-compute and @azure/arm-storage.
  */
 
-import {
-  CloudProviderClient,
-  ProviderResource,
-  ProviderSyncResult,
-  ProviderHealthStatus,
-  ProviderCostEntry,
-  CredentialValidationResult,
-  DEFAULT_RETRY_CONFIG,
-} from './CloudProviderClient';
-import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../../errors';
+import { createLogger } from '../../../utils/logger';
 import { DefaultAzureCredential } from '@azure/identity';
 import { ComputeManagementClient } from '@azure/arm-compute';
 import { StorageManagementClient } from '@azure/arm-storage';
+import { CloudProviderClient, ProviderResource, ProviderCostEntry, ProviderHealthStatus, CredentialValidationResult } from './CloudProviderClient';
 
 const logger = createLogger('azure-provider-client');
 
@@ -34,7 +27,7 @@ export class AzureProviderClient implements CloudProviderClient {
     this.subscriptionId = credentials.subscriptionId ?? credentials.subscription_id ?? '';
 
     if (!this.subscriptionId) {
-      throw new Error('Azure subscriptionId is required in credentials');
+      throw new OrionError('Azure subscriptionId is required in credentials', ErrorCode.VALIDATION_ERROR);
     }
 
     // Build Azure credential
@@ -80,7 +73,7 @@ export class AzureProviderClient implements CloudProviderClient {
       }
 
       // Use compute client to list VMs as a validation check
-      const result = await this.computeClient.virtualMachines.listAll({}, { maxPageSize: 1 });
+      const result = await this.computeClient.virtualMachines.listAll();
 
       return {
         valid: true,
@@ -130,7 +123,7 @@ export class AzureProviderClient implements CloudProviderClient {
 
   async discoverResources(resourceTypes?: string[]): Promise<ProviderResource[]> {
     if (!this.computeClient) {
-      throw new Error('Client not initialized - call initialize() first');
+      throw new OrionError('Client not initialized - call initialize() first', ErrorCode.UNAUTHORIZED);
     }
 
     const resources: ProviderResource[] = [];
@@ -175,7 +168,7 @@ export class AzureProviderClient implements CloudProviderClient {
 
   async getResource(providerResourceId: string): Promise<ProviderResource | null> {
     if (!this.computeClient) {
-      throw new Error('Client not initialized - call initialize() first');
+      throw new OrionError('Client not initialized - call initialize() first', ErrorCode.UNAUTHORIZED);
     }
 
     // Try as Virtual Machine
@@ -243,9 +236,9 @@ export class AzureProviderClient implements CloudProviderClient {
     const storageAccounts: ProviderResource[] = [];
 
     try {
-      const accounts = await this.storageClient.storageAccounts.list({}, { maxPageSize: 100 });
+      const accounts = await this.storageClient.storageAccounts.list();
 
-      for (const account of accounts) {
+      for await (const account of accounts) {
         if (!account.name) continue;
 
         const location = account.location || this.region;
@@ -321,8 +314,8 @@ export class AzureProviderClient implements CloudProviderClient {
       if (account) {
         const location = account.location || this.region;
         return {
-          id: account.name,
-          name: account.name,
+          id: account.name ?? '',
+          name: account.name ?? '',
           type: 'blob_storage',
           region: location,
           status: account.provisioningState === 'Succeeded' ? 'active' : 'provisioning',

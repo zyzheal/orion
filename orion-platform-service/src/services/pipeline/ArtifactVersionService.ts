@@ -9,12 +9,12 @@
  * - 循环引用保护（BFS 遍历检测）
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ArtifactVersionRepository } from '../../repositories/ArtifactVersionRepository';
 import { ArtifactVersion, ArtifactVersionCreateInput } from '../../models/ArtifactVersion';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'artifact-version-service' });
+const logger = createLogger('artifact-version-service');
 
 export interface VersionLineageResult {
   version: ArtifactVersion;

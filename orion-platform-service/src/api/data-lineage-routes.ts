@@ -8,11 +8,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DataLineageService } from '../services/data-lineage';
 import { DatabasePool } from '../services/database';
-import { handleError, OrionError, ErrorCode } from '../errors';
+import { handleError, OrionError, ErrorCode, ServiceUnavailableError, NotFoundError } from '../errors';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('data-lineage-routes');
 
 interface DataLineageRoutesOptions {
   database?: DatabasePool;
@@ -25,9 +25,10 @@ export default async function dataLineageRoutes(
   const pool = options.database;
   if (!pool) {
     logger.warn('[DataLineageRoutes] Database not available, routes will return 503');
+    return;
   }
 
-  const service = pool ? new DataLineageService(pool) : null;
+  const service = new DataLineageService(pool);
 
   // ---- Graph Endpoints ----
 
@@ -92,7 +93,7 @@ export default async function dataLineageRoutes(
       return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
       try {
         const tenantId = getCurrentTenantId();
-        const limit = request.query.limit ? parseInt(request.query.limit, 10) : 20;
+        const limit = request.query.limit ? parseInt(request.query.limit as string, 10) : 20;
         const history = await service.getLineageHistory(request.params.pipelineId, limit, tenantId);
         return reply.send({ success: true, data: history, total: history.length });
       } catch (error) {

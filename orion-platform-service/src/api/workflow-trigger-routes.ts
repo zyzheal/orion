@@ -25,7 +25,7 @@ import { createLogger } from '../utils/logger';
 
 import {  OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'workflow-trigger-routes' });
+const logger = createLogger('workflow-trigger-routes');
 import type {
   WorkflowTrigger,
   CreateWorkflowTriggerInput,

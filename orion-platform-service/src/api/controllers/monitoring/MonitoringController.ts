@@ -9,6 +9,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from '../BaseController';
 import {
   MonitoringService,
   MonitoringServiceError,
@@ -22,10 +23,11 @@ import {
 import { TimeWindow } from '../../../services/monitoring/MonitoringDashboard';
 import { WidgetConfig } from '../../../services/monitoring/MonitoringDashboard';
 
-export class MonitoringController {
+export class MonitoringController extends BaseController {
   private monitoringService: MonitoringService;
 
   constructor(monitoringService?: MonitoringService) {
+    super();
     if (monitoringService) {
       this.monitoringService = monitoringService;
     } else {
@@ -277,7 +279,7 @@ export class MonitoringController {
       // Try database-backed method, fall back to in-memory
       try {
         const rule = await this.monitoringService.createRule({
-          tenant_id: (body as any).tenant_id || 'default',
+          tenant_id: (body as any).tenant_id || this.getTenantId(request),
           name,
           metric,
           condition,
@@ -780,7 +782,7 @@ export class MonitoringController {
 
       try {
         const channel = await this.monitoringService.createChannel({
-          tenant_id: body.tenant_id || 'default',
+          tenant_id: body.tenant_id || this.getTenantId(request),
           name,
           type,
           config,
@@ -905,7 +907,7 @@ export class MonitoringController {
 
       try {
         const policy = await this.monitoringService.createPolicy({
-          tenant_id: body.tenant_id || 'default',
+          tenant_id: body.tenant_id || this.getTenantId(request),
           name,
           steps,
           repeat_count: repeatCount ?? 0,

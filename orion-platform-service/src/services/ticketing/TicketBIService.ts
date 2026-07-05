@@ -82,13 +82,13 @@ export class TicketBIService {
   /** Dispatch results */
   private dispatchResults: DispatchResult[] = [];
 
-  /** Transfer records - migrated to repository */
+  /** Transfer records - runtime cache */
   private transferRecordRepository?: BITransferRecordRepository;
-  private transferRecords: TransferRecord[] = []; // in-memory cache
+  private transferRecords: TransferRecord[] = []; // in-memory runtime cache
 
-  /** Comment records - migrated to repository */
+  /** Comment records - runtime cache */
   private commentRecordRepository?: BICommentRecordRepository;
-  private commentRecords: CommentRecord[] = []; // in-memory cache
+  private commentRecords: CommentRecord[] = []; // in-memory runtime cache
 
   /** Engineer profiles */
   private engineerProfiles: Map<string, EngineerProfile> = new Map();
@@ -97,33 +97,6 @@ export class TicketBIService {
     if (db) {
       this.transferRecordRepository = new BITransferRecordRepository(db);
       this.commentRecordRepository = new BICommentRecordRepository(db);
-    }
-  }
-
-  /**
-   * Load cached data from PostgreSQL on startup
-   */
-  async loadFromDb(): Promise<void> {
-    if (this.transferRecordRepository) {
-      const { entities } = await this.transferRecordRepository.findAll();
-      this.transferRecords = entities.map(e => ({
-        id: e.id,
-        ticketId: e.ticketId,
-        fromEngineer: e.fromEngineer,
-        toEngineer: e.toEngineer,
-        reason: e.reason ?? '',
-        transferredAt: e.transferredAt,
-        holdTimeMs: e.holdTimeMs ?? undefined,
-      }));
-    }
-    if (this.commentRecordRepository) {
-      const { entities } = await this.commentRecordRepository.findAll();
-      this.commentRecords = entities.map(e => ({
-        id: e.id,
-        ticketId: e.ticketId,
-        authorId: e.authorId,
-        createdAt: e.createdAt,
-      }));
     }
   }
 

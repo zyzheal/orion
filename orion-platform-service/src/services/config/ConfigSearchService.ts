@@ -8,9 +8,9 @@
  */
 
 import Fuse from 'fuse.js';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'ConfigSearch' });
+const logger = createLogger('ConfigSearch');
 
 // ==================== 配置元数据 ====================
 

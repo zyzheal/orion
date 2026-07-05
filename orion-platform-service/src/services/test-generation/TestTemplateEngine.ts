@@ -9,7 +9,7 @@
  * 5. JUnit (Java)
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { TestTemplateRepository } from '../../repositories/TestTemplateRepository';
 
 import {
@@ -22,7 +22,7 @@ import {
   ParameterInfo,
 } from './types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TestTemplateEngine');
 
 /**
  * 模板渲染上下文

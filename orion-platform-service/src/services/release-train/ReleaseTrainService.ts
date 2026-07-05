@@ -5,7 +5,7 @@
  * including creation, scheduling, execution, and cancellation.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ReleaseTrainRepository,
@@ -13,7 +13,7 @@ import {
 } from '../../repositories/ProductLineRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ReleaseTrainService');
 
 // ==================== Input Interfaces ====================
 

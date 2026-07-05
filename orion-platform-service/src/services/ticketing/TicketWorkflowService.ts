@@ -24,11 +24,11 @@ import {
 import { TicketWorkflowRepository, TicketSLARepository } from '../../repositories/TicketWorkflowRepository';
 import { AssignmentRuleRepository } from '../../repositories/AssignmentRuleRepository';
 import { TicketingRepository, TicketRecord } from './TicketingRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LTicket-LWorkflow-LService' });
+const logger = createLogger('LTicket-LWorkflow-LService');
 
 /**
  * Valid workflow transitions matrix
@@ -78,7 +78,7 @@ export class TicketWorkflowService {
   private slaRepository?: TicketSLARepository;
   private ticketingRepository: TicketingRepository;
 
-  /** In-memory cache for tickets (refreshed from DB) */
+  /** In-memory runtime cache (write-through, populated during operations) */
   private ticketsCache: Map<string, Ticket> = new Map();
 
   /** Escalation timer */
@@ -102,7 +102,7 @@ export class TicketWorkflowService {
   }
 
   /**
-   * Load cached data from PostgreSQL on startup
+   * Load assignment rules from PostgreSQL on startup
    */
   async loadFromDb(): Promise<void> {
     if (this.assignmentRuleRepository) {
@@ -116,12 +116,6 @@ export class TicketWorkflowService {
         enabled: e.enabled,
         order: e.ruleOrder,
       }));
-    }
-    // Load tickets into cache from TicketingRepository
-    const tickets = await this.ticketingRepository.findAll({ limit: 1000 });
-    this.ticketsCache.clear();
-    for (const ticket of tickets) {
-      this.ticketsCache.set(ticket.id, ticket as any);
     }
   }
 

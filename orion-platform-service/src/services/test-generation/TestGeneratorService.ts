@@ -28,10 +28,10 @@ import {
 import { ChangeAnalyzer } from './ChangeAnalyzer';
 import { TestTemplateEngine } from './TestTemplateEngine';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { TestGenerationHistoryRepository } from '../../repositories/TestGenerationHistoryRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TestGeneratorService');
 
 /**
  * AI Gateway 接口（可选注入）

@@ -18,11 +18,11 @@
  */
 
 import crypto from 'crypto';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('WechatWorkService');
 
 // WeChat Work API endpoints
 const WECHAT_API_BASE = 'https://qyapi.weixin.qq.com/cgi-bin';

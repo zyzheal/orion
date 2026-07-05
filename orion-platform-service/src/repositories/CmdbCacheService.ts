@@ -6,7 +6,7 @@
  */
 
 import Redis from 'ioredis';
-import { createLogger } from '../../utils/logger';
+import { createLogger } from '../utils/logger';
 
 const logger = createLogger('cmdb-cache');
 

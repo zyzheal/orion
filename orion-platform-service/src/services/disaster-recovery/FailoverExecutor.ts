@@ -1,8 +1,8 @@
 // orion-platform-service/src/services/disaster-recovery/FailoverExecutor.ts
 import { KubeConfig, CoreV1Api, NetworkingV1Api, AppsV1Api } from '@kubernetes/client-node';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('FailoverExecutor');
 
 export interface FailoverExecutorConfig {
   namespace: string;

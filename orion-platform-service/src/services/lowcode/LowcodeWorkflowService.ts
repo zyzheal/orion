@@ -10,7 +10,7 @@
  * - 保持对外公开接口不变
  */
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { LowcodeWorkflowDefinitionPgRepository, LowcodeWorkflowDefinitionEntity } from '../../repositories/LowcodeWorkflowDefinitionRepository';
 import { LowcodeWorkflowInstancePgRepository, LowcodeWorkflowInstanceEntity } from '../../repositories/LowcodeWorkflowInstanceRepository';
 import { LowcodeWorkflowVersionPgRepository, LowcodeWorkflowVersionEntity } from '../../repositories/LowcodeWorkflowVersionRepository';
@@ -334,7 +334,7 @@ export class LowcodeWorkflowService {
     // 先从 DB 查
     if (this.dbAvailable && this.defRepo) {
       try {
-        existing = await this.defRepo.findById(id);
+        existing = await this.defRepo.findById(id) ?? undefined;
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
         logger.warn({ error: msg, id }, 'DB query failed, falling back to memory');
@@ -395,6 +395,7 @@ export class LowcodeWorkflowService {
           nodes: newNodes,
           edges: newEdges,
         } as any);
+        if (!entity) throw new OrionError('Failed to update lowcode workflow', ErrorCode.OPERATION_FAILED);
         logger.info({ workflowId: id }, 'Workflow updated in DB');
         return this.mapEntityToWorkflow(entity);
       } catch (error) {

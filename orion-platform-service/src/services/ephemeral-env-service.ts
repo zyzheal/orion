@@ -27,7 +27,7 @@ import { DatabasePool } from './database';
 import { EphemeralEnvRepository } from './ephemeral-env/EphemeralEnvRepository';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ephemeral-env-service');
 
 // Cost rates per hour (MVP: simplified pricing)
 const COST_RATES = {

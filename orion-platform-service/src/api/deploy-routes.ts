@@ -10,11 +10,12 @@ import { DatabasePool } from '../services/database';
 import { DeployController } from './controllers/DeployController';
 import { SmartDeployService } from '../services/smart-deploy/SmartDeployService';
 import { DeployReleaseNotesService } from '../services/deploy/DeployReleaseNotesService';
+import { DeployGitIntegrationService } from '../services/deploy/DeployGitIntegrationService';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'deploy-routes' });
+const logger = createLogger('deploy-routes');
 
 interface DeployRoutesOptions {
   database?: DatabasePool;

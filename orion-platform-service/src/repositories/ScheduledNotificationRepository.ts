@@ -1,5 +1,5 @@
-import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { DatabasePool } from '../database';
+import { getCurrentTenantId } from '../db/tenant-context-storage';
+import { DatabasePool } from '../services/database';
 
 /**
  * ScheduledNotification - Database layer for scheduled notifications

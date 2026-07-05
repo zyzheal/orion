@@ -5,6 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import { DataQualityRuleRepository, DataQualityCheckRepository } from '../../repositories/DataQualityRepository';
 
 export interface QualityRule {
@@ -105,7 +106,7 @@ export class DataQualityService {
 
   async runCheck(ruleId: string): Promise<QualityCheck> {
     const rule = await this.ruleRepo.findById(ruleId);
-    if (!rule) throw new Error('Rule not found');
+    if (!rule) throw new OrionError('Rule not found', ErrorCode.NOT_FOUND);
 
     const checkEntity = await this.checkRepo.create({
       tenantId: rule.tenantId,

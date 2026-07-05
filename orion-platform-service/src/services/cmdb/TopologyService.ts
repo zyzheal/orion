@@ -5,7 +5,8 @@
  */
 
 import { CmdbService } from './CmdbService';
-import { CiType } from './CmdbTypes';
+import { CmdbTopologyRepository } from '../../api/repositories/CmdbTopologyRepository';
+import { CI, CIRelation, CiType } from './CmdbTypes';
 
 export interface TopologyNode {
   id: string;
@@ -40,79 +41,48 @@ export interface TopologyFilters {
 
 export class TopologyService {
   private cmdbService: CmdbService;
+  private topologyRepository: CmdbTopologyRepository;
 
-  constructor(cmdbService: CmdbService) {
+  constructor(
+    cmdbService: CmdbService,
+    topologyRepository?: CmdbTopologyRepository
+  ) {
     this.cmdbService = cmdbService;
+    this.topologyRepository = topologyRepository || new CmdbTopologyRepository(cmdbService as any);
   }
 
   /**
    * 获取拓扑图
+   *
+   * Optimization: Uses recursive CTE via CmdbTopologyRepository to avoid N+1 queries.
+   * - If rootCiId + depth provided: single recursive CTE query
+   * - Otherwise: batch-load all relations + CIs (2 queries instead of N+1)
    */
   async getTopology(filters: TopologyFilters): Promise<TopologyResponse> {
-    // 获取所有 CI
-    const cis = await this.cmdbService.listCIs({
-      tenantId: filters.tenantId,
-      ciType: filters.ciType,
-      limit: 1000,
-      offset: 0,
-    });
+    const tenantId = filters.tenantId;
 
-    // 构建节点
-    const nodes: TopologyNode[] = cis.data.map((ci) => ({
-      id: ci.id,
-      ciId: ci.ciId,
-      type: ci.ciType,
-      name: ci.name,
-      status: ci.status,
-      environment: ci.environment,
-      metadata: {
-        tags: ci.tags,
-        attributes: ci.attributes,
-      },
-    }));
-
-    // 构建边
-    const edges: TopologyEdge[] = [];
-    const edgeSet = new Set<string>();
-    const processedRelations = new Set<string>();
-
-    for (const ci of cis.data) {
-      const relations = await this.cmdbService.getCIRelations(ci.ciId);
-      for (const relation of relations) {
-        // 避免重复处理同一个关系
-        if (processedRelations.has(relation.id)) {
-          continue;
-        }
-        processedRelations.add(relation.id);
-
-        // 避免重复边
-        const edgeKey = `${relation.fromCiId}-${relation.toCiId}-${relation.relationType}`;
-        if (edgeSet.has(edgeKey)) {
-          continue;
-        }
-        edgeSet.add(edgeKey);
-
-        edges.push({
-          id: relation.id,
-          source: relation.fromCiId,
-          target: relation.toCiId,
-          type: relation.relationType,
-          description: relation.description,
-          metadata: {},
-        });
-      }
-    }
-
-    // 如果指定了 rootCiId，进行广度优先搜索限制深度
+    // Use recursive CTE when root CI and depth are specified
     if (filters.rootCiId && filters.depth !== undefined) {
-      return this.filterTopologyByDepth(nodes, edges, filters.rootCiId, filters.depth);
+      const { nodes, edges } = await this.topologyRepository.loadTopology(
+        tenantId,
+        filters.rootCiId,
+        filters.depth
+      );
+      return { nodes, edges };
     }
+
+    // Full-graph topology: batch load all relations + CIs (no N+1)
+    const { nodes, edges } = await this.topologyRepository.loadAllTopology(
+      tenantId,
+      filters.ciType
+    );
 
     return { nodes, edges };
   }
 
   /**
-   * 按深度过滤拓扑
+   * 按深度过滤拓扑（BFS）
+   * @deprecated Use loadTopology with rootCiId instead for better performance
    */
   private filterTopologyByDepth(
     nodes: TopologyNode[],
@@ -124,12 +94,10 @@ export class TopologyService {
     const filteredNodes = new Set<string>();
     const filteredEdges: TopologyEdge[] = [];
 
-    // 构建节点映射
     for (const node of nodes) {
       nodeMap.set(node.ciId, node);
     }
 
-    // 构建邻接表
     const adjacencyList = new Map<string, { ciId: string; edge: TopologyEdge }[]>();
     for (const edge of edges) {
       if (!adjacencyList.has(edge.source)) {
@@ -142,7 +110,6 @@ export class TopologyService {
       adjacencyList.get(edge.target)!.push({ ciId: edge.source, edge: { ...edge, source: edge.target, target: edge.source } });
     }
 
-    // BFS
     const queue: Array<{ ciId: string; depth: number }> = [{ ciId: rootCiId, depth: 0 }];
     const visited = new Set<string>();
 
@@ -161,7 +128,6 @@ export class TopologyService {
         for (const { ciId: neighborCiId, edge } of neighbors) {
           if (!visited.has(neighborCiId)) {
             queue.push({ ciId: neighborCiId, depth: depth + 1 });
-            // 添加边（避免重复）
             if (!filteredEdges.find(e => e.id === edge.id)) {
               filteredEdges.push(edge);
             }
@@ -170,7 +136,6 @@ export class TopologyService {
       }
     }
 
-    // 过滤节点
     const resultNodes = nodes.filter(node => filteredNodes.has(node.ciId));
 
     return {
@@ -180,70 +145,43 @@ export class TopologyService {
   }
 
   /**
-   * 获取服务依赖链
+   * 获取服务依赖链（下游依赖）
+   * Uses recursive CTE for efficient tree traversal (no N+1).
    */
-  async getServiceDependencies(ciId: string): Promise<TopologyResponse> {
-    const ci = await this.cmdbService.getCIByCiId(ciId);
+  async getServiceDependencies(
+    tenantId: bigint,
+    ciId: string,
+    depth: number = 10
+  ): Promise<TopologyResponse> {
+    const ci = await this.cmdbService.getCIByCiId(ciId, tenantId);
     if (!ci) {
       return { nodes: [], edges: [] };
     }
 
-    const nodes: TopologyNode[] = [];
-    const edges: TopologyEdge[] = [];
-    const visited = new Set<string>();
-
-    // 递归获取依赖
-    const collectDependencies = async (currentCiId: string, depth: number = 0) => {
-      if (depth > 10 || visited.has(currentCiId)) {
-        return;
-      }
-      visited.add(currentCiId);
-
-      const currentCI = await this.cmdbService.getCIByCiId(currentCiId);
-      if (!currentCI) {
-        return;
-      }
-
-      nodes.push({
-        id: currentCI.id,
-        ciId: currentCI.ciId,
-        type: currentCI.ciType,
-        name: currentCI.name,
-        status: currentCI.status,
-        environment: currentCI.environment,
-      });
-
-      const relations = await this.cmdbService.getCIRelations(currentCiId);
-      for (const relation of relations) {
-        const isOutgoing = relation.fromCiId === currentCiId;
-        const targetCiId = isOutgoing ? relation.toCiId : relation.fromCiId;
-
-        edges.push({
-          id: relation.id,
-          source: relation.fromCiId,
-          target: relation.toCiId,
-          type: relation.relationType,
-          description: relation.description,
-        });
-
-        await collectDependencies(targetCiId, depth + 1);
-      }
-    };
-
-    await collectDependencies(ciId);
+    // Use recursive CTE to load full dependency tree in one query
+    const { nodes, edges } = await this.topologyRepository.loadTopology(
+      tenantId,
+      ciId,
+      depth
+    );
 
     return { nodes, edges };
   }
 
   /**
-   * 影响分析（故障传播路径）
+   * 影响分析（故障传播路径 - 上游依赖）
+   * Uses recursive CTE to find all CIs that depend on the given CI.
    */
-  async getImpactAnalysis(ciId: string): Promise<{
+  async getImpactAnalysis(
+    tenantId: bigint,
+    ciId: string,
+    depth: number = 10
+  ): Promise<{
     affectedNodes: TopologyNode[];
     affectedEdges: TopologyEdge[];
     impactLevel: 'critical' | 'high' | 'medium' | 'low';
   }> {
-    const ci = await this.cmdbService.getCIByCiId(ciId);
+    const ci = await this.cmdbService.getCIByCiId(ciId, tenantId);
     if (!ci) {
       return {
         affectedNodes: [],
@@ -252,45 +190,24 @@ export class TopologyService {
       };
     }
 
-    // 获取所有依赖该资源的节点
-    const affectedNodes: TopologyNode[] = [];
-    const affectedEdges: TopologyEdge[] = [];
-    const visited = new Set<string>();
+    // Use recursive CTE to find affected CIs and edges in one query
+    const { cis, edges } = await this.topologyRepository.findAffectedCIsWithEdges(
+      tenantId,
+      ciId,
+      depth
+    );
 
-    const collectDependents = async (currentCiId: string) => {
-      if (visited.has(currentCiId)) {
-        return;
-      }
-      visited.add(currentCiId);
+    const affectedNodes: TopologyNode[] = cis.map(ci => ({
+      id: ci.id,
+      ciId: ci.ciId,
+      type: ci.ciType,
+      name: ci.name,
+      status: ci.status,
+      environment: ci.environment,
+      metadata: { tags: ci.tags, attributes: ci.attributes },
+    }));
 
-      const relations = await this.cmdbService.getCIRelations(currentCiId);
-      for (const relation of relations) {
-        // 查找指向当前节点的关系（谁依赖我）
-        if (relation.toCiId === currentCiId) {
-          const sourceCI = await this.cmdbService.getCIByCiId(relation.fromCiId);
-          if (sourceCI) {
-            affectedNodes.push({
-              id: sourceCI.id,
-              ciId: sourceCI.ciId,
-              type: sourceCI.ciType,
-              name: sourceCI.name,
-              status: sourceCI.status,
-            });
-            affectedEdges.push({
-              id: relation.id,
-              source: relation.fromCiId,
-              target: relation.toCiId,
-              type: relation.relationType,
-            });
-            await collectDependents(relation.fromCiId);
-          }
-        }
-      }
-    };
-
-    await collectDependents(ciId);
-
-    // 计算影响级别
+    // Calculate impact level
     let impactLevel: 'critical' | 'high' | 'medium' | 'low' = 'low';
     if (affectedNodes.length >= 10) {
       impactLevel = 'critical';
@@ -302,7 +219,7 @@ export class TopologyService {
 
     return {
       affectedNodes,
-      affectedEdges,
+      affectedEdges: edges,
       impactLevel,
     };
   }

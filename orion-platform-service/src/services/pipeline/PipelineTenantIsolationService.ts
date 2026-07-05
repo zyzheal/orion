@@ -10,11 +10,11 @@
  * - Enforce tenant-scoped filtering for list/get operations
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { PipelineService } from './PipelineService';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineTenantIsolationService');
 
 export class PipelineTenantIsolationService {
   private pipelineService: PipelineService | null;

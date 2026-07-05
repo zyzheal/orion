@@ -133,13 +133,13 @@ export class ServiceRegistryRepository extends BaseRepository<ServiceRegistryEnt
   /**
    * Find service by internal id (within current tenant).
    */
-  async findById(id: string): Promise<ServiceRegistryEntity | undefined> {
+  async findById(id: string): Promise<ServiceRegistryEntity | null> {
     const tenantId = this.getTenantId();
     const result = await this.db.query(
       `SELECT * FROM service_registry WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -217,6 +217,19 @@ export class ServiceRegistryRepository extends BaseRepository<ServiceRegistryEnt
       [effectiveTenantId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /**
+   * Record a heartbeat for a service (updates last_heartbeat_at without changing health_status).
+   */
+  async recordHeartbeat(serviceId: string): Promise<void> {
+    const tenantId = this.getTenantId();
+    await this.db.query(
+      `UPDATE service_registry
+       SET last_heartbeat_at = NOW(), updated_at = NOW()
+       WHERE service_id = $1 AND tenant_id = $2`,
+      [serviceId, tenantId],
+    );
   }
 
   // ==================== Metadata ====================

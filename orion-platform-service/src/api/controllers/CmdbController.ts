@@ -391,7 +391,8 @@ export class CmdbController {
     try {
       const params = request.params as any;
       const { id } = params;
-      const deleted = await this.cmdbService.deleteRelation(id);
+      const tenantId = BigInt(request.headers['x-tenant-id'] as string || '1');
+      const deleted = await this.cmdbService.deleteRelation(id, tenantId);
 
       if (!deleted) {
         await reply.status(404).send({

@@ -9,7 +9,7 @@
  * - Search result ranking and filtering
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
 import { KnowledgeEmbeddingRepository } from '../../repositories/KnowledgeEmbeddingRepository';
 import {
@@ -21,7 +21,7 @@ import {
 } from './vector-types';
 import { CodeEmbeddingService } from './CodeEmbeddingService';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SemanticSearchService');
 
 export class SemanticSearchService {
   private codeRepository: CodeEmbeddingRepository;

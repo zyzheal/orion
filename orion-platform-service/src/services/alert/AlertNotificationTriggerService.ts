@@ -10,11 +10,37 @@
  */
 
 import { createLogger } from '../../utils/logger';
-import { Alert, AlertSeverity } from './AlertTypes';
+import type { Alert as MonitoringAlert, AlertSeverity } from '../monitoring/types';
 import { AlertNotificationService } from '../monitoring/AlertNotificationService';
 import { AlertDeduplication } from './AlertDeduplication';
 
 const logger = createLogger('alert-notification-trigger');
+
+// Local Alert type matching what this service accesses (alert module model)
+export interface Alert {
+  id: string;
+  fingerprint: string;
+  name: string;
+  severity: AlertSeverity;
+  status: string;
+  metric: string;
+  value: number;
+  threshold: number;
+  startsAt: Date;
+  message?: string;
+  sourceName?: string;
+  tenantId: string;
+}
+
+// Adapter: convert local Alert → MonitoringAlert for sendNotification
+function toMonitoringAlert(alert: Alert): MonitoringAlert {
+  return {
+    ...alert,
+    ruleId: alert.id,
+    triggeredAt: alert.startsAt,
+    severity: alert.severity,
+  } as MonitoringAlert;
+}
 
 /**
  * 通知渠道配置
@@ -180,7 +206,7 @@ export class AlertNotificationTriggerService {
 
     // 调用底层通知服务发送
     try {
-      const records = await this.notificationService.sendNotification(alert, [channelId]);
+      const records = await this.notificationService.sendNotification(toMonitoringAlert(alert), [channelId]);
       logger.info(
         { alertId: alert.id, channelId, status: records[0]?.status },
         '[AlertNotificationTrigger] Channel dispatch completed'
@@ -213,7 +239,7 @@ export class AlertNotificationTriggerService {
       'alert.status': alert.status,
       'alert.startsAt': alert.startsAt.toISOString(),
       'alert.message': alert.message || '',
-      'alert.sourceName': alert.sourceName,
+      'alert.sourceName': alert.sourceName || '',
       'alert.tenantId': alert.tenantId,
     };
 

@@ -13,7 +13,7 @@
  * - 缓存命中时 < 1ms，目标命中率 > 80%
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { RoleService } from '../role/RoleService';
 import { TeamService } from '../team/TeamService';
 import { CapabilityService } from '../capability/CapabilityService';
@@ -83,7 +83,7 @@ export interface AuthZDecision {
   fromCache?: boolean;
 }
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AuthorizationEngine');
 
 export class AuthorizationEngine {
   private permissionCache: PermissionCache | null = null;

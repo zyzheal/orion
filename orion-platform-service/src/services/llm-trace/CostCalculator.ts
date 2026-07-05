@@ -11,9 +11,9 @@
 import { MODEL_PRICING } from './LLMTraceService';
 import { ModelPricingRepository } from '../../repositories/ModelPricingRepository';
 import { OrionError, ErrorCode } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CostCalculator');
 
 export interface CostBreakdown {
   inputCost: number;

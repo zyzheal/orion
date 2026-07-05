@@ -14,12 +14,12 @@ import { EventEmitter } from 'events';
 import { PluginLifecycleManager, ActivationHook, DeactivationHook } from './PluginLifecycleManager';
 import { PluginRegistry } from './PluginRegistry';
 import { PluginManifest, PluginInfo } from './types';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PluginVersionSnapshotRepository } from '../../repositories/PluginVersionSnapshotRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginHotReloadService');
 
 export interface HotReloadConfig {
   watchPaths: string[]; // 插件目录路径
@@ -85,7 +85,7 @@ export class PluginHotReloadService extends EventEmitter {
     config: Partial<HotReloadConfig> = {},
   ) {
     super();
-    if (!snapshotRepository) throw new Error('PluginVersionSnapshotRepository is required');
+    if (!snapshotRepository) throw new OrionError('PluginVersionSnapshotRepository is required', ErrorCode.INTERNAL_ERROR);
     this.lifecycleManager = lifecycleManager;
     this.registry = registry;
     this.snapshotRepository = snapshotRepository;

@@ -15,6 +15,7 @@ import {
 import { BudgetRepository, BudgetEntity } from '../../repositories/BudgetRepository';
 import { BudgetSpendRepository } from '../../repositories/BudgetSpendRepository';
 import { BudgetAlertTriggerRepository } from '../../repositories/BudgetAlertTriggerRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * 预算状态
@@ -183,6 +184,9 @@ export class BudgetService {
     }
 
     const updated = await this.budgetRepo.update(budgetId, updates);
+    if (!updated) {
+      throw new OrionError(`Budget not found: ${budgetId}`, ErrorCode.NOT_FOUND);
+    }
 
     return {
       id: updated.id,

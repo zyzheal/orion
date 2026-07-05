@@ -1,10 +1,10 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { spawn } from 'child_process';
-import { OrionError } from '../../errors';
+import { OrionError, ErrorCode } from '../../errors';
 import { ProcessRegistryRepository } from '../../repositories/ProcessRegistryRepository';
 import { v4 as uuidv4 } from 'uuid';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProcessKiller');
 
 interface ProcessInfo {
   taskId: string;
@@ -18,7 +18,7 @@ export class ProcessKiller {
 
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (!db) {
-      throw new Error('ProcessKiller requires a database connection');
+      throw new OrionError('ProcessKiller requires a database connection', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = new ProcessRegistryRepository(db);
   }

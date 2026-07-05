@@ -14,11 +14,11 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { AutoRecoveryRecordRepository } from '../../repositories/AutoRecoveryRecordRepository';
 import { DegradedStateRepository } from '../../repositories/DegradedStateRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AutoRecoveryService');
 
 export interface AutoRecoveryConfig {
   recoveryCheckInterval: number;   // 检查间隔，默认 30 秒

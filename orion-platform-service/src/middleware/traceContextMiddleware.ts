@@ -26,7 +26,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { TracingService, TraceContext } from '../services/monitoring/TracingService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('traceContextMiddleware');
 
 export interface TraceContextMiddlewareOptions {
   /** Header name for trace context (default: traceparent) */

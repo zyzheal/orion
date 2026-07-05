@@ -4,7 +4,7 @@
  * 职责：
  * - 处理 pipeline.run.completed 事件
  * - 处理 deployment.completed/failed 事件
- * - 记录事件到本地存储
+ * - 记录事件到 PostgreSQL（EfficiencyPipelineRecordRepository / EfficiencyDeploymentRecordRepository）
  * - 触发 ClickHouse 同步
  */
 
@@ -32,10 +32,10 @@ import {
   EfficiencyDeploymentRecordRepository,
   EfficiencyDeploymentRecordEntity,
 } from '../../repositories/EfficiencyDeploymentRecordRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LEvent-LHandler' });
+const logger = createLogger('LEvent-LHandler');
 
 /**
  * 效能事件处理器配置
@@ -53,12 +53,12 @@ export interface EfficiencyEventHandlerConfig {
   consumerGroup?: string;
   /** 自动同步间隔（毫秒，0 表示手动同步） */
   autoSyncInterval?: number;
-  /** PostgreSQL 数据库连接（可选，用于持久化） */
-  db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
+  /** PostgreSQL 数据库连接（必填，用于持久化） */
+  db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };
 }
 
 /**
- * 本地存储接口（可扩展为 Redis 或 DB）
+ * 本地存储接口（抽象层，PostgresLocalStorage 为唯一实现）
  */
 export interface LocalStorage {
   /** 保存 Pipeline 完成记录 */
@@ -80,74 +80,8 @@ export interface LocalStorage {
 }
 
 /**
- * 内存本地存储实现
- */
-export class InMemoryLocalStorage implements LocalStorage {
-  private pipelineRecords: Map<string, PipelineCompletionRecord> = new Map();
-  private deploymentRecords: Map<string, DeploymentRecord> = new Map();
-
-  async savePipelineRecord(record: PipelineCompletionRecord): Promise<void> {
-    this.pipelineRecords.set(record.id, record);
-  }
-
-  async getPipelineRecords(filter?: { tenantId?: string; since?: Date }): Promise<PipelineCompletionRecord[]> {
-    let records = Array.from(this.pipelineRecords.values());
-    if (filter?.tenantId) {
-      records = records.filter((r) => r.tenantId === filter.tenantId);
-    }
-    if (filter?.since) {
-      records = records.filter((r) => r.completedAt >= filter.since!);
-    }
-    return records;
-  }
-
-  async getUnsyncedPipelineRecords(limit: number = 100): Promise<PipelineCompletionRecord[]> {
-    return Array.from(this.pipelineRecords.values())
-      .filter((r) => !r.syncedToClickHouse)
-      .slice(0, limit);
-  }
-
-  async saveDeploymentRecord(record: DeploymentRecord): Promise<void> {
-    this.deploymentRecords.set(record.id, record);
-  }
-
-  async getDeploymentRecords(filter?: { tenantId?: string; since?: Date }): Promise<DeploymentRecord[]> {
-    let records = Array.from(this.deploymentRecords.values());
-    if (filter?.tenantId) {
-      records = records.filter((r) => r.tenantId === filter.tenantId);
-    }
-    if (filter?.since) {
-      records = records.filter((r) => r.deployedAt >= filter.since!);
-    }
-    return records;
-  }
-
-  async getUnsyncedDeploymentRecords(limit: number = 100): Promise<DeploymentRecord[]> {
-    return Array.from(this.deploymentRecords.values())
-      .filter((r) => !r.syncedToClickHouse)
-      .slice(0, limit);
-  }
-
-  async markPipelineSynced(id: string): Promise<void> {
-    const record = this.pipelineRecords.get(id);
-    if (record) {
-      record.syncedToClickHouse = true;
-      record.syncedAt = new Date();
-    }
-  }
-
-  async markDeploymentSynced(id: string): Promise<void> {
-    const record = this.deploymentRecords.get(id);
-    if (record) {
-      record.syncedToClickHouse = true;
-      record.syncedAt = new Date();
-    }
-  }
-}
-
-/**
- * PostgreSQL 本地存储实现
- * 替换 InMemoryLocalStorage，使用 PostgreSQL 持久化
+ * PostgreSQL 存储实现 — 唯一持久化数据存储
+ * 使用 EfficiencyPipelineRecordRepository / EfficiencyDeploymentRecordRepository
  */
 export class PostgresLocalStorage implements LocalStorage {
   private pipelineRepo: EfficiencyPipelineRecordRepository;
@@ -286,9 +220,7 @@ export class EfficiencyEventHandler {
     this.eventBus = config.eventBus;
     this.doraMetricsService = config.doraMetricsService;
     this.clickHouseSync = config.clickHouseSync;
-    this.localStorage = config.db
-      ? new PostgresLocalStorage(config.db)
-      : new InMemoryLocalStorage();
+    this.localStorage = new PostgresLocalStorage(config.db);
     this.streamName = config.streamName || 'orion-platform-stream';
     this.consumerGroup = config.consumerGroup || 'efficiency-consumers';
     this.autoSyncInterval = config.autoSyncInterval;
@@ -374,7 +306,7 @@ export class EfficiencyEventHandler {
       syncedToClickHouse: false,
     };
 
-    // 保存到本地存储
+    // 保存到 PostgreSQL
     await this.localStorage.savePipelineRecord(record);
 
     // 触发 ClickHouse 同步
@@ -509,7 +441,7 @@ export class EfficiencyEventHandler {
    */
   private async syncToClickHouse(): Promise<void> {
     if (!this.clickHouseSync) {
-      return; // 没有配置 ClickHouse，降级到本地存储
+      return; // 没有配置 ClickHouse，降级到 PostgreSQL
     }
 
     try {
@@ -532,7 +464,7 @@ export class EfficiencyEventHandler {
       }
     } catch (error) {
       logger.error('[EfficiencyEventHandler] Failed to sync to ClickHouse:', error);
-      // 降级到本地存储，不抛出错误
+      // 降级到 PostgreSQL，不抛出错误
     }
   }
 

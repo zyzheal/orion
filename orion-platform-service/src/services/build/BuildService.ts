@@ -4,9 +4,9 @@
  * Handles build environment and build record management
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LBuild-LService' });
+const logger = createLogger('LBuild-LService');
 import {
   BuildRepository,
   Build,

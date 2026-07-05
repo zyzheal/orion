@@ -10,7 +10,7 @@
  * - getRiskDashboard: Aggregate risk analytics for a tenant
  */
 
-import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import { RiskRepository } from './RiskRepository';
 import {
   RiskEntity,
@@ -23,6 +23,7 @@ import {
   RiskMitigation,
   RiskRule,
   RiskRuleCondition,
+  RuleOperator,
   RiskEngineContext,
   RiskIdentificationResult,
   RiskAssessInput,
@@ -31,7 +32,7 @@ import {
   RiskTrendPoint,
   CreateMitigationInput,
   MitigationActionType,
-  RULE_OPERATOR_LABELS,
+  MitigationStatus,
 } from './types';
 import { createLogger } from '../../utils/logger';
 
@@ -52,7 +53,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.SECURITY,
     condition: {
       field: 'hasSecurityVulnerabilities',
-      operator: 'equals',
+      operator: RuleOperator.EQUALS,
       value: true,
     },
     weight: 0.9,
@@ -69,7 +70,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.COMPLIANCE,
     condition: {
       field: 'complianceGaps',
-      operator: 'greater_than',
+      operator: RuleOperator.GREATER_THAN,
       value: 0,
     },
     weight: 0.8,
@@ -86,7 +87,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.TECHNICAL,
     condition: {
       field: 'outdatedDependencyCount',
-      operator: 'greater_than',
+      operator: RuleOperator.GREATER_THAN,
       value: 5,
     },
     weight: 0.5,
@@ -103,7 +104,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.OPERATIONAL,
     condition: {
       field: 'hasBackupPlan',
-      operator: 'equals',
+      operator: RuleOperator.EQUALS,
       value: false,
     },
     weight: 0.7,
@@ -120,7 +121,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.OPERATIONAL,
     condition: {
       field: 'trafficSpike',
-      operator: 'greater_than',
+      operator: RuleOperator.GREATER_THAN,
       value: 200,
     },
     weight: 0.6,
@@ -137,7 +138,7 @@ const DEFAULT_RULES: RiskRule[] = [
     category: RiskCategory.SECURITY,
     condition: {
       field: 'failedLoginCount',
-      operator: 'greater_than',
+      operator: RuleOperator.GREATER_THAN,
       value: 10,
     },
     weight: 0.85,
@@ -243,7 +244,7 @@ export class RiskService {
     const risk = await this.repository.findById(input.riskId, '');
     if (!risk) {
       // tenantId is not used in the simplified call path; callers should use repository directly
-      throw new Error(`Risk not found: ${input.riskId}`);
+      throw new OrionError(`Risk not found: ${input.riskId}`, ErrorCode.NOT_FOUND);
     }
 
     const previousScore = risk.score;
@@ -253,7 +254,7 @@ export class RiskService {
     const newScore = input.customScore ?? this.calculateScoreFromFindings(risk.findings);
     const newLevel = this.scoreToLevel(newScore);
 
-    const updated = await this.repository.update(risk.id, risk.tenantId, {
+    const updated = await this.repository.updateRisk(risk.id, risk.tenantId, {
       riskLevel: newLevel,
       score: newScore,
       status: RiskStatus.ASSESSED,
@@ -295,13 +296,14 @@ export class RiskService {
   async createMitigation(input: CreateMitigationInput): Promise<RiskEntity> {
     const risk = await this.repository.findById(input.riskId, '');
     if (!risk) {
-      throw new Error(`Risk not found: ${input.riskId}`);
+      throw new OrionError(`Risk not found: ${input.riskId}`, ErrorCode.NOT_FOUND);
     }
 
     const result = await this.repository.createMitigation(
       risk.id,
       risk.tenantId,
       {
+        riskId: risk.id,
         plan: input.plan,
         actions: input.actions,
         priority: input.priority,
@@ -331,7 +333,7 @@ export class RiskService {
   ): Promise<RiskEntity> {
     const risk = await this.repository.findById(riskId, tenantId);
     if (!risk) {
-      throw new Error(`Risk not found: ${riskId}`);
+      throw new OrionError(`Risk not found: ${riskId}`, ErrorCode.NOT_FOUND);
     }
 
     const updatedMitigations = risk.mitigations.map((m) => {
@@ -356,14 +358,14 @@ export class RiskService {
     if (updatedMitigation) {
       const allCompleted = updatedMitigation.actions.every((a) => a.status === 'completed');
       if (allCompleted && status === 'completed') {
-        updatedMitigation.status = 'completed';
+        updatedMitigation.status = MitigationStatus.COMPLETED;
         updatedMitigation.completedAt = new Date();
       } else if (status === 'in_progress') {
-        updatedMitigation.status = 'in_progress';
+        updatedMitigation.status = MitigationStatus.IN_PROGRESS;
       }
     }
 
-    return this.repository.update(riskId, tenantId, { mitigations: updatedMitigations });
+    return this.repository.updateRisk(riskId, tenantId, { mitigations: updatedMitigations } as any);
   }
 
   // ==================== Dashboard ====================
@@ -423,7 +425,7 @@ export class RiskService {
    * Get a risk by ID within a tenant.
    */
   async getRisk(id: string, tenantId: string): Promise<RiskEntity | undefined> {
-    return this.repository.findById(id, tenantId);
+    return await this.repository.findById(id, tenantId) ?? undefined;
   }
 
   /**

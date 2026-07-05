@@ -11,12 +11,12 @@
  * Dual-path: repository is primary, Map is fallback when DB unavailable.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { randomUUID } from 'crypto';
 import { DatabasePool } from '../database';
 import { KnownIssueRepository, KnownIssueEntity } from '../../repositories/KnownIssueRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('KnownIssueService');
 
 // ==================== Types ====================
 

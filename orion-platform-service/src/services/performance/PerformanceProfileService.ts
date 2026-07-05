@@ -6,9 +6,9 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LPerformance-LProfile-LService' });
+const logger = createLogger('LPerformance-LProfile-LService');
 import {
   PerformanceProfileRepository,
   PerformanceProfileEntity,

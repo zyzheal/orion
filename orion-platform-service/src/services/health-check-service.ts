@@ -13,11 +13,11 @@
  */
 
 import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode } from '../errors';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
-import { K8sApi } from '@kubernetes/client-node';
 
-const logger = pino({ name: 'HealthCheckService' });
+const logger = createLogger('HealthCheckService');
 
 // ==================== Types ====================
 
@@ -126,7 +126,7 @@ export interface ExecuteCheckOptions {
 export class HealthCheckService {
   private checks: Map<string, CheckDefinition> = new Map();
   private executionTimers: Map<string, NodeJS.Timeout> = new Map();
-  private k8sApiCache: K8sApi | null = null;
+  private k8sApiCache: any = null;
 
   constructor() {}
 
@@ -192,7 +192,7 @@ export class HealthCheckService {
   async executeCheck(id: string, options?: ExecuteCheckOptions): Promise<CheckExecutionResult> {
     const check = this.checks.get(id);
     if (!check) {
-      throw new Error(`Health check not found: ${id}`);
+      throw new OrionError(`Health check not found: ${id}`, ErrorCode.NOT_FOUND);
     }
 
     if (!check.enabled) {
@@ -443,17 +443,17 @@ export class HealthCheckService {
 
     try {
       // Get or create K8s API instance
-      const kc = kubeconfig ? new K8sApi({ config: kubeconfig }) : this.getK8sApi();
+      const kc = kubeconfig ? new (require('@kubernetes/client-node').KubeConfig)({ config: kubeconfig }) : this.getK8sApi();
       const k8sApi = kc.makeApiClient(kc.getCoreApi());
 
       // Check cluster health by getting nodes
       const nodesResponse = await k8sApi.listNode();
       const latencyMs = Date.now() - startTime;
 
-      const totalNodes = nodesResponse.body.items?.length ?? 0;
-      const readyNodes = nodesResponse.body.items?.filter(node => {
+      const totalNodes = nodesResponse.items?.length ?? 0;
+      const readyNodes = nodesResponse.items?.filter((node: any) => {
         const conditions = node.status?.conditions || [];
-        return conditions.some(c => c.type === 'Ready' && c.status === 'True');
+        return conditions.some((c: any) => c.type === 'Ready' && c.status === 'True');
       }).length ?? 0;
 
       if (totalNodes === 0) {
@@ -551,7 +551,7 @@ export class HealthCheckService {
         break;
       }
       default:
-        throw new Error(`Unsupported check type: ${(check.config as any).type}`);
+        throw new OrionError(`Unsupported check type: ${(check.config as any).type}`, ErrorCode.INTERNAL_ERROR);
     }
 
     return {
@@ -565,9 +565,9 @@ export class HealthCheckService {
   /**
    * Get or create Kubernetes API instance
    */
-  private getK8sApi(): K8sApi {
+  private getK8sApi(): any {
     if (!this.k8sApiCache) {
-      this.k8sApiCache = new K8sApi();
+      this.k8sApiCache = new (require('@kubernetes/client-node').KubeConfig)().makeApiClient(require('@kubernetes/client-node').CoreApi());
     }
     return this.k8sApiCache;
   }

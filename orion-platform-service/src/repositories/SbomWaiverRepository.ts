@@ -11,6 +11,7 @@ export interface SbomWaiverEntity {
   expiresAt: Date;
   scope: string | null;
   scopeTarget: string | null;
+  tenantId: string | null;
 }
 
 export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
@@ -19,23 +20,28 @@ export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
   }
 
   async findByCveId(cveId: string): Promise<SbomWaiverEntity[]> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `SELECT * FROM sbom_waivers WHERE cve_id = $1 ORDER BY approved_at DESC`,
-      [cveId],
+      'SELECT * FROM sbom_waivers WHERE cve_id = $1 AND tenant_id = $2 ORDER BY approved_at DESC',
+      [cveId, tenantId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   async findExpired(): Promise<SbomWaiverEntity[]> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `SELECT * FROM sbom_waivers WHERE expires_at < NOW() ORDER BY expires_at ASC`,
+      'SELECT * FROM sbom_waivers WHERE expires_at < NOW() AND tenant_id = $1 ORDER BY expires_at ASC',
+      [tenantId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
   async findActive(): Promise<SbomWaiverEntity[]> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
-      `SELECT * FROM sbom_waivers WHERE expires_at > NOW() ORDER BY expires_at ASC`,
+      'SELECT * FROM sbom_waivers WHERE expires_at > NOW() AND tenant_id = $1 ORDER BY expires_at ASC',
+      [tenantId],
     );
     return result.rows.map(row => this.mapRowToEntity(row));
   }
@@ -52,6 +58,7 @@ export class SbomWaiverRepository extends BaseRepository<SbomWaiverEntity> {
       expiresAt: row.expires_at,
       scope: row.scope,
       scopeTarget: row.scope_target,
+      tenantId: row.tenant_id,
     };
   }
 }

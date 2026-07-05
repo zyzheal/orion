@@ -13,11 +13,12 @@
  */
 
 import { EventEmitter } from 'events';
+import { OrionError, ErrorCode } from '../../errors';
 import { TenantQuotaRepository, TenantQuotaEntity } from '../../repositories/TenantQuotaRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'TenantQuotaService' });
+const logger = createLogger('TenantQuotaService');
 
 export interface TenantQuota {
   tenantId: number;
@@ -95,7 +96,7 @@ export class TenantQuotaService extends EventEmitter {
 
   constructor(repository: TenantQuotaRepository) {
     super();
-    if (!repository) throw new Error('TenantQuotaRepository is required');
+    if (!repository) throw new OrionError('TenantQuotaRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = repository;
   }
 

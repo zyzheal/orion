@@ -24,7 +24,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { ValidationError, UnauthorizedError, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('mcp-routes');
 
 interface McpRoutesOptions {
   database?: DatabasePool;

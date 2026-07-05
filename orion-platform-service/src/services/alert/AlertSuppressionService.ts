@@ -12,7 +12,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   Alert,
   AlertSourceType,
@@ -53,7 +53,7 @@ type KnownIssue = {
   updatedAt: Date;
 };
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AlertSuppressionService');
 
 /**
  * 告警严重程度优先级（数值越小越严重）

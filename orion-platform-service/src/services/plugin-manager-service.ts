@@ -14,7 +14,7 @@ import { EventBusService } from './event-bus-service';
 import { PluginRepository } from '../repositories/PluginRepository';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('plugin-manager-service');
 
 /**
  * 插件类型

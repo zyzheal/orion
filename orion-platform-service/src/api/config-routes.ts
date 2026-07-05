@@ -8,12 +8,14 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { ConfigRepository } from '../services/config-mgmt/ConfigRepository';
 import { ConfigService } from '../services/config-mgmt/ConfigService';
 import { GitOpsService } from '../services/config-mgmt/GitOpsService';
 import { ConfigApprovalService } from '../services/config-mgmt/ConfigApprovalService';
 import { ConfigDiffService } from '../services/config-mgmt/ConfigDiffService';
 import { ConfigSnapshotService } from '../services/config-mgmt/ConfigSnapshotService';
+import { ConfigWebhookService } from '../services/config/ConfigWebhookService';
+import { ConfigWebhookRepository } from '../repositories/ConfigWebhookRepository';
+import { ConfigRepository } from '../services/config-mgmt/ConfigRepository';
 import { ConfigVersionRepository } from '../repositories/ConfigVersionRepository';
 import { ConfigApprovalRepository } from '../repositories/ConfigApprovalRepository';
 import { GitOpsRepository } from '../repositories/GitOpsRepository';
@@ -51,13 +53,17 @@ export default async function configRoutes(
   const approvalRepo = new ConfigApprovalRepository(options.database);
   const approvalService = new ConfigApprovalService({ configService, repository: approvalRepo });
   const diffService = new ConfigDiffService({ configService });
+  const snapshotService = new ConfigSnapshotService(new ConfigVersionRepository(options.database), configRepo, cache);
+  const webhookService = new ConfigWebhookService(new ConfigWebhookRepository(options.database), options.database);
 
   // Initialize controller
   const configController = new ConfigController(
     configService,
     gitOpsService,
     approvalService,
-    diffService
+    diffService,
+    snapshotService,
+    webhookService
   );
 
   // ==================== Config CRUD ====================
@@ -372,6 +378,63 @@ export default async function configRoutes(
     }
   );
 
+  // ==================== Config Snapshots ====================
+
+  // POST /configs/:configId/snapshots - Create snapshot
+  app.post(
+    '/configs/:configId/snapshots',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.createSnapshot(request, reply);
+    }
+  );
+
+  // GET /configs/:configId/snapshots - List snapshots
+  app.get(
+    '/configs/:configId/snapshots',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.listSnapshots(request, reply);
+    }
+  );
+
+  // GET /configs/:configId/snapshots/:snapshotId - Get snapshot detail
+  app.get(
+    '/configs/:configId/snapshots/:snapshotId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.getSnapshot(request, reply);
+    }
+  );
+
+  // POST /configs/:configId/snapshots/:snapshotId/restore - Restore snapshot
+  app.post(
+    '/configs/:configId/snapshots/:snapshotId/restore',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'manage' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.restoreSnapshot(request, reply);
+    }
+  );
+
+  // DELETE /configs/:configId/snapshots/:snapshotId - Delete snapshot
+  app.delete(
+    '/configs/:configId/snapshots/:snapshotId',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      return configController.deleteSnapshot(request, reply);
+    }
+  );
+
   // ==================== Diff & Comparison ====================
 
   // GET /diff/:sourceEnv/:targetEnv - Compare environments
@@ -396,14 +459,51 @@ export default async function configRoutes(
     }
   );
 
-  // GET /diff/report - Generate comprehensive diff report
+  // GET /configs/:configId/dependencies - Get dependency graph
   app.get(
-    '/diff/report',
+    '/configs/:configId/dependencies',
     {
       onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
     },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      return configController.getDiffReport(request, reply);
+      return configController.getDependencyGraph(request, reply);
     }
   );
+
+  // ==================== Webhooks ====================
+
+  // POST /webhooks - Register a new webhook
+  app.post('/webhooks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.createWebhook(request, reply);
+  });
+
+  // GET /webhooks - List webhooks
+  app.get('/webhooks', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.listWebhooks(request, reply);
+  });
+
+  // GET /webhooks/:id - Get webhook detail
+  app.get('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.getWebhook(request, reply);
+  });
+
+  // PUT /webhooks/:id - Update webhook
+  app.put('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.updateWebhook(request, reply);
+  });
+
+  // DELETE /webhooks/:id - Delete webhook
+  app.delete('/webhooks/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'config', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    return configController.deleteWebhook(request, reply);
+  });
 }

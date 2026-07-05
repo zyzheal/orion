@@ -12,9 +12,9 @@ import { CloudEvent, EventContext, Subscription } from '@orion/event-bus';
 import {
   RiskAssessmentService,
 } from './RiskAssessmentService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'risk-event-subscriber' });
+const logger = createLogger('risk-event-subscriber');
 import {
   PipelineCompletedForRiskData,
   CodePRMergedData,

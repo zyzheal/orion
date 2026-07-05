@@ -5,7 +5,7 @@
  * CAB meeting management, timeline events, and risk assessment.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ChangeRequestRepository,
   CABMeetingRepository,
@@ -22,7 +22,7 @@ import {
 } from './ChangeRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ChangeService');
 
 // Valid status transitions for change request lifecycle
 const VALID_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -235,6 +235,9 @@ export class ChangeService {
     }
 
     const updated = await this.changeRepo.update(id, updates);
+    if (!updated) {
+      throw new OrionError(`Change request not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ changeRequestId: id, tenantId }, '[ChangeService] Change request updated');
     return updated;
   }
@@ -411,6 +414,9 @@ export class ChangeService {
     if (Object.keys(updates).length === 0) return existing;
 
     const updated = await this.rfcRepo.update(id, updates);
+    if (!updated) {
+      throw new OrionError(`RFC not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ rfcId: id, tenantId }, '[ChangeService] RFC updated');
     return updated;
   }
@@ -494,6 +500,9 @@ export class ChangeService {
     if (Object.keys(updates).length === 0) return existing;
 
     const updated = await this.cabRepo.update(id, updates);
+    if (!updated) {
+      throw new OrionError(`CAB meeting not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ meetingId: id, tenantId }, '[ChangeService] CAB meeting updated');
     return updated;
   }

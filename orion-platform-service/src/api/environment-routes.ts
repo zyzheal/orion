@@ -24,7 +24,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'environment-routes' });
+const logger = createLogger('environment-routes');
 
 export interface EnvironmentRoutesOptions {
   database?: DatabasePool;

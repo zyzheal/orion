@@ -10,11 +10,11 @@
 
 import * as yaml from 'js-yaml';
 import { spawn } from 'child_process';
-import { createLogger } from '../utils/logger';
-import { PipelineStep } from '../../engine/YamlPreprocessor';
+import { createLogger } from '../../utils/logger';
+import { PipelineStep } from '../../services/pipeline';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'shared-action-service' });
+const logger = createLogger('shared-action-service');
 
 export interface ActionDefinition {
   name: string;

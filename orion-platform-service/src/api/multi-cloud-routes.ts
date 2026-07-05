@@ -8,7 +8,7 @@ import { MultiCloudRepository } from '../repositories/MultiCloudRepository';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'multi-cloud-routes' });
+const logger = createLogger('multi-cloud-routes');
 
 interface MultiCloudRoutesOptions {
   database?: DatabasePool;

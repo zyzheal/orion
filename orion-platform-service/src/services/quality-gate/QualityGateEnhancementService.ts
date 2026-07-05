@@ -1,8 +1,8 @@
 import { DatabasePool } from '../database';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('QualityGateEnhancementService');
 /**
  * Quality Gate Enhancement Service
  *

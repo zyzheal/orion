@@ -26,7 +26,7 @@ export class DbHealthCheckCountRepository extends BaseRepository<DbHealthCheckCo
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async upsertCount(nodeId: string, count: number, tenantId?: string): Promise<DbHealthCheckCountEntity> {
+  async upsertCount(nodeId: string, count: number, tenantId?: string): Promise<DbHealthCheckCountEntity | null> {
     const existing = await this.findByNodeId(nodeId, tenantId);
     if (existing) {
       return this.update(existing.id, { check_count: count, updated_at: new Date() });

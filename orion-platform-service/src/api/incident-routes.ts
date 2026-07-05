@@ -18,16 +18,18 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { IncidentService, CreateIncidentEnhancedInput, CreatePostmortemInput } from '../services/incident/IncidentService';
+import { KnowledgeIntegrationService } from '../services/knowledge/KnowledgeIntegrationService';
 import { success, created, badRequest, notFound, internalError } from '../utils/replyHelper';
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 
-const logger = pino({ name: 'incident-routes' });
+const logger = createLogger('incident-routes');
 
 interface IncidentRoutesOptions {
   database?: DatabasePool;
+  knowledgeIntegration?: KnowledgeIntegrationService;
 }
 
 export default async function incidentRoutes(
@@ -40,7 +42,7 @@ export default async function incidentRoutes(
     return;
   }
 
-  const service = new IncidentService(db);
+  const service = new IncidentService(db, options.knowledgeIntegration);
 
   // ── POST / — Create incident ──────────────────────────────────────────
   app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -378,6 +380,29 @@ export default async function incidentRoutes(
         return badRequest(reply, request, ErrorCodes.CLIENT_PARAM_INVALID, err.message);
       }
       logger.error({ err, incidentId: (request.params as any).id }, 'Failed to archive postmortem');
+      return internalError(reply, request, err.message);
+    }
+  });
+
+  // ── Knowledge Recommendations (Task 4.63) ──────────────────────────────
+
+  // GET /:id/knowledge — Get knowledge base recommendations for an incident
+  app.get('/:id/knowledge', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const query = request.query as { limit?: string };
+      const tenantId = ((request as any).tenantContext?.getCurrentTenant()?.tenantId) || getCurrentTenantId();
+      const recommendations = await service.getKnowledgeRecommendations(
+        id,
+        tenantId,
+        query.limit ? parseInt(query.limit, 10) : 5
+      );
+      return success(reply, request, recommendations);
+    } catch (err: any) {
+      if (err.code === 'NOT_FOUND') {
+        return notFound(reply, request, undefined, err.message);
+      }
+      logger.error({ err, incidentId: (request.params as any).id }, 'Failed to get knowledge recommendations');
       return internalError(reply, request, err.message);
     }
   });

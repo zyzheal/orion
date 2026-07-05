@@ -1,16 +1,25 @@
 /**
- * PermissionService — 服务级权限管理（PostgreSQL 持久化 + 内存降级）
+ * PermissionService — 服务级权限管理（PostgreSQL + FallbackStorageService 持久化 + 内存降级）
+ *
+ * Storage:
+ *   Layer 1: PostgreSQL via FallbackStorageService (persistToDb=false, in-memory with TTL)
+ *   Layer 2: In-memory cache (fast synchronous reads, write-through to FallbackStorageService)
+ *
+ * The in-memory cache provides synchronous fast reads for permission checks.
+ * FallbackStorageService provides a structured KV API with TTL for cache management.
  *
  * 功能:
  * 1. CRUD 权限记录，使用 service_permissions 表
  * 2. 租户隔离：所有查询均携带 tenant_id
- * 3. 内存缓存作为 DB 失败的降级方案
+ * 3. 内存缓存作为 FallbackStorageService 的快速读取层
  * 4. 兼容 existing services/permission/PermissionService 的公开接口
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
+import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { FallbackStorageService } from '../fallback/FallbackStorageService';
 
-const logger = pino({ name: 'AuthService' });
+const logger = createLogger('AuthService');
 
 // ---------------------------------------------------------------------------
 // 数据类型
@@ -45,13 +54,13 @@ export class PermissionServiceError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// 内存缓存
+// 内存缓存结构
 // ---------------------------------------------------------------------------
 
-/** 结构: Map<tenantId, Map<serviceKey, Map<permissionKey, PermissionRecord>>> */
+/** 结构: { [tenantId]: { [serviceName]: { [permissionKey]: PermissionRecord } } } */
 interface MemCache {
   [tenantId: string]: {
-    [serviceKey: string]: { [permissionKey: string]: PermissionRecord };
+    [serviceName: string]: { [permissionKey: string]: PermissionRecord };
   };
 }
 
@@ -66,8 +75,47 @@ export class PermissionService {
   private initializing = false;
   private initializingPromise: Promise<void> | null = null;
 
-  constructor(pool?: any) {
+  // FallbackStorageService for structured KV cache management
+  private storage: FallbackStorageService;
+
+  constructor(pool?: any, storage?: FallbackStorageService) {
     this.dbPool = pool;
+
+    // Initialize FallbackStorageService with permissions-specific prefix
+    this.storage = storage ?? new FallbackStorageService({
+      prefix: 'permissions',
+      maxSize: 5000,
+      ttlMs: 300000, // 5 minutes TTL for permission cache
+      persistToDb: false,
+      tenantId: 'global',
+    });
+  }
+
+  // ==================== Lifecycle ====================
+
+  /**
+   * connect — initialize FallbackStorageService and load permissions into cache.
+   */
+  async connect(): Promise<void> {
+    this.storage.start();
+    await this.loadFromStorage();
+    logger.info(
+      { cacheSize: this._cacheSize(), traceId: getCurrentTraceId() },
+      '[PermissionService] Connected',
+    );
+  }
+
+  /**
+   * disconnect — clear in-memory cache and FallbackStorageService.
+   */
+  async disconnect(): Promise<void> {
+    this.cache = {};
+    this.cacheInitialized = false;
+    await this.storage.clear();
+    logger.info(
+      { traceId: getCurrentTraceId() },
+      '[PermissionService] Disconnected',
+    );
   }
 
   // ================================================================
@@ -89,6 +137,8 @@ export class PermissionService {
         }
         this.cache[row.tenant_id][row.service_name][row.permission_key] = row;
       }
+      // 异步持久化到 FallbackStorageService
+      this._persistToStorage(tenantId, serviceName).catch(() => {});
       return rows;
     } catch (err) {
       logger.warn(`[PermissionService] listServicePermissions DB failed, falling back to memory`, err);
@@ -104,7 +154,11 @@ export class PermissionService {
         [permissionId, tenantId],
       );
       if (result.rows.length === 0) return null;
-      return this._mapRow(result.rows[0]);
+      const record = this._mapRow(result.rows[0]);
+      // 写入缓存
+      this._memPut(tenantId, record.service_name, record.permission_key, record);
+      this._persistToStorage(tenantId).catch(() => {});
+      return record;
     } catch (err) {
       logger.warn(`[PermissionService] getPermissionById DB failed, falling back to memory`, err);
       return this._memGetById(tenantId, permissionId);
@@ -117,6 +171,10 @@ export class PermissionService {
     serviceName: string,
     permissionKey: string,
   ): Promise<PermissionRecord | null> {
+    // 先查内存缓存
+    const cached = this._memGetByKey(tenantId, serviceName, permissionKey);
+    if (cached) return cached;
+
     try {
       const result = await this.dbPool.query(
         `SELECT * FROM service_permissions
@@ -124,7 +182,11 @@ export class PermissionService {
         [tenantId, serviceName, permissionKey],
       );
       if (result.rows.length === 0) return null;
-      return this._mapRow(result.rows[0]);
+      const record = this._mapRow(result.rows[0]);
+      // 写入缓存
+      this._memPut(tenantId, serviceName, permissionKey, record);
+      this._persistToStorage(tenantId, serviceName).catch(() => {});
+      return record;
     } catch (err) {
       logger.warn(`[PermissionService] getPermissionByKey DB failed, falling back to memory`, err);
       return this._memGetByKey(tenantId, serviceName, permissionKey);
@@ -155,6 +217,8 @@ export class PermissionService {
 
       const record = this._mapRow(result.rows[0]);
       this._memPut(tenantId, serviceName, permissionKey, record);
+      // 异步持久化到 FallbackStorageService
+      this._persistToStorage(tenantId, serviceName).catch(() => {});
       return record;
     } catch (err: any) {
       if (err?.code === '23505') {
@@ -219,6 +283,9 @@ export class PermissionService {
         this._memPut(tenantId, record.service_name, record.permission_key, record);
       }
 
+      // 异步持久化到 FallbackStorageService
+      this._persistToStorage(tenantId, record.service_name).catch(() => {});
+
       return record;
     } catch (err: any) {
       throw new PermissionServiceError(`Failed to update permission: ${err?.message || err}`, 'UPDATE_ERROR');
@@ -238,6 +305,8 @@ export class PermissionService {
 
       if ((result.rowCount ?? 0) > 0) {
         this._memDelete(tenantId, existing.service_name, existing.permission_key);
+        // 异步持久化到 FallbackStorageService
+        this._persistToStorage(tenantId, existing.service_name).catch(() => {});
         return true;
       }
       return false;
@@ -247,6 +316,7 @@ export class PermissionService {
       const mem = this._memGetById(tenantId, permissionId);
       if (mem) {
         this._memDelete(tenantId, mem.service_name, mem.permission_key);
+        this._persistToStorage(tenantId, mem.service_name).catch(() => {});
         return true;
       }
       return false;
@@ -298,6 +368,10 @@ export class PermissionService {
         records.push(record);
         this._memPut(record.tenant_id, record.service_name, record.permission_key, record);
       }
+
+      // 异步持久化到 FallbackStorageService
+      this._persistToStorage(tenantId).catch(() => {});
+
       return records;
     } catch (err: any) {
       if (err?.code === '23505') {
@@ -320,6 +394,10 @@ export class PermissionService {
     serviceName: string,
     permissionKey: string,
   ): Promise<boolean> {
+    // 先查内存缓存
+    const cached = this._memCheck(tenantId, serviceName, permissionKey);
+    if (cached !== undefined) return cached;
+
     try {
       const result = await this.dbPool.query(
         `SELECT 1 FROM service_permissions
@@ -327,10 +405,13 @@ export class PermissionService {
          LIMIT 1`,
         [tenantId, serviceName, permissionKey],
       );
-      return result.rowCount > 0;
+      const allowed = result.rowCount > 0;
+      // 写入缓存
+      this._memPutCheck(tenantId, serviceName, permissionKey, allowed);
+      return allowed;
     } catch (err) {
       logger.warn(`[PermissionService] checkPermission DB failed, falling back to memory`, err);
-      return this._memCheck(tenantId, serviceName, permissionKey);
+      return this._memCheck(tenantId, serviceName, permissionKey) ?? false;
     }
   }
 
@@ -378,6 +459,12 @@ export class PermissionService {
       this.cache = {};
       this.cacheInitialized = false;
     }
+    // 异步清理 FallbackStorageService
+    if (tenantId) {
+      this.storage.delete(`perm:${tenantId}`).catch(() => {});
+    } else {
+      this.storage.clear().catch(() => {});
+    }
   }
 
   // ================================================================
@@ -415,6 +502,84 @@ export class PermissionService {
     query += ' ORDER BY service_name, permission_key';
     const result = await this.dbPool.query(query, params);
     return result.rows.map((row: any) => this._mapRow(row));
+  }
+
+  // ================================================================
+  // FallbackStorageService 操作
+  // ================================================================
+
+  /**
+   * 将整个 cache 对象持久化到 FallbackStorageService。
+   * 异步执行，不阻塞调用方。
+   */
+  private async _persistToStorage(tenantId?: string, serviceName?: string): Promise<void> {
+    try {
+      // 只持久化指定租户/服务的数据，或全量
+      const dataToPersist = tenantId
+        ? { [tenantId]: this.cache[tenantId] || {} }
+        : this.cache;
+
+      const key = tenantId ? `perm:${tenantId}${serviceName ? `:${serviceName}` : ''}` : 'perm:all';
+      await this.storage.set(key, dataToPersist, 300000); // 5 min TTL
+    } catch (error) {
+      logger.warn({ error, traceId: getCurrentTraceId() }, '[PermissionService] Failed to persist to FallbackStorageService');
+    }
+  }
+
+  /**
+   * 从 FallbackStorageService 加载所有缓存数据。
+   * 在 connect() 时调用。
+   */
+  private async loadFromStorage(): Promise<void> {
+    try {
+      // 先尝试加载全量缓存
+      const allData = await this.storage.get<MemCache>('perm:all');
+      if (allData) {
+        this.cache = allData;
+        this.cacheInitialized = true;
+        logger.info(
+          { cacheSize: this._cacheSize(), traceId: getCurrentTraceId() },
+          '[PermissionService] Cache loaded from FallbackStorageService (full)',
+        );
+        return;
+      }
+
+      // 如果没有全量缓存，尝试逐租户加载
+      const keys = await this.storage.keys();
+      let loaded = 0;
+      for (const key of keys) {
+        if (!key.startsWith('perm:')) continue;
+        const tenantId = key.split(':')[1];
+        if (!tenantId) continue;
+        const data = await this.storage.get<MemCache[typeof tenantId]>(key);
+        if (data) {
+          this.cache[tenantId] = data;
+          loaded++;
+        }
+      }
+      if (loaded > 0) {
+        this.cacheInitialized = true;
+        logger.info(
+          { tenantsLoaded: loaded, cacheSize: this._cacheSize(), traceId: getCurrentTraceId() },
+          '[PermissionService] Cache loaded from FallbackStorageService (per-tenant)',
+        );
+      }
+    } catch (error) {
+      logger.warn(
+        { error, traceId: getCurrentTraceId() },
+        '[PermissionService] Failed to load from FallbackStorageService',
+      );
+    }
+  }
+
+  private _cacheSize(): number {
+    let count = 0;
+    for (const tenant of Object.values(this.cache)) {
+      for (const svc of Object.values(tenant)) {
+        count += Object.keys(svc).length;
+      }
+    }
+    return count;
   }
 
   // ================================================================
@@ -476,8 +641,24 @@ export class PermissionService {
     return this.cache[tenantId]?.[serviceName]?.[permissionKey] ?? null;
   }
 
-  private _memCheck(tenantId: string, serviceName: string, permissionKey: string): boolean {
+  private _memCheck(tenantId: string, serviceName: string, permissionKey: string): boolean | undefined {
     const record = this.cache[tenantId]?.[serviceName]?.[permissionKey];
-    return record?.enabled ?? false;
+    return record?.enabled;
+  }
+
+  private _memPutCheck(tenantId: string, serviceName: string, permissionKey: string, allowed: boolean): void {
+    // 只缓存 enabled 状态，用于快速权限检查
+    if (!this.cache[tenantId]) this.cache[tenantId] = {};
+    if (!this.cache[tenantId][serviceName]) this.cache[tenantId][serviceName] = {};
+    this.cache[tenantId][serviceName][permissionKey] = {
+      id: '',
+      tenant_id: tenantId,
+      service_name: serviceName,
+      permission_key: permissionKey,
+      description: null,
+      enabled: allowed,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
   }
 }

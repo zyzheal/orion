@@ -20,7 +20,7 @@ import { Task, TaskStatus } from '../models/Task';
 import { PipelineCheckpointRepository, CreateCheckpointInput } from '../repositories/PipelineCheckpointRepository';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineCheckpointManager');
 
 /**
  * Serialized checkpoint data structure stored in JSONB

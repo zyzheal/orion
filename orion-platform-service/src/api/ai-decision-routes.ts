@@ -26,22 +26,30 @@ export default async function aiDecisionRoutes(
   });
 
   // GET /api/v1/ai-decisions/:id/feature-importance - 获取特征重要性
-  app.get('/:id/feature-importance', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/:id/feature-importance', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-decision', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getFeatureImportance(request as any, reply);
   });
 
   // GET /api/v1/ai-decisions/confidence/:level - 按置信度查询决策
-  app.get('/confidence/:level', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/confidence/:level', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-decision', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getConfidenceExplanation(request as any, reply);
   });
 
   // GET /api/v1/ai-decisions/explanations/:id - 获取解释详情
-  app.get('/explanations/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/explanations/:id', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-decision', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getExplanationById(request as any, reply);
   });
 
   // GET /api/v1/ai-decisions/explanations/history - 获取解释历史
-  app.get('/explanations/history', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/explanations/history', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'ai-decision', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return controller.getExplanationHistory(request as any, reply);
   });
 }

@@ -7,14 +7,14 @@ import { PluginExecutorService, registerExecutorForShutdown } from '../services/
 import { ExecutionTimelineService, registerTimelineForShutdown } from '../services/observability/ExecutionTimelineService';
 import { ExecutionTimelineRepository } from '../repositories/ExecutionTimelineRepository';
 import { AIDiagnosisService } from '../services/ai/AIDiagnosisService';
-import { DebugController } from '../engine/DebugController';
+import { DebugController } from '../services/pipeline';
 import { PostgresPluginAuditLogRepository } from '../repositories/PluginAuditLogRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('plugin-routes');
 
 export interface PluginEnhancedRoutesOptions {
   database?: any;

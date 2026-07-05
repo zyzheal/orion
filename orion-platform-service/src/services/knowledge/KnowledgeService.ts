@@ -4,9 +4,9 @@
  * Orchestrates space, document, and search operations through the repository layer.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LKnowledge-LService' });
+const logger = createLogger('LKnowledge-LService');
 import {
   KnowledgeRepository,
   KnowledgeSpace,

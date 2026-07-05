@@ -4,12 +4,12 @@
  * 配置版本管理 - 支持变更追踪与回滚
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ConfigVersionRepository } from '../../repositories/ConfigVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import crypto from 'crypto';
 
-const logger = pino({ name: 'ConfigVersionService' });
+const logger = createLogger('ConfigVersionService');
 
 // ==================== 版本记录 ====================
 
@@ -42,7 +42,7 @@ export interface ConfigSnapshot {
 // ==================== 版本服务 ====================
 
 export class ConfigVersionService {
-  constructor(private repo: ConfigVersionRepository) {}
+  constructor(private repo: ConfigVersionRepository, private tenantId: string) {}
 
   /**
    * 记录配置变更
@@ -156,6 +156,7 @@ export class ConfigVersionService {
 
     await this.repo.insertSnapshot({
       id: snapshot.id,
+      tenantId: this.tenantId,
       snapshotName: name,
       createdBy,
       createdAt: snapshot.createdAt,
@@ -175,7 +176,7 @@ export class ConfigVersionService {
     snapshotId: string,
     _restoredBy: string
   ): Promise<ConfigSnapshot> {
-    const entity = await this.repo.findSnapshotById(snapshotId);
+    const entity = await this.repo.findSnapshotById(snapshotId, this.tenantId);
 
     if (!entity) {
       throw new OrionError(`Snapshot ${snapshotId} not found`, ErrorCode.NOT_FOUND);
@@ -188,7 +189,7 @@ export class ConfigVersionService {
    * 列出快照
    */
   async listSnapshots(limit: number = 20): Promise<ConfigSnapshot[]> {
-    const entities = await this.repo.findSnapshots({ limit });
+    const entities = await this.repo.findSnapshots({ tenantId: this.tenantId, limit });
     return entities.map(this.mapEntityToSnapshot);
   }
 

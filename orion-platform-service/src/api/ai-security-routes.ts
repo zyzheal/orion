@@ -16,7 +16,7 @@ import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'ai-security-routes' });
+const logger = createLogger('ai-security-routes');
 
 export interface AISecurityRoutesOptions {
   database?: DatabasePool;

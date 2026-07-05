@@ -5,7 +5,7 @@
  * and analyzing evaluation history.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import {
   PolicyEvaluationRepository,
@@ -14,7 +14,7 @@ import {
 import { PolicyViolationRepository, PolicyViolationEntity } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyEvaluationService');
 
 // ==================== Types ====================
 

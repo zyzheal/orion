@@ -17,7 +17,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'maintenance-window-routes' });
+const logger = createLogger('maintenance-window-routes');
 
 export interface MaintenanceWindowRouteDeps {
   database?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> };

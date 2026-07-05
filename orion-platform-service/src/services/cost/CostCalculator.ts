@@ -8,6 +8,9 @@ import { BudgetService } from './BudgetService';
 import { ModelPricing, CostRecord } from '../../models/CostRecord';
 import { OrionError } from '../../errors';
 import { CostEstimateRepository } from '../../repositories/CostEstimateRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('cost-calculator');
 
 export interface CostEstimate {
   model: string;
@@ -76,7 +79,7 @@ export class CostCalculator {
       total_cost: estimate.totalCost,
       currency: estimate.currency,
       tenant_id: 'default',
-    }).catch((err) => console.warn('[CostCalculator] Failed to persist cost estimate:', err));
+    }).catch((err) => logger.warn({ err: err as Error, stack: (err as Error).stack, model: estimate.model, provider: estimate.provider }, '[CostCalculator] Failed to persist cost estimate'));
 
     return estimate;
   }

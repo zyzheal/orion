@@ -46,7 +46,7 @@ export class AuditRepository {
     return result.rows[0] || null;
   }
 
-  async findAll(options?: { tenantId?: string; userId?: string; action?: string; resourceType?: string; resourceId?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
+  async findAll(options?: { tenantId?: string; userId?: string; action?: string; resourceType?: string; resourceId?: string; dateFrom?: string; dateTo?: string; limit?: number; offset?: number }): Promise<AuditLog[]> {
     let query = 'SELECT * FROM audit_logs';
     const params: any[] = [];
     const conditions: string[] = [];
@@ -56,6 +56,8 @@ export class AuditRepository {
     if (options?.action) { params.push(options.action); conditions.push(`action = $${params.length}`); }
     if (options?.resourceType) { params.push(options.resourceType); conditions.push(`resource_type = $${params.length}`); }
     if (options?.resourceId) { params.push(options.resourceId); conditions.push(`resource_id = $${params.length}`); }
+    if (options?.dateFrom) { params.push(options.dateFrom); conditions.push(`created_at >= $${params.length}`); }
+    if (options?.dateTo) { params.push(options.dateTo); conditions.push(`created_at <= $${params.length}`); }
 
     if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
     query += ' ORDER BY created_at DESC';
@@ -67,17 +69,20 @@ export class AuditRepository {
     return result.rows;
   }
 
-  async count(options?: { tenantId?: string; userId?: string; action?: string }): Promise<number> {
+  async count(options?: { tenantId?: string; userId?: string; action?: string; resourceType?: string; resourceId?: string; dateFrom?: string; dateTo?: string }): Promise<number> {
     let query = 'SELECT COUNT(*) as count FROM audit_logs';
     const params: any[] = [];
-    
-    if (options?.tenantId || options?.userId || options?.action) {
-      const conditions: string[] = [];
-      if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $1`); }
-      if (options?.userId) { params.push(options.userId); conditions.push(`user_id = $${params.length}`); }
-      if (options?.action) { params.push(options.action); conditions.push(`action = $${params.length}`); }
-      query += ' WHERE ' + conditions.join(' AND ');
-    }
+    const conditions: string[] = [];
+
+    if (options?.tenantId) { params.push(options.tenantId); conditions.push(`tenant_id = $${params.length}`); }
+    if (options?.userId) { params.push(options.userId); conditions.push(`user_id = $${params.length}`); }
+    if (options?.action) { params.push(options.action); conditions.push(`action = $${params.length}`); }
+    if (options?.resourceType) { params.push(options.resourceType); conditions.push(`resource_type = $${params.length}`); }
+    if (options?.resourceId) { params.push(options.resourceId); conditions.push(`resource_id = $${params.length}`); }
+    if (options?.dateFrom) { params.push(options.dateFrom); conditions.push(`created_at >= $${params.length}`); }
+    if (options?.dateTo) { params.push(options.dateTo); conditions.push(`created_at <= $${params.length}`); }
+
+    if (conditions.length > 0) query += ' WHERE ' + conditions.join(' AND ');
 
     const result = await this.pool.query(query, params);
     return parseInt(result.rows[0].count, 10);

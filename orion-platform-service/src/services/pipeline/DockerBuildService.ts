@@ -6,10 +6,10 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'docker-build-service' });
+const logger = createLogger('docker-build-service');
 
 export interface DockerBuildOptions {
   context?: string;

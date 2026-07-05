@@ -59,12 +59,12 @@ export class ABExperimentRepository extends BaseRepository<ABExperiment> {
 
   // ---- overrides because JSONB fields need manual handling ----
 
-  async findById(id: string): Promise<ABExperiment | undefined> {
+  async findById(id: string): Promise<ABExperiment | null> {
     const result = await this.db.query(
       'SELECT * FROM ab_experiments WHERE id = $1',
       [id],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

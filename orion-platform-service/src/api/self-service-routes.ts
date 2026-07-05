@@ -17,14 +17,16 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
-import { ServiceCatalogService } from '../services/service-catalog/ServiceCatalogService';
+import { SelfServiceService } from '../services/itsm/SelfServiceService';
 import { TicketingService } from '../services/ticketing/TicketingService';
 import { TicketingRepository } from '../services/ticketing/TicketingRepository';
 import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { handleError } from '../errors';
+import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'self-service-routes' });
+const logger = createLogger('self-service-routes');
 
 interface SelfServiceRoutesOptions {
   database?: DatabasePool;
@@ -40,7 +42,7 @@ export default async function selfServiceRoutes(
     return;
   }
 
-  const catalogService = new ServiceCatalogService(db);
+  const selfService = new SelfServiceService(db);
   const ticketingRepo = new TicketingRepository(db);
   const ticketingService = new TicketingService(ticketingRepo);
 
@@ -59,9 +61,9 @@ export default async function selfServiceRoutes(
 
   // ==================== Service Catalog ====================
 
-  // GET /self-service/catalog/services - List active services
+  // GET /self-service/catalog/services - List available services
   app.get('/catalog/services', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
@@ -69,9 +71,8 @@ export default async function selfServiceRoutes(
       const limit = query.limit ? parseInt(query.limit, 10) : 50;
       const offset = query.offset ? parseInt(query.offset, 10) : 0;
 
-      const result = await catalogService.listServices(tenantId, {
+      const result = await selfService.getServiceCatalog(tenantId, {
         category: query.category,
-        status: 'active',
         limit,
         offset,
       });
@@ -88,14 +89,14 @@ export default async function selfServiceRoutes(
 
   // GET /self-service/catalog/services/:id - Get service detail
   app.get('/catalog/services/:id', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
       const { id } = request.params as { id: string };
 
-      const entity = await catalogService.getService(id, tenantId);
-      return reply.send({ success: true, data: entity });
+      const service = await selfService.getServiceDetail(id, tenantId);
+      return reply.send({ success: true, data: service });
     } catch (error) {
       return handleError(reply, error);
     }
@@ -105,27 +106,26 @@ export default async function selfServiceRoutes(
 
   // POST /self-service/requests - Submit a service request
   app.post('/requests', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
       const userId = getUserId(request);
       const body = request.body as Record<string, unknown>;
 
-      if (!body.serviceId) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
+      if (!body.serviceId || !body.title) {
+        throw new OrionError('serviceId and title are required', ErrorCode.VALIDATION_ERROR);
       }
 
-      const entity = await catalogService.createRequest({
+      const detail = await selfService.createServiceRequest(tenantId, userId, {
         serviceId: body.serviceId as string,
-        requesterId: userId,
-        title: (body.title as string) || '',
+        title: body.title as string,
         description: body.description as string | undefined,
         priority: body.priority as string | undefined,
         assignedTo: body.assignedTo as string | undefined,
-      }, tenantId);
+      });
 
-      return reply.status(201).send({ success: true, data: entity });
+      return reply.status(201).send({ success: true, data: detail });
     } catch (error) {
       return handleError(reply, error);
     }
@@ -133,53 +133,160 @@ export default async function selfServiceRoutes(
 
   // GET /self-service/requests - List my requests
   app.get('/requests', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
-      const userId = getUserId(request);
       const query = request.query as Record<string, string>;
       const limit = query.limit ? parseInt(query.limit, 10) : 20;
       const offset = query.offset ? parseInt(query.offset, 10) : 0;
 
-      const result = await catalogService.listRequests(tenantId, {
-        requesterId: userId,
-        status: query.status,
+      const result = await selfService.getServiceRequests(tenantId, {
+        requesterId: getUserId(request),
         serviceId: query.serviceId,
+        status: query.status,
         limit,
         offset,
       });
 
       return reply.send({
         success: true,
-        data: result.requests,
-        total: result.total,
+        data: result,
+        total: result.length,
       });
     } catch (error) {
       return handleError(reply, error);
     }
   });
 
-  // GET /self-service/requests/:id - Get my request detail
+  // GET /self-service/requests/:id - Get request detail
   app.get('/requests/:id', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
       const { id } = request.params as { id: string };
 
-      const entity = await catalogService.getRequest(id, tenantId);
-      return reply.send({ success: true, data: entity });
+      const detail = await selfService.getServiceRequestDetail(id, tenantId);
+      return reply.send({ success: true, data: detail });
     } catch (error) {
       return handleError(reply, error);
     }
   });
 
+  // POST /self-service/requests/:id/approve - Approve a service request
+  app.post(
+    '/requests/:id/approve',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'approve' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = getTenantId(request);
+        const { id } = request.params as { id: string };
+        const approverId = getUserId(request);
+        const body = request.body as Record<string, unknown>;
+
+        const detail = await selfService.approveRequest(
+          id,
+          approverId,
+          (body.comment as string | undefined) || '',
+          tenantId,
+        );
+
+        return reply.send({ success: true, data: detail });
+      } catch (error) {
+        return handleError(reply, error);
+      }
+    },
+  );
+
+  // POST /self-service/requests/:id/reject - Reject a service request
+  app.post(
+    '/requests/:id/reject',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'approve' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = getTenantId(request);
+        const { id } = request.params as { id: string };
+        const approverId = getUserId(request);
+        const body = request.body as Record<string, unknown>;
+
+        const detail = await selfService.rejectRequest(
+          id,
+          approverId,
+          (body.comment as string | undefined) || '',
+          tenantId,
+        );
+
+        return reply.send({ success: true, data: detail });
+      } catch (error) {
+        return handleError(reply, error);
+      }
+    },
+  );
+
+  // ==================== Attachments ====================
+
+  // POST /self-service/requests/:id/attachments - Add attachment to a request
+  app.post(
+    '/requests/:id/attachments',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'write' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = getTenantId(request);
+        const { id } = request.params as { id: string };
+        const userId = getUserId(request);
+        const body = request.body as Record<string, unknown>;
+
+        if (!body.fileName) {
+          throw new OrionError('fileName is required', ErrorCode.VALIDATION_ERROR);
+        }
+
+        const attachment = await selfService.addAttachment(id, {
+          fileName: body.fileName as string,
+          fileSize: body.fileSize as number | undefined,
+          mimeType: body.mimeType as string | undefined,
+          storageKey: body.storageKey as string | undefined,
+          description: body.description as string | undefined,
+          uploadedBy: userId,
+        });
+
+        return reply.status(201).send({ success: true, data: attachment });
+      } catch (error) {
+        return handleError(reply, error);
+      }
+    },
+  );
+
+  // GET /self-service/requests/:id/attachments - List attachments for a request
+  app.get(
+    '/requests/:id/attachments',
+    {
+      onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const tenantId = getTenantId(request);
+        const { id } = request.params as { id: string };
+
+        const attachments = await selfService.getAttachments(id);
+        return reply.send({ success: true, data: attachments });
+      } catch (error) {
+        return handleError(reply, error);
+      }
+    },
+  );
+
   // ==================== Tickets ====================
 
   // POST /self-service/tickets - Submit a ticket
   app.post('/tickets', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'write' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
@@ -187,7 +294,7 @@ export default async function selfServiceRoutes(
       const body = request.body as Record<string, unknown>;
 
       if (!body.title || !body.description || !body.category || !body.priority) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
+        throw new OrionError('title, description, category, and priority are required', ErrorCode.VALIDATION_ERROR);
       }
 
       const validCategories = [
@@ -195,12 +302,12 @@ export default async function selfServiceRoutes(
         'security', 'deployment', 'pipeline', 'performance', 'cost', 'other',
       ];
       if (!validCategories.includes(body.category as string)) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
+        throw new OrionError('Invalid category', ErrorCode.VALIDATION_ERROR);
       }
 
       const validPriorities = ['critical', 'high', 'medium', 'low'];
       if (!validPriorities.includes(body.priority as string)) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR'))
+        throw new OrionError('Invalid priority', ErrorCode.VALIDATION_ERROR);
       }
 
       const input = {
@@ -222,7 +329,7 @@ export default async function selfServiceRoutes(
 
   // GET /self-service/tickets - List my tickets
   app.get('/tickets', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const tenantId = getTenantId(request);
@@ -257,7 +364,7 @@ export default async function selfServiceRoutes(
 
   // GET /self-service/tickets/:id - Get my ticket detail
   app.get('/tickets/:id', {
-    onRequest: [authenticateUser],
+    onRequest: [authenticateUser, requirePermission({ resource: 'self-service', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const ticket = await ticketingService.getTicket((request.params as any).id);

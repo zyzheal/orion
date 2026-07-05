@@ -6,9 +6,10 @@
  */
 
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from './Errors';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('WebhookService');
 
@@ -50,7 +51,7 @@ function decryptSecret(value: string): string {
       const [ivHex, ciphertextHex, authTagHex] = parts;
       const keyHex = process.env.CHATOPS_ENCRYPTION_KEY;
       if (!keyHex || keyHex.length !== 64) {
-        throw new Error('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption');
+        throw new OrionError('CHATOPS_ENCRYPTION_KEY not set for AES-256-GCM decryption', ErrorCode.INTERNAL_ERROR);
       }
 
       const key = Buffer.from(keyHex, 'hex');

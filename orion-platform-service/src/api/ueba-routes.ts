@@ -36,10 +36,6 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
     return;
   }
 
-  function handleError(error: Error, reply: FastifyReply) {
-    return handleError(reply, new OrionError(error.message, ErrorCode.INTERNAL_ERROR));
-  }
-
   // GET /api/v1/ueba/user/:userId - 分析单个用户行为
   app.get<{ Params: { userId: string }; Querystring: { hours?: string } }>('/user/:userId', {
     onRequest: [authenticateUser, requirePermission({ resource: 'ueba', action: 'read' })],
@@ -52,7 +48,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
       }
       return reply.send({ data: stats });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 
@@ -66,7 +62,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
       const risks = await uebaService.getHighRiskUsers(hours, limit, request.user!.tenantId);
       return reply.send({ data: risks, total: risks.length });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 
@@ -79,7 +75,7 @@ export default async function uebaRoutes(app: FastifyInstance, options: UEBARout
       const anomalies = await uebaService.detectAnomalies(hours, request.user!.tenantId);
       return reply.send({ data: anomalies, total: anomalies.length });
     } catch (err) {
-      return handleError(err as Error, reply);
+      return handleError(reply, err as Error);
     }
   });
 }

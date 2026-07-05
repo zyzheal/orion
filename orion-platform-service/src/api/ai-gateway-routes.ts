@@ -17,7 +17,7 @@ import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'ai-gateway-routes' });
+const logger = createLogger('ai-gateway-routes');
 
 export interface AIGatewayRoutesOptions {
   aiGateway?: AIGateway;

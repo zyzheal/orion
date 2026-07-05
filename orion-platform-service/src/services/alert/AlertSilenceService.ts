@@ -7,12 +7,12 @@
  * 3. 检查告警是否被静默
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { BaseRepository } from '../../db/base-repository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AlertSilenceService');
 
 // ==================== Types ====================
 

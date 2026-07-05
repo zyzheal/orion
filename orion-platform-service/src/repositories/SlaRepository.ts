@@ -5,6 +5,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 import {
   SLATarget,
   TicketSLA,
@@ -12,7 +13,7 @@ import {
   SLAViolation,
   CreateSLAPolicyInput,
   UpdateSLAPolicyInput,
-} from '../../services/ticketing/types';
+} from '../services/ticketing/types';
 
 export interface SLAPolicyEntity {
   id: string;
@@ -127,7 +128,7 @@ export class SlaRepository extends BaseRepository<SLAPolicyEntity> {
     // Verify ticket belongs to tenant
     const ticketResult = await this.db.query('SELECT id FROM tickets WHERE id = $1 AND tenant_id = $2', [ticketId, tenantId]);
     if (ticketResult.rows.length === 0) {
-      throw new Error(`Ticket not found or access denied: ${ticketId}`);
+      throw new OrionError(`Ticket not found or access denied: ${ticketId}`, ErrorCode.NOT_FOUND);
     }
 
     const id = `TKT-SLA-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

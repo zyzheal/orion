@@ -11,11 +11,6 @@
 export * from './types';
 export { HealingStrategyEngine } from './HealingStrategyEngine';
 export { HealingActionExecutor } from './HealingActionExecutor';
-export {
-  HealingDecisionMaker,
-  type IRiskAssessor,
-  type DecisionMakerConfig,
-} from './HealingDecisionMaker';
 export { KnowledgeBaseService } from './KnowledgeBaseService';
 
 // Database-backed Repository and Service

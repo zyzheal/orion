@@ -92,4 +92,63 @@ export class DataPipelineController extends BaseController {
       );
     }, (data) => this.sendSuccess(reply, data));
   }
+
+  // ---- Version Management (Task 5.8) ----
+
+  async createVersion(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const body = request.body as { changeSummary?: string; createdBy?: string };
+      const tenantId = this.getTenantId(request);
+      const user = (request as any).user as { userId?: string } | undefined;
+      const createdBy = body.createdBy || user?.userId || 'system';
+
+      const pipeline = this.service.getPipeline(params.id);
+      if (!pipeline) {
+        throw new OrionError('Pipeline not found', 'NOT_FOUND');
+      }
+
+      const result = await this.service.createVersion(
+        params.id,
+        tenantId,
+        {
+          name: pipeline.name,
+          description: pipeline.description,
+          stages: pipeline.stages,
+          schedule: pipeline.schedule,
+          inputConfig: {},
+          processors: [],
+          outputConfig: {},
+        },
+        createdBy,
+        body.changeSummary,
+      );
+
+      if (!result) {
+        throw new OrionError('Failed to create version - database not available', 'DATABASE_ERROR');
+      }
+
+      return { versionNumber: result.versionNumber, message: 'Version created successfully' };
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async listVersions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string };
+      const tenantId = this.getTenantId(request);
+      return this.service.listVersions(params.id, tenantId);
+    }, (data) => this.sendSuccess(reply, data));
+  }
+
+  async getVersion(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    await this.tryExecute(reply, async () => {
+      const params = request.params as { id: string; version: string };
+      const tenantId = this.getTenantId(request);
+      const version = await this.service.getVersion(params.id, tenantId, parseInt(params.version, 10));
+      if (!version) {
+        throw new OrionError('Version not found', 'NOT_FOUND');
+      }
+      return version;
+    }, (data) => this.sendSuccess(reply, data));
+  }
 }

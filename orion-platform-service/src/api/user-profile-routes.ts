@@ -13,7 +13,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { createLogger } from '../utils/logger';
 import { OrionError, NotFoundError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'user-profile-routes' });
+const logger = createLogger('user-profile-routes');
 
 interface UserProfileRoutesOptions {
   database?: DatabasePool;

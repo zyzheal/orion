@@ -11,8 +11,9 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import { ABExperimentRepository, ABExperiment, ExperimentVariant } from '../../repositories/ABExperimentRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 // Re-export for backward compatibility
 export type ExperimentStatus = 'draft' | 'running' | 'completed' | 'cancelled';
@@ -46,7 +47,7 @@ export interface CreateExperimentInput {
   metrics?: ExperimentMetric[];
 }
 
-const logger = pino({ name: 'ABExperimentService' });
+const logger = createLogger('ABExperimentService');
 
 // ============================================================
 // Service
@@ -57,7 +58,7 @@ export class ABExperimentService {
 
   constructor(repo?: ABExperimentRepository) {
     if (!repo) {
-      throw new Error('ABExperimentRepository is required');
+      throw new OrionError('ABExperimentRepository is required', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repo;
   }
@@ -71,7 +72,7 @@ export class ABExperimentService {
   ): Promise<ABExperiment> {
     const totalTraffic = input.variants.reduce((sum, v) => sum + v.trafficPercentage, 0);
     if (totalTraffic !== 100) {
-      throw new Error(`Total traffic percentage must be 100 (got ${totalTraffic})`);
+      throw new OrionError(`Total traffic percentage must be 100 (got ${totalTraffic})`, ErrorCode.VALIDATION_ERROR);
     }
 
     const now = new Date();
@@ -116,7 +117,7 @@ export class ABExperimentService {
   async deleteExperiment(id: string): Promise<boolean> {
     const exp = await this.repository.findById(id);
     if (exp && exp.status === 'running') {
-      throw new Error('Cannot delete running experiment');
+      throw new OrionError('Cannot delete running experiment', ErrorCode.INTERNAL_ERROR);
     }
     return this.repository.delete(id);
   }
@@ -125,8 +126,8 @@ export class ABExperimentService {
 
   async startExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'draft') throw new Error(`Experiment cannot be started from '${exp.status}' state`);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'draft') throw new OrionError(`Experiment cannot be started from '${exp.status}' state`, ErrorCode.INTERNAL_ERROR);
 
     exp.status = 'running';
     exp.startDate = new Date();
@@ -139,8 +140,8 @@ export class ABExperimentService {
 
   async stopExperiment(id: string, winnerVariant?: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status !== 'running') throw new Error(`Experiment is not running`);
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status !== 'running') throw new OrionError(`Experiment is not running`, ErrorCode.INTERNAL_ERROR);
 
     exp.status = 'completed';
     exp.endDate = new Date();
@@ -154,8 +155,8 @@ export class ABExperimentService {
 
   async cancelExperiment(id: string): Promise<ABExperiment> {
     const exp = await this.repository.findById(id);
-    if (!exp) throw new Error(`Experiment '${id}' not found`);
-    if (exp.status === 'completed') throw new Error('Cannot cancel completed experiment');
+    if (!exp) throw new OrionError(`Experiment '${id}' not found`, ErrorCode.NOT_FOUND);
+    if (exp.status === 'completed') throw new OrionError('Cannot cancel completed experiment', ErrorCode.INTERNAL_ERROR);
 
     exp.status = 'cancelled';
     exp.endDate = new Date();

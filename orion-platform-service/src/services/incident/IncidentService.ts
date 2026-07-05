@@ -18,9 +18,10 @@ import { IncidentRepository, Incident, CreateIncidentInput } from './IncidentRep
 import { IncidentTimelineRepository } from '../../repositories/IncidentTimelineRepository';
 import { IncidentPostmortemRepository, PostmortemUpdateInput } from '../../repositories/IncidentPostmortemRepository';
 import { OrionError, ErrorCode } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
+import { KnowledgeIntegrationService, KnowledgeRecommendation, HealingKnowledgeContext } from '../knowledge/KnowledgeIntegrationService';
 
-const logger = pino({ name: 'IncidentService' });
+const logger = createLogger('IncidentService');
 
 // ── Valid lifecycle transitions ──────────────────────────────────────────────
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -172,11 +173,15 @@ export class IncidentService {
   private repo: IncidentRepository;
   private timelineRepo: IncidentTimelineRepository;
   private postmortemRepo: IncidentPostmortemRepository;
+  private knowledgeIntegration?: KnowledgeIntegrationService;
+  private pool: DatabasePool;
 
-  constructor(private pool: DatabasePool) {
+  constructor(pool: DatabasePool, knowledgeIntegration?: KnowledgeIntegrationService) {
+    this.pool = pool;
     this.repo = new IncidentRepository(pool);
     this.timelineRepo = new IncidentTimelineRepository(pool);
     this.postmortemRepo = new IncidentPostmortemRepository(pool);
+    this.knowledgeIntegration = knowledgeIntegration;
   }
 
   // ── Helper: calculate priority from impact x urgency ───────────────────
@@ -270,8 +275,28 @@ export class IncidentService {
       { severity: input.severity, impact, urgency, priority }
     );
 
+    // Search for related KB articles (non-blocking)
+    let knowledgeRecommendations: KnowledgeRecommendation[] = [];
+    if (this.knowledgeIntegration) {
+      try {
+        knowledgeRecommendations = await this.knowledgeIntegration.getHealingRecommendations(
+          tenantId,
+          {
+            incidentType: input.type,
+            severity: input.severity,
+            symptoms: input.affected_services,
+            affectedComponent: input.service,
+          },
+          5
+        );
+        logger.info({ incidentId: incident.id, recCount: knowledgeRecommendations.length, tenantId }, 'Knowledge recommendations fetched for incident');
+      } catch (err) {
+        logger.warn({ err, incidentId: incident.id, tenantId }, 'Failed to fetch knowledge recommendations for incident');
+      }
+    }
+
     logger.info({ incidentId: incident.id, priority, tenantId }, 'Incident created');
-    return incident;
+    return incident as IncidentEnhanced;
   }
 
   // ── Get incident by ID ─────────────────────────────────────────────────
@@ -503,8 +528,28 @@ export class IncidentService {
       logger.info({ incidentId: id }, 'Postmortem auto-required for critical incident');
     }
 
+    // Search for related KB articles on resolution (non-blocking)
+    let knowledgeRecommendations: KnowledgeRecommendation[] = [];
+    if (newStatus === 'resolved' && this.knowledgeIntegration) {
+      try {
+        knowledgeRecommendations = await this.knowledgeIntegration.getHealingRecommendations(
+          tenantId,
+          {
+            incidentType: incident.type,
+            severity: incident.severity,
+            symptoms: incident.affected_services ? (incident.affected_services as string[]) : undefined,
+            affectedComponent: incident.service || undefined,
+          },
+          5
+        );
+        logger.info({ incidentId: id, recCount: knowledgeRecommendations.length, tenantId }, 'Knowledge recommendations fetched on incident resolution');
+      } catch (err) {
+        logger.warn({ err, incidentId: id, tenantId }, 'Failed to fetch knowledge recommendations on resolution');
+      }
+    }
+
     logger.info({ incidentId: id, from: incident.status, to: newStatus, actorId }, 'Incident status updated');
-    return updated;
+    return updated as IncidentEnhanced;
   }
 
   // ── Assign incident commander (ICS) ────────────────────────────────────
@@ -1021,5 +1066,42 @@ export class IncidentService {
         resolved: parseInt(r.resolved, 10),
       })),
     };
+  }
+
+  // ── Knowledge Recommendations (Task 4.63) ──────────────────────────────
+
+  /**
+   * Get knowledge base recommendations for a specific incident
+   * Tenant-aware search across knowledge articles and pattern library
+   */
+  async getKnowledgeRecommendations(
+    incidentId: string,
+    tenantId: string,
+    limit: number = 5
+  ): Promise<KnowledgeRecommendation[]> {
+    const incident = await this.getIncident(incidentId, tenantId);
+    if (!incident) {
+      throw new OrionError(`Incident not found: ${incidentId}`, ErrorCode.NOT_FOUND);
+    }
+
+    if (!this.knowledgeIntegration) {
+      return [];
+    }
+
+    try {
+      return await this.knowledgeIntegration.getHealingRecommendations(
+        tenantId,
+        {
+          incidentType: incident.type,
+          severity: incident.severity,
+          symptoms: incident.affected_services ? (incident.affected_services as string[]) : undefined,
+          affectedComponent: incident.service || undefined,
+        },
+        limit
+      );
+    } catch (err) {
+      logger.warn({ err, incidentId, tenantId }, 'Failed to fetch knowledge recommendations');
+      return [];
+    }
   }
 }

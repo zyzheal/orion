@@ -6,11 +6,15 @@
  * - Migration execution with pause/resume/rollback
  * - Data synchronization between source and target services
  * - Data integrity verification
+ *
+ * Task 4.39: Migrated from in-memory Map() to PostgreSQL Repository pattern
  */
 
 import { randomUUID } from 'crypto';
-import { createLogger } from '../utils/logger';
 import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { MigrationPlanRepository, MigrationPlanEntity } from '../../repositories/MigrationPlanRepository';
+import { MigrationExecutionRepository, MigrationExecutionEntity } from '../../repositories/MigrationExecutionRepository';
 
 const logger = createLogger('migration-service');
 
@@ -81,7 +85,7 @@ export interface DataIntegrityReport {
   mismatchedRecords: number;
   missingRecords: number;
   extraRecords: number;
-  integrityScore: number; // 0-100
+  integrityScore: number;
   details: Array<{ recordId: string; source?: unknown; target?: unknown; mismatch?: string }>;
 }
 
@@ -104,13 +108,18 @@ export interface ValidationResult {
 // ==================== Migration Service ====================
 
 export class MigrationService {
+  private planRepo: MigrationPlanRepository;
+  private executionRepo: MigrationExecutionRepository;
   private logger = logger;
 
-  // In-memory stores (would use PostgreSQL Repository pattern in production)
-  private plans = new Map<string, MigrationPlan>();
-  private executions = new Map<string, MigrationExecution>();
+  // Transient in-memory stores for non-persistent data
   private syncResults = new Map<string, DataSyncResult>();
   private integrityReports = new Map<string, DataIntegrityReport>();
+
+  constructor(db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
+    this.planRepo = new MigrationPlanRepository(db);
+    this.executionRepo = new MigrationExecutionRepository(db);
+  }
 
   // ==================== Migration Planning ====================
 
@@ -126,106 +135,99 @@ export class MigrationService {
       '[MigrationService] Creating migration plan'
     );
 
-    const plan: MigrationPlan = {
+    const plan = await this.planRepo.create({
       id: `migration-plan-${randomUUID().slice(0, 8)}`,
+      tenantId: 'default',
       name: input.name,
       description: input.description,
       sourceService: input.sourceService,
       targetService: input.targetService,
       strategy: input.strategy,
-      status: 'pending',
       config: input.config ?? {},
       steps: (input.steps ?? []).map((step, index) => ({
         ...step,
         id: `step-${index + 1}`,
         status: 'pending' as const,
       })),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
       createdBy,
-    };
-
-    this.plans.set(plan.id, plan);
+    });
 
     this.logger.info({ planId: plan.id }, '[MigrationService] Migration plan created');
-    return plan;
+    return this.entityToDTO(plan);
   }
 
   /**
    * Get migration plan by ID
    */
   async getMigrationPlan(planId: string): Promise<MigrationPlan | null> {
-    return this.plans.get(planId) ?? null;
+    const plan = await this.planRepo.findById(planId);
+    return plan ? this.entityToDTO(plan) : null;
   }
 
   /**
    * List migration plans for a source service
    */
   async listMigrationPlans(sourceService?: string): Promise<MigrationPlan[]> {
-    const plans = Array.from(this.plans.values());
-    if (sourceService) {
-      return plans.filter((p) => p.sourceService === sourceService || p.targetService === sourceService);
-    }
-    return plans;
+    const entities = sourceService
+      ? await this.planRepo.findBySourceService(sourceService)
+      : (await this.planRepo.findAll()).entities;
+    return entities.map(e => this.entityToDTO(e));
   }
 
   /**
    * Validate a migration plan for correctness
    */
   async validateMigrationPlan(planId: string): Promise<ValidationResult> {
-    const plan = this.plans.get(planId);
+    const plan = await this.planRepo.findById(planId);
     if (!plan) {
       return { valid: false, errors: [`Migration plan not found: ${planId}`], warnings: [] };
     }
 
+    const dto = this.entityToDTO(plan);
     const errors: string[] = [];
     const warnings: string[] = [];
 
     // Basic validations
-    if (!plan.sourceService) {
+    if (!dto.sourceService) {
       errors.push('Source service is required');
     }
-    if (!plan.targetService) {
+    if (!dto.targetService) {
       errors.push('Target service is required');
     }
-    if (plan.sourceService === plan.targetService) {
+    if (dto.sourceService === dto.targetService) {
       errors.push('Source and target services must be different');
     }
-    if (!plan.steps || plan.steps.length === 0) {
+    if (!dto.steps || dto.steps.length === 0) {
       errors.push('Migration plan must have at least one step');
     }
 
     // Check step ordering
-    const stepIds = plan.steps.map((s) => s.id);
+    const stepIds = dto.steps.map((s) => s.id);
     const uniqueStepIds = new Set(stepIds);
     if (uniqueStepIds.size !== stepIds.length) {
       errors.push('Migration step IDs must be unique');
     }
 
     // Check strategy-specific requirements
-    switch (plan.strategy) {
+    switch (dto.strategy) {
       case 'blue-green':
-        if (!plan.config.blueService || !plan.config.greenService) {
+        if (!dto.config.blueService || !dto.config.greenService) {
           warnings.push('Blue-green strategy typically requires blue/green service configuration');
         }
         break;
       case 'canary':
-        if (!plan.config.canaryPercentage) {
+        if (!dto.config.canaryPercentage) {
           warnings.push('Canary strategy benefits from canary percentage configuration');
         }
         break;
       case 'strangler':
-        if (!plan.config.legacyEndpoint) {
+        if (!dto.config.legacyEndpoint) {
           warnings.push('Strangler pattern typically requires legacy endpoint configuration');
         }
         break;
       default:
         break;
     }
-
-    // Update plan status
-    plan.status = errors.length > 0 ? 'pending' : 'pending';
-    plan.updatedAt = new Date().toISOString();
 
     this.logger.info(
       { planId, valid: errors.length === 0, errors: errors.length, warnings: warnings.length },
@@ -241,131 +243,132 @@ export class MigrationService {
    * Start migration execution
    */
   async startMigration(planId: string, executor: string): Promise<MigrationExecution> {
-    const plan = this.plans.get(planId);
+    const plan = await this.planRepo.findById(planId);
     if (!plan) {
-      throw new Error(`Migration plan not found: ${planId}`);
+      throw new OrionError(`Migration plan not found: ${planId}`, ErrorCode.NOT_FOUND);
     }
 
     if (plan.status === 'running') {
-      throw new Error(`Migration is already running: ${planId}`);
+      throw new OrionError(`Migration is already running: ${planId}`, ErrorCode.STATE_CONFLICT);
     }
 
-    const execution: MigrationExecution = {
+    // Create execution record
+    const execution = await this.executionRepo.create({
       id: `migration-exec-${randomUUID().slice(0, 8)}`,
+      tenantId: plan.tenant_id,
       planId,
-      status: 'running',
-      currentStepIndex: 0,
-      startedAt: new Date().toISOString(),
       executedBy: executor,
-      metrics: {
-        totalSteps: plan.steps.length,
-        completedSteps: 0,
-        failedSteps: 0,
-        dataSynced: 0,
-        dataVerified: 0,
-      },
-    };
-
-    this.executions.set(execution.id, execution);
+      totalSteps: plan.steps.length,
+    });
 
     // Mark plan as running
-    plan.status = 'running';
-    plan.updatedAt = new Date().toISOString();
+    await this.planRepo.updateStatus(planId, 'running');
 
     this.logger.info({ planId, executionId: execution.id, executor }, '[MigrationService] Migration started');
 
-    // Start first step
+    // Execute steps (in-memory simulation, persisted on completion)
+    const dto = this.executionEntityToDTO(execution);
     await this.executeNextStep(execution.id);
 
-    return execution;
+    return dto;
   }
 
   /**
    * Get migration execution status
    */
   async getMigrationStatus(executionId: string): Promise<MigrationExecution | null> {
-    return this.executions.get(executionId) ?? null;
+    const execution = await this.executionRepo.findById(executionId);
+    return execution ? this.executionEntityToDTO(execution) : null;
   }
 
   /**
    * Pause a running migration
    */
   async pauseMigration(executionId: string): Promise<MigrationExecution> {
-    const execution = this.executions.get(executionId);
+    const execution = await this.executionRepo.findById(executionId);
     if (!execution) {
-      throw new Error(`Migration execution not found: ${executionId}`);
+      throw new OrionError(`Migration execution not found: ${executionId}`, ErrorCode.NOT_FOUND);
     }
 
     if (execution.status !== 'running') {
-      throw new Error(`Migration is not running (current status: ${execution.status})`);
+      throw new OrionError(`Migration is not running (current status: ${execution.status})`, ErrorCode.STATE_CONFLICT);
     }
 
-    execution.status = 'paused';
-    execution.pausedAt = new Date().toISOString();
+    const updated = await this.executionRepo.updateStatus(executionId, 'paused');
+    if (!updated) {
+      throw new OrionError(`Failed to pause migration: ${executionId}`, ErrorCode.INTERNAL_ERROR);
+    }
 
     this.logger.info({ executionId }, '[MigrationService] Migration paused');
-    return execution;
+    return this.executionEntityToDTO(updated);
   }
 
   /**
    * Resume a paused migration
    */
   async resumeMigration(executionId: string): Promise<MigrationExecution> {
-    const execution = this.executions.get(executionId);
+    const execution = await this.executionRepo.findById(executionId);
     if (!execution) {
-      throw new Error(`Migration execution not found: ${executionId}`);
+      throw new OrionError(`Migration execution not found: ${executionId}`, ErrorCode.NOT_FOUND);
     }
 
     if (execution.status !== 'paused') {
-      throw new Error(`Migration is not paused (current status: ${execution.status})`);
+      throw new OrionError(`Migration is not paused (current status: ${execution.status})`, ErrorCode.STATE_CONFLICT);
     }
 
-    execution.status = 'running';
-    execution.pausedAt = undefined;
-
-    this.logger.info({ executionId }, '[MigrationService] Migration resumed');
+    const updated = await this.executionRepo.updateStatus(executionId, 'running');
+    if (!updated) {
+      throw new OrionError(`Failed to resume migration: ${executionId}`, ErrorCode.INTERNAL_ERROR);
+    }
 
     // Continue with next step
     await this.executeNextStep(executionId);
 
-    return execution;
+    return this.executionEntityToDTO(updated);
   }
 
   /**
    * Rollback a migration to its original state
    */
   async rollbackMigration(executionId: string): Promise<MigrationExecution> {
-    const execution = this.executions.get(executionId);
+    const execution = await this.executionRepo.findById(executionId);
     if (!execution) {
-      throw new Error(`Migration execution not found: ${executionId}`);
+      throw new OrionError(`Migration execution not found: ${executionId}`, ErrorCode.NOT_FOUND);
     }
 
     if (execution.status === 'rolled-back') {
-      throw new Error(`Migration is already rolled back: ${executionId}`);
+      throw new OrionError(`Migration is already rolled back: ${executionId}`, ErrorCode.STATE_CONFLICT);
     }
 
-    const plan = this.plans.get(execution.planId);
+    const plan = await this.planRepo.findById(execution.plan_id);
     if (!plan) {
-      throw new Error(`Migration plan not found: ${execution.planId}`);
+      throw new OrionError(`Migration plan not found: ${execution.plan_id}`, ErrorCode.NOT_FOUND);
     }
 
-    // Mark all running/failed steps as rolled back
-    for (const step of plan.steps) {
-      if (step.status === 'running' || step.status === 'failed') {
-        step.status = 'pending';
-      }
-    }
+    // Mark execution as rolled back
+    await this.executionRepo.updateStatus(executionId, 'rolled-back');
 
-    execution.status = 'rolled-back';
-    execution.rolledBackAt = new Date().toISOString();
-    execution.currentStepIndex = 0;
+    // Mark plan as pending again
+    await this.planRepo.updateStatus(plan.id, 'pending');
 
-    plan.status = 'pending';
-    plan.updatedAt = new Date().toISOString();
+    this.logger.info({ executionId, planId: execution.plan_id }, '[MigrationService] Migration rolled back');
 
-    this.logger.info({ executionId, planId: execution.planId }, '[MigrationService] Migration rolled back');
-
-    return execution;
+    const updated = await this.executionRepo.findById(executionId);
+    return updated ? this.executionEntityToDTO(updated) : {
+      id: executionId,
+      planId: execution.plan_id,
+      status: 'rolled-back',
+      currentStepIndex: 0,
+      rolledBackAt: new Date().toISOString(),
+      executedBy: execution.executed_by,
+      metrics: {
+        totalSteps: execution.total_steps,
+        completedSteps: execution.completed_steps,
+        failedSteps: execution.failed_steps,
+        dataSynced: execution.data_synced,
+        dataVerified: execution.data_verified,
+      },
+    };
   }
 
   // ==================== Data Sync ====================
@@ -440,16 +443,16 @@ export class MigrationService {
    * Verify data integrity after migration
    */
   async verifyDataIntegrity(migrationId: string): Promise<DataIntegrityReport> {
-    const execution = this.executions.get(migrationId);
+    const execution = await this.executionRepo.findById(migrationId);
     if (!execution) {
-      throw new Error(`Migration execution not found: ${migrationId}`);
+      throw new OrionError(`Migration execution not found: ${migrationId}`, ErrorCode.NOT_FOUND);
     }
 
     this.logger.info({ migrationId }, '[MigrationService] Verifying data integrity');
 
-    const plan = this.plans.get(execution.planId);
+    const plan = await this.planRepo.findById(execution.plan_id);
     if (!plan) {
-      throw new Error(`Migration plan not found: ${execution.planId}`);
+      throw new OrionError(`Migration plan not found: ${execution.plan_id}`, ErrorCode.NOT_FOUND);
     }
 
     // Simulate integrity check - in production, this would compare source and target data
@@ -473,7 +476,8 @@ export class MigrationService {
 
     this.integrityReports.set(migrationId, report);
 
-    execution.metrics.dataVerified = matchedRecords;
+    // Update execution metrics
+    await this.executionRepo.updateMetrics(migrationId, { dataVerified: matchedRecords });
 
     this.logger.info(
       { migrationId, integrityScore, matched: matchedRecords, mismatched: mismatchedRecords },
@@ -486,33 +490,38 @@ export class MigrationService {
   // ==================== Internal Methods ====================
 
   private async executeNextStep(executionId: string): Promise<void> {
-    const execution = this.executions.get(executionId);
+    const execution = await this.executionRepo.findById(executionId);
     if (!execution || execution.status !== 'running') return;
 
-    const plan = this.plans.get(execution.planId);
+    const plan = await this.planRepo.findById(execution.plan_id);
     if (!plan) return;
 
-    // Execute pending steps
-    for (let i = execution.currentStepIndex; i < plan.steps.length; i++) {
+    const steps = (typeof plan.steps === 'string' ? JSON.parse(plan.steps) : plan.steps) as MigrationStep[];
+
+    for (let i = execution.current_step_index; i < steps.length; i++) {
       if (execution.status !== 'running') break;
 
-      const step = plan.steps[i];
-      execution.currentStepIndex = i;
+      const step = steps[i];
 
       try {
-        step.status = 'running';
         this.logger.info({ executionId, stepId: step.id, stepName: step.name }, '[MigrationService] Executing step');
 
         // Simulate step execution - in production, this would call actual migration logic
-        await this.executeStep(plan, step);
+        await this.executeStep({ id: plan.id, steps }, step);
 
-        step.status = 'completed';
-        execution.metrics.completedSteps++;
-        execution.metrics.dataSynced += Math.floor(Math.random() * 100);
+        // Update execution progress
+        await this.executionRepo.updateMetrics(executionId, {
+          completedSteps: i + 1,
+          dataSynced: execution.data_synced + Math.floor(Math.random() * 100),
+        });
+        await this.executionRepo.updateStatus(executionId, 'running', { currentStepIndex: i + 1 });
       } catch (err) {
-        step.status = 'failed';
-        execution.metrics.failedSteps++;
-        execution.error = (err as Error).message;
+        await this.executionRepo.updateMetrics(executionId, {
+          failedSteps: execution.failed_steps + 1,
+        });
+        await this.executionRepo.updateStatus(executionId, 'failed', {
+          error: (err as Error).message,
+        });
 
         this.logger.error(
           { executionId, stepId: step.id, error: (err as Error).message },
@@ -524,28 +533,29 @@ export class MigrationService {
       }
     }
 
-    // Check if all steps are completed
-    const allCompleted = plan.steps.every((s) => s.status === 'completed' || s.status === 'skipped');
-    const hasFailures = plan.steps.some((s) => s.status === 'failed');
+    // Check completion status
+    const allCompleted = steps.every((s) => s.status === 'completed' || s.status === 'skipped');
+    const hasFailures = steps.some((s) => s.status === 'failed');
+
+    const finalExecution = await this.executionRepo.findById(executionId);
+    if (!finalExecution) return;
 
     if (allCompleted && !hasFailures) {
-      execution.status = 'completed';
-      execution.completedAt = new Date().toISOString();
-      plan.status = 'completed';
-      plan.updatedAt = new Date().toISOString();
-
+      await this.executionRepo.updateStatus(executionId, 'completed', {
+        currentStepIndex: steps.length,
+      });
+      await this.planRepo.updateStatus(plan.id, 'completed');
       this.logger.info({ executionId, planId: plan.id }, '[MigrationService] Migration completed successfully');
     } else if (hasFailures) {
-      execution.status = 'failed';
-      execution.completedAt = new Date().toISOString();
-      plan.status = 'failed';
-      plan.updatedAt = new Date().toISOString();
-
-      this.logger.warn({ executionId, planId: plan.id, failedSteps: execution.metrics.failedSteps }, '[MigrationService] Migration completed with failures');
+      await this.executionRepo.updateStatus(executionId, 'failed', {
+        currentStepIndex: steps.length,
+      });
+      await this.planRepo.updateStatus(plan.id, 'failed');
+      this.logger.warn({ executionId, planId: plan.id, failedSteps: finalExecution.failed_steps + 1 }, '[MigrationService] Migration completed with failures');
     }
   }
 
-  private async executeStep(plan: MigrationPlan, step: MigrationStep): Promise<void> {
+  private async executeStep(plan: { id: string; steps: MigrationStep[] }, step: MigrationStep): Promise<void> {
     // Simulate step execution time
     const executionTime = 500 + Math.random() * 1500;
     await new Promise((resolve) => setTimeout(resolve, executionTime));
@@ -561,19 +571,55 @@ export class MigrationService {
     targetService: string,
     recordId: string,
   ): Promise<void> {
-    // Simulate single record sync - in production, this would:
-    // 1. Read record from source service
-    // 2. Transform if necessary
-    // 3. Write to target service
-    // 4. Verify write succeeded
-
     // Simulate occasional failures (1% failure rate)
     if (Math.random() < 0.01) {
-      throw new Error(`Sync failed for record ${recordId}: connection timeout`);
+      throw new OrionError(`Sync failed for record ${recordId}: connection timeout`, ErrorCode.INTERNAL_ERROR);
     }
 
     // Simulate network latency
     await new Promise((resolve) => setTimeout(resolve, 10 + Math.random() * 50));
+  }
+
+  // ==================== DTO Converters ====================
+
+  private entityToDTO(entity: MigrationPlanEntity): MigrationPlan {
+    const steps = typeof entity.steps === 'string' ? JSON.parse(entity.steps) : entity.steps;
+    return {
+      id: entity.id,
+      name: entity.name,
+      description: entity.description ?? undefined,
+      sourceService: entity.source_service,
+      targetService: entity.target_service,
+      strategy: entity.strategy as MigrationStrategy,
+      status: entity.status as MigrationStatus,
+      config: entity.config,
+      steps: steps || [],
+      createdAt: entity.created_at.toISOString(),
+      updatedAt: entity.updated_at.toISOString(),
+      createdBy: entity.created_by,
+    };
+  }
+
+  private executionEntityToDTO(entity: MigrationExecutionEntity): MigrationExecution {
+    return {
+      id: entity.id,
+      planId: entity.plan_id,
+      status: entity.status as MigrationStatus,
+      currentStepIndex: entity.current_step_index,
+      startedAt: entity.started_at?.toISOString(),
+      pausedAt: entity.paused_at?.toISOString(),
+      completedAt: entity.completed_at?.toISOString(),
+      rolledBackAt: entity.rolled_back_at?.toISOString(),
+      executedBy: entity.executed_by,
+      error: entity.error ?? undefined,
+      metrics: {
+        totalSteps: entity.total_steps,
+        completedSteps: entity.completed_steps,
+        failedSteps: entity.failed_steps,
+        dataSynced: entity.data_synced,
+        dataVerified: entity.data_verified,
+      },
+    };
   }
 }
 

@@ -4,16 +4,16 @@
 
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
-import { PipelineEngine } from '../../engine/PipelineEngine';
+import { PipelineEngine } from '../../services/pipeline';
 import { PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { DynamicParamsResolver, TriggerContext } from '../../services/pipeline/DynamicParamsResolver';
 import { PipelineBudgetService } from '../../services/pipeline/PipelineBudgetService';
 import { PipelineTenantIsolationService } from '../../services/pipeline/PipelineTenantIsolationService';
 import { PipelineRBACService } from '../../services/pipeline/PipelineRBACService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LPipeline-LRun-LController' });
+const logger = createLogger('LPipeline-LRun-LController');
 
 export class PipelineRunController {
   private runService: PipelineRunService;

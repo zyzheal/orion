@@ -5,9 +5,9 @@
  * 支持 unified diff 格式 (GitLab/Gerrit/GitHub 通用格式)。
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LDiff-LAnalyzer' });
+const logger = createLogger('LDiff-LAnalyzer');
 import {
   DiffParseResult,
   FileDiff,

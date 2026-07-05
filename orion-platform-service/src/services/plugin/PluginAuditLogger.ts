@@ -8,7 +8,7 @@
  * - 安全事件告警
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -26,7 +26,7 @@ import { PluginSecurityEventRepository } from '../../repositories/PluginSecurity
 import { PluginAuditEntryRepository } from '../../repositories/PluginAuditEntryRepository';
 import { PluginAuditLogRepository as PgAuditLogRepo } from '../../repositories/PluginAuditLogPgRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginAuditLogger');
 
 /**
  * 审计日志存储配置

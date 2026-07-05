@@ -14,7 +14,7 @@ import { TerminalAuditRepository } from '../repositories/TerminalAuditRepository
 import { createLogger } from '../utils/logger';
 import { NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'terminal-audit-routes' });
+const logger = createLogger('terminal-audit-routes');
 
 // ============================================================================
 // Route Registration

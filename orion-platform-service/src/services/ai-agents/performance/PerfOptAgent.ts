@@ -9,7 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import {
   AgentConfig,
   AgentExecutionContext,
@@ -31,7 +31,7 @@ import {
   ResourceMetricAnalysis,
 } from './types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PerfOptAgent');
 
 /**
  * 默认性能阈值

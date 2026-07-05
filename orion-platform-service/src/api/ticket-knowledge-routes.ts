@@ -14,7 +14,7 @@ import { TicketToKnowledgeService, TicketData } from '../services/knowledge/Tick
 import { handleError, OrionError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'ticket-knowledge-routes' });
+const logger = createLogger('ticket-knowledge-routes');
 
 interface TicketKnowledgeRoutesOptions {
   database: DatabasePool;

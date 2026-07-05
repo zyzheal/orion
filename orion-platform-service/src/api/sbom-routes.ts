@@ -16,7 +16,7 @@ import { SBOMGeneratorService } from '../services/sbom/SBOMGeneratorService';
 import { createLogger } from '../utils/logger';
 import { OrionError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'sbom-routes' });
+const logger = createLogger('sbom-routes');
 
 interface SbomRoutesOptions {
   database?: DatabasePool;

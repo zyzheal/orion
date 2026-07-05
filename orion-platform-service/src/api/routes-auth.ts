@@ -284,14 +284,14 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     // Task 5.3: If MFA is required, return MFA challenge instead of full tokens
     if (mfaRequired) {
       const mfaTokenPayload: Record<string, unknown> = {
-        userId: user.id,
+        sub: user.id,
         username: user.username,
         role: user.role,
         roles: [user.role],
         mfa: true, // Mark as MFA challenge token
       };
       if (effectiveTenantId) {
-        mfaTokenPayload.tenantId = effectiveTenantId;
+        mfaTokenPayload.tenant_id = effectiveTenantId;
       }
 
       const mfaToken = jwt.sign(mfaTokenPayload, jwtSecret, { expiresIn: '5m' });
@@ -313,13 +313,13 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     const accessTokenPayload: Record<string, unknown> = {
-      userId: user.id,
+      sub: user.id,
       username: user.username,
       role: user.role,
       roles: [user.role],
     };
     if (effectiveTenantId) {
-      accessTokenPayload.tenantId = effectiveTenantId;
+      accessTokenPayload.tenant_id = effectiveTenantId;
     }
 
     const accessToken = jwt.sign(
@@ -377,9 +377,9 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     if (accessToken && tokenBlacklist) {
       try {
-        const decoded = jwt.decode(accessToken) as { userId?: string; exp?: number; tenantId?: string } | null;
-        const revokeUserId = decoded?.userId || userId;
-        const tenantId = decoded?.tenantId || 0;
+        const decoded = jwt.decode(accessToken) as { sub?: string; exp?: number; tenant_id?: string | number } | null;
+        const revokeUserId = decoded?.sub || userId;
+        const tenantId = decoded?.tenant_id || 0;
         if (revokeUserId && decoded?.exp) {
           const ttl = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
           await tokenBlacklist.revokeToken(
@@ -397,10 +397,10 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
     if (eventBus) {
       try {
-        const decoded = jwt.decode(accessToken || '') as { userId?: string; tenantId?: string } | null;
+        const decoded = jwt.decode(accessToken || '') as { sub?: string; tenant_id?: string } | null;
         await eventBus.publish('auth:user:logout', {
-          userId: userId || decoded?.userId,
-          tenantId: decoded?.tenantId || null,
+          user_id: userId || decoded?.sub,
+          tenant_id: decoded?.tenant_id || null,
           timestamp: new Date().toISOString(),
           reason: 'user_logout',
         });
@@ -476,13 +476,13 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     }
 
     const newAccessTokenPayload: Record<string, unknown> = {
-      userId: row.user_id,
+      sub: row.user_id,
       username: row.username,
       role: row.role,
       roles: [row.role],
     };
     if (row.tenant_id) {
-      newAccessTokenPayload.tenantId = row.tenant_id;
+      newAccessTokenPayload.tenant_id = row.tenant_id;
     }
 
     const newAccessToken = jwt.sign(
@@ -534,8 +534,8 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
     try {
       // Use centralized multi-key verification to support key rotation
       // (tokens signed with previous keys remain valid during overlap period)
-      const decoded = jwtKeyManager.verifyWithAnyKey<{ userId: string; tenantId?: string }>(token, (secret) => {
-        return jwt.verify(token, secret, { algorithms: ['HS256'] }) as { userId: string; tenantId?: string };
+      const decoded = jwtKeyManager.verifyWithAnyKey<{ sub: string; tenant_id?: string }>(token, (secret) => {
+        return jwt.verify(token, secret, { algorithms: ['HS256'] }) as { sub: string; tenant_id?: string };
       });
 
       if (!decoded) {
@@ -549,7 +549,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
 
       const result = await dbQuery(
         'SELECT id, username, email, role, status FROM users WHERE id = $1',
-        [decoded.userId],
+        [decoded.sub],
       );
       const user = result?.rows?.[0];
 
@@ -574,7 +574,7 @@ export default async function authRoutes(app: FastifyInstance, options: AuthRout
           status: user.status || 'active',
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=1890ff&color=fff`,
           tenants: userTenants,
-          currentTenantId: (decoded as any).tenantId || null,
+          currentTenantId: (decoded as any).tenant_id || null,
         },
       });
     } catch (error) {

@@ -92,7 +92,7 @@ export class GitOpsService {
   private repository: GitOpsRepository;
 
   constructor(config: GitOpsServiceConfig) {
-    if (!config.repository) throw new Error('GitOpsRepository is required');
+    if (!config.repository) throw new OrionError('GitOpsRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = config.repository;
     this.configService = config.configService;
     this.eventPublisher = config.eventPublisher || null;

@@ -326,7 +326,8 @@ export class PostgresArtifactRepository implements ArtifactRepository {
       createdBy: row.created_by,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      deletedAt: row.deleted_at
+      deletedAt: row.deleted_at,
+      tenantId: row.tenant_id,
     };
   }
 }

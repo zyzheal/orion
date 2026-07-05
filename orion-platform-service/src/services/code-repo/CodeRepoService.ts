@@ -10,7 +10,7 @@ import {
   RepoType,
   Repository,
   FileDiff,
-  Comment,
+  PRComment,
   Commit,
 } from './types';
 
@@ -51,44 +51,37 @@ export class CodeRepoService {
   }
 
   /**
-   * 获取文件 diff
+   * 获取文件 diff（Task 5.6）
    */
-  async getFileDiff(repoId: string, baseCommitSha: string, headCommitSha: string, options?: FileDiffOptions): Promise<FileDiff[]> {
-    return this.adapter.getFileDiff(repoId, baseCommitSha, headCommitSha, options);
+  async getFileDiff(repoId: string, fromRef: string, toRef: string, options?: FileDiffOptions): Promise<FileDiff[]> {
+    return this.adapter.getFileDiff(repoId, fromRef, toRef, options);
   }
 
   /**
-   * 获取提交历史
+   * 获取提交历史（Task 5.6）
    */
-  async getCommitHistory(repoId: string, branch: string, limit = 20): Promise<{ commits: Commit[]; total: number }> {
-    return this.adapter.getCommitHistory(repoId, branch, limit);
+  async listCommits(repoId: string, options?: { branch?: string; page?: number; limit?: number }): Promise<{ commits: Commit[]; total: number }> {
+    return this.adapter.listCommits(repoId, options);
   }
 
   /**
-   * 创建评论
+   * 获取单个提交（Task 5.6）
    */
-  async createComment(repoId: string, prId: string, input: CreateCommentInput): Promise<Comment> {
-    return this.adapter.createComment(repoId, prId, input);
+  async getCommit(repoId: string, sha: string): Promise<Commit> {
+    return this.adapter.getCommit(repoId, sha);
   }
 
   /**
-   * 获取评论列表
+   * 添加 PR 评论（Task 5.6）
    */
-  async getComments(repoId: string, prId: string): Promise<Comment[]> {
-    return this.adapter.getComments(repoId, prId);
+  async addComment(repoId: string, prId: string, input: CreateCommentInput): Promise<PRComment> {
+    return this.adapter.addComment(repoId, prId, input);
   }
 
   /**
-   * 更新评论
+   * 列出 PR 评论（Task 5.6）
    */
-  async updateComment(repoId: string, prId: string, commentId: string, body: string): Promise<Comment> {
-    return this.adapter.updateComment(repoId, prId, commentId, body);
-  }
-
-  /**
-   * 删除评论
-   */
-  async deleteComment(repoId: string, prId: string, commentId: string): Promise<void> {
-    return this.adapter.deleteComment(repoId, prId, commentId);
+  async listComments(repoId: string, prId: string): Promise<PRComment[]> {
+    return this.adapter.listComments(repoId, prId);
   }
 }

@@ -3,13 +3,79 @@
  */
 
 import { CodeOwnershipService } from '../CodeOwnershipService';
+import { CodeOwnersFile } from '../types';
+
+/** 内存 Mock Repository */
+class MockCodeOwnershipRepository {
+  private files: Map<string, CodeOwnersFile> = new Map();
+  private byRepo: Map<string, string> = new Map();
+
+  async create(file: {
+    id: string;
+    repoId: string;
+    filePath: string;
+    rules: any[];
+    rawContent: string;
+  }): Promise<CodeOwnersFile> {
+    const entry: CodeOwnersFile = {
+      filePath: file.filePath,
+      repoId: file.repoId,
+      rules: file.rules,
+      lastUpdated: new Date(),
+      rawContent: file.rawContent,
+    };
+    this.files.set(file.id, entry);
+    this.byRepo.set(file.repoId, file.id);
+    return { ...entry, id: file.id };
+  }
+
+  async findByRepo(repoId: string): Promise<CodeOwnersFile | null> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return null;
+    const file = this.files.get(fileId);
+    return file ? { ...file, id: fileId } : null;
+  }
+
+  async update(
+    repoId: string,
+    input: { filePath?: string; rules?: any[]; rawContent?: string }
+  ): Promise<CodeOwnersFile | null> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return null;
+    const existing = this.files.get(fileId);
+    if (!existing) return null;
+    const updated: CodeOwnersFile = {
+      ...existing,
+      filePath: input.filePath ?? existing.filePath,
+      rules: input.rules ?? existing.rules,
+      rawContent: input.rawContent ?? existing.rawContent,
+      lastUpdated: new Date(),
+    };
+    this.files.set(fileId, updated);
+    return { ...updated, id: fileId };
+  }
+
+  async delete(repoId: string): Promise<boolean> {
+    const fileId = this.byRepo.get(repoId);
+    if (!fileId) return false;
+    this.files.delete(fileId);
+    this.byRepo.delete(repoId);
+    return true;
+  }
+
+  clear(): void {
+    this.files.clear();
+    this.byRepo.clear();
+  }
+}
 
 describe('CodeOwnershipService', () => {
   let service: CodeOwnershipService;
+  let mockRepo: MockCodeOwnershipRepository;
 
   beforeEach(() => {
-    service = new CodeOwnershipService();
-    service._clearStorage();
+    mockRepo = new MockCodeOwnershipRepository();
+    service = new CodeOwnershipService(mockRepo);
   });
 
   describe('registerCodeOwnersFile', () => {

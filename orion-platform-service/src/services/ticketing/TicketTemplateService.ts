@@ -6,7 +6,7 @@
  */
 
 import { createLogger } from '../../utils/logger';
-import { getCurrentTenantId, getCurrentUserId } from '../../db/tenant-context-storage';
+import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { TicketingRepository } from './TicketingRepository';
 import {
   TicketTemplate,
@@ -36,11 +36,10 @@ export class TicketTemplateService {
    */
   async createTemplate(input: CreateTicketTemplateInput): Promise<TicketTemplate> {
     const tenantId = getCurrentTenantId();
-    const userId = getCurrentUserId();
 
     const templateInput: CreateTicketTemplateInput = {
       ...input,
-      createdBy: userId || input.createdBy,
+      createdBy: input.createdBy,
     };
 
     const template = await this.repository.createTemplate(templateInput, tenantId);
@@ -120,16 +119,15 @@ export class TicketTemplateService {
     reporter: string;
   }>): Promise<Ticket> {
     const tenantId = getCurrentTenantId();
-    const template = await this.repository.findTemplateById(templateId, tenantId);
+    let template = await this.repository.findTemplateById(templateId, tenantId);
     if (!template) {
       // Try to find public template
-      const publicTemplate = await this.repository.findAllTemplates(tenantId, { isPublic: true, limit: 1 });
-      const found = publicTemplate.find(t => t.id === templateId);
+      const publicTemplates = await this.repository.findAllTemplates(tenantId, { isPublic: true, limit: 1 });
+      const found = publicTemplates.find(t => t.id === templateId);
       if (!found) {
         throw new TicketTemplateServiceError(`Template not found: ${templateId}`, 'NOT_FOUND');
       }
-      // Use the found public template
-      Object.assign(template, found);
+      template = found;
     }
 
     // Increment usage count
@@ -142,7 +140,7 @@ export class TicketTemplateService {
       category: overrides?.category || template.category,
       priority: overrides?.priority || template.priority,
       status: overrides?.status || template.status,
-      tags: overrides?.tags || template.tags,
+      tags: (overrides?.tags || template.tags) as unknown as Record<string, string> | undefined,
     };
 
     if (overrides?.assigneeId) {

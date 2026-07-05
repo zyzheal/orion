@@ -10,10 +10,10 @@
  * In-memory Map is used as a read-through cache; writes go to PostgreSQL.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { AbacPolicyRepository, AbacPolicyEntity } from '../../repositories/AbacPolicyRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('abac-policy');
 
 /**
  * ABAC 属性上下文
@@ -425,6 +425,7 @@ export class AbacPolicyEngine {
   private cacheTTL: number = 60000; // 1 分钟
   private repository: AbacPolicyRepository | null;
   private initialized = false;
+  private reloadVersion = 0;
 
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     this.repository = db ? new AbacPolicyRepository(db) : null;
@@ -442,6 +443,49 @@ export class AbacPolicyEngine {
         updatedAt: new Date(),
       });
     });
+  }
+
+  /**
+   * 原子性重载：清空所有策略，重新加载系统策略 + 数据库策略。
+   * 用于 ABAC 热重载场景。
+   */
+  async forceReloadFromDatabase(): Promise<{ success: boolean; loadedCount: number; version: number; error?: string }> {
+    try {
+      // 1. 清空当前策略
+      this.policies.clear();
+      this.policyCache.clear();
+
+      // 2. 重新加载系统策略
+      this.initSystemPolicies();
+
+      // 3. 从数据库加载策略
+      if (this.repository) {
+        const entities = await this.repository.findAll();
+        const dbPolicies = entities.map(entityToPolicy);
+        for (const policy of dbPolicies) {
+          if (!this.policies.has(policy.id)) {
+            this.policies.set(policy.id, policy);
+          }
+        }
+      }
+
+      // 4. 递增版本号
+      this.reloadVersion++;
+
+      logger.info(`[AbacPolicyEngine] forceReloadFromDatabase completed: ${this.policies.size} policies, version ${this.reloadVersion}`);
+      return { success: true, loadedCount: this.policies.size, version: this.reloadVersion };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error('[AbacPolicyEngine] forceReloadFromDatabase failed:', errorMessage);
+      return { success: false, loadedCount: this.policies.size, version: this.reloadVersion, error: errorMessage };
+    }
+  }
+
+  /**
+   * 获取当前热重载版本号
+   */
+  getReloadVersion(): number {
+    return this.reloadVersion;
   }
 
   /**

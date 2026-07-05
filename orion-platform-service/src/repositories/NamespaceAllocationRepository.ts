@@ -97,6 +97,33 @@ export class NamespaceAllocationRepository extends BaseRepository<NamespaceAlloc
     return parseInt(result.rows[0].count, 10);
   }
 
+  async countAllocationsByTenant(): Promise<Map<number, number>> {
+    const result = await this.db.query(
+      `SELECT tenant_id, COUNT(*) as count FROM namespace_allocations WHERE status = 'allocated' AND tenant_id IS NOT NULL GROUP BY tenant_id`
+    );
+    const map = new Map<number, number>();
+    for (const row of result.rows) {
+      map.set(Number(row.tenant_id), parseInt(row.count, 10));
+    }
+    return map;
+  }
+
+  async updateStatus(
+    id: string,
+    status: 'available' | 'allocated' | 'reserved',
+    purpose: string | null,
+    labels: Record<string, string>,
+  ): Promise<NamespaceAllocationEntity> {
+    const result = await this.db.query(
+      `UPDATE namespace_allocations SET status = $1, purpose = $2, labels = $3, updated_at = NOW() WHERE id = $4 RETURNING *`,
+      [status, purpose, JSON.stringify(labels), id],
+    );
+    if (result.rows.length === 0) {
+      throw new OrionError(`Failed to update namespace status: ${id}`, 'OPERATION_FAILED')
+    }
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
   protected mapRowToEntity(row: any): NamespaceAllocationEntity {
     return {
       id: row.id,

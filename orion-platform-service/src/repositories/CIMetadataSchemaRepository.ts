@@ -188,7 +188,8 @@ export class CIMetadataSchemaRepository extends BaseRepository<CIMetadataSchemaE
     }
 
     if (fields.length === 0) {
-      return this.findById(id);
+      const found = await this.findById(id);
+      return found ?? undefined;
     }
 
     fields.push(`updated_at = NOW()`);
@@ -370,7 +371,8 @@ export class CITypeAttributeRepository extends BaseRepository<CITypeAttributeEnt
     }
 
     if (fields.length === 0) {
-      return this.findById(id);
+      const found = await this.findById(id);
+      return found ?? undefined;
     }
 
     fields.push(`updated_at = NOW()`);

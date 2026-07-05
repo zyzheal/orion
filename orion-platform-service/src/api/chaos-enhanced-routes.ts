@@ -30,7 +30,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'chaos-enhanced-routes' });
+const logger = createLogger('chaos-enhanced-routes');
 
 interface ChaosRoutesOptions {
   database?: DatabasePool;

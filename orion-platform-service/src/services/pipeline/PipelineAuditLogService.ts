@@ -12,7 +12,7 @@
  * P2 feature from neatlogic-autoexec comparison analysis.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { PipelineAuditLogRepository } from '../../repositories/PipelineAuditLogRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import type {
@@ -24,7 +24,7 @@ import type {
 } from '../../models/PipelineAuditLog';
 import type { PipelineAuditLogEntity } from '../../repositories/PipelineAuditLogRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineAuditLogService');
 
 export class PipelineAuditLogServiceError extends Error {
   constructor(message: string, public code: string) {

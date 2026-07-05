@@ -12,9 +12,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LFault-LInjector' });
+const logger = createLogger('LFault-LInjector');
 
 // ==================== Types ====================
 

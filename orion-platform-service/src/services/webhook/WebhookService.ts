@@ -6,10 +6,10 @@
 
 import * as crypto from 'crypto';
 import { WebhookRepository, Webhook, WebhookDelivery, WebhookRepositoryEnhanced, WebhookEndpoint, WebhookSubscription, WebhookDeliveryEnhanced } from './WebhookRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LWebhook-LService' });
+const logger = createLogger('webhook-service');
 
 export class WebhookServiceError extends Error {
   constructor(message: string, public code: string) {

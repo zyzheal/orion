@@ -13,10 +13,10 @@
  * If no RBAC rules exist for a pipeline, default to allow (backward compatible).
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { RBACRuleRepository } from '../../repositories/RBACRuleRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineRBACService');
 
 /**
  * Pipeline roles

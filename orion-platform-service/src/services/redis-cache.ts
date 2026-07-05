@@ -9,7 +9,7 @@ import { EventEmitter } from 'events';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ name: 'redis-cache' });
+const logger = createLogger('redis-cache');
 
 export interface RedisConfig {
   host: string;
@@ -205,15 +205,21 @@ export class RedisCache extends EventEmitter {
   }
 
   /**
-   * 设置哈希字段
+   * 设置哈希字段 - 支持 (key, field, value) 和 (key, object) 两种调用方式
    */
-  async hset(key: string, field: string, value: any): Promise<number> {
+  async hset(key: string, fieldOrObj: string | Record<string, any>, value?: any): Promise<number> {
     if (!this.client) {
       throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
     }
-
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-    return await this.client.hset(key, field, serialized);
+    if (typeof fieldOrObj === 'object' && value === undefined) {
+      const serialized: Record<string, string> = {};
+      for (const [k, v] of Object.entries(fieldOrObj)) {
+        serialized[k] = typeof v === 'string' ? v : JSON.stringify(v);
+      }
+      return await this.client.hset(key, serialized);
+    }
+    const serialized = typeof fieldOrObj === 'string' ? fieldOrObj : JSON.stringify(fieldOrObj);
+    return await this.client.hset(key, fieldOrObj as string, serialized);
   }
 
   /**
@@ -304,6 +310,35 @@ export class RedisCache extends EventEmitter {
     }
 
     return await this.client.llen(key);
+  }
+
+  /**
+   * 获取列表范围
+   */
+  async lrange<T>(key: string, start: number, end: number): Promise<T[]> {
+    if (!this.client) {
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
+    }
+
+    const values = await this.client.lrange(key, start, end);
+    return values.map((v) => {
+      try {
+        return JSON.parse(v) as T;
+      } catch {
+        return v as unknown as T;
+      }
+    });
+  }
+
+  /**
+   * 设置 key 过期时间（返回 1 表示成功，0 表示 key 不存在）
+   */
+  async expire(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.client) {
+      throw new OrionError('Redis not connected', ErrorCode.OPERATION_FAILED);
+    }
+
+    return await this.client.expire(key, ttlSeconds);
   }
 
   /**

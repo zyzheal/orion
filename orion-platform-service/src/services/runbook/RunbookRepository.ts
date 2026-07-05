@@ -1,5 +1,7 @@
 import { BaseRepository, FindAllOptions, FindAllResult } from '../../db/base-repository';
 
+import { OrionError, ErrorCode } from '../../errors';
+
 export interface RunbookDefinitionEntity {
   id: string;
   tenantId: string;
@@ -112,7 +114,9 @@ export class RunbookExecutionRepository extends BaseRepository<RunbookExecutionE
     if (status === 'completed' || status === 'failed' || status === 'cancelled') {
       updateData.completedAt = new Date();
     }
-    return this.update(id, updateData);
+    const result = await this.update(id, updateData);
+    if (!result) throw new OrionError('Failed to update runbook execution', ErrorCode.OPERATION_FAILED);
+    return result;
   }
 
   protected mapRowToEntity(row: any): RunbookExecutionEntity {

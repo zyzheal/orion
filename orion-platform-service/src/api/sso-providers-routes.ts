@@ -25,7 +25,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ConflictError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'sso-providers-routes' });
+const logger = createLogger('sso-providers-routes');
 
 interface SsoProviderConfig {
   id?: string;

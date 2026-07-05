@@ -7,14 +7,14 @@
  * P2 feature from neatlogic-autoexec comparison analysis.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EnvProfileRepository } from '../../repositories/EnvProfileRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import type {
   EnvProfile, CreateEnvProfile, UpdateEnvProfile, EnvProfileEntity,
 } from '../../models/EnvProfile';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EnvProfileService');
 
 export class EnvProfileServiceError extends Error {
   constructor(message: string, public code: string) {

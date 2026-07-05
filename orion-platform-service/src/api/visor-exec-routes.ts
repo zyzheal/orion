@@ -14,7 +14,7 @@ import { VisorExecRepository } from '../repositories/VisorExecRepository';
 import { createLogger } from '../utils/logger';
 import { ValidationError, NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'visor-exec-routes' });
+const logger = createLogger('visor-exec-routes');
 
 // ============================================================================
 // Route Registration

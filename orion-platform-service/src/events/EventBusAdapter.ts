@@ -13,7 +13,7 @@
 import { EventBusService } from '../services/event-bus-service';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'LEvent-LBus-LAdapter' });
+const logger = createLogger('LEvent-LBus-LAdapter');
 
 /**
  * CloudEvents 1.0 标准格式

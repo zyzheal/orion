@@ -12,6 +12,7 @@
  */
 
 import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
 
 // ============================================================
 // Entity 1 — Table-column model (original, consumed by services/data-quality)
@@ -112,7 +113,7 @@ export class DataQualityRuleRepository extends BaseRepository<DataQualityRuleEnt
       [status, passRate, id],
     );
     if (result.rows.length === 0) {
-      throw new Error(`Rule not found: ${id}`);
+      throw new OrionError(`Rule not found: ${id}`, ErrorCode.NOT_FOUND);
     }
     return this.mapRowToEntity(result.rows[0]);
   }

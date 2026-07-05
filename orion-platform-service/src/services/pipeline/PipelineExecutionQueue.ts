@@ -14,11 +14,12 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import { DatabasePool, QueryResult } from '../../services/database';
 
-const logger = pino({ name: 'pipeline-execution-queue' });
+const logger = createLogger('pipeline-execution-queue');
 
 // ==================== Type Definitions ====================
 
@@ -374,9 +375,7 @@ export class PipelineExecutionQueue extends EventEmitter {
         { runId: run.runId, queueDepth: this.queue.length },
         'Queue full, rejecting new pipeline run'
       );
-      throw new Error(
-        `Pipeline execution queue is full (max: ${this.config.maxQueueSize}). Try again later.`
-      );
+      throw new OrionError(`Pipeline execution queue is full (max: ${this.config.maxQueueSize}). Try again later.`, ErrorCode.INTERNAL_ERROR);
     }
 
     const queued: QueuedPipelineRun = {

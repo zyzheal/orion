@@ -11,7 +11,7 @@ import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 
-const logger = pino({ name: 'ai-agent-routes' });
+const logger = createLogger('ai-agent-routes');
 
 /**
  * Agent 注册表（全局单例）
@@ -98,7 +98,7 @@ export function registerAIAgentRoutes(app: FastifyInstance): void {
       return { success: true, data: result };
     } catch (error) {
       logger.error({ agentId: id, error }, 'Agent execution failed');
-      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
+      return handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 

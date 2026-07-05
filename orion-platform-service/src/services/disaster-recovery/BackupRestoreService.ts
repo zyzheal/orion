@@ -8,6 +8,10 @@
 import { v4 as uuidv4 } from 'uuid';
 import { DisasterRecoveryRepository } from '../../repositories/DisasterRecoveryRepository';
 import { BackupRecordRepository } from '../../repositories/BackupRecordRepository';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('backup-restore-service');
+
 
 export interface BackupConfig {
   scope: 'full' | 'incremental' | 'config-only' | 'data-only';
@@ -93,7 +97,7 @@ export class BackupRestoreService {
         this.backupsByTenant.set(record.tenantId, tenantBackups);
       }
     } catch (err) {
-      console.warn('[BackupRestoreService] Failed to load from repository:', err);
+      logger.warn({ err }, '[BackupRestoreService] Failed to load from repository');
     }
   }
 
@@ -178,7 +182,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'restoring').catch((err) => console.warn('[BackupRestoreService] Failed to update status to restoring:', err));
+        this.backupRecordRepo.updateStatus(backupId, 'restoring').catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to update status to restoring'));
       }
 
       // Determine which services to restore
@@ -194,7 +198,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => console.warn('[BackupRestoreService] Failed to update status to completed:', err));
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to update status to completed'));
       }
 
       return {
@@ -209,7 +213,7 @@ export class BackupRestoreService {
       backup.updatedAt = new Date();
 
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => console.warn('[BackupRestoreService] Failed to update status to completed:', err));
+        this.backupRecordRepo.updateStatus(backupId, 'completed').catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to update status to completed'));
       }
 
       return {
@@ -305,7 +309,7 @@ export class BackupRestoreService {
 
       // Update repository status (fire-and-forget)
       if (this.useRepository && this.backupRecordRepo) {
-        this.backupRecordRepo.updateStatus(record.id, 'in_progress').catch((err) => console.warn('[BackupRestoreService] Failed to update status to in_progress:', err));
+        this.backupRecordRepo.updateStatus(record.id, 'in_progress').catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to update status to in_progress'));
       }
 
       // Simulate backup execution
@@ -324,7 +328,7 @@ export class BackupRestoreService {
           sizeBytes,
           filePath,
           completedAt: record.completedAt,
-        }).catch((err) => console.warn('[BackupRestoreService] Failed to persist backup completion:', err));
+        }).catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to persist backup completion'));
       }
     } catch (error: any) {
       record.status = 'failed';
@@ -335,7 +339,7 @@ export class BackupRestoreService {
       if (this.useRepository && this.backupRecordRepo) {
         this.backupRecordRepo.updateStatus(record.id, 'failed', {
           errorMessage: error.message,
-        }).catch((err) => console.warn('[BackupRestoreService] Failed to persist backup failure:', err));
+        }).catch((err) => logger.warn({ err }, '[BackupRestoreService] Failed to persist backup failure'));
       }
     }
   }

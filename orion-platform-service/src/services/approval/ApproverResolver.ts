@@ -5,12 +5,12 @@
  *
  * 设计文档: docs/superpowers/specs/2026-05-19-approval-flow-advanced-capabilities-design.md
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 import { UserRepository } from '../user/UserRepository';
 import { CapabilityRepository } from '../capability/CapabilityRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ApproverResolver');
 
 // ==================== 类型定义 ====================
 

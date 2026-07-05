@@ -15,6 +15,7 @@ export {
 } from './CommitStatusService';
 export { GitLabAdapter, type GitLabAdapterConfig } from './GitLabAdapter';
 export { GerritAdapter, type GerritAdapterConfig } from './GerritAdapter';
+export { BitbucketAdapter, type BitbucketAdapterConfig } from './BitbucketAdapter';
 export {
   CodeRepoWebhookService,
   type WebhookServiceConfig,

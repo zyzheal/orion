@@ -10,7 +10,7 @@
  * 集成现有 MultiLevelApprovalService 实现多级审批
  * 数据持久化通过 ApprovalFlowConfigRepository（PostgreSQL Repository 模式）
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ApprovalFlowConfigRepository } from '../../repositories/ApprovalFlowConfigRepository';
 import {
@@ -22,7 +22,7 @@ import {
 } from './MultiLevelApprovalService';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ApprovalFlowEngine');
 
 // ==================== 核心类型定义 ====================
 

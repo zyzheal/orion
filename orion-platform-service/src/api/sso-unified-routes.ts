@@ -27,7 +27,7 @@ import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { TokenBlacklistService } from '../services/auth/TokenBlacklistService';
 import { OrionError, ValidationError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('sso-unified');
 const ACCESS_TOKEN_EXPIRES_IN = '5m';
 
 export interface SsoRoutesOptions {
@@ -60,15 +60,15 @@ export default async function ssoUnifiedRoutes(
   /**
    * Issue JWT token for authenticated user
    */
-  function issueToken(user: { userId: string; username: string; email: string; name: string; roles: string[] }): {
+  async function issueToken(user: { userId: string; username: string; email: string; name: string; roles: string[] }): Promise<{
     accessToken: string;
     refreshToken: string;
     expiresAt: number;
     user: typeof user;
-  } {
+  }> {
     const jwtSecret = jwtKeyManager.getCurrentSecret();
     const accessToken = jwt.sign(
-      { userId: user.userId, username: user.username, email: user.email, roles: user.roles },
+      { sub: user.userId, username: user.username, email: user.email, roles: user.roles },
       jwtSecret,
       { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
     );
@@ -77,10 +77,19 @@ export default async function ssoUnifiedRoutes(
     const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     const expiresAt = Date.now() + 5 * 60 * 1000;
 
-    // Store refresh token in database
+    // Task 2.20: Resolve tenant_id for SSO refresh token
+    let tenantId: string | null = null;
+    const tenantResult = await dbQuery(
+      'SELECT tenant_id FROM tenant_users WHERE user_id = $1 LIMIT 1',
+      [user.userId]
+    );
+    if (tenantResult?.rows?.length > 0) {
+      tenantId = tenantResult.rows[0].tenant_id;
+    }
+
     dbQuery(
-      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-      [user.userId, refreshTokenHash, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)]
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, tenant_id) VALUES ($1, $2, $3, $4)',
+      [user.userId, refreshTokenHash, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), tenantId]
     ).catch((err) => logger.error('[SsoUnifiedRoutes] Failed to store refresh token:', err));
 
     return { accessToken, refreshToken, expiresAt, user };
@@ -95,7 +104,20 @@ export default async function ssoUnifiedRoutes(
     email: string;
     name: string;
     roles?: string[];
+    source?: string;
   }): Promise<{ userId: string; username: string; email: string; name: string; roles: string[]; status: string }> {
+    // Determine roles: for LDAP, fetch groups and map them to local roles
+    let resolvedRoles = profile.roles;
+    if (!resolvedRoles && profile.source === 'ldap') {
+      const ldapGroups = await ldapService.getUserGroups(profile.username);
+      if (ldapGroups.length > 0) {
+        // Map LDAP group CNs to local role names
+        resolvedRoles = ldapGroups.map((cn) => `ldap:${cn}`);
+      } else {
+        resolvedRoles = ['user'];
+      }
+    }
+
     // Check if user exists
     const existing = await dbQuery(
       'SELECT id, username, email, role, status FROM users WHERE username = $1 OR email = $2',
@@ -109,7 +131,7 @@ export default async function ssoUnifiedRoutes(
         username: user.username,
         email: user.email,
         name: profile.name,
-        roles: [user.role || 'user'],
+        roles: resolvedRoles || [user.role || 'user'],
         status: user.status || 'active',
       };
     }
@@ -118,7 +140,7 @@ export default async function ssoUnifiedRoutes(
     const userId = crypto.randomUUID();
     await dbQuery(
       'INSERT INTO users (id, username, email, role, status, created_at) VALUES ($1, $2, $3, $4, $5, NOW())',
-      [userId, profile.username, profile.email, 'user', 'active']
+      [userId, profile.username, profile.email, resolvedRoles?.[0] || 'user', 'active']
     );
 
     return {
@@ -126,7 +148,7 @@ export default async function ssoUnifiedRoutes(
       username: profile.username,
       email: profile.email,
       name: profile.name,
-      roles: ['user'],
+      roles: resolvedRoles || ['user'],
       status: 'active',
     };
   }
@@ -197,9 +219,11 @@ export default async function ssoUnifiedRoutes(
         username: profile.username,
         email: profile.email,
         name: profile.name,
+        source: 'ldap',
+        roles: profile.groups?.length ? profile.groups.map((g) => `ldap:${g}`) : undefined,
       });
 
-      const tokens = issueToken(localUser);
+      const tokens = await issueToken(localUser);
       return reply.send({ success: true, data: tokens });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LDAP_LOGIN_ERROR';
@@ -310,7 +334,7 @@ export default async function ssoUnifiedRoutes(
             }
           }
 
-          const tokens = issueToken(localUser);
+          const tokens = await issueToken(localUser);
 
           // Redirect to frontend with token
           const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?token=${tokens.accessToken}`;
@@ -346,7 +370,7 @@ export default async function ssoUnifiedRoutes(
             return handleError(reply, new ForbiddenError('ACCOUNT_SUSPENDED'))
           }
 
-          const tokens = issueToken(localUser);
+          const tokens = await issueToken(localUser);
           const frontendUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/auth/callback?token=${tokens.accessToken}`;
           return reply.redirect(frontendUrl);
         }

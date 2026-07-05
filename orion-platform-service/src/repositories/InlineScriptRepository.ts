@@ -8,7 +8,7 @@ import { BaseRepository, FindAllOptions, FindAllResult } from '../db/base-reposi
 import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('InlineScriptRepository');
 
 export interface InlineScriptEntity {
   id: string;

@@ -107,4 +107,39 @@ describe('Data Pipeline Routes', () => {
       expect(response.statusCode).toBeDefined();
     });
   });
+
+  // Task 5.8: Version Management routes
+  describe('POST /:id/versions', () => {
+    it('should respond to POST /:id/versions', async () => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/test-id/versions',
+        payload: {},
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /:id/versions', () => {
+    it('should respond to GET /:id/versions', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test-id/versions',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
+
+  describe('GET /:id/versions/:version', () => {
+    it('should respond to GET /:id/versions/1', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test-id/versions/1',
+        headers: authHeaders,
+      });
+      expect(response.statusCode).toBeDefined();
+    });
+  });
 });

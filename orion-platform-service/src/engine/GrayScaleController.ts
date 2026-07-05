@@ -2,7 +2,7 @@ import { PipelineStage } from '../models/Pipeline';
 import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('GrayScaleController');
 
 export interface ExecutionBatch {
   batchIndex: number;

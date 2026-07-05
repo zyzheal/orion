@@ -18,9 +18,8 @@ import { createLogger } from '../../utils/logger';
 import {
   DeployRepository,
   Deployment,
-  DeployGitCommitLinkRepository,
-  DeployGitCommitLinkEntity,
-} from '../../repositories/DeployGitCommitLinkRepository';
+} from './DeployRepository';
+import { DeployGitCommitLinkRepository, DeployGitCommitLinkEntity } from '../../repositories/DeployGitCommitLinkRepository';
 import { ReleaseNotesRepository } from '../../repositories/ReleaseNotesRepository';
 
 const logger = createLogger('deploy-git-integration');
@@ -477,7 +476,7 @@ export class DeployGitIntegrationService {
     let prUrl: string | undefined;
 
     for (const pattern of patterns) {
-      const match = commit.message.match(pattern) || commit.description.match(pattern);
+      const match = commit.description.match(pattern);
       if (match) {
         prNumber = match[1];
         prUrl = `https://github.com/orionhq/orion-platform/pull/${prNumber}`;
@@ -512,7 +511,7 @@ export class DeployGitIntegrationService {
     };
 
     return commits
-      .filter(c => !c.message.startsWith('Merge') && c.description.length > 0)
+      .filter(c => !c.description.startsWith('Merge') && c.description.length > 0)
       .map(commit => {
         const mappedType = typeMapping[commit.type] || 'chore';
         return {

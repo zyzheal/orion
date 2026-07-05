@@ -174,7 +174,7 @@ export class MultiCloudAdvancedService {
   private repository: MultiCloudRepository;
 
   constructor(database: DatabasePool) {
-    if (!database) throw new Error('DatabasePool is required');
+    if (!database) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
     this.repository = new MultiCloudRepository(database);
   }
 

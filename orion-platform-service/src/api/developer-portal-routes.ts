@@ -22,7 +22,7 @@ import { tenantContext } from '../services/tenant/TenantContext';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'developer-portal-routes' });
+const logger = createLogger('developer-portal-routes');
 
 interface DeveloperPortalRoutesOptions {
   database?: DatabasePool;

@@ -10,9 +10,9 @@ import { randomUUID } from 'crypto';
 import { DatabasePool } from '../database';
 import { ReplaySessionRepository } from '../../repositories/DigitalTwinEnhancedRepository';
 import { TrafficRecord } from './TrafficRecorderService';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LTraffic-LReplay-LService' });
+const logger = createLogger('LTraffic-LReplay-LService');
 
 export interface ReplayConfig {
   speedMultiplier?: number;

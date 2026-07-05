@@ -3,6 +3,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { BaseController } from '../BaseController';
 import { AutomationRuleService, AutomationRuleServiceError } from '../../../services/ticketing/AutomationRuleService';
 import {
   AutomationRule,
@@ -11,14 +12,11 @@ import {
   AutomationRuleExecution,
 } from '../../../services/ticketing/types';
 
-function getTenantId(request: FastifyRequest): string {
-  return (request as any).user?.tenantId || (request.headers['x-tenant-id'] as string) || 'default';
-}
-
-export class AutomationRuleController {
+export class AutomationRuleController extends BaseController {
   private automationRuleService: AutomationRuleService;
 
   constructor(automationRuleService: AutomationRuleService) {
+    super();
     this.automationRuleService = automationRuleService;
   }
 
@@ -59,7 +57,7 @@ export class AutomationRuleController {
 
   async getRule(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { ruleId } = request.params as { ruleId: string };
 
       const rule = await this.automationRuleService.getRule(tenantId, ruleId);
@@ -76,7 +74,7 @@ export class AutomationRuleController {
 
   async listRules(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const query = request.query as any || {};
       const { enabled, limit, offset } = query;
 
@@ -94,7 +92,7 @@ export class AutomationRuleController {
 
   async updateRule(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { ruleId } = request.params as { ruleId: string };
       const body = request.body as any || {};
 
@@ -119,7 +117,7 @@ export class AutomationRuleController {
 
   async deleteRule(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { ruleId } = request.params as { ruleId: string };
 
       await this.automationRuleService.deleteRule(tenantId, ruleId);
@@ -137,7 +135,7 @@ export class AutomationRuleController {
 
   async executeRule(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const tenantId = getTenantId(request);
+      const tenantId = this.getTenantId(request);
       const { ruleId } = request.params as { ruleId: string };
       const body = request.body as any || {};
       const { ticketId, ticket, triggeredBy } = body;

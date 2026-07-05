@@ -14,10 +14,11 @@ import {
   DataSourceEntity,
   AuditRuleEntity,
 } from '../../repositories/DbaRepository';
-import { executeQuery as executeDbQuery, type QueryExecutionResult } from './db-connection';
-import { createLogger } from '../utils/logger';
+import { executeQuery as executeDbQuery, type QueryExecutionResult, testDatabaseConnection } from './db-connection';
+import { createLogger } from '../../utils/logger';
+import { OrionError } from '../../errors';
 
-const logger = pino({ name: 'dba-service' });
+const logger = createLogger('dba-service');
 
 // ============================================================================
 // Types (preserved for backward compatibility)
@@ -196,7 +197,7 @@ export class DbaService {
   async createDataSource(input: CreateDataSourceInput, tenantId?: string): Promise<DataSource> {
     const entity = await this.dataSourceRepo.create({
       id: uuidv4(),
-      tenantId: tenantId || 'default',
+      tenantId: tenantId ?? (() => { throw new OrionError('tenantId is required for data source creation', 'VALIDATION_ERROR'); })(),
       name: input.name,
       sourceType: input.type,
       host: input.host,
@@ -230,11 +231,27 @@ export class DbaService {
     return true;
   }
 
-  async testConnection(id: string): Promise<{ success: boolean; message: string }> {
+  async testConnection(id: string): Promise<{ success: boolean; message: string; latency?: number; version?: string }> {
     const ds = await this.dataSourceRepo.findById(id);
     if (!ds) return { success: false, message: 'Data source not found' };
-    await this.dataSourceRepo.updateStatus(id, 'online');
-    return { success: true, message: `Connected to ${ds.host}:${ds.port}` };
+
+    try {
+      const result = await testDatabaseConnection(ds);
+      const status = result.success ? 'online' : 'error';
+      await this.dataSourceRepo.updateStatus(id, status);
+      return {
+        success: result.success,
+        message: result.message,
+        latency: result.latency,
+        version: result.version,
+      };
+    } catch (err) {
+      await this.dataSourceRepo.updateStatus(id, 'error');
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : 'Connection test failed',
+      };
+    }
   }
 
   // ---- Direct Query Execution ----

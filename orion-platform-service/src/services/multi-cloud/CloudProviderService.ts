@@ -25,6 +25,7 @@ export interface CloudAccount {
   region: string;
   status: 'active' | 'inactive' | 'error';
   description?: string;
+  credentials?: Record<string, string>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -57,6 +58,7 @@ export interface CredentialValidationResult {
   provider: string;
   message: string;
   checkedAt: Date;
+  details?: Record<string, any>;
 }
 
 export interface ProviderHealthStatus {
@@ -248,7 +250,7 @@ export class CloudProviderService {
 
     try {
       const client = ProviderClientFactory.getClient(account.provider);
-      const credentialRef = account.credentials ? JSON.parse(account.credentials) : {};
+      const credentialRef = account.credentials ?? {};
       await client.initialize(credentialRef, account.region);
       const result = await client.validateCredentials();
       return {
@@ -392,6 +394,7 @@ export class CloudProviderService {
       region: entity.region,
       status: (entity.status as CloudAccount['status']) ?? 'active',
       description: entity.tags?.description,
+      credentials: entity.credential_ref ? JSON.parse(entity.credential_ref) : undefined,
       createdAt: entity.created_at,
       updatedAt: entity.updated_at,
     };

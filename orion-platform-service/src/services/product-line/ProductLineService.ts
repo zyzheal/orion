@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ProductLine,
   ProductLineCreateInput,
@@ -23,7 +23,7 @@ import {
 } from '../../repositories/ProductLineRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProductLineService');
 
 export class ProductLineService {
   private productLineRepo?: ProductLineRepository;

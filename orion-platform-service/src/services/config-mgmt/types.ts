@@ -6,6 +6,7 @@
  */
 
 // ==================== Environment ====================
+import type { JsonSchema } from './ConfigValidationService';
 
 export type ConfigEnvironment = 'dev' | 'staging' | 'prod';
 

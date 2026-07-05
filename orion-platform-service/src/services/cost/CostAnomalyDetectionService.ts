@@ -4,12 +4,12 @@
  * Phase 2: 检测成本数据中的异常点，使用统计方法（Z-score、移动平均）
  * 识别成本突增、异常波动等场景。
  */
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { DatabasePool } from '../database';
 import { v4 as uuidv4 } from 'uuid';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('CostAnomalyDetectionService');
 
 export enum AnomalyType {
   SPIKE = 'spike',          // 成本突增

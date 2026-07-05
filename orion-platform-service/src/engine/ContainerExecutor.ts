@@ -12,7 +12,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'container-executor' });
+const logger = createLogger('container-executor');
 const execAsync = promisify(exec);
 
 /**

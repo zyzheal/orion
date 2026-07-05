@@ -13,7 +13,7 @@ import { OnCallService } from '../services/scheduler/OnCallService';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'oncall-routes' });
+const logger = createLogger('oncall-routes');
 
 interface OnCallRoutesOptions {
   database?: DatabasePool;

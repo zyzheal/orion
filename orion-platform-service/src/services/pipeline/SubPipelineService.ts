@@ -17,13 +17,13 @@ import {
   failSubPipeline,
   cancelSubPipeline,
 } from '../../models/SubPipeline';
-import { PipelineEngine } from '../../engine/PipelineEngine';
+import { PipelineEngine } from '../../services/pipeline';
 import { PipelineService } from './PipelineService';
 import { TriggerType } from '../../models/PipelineRun';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SubPipelineService');
 
 export interface InvokeSubPipelineInput {
   childPipelineId: string;
@@ -48,7 +48,7 @@ export class SubPipelineService {
     pipelineEngine?: PipelineEngine | null,
     pipelineService?: PipelineService | null
   ) {
-    if (!repository) throw new Error('SubPipelineRepository is required');
+    if (!repository) throw new OrionError('SubPipelineRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = repository;
     this.pipelineEngine = pipelineEngine || null;
     this.pipelineService = pipelineService || null;

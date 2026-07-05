@@ -7,6 +7,7 @@
  */
 
 import { HandlerRegistryRepository } from './HandlerRegistryRepository';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   Handler,
   HandlerEntry,
@@ -17,9 +18,9 @@ import {
   HealthCheckResult,
 } from './types';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'handler-registry' });
+const logger = createLogger('handler-registry');
 
 export class HandlerRegistry {
   /** L1: Map<domain, Map<name, HandlerEntry>> */
@@ -79,7 +80,7 @@ export class HandlerRegistry {
     const tenantId = getCurrentTenantId();
     const existing = await this.repository.findByDomainAndName(tenantId, domain, name);
     if (existing) {
-      throw new Error(`Handler ${domain}/${name} already exists`);
+      throw new OrionError(`Handler ${domain}/${name} already exists`, ErrorCode.CONFLICT);
     }
 
     await this.repository.create({
@@ -153,7 +154,7 @@ export class HandlerRegistry {
    */
   async enable(domain: string, name: string): Promise<void> {
     const entry = this.handlers.get(domain)?.get(name);
-    if (!entry) throw new Error(`Handler ${domain}/${name} not found`);
+    if (!entry) throw new OrionError(`Handler ${domain}/${name} not found`, ErrorCode.NOT_FOUND);
 
     entry.status = 'active';
     await this.updatePersistedStatus(domain, name, 'active');
@@ -166,7 +167,7 @@ export class HandlerRegistry {
    */
   async disable(domain: string, name: string): Promise<void> {
     const entry = this.handlers.get(domain)?.get(name);
-    if (!entry) throw new Error(`Handler ${domain}/${name} not found`);
+    if (!entry) throw new OrionError(`Handler ${domain}/${name} not found`, ErrorCode.NOT_FOUND);
 
     entry.status = 'disabled';
     await this.updatePersistedStatus(domain, name, 'disabled');
@@ -179,7 +180,7 @@ export class HandlerRegistry {
    */
   async unregister(domain: string, name: string): Promise<void> {
     const domainMap = this.handlers.get(domain);
-    if (!domainMap?.has(name)) throw new Error(`Handler ${domain}/${name} not found`);
+    if (!domainMap?.has(name)) throw new OrionError(`Handler ${domain}/${name} not found`, ErrorCode.NOT_FOUND);
 
     domainMap.delete(name);
     if (domainMap.size === 0) this.handlers.delete(domain);
@@ -200,8 +201,8 @@ export class HandlerRegistry {
    */
   async invoke(domain: string, name: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     const entry = this.handlers.get(domain)?.get(name);
-    if (!entry) throw new Error(`Handler ${domain}/${name} not found`);
-    if (entry.status !== 'active') throw new Error(`Handler ${domain}/${name} is ${entry.status}`);
+    if (!entry) throw new OrionError(`Handler ${domain}/${name} not found`, ErrorCode.NOT_FOUND);
+    if (entry.status !== 'active') throw new OrionError(`Handler ${domain}/${name} is ${entry.status}`, ErrorCode.INTERNAL_ERROR);
 
     try {
       const result = await entry.handler.execute(payload);

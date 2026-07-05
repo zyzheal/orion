@@ -12,12 +12,12 @@
  * execution isolation.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { PluginSandboxConfig, PluginExecutionResult } from './types';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginSandbox');
 
 /**
  * Default sandbox configuration

@@ -16,7 +16,7 @@ import { DistributedTracingService } from '../services/observability/Distributed
 import { handleError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'tracing-routes' });
+const logger = createLogger('tracing-routes');
 
 interface TracingRoutesOptions {
   database: DatabasePool;

@@ -182,10 +182,10 @@ export async function jwtAuth(
 
     // Normalize field names for backward compatibility
     // Support both tenantId (camelCase) and tenant_id (snake_case)
-    if (decoded.tenant_id && !decoded.tenantId) {
-      (decoded as any).tenantId = decoded.tenant_id;
+    if (decoded.tenantId && !decoded.tenantId) {
+      (decoded as any).tenantId = decoded.tenantId;
     }
-    if (decoded.tenantId && !decoded.tenant_id) {
+    if (decoded.tenantId && !decoded.tenantId) {
       (decoded as any).tenant_id = decoded.tenantId;
     }
 

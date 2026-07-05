@@ -10,11 +10,11 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { DeploymentTrafficStateRepository, DeploymentTrafficStateEntity } from '../../repositories/DeploymentTrafficStateRepository';
 
-const logger = pino({ name: 'LDeployment-LStrategy-LEngine' });
+const logger = createLogger('LDeployment-LStrategy-LEngine');
 import {
   DeploymentStrategyConfig,
   DeploymentStrategyType,

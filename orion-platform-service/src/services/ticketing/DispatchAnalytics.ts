@@ -139,13 +139,13 @@ interface DispatchEvent {
  * to provide insights and performance metrics.
  */
 export class DispatchAnalytics {
-  /** Dispatch results - migrated to repository */
+  /** Dispatch results - runtime cache */
   private resultRepository?: DispatchResultRepository;
-  private dispatchResults: DispatchResult[] = []; // in-memory cache
+  private dispatchResults: DispatchResult[] = []; // in-memory runtime cache
 
-  /** Dispatch events for time tracking - migrated to repository */
+  /** Dispatch events for time tracking - runtime cache */
   private eventRepository?: DispatchEventRepository;
-  private dispatchEvents: Map<string, DispatchEvent> = new Map(); // in-memory cache
+  private dispatchEvents: Map<string, DispatchEvent> = new Map(); // in-memory runtime cache
 
   /** Engineer profiles for context */
   private engineers: Map<string, EngineerProfile> = new Map();
@@ -154,43 +154,6 @@ export class DispatchAnalytics {
     if (db) {
       this.eventRepository = new DispatchEventRepository(db);
       this.resultRepository = new DispatchResultRepository(db);
-    }
-  }
-
-  /**
-   * Load cached data from PostgreSQL on startup
-   */
-  async loadFromDb(): Promise<void> {
-    if (this.eventRepository) {
-      const { entities } = await this.eventRepository.findAll();
-      this.dispatchEvents.clear();
-      for (const entity of entities) {
-        this.dispatchEvents.set(entity.ticketId, {
-          ticketId: entity.ticketId,
-          priority: entity.priority as any,
-          category: entity.category as any,
-          createdAt: entity.createdAt,
-          assignedAt: entity.assignedAt ?? undefined,
-          acceptedAt: entity.acceptedAt ?? undefined,
-          resolvedAt: entity.resolvedAt ?? undefined,
-          dispatchResult: entity.dispatchResult as any,
-        });
-      }
-    }
-    if (this.resultRepository) {
-      const { entities } = await this.resultRepository.findAll();
-      this.dispatchResults = entities.map(e => ({
-        id: e.id,
-        ticketId: e.ticketId,
-        assignee: e.assignee,
-        reason: e.reason ?? '',
-        score: e.score,
-        dispatchedAt: e.dispatchedAt,
-        dispatchType: e.dispatchType as any,
-        scoreBreakdown: e.scoreBreakdown as any,
-        accepted: e.accepted,
-        timeToAcceptanceMs: e.timeToAcceptanceMs ?? undefined,
-      }));
     }
   }
 

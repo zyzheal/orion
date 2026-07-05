@@ -175,6 +175,7 @@ export class WorkspaceService {
       try {
         const entity = await this.workspaceRepository.update(id, updateData as any);
         await this.eventBus?.publish('iac.workspace.updated', { workspaceId: id });
+        if (!entity) return undefined;
         return toWorkspace(entity);
       } catch {
         return undefined;
@@ -213,6 +214,7 @@ export class WorkspaceService {
         workspaceId,
         lockedBy: userId,
       });
+      if (!updated) return undefined;
       return toWorkspace(updated);
     }
     return undefined;
@@ -229,6 +231,7 @@ export class WorkspaceService {
       });
 
       await this.eventBus?.publish('iac.workspace.unlocked', { workspaceId });
+      if (!updated) return undefined;
       return toWorkspace(updated);
     }
     return undefined;

@@ -21,6 +21,7 @@
  */
 
 import { CacheService } from './cache/CacheService';
+import { OrionError, ErrorCode } from '../errors';
 import { CacheRepository } from './cache/CacheRepository';
 import { InMemoryCache } from './cache/InMemoryCache';
 import { RedisCache } from './redis-cache';
@@ -97,7 +98,7 @@ export class FallbackStorageService {
     });
 
     if (!options.tenantId) {
-      throw new Error('[FallbackStorage] tenantId is required and must be provided in options');
+      throw new OrionError('[FallbackStorage] tenantId is required and must be provided in options', ErrorCode.VALIDATION_ERROR);
     }
     this.tenantId = options.tenantId;
     this.healthCheckIntervalMs = options.healthCheckIntervalMs ?? 30_000;
@@ -377,7 +378,13 @@ export class FallbackStorageService {
     // 检查 Redis 健康状态
     if (this.l2) {
       const wasAvailable = this.tierHealth.redis.available;
-      const isHealthy = this.l2.isHealthy();
+      let isHealthy = false;
+      try {
+        await this.l2.get('__health__');
+        isHealthy = true;
+      } catch {
+        isHealthy = false;
+      }
 
       if (isHealthy && !wasAvailable) {
         this.markTierAvailable('redis');

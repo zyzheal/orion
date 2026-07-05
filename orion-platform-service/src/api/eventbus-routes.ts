@@ -16,7 +16,7 @@ import { DatabasePool } from '../services/database';
 import { EventBusService } from '../services/event-bus-service';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'eventbus-routes' });
+const logger = createLogger('eventbus-routes');
 import {
   EventBusConfigRepository,
   EventSubscriptionRepository,

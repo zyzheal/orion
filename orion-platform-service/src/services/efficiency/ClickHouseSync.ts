@@ -10,10 +10,10 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LClick-LHouse-LSync' });
+const logger = createLogger('LClick-LHouse-LSync');
 import {
   EfficiencyMetricsRow,
   EfficiencyEventRow,

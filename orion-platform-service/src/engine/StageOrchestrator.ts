@@ -42,7 +42,7 @@ import { MultiTargetExecutor, MultiTargetResult } from './MultiTargetExecutor';
 import { createLogger } from '../utils/logger';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('StageOrchestrator');
 
 export interface StageOrchestratorDeps {
   pipelineService: PipelineService;

@@ -10,6 +10,7 @@
  */
 
 import { BuildArtifactRepository } from '../../repositories/BuildArtifactRepository';
+import { OrionError, ErrorCode } from '../../errors';
 
 /**
  * Build Architecture types for multi-architecture artifact support
@@ -106,7 +107,7 @@ export class ArtifactService {
 
   constructor(repository: BuildArtifactRepository) {
     if (!repository) {
-      throw new Error('BuildArtifactRepository is required for ArtifactService');
+      throw new OrionError('BuildArtifactRepository is required for ArtifactService', ErrorCode.INTERNAL_ERROR);
     }
     this.repository = repository;
   }

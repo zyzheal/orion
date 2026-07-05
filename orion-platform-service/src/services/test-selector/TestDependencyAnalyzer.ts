@@ -9,14 +9,14 @@
 import { TestSuite, TestCase, TestDependency, TestCodeMapping } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   TestSuiteDependencyRepository,
   TestCaseDependencyRepository,
   TestCodeMappingDependencyRepository,
 } from '../../repositories/TestDependencyRepository';
 
-const logger = pino({ name: 'test-dependency-analyzer' });
+const logger = createLogger('test-dependency-analyzer');
 import * as path from 'path';
 
 export interface DependencyAnalyzerConfig {

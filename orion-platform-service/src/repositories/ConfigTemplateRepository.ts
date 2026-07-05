@@ -5,9 +5,9 @@
  * Supports multi-tenant isolation via tenant_id.
  */
 
-import { BaseRepository } from '../../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
-import { ConfigTemplate, ConfigTemplateVersion, CreateConfigTemplateInput, CreateConfigTemplateVersionInput } from '../../services/config-mgmt/types';
+import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
+import { ConfigTemplate, ConfigTemplateVersion, CreateConfigTemplateInput, CreateConfigTemplateVersionInput, UpdateConfigTemplateInput } from '../services/config-mgmt/types';
 
 export interface ConfigTemplateEntity {
   id: string;
@@ -43,8 +43,9 @@ export class ConfigTemplateRepository extends BaseRepository<ConfigTemplateEntit
   /**
    * Create a new config template.
    */
-  async create(tenantId: string, input: CreateConfigTemplateInput): Promise<ConfigTemplateEntity> {
+  async create(data: Partial<ConfigTemplateEntity>): Promise<ConfigTemplateEntity> {
     const id = `tmpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tenantId = (data as any).tenantId || this.getTenantId();
     const result = await this.db.query(
       `INSERT INTO config_templates (id, tenant_id, name, description, category, config_data, target_environment, is_active, created_by, updated_by, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $8, NOW(), NOW())
@@ -52,26 +53,50 @@ export class ConfigTemplateRepository extends BaseRepository<ConfigTemplateEntit
       [
         id,
         tenantId,
-        input.name,
-        input.description ?? null,
-        input.category ?? null,
-        JSON.stringify(input.configData),
-        input.targetEnvironment || 'dev',
-        input.createdBy,
+        data.name,
+        data.description ?? null,
+        data.category ?? null,
+        JSON.stringify((data as any).configData),
+        data.target_environment || 'dev',
+        (data as any).createdBy,
       ]
     );
     return this.mapRowToEntity(result.rows[0]);
   }
 
   /**
-   * Find template by ID (tenant-scoped).
+   * Update template (partial update).
    */
-  async findById(id: string, tenantId: string): Promise<ConfigTemplateEntity | undefined> {
+  async update(id: string, data: Partial<ConfigTemplateEntity>): Promise<ConfigTemplateEntity> {
+    const tenantId = this.getTenantId();
+    const fields: string[] = ['updated_at = NOW()', `updated_by = $1`];
+    const params: any[] = [(data as any).updatedBy];
+    let idx = 2;
+
+    if (data.name !== undefined) { fields.push(`name = $${idx++}`); params.push(data.name); }
+    if (data.description !== undefined) { fields.push(`description = $${idx++}`); params.push(data.description ?? null); }
+    if (data.category !== undefined) { fields.push(`category = $${idx++}`); params.push(data.category ?? null); }
+    if ((data as any).configData !== undefined) { fields.push(`config_data = $${idx++}`); params.push(JSON.stringify((data as any).configData)); }
+    if (data.target_environment !== undefined) { fields.push(`target_environment = $${idx++}`); params.push(data.target_environment); }
+    if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); params.push(data.is_active); }
+
+    params.push(id, tenantId);
+    const result = await this.db.query(
+      `UPDATE config_templates SET ${fields.join(', ')} WHERE id = $${idx++} AND tenant_id = $${idx} RETURNING *`,
+      params
+    );
+    if (result.rows.length === 0) {
+      throw new OrionError(`Config template ${id} not found`, ErrorCode.NOT_FOUND);
+    }
+    return this.mapRowToEntity(result.rows[0]);
+  }
+  async findById(id: string): Promise<ConfigTemplateEntity | null> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
       `SELECT * FROM config_templates WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -94,35 +119,10 @@ export class ConfigTemplateRepository extends BaseRepository<ConfigTemplateEntit
   }
 
   /**
-   * Update template.
-   */
-  async update(id: string, tenantId: string, input: CreateConfigTemplateInput & { updatedBy: string }): Promise<ConfigTemplateEntity> {
-    const result = await this.db.query(
-      `UPDATE config_templates
-       SET name = $1, description = $2, category = $3, config_data = $4, target_environment = $5, updated_by = $6, updated_at = NOW()
-       WHERE id = $7 AND tenant_id = $8
-       RETURNING *`,
-      [
-        input.name,
-        input.description ?? null,
-        input.category ?? null,
-        JSON.stringify(input.configData),
-        input.targetEnvironment || 'dev',
-        input.updatedBy,
-        id,
-        tenantId,
-      ]
-    );
-    if (result.rows.length === 0) {
-      throw new OrionError(`Config template ${id} not found`, ErrorCode.NOT_FOUND);
-    }
-    return this.mapRowToEntity(result.rows[0]);
-  }
-
-  /**
    * Delete template (tenant-scoped).
    */
-  async delete(id: string, tenantId: string): Promise<boolean> {
+  async delete(id: string): Promise<boolean> {
+    const tenantId = this.getTenantId();
     const result = await this.db.query(
       `DELETE FROM config_templates WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId]
@@ -172,26 +172,26 @@ export class ConfigTemplateRepository extends BaseRepository<ConfigTemplateEntit
       name: row.name,
       description: row.description,
       category: row.category,
-      configData: typeof row.config_data === 'string' ? JSON.parse(row.config_data) : (row.config_data ?? {}),
-      targetEnvironment: row.target_environment,
-      isActive: row.is_active,
-      createdBy: row.created_by,
-      updatedBy: row.updated_by,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      config_data: typeof row.config_data === 'string' ? JSON.parse(row.config_data) : (row.config_data ?? {}),
+      target_environment: row.target_environment,
+      is_active: row.is_active,
+      created_by: row.created_by,
+      updated_by: row.updated_by,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
     };
   }
 
   protected mapRowToVersionEntity(row: any): ConfigTemplateVersionEntity {
     return {
       id: row.id,
-      templateId: row.template_id,
+      template_id: row.template_id,
       tenant_id: row.tenant_id,
-      configData: typeof row.config_data === 'string' ? JSON.parse(row.config_data) : (row.config_data ?? {}),
+      config_data: typeof row.config_data === 'string' ? JSON.parse(row.config_data) : (row.config_data ?? {}),
       version: row.version,
-      changeLog: row.change_log,
-      createdBy: row.created_by,
-      createdAt: row.created_at,
+      change_log: row.change_log,
+      created_by: row.created_by,
+      created_at: row.created_at,
     };
   }
 }

@@ -8,10 +8,10 @@
 
 import { ChatOpsRecommendation } from './EventSubscriber';
 import { DatabasePool } from '../database';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ name: 'LRecommendation-LService' });
+const logger = createLogger('LRecommendation-LService');
 
 // ==================== DataProvider 接口 ====================
 

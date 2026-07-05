@@ -8,7 +8,7 @@ import { DatabasePool } from '../services/database';
 import { FederationService } from '../services/federation/FederationService';
 import { FederationAdvancedService } from '../services/federation/FederationAdvancedService';
 import { FederationAdvancedController } from './controllers/FederationAdvancedController';
-import { handleError, ServiceUnavailableError } from '../errors';
+import { handleError, ServiceUnavailableError, NotFoundError } from '../errors';
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 
@@ -71,7 +71,7 @@ export default async function federationRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!federationService) return dbUnavailable(request, reply);
     try {
-      const tenantId = (request as any).user?.tenantId || 'default';
+      const tenantId = (request as any).user?.tenantId;
       const result = await federationService.listFederations(tenantId);
       return reply.send(result);
     } catch (error) {
@@ -133,7 +133,7 @@ export default async function federationRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!federationService) return dbUnavailable(request, reply);
     try {
-      const tenantId = (request as any).user?.tenantId || 'default';
+      const tenantId = (request as any).user?.tenantId;
       const result = await federationService.listExecutors(tenantId);
       return reply.send(result);
     } catch (error) {
@@ -164,7 +164,7 @@ export default async function federationRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!federationService) return dbUnavailable(request, reply);
     try {
-      const tenantId = (request as any).user?.tenantId || 'default';
+      const tenantId = (request as any).user?.tenantId;
       const result = await federationService.getExecutorDashboard(tenantId);
       return reply.send(result);
     } catch (error) {
@@ -207,7 +207,7 @@ export default async function federationRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!federationService) return dbUnavailable(request, reply);
     try {
-      const tenantId = (request as any).user?.tenantId || 'default';
+      const tenantId = (request as any).user?.tenantId;
       const body = (request as any).body;
       const result = await federationService.dispatchJob(tenantId, body);
       return reply.send(result);

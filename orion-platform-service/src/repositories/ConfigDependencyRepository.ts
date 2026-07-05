@@ -5,21 +5,21 @@
  * Supports multi-tenant isolation via tenant_id.
  */
 
-import { BaseRepository } from '../../db/base-repository';
-import { OrionError, ErrorCode } from '../../errors';
-import { ConfigDependency, CreateConfigDependencyInput, DependencyType, DependencyGraphNode } from '../../services/config-mgmt/types';
+import { BaseRepository } from '../db/base-repository';
+import { OrionError, ErrorCode } from '../errors';
+import { ConfigDependency, CreateConfigDependencyInput, DependencyType, DependencyGraphNode } from '../services/config-mgmt/types';
 
 export interface ConfigDependencyEntity {
   id: string;
   tenant_id: string;
-  config_id: string;
-  depends_on_config_id: string;
-  dependency_type: string;
+  configId: string;
+  dependsOnConfigId: string;
+  dependencyType: string;
   description?: string;
-  is_active: boolean;
-  created_by: string;
-  created_at: Date;
-  updated_at: Date;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class ConfigDependencyRepository extends BaseRepository<ConfigDependencyEntity> {
@@ -30,7 +30,7 @@ export class ConfigDependencyRepository extends BaseRepository<ConfigDependencyE
   /**
    * Create a new dependency relationship.
    */
-  async create(tenantId: string, input: CreateConfigDependencyInput): Promise<ConfigDependencyEntity> {
+  async createDependency(tenantId: string, input: CreateConfigDependencyInput): Promise<ConfigDependencyEntity> {
     // Check for duplicate
     const existing = await this.findByConfigId(input.configId, tenantId);
     const duplicate = existing.find(d => d.dependsOnConfigId === input.dependsOnConfigId);
@@ -84,7 +84,7 @@ export class ConfigDependencyRepository extends BaseRepository<ConfigDependencyE
   /**
    * Delete a dependency relationship (tenant-scoped).
    */
-  async delete(configId: string, dependsOnConfigId: string, tenantId: string): Promise<boolean> {
+  async deleteDependency(configId: string, dependsOnConfigId: string, tenantId: string): Promise<boolean> {
     const result = await this.db.query(
       `DELETE FROM config_dependencies WHERE config_id = $1 AND depends_on_config_id = $2 AND tenant_id = $3`,
       [configId, dependsOnConfigId, tenantId]
@@ -114,7 +114,7 @@ export class ConfigDependencyRepository extends BaseRepository<ConfigDependencyE
 
       const dependedOn = dependedOnResult.rows[0];
       // 'hard' dependencies require the target to be 'active'
-      if (dep.dependency_type === 'hard' && dependedOn.status !== 'active') {
+      if (dep.dependencyType === 'hard' && dependedOn.status !== 'active') {
         unsatisfied.push(dep.dependsOnConfigId);
       }
     }

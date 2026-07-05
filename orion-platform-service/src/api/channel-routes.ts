@@ -8,10 +8,10 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DatabasePool } from '../services/database';
 import { ChannelConfigRepository, ChannelMessageRepository, ChannelIngressService } from '../services/channel';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
-import { handleError } from '../errors';
+import { handleError, ServiceUnavailableError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('channel-routes');
 
 interface ChannelRoutesOptions {
   database?: DatabasePool;
@@ -21,13 +21,12 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   const pool = options.database;
   if (!pool) {
     logger.warn('[ChannelRoutes] Database not available, routes will return 503');
+    return;
   }
 
-  const channelRepo = pool ? new ChannelConfigRepository(pool) : null;
-  const messageRepo = pool ? new ChannelMessageRepository(pool) : null;
-  const ingressService = pool && channelRepo && messageRepo
-    ? new ChannelIngressService(channelRepo, messageRepo)
-    : null;
+  const channelRepo = new ChannelConfigRepository(pool);
+  const messageRepo = new ChannelMessageRepository(pool);
+  const ingressService = new ChannelIngressService(channelRepo, messageRepo);
 
   // GET /channels - List channel configurations
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {

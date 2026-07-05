@@ -9,10 +9,10 @@ import { DatabasePool } from '../database';
 import { EscalationConfigService, EscalationPolicy } from './EscalationConfigService';
 import { TicketingRepository } from '../ticketing/TicketingRepository';
 import { EventBusService } from '../event-bus-service';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EscalationScheduler');
 
 export class EscalationScheduler {
   private db?: DatabasePool;

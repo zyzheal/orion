@@ -25,7 +25,7 @@ import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
 import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'apm-routes' });
+const logger = createLogger('apm-routes');
 
 interface ApmRoutesOptions {
   database?: DatabasePool;

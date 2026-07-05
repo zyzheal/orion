@@ -21,7 +21,7 @@ import { DatabasePool } from '../services/database';
 import { SupplyChainController } from './controllers/SupplyChainController';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'supply-chain-routes' });
+const logger = createLogger('supply-chain-routes');
 
 interface SupplyChainRoutesOptions {
   database?: DatabasePool;

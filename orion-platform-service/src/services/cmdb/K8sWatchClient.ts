@@ -8,10 +8,10 @@
  * - Watch 消息处理
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import * as k8s from '@kubernetes/client-node';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('K8sWatchClient');
 
 /**
  * Watch 事件类型

@@ -14,9 +14,9 @@ import { PipelineRunRepository } from '../../services/pipeline/PipelineRunReposi
 import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
 import { Stage } from '../../models/Stage';
 import { Task } from '../../models/Task';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LPipeline-LError-LDetail-LController' });
+const logger = createLogger('LPipeline-LError-LDetail-LController');
 
 // ==================== User-friendly error category mapping ====================
 

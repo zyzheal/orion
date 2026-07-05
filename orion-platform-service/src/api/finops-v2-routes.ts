@@ -12,10 +12,11 @@ import { requirePermission } from '../middleware/requirePermission';
 import { FinOpsV2Controller } from './controllers/finops/FinOpsV2Controller';
 import { FinOpsService } from '../services/finops/FinOpsService';
 import { FinOpsRepository } from '../services/finops/FinOpsRepository';
+import { CloudCostCollector, CloudProvider } from '../services/finops';
 import { createLogger } from '../utils/logger';
 import { NotFoundError, handleError } from '../errors';
 
-const logger = pino({ name: 'finops-v2-routes' });
+const logger = createLogger('finops-v2-routes');
 
 interface FinOpsRoutesOptions {
   database?: DatabasePool;
@@ -37,6 +38,9 @@ export default async function finOpsV2Routes(
 
   const finOpsService = new FinOpsService(repository);
   const controller = new FinOpsV2Controller(finOpsService);
+
+  // Task 5.8: CloudCostCollector for auto-collection
+  const cloudCollector = options.database ? new CloudCostCollector(options.database) : undefined;
 
   // ============================================================================
   // Cost Tracking
@@ -204,7 +208,7 @@ export default async function finOpsV2Routes(
     onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const query = request.query as any;
-    const tenantId = query.tenantId || 'default';
+    const tenantId = query.tenantId || (request as any).user?.tenantId;
     const reports = await finOpsService.getReportHistory(tenantId);
     return reply.send({ success: true, data: { reports } });
   });
@@ -251,4 +255,124 @@ export default async function finOpsV2Routes(
   app.get('/finops/health', {
     onRequest: [authenticateUser],
   }, async (request: FastifyRequest, reply: FastifyReply) => controller.healthCheck(request, reply));
+
+  // ============================================================================
+  // Cost Auto-Collection (Task 5.8)
+  // ============================================================================
+
+  if (cloudCollector) {
+    // POST /finops/collect - Trigger cloud cost collection
+    app.post('/finops/collect', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as any || {};
+        const { provider, days = 30 } = body;
+
+        const endDate = new Date();
+        const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
+
+        let resources;
+        if (provider) {
+          resources = await cloudCollector.collectFromProvider(provider, startDate, endDate);
+        } else {
+          resources = await cloudCollector.collectAll(startDate, endDate);
+        }
+
+        const totalCost = resources.reduce((sum: number, r: any) => sum + r.cost, 0);
+
+        return reply.send({
+          success: true,
+          data: {
+            collected: resources.length,
+            totalCost: Math.round(totalCost * 100) / 100,
+            provider: provider || 'all',
+            periodStart: startDate.toISOString(),
+            periodEnd: endDate.toISOString(),
+          },
+        });
+      } catch (error: any) {
+        logger.error('[FinOpsV2] Collection error:', error);
+        return reply.status(500).send({
+          success: false,
+          error: 'COLLECTION_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    // GET /finops/collect/providers - List registered cloud providers
+    app.get('/finops/collect/providers', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const providers = cloudCollector.getRegisteredProviders();
+        return reply.send({ success: true, data: { providers } });
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          error: 'PROVIDER_LIST_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    // POST /finops/collect/schedule - Set collection schedule for a provider
+    app.post('/finops/collect/schedule', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'write' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const body = request.body as any || {};
+        const { provider, cronExpression, enabled = true } = body;
+
+        if (!provider || !cronExpression) {
+          return reply.status(400).send({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'provider and cronExpression are required',
+          });
+        }
+
+        await cloudCollector.setSchedule(provider, { provider: provider as CloudProvider, cronExpression, enabled });
+
+        return reply.send({
+          success: true,
+          message: `Collection schedule updated for ${provider}`,
+        });
+      } catch (error: any) {
+        logger.error('[FinOpsV2] Schedule error:', error);
+        return reply.status(500).send({
+          success: false,
+          error: 'SCHEDULE_ERROR',
+          message: error.message,
+        });
+      }
+    });
+
+    // GET /finops/collect/schedule/:provider - Get collection schedule
+    app.get('/finops/collect/schedule/:provider', {
+      onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
+    }, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const params = request.params as { provider: string };
+        const schedule = await cloudCollector.getSchedule(params.provider as any);
+
+        if (!schedule) {
+          return reply.status(404).send({
+            success: false,
+            error: 'SCHEDULE_NOT_FOUND',
+            message: `No schedule found for provider: ${params.provider}`,
+          });
+        }
+
+        return reply.send({ success: true, data: schedule });
+      } catch (error: any) {
+        return reply.status(500).send({
+          success: false,
+          error: 'SCHEDULE_GET_ERROR',
+          message: error.message,
+        });
+      }
+    });
+  }
 }

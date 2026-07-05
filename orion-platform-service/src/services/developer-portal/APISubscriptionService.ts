@@ -6,6 +6,10 @@
  */
 
 import { randomUUID } from 'crypto';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('api-subscription-service');
+
 import {
   DevPortalSubscriptionRepository,
   DevPortalUsageRecordRepository,
@@ -233,7 +237,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'approved', { approvedBy: input.approvedBy }).catch((err) => console.warn('[APISubscriptionService] Failed to persist approval:', err));
+      this.subscriptionRepo.updateStatus(id, 'approved', { approvedBy: input.approvedBy }).catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to persist approval'));
     }
 
     return sub;
@@ -258,7 +262,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'rejected', { approvedBy: input.approvedBy, rejectReason: input.rejectReason }).catch((err) => console.warn('[APISubscriptionService] Failed to persist rejection:', err));
+      this.subscriptionRepo.updateStatus(id, 'rejected', { approvedBy: input.approvedBy, rejectReason: input.rejectReason }).catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to persist rejection'));
     }
 
     return sub;
@@ -281,7 +285,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'suspended').catch((err) => console.warn('[APISubscriptionService] Failed to persist suspension:', err));
+      this.subscriptionRepo.updateStatus(id, 'suspended').catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to persist suspension'));
     }
 
     return sub;
@@ -301,7 +305,7 @@ export class APISubscriptionService {
 
     // PostgreSQL 持久化（异步）
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.updateStatus(id, 'cancelled').catch((err) => console.warn('[APISubscriptionService] Failed to persist cancellation:', err));
+      this.subscriptionRepo.updateStatus(id, 'cancelled').catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to persist cancellation'));
     }
 
     return sub;
@@ -358,10 +362,10 @@ export class APISubscriptionService {
         method: record.method,
         statusCode: record.statusCode,
         latencyMs: record.latencyMs,
-      }).catch((err) => console.warn('[APISubscriptionService] Failed to persist usage record:', err));
+      }).catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to persist usage record'));
     }
     if (this.subscriptionRepo) {
-      this.subscriptionRepo.incrementUsage(subscriptionId).catch((err) => console.warn('[APISubscriptionService] Failed to increment usage count:', err));
+      this.subscriptionRepo.incrementUsage(subscriptionId).catch((err) => logger.warn({ err }, '[APISubscriptionService] Failed to increment usage count'));
     }
 
     return record;

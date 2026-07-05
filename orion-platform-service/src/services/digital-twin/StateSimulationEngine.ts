@@ -13,9 +13,10 @@
  * - State change timeline/history tracking
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
+import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('StateSimulationEngine');
 
 // ==================== Types ====================
 
@@ -80,7 +81,7 @@ export interface TwinServiceState {
 
 // ==================== Default Transition Matrix ====================
 
-const DEFAULT_TRANSITION_MATRIX: Record<ServiceSimulationState, Record<ServiceSimulationState, number>> = {
+const DEFAULT_TRANSITION_MATRIX: Partial<Record<ServiceSimulationState, Partial<Record<ServiceSimulationState, number>>>> = {
   [ServiceSimulationState.HEALTHY]: {
     [ServiceSimulationState.HEALTHY]: 0.92,
     [ServiceSimulationState.DEGRADED]: 0.08,
@@ -228,7 +229,7 @@ export class StateSimulationEngine {
         service.errorRate = 1.0;
         break;
       default:
-        throw new Error(`Unknown fault type: ${faultType}`);
+        throw new OrionError(`Unknown fault type: ${faultType}`, ErrorCode.INTERNAL_ERROR);
     }
 
     service.faultInjection = {
@@ -462,7 +463,7 @@ export class StateSimulationEngine {
     transitionMatrix?: Record<ServiceSimulationState, Record<ServiceSimulationState, number>>,
   ): Promise<Array<{ step: number; state: ServiceSimulationState; latency: number; errorRate: number }>> {
     if (steps < 1) {
-      throw new Error('Steps must be a positive integer');
+      throw new OrionError('Steps must be a positive integer', ErrorCode.VALIDATION_ERROR);
     }
 
     const matrix = transitionMatrix ?? this.config.transitionProbabilities;
@@ -520,7 +521,7 @@ export class StateSimulationEngine {
     count: number,
   ): Promise<Array<{ step: number; state: ServiceSimulationState; probability: number }>> {
     if (count < 1) {
-      throw new Error('Count must be a positive integer');
+      throw new OrionError('Count must be a positive integer', ErrorCode.VALIDATION_ERROR);
     }
 
     const results: Array<{ step: number; state: ServiceSimulationState; probability: number }> = [];
@@ -568,11 +569,11 @@ export class StateSimulationEngine {
     const n = states.length;
 
     if (n === 0) {
-      throw new Error('Transition matrix is empty');
+      throw new OrionError('Transition matrix is empty', ErrorCode.INTERNAL_ERROR);
     }
 
     // Initialize uniform distribution
-    let distribution: Record<ServiceSimulationState, number> = {};
+    let distribution: Record<string, number> = {};
     for (const s of states) {
       distribution[s] = 1 / n;
     }
@@ -582,7 +583,7 @@ export class StateSimulationEngine {
     const epsilon = 1e-8;
 
     for (let iter = 0; iter < maxIterations; iter++) {
-      const newDistribution: Record<ServiceSimulationState, number> = {};
+      const newDistribution: Record<string, number> = {};
 
       for (const targetState of states) {
         let sum = 0;
@@ -603,12 +604,12 @@ export class StateSimulationEngine {
 
       if (maxDiff < epsilon) {
         logger.info({ iterations: iter + 1, distribution }, '[StateSimulationEngine] Steady state converged');
-        return distribution;
+        return distribution as Record<ServiceSimulationState, number>;
       }
     }
 
     logger.warn({ iterations: maxIterations, distribution }, '[StateSimulationEngine] Steady state did not converge within max iterations');
-    return distribution;
+    return distribution as Record<ServiceSimulationState, number>;
   }
 
   /**
@@ -630,8 +631,8 @@ export class StateSimulationEngine {
     });
 
     // Count transitions
-    const counts: Record<ServiceSimulationState, Record<ServiceSimulationState, number>> = {};
-    const totals: Record<ServiceSimulationState, number> = {};
+    const counts: Record<string, Record<string, number>> = {};
+    const totals: Record<string, number> = {};
 
     for (const entry of entries) {
       if (!counts[entry.previousState]) {
@@ -645,12 +646,12 @@ export class StateSimulationEngine {
     }
 
     // Convert counts to probabilities
-    const matrix: Record<ServiceSimulationState, Record<ServiceSimulationState, number>> = {};
-    for (const source of Object.keys(counts) as ServiceSimulationState[]) {
+    const matrix: Record<string, Record<string, number>> = {};
+    for (const source of Object.keys(counts)) {
       matrix[source] = {};
       const total = totals[source] ?? 1;
       for (const [target, count] of Object.entries(counts[source])) {
-        matrix[source][target as ServiceSimulationState] = count / total;
+        matrix[source][target] = count / total;
       }
     }
 
@@ -659,7 +660,7 @@ export class StateSimulationEngine {
       '[StateSimulationEngine] Built transition matrix from history'
     );
 
-    return matrix;
+    return matrix as Record<ServiceSimulationState, Record<ServiceSimulationState, number>>;
   }
 
   /**
@@ -685,7 +686,7 @@ export class StateSimulationEngine {
   }> {
     const initialState = scenario.initialState ?? ServiceSimulationState.HEALTHY;
     const steps = scenario.steps ?? 10;
-    const matrix = scenario.transitionMatrix ?? this.config.transitionProbabilities;
+    const matrix = scenario.transitionMatrix ?? this.config.transitionProbabilities as Record<ServiceSimulationState, Record<ServiceSimulationState, number>>;
 
     const startedAt = new Date().toISOString();
 
@@ -701,7 +702,7 @@ export class StateSimulationEngine {
     }
 
     // Compute state distribution from simulation results
-    const stateDistribution: Record<ServiceSimulationState, number> = {};
+    const stateDistribution: Record<string, number> = {};
     for (const r of results) {
       stateDistribution[r.state] = (stateDistribution[r.state] ?? 0) + 1;
     }

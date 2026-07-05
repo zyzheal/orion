@@ -3,17 +3,16 @@
  */
 
 import { ConfigRepository, ConfigEntry, ConfigHistory } from './ConfigRepository';
-import { ConfigItem, ConfigStatus, ConfigEnvironment } from './types';
+import { ConfigItem, ConfigStatus, ConfigEnvironment, CreateConfigSchemaInput, ConfigSchema, UpdateConfigSchemaInput, ListConfigSchemasFilter, ConfigTemplate, ConfigTemplateVersion, CanaryDeployment, CanaryDeploymentHistory, ConfigDependency, CreateConfigTemplateInput, UpdateConfigTemplateInput, DependencyType } from './types';
 import { CacheService } from '../cache/CacheService';
 import { OrionError, ErrorCode } from '../../errors';
 import { WebhookService } from '../webhook/WebhookService';
-import { ConfigSchemaValidator } from './ConfigSchemaValidator';
-import { ConfigValidationService, JsonSchema, ConfigValidationError } from './ConfigValidationService';
+import { ConfigValidationService, JsonSchema, ConfigValidationError, ValidationResult } from './ConfigValidationService';
 import { ConfigSchemaService } from './ConfigSchemaService';
-import { ConfigSchemaRepository } from '../repositories/ConfigSchemaRepository';
-import { ConfigTemplateRepository } from '../repositories/ConfigTemplateRepository';
-import { CanaryDeploymentRepository } from '../repositories/CanaryDeploymentRepository';
-import { ConfigDependencyRepository } from '../repositories/ConfigDependencyRepository';
+import { ConfigSchemaRepository } from '../../repositories/ConfigSchemaRepository';
+import { ConfigTemplateRepository } from '../../repositories/ConfigTemplateRepository';
+import { CanaryDeploymentRepository } from '../../repositories/CanaryDeploymentRepository';
+import { ConfigDependencyRepository } from '../../repositories/ConfigDependencyRepository';
 import { createLogger } from '../../utils/logger';
 
 export class ConfigServiceError extends Error {
@@ -91,7 +90,7 @@ export class ConfigService {
   private schemaService: ConfigSchemaService;
 
   constructor(repository: ConfigRepository, cache?: CacheService, webhookService?: WebhookService, schemaRepository?: ConfigSchemaRepository) {
-    if (!repository) throw new Error('ConfigRepository is required');
+    if (!repository) throw new OrionError('ConfigRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = repository;
     this.cache = cache || new CacheService(null);
     this.webhookService = webhookService || null;
@@ -119,12 +118,8 @@ export class ConfigService {
     }
   }
 
-  async registerSchema(key: string, schema: JsonSchema): void {
+  async registerSchema(key: string, schema: JsonSchema): Promise<void> {
     this.validationService.setSchema(key, schema);
-  }
-
-  async getSchema(key: string): JsonSchema | undefined {
-    return this.validationService.getSchema(key);
   }
 
   async createConfig(input: CreateConfigInput): Promise<ConfigItem>;
@@ -475,6 +470,29 @@ export class ConfigService {
     return this.schemaService.validateConfigByConfigKey(tenantId, configKey, value);
   }
 
+  /**
+   * 验证 config 值是否合法。
+   * 优先使用已注册的 JSON Schema；若无 schema，则做基础类型推断校验。
+   */
+  async validateConfig(tenantId: string, configKey: string, value: unknown): Promise<ValidationResult> {
+    // 1. 先查 internal validationService 是否有显式注册的 schema
+    const internalResult = this.validationService.validateConfig(configKey, value);
+    if (!internalResult.valid) {
+      return internalResult;
+    }
+    if (this.validationService.getSchema(configKey)) {
+      return { valid: true };
+    }
+
+    // 2. 尝试通过 schemaService（按 configKey 关联的 schema）
+    const schemaResult = await this.schemaService.validateConfigByConfigKey(tenantId, configKey, value);
+    if (!schemaResult.valid) {
+      return schemaResult;
+    }
+    // schemaService 有 schema 且验证通过
+    return { valid: true };
+  }
+
   // ==================== Template Methods ====================
 
   private templateRepo: ConfigTemplateRepository | null = null;
@@ -486,21 +504,21 @@ export class ConfigService {
     return this.templateRepo;
   }
 
-  async createTemplate(tenantId: string, input: { name: string; description?: string; category?: string; configData: Record<string, any>; targetEnvironment?: string; createdBy: string }): Promise<ConfigTemplate> {
+  async createTemplate(tenantId: string, input: CreateConfigTemplateInput): Promise<ConfigTemplate> {
     const repo = this.getTemplateRepo();
-    const entity = await repo.create(tenantId, input);
+    const entity = await repo.create({ ...input, createdBy: input.createdBy, tenantId } as any);
     return this.mapTemplateEntityToModel(entity);
   }
 
-  async updateTemplate(tenantId: string, templateId: string, input: { name: string; description?: string; category?: string; configData: Record<string, any>; targetEnvironment?: string; isActive?: boolean; updatedBy: string }): Promise<ConfigTemplate> {
+  async updateTemplate(tenantId: string, templateId: string, input: UpdateConfigTemplateInput & { updatedBy: string }): Promise<ConfigTemplate> {
     const repo = this.getTemplateRepo();
-    const entity = await repo.update(templateId, tenantId, input);
+    const entity = await repo.update(templateId, { ...input, updatedBy: input.updatedBy } as any);
     return this.mapTemplateEntityToModel(entity);
   }
 
   async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
     const repo = this.getTemplateRepo();
-    return repo.delete(templateId, tenantId);
+    return repo.delete(templateId);
   }
 
   async listTemplates(tenantId: string, category?: string): Promise<ConfigTemplate[]> {
@@ -511,7 +529,7 @@ export class ConfigService {
 
   async getTemplate(tenantId: string, templateId: string): Promise<ConfigTemplate | null> {
     const repo = this.getTemplateRepo();
-    const entity = await repo.findById(templateId, tenantId);
+    const entity = await repo.findById(templateId);
     return entity ? this.mapTemplateEntityToModel(entity) : null;
   }
 
@@ -523,12 +541,12 @@ export class ConfigService {
 
   async applyTemplate(tenantId: string, templateId: string, targetEnv: string): Promise<{ applied: number; skipped: string[] }> {
     const repo = this.getTemplateRepo();
-    const template = await repo.findById(templateId, tenantId);
+    const template = await repo.findById(templateId);
     if (!template) {
       throw new OrionError(`Template ${templateId} not found`, ErrorCode.NOT_FOUND);
     }
 
-    const configData = template.configData as Record<string, any>;
+    const configData = (template as any).configData as Record<string, any>;
     const keys = Object.keys(configData);
     let applied = 0;
     const skipped: string[] = [];
@@ -568,7 +586,8 @@ export class ConfigService {
 
   async createCanaryDeployment(tenantId: string, configId: string, percentage: number, canaryValue: Record<string, any>, targetValue: Record<string, any>, configKey?: string): Promise<CanaryDeployment> {
     const repo = this.getCanaryRepo();
-    const entity = await repo.create(tenantId, {
+    const entity = await repo.create({
+      tenantId,
       configId,
       configKey: configKey || 'unknown',
       environment: 'dev',
@@ -600,20 +619,8 @@ export class ConfigService {
 
   async getCanaryHistory(tenantId: string, deploymentId: string): Promise<CanaryDeploymentHistory[]> {
     const repo = this.getCanaryRepo();
-    const result = await repo.db.query(
-      `SELECT * FROM canary_deployment_history WHERE deployment_id = $1 AND tenant_id = $2 ORDER BY created_at DESC`,
-      [deploymentId, tenantId]
-    );
-    return result.rows.map(row => ({
-      id: row.id,
-      deploymentId: row.deployment_id,
-      tenant_id: row.tenant_id,
-      oldPercentage: row.old_percentage,
-      newPercentage: row.new_percentage,
-      action: row.action,
-      performedBy: row.performed_by,
-      createdAt: row.created_at,
-    }));
+    const entities = await repo.getHistory(deploymentId, tenantId);
+    return entities.map(e => this.mapCanaryHistoryEntityToModel(e));
   }
 
   // ==================== Dependency Methods ====================
@@ -627,9 +634,9 @@ export class ConfigService {
     return this.dependencyRepo;
   }
 
-  async addDependency(tenantId: string, configId: string, dependsOnConfigId: string, type: string = 'hard', description?: string): Promise<ConfigDependency> {
+  async addDependency(tenantId: string, configId: string, dependsOnConfigId: string, type: DependencyType = 'hard', description?: string): Promise<ConfigDependency> {
     const repo = this.getDependencyRepo();
-    const entity = await repo.create(tenantId, {
+    const entity = await repo.createDependency(tenantId, {
       configId,
       dependsOnConfigId,
       dependencyType: type,
@@ -663,7 +670,7 @@ export class ConfigService {
 
   async removeDependency(tenantId: string, configId: string, dependsOnConfigId: string): Promise<boolean> {
     const repo = this.getDependencyRepo();
-    return repo.delete(configId, dependsOnConfigId, tenantId);
+    return repo.deleteDependency(configId, dependsOnConfigId, tenantId);
   }
 
   // ==================== Mappers ====================
@@ -675,26 +682,26 @@ export class ConfigService {
       name: entity.name,
       description: entity.description,
       category: entity.category,
-      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
-      targetEnvironment: entity.target_environment,
-      isActive: entity.is_active,
-      createdBy: entity.created_by,
-      updatedBy: entity.updated_by,
-      createdAt: entity.created_at,
-      updatedAt: entity.updated_at,
+      configData: typeof entity.configData === 'string' ? JSON.parse(entity.configData) : (entity.configData ?? {}),
+      targetEnvironment: entity.targetEnvironment,
+      isActive: entity.isActive,
+      createdBy: entity.createdBy,
+      updatedBy: entity.updatedBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     };
   }
 
   private mapTemplateVersionEntityToModel(entity: any): ConfigTemplateVersion {
     return {
       id: entity.id,
-      templateId: entity.template_id,
+      templateId: entity.templateId,
       tenant_id: entity.tenant_id,
-      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
+      configData: typeof entity.configData === 'string' ? JSON.parse(entity.configData) : (entity.configData ?? {}),
       version: entity.version,
-      changeLog: entity.change_log,
-      createdBy: entity.created_by,
-      createdAt: entity.created_at,
+      changeLog: entity.changeLog,
+      createdBy: entity.createdBy,
+      createdAt: entity.createdAt,
     };
   }
 
@@ -702,7 +709,7 @@ export class ConfigService {
     return {
       id: entity.id,
       tenant_id: entity.tenant_id,
-      configId: entity.config_id,
+      configId: entity.configId,
       configKey: entity.config_key,
       environment: entity.environment,
       percentage: entity.percentage,
@@ -712,9 +719,22 @@ export class ConfigService {
       targetValue: typeof entity.target_value === 'string' ? JSON.parse(entity.target_value) : (entity.target_value ?? {}),
       promotedAt: entity.promoted_at,
       rolledBackAt: entity.rolled_back_at,
-      createdBy: entity.created_by,
-      createdAt: entity.created_at,
-      updatedAt: entity.updated_at,
+      createdBy: entity.createdBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
+
+  private mapCanaryHistoryEntityToModel(entity: any): CanaryDeploymentHistory {
+    return {
+      id: entity.id,
+      deploymentId: entity.deployment_id,
+      tenant_id: entity.tenant_id,
+      oldPercentage: entity.old_percentage,
+      newPercentage: entity.new_percentage,
+      action: entity.action,
+      performedBy: entity.performed_by,
+      createdAt: entity.createdAt,
     };
   }
 
@@ -722,14 +742,14 @@ export class ConfigService {
     return {
       id: entity.id,
       tenant_id: entity.tenant_id,
-      configId: entity.config_id,
-      dependsOnConfigId: entity.depends_on_config_id,
-      dependencyType: entity.dependency_type,
+      configId: entity.configId,
+      dependsOnConfigId: entity.dependsOnConfigId,
+      dependencyType: entity.dependencyType,
       description: entity.description,
-      isActive: entity.is_active,
-      createdBy: entity.created_by,
-      createdAt: entity.created_at,
-      updatedAt: entity.updated_at,
+      isActive: entity.isActive,
+      createdBy: entity.createdBy,
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
     };
   }
 }

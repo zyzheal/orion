@@ -2,7 +2,7 @@
  * UserService - Business logic layer for User operations
  *
  * Handles business rules, validation, and authentication
- * Note: Password hashing should be handled by auth layer or external service
+ * Note: Password hashing is delegated to PasswordService (bcrypt-based)
  */
 
 import {
@@ -12,6 +12,7 @@ import {
   UpdateUserInput
 } from './UserRepository';
 import { CacheService } from '../cache/CacheService';
+import { PasswordService } from '../auth/PasswordService';
 
 export interface ListUsersOptions {
   page?: number;
@@ -36,20 +37,35 @@ export class UserServiceError extends Error {
   }
 }
 
+export interface BulkImportResult {
+  total: number;
+  success: number;
+  failed: number;
+  errors: Array<{ row: number; username?: string; error: string }>;
+}
+
+export interface ExportOptions {
+  tenantId?: string;
+  role?: string;
+  status?: string;
+  format: 'csv' | 'json';
+}
+
 export class UserService {
   private repository: UserRepository;
   private cache: CacheService;
+  private passwordService: PasswordService;
 
   constructor(repository: UserRepository, cache?: CacheService) {
     this.repository = repository;
     this.cache = cache || new CacheService(null);
+    this.passwordService = new PasswordService();
   }
 
   /**
    * Get user by ID
    */
   async getUser(id: string): Promise<User> {
-    // Try cache first
     const cached = await this.cache.get<User>(`user:${id}`);
     if (cached) return cached;
 
@@ -59,29 +75,19 @@ export class UserService {
       throw new UserServiceError(`User not found: ${id}`, 'USER_NOT_FOUND');
     }
 
-    // Cache for 300s — user data changes infrequently
     await this.cache.set(`user:${id}`, user, 300);
 
     return user;
   }
 
-  /**
-   * Get user by username
-   */
   async getUserByUsername(username: string): Promise<User | null> {
     return this.repository.findByUsername(username);
   }
 
-  /**
-   * Get user by email
-   */
   async getUserByEmail(email: string): Promise<User | null> {
     return this.repository.findByEmail(email);
   }
 
-  /**
-   * List all users with pagination
-   */
   async listUsers(options: ListUsersOptions = {}): Promise<PaginatedResult<User>> {
     const { page = 1, limit = 20, tenantId, status, role } = options;
     const offset = (page - 1) * limit;
@@ -100,11 +106,7 @@ export class UserService {
     };
   }
 
-  /**
-   * Create a new user
-   */
   async createUser(input: CreateUserInput): Promise<User> {
-    // Validate required fields
     if (!input.username || input.username.trim().length === 0) {
       throw new UserServiceError('Username is required', 'INVALID_INPUT');
     }
@@ -113,25 +115,22 @@ export class UserService {
       throw new UserServiceError('Password must be at least 8 characters', 'INVALID_PASSWORD');
     }
 
-    // Check for duplicate username
     const usernameExists = await this.repository.existsByUsername(input.username);
     if (usernameExists) {
       throw new UserServiceError('Username already exists', 'DUPLICATE_USERNAME');
     }
 
-    // Check for duplicate email if provided
     if (input.email) {
       if (!this.isValidEmail(input.email)) {
         throw new UserServiceError('Invalid email format', 'INVALID_EMAIL');
       }
-      
+
       const emailExists = await this.repository.existsByEmail(input.email);
       if (emailExists) {
         throw new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
       }
     }
 
-    // Validate username format
     if (!/^[a-zA-Z0-9_-]+$/.test(input.username)) {
       throw new UserServiceError(
         'Username can only contain letters, numbers, hyphens and underscores',
@@ -139,8 +138,8 @@ export class UserService {
       );
     }
 
-    // Hash password
-    const passwordHash = await this.hashPassword(input.passwordHash);
+    // Hash password using PasswordService (bcrypt, with legacy backward compatibility)
+    const passwordHash = await this.passwordService.hash(input.passwordHash);
 
     return this.repository.create({
       ...input,
@@ -150,17 +149,12 @@ export class UserService {
     });
   }
 
-  /**
-   * Update an existing user
-   */
   async updateUser(id: string, input: UpdateUserInput): Promise<User> {
-    // Check if user exists
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new UserServiceError(`User not found: ${id}`, 'USER_NOT_FOUND');
     }
 
-    // Check for duplicate username if changing
     if (input.username) {
       const exists = await this.repository.existsByUsername(input.username);
       if (exists && existing.username !== input.username) {
@@ -168,12 +162,11 @@ export class UserService {
       }
     }
 
-    // Check for duplicate email if changing
     if (input.email) {
       if (!this.isValidEmail(input.email)) {
         throw new UserServiceError('Invalid email format', 'INVALID_EMAIL');
       }
-      
+
       const exists = await this.repository.existsByEmail(input.email);
       if (exists && existing.email !== input.email) {
         throw new UserServiceError('Email already exists', 'DUPLICATE_EMAIL');
@@ -186,33 +179,25 @@ export class UserService {
       throw new UserServiceError(`Failed to update user: ${id}`, 'UPDATE_FAILED');
     }
 
-    // Invalidate cache on update
     await this.cache.del(`user:${id}`);
 
     return updated;
   }
 
-  /**
-   * Delete a user (soft delete)
-   */
   async deleteUser(id: string): Promise<boolean> {
     const existing = await this.repository.findById(id);
     if (!existing) {
       throw new UserServiceError(`User not found: ${id}`, 'USER_NOT_FOUND');
     }
 
-    // Invalidate cache on delete
     await this.cache.del(`user:${id}`);
 
     return this.repository.delete(id);
   }
 
-  /**
-   * Authenticate user with username and password
-   */
   async authenticate(username: string, password: string): Promise<User> {
     const user = await this.repository.findByUsername(username);
-    
+
     if (!user) {
       throw new UserServiceError('Invalid credentials', 'INVALID_CREDENTIALS');
     }
@@ -221,22 +206,18 @@ export class UserService {
       throw new UserServiceError('Account is inactive', 'ACCOUNT_INACTIVE');
     }
 
-    const isValid = await this.comparePassword(password, user.password_hash);
-    
+    // Verify using PasswordService (supports bcrypt, PBKDF2, scrypt, SHA-256)
+    const isValid = await this.passwordService.verifyPassword(password, user.password_hash);
+
     if (!isValid) {
       throw new UserServiceError('Invalid credentials', 'INVALID_CREDENTIALS');
     }
 
-    // Update last login info
-    // Note: In real implementation, we'd get the IP from the request context
     await this.repository.updateLastLogin(user.id, '0.0.0.0');
 
     return user;
   }
 
-  /**
-   * Change user password
-   */
   async changePassword(userId: string, oldPassword: string, newPassword: string): Promise<void> {
     if (newPassword.length < 8) {
       throw new UserServiceError('Password must be at least 8 characters', 'INVALID_PASSWORD');
@@ -247,83 +228,113 @@ export class UserService {
       throw new UserServiceError('User not found', 'USER_NOT_FOUND');
     }
 
-    // Verify old password
-    const isValid = await this.comparePassword(oldPassword, user.password_hash);
+    // Verify old password using PasswordService
+    const isValid = await this.passwordService.verifyPassword(oldPassword, user.password_hash);
     if (!isValid) {
       throw new UserServiceError('Current password is incorrect', 'INVALID_PASSWORD');
     }
 
     // Hash new password and update
-    const newHash = await this.hashPassword(newPassword);
+    const newHash = await this.passwordService.hash(newPassword);
     await this.repository.update(userId, { password_hash: newHash } as UpdateUserInput);
   }
 
-  /**
-   * Get users by tenant
-   */
   async getUsersByTenant(tenantId: string): Promise<User[]> {
     return this.repository.findByTenant(tenantId);
   }
 
-  /**
-   * Add user to tenant
-   */
   async addUserToTenant(userId: string, tenantId: string, role: string = 'member'): Promise<void> {
     await this.repository.addToTenant(userId, tenantId, role);
   }
 
-  /**
-   * Remove user from tenant
-   */
   async removeUserFromTenant(userId: string, tenantId: string): Promise<void> {
     await this.repository.removeFromTenant(userId, tenantId);
   }
 
-  /**
-   * Hash a password using PBKDF2 with random salt
-   * Format: pbkdf2$salt$iterations$hash
-   */
-  private async hashPassword(password: string): Promise<string> {
-    const crypto = await import('crypto');
-    const salt = crypto.randomBytes(16).toString('hex');
-    return new Promise((resolve, reject) => {
-      crypto.pbkdf2(password, salt, 100000, 64, 'sha256', (err, derivedKey) => {
-        if (err) reject(err);
-        else resolve(`pbkdf2$${salt}$100000$${derivedKey.toString('hex')}`);
-      });
-    });
-  }
+  // =========================================================================
+  // Bulk Import / Export
+  // =========================================================================
 
   /**
-   * Compare password with hash (supports PBKDF2 and legacy SHA-256)
+   * Bulk import users from CSV text.
+   * CSV format: username,email,password,name,role (header row optional)
+   * Returns import summary with per-row errors.
    */
-  private async comparePassword(password: string, hash: string): Promise<boolean> {
-    // PBKDF2 format: pbkdf2$salt$iterations$hash
-    if (hash.startsWith('pbkdf2$')) {
-      const [_, salt, iterationsStr, expectedHash] = hash.split('$');
-      const iterations = parseInt(iterationsStr, 10);
-      const crypto = await import('crypto');
-      return new Promise((resolve, reject) => {
-        crypto.pbkdf2(password, salt, iterations, 64, 'sha256', (err, derivedKey) => {
-          if (err) reject(err);
-          else resolve(derivedKey.toString('hex') === expectedHash);
-        });
-      });
+  async bulkImportUsers(csvText: string, tenantId: string, createdBy: string): Promise<BulkImportResult> {
+    const lines = csvText.trim().split(/\r?\n/).filter(line => line.trim());
+    if (lines.length === 0) {
+      return { total: 0, success: 0, failed: 0, errors: [] };
     }
 
-    // Legacy SHA-256 (migration compatibility)
-    const crypto = await import('crypto');
-    const sha256Hash = crypto.createHash('sha256');
-    sha256Hash.update(password);
-    if (sha256Hash.digest('hex') === hash) return true;
+    // Detect if header row exists
+    const firstLine = lines[0].split(',');
+    const hasHeader = firstLine.some(col => col.trim().toLowerCase() === 'username');
+    const startIndex = hasHeader ? 1 : 0;
 
-    // Plain text fallback
-    return password === hash;
+    const result: BulkImportResult = { total: 0, success: 0, failed: 0, errors: [] };
+
+    for (let i = startIndex; i < lines.length; i++) {
+      const rowNum = i + 1;
+      const cols = lines[i].split(',').map(c => c.trim());
+      result.total++;
+
+      try {
+        const [username, email, password, name, role] = cols;
+
+        if (!username || !password) {
+          result.failed++;
+          result.errors.push({ row: rowNum, username: username || '(empty)', error: 'username and password are required' });
+          continue;
+        }
+
+        const input: CreateUserInput = {
+          username,
+          email: email || undefined,
+          passwordHash: password,
+          name: name || undefined,
+          role: role || 'member',
+          tenantId,
+          created_by: createdBy,
+        };
+
+        await this.createUser(input);
+        result.success++;
+      } catch (err: any) {
+        result.failed++;
+        result.errors.push({ row: rowNum, username: cols[0] || '(empty)', error: err.message || 'Unknown error' });
+      }
+    }
+
+    return result;
   }
 
   /**
-   * Validate email format
+   * Export users as CSV or JSON text.
    */
+  async exportUsers(options: ExportOptions): Promise<string> {
+    const { tenantId, role, status } = options;
+    const result = await this.listUsers({ tenantId, role, status, limit: 10000 });
+
+    if (options.format === 'json') {
+      return JSON.stringify(result.data.map(u => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        status: u.status,
+        created_at: u.created_at,
+      })), null, 2);
+    }
+
+    // CSV format
+    const header = 'id,username,email,name,role,status,created_at\n';
+    const rows = result.data.map(u =>
+      [u.id, u.username, u.email || '', u.name || '', u.role, u.status, new Date(u.created_at).toISOString()].join(',')
+    ).join('\n');
+    return header + rows;
+  }
+
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);

@@ -5,6 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError } from '../../errors';
 import { VectorizeRulesRepository, VectorizeRuleEntity } from '../../repositories/VectorizeRulesRepository';
 
 export interface VectorizeRule {
@@ -85,6 +86,9 @@ export class VectorizeRulesService {
     if (Object.keys(updateData).length === 0) return this.entityToDto(existing);
 
     const updated = await this.repo.update(id, updateData);
+    if (!updated) {
+      throw new OrionError(`Vectorize rule not found: ${id}`, 'NOT_FOUND');
+    }
     return this.entityToDto(updated);
   }
 

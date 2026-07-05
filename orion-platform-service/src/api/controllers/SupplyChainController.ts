@@ -6,24 +6,24 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { BaseController } from './BaseController';
 
 export class SupplyChainController extends BaseController {
-  private supplyChainService: any;
+  private sbomService: any;
   private dependencyGraphService: any;
   private artifactSigner: any;
 
   constructor(db: any) {
     super();
     // Lazy init to avoid import resolution issues
-    this.supplyChainService = null;
+    this.sbomService = null;
     this.dependencyGraphService = null;
     this.artifactSigner = null;
     this._initServices(db);
   }
 
   private async _initServices(db: any) {
-    const { SupplyChainService } = await import('../../services/security/SupplyChainService');
+    const { SbomService } = await import('../../services/supply-chain/SbomService');
     const { DependencyGraphService } = await import('../../services/security/DependencyGraphService');
     const { ArtifactSigner } = await import('../../services/security/ArtifactSigner');
-    this.supplyChainService = new SupplyChainService(db);
+    this.sbomService = new SbomService(db);
     this.dependencyGraphService = new DependencyGraphService(db);
     this.artifactSigner = new ArtifactSigner();
   }
@@ -41,7 +41,7 @@ export class SupplyChainController extends BaseController {
         return reply.status(400).send({ success: false, error: 'artifactId and components are required' });
       }
 
-      const sbom = await this.supplyChainService.generateSBOM(tenantId, {
+      const sbom = await this.sbomService.generateSBOM(tenantId, {
         artifactId,
         pipelineId,
         format,
@@ -63,7 +63,7 @@ export class SupplyChainController extends BaseController {
     try {
       const { sbomId } = request.params as { sbomId: string };
       const tenantId = this.getTenantId(request);
-      const sbom = await this.supplyChainService.getSBOM(sbomId, tenantId);
+      const sbom = await this.sbomService.getSBOM(sbomId, tenantId);
 
       if (!sbom) {
         return reply.status(404).send({ success: false, error: 'SBOM not found' });
@@ -89,7 +89,7 @@ export class SupplyChainController extends BaseController {
         return reply.status(400).send({ success: false, error: 'package and version are required' });
       }
 
-      const result = await this.supplyChainService.analyzeDependencies(tenantId, {
+      const result = await this.sbomService.analyzeDependencies(tenantId, {
         packageName,
         packageVersion,
         depth,
@@ -141,7 +141,7 @@ export class SupplyChainController extends BaseController {
       );
 
       // Persist signature to artifact_signatures table via service
-      const persisted = await this.supplyChainService.persistArtifactSignature(
+      const persisted = await this.sbomService.persistArtifactSignature(
         tenantId,
         artifactId,
         signerResult.signature,
@@ -167,7 +167,7 @@ export class SupplyChainController extends BaseController {
         return reply.status(400).send({ success: false, error: 'artifactId and signature are required' });
       }
 
-      const verified = await this.supplyChainService.verifySignature(artifactId, signature);
+      const verified = await this.sbomService.verifySignature(artifactId, signature);
 
       reply.send({ success: true, data: verified });
     } catch (error: any) {
@@ -187,7 +187,7 @@ export class SupplyChainController extends BaseController {
         return reply.status(400).send({ success: false, error: 'pipelineId is required' });
       }
 
-      const report = await this.supplyChainService.getSupplyChainReport(tenantId, pipelineId);
+      const report = await this.sbomService.getSupplyChainReport(tenantId, pipelineId);
 
       reply.send({ success: true, data: report });
     } catch (error: any) {

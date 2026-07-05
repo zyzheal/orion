@@ -7,7 +7,7 @@
  *        AlertBufferRepository、AlertTopologyEdgeRepository
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { AlertSourceType } from './AlertTypes';
 import type { AlertTopologyNode, AlertTopologyEdge, RootCauseAnalysis } from './AlertTypes';
 import { AlertCorrelationGroupRepository, AlertCorrelationGroupEntity } from '../../repositories/AlertCorrelationGroupRepository';
@@ -16,7 +16,7 @@ import { AlertBufferRepository, AlertBufferEntity } from '../../repositories/Ale
 import { AlertTopologyEdgeRepository, AlertTopologyEdgeEntity } from '../../repositories/AlertTopologyEdgeRepository';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AlertCorrelationService');
 
 export interface Alert {
   id: string;

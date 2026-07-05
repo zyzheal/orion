@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { ModuleRegistry } from './ModuleRegistry';
 import {
   ModuleDescriptor,
@@ -11,7 +11,7 @@ import {
 } from './types';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ModuleManager');
 
 export { ModuleLifecycle } from './types';
 export { ModuleDescriptor } from './types';

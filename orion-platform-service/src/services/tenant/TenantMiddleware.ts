@@ -13,10 +13,10 @@ import { DatabasePool } from '../database';
 import { TenantInfo, tenantContext } from './TenantContext';
 import { TenantIsolationService } from './TenantIsolationService';
 import { RLSPolicyManager } from './RLSPolicyManager';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantMiddleware');
 
 export interface TenantMiddlewareOptions {
   enabled?: boolean;
@@ -102,12 +102,13 @@ function extractTenantInfo(
   const tenantId = user?.tenantId || user?.tenant_id;
 
   if (tenantId !== undefined && tenantId !== null) {
-    const parsedTenantId = typeof tenantId === 'string' ? parseInt(tenantId, 10) : tenantId;
+    const tenantIdStr = String(tenantId);
+    const parsedTenantId = parseInt(tenantIdStr, 10);
     return {
       tenantId: parsedTenantId,
-      userId: (user.userId || user.sub) as string | undefined,
-      roles: user.roles as string[] | undefined,
-      permissions: user.permissions as string[] | undefined,
+      userId: user?.userId ? String(user.userId) : user?.sub ? String(user.sub) : undefined,
+      roles: user?.roles ? (user.roles as string[]) : undefined,
+      permissions: user?.permissions ? (user.permissions as string[]) : undefined,
     };
   }
 

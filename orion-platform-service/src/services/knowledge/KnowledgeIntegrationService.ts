@@ -9,12 +9,13 @@
  * 封装 KnowledgeService 和 KnowledgeBaseService，为上层业务服务提供统一的知识检索接口。
  */
 
-import { createLogger } from '../utils/logger';
-import { KnowledgeService, KnowledgeSearchResult } from './KnowledgeService';
+import { createLogger } from '../../utils/logger';
+import { KnowledgeService } from './KnowledgeService';
+import { KnowledgeSearchResult } from './KnowledgeRepository';
 import { KnowledgeBaseService, KBQuery, KBRecommendation } from '../self-healing/KnowledgeBaseService';
 import { DatabasePool } from '../database';
 
-const logger = pino({ name: 'KnowledgeIntegration' });
+const logger = createLogger('KnowledgeIntegration');
 
 export interface KnowledgeRecommendation {
   source: 'knowledge' | 'knowledge-base';
@@ -98,7 +99,7 @@ export class KnowledgeIntegrationService {
     // 2. 从知识库模式库获取审批相关模式
     try {
       const kbRecommendations = this.knowledgeBaseService.query({
-        keywords: ['approval', 'change', 'deployment', context.resourceType],
+        keywords: ['approval', 'change', 'deployment', context.resourceType ?? ''],
         category: 'deployment',
         limit: limit,
       });

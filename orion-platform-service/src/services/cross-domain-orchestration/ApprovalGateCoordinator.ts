@@ -47,7 +47,7 @@ class ApprovalGateCoordRepository {
   private pool: DatabasePool;
 
   constructor(pool: DatabasePool) {
-    if (!pool) throw new Error('DatabasePool is required');
+    if (!pool) throw new OrionError('DatabasePool is required', ErrorCode.INTERNAL_ERROR);
     this.pool = pool;
   }
 
@@ -105,7 +105,7 @@ export class ApprovalGateCoordinator {
   private repository: ApprovalGateCoordRepository;
 
   constructor(database: DatabasePool) {
-    if (!database) throw new Error('DatabasePool is required for ApprovalGateCoordinator');
+    if (!database) throw new OrionError('DatabasePool is required for ApprovalGateCoordinator', ErrorCode.INTERNAL_ERROR);
     this.repository = new ApprovalGateCoordRepository(database);
   }
 

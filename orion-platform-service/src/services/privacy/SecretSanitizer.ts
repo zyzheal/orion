@@ -1,7 +1,7 @@
 // orion-platform-service/src/services/privacy/SecretSanitizer.ts
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SecretSanitizer');
 
 export interface DetectedSecret {
   type: string;

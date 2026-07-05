@@ -1,9 +1,9 @@
 import { FormRepository, FormDefinition, FormFieldDefinition, FormInstance, CreateFormDefinitionInput, CreateFormFieldInput, CreateFormInstanceInput } from './FormRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('FormService');
 
 export interface FormDefinitionWithFields extends FormDefinition {
   fields: FormFieldDefinition[];

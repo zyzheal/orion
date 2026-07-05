@@ -34,10 +34,15 @@ import eventbusRoutes from './eventbus-routes';
 import { productLineRoutes } from './product-line-routes';
 import { internalLibraryRoutes } from './internal-library-routes';
 import notificationRoutes from './notification-routes';
+import notificationPolicyRoutes from './notification-policy-routes';
+import notificationTemplateRoutes from './notification-template-routes';
+import scheduledNotificationRoutes from './scheduled-notification-routes';
+import doNotDisturbRoutes from './do-not-disturb-routes';
 import webhookRoutes from './webhook-routes';
 import roleRoutes from './role-routes';
 import knowledgeRoutes from './knowledge-routes';
 import subappRoutes from './subapp-routes';
+import pageRegistryRoutes from './page-registry-routes';
 import metricsRoutes from './metrics-routes';
 import userRoutes from './user-routes';
 import userProfileRoutes from './user-profile-routes';
@@ -97,6 +102,8 @@ import capabilityRoutes from './capability-routes';
 import { registerAIAgentRoutes } from './ai-agent-routes';
 import apiMarketRoutes from './api-market-routes';
 import serviceCatalogRoutes from './service-catalog-routes';
+import progressiveRoutes from './progressive-routes';
+import serviceTopologyRoutes from './service-topology-routes';
 import changeRoutes from './change-routes';
 import changeRequestRoutes from './change-request-routes';
 import slaRoutes from './sla-routes';
@@ -113,7 +120,6 @@ import i18nRoutes from './i18n-routes';
 import runbookRoutes from './runbook-routes';
 import versionArchiveRoutes from './version-archive-routes';
 import complianceRoutes from './compliance-routes';
-import notificationPolicyRoutes from './notification-policy-routes';
 import alertBreakerRoutes from './alert-breaker-routes';
 import eventTriggerRoutes from './event-trigger-routes';
 import reportDesignerRoutes from './report-designer-routes';
@@ -124,6 +130,7 @@ import globalParamRoutes from './global-param-routes';
 import envProfileRoutes from './env-profile-routes';
 import scriptVersionRoutes from './script-version-routes';
 import pipelineAuditLogRoutes from './pipeline-audit-log-routes';
+import ociRegistryRoutes from './oci-registry-routes';
 
 // AI Module Routes — AI Gateway, Cost, Review, Security
 import aiGatewayRoutes from './ai-gateway-routes';
@@ -132,6 +139,8 @@ import aiReviewRoutes from './ai-review-routes';
 import aiSecurityRoutes from './ai-security-routes';
 
 // New module routes — BuildEnv, Observability, Backup, OnCall, SBOM
+import serviceRegistryRoutes from './service-registry-routes';
+import gatewayDynamicRoutes from './gateway-dynamic-routes';
 import buildEnvRoutes from './build-env-routes';
 import observabilityRoutes from './observability-routes';
 import backupRoutes from './backup-routes';
@@ -158,6 +167,7 @@ import problemRoutes from './problem-routes';
 
 // Previously orphan routes now being registered
 import authEnhancedRoutes from './auth-enhanced-routes';
+import authMfaRoutes from './auth-mfa-routes';
 import authRoutes from './routes-auth';
 import ssoProvidersRoutes from './sso-providers-routes';
 import ssoUnifiedRoutes from './sso-unified-routes';
@@ -190,10 +200,7 @@ import { TaskController } from './controllers/TaskController';
 import { SCMWebhookService } from '../services/pipeline/SCMWebhookService';
 import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineRunRepository } from '../services/pipeline/PipelineRunRepository';
-import { PipelineEngine } from '../engine/PipelineEngine';
-import { PipelineServiceRegistry } from '../engine/PipelineServiceRegistry';
-import { StageExecutor } from '../engine/StageExecutor';
-import { TaskRunner } from '../engine/TaskRunner';
+import { PipelineEngine, PipelineServiceRegistry, StageExecutor, TaskRunner } from '../services/pipeline';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import featureFlagRoutes from './feature-flag-routes';
 import pluginHotReloadRoutes from './plugin-hotreload-routes';
@@ -205,10 +212,12 @@ import testGenerationRoutes from './test-generation-routes';
 import testSelectorRoutes from './test-selector-routes';
 import deployRoutes from './deploy-routes';
 import healthCheckRoutes from './health-check-routes';
+import serviceHealthRoutes from './service-health-routes';
 import changeIntelligenceRoutes from './change-intelligence-routes';
 import apmRoutes from './apm-routes';
 import hrWebhookRoutes from './hrWebhookRoutes';
 import aiDecisionRoutes from './ai-decision-routes';
+import infrastructureRoutes from './infrastructure-routes';
 
 // P1 new route modules — Integration, Efficiency, Chaos
 import integrationRoutes from './integration-routes';
@@ -228,6 +237,7 @@ import { PluginLifecycleManager } from '../services/plugin-spi/PluginLifecycleMa
 import { createLogger } from '../utils/logger';
 import { ModuleManager } from '../services/module-lifecycle/ModuleManager';
 import { OrionError, ErrorCode } from '../errors';
+import { ldapService } from '../services/auth/LdapService';
 
 const logger = createLogger('routes');
 
@@ -477,12 +487,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Code Repository 路由已迁移到 orion-code-svc (port 3010)
   // Branch Policy API (PostgreSQL backed)
   await app.register(branchPolicyRoutes, {
-    prefix: '/code-repo/branch-policies',
+    prefix: '/api/v1/code-repo/branch-policies',
     database: options.database,
   });
 
   // Code Repo API (adapters, repos, branches, PRs, code-owners, webhooks)
-  await app.register(codeRepoRoutes, { prefix: '/code-repo' });
+  await app.register(codeRepoRoutes, { prefix: '/api/v1/code-repo' });
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
   await registerWithRoleGuard(app, configRoutes, '/config', { database: options.database, redis: options.redis });
@@ -641,11 +651,20 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
   await registerWithRoleGuard(app, notificationRoutes, '/notifications', { eventBus: options.eventBus, database: options.database });
 
+  // 注册 Notification Template API 路由 — 模板管理 (Task 5.14)
+  await registerWithRoleGuard(app, notificationTemplateRoutes, '/notifications/templates', { database: options.database });
+
+  // 注册 Scheduled Notification API 路由 — 定时通知 (Task 5.14)
+  await registerWithRoleGuard(app, scheduledNotificationRoutes, '/notifications/scheduled', { database: options.database });
+
+  // 注册 Do Not Disturb API 路由 — 免打扰逻辑 (Task 5.14)
+  await registerWithRoleGuard(app, doNotDisturbRoutes, '/notifications/dnd', { database: options.database });
+
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
   await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
 
   // 注册 Inception SQL Audit 路由
-  await app.register(inceptionRoutes, { prefix: '/inception' });
+  await app.register(inceptionRoutes, { prefix: '/api/v1/inception' });
 
   // 注册 BI Dashboard API 路由 — Executive/Manager/Engineer 仪表盘 (auth guarded)
   await registerWithRoleGuard(app, biDashboardRoutes, '', { database: options.database });
@@ -671,6 +690,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // 注册 SubApp Management API 路由 - Page-based sub-app configuration
   await registerWithRoleGuard(app, subappRoutes, '/subapps', { database: options.database });
+
+  // 注册 Page Registry API 路由 - Frontend route configuration management (Phase 4)
+  await registerWithRoleGuard(app, pageRegistryRoutes, '/page-registry', { database: options.database });
 
   // 注册 LLM Trace API 路由 - PostgreSQL backed with cost tracking
   await registerWithRoleGuard(app, llmTraceRoutes, '/llm', { database: options.database });
@@ -870,6 +892,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     database: options.database,
   });
 
+  // Task 5.3: MFA/2FA, Password Reset, Login Lockout routes
+  await registerWithRoleGuard(app, authMfaRoutes, '/auth', {
+    database: options.database,
+  });
+
   // SSO Providers Management - CRUD for authentication providers
   await registerWithRoleGuard(app, ssoProvidersRoutes, '/auth/sso', {
     database: options.database,
@@ -882,6 +909,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
     redis: options.redis,
     tokenBlacklist: tokenBlacklistService,
   });
+
+  // Auto-connect LDAP on startup if enabled
+  if (ldapService.isEnabled?.()) {
+    try {
+      await ldapService.connect();
+      logger.info('[routes] LDAP auto-connected on startup');
+    } catch (error) {
+      logger.warn('[routes] LDAP auto-connect failed on startup:', error);
+    }
+  }
 
   // Legacy SSO Routes (backward compatibility)
   await (await import('./sso-routes')).registerSsoRoutes(app, {
@@ -1259,6 +1296,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Health Check - real health check execution
   await registerWithRoleGuard(app, healthCheckRoutes, '/health-checks', { database: options.database });
 
+  // Service Health - health dashboard and per-service health detail
+  await registerWithRoleGuard(app, serviceHealthRoutes, '/service-health', { database: options.database });
+
   // Change Intelligence - AI-powered blast radius analysis
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/change-intelligence', { database: options.database });
 
@@ -1285,6 +1325,16 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== AI Security ====================
   await registerWithRoleGuard(app, aiSecurityRoutes, '/ai/security', { database: options.database });
+
+  // ==================== Service Registry (Phase 6) ====================
+  await registerWithRoleGuard(app, serviceRegistryRoutes, '/api/v1/service-registry', {
+    database: options.database,
+  });
+
+  // ==================== Gateway Dynamic Routes (Phase 6) ====================
+  await registerWithRoleGuard(app, gatewayDynamicRoutes, '/api/v1/gateway', {
+    database: options.database,
+  });
 
   // ==================== Build Environment ====================
   await registerWithRoleGuard(app, buildEnvRoutes, '/build-env', { database: options.database });
@@ -1366,6 +1416,12 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Service Catalog (ITIL) ====================
   await registerWithRoleGuard(app, serviceCatalogRoutes, '/catalog', { database: options.database });
 
+  // ==================== Service Topology ====================
+  await registerWithRoleGuard(app, serviceTopologyRoutes, '/service-topology', { database: options.database });
+
+  // ==================== Progressive Delivery ====================
+  await registerWithRoleGuard(app, progressiveRoutes, '/progressive', { database: options.database });
+
   // ==================== ITSM Self-Service Portal ====================
   await registerWithRoleGuard(app, selfServiceRoutes, '/self-service', { database: options.database });
 
@@ -1446,4 +1502,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Pipeline Audit Log ====================
   await registerWithRoleGuard(app, pipelineAuditLogRoutes, '/audit-logs', { database: options.database });
+
+  // ==================== OCI/Docker Registry ====================
+  await registerWithRoleGuard(app, ociRegistryRoutes, '/oci', { database: options.database });
 }

@@ -281,6 +281,9 @@ export class ServerlessService {
       }
 
       const saved = await this.fnRepo.update(id, updateData);
+      if (!saved) {
+        throw new OrionError(`Function not found: ${id}`, ErrorCode.NOT_FOUND);
+      }
       return entityToFunction(saved);
     }
 

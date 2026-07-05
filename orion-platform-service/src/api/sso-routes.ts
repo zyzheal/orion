@@ -25,7 +25,7 @@ import { jwtKeyManager } from '../services/auth/JwtKeyManager';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode , ValidationError, handleError} from '../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('sso-routes');
 
 /**
  * Redis-backed SSO state store — enables multi-instance SSO
@@ -217,7 +217,7 @@ export async function registerSsoRoutes(
       }
 
       const accessToken = jwt.sign(
-        { userId: user.id, username: user.email, role: user.role },
+        { sub: user.id, username: user.email, role: user.role },
         jwtSecret,
         { expiresIn: '5m' },
       );

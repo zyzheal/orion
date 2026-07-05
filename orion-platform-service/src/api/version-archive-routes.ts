@@ -16,7 +16,7 @@ import { VersionArchiveRepository } from '../services/version-archive/VersionArc
 import { VersionArchiveService } from '../services/version-archive/VersionArchiveService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'version-archive-routes' });
+const logger = createLogger('version-archive-routes');
 
 interface VersionArchiveRoutesOptions {
   database: DatabasePool;

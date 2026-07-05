@@ -12,14 +12,19 @@ jest.mock('uuid', () => ({
 }));
 
 // Mock pino logger
-jest.mock('pino', () => {
-  return jest.fn(() => ({
+const mockPino = jest.fn(() => ({
+  info: jest.fn(),
+  debug: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  child: jest.fn(() => ({
     info: jest.fn(),
     debug: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-  }));
-});
+  })),
+}));
+jest.mock('pino', () => mockPino);
 
 import {
   ABExperimentService,

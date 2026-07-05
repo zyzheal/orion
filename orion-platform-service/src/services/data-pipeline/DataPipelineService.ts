@@ -16,9 +16,11 @@ import { OrionError, ErrorCode } from '../../errors';
 import {
   DataPipelineRepository,
   PipelineExecutionRepository,
+  PipelineVersionRepository,
   type DataPipelineEntity,
   type PipelineExecutionEntity,
   type StageResultEntity,
+  type PipelineVersionEntity,
 } from '../../repositories/DataPipelineRepository';
 
 // ---- Entity-to-API converters ----
@@ -342,6 +344,66 @@ export class DataPipelineService {
     }
 
     return { pipelineId, nodes, edges };
+  }
+
+  // ---- Version Management (Task 5.8) ----
+
+  /**
+   * Create a version snapshot of a pipeline definition
+   * Requires database mode (pipelineRepo available)
+   */
+  async createVersion(
+    pipelineId: string,
+    tenantId: string,
+    pipelineData: { name: string; description?: string; stages: unknown[]; schedule?: string | null; inputConfig: Record<string, unknown>; processors: Record<string, unknown>[]; outputConfig: Record<string, unknown> },
+    createdBy: string,
+    changeSummary?: string,
+  ): Promise<{ versionNumber: number } | undefined> {
+    if (!this.pipelineRepo) return undefined;
+
+    const { PipelineVersionRepository } = await import('../../repositories/DataPipelineRepository');
+    const versionRepo = new PipelineVersionRepository(this.pipelineRepo.getDb());
+
+    // Get latest version number and increment
+    const latestVersion = await versionRepo.getLatestVersion(pipelineId, tenantId);
+    const nextVersion = latestVersion + 1;
+
+    await versionRepo.create({
+      pipelineId,
+      tenantId,
+      versionNumber: nextVersion,
+      name: pipelineData.name,
+      description: pipelineData.description || null,
+      stages: pipelineData.stages,
+      schedule: pipelineData.schedule || null,
+      inputConfig: pipelineData.inputConfig,
+      processors: pipelineData.processors,
+      outputConfig: pipelineData.outputConfig,
+      createdBy,
+      changeSummary: changeSummary || null,
+    });
+
+    return { versionNumber: nextVersion };
+  }
+
+  /**
+   * List all versions for a pipeline
+   */
+  async listVersions(pipelineId: string, tenantId: string): Promise<PipelineVersionEntity[]> {
+    if (!this.pipelineRepo) return [];
+    const { PipelineVersionRepository } = await import('../../repositories/DataPipelineRepository');
+    const versionRepo = new PipelineVersionRepository(this.pipelineRepo.getDb());
+    return versionRepo.findByPipelineId(pipelineId, tenantId);
+  }
+
+  /**
+   * Get a specific version of a pipeline
+   */
+  async getVersion(pipelineId: string, tenantId: string, versionNumber: number): Promise<PipelineVersionEntity | undefined> {
+    if (!this.pipelineRepo) return undefined;
+    const { PipelineVersionRepository } = await import('../../repositories/DataPipelineRepository');
+    const versionRepo = new PipelineVersionRepository(this.pipelineRepo.getDb());
+    return versionRepo.findByVersion(pipelineId, tenantId, versionNumber);
   }
 
   // ---- Cleanup ----

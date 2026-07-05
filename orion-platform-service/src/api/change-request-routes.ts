@@ -24,7 +24,7 @@ import { success, created, badRequest, notFound, internalError } from '../utils/
 import { ErrorCodes } from '../types/error-codes';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'change-request-routes' });
+const logger = createLogger('change-request-routes');
 
 interface ChangeRequestRoutesOptions {
   database: DatabasePool;

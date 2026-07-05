@@ -9,7 +9,7 @@ import { EventBusService, TypedEnvelope } from '../services/event-bus-service';
 import { PipelineRunEventData, StageEventData, TaskEventData } from './types';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'LPipeline-LEvent-LListener' });
+const logger = createLogger('LPipeline-LEvent-LListener');
 
 export type PipelineEventHandlerType =
   | 'onRunCreated' | 'onRunStarted' | 'onRunCompleted' | 'onRunFailed' | 'onRunCancelled'

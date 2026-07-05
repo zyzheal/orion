@@ -9,7 +9,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { OrionError, NotFoundError, ErrorCode, handleError } from '../errors';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'test-selector-routes' });
+const logger = createLogger('test-selector-routes');
 import { authenticateUser } from '../middleware/authMiddleware';
 import { requirePermission } from '../middleware/requirePermission';
 import { TestSelectorService, TestSelectorServiceConfig } from '../services/test-selector/TestSelectorService';
@@ -65,7 +65,7 @@ export default async function testSelectorRoutes(
     }
 
     if (!options.database) {
-      throw new Error('Database is required for TestSelectorService');
+      throw new OrionError('Database is required for TestSelectorService', ErrorCode.VALIDATION_ERROR);
     }
 
     const analyzerConfig = options.analyzerConfig || {

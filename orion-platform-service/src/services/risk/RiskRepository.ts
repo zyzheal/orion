@@ -21,6 +21,7 @@ import {
   RiskFindingInput,
   RiskMitigation,
   CreateMitigationInput,
+  MitigationStatus,
 } from './types';
 
 // ==================== Repository Class ====================
@@ -76,12 +77,13 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
   /**
    * Find risk by ID with tenant isolation.
    */
-  async findById(id: string, tenantId: string): Promise<RiskEntity | undefined> {
+  async findById(id: string, tenantId?: string): Promise<RiskEntity | null> {
+    const actualTenantId = tenantId ?? this.getTenantId();
     const result = await this.db.query(
       `SELECT * FROM risk_assessments WHERE id = $1 AND tenant_id = $2`,
-      [id, tenantId],
+      [id, actualTenantId],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -187,8 +189,9 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
   /**
    * Update risk with tenant isolation.
    */
-  async update(id: string, tenantId: string, input: RiskUpdateInput): Promise<RiskEntity> {
-    const existing = await this.findById(id, tenantId);
+  async updateRisk(id: string, tenantId: string, input: RiskUpdateInput): Promise<RiskEntity> {
+    const actualTenantId = tenantId ?? this.getTenantId();
+    const existing = await this.findById(id, actualTenantId);
     if (!existing) {
       throw new OrionError(`Risk not found: ${id}`, ErrorCode.NOT_FOUND);
     }
@@ -291,7 +294,7 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
     const recalculatedScore = this.recalculateScore(updatedFindings, existing.score);
     const newLevel = this.scoreToLevel(recalculatedScore);
 
-    return this.update(id, tenantId, {
+    return this.updateRisk(id, tenantId, {
       findings: updatedFindings,
       score: recalculatedScore,
       riskLevel: newLevel,
@@ -319,7 +322,7 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
         id: `action_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         status: 'pending',
       })),
-      status: 'planned',
+      status: MitigationStatus.PLANNED,
       priority: input.priority ?? existing.riskLevel,
       owner: input.owner,
       dueDate: input.dueDate,
@@ -329,7 +332,7 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
 
     const updatedMitigations = [...existing.mitigations, mitigation];
 
-    return this.update(id, tenantId, {
+    return this.updateRisk(id, tenantId, {
       status: RiskStatus.MITIGATING,
       mitigations: updatedMitigations,
     });
@@ -360,7 +363,7 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
       return updated;
     });
 
-    return this.update(id, tenantId, { mitigations: updatedMitigations });
+    return this.updateRisk(id, tenantId, { mitigations: updatedMitigations });
   }
 
   // ==================== Statistics ====================
@@ -466,7 +469,7 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
       name: row.name,
       description: row.description ?? undefined,
       riskLevel: row.risk_level as RiskLevel,
-      score: parseFloat(row.score),
+      score: Number(row.score),
       category: row.category as RiskCategory,
       targetType: row.target_type,
       targetId: row.target_id,
@@ -477,8 +480,8 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
       closedAt: row.closed_at ?? undefined,
       createdBy: row.created_by ?? undefined,
       assignedTo: row.assigned_to ?? undefined,
-      findings: (row.findings as RiskFinding[]) ?? [],
-      mitigations: (row.mitigations as RiskMitigation[]) ?? [],
+      findings: (row.findings as unknown as RiskFinding[]) ?? [],
+      mitigations: (row.mitigations as unknown as RiskMitigation[]) ?? [],
       metadata: (row.metadata as Record<string, unknown>) ?? {},
       createdAt: row.created_at,
       updatedAt: row.updated_at,

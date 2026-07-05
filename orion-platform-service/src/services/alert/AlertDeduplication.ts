@@ -12,7 +12,7 @@
  */
 
 import crypto from 'crypto';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   Alert,
   AlertFingerprint,
@@ -21,7 +21,7 @@ import {
 } from './AlertTypes';
 import { getCurrentTraceId, getCurrentTenantId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('AlertDeduplication');
 
 /** 内存中保存的分组记录 */
 interface MemoryGroupRecord {

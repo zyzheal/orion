@@ -202,6 +202,7 @@ export class MLOpsService {
       if (input.hyperparams !== undefined) current.hyperparams = input.hyperparams;
       current.updatedAt = new Date();
       const saved = await this.experimentRepo.update(id, current);
+      if (!saved) return undefined;
       return entityToExperiment(saved);
     }
     const exp = experiments.get(id);
@@ -244,6 +245,7 @@ export class MLOpsService {
       if (status === 'running') current.startedAt = new Date();
       if (status === 'completed' || status === 'failed') current.completedAt = new Date();
       const saved = await this.experimentRepo.update(id, current);
+      if (!saved) return undefined;
       return entityToExperiment(saved);
     }
     const exp = experiments.get(id);

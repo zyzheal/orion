@@ -304,96 +304,13 @@ export class FederationAdvancedRepository extends BaseRepository<SchedulingPolic
   // ========== Consistency Verification ==========
 
   /**
-   * Compares in-memory state with DB state and returns a report of divergences.
-   * Returns an array of { id, type, memoryValue, dbValue } for each divergence found.
-   * DB is treated as the authoritative source.
+   * No-op in DB-only mode. DB is the sole source of truth;
+   * without in-memory caching there are no divergences to detect.
    */
-  async verifyConsistency(
-    memoryPolicies: Map<string, SchedulingPolicy>,
-    memoryJobs: Map<string, CrossClusterJob>,
-    memoryPools: Map<string, ResourcePool>,
-  ): Promise<
+  async verifyConsistency(): Promise<
     Array<{ id: string; type: 'policy' | 'job' | 'pool'; memoryValue: unknown; dbValue: unknown }>
   > {
-    const divergences: Array<{ id: string; type: 'policy' | 'job' | 'pool'; memoryValue: unknown; dbValue: unknown }> = [];
-
-    // Check policies: DB is authoritative; compare all tenant policies
-    const allTenantIds = new Set([...memoryPolicies.values()].map(p => p.tenantId));
-    for (const tenantId of allTenantIds) {
-      const dbPolicies = await this.findPoliciesByTenant(tenantId);
-      for (const dbPolicy of dbPolicies) {
-        const memPolicy = memoryPolicies.get(dbPolicy.id);
-        if (!memPolicy) {
-          divergences.push({
-            id: dbPolicy.id,
-            type: 'policy',
-            memoryValue: null,
-            dbValue: { name: dbPolicy.name, status: dbPolicy.status, updatedAt: dbPolicy.updatedAt },
-          });
-        } else if (
-          memPolicy.name !== dbPolicy.name ||
-          memPolicy.status !== dbPolicy.status ||
-          memPolicy.updatedAt !== dbPolicy.updatedAt.toISOString()
-        ) {
-          divergences.push({
-            id: dbPolicy.id,
-            type: 'policy',
-            memoryValue: { name: memPolicy.name, status: memPolicy.status, updatedAt: memPolicy.updatedAt },
-            dbValue: { name: dbPolicy.name, status: dbPolicy.status, updatedAt: dbPolicy.updatedAt.toISOString() },
-          });
-        }
-      }
-    }
-
-    // Check jobs
-    const allJobTenantIds = new Set([...memoryJobs.values()].map(j => j.tenantId));
-    for (const tenantId of allJobTenantIds) {
-      const dbJobs = await this.findJobsByTenant(tenantId);
-      for (const dbJob of dbJobs) {
-        const memJob = memoryJobs.get(dbJob.id);
-        if (!memJob) {
-          divergences.push({
-            id: dbJob.id,
-            type: 'job',
-            memoryValue: null,
-            dbValue: { name: dbJob.name, status: dbJob.status },
-          });
-        } else if (memJob.status !== dbJob.status) {
-          divergences.push({
-            id: dbJob.id,
-            type: 'job',
-            memoryValue: { status: memJob.status },
-            dbValue: { status: dbJob.status },
-          });
-        }
-      }
-    }
-
-    // Check pools
-    for (const [poolId, memPool] of memoryPools) {
-      const dbPool = await this.findPoolById(poolId);
-      if (!dbPool) {
-        divergences.push({
-          id: poolId,
-          type: 'pool',
-          memoryValue: { name: memPool.name, usedCpu: memPool.usedCpu, usedMemory: memPool.usedMemory },
-          dbValue: null,
-        });
-      } else if (
-        memPool.usedCpu !== dbPool.usedCpu ||
-        memPool.usedMemory !== dbPool.usedMemory ||
-        memPool.status !== dbPool.status
-      ) {
-        divergences.push({
-          id: poolId,
-          type: 'pool',
-          memoryValue: { usedCpu: memPool.usedCpu, usedMemory: memPool.usedMemory, status: memPool.status },
-          dbValue: { usedCpu: dbPool.usedCpu, usedMemory: dbPool.usedMemory, status: dbPool.status },
-        });
-      }
-    }
-
-    return divergences;
+    return [];
   }
 
   // ========== Row Mappers ==========
@@ -407,6 +324,7 @@ export class FederationAdvancedRepository extends BaseRepository<SchedulingPolic
       strategy: row.strategy,
       rules: typeof row.rules === 'string' ? JSON.parse(row.rules) : (row.rules || {}),
       status: row.status,
+      version: Number(row.version) || 0,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
       updatedAt: row.updated_at ? new Date(row.updated_at) : new Date(),
     };
@@ -422,6 +340,7 @@ export class FederationAdvancedRepository extends BaseRepository<SchedulingPolic
       status: row.status,
       scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : new Date(),
       completedAt: row.completed_at ? new Date(row.completed_at) : null,
+      version: Number(row.version) || 0,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     };
   }
@@ -438,6 +357,7 @@ export class FederationAdvancedRepository extends BaseRepository<SchedulingPolic
       usedCpu: Number(row.used_cpu) || 0,
       usedMemory: Number(row.used_memory) || 0,
       status: row.status,
+      version: Number(row.version) || 0,
       createdAt: row.created_at ? new Date(row.created_at) : new Date(),
     };
   }

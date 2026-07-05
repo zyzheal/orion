@@ -32,7 +32,7 @@ import { UserStatusService } from '../services/user/UserStatusService';
 import { verifyHrWebhookSignature } from '../middleware/hrWebhookAuth';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('hrWebhookRoutes');
 
 export interface HrEmployeeChangeEvent {
   action: 'hired' | 'terminated' | 'transferred' | 'suspended';

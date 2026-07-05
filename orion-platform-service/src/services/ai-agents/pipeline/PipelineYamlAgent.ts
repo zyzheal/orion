@@ -7,7 +7,7 @@
  * 3. 通过 AIGateway 调用 LLM 生成 YAML
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseAgent } from '../base/BaseAgent';
 import {
@@ -19,7 +19,7 @@ import { ToolAdapter } from '../base/ToolAdapter';
 import { PipelineService } from '../../pipeline/PipelineService';
 import { parsePipelineYaml } from '../../../models/Pipeline';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PipelineYamlAgent');
 
 /**
  * Pipeline YAML 生成选项

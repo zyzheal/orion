@@ -10,14 +10,14 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { AlertCorrelationService, Alert, AlertGroup } from './AlertCorrelationService';
 import { RcaResultRepository, RcaResultEntity } from '../../repositories/RcaResultRepository';
 import { ServiceDependencyRepository, ServiceDependencyEntity } from '../../repositories/ServiceDependencyRepository';
 import { TimelineEventRepository, TimelineEventEntity } from '../../repositories/TimelineEventRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('RootCauseAnalysisService');
 
 // ==================== Types ====================
 

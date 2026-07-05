@@ -31,7 +31,7 @@ export class ReplicationService {
 
     const replication: ArtifactReplicationEntity = {
       id: uuidv4(),
-      tenantId: artifact.tenant_id || '00000000-0000-0000-0000-000000000000',
+      tenantId: artifact.tenantId || '00000000-0000-0000-0000-000000000000',
       artifactId: input.artifactId,
       sourceRegistry: input.sourceRegistry,
       targetRegistry: input.targetRegistry,

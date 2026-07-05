@@ -32,7 +32,7 @@ import { CapabilityService } from '../services/capability';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 
-const logger = pino({ name: 'require-LCapability' });
+const logger = createLogger('require-LCapability');
 
 /**
  * 能力检查选项 - 静态模式

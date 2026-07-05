@@ -10,7 +10,7 @@ import {
   AutomationRuleExecution,
   CreateAutomationRuleInput,
   UpdateAutomationRuleInput,
-} from '../../services/ticketing/types';
+} from '../services/ticketing/types';
 
 export class AutomationRuleRepository extends BaseRepository<AutomationRule> {
   constructor(db: { query: (text: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {

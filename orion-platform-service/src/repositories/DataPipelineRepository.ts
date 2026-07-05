@@ -28,6 +28,14 @@ export class DataPipelineRepository extends BaseRepository<DataPipelineEntity> {
     super(db, 'data_pipelines');
   }
 
+  /**
+   * Expose the db query interface for derived repositories (e.g. PipelineVersionRepository)
+   * Task 5.8
+   */
+  getDb(): { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } {
+    return this.db;
+  }
+
   async findByTenant(tenantId: string): Promise<DataPipelineEntity[]> {
     const result = await this.db.query(
       'SELECT * FROM data_pipelines WHERE tenant_id = $1 ORDER BY created_at DESC',
@@ -262,6 +270,127 @@ export class PipelineExecutionRepository {
       completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : undefined,
       error: row.error || undefined,
       createdAt: row.created_at ? new Date(row.created_at).toISOString() : undefined,
+    };
+  }
+}
+
+// ==================== PipelineVersionRepository ====================
+
+/**
+ * Pipeline version entity — immutable snapshot of a pipeline definition
+ */
+export interface PipelineVersionEntity {
+  id: string;
+  pipelineId: string;
+  tenantId: string;
+  versionNumber: number;
+  name: string;
+  description: string | null;
+  stages: unknown[];
+  schedule: string | null;
+  inputConfig: Record<string, unknown>;
+  processors: Record<string, unknown>[];
+  outputConfig: Record<string, unknown>;
+  createdBy: string;
+  changeSummary: string | null;
+  createdAt: string;
+}
+
+export class PipelineVersionRepository {
+  constructor(
+    private db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+  ) {}
+
+  /**
+   * Create a version snapshot of a pipeline
+   */
+  async create(input: {
+    pipelineId: string;
+    tenantId: string;
+    versionNumber: number;
+    name: string;
+    description?: string | null;
+    stages: unknown[];
+    schedule?: string | null;
+    inputConfig: Record<string, unknown>;
+    processors: Record<string, unknown>[];
+    outputConfig: Record<string, unknown>;
+    createdBy: string;
+    changeSummary?: string | null;
+  }): Promise<PipelineVersionEntity> {
+    const id = 'pv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    const result = await this.db.query(
+      `INSERT INTO pipeline_versions (id, pipeline_id, tenant_id, version_number, name, description, stages, schedule, input_config, processors, output_config, created_by, change_summary, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()) RETURNING *`,
+      [
+        id,
+        input.pipelineId,
+        input.tenantId,
+        input.versionNumber,
+        input.name,
+        input.description || null,
+        JSON.stringify(input.stages),
+        input.schedule || null,
+        JSON.stringify(input.inputConfig),
+        JSON.stringify(input.processors),
+        JSON.stringify(input.outputConfig),
+        input.createdBy,
+        input.changeSummary || null,
+      ],
+    );
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * List all versions for a pipeline
+   */
+  async findByPipelineId(pipelineId: string, tenantId: string): Promise<PipelineVersionEntity[]> {
+    const result = await this.db.query(
+      'SELECT * FROM pipeline_versions WHERE pipeline_id = $1 AND tenant_id = $2 ORDER BY version_number DESC',
+      [pipelineId, tenantId],
+    );
+    return result.rows.map(row => this.mapRowToEntity(row));
+  }
+
+  /**
+   * Get a specific version by pipeline ID and version number
+   */
+  async findByVersion(pipelineId: string, tenantId: string, versionNumber: number): Promise<PipelineVersionEntity | undefined> {
+    const result = await this.db.query(
+      'SELECT * FROM pipeline_versions WHERE pipeline_id = $1 AND tenant_id = $2 AND version_number = $3',
+      [pipelineId, tenantId, versionNumber],
+    );
+    if (result.rows.length === 0) return undefined;
+    return this.mapRowToEntity(result.rows[0]);
+  }
+
+  /**
+   * Get the latest version number for a pipeline
+   */
+  async getLatestVersion(pipelineId: string, tenantId: string): Promise<number> {
+    const result = await this.db.query(
+      'SELECT MAX(version_number) as max_version FROM pipeline_versions WHERE pipeline_id = $1 AND tenant_id = $2',
+      [pipelineId, tenantId],
+    );
+    return result.rows[0]?.max_version || 0;
+  }
+
+  protected mapRowToEntity(row: any): PipelineVersionEntity {
+    return {
+      id: row.id,
+      pipelineId: row.pipeline_id,
+      tenantId: row.tenant_id,
+      versionNumber: row.version_number,
+      name: row.name,
+      description: row.description,
+      stages: typeof row.stages === 'string' ? JSON.parse(row.stages) : row.stages,
+      schedule: row.schedule,
+      inputConfig: typeof row.input_config === 'string' ? JSON.parse(row.input_config) : row.input_config,
+      processors: typeof row.processors === 'string' ? JSON.parse(row.processors) : row.processors,
+      outputConfig: typeof row.output_config === 'string' ? JSON.parse(row.output_config) : row.output_config,
+      createdBy: row.created_by,
+      changeSummary: row.change_summary,
+      createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
     };
   }
 }

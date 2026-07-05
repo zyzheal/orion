@@ -13,7 +13,7 @@
  *   any -> error (on failure)
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EventEmitter } from 'events';
 import { PluginRegistry } from './PluginRegistry';
 import {
@@ -28,7 +28,7 @@ import { PluginDependencyResolver } from './PluginDependencyResolver';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginLifecycleManager');
 
 /**
  * Valid state transitions

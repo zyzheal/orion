@@ -19,7 +19,6 @@ export {
   RISK_STATUS_LABELS,
   MITIGATION_ACTION_LABELS,
   MITIGATION_STATUS_LABELS,
-  RULE_OPERATOR_LABELS,
   RiskEntity,
   RiskCreateInput,
   RiskUpdateInput,
@@ -44,8 +43,3 @@ export { RiskService } from './RiskService';
 
 // Repository
 export { RiskRepository } from './RiskRepository';
-export type {
-  RiskEntity as RiskRepositoryEntity,
-  RiskCreateInput as RiskRepositoryCreateInput,
-  RiskUpdateInput as RiskRepositoryUpdateInput,
-} from './RiskRepository';

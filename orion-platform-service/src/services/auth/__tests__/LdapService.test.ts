@@ -9,17 +9,25 @@
  * when LDAP operations fail.
  */
 
-import { LdapService, LdapConfig } from '../LdapService';
-
 // Mock pino to suppress log output
+// Must support .child() since createLogger uses rootLogger.child({module})
+const mockChildFn = jest.fn().mockReturnValue({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+});
 jest.mock('pino', () => {
-  return jest.fn().mockReturnValue({
+  return jest.fn(() => ({
+    child: mockChildFn,
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
-  });
+  }));
 });
+
+import { LdapService, LdapConfig } from '../LdapService';
 
 describe('LdapService', () => {
   let service: LdapService;

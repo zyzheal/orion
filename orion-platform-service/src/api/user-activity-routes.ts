@@ -12,7 +12,7 @@ import { authenticateUser } from '../middleware/authMiddleware';
 import { createLogger } from '../utils/logger';
 import { OrionError, UnauthorizedError, ForbiddenError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'user-activity-routes' });
+const logger = createLogger('user-activity-routes');
 
 interface UserActivityRoutesOptions {
   database?: DatabasePool;

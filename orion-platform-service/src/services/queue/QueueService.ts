@@ -9,6 +9,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { OrionError, ErrorCode } from '../../errors';
 import type {
   Job,
   JobInput,
@@ -19,9 +20,9 @@ import type {
 } from '../../models/Job';
 import { JobPriority } from '../../models/Job';
 import type { JobRepository } from '../../repositories/JobRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LQueue-LService' });
+const logger = createLogger('LQueue-LService');
 
 export class QueueServiceError extends Error {
   constructor(message: string, public code: string) {
@@ -33,7 +34,7 @@ export class QueueServiceError extends Error {
 export class QueueService {
   constructor(private repository: JobRepository) {
     if (!repository) {
-      throw new Error('JobRepository is required');
+      throw new OrionError('JobRepository is required', ErrorCode.INTERNAL_ERROR);
     }
   }
 

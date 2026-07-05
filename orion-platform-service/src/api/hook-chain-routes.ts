@@ -35,7 +35,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
       const created = hookChainService.createChain(definition);
       return reply.status(201).send(created);
     } catch (error) {
-      return handleError(reply, new ValidationError(error))
+      return handleError(reply, new ValidationError((error as Error).message))
     }
   });
 
@@ -111,7 +111,7 @@ export default async function registerHookChainRoutes(app: FastifyInstance): Pro
       const result = await hookChainService.executeChain(chainId, triggerSource, triggerPayload, tenantId);
       return reply.send(result);
     } catch (error) {
-      return handleError(reply, new OrionError(error, ErrorCode.INTERNAL_ERROR))
+      return handleError(reply, new OrionError((error as Error).message, ErrorCode.INTERNAL_ERROR))
     }
   });
 

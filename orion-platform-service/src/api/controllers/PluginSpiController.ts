@@ -27,7 +27,7 @@ export function initPluginSpiController(service: PluginService): void {
  */
 function getService(): PluginService {
   if (!pluginService) {
-    throw new Error('PluginSpiController not initialized. Call initPluginSpiController() first.');
+    throw new OrionError('PluginSpiController not initialized. Call initPluginSpiController() first.', ErrorCode.UNAUTHORIZED);
   }
   return pluginService;
 }

@@ -8,7 +8,7 @@
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('UnifiedConfigService');
 
 /**
  * Parse DATABASE_URL into individual config fields (fallback when DB_* env vars are not set)

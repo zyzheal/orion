@@ -8,9 +8,9 @@
  */
 
 import Redis from 'ioredis';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'ConfigFallback' });
+const logger = createLogger('ConfigFallback');
 
 // ==================== 配置级别 ====================
 

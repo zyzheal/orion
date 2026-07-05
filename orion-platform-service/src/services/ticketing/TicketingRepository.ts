@@ -6,6 +6,7 @@
  */
 
 import { DatabasePool } from '../database';
+import { OrionError, ErrorCode } from '../../errors';
 import {
   WorkflowHistory,
   TicketAssignment,
@@ -226,7 +227,7 @@ export class TicketingRepository {
   async addComment(ticketId: string, tenantId: string, authorId: string | null, content: string, isInternal: boolean = false): Promise<TicketCommentRecord> {
     // Verify ticket belongs to tenant before adding comment
     const ticket = await this.findById(ticketId, tenantId);
-    if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
+    if (!ticket) throw new OrionError(`Ticket not found or access denied: ${ticketId}`, ErrorCode.NOT_FOUND);
     const result = await this.pool.query(
       `INSERT INTO ticket_comments (ticket_id, author_id, content, is_internal) VALUES ($1, $2, $3, $4) RETURNING *`,
       [ticketId, authorId, content, isInternal]
@@ -246,7 +247,7 @@ export class TicketingRepository {
   async createAssignment(input: CreateAssignmentInput, tenantId: string): Promise<TicketAssignment> {
     // Verify ticket belongs to tenant before creating assignment
     const ticket = await this.findById(input.ticketId, tenantId);
-    if (!ticket) throw new Error(`Ticket not found or access denied: ${input.ticketId}`);
+    if (!ticket) throw new OrionError(`Ticket not found or access denied: ${input.ticketId}`, ErrorCode.NOT_FOUND);
     const id = `ASGN-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_assignments (id, ticket_id, assignee_id, assigned_by, assigned_at, reason, match_score)
@@ -285,7 +286,7 @@ export class TicketingRepository {
     // Verify both tickets belong to tenant before creating relation
     const ticket1 = await this.findById(input.ticketId, tenantId);
     const ticket2 = await this.findById(input.relatedTicketId, tenantId);
-    if (!ticket1 || !ticket2) throw new Error(`One or both tickets not found or access denied`);
+    if (!ticket1 || !ticket2) throw new OrionError(`One or both tickets not found or access denied`, ErrorCode.NOT_FOUND);
     const id = `REL-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_relations (id, ticket_id, related_ticket_id, relation_type, confidence, description, created_by, created_at)
@@ -396,7 +397,7 @@ export class TicketingRepository {
   async createTransfer(input: CreateTransferInput, tenantId: string): Promise<TicketTransfer> {
     // Verify ticket belongs to tenant before creating transfer
     const ticket = await this.findById(input.ticketId, tenantId);
-    if (!ticket) throw new Error(`Ticket not found or access denied: ${input.ticketId}`);
+    if (!ticket) throw new OrionError(`Ticket not found or access denied: ${input.ticketId}`, ErrorCode.NOT_FOUND);
     const id = `XFER-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
       `INSERT INTO ticket_transfers (id, ticket_id, from_engineer_id, to_engineer_id, transfer_type, reason, initiated_by, transferred_at, hold_duration_ms, accepted)
@@ -528,7 +529,7 @@ export class TicketingRepository {
   async createWorkflowHistory(ticketId: string, fromStatus: string, toStatus: string, performedBy: string, reason?: string, tenantId?: string): Promise<WorkflowHistory> {
     if (tenantId) {
       const ticket = await this.findById(ticketId, tenantId);
-      if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
+      if (!ticket) throw new OrionError(`Ticket not found or access denied: ${ticketId}`, ErrorCode.NOT_FOUND);
     }
     const id = `WH-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const result = await this.pool.query(
@@ -553,7 +554,7 @@ export class TicketingRepository {
 
   async createSLA(ticketId: string, priority: string, targetResolutionTimeMs: number, tenantId: string): Promise<TicketSLA> {
     const ticket = await this.findById(ticketId, tenantId);
-    if (!ticket) throw new Error(`Ticket not found or access denied: ${ticketId}`);
+    if (!ticket) throw new OrionError(`Ticket not found or access denied: ${ticketId}`, ErrorCode.NOT_FOUND);
     const id = `SLA-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const responseTime = Math.round(targetResolutionTimeMs * 0.25 / 60000);
     const resolutionTime = Math.round(targetResolutionTimeMs / 60000);

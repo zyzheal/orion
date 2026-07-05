@@ -6,14 +6,13 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { PipelineService } from '../../services/pipeline/PipelineService';
-import { authenticateUser } from '../../middleware/authMiddleware';
-import { requirePermission } from '../../middleware/requirePermission';
+import { PipelineService } from '../services/pipeline/PipelineService';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { createLogger } from '../utils/logger';
-import { OrionError, ErrorCode } from '../../errors';
 import { OrionError, ValidationError, NotFoundError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'pipeline-run-history-routes' });
+const logger = createLogger('pipeline-run-history-routes');
 
 interface PipelineRunHistoryRoutesOptions {
   pipelineService: PipelineService;

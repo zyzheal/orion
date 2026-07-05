@@ -14,7 +14,7 @@ import { QueueService } from '../services/queue/QueueService';
 import { QueueController } from './controllers/QueueController';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'queue-routes' });
+const logger = createLogger('queue-routes');
 
 interface QueueRoutesOptions {
   database?: DatabasePool;

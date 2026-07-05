@@ -2,10 +2,10 @@ import { ProcessDefinitionRepository, ProcessDefinition, CreateProcessDefinition
 import { ProcessInstanceRepository, ProcessInstance, ProcessStepInstance, CreateProcessInstanceInput } from './ProcessInstanceRepository';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { randomUUID } from 'crypto';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ProcessStepEngineService');
 
 /** 12-step state machine: valid transitions */
 const VALID_TRANSITIONS: Record<string, string[]> = {

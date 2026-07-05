@@ -7,9 +7,9 @@
 
 import { ConfigService } from '../ConfigService';
 import { ConfigRepository } from '../ConfigRepository';
-import { ConfigTemplateRepository } from '../../repositories/ConfigTemplateRepository';
-import { CanaryDeploymentRepository } from '../../repositories/CanaryDeploymentRepository';
-import { ConfigDependencyRepository } from '../../repositories/ConfigDependencyRepository';
+import { ConfigTemplateRepository } from '../../../repositories/ConfigTemplateRepository';
+import { CanaryDeploymentRepository } from '../../../repositories/CanaryDeploymentRepository';
+import { ConfigDependencyRepository } from '../../../repositories/ConfigDependencyRepository';
 import {
   ConfigTemplate,
   ConfigTemplateVersion,
@@ -25,7 +25,212 @@ function createMockDb() {
   const rows: any[] = [];
   return {
     query: jest.fn(async (sql: string, params?: any[]) => {
-      // Simple mock that returns rows based on SQL
+      const upperSql = sql.trim().toUpperCase();
+
+      // INSERT ... RETURNING * → return a synthetic row from the INSERT params
+      if (upperSql.startsWith('INSERT')) {
+        const id = params?.[0] || 'mock-id';
+        const tenantId = params?.[1] || 'tenant-1';
+
+        if (upperSql.includes('CONFIG_TEMPLATES')) {
+          const configDataVal = typeof params?.[5] === 'string' ? JSON.parse(params[5]) : (params?.[5] || {});
+          const synthetic = {
+            id,
+            tenant_id: tenantId,
+            name: params?.[2] || 'Test Template',
+            description: params?.[3] ?? null,
+            category: params?.[4] ?? null,
+            config_data: configDataVal,
+            target_environment: params?.[6] || 'dev',
+            is_active: true,
+            created_by: params?.[7] || 'admin',
+            updated_by: params?.[7] || 'admin',
+            created_at: new Date(),
+            updated_at: new Date(),
+          };
+          rows.push(synthetic);
+          return { rows: [synthetic], rowCount: 1 };
+        }
+        if (upperSql.includes('CONFIG_TEMPLATE_VERSIONS')) {
+          const version = params?.[4] || 1;
+          const synthetic = {
+            id,
+            template_id: params?.[1] || 'tmpl-1',
+            tenant_id: tenantId,
+            config_data: typeof params?.[3] === 'string' ? JSON.parse(params[3]) : (params?.[3] || {}),
+            version,
+            change_log: params?.[5] ?? null,
+            created_by: params?.[6] || 'admin',
+            created_at: new Date(),
+          };
+          rows.push(synthetic);
+          return { rows: [synthetic], rowCount: 1 };
+        }
+        if (upperSql.includes('CANARY_DEPLOYMENTS')) {
+          const synthetic = {
+            id,
+            tenant_id: tenantId,
+            config_id: params?.[2] || 'config-1',
+            config_key: params?.[3] || 'unknown',
+            environment: params?.[4] || 'dev',
+            percentage: Math.min(100, Math.max(0, params?.[5] ?? 0)),
+            status: 'pending',
+            old_value: null,
+            canary_value: typeof params?.[6] === 'string' ? JSON.parse(params[6]) : (params?.[6] || {}),
+            target_value: typeof params?.[7] === 'string' ? JSON.parse(params[7]) : (params?.[7] || {}),
+            promoted_at: null,
+            rolled_back_at: null,
+            created_by: params?.[8] || 'admin',
+            created_at: new Date(),
+            updated_at: new Date(),
+          };
+          rows.push(synthetic);
+          return { rows: [synthetic], rowCount: 1 };
+        }
+        if (upperSql.includes('CANARY_DEPLOYMENT_HISTORY')) {
+          const synthetic = {
+            id,
+            deployment_id: params?.[1] || 'canary-1',
+            tenant_id: tenantId,
+            old_percentage: params?.[3] ?? 0,
+            new_percentage: params?.[4] ?? 0,
+            action: params?.[5] || 'unknown',
+            performed_by: params?.[6] || 'system',
+            created_at: new Date(),
+          };
+          rows.push(synthetic);
+          return { rows: [synthetic], rowCount: 1 };
+        }
+        if (upperSql.includes('CONFIG_DEPENDENCIES')) {
+          const synthetic = {
+            id,
+            tenant_id: tenantId,
+            config_id: params?.[2] || 'config-1',
+            depends_on_config_id: params?.[3] || 'config-0',
+            dependency_type: params?.[4] || 'hard',
+            description: params?.[5] ?? null,
+            is_active: true,
+            created_by: params?.[6] || 'admin',
+            created_at: new Date(),
+            updated_at: new Date(),
+          };
+          rows.push(synthetic);
+          return { rows: [synthetic], rowCount: 1 };
+        }
+        // Default INSERT fallback
+        const defaultRow = { id, tenant_id: tenantId };
+        rows.push(defaultRow);
+        return { rows: [defaultRow], rowCount: 1 };
+      }
+
+      // UPDATE ... RETURNING * → apply SET clause changes to matching rows
+      if (upperSql.startsWith('UPDATE')) {
+        if (rows.length === 0) return { rows: [], rowCount: 0 };
+
+        // Parse SET clauses to extract field updates
+        const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i);
+        if (setMatch) {
+          const setClause = setMatch[1];
+          const fieldMatches = [...setClause.matchAll(/(\w+)\s*=\s*\$(\d+)/g)];
+          const updates: Record<string, any> = {};
+          for (const [, field, paramIdxStr] of fieldMatches) {
+            if (field === 'updated_at') continue; // Skip timestamp fields
+            const paramIdx = parseInt(paramIdxStr, 10) - 1;
+            if (params && paramIdx < params.length) {
+              updates[field] = params[paramIdx];
+            }
+          }
+
+          // Apply updates to all rows (simple mock behavior)
+          for (const row of rows) {
+            Object.assign(row, updates, { updated_at: new Date() });
+          }
+        }
+
+        return { rows: rows.map((r: any) => ({ ...r })), rowCount: rows.length };
+      }
+
+      // DELETE → return rowCount
+      if (upperSql.startsWith('DELETE')) {
+        return { rows: [], rowCount: rows.length };
+      }
+
+      // SELECT MAX(version) for version management
+      if (upperSql.includes('MAX(VERSION)')) {
+        if (params?.length > 0 && params[0]) {
+          const templateRows = rows.filter((r: any) => r.template_id === params[0]);
+          const maxVersion = templateRows.length > 0
+            ? Math.max(...templateRows.map((r: any) => r.version || 0))
+            : 0;
+          return { rows: [{ max_version: maxVersion }], rowCount: 1 };
+        }
+        const maxVersion = rows.length > 0 ? Math.max(...rows.map((r: any) => r.version || 0)) : 0;
+        return { rows: [{ max_version: maxVersion }], rowCount: 1 };
+      }
+
+      // SELECT COUNT(*) → return count
+      if (upperSql.includes('COUNT')) {
+        return { rows: [{ count: rows.length }], rowCount: rows.length };
+      }
+
+      // SELECT with WHERE config_id = $1 AND tenant_id = $2 → filter by config_id and tenant_id
+      if (/CONFIG_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
+        const configIdParam = params?.[0];
+        const tenantParam = params?.[1];
+        const matched = rows.filter(
+          (r: any) => r.config_id === configIdParam && r.tenant_id === tenantParam,
+        );
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // SELECT with WHERE deployment_id = $1 AND tenant_id = $2 → canary history queries
+      if (/DEPLOYMENT_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
+        const deploymentIdParam = params?.[0];
+        const tenantParam = params?.[1];
+        const matched = rows.filter(
+          (r: any) => r.deployment_id === deploymentIdParam && r.tenant_id === tenantParam,
+        );
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // SELECT with WHERE template_id = $1 AND tenant_id = $2 → template version queries
+      if (/TEMPLATE_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
+        const templateIdParam = params?.[0];
+        const tenantParam = params?.[1];
+        const matched = rows.filter(
+          (r: any) => r.template_id === templateIdParam && r.tenant_id === tenantParam,
+        );
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // SELECT with WHERE id = $1 AND tenant_id = $2 → filter by id and tenant_id
+      if (/WHERE\s+ID\s*=\s*\$\d+\s+AND\s+TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
+        const idParam = params?.[0];
+        const tenantParam = params?.[1];
+        const matched = rows.filter(
+          (r: any) => r.id === idParam && r.tenant_id === tenantParam,
+        );
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // SELECT with WHERE tenant_id = $1 AND category = $2 → filter by tenant and category
+      if (/TENANT_ID\s*=\s*\$\d+\s+AND\s+CATEGORY\s*=\s*\$\d+/.test(upperSql)) {
+        const tenantParam = params?.[0];
+        const categoryParam = params?.[1];
+        const matched = rows.filter(
+          (r: any) => r.tenant_id === tenantParam && r.category === categoryParam,
+        );
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // SELECT with WHERE tenant_id = $N → filter by tenant only
+      if (upperSql.includes('TENANT_ID =')) {
+        const tenantParam = params?.[0];
+        const matched = rows.filter((r: any) => r.tenant_id === tenantParam);
+        return { rows: matched, rowCount: matched.length };
+      }
+
+      // Default SELECT → return all rows
       return { rows: rows.slice(), rowCount: rows.length };
     }),
     _rows: rows,
@@ -494,8 +699,8 @@ describe('ConfigDependencyRepository', () => {
     const mockRow = {
       id: 'dep-1',
       tenant_id: 'tenant-1',
-      config_id: 'config-1',
-      depends_on_config_id: 'config-0',
+      config_id: 'config-0',
+      depends_on_config_id: 'config-9',
       dependency_type: 'hard',
       description: 'DB must be configured first',
       is_active: true,
@@ -505,7 +710,7 @@ describe('ConfigDependencyRepository', () => {
     };
     mockDb._rows.push(mockRow);
 
-    const result = await repo.create('tenant-1', {
+    const result = await repo.createDependency('tenant-1', {
       configId: 'config-1',
       dependsOnConfigId: 'config-0',
       dependencyType: 'hard',
@@ -537,7 +742,7 @@ describe('ConfigDependencyRepository', () => {
     });
 
     await expect(
-      repo.create('tenant-1', {
+      repo.createDependency('tenant-1', {
         configId: 'config-1',
         dependsOnConfigId: 'config-0',
         createdBy: 'admin',
@@ -629,7 +834,7 @@ describe('ConfigDependencyRepository', () => {
       return { rows: [], rowCount: 0 };
     });
 
-    const result = await repo.delete('config-1', 'config-0', 'tenant-1');
+    const result = await repo.deleteDependency('config-1', 'config-0', 'tenant-1');
     expect(result).toBe(true);
     expect(mockDb.query).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM config_dependencies'),
@@ -656,6 +861,56 @@ describe('ConfigService - Template + Canary + Dependency', () => {
       getHistory: jest.fn(),
       getDb: () => mockDb,
     } as any;
+
+    // Pre-seed a template with known ID so template version tests work
+    mockDb._rows.push({
+      id: 'tmpl-1',
+      tenant_id: 'tenant-1',
+      name: 'Seeded Template',
+      description: null,
+      category: null,
+      config_data: { key: 'original' },
+      target_environment: 'dev',
+      is_active: true,
+      created_by: 'admin',
+      updated_by: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    // Pre-seed a canary deployment with known ID so canary operation tests work
+    mockDb._rows.push({
+      id: 'canary-1',
+      tenant_id: 'tenant-1',
+      config_id: 'config-1',
+      config_key: 'feature.flag',
+      environment: 'dev',
+      percentage: 10,
+      status: 'running',
+      old_value: null,
+      canary_value: { enabled: true },
+      target_value: { enabled: true },
+      promoted_at: null,
+      rolled_back_at: null,
+      created_by: 'admin',
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    // Pre-seed a dependency for dependency tests
+    mockDb._rows.push({
+      id: 'dep-seeded',
+      tenant_id: 'tenant-1',
+      config_id: 'config-1',
+      depends_on_config_id: 'config-2',
+      dependency_type: 'hard',
+      description: 'Required',
+      is_active: true,
+      created_by: 'admin',
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
     service = new ConfigService(mockRepo);
   });
 
@@ -668,6 +923,16 @@ describe('ConfigService - Template + Canary + Dependency', () => {
       configData: { key: 'value' },
       createdBy: 'admin',
     });
+
+    // Debug: inspect mock return values
+    const calls = (mockDb.query as jest.Mock).mock.calls;
+    const insertCall = calls.find(c => c[0].includes('config_templates'));
+    if (insertCall) {
+      const result = insertCall[2] || insertCall[1];  // try to access return value
+    }
+    console.log('template keys:', Object.keys(template));
+    console.log('template.configData:', JSON.stringify(template.configData));
+    console.log('template.config_data:', JSON.stringify((template as any).config_data));
 
     expect(template.tenant_id).toBe('tenant-1');
     expect(template.name).toBe('My Template');
@@ -771,7 +1036,7 @@ describe('ConfigService - Template + Canary + Dependency', () => {
   });
 
   test('removeDependency should return boolean', async () => {
-    const result = await service.removeDependency('tenant-1', 'config-1', 'config-0');
+    const result = await service.removeDependency('tenant-1', 'config-1', 'config-2');
     expect(typeof result).toBe('boolean');
   });
 });

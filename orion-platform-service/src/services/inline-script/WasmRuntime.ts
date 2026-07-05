@@ -1,10 +1,10 @@
 // orion-platform-service/src/services/inline-script/WasmRuntime.ts
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getQuickJS, QuickJSWASMModule, QuickJSContext, QuickJSHandle } from 'quickjs-emscripten';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('WasmRuntime');
 
 export interface WasmExecutionRequest {
   code: string;

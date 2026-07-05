@@ -48,13 +48,13 @@ export abstract class BaseRepository<T extends { id: string }> {
     return getCurrentTenantId();
   }
 
-  async findById(id: string): Promise<T | undefined> {
+  async findById(id: string): Promise<T | null> {
     const tenantId = this.getTenantId();
     const result = await this.db.query(
       `SELECT * FROM ${this.tableName} WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -127,7 +127,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     return this.mapRowToEntity(result.rows[0]);
   }
 
-  async update(id: string, data: any): Promise<T> {
+  async update(id: string, data: any): Promise<T | null> {
     const tenantId = this.getTenantId();
     const rawColumns = Object.keys(data);
     const values = Object.values(data);
@@ -146,7 +146,7 @@ export abstract class BaseRepository<T extends { id: string }> {
     const result = await this.db.query(query, [...values, id, tenantId]);
 
     if (result.rows.length === 0) {
-      throw new OrionError(`UPDATE on ${this.tableName} affected no rows (id: ${id})`, 'OPERATION_FAILED')
+      return null;
     }
     return this.mapRowToEntity(result.rows[0]);
   }

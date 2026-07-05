@@ -8,9 +8,9 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TicketService');
 import { TicketGenerator } from './TicketGenerator';
 import { TicketWorkflowService } from './TicketWorkflowService';
 import { TicketRelationAnalyzer } from './TicketRelationAnalyzer';

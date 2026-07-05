@@ -9,10 +9,10 @@
  * - Startup: load from DB to hydrate in-memory Maps
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CommunityAdvancedRepository } from '../../repositories/CommunityAdvancedRepository';
 
-const logger = pino({ name: 'CommunityAdvancedService' });
+const logger = createLogger('CommunityAdvancedService');
 
 export interface Badge {
   id: string;

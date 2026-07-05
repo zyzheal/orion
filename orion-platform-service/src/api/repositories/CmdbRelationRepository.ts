@@ -37,16 +37,16 @@ export class CmdbRelationRepository {
   }
 
   /**
-   * 通过 ID 获取关联关系
+   * 通过 ID 获取关联关系（含租户隔离）
    */
-  async getRelationById(id: string): Promise<CIRelation | null> {
+  async getRelationById(id: string, tenantId: bigint): Promise<CIRelation | null> {
     const query = `
       SELECT id, from_ci_id, to_ci_id, relation_type, description, created_by, created_at, deleted_at, tenant_id
       FROM cmdb_ci_relation
-      WHERE id = $1 AND deleted_at IS NULL
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `;
 
-    const result = await this.database.query(query, [id]);
+    const result = await this.database.query(query, [id, tenantId.toString()]);
     if (result.rowCount === 0) {
       return null;
     }
@@ -99,16 +99,16 @@ export class CmdbRelationRepository {
   }
 
   /**
-   * 删除关联关系（软删除）
+   * 删除关联关系（软删除，含租户隔离）
    */
-  async deleteRelation(id: string): Promise<boolean> {
+  async deleteRelation(id: string, tenantId: bigint): Promise<boolean> {
     const query = `
       UPDATE cmdb_ci_relation
       SET deleted_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND deleted_at IS NULL
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
     `;
 
-    const result = await this.database.query(query, [id]);
+    const result = await this.database.query(query, [id, tenantId.toString()]);
     return result.rowCount !== null && result.rowCount > 0;
   }
 

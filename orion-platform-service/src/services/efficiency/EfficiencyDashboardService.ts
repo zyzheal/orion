@@ -7,7 +7,7 @@
  * When db is provided, scenarios are persisted to PostgreSQL.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { OrionError } from '../../errors';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
@@ -16,7 +16,7 @@ import {
   EfficiencyScenarioEntity,
 } from '../../repositories/EfficiencyScenarioRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EfficiencyDashboardService');
 
 export interface TimeRange {
   start: Date;

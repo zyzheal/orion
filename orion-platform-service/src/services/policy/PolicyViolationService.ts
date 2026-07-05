@@ -5,12 +5,12 @@
  * policy violations in the system.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { PolicyViolationRepository, PolicyViolationEntity, PolicyViolationCreateInput } from '../../repositories/PolicyViolationRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PolicyViolationService');
 
 // ==================== Input Interfaces ====================
 

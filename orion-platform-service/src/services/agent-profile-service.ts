@@ -21,6 +21,8 @@ import {
   AgentProfileUpdateInput,
 } from '../models/AgentProfile';
 
+import { OrionError, ErrorCode } from '../errors';
+
 // ==================== Interfaces ====================
 
 export interface ListAgentProfilesOptions {
@@ -360,6 +362,7 @@ export class AgentProfileService {
     };
 
     const updatedEntity = await this.repository.update(id, updatePayload);
+    if (!updatedEntity) throw new OrionError('Failed to update agent profile', ErrorCode.OPERATION_FAILED);
     return entityToProfile(updatedEntity);
   }
 

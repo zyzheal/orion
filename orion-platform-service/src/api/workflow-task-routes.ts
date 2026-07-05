@@ -20,7 +20,7 @@ import type { WorkflowTask } from '../repositories/WorkflowTaskRepository';
 import { createLogger } from '../utils/logger';
 import { OrionError, ValidationError, NotFoundError, ServiceUnavailableError, ErrorCode, handleError } from '../errors';
 
-const logger = pino({ name: 'workflow-task-routes' });
+const logger = createLogger('workflow-task-routes');
 
 /**
  * 路由选项接口

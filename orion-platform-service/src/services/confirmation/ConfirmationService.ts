@@ -9,9 +9,9 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { ConfirmationRepository, ConfirmationEntity, ConfirmationAuditEntity, NotificationSettingsEntity, FindAllResult } from '../../repositories/ConfirmationRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'LConfirmation-LService' });
+const logger = createLogger('LConfirmation-LService');
 
 // ============================================================
 // In-memory storage used when no repository/db is injected

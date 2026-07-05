@@ -26,10 +26,10 @@ import {
   EngineerAvailability,
 } from './types';
 import { TicketingRepository } from './TicketingRepository';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ name: 'LEngineer-LSuspend-LService' });
+const logger = createLogger('LEngineer-LSuspend-LService');
 
 /**
  * Engineer Suspend Service

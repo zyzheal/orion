@@ -12,13 +12,13 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { PipelineRun, PipelineRunStatus } from '../../models/PipelineRun';
 import { PipelineExecutionQueue, QueueStats } from './PipelineExecutionQueue';
 import { PipelineMetricsRepository } from '../../repositories/PipelineMetricsRepository';
 import { DatabasePool } from '../database';
 
-const logger = pino({ name: 'pipeline-metrics' });
+const logger = createLogger('pipeline-metrics');
 
 /**
  * 单次运行的指标记录

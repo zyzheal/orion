@@ -33,15 +33,11 @@ export interface ParseResult {
   warnings: string[];
 }
 
-/** 内存存储 */
-const codeOwnersFiles = new Map<string, CodeOwnersFile>();
-const codeOwnersByRepo = new Map<string, string>(); // repoId -> fileId
-
 export class CodeOwnershipService {
-  private repository: CodeOwnershipRepository | null = null;
+  private repository: CodeOwnershipRepository;
 
-  constructor(repository?: CodeOwnershipRepository) {
-    this.repository = repository ?? null;
+  constructor(repository: CodeOwnershipRepository) {
+    this.repository = repository;
   }
 
   /**
@@ -63,7 +59,7 @@ export class CodeOwnershipService {
       throw new OrionError(`Failed to parse CODEOWNERS file: ${parseResult.errors.length > 0 ? parseResult.errors.join(', ') : 'No valid rules found'}`, 'OPERATION_FAILED');
     }
 
-    const file: CodeOwnersFile = {
+    const file: Omit<CodeOwnersFile, 'id'> = {
       filePath,
       repoId,
       rules: parseResult.rules,
@@ -71,71 +67,30 @@ export class CodeOwnershipService {
       rawContent,
     };
 
-    // Persist to repository if available
-    if (this.repository) {
-      const existing = await this.repository.findByRepo(repoId);
-      if (existing) {
-        await this.repository.update(repoId, { filePath, rules: parseResult.rules, rawContent });
-      } else {
-        const id = uuidv4();
-        await this.repository.create({ id, repoId, filePath, rules: parseResult.rules, rawContent });
-      }
+    // Persist to repository
+    const existing = await this.repository.findByRepo(repoId);
+    if (existing) {
+      await this.repository.update(repoId, { filePath, rules: parseResult.rules, rawContent });
+      return { ...file, id: existing.id };
     }
 
-    const existingId = codeOwnersByRepo.get(repoId);
-    if (existingId) {
-      // 更新已有文件
-      codeOwnersFiles.set(existingId, file);
-      return file;
-    }
-
-    // 创建新文件
-    codeOwnersFiles.set(repoId, file);
-    codeOwnersByRepo.set(repoId, repoId);
-
-    return file;
+    const id = uuidv4();
+    await this.repository.create({ id, repoId, filePath, rules: parseResult.rules, rawContent });
+    return { ...file, id };
   }
 
   /**
    * 获取仓库的 CODEOWNERS 文件
    */
   async getCodeOwnersFile(repoId: string): Promise<CodeOwnersFile | null> {
-    // Try repository first if available
-    if (this.repository) {
-      const dbFile = await this.repository.findByRepo(repoId);
-      if (dbFile) {
-        // Sync to memory
-        codeOwnersFiles.set(repoId, dbFile);
-        codeOwnersByRepo.set(repoId, repoId);
-      }
-      return dbFile;
-    }
-
-    const fileId = codeOwnersByRepo.get(repoId);
-    if (!fileId) {
-      return null;
-    }
-    return codeOwnersFiles.get(fileId) || null;
+    return await this.repository.findByRepo(repoId);
   }
 
   /**
    * 删除仓库的 CODEOWNERS 文件
    */
   async removeCodeOwnersFile(repoId: string): Promise<boolean> {
-    // Delete from repository if available
-    if (this.repository) {
-      const deleted = await this.repository.delete(repoId);
-      if (!deleted) return false;
-    }
-
-    const fileId = codeOwnersByRepo.get(repoId);
-    if (!fileId) {
-      return false;
-    }
-
-    codeOwnersFiles.delete(fileId);
-    codeOwnersByRepo.delete(repoId);
-    return true;
+    return await this.repository.delete(repoId);
   }
 
   /**
@@ -412,20 +367,5 @@ export class CodeOwnershipService {
     }
 
     return -1;
-  }
-
-  /**
-   * 获取存储状态 (用于测试)
-   */
-  _getStorage(): { files: Map<string, CodeOwnersFile>; byRepo: Map<string, string> } {
-    return { files: codeOwnersFiles, byRepo: codeOwnersByRepo };
-  }
-
-  /**
-   * 清空存储 (用于测试)
-   */
-  _clearStorage(): void {
-    codeOwnersFiles.clear();
-    codeOwnersByRepo.clear();
   }
 }

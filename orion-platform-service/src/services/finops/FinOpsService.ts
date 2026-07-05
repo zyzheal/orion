@@ -7,7 +7,7 @@
 import { FinOpsRepository, FinOpsReport, ResourceCost, EntityCostRecord, BudgetRecord, AlertTriggerRecord, ROIAnalysisRecord, CostComparisonRecord, CostOptimizationRecord, SpendRecord, CloudCostRecord, K8sCostRecord, SaaSCostRecord, LegacyBudgetAlertRecord } from './FinOpsRepository';
 import { CostEntityType, CostPeriod, OptimizationCategory, OptimizationPriority, OptimizationStatus, ResourceUtilization, RightSizingRecommendation, CloudProvider, CloudResourceType, BillingCycle, CostSummary, CostBreakdown } from './types';
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 export class FinOpsServiceError extends Error {
   constructor(message: string, public code: string) { super(message); this.name = 'FinOpsServiceError'; }

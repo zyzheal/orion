@@ -238,16 +238,16 @@ export class CmdbRepository {
   }
 
   /**
-   * 恢复已归档的配置项
+   * 恢复已归档的配置项（含租户隔离）
    */
-  async restoreCI(id: string): Promise<boolean> {
+  async restoreCI(id: string, tenantId: bigint): Promise<boolean> {
     const query = `
       UPDATE cmdb_ci
       SET archived_at = NULL, status = 'ACTIVE', updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND deleted_at IS NULL AND archived_at IS NOT NULL
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND archived_at IS NOT NULL
     `;
 
-    const result = await this.database.query(query, [id]);
+    const result = await this.database.query(query, [id, tenantId.toString()]);
     return result.rowCount !== null && result.rowCount > 0;
   }
 

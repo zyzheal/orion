@@ -6,13 +6,13 @@
  * and approval requirement checks.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { EnvironmentRepository, EnvironmentEntity } from '../../repositories/EnvironmentRepository';
 import { createEnvironment, mergeVariables, type EnvironmentCreateInput, type EnvironmentUpdateInput } from '../../models/Environment';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('EnvironmentService');
 
 export interface EnvironmentServiceOptions {
   repository: EnvironmentRepository;
@@ -77,7 +77,7 @@ export class EnvironmentService {
    * Get an environment by ID.
    */
   async getEnvironment(id: string): Promise<EnvironmentEntity | undefined> {
-    return this.repository.findById(id);
+    return (await this.repository.findById(id)) ?? undefined;
   }
 
   /**
@@ -116,6 +116,7 @@ export class EnvironmentService {
     if (input.approvalCount !== undefined) updates.approvalCount = input.approvalCount;
 
     const updated = await this.repository.update(id, updates as any);
+    if (!updated) throw new OrionError('Failed to update environment', ErrorCode.OPERATION_FAILED);
     logger.info({ id, ...input }, 'Environment updated');
     return updated;
   }

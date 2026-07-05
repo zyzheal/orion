@@ -5,7 +5,7 @@
  * health monitoring, and job dispatch across clusters.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   ExecutorRepository,
   ExecutorEntity,
@@ -19,7 +19,7 @@ import {
 import { DatabasePool } from '../database';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('FederationService');
 
 // ==================== Input Interfaces ====================
 
@@ -438,7 +438,7 @@ export class FederationService {
     let selectedExecutor: ExecutorEntity | undefined;
 
     if (input.executor_id) {
-      selectedExecutor = await this.executorRepo.findById(input.executor_id);
+      selectedExecutor = await this.executorRepo.findById(input.executor_id) ?? undefined;
     } else {
       // Find executor with most available resources
       const candidates = await this.executorRepo.findAllActive();

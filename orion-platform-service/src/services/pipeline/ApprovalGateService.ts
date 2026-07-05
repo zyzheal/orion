@@ -61,7 +61,7 @@ export class ApprovalGateService {
   private repository: ApprovalGateRepository;
 
   constructor(repository: ApprovalGateRepository) {
-    if (!repository) throw new Error('ApprovalGateRepository is required');
+    if (!repository) throw new OrionError('ApprovalGateRepository is required', ErrorCode.INTERNAL_ERROR);
     this.repository = repository;
   }
 

@@ -4,10 +4,10 @@ import addFormats from 'ajv-formats';
 import { PATCH_SCHEMA, SECURITY_BOUNDARY_SCHEMA } from './PatchSchemaDefinition';
 import { ASTValidator } from './ASTValidator';
 import { SecurityBoundaryValidator } from './SecurityBoundaryValidator';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('OutputValidatorService');
 
 export interface ValidationResult {
   valid: boolean;

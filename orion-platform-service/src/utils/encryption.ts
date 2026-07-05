@@ -10,6 +10,10 @@
  */
 
 import crypto from 'crypto';
+import { OrionError, ErrorCode } from '../errors';
+import { createLogger } from './logger';
+
+const logger = createLogger('encryption');
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
@@ -29,7 +33,7 @@ function getEncryptionKey(): Buffer {
   if (envKey) {
     // Validate key length (64 hex chars = 32 bytes)
     if (envKey.length !== 64) {
-      throw new Error('ORION_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)');
+      throw new OrionError('ORION_ENCRYPTION_KEY must be a 64-character hex string (32 bytes)', ErrorCode.VALIDATION_ERROR);
     }
     return Buffer.from(envKey, 'hex');
   }
@@ -74,7 +78,7 @@ export function encryptValue(value: string): string {
     const combined = Buffer.concat([iv, Buffer.from(encrypted, ENCODING), authTag]);
     return `${PREFIX}${combined.toString(ENCODING)}`;
   } catch (error) {
-    console.error('[Encryption] Encryption failed:', (error as Error).message);
+    logger.error({ err: error as Error, stack: (error as Error).stack }, '[Encryption] Encryption failed');
     return value; // Fallback to plaintext on error
   }
 }
@@ -107,7 +111,7 @@ export function decryptValue(value: string): string {
     decrypted += decipher.final('utf-8');
     return decrypted;
   } catch (error) {
-    console.error('[Encryption] Decryption failed:', (error as Error).message);
+    logger.error({ err: error as Error, stack: (error as Error).stack }, '[Encryption] Decryption failed');
     return value; // Return encrypted value on error
   }
 }
@@ -124,7 +128,7 @@ export function isEncrypted(value: string): boolean {
  * This requires a key migration pass - not implemented here
  */
 export function rotateKey(_newKey: string): void {
-  throw new Error('Key rotation requires a database migration pass. Use the migration script instead.');
+  throw new OrionError('Key rotation requires a database migration pass. Use the migration script instead.', ErrorCode.INTERNAL_ERROR);
 }
 
 export default {
@@ -133,3 +137,38 @@ export default {
   isEncrypted,
   rotateKey,
 };
+
+/**
+ * Hash a plaintext value using HMAC-SHA256 (for webhook secret verification)
+ * Returns a base64-encoded HMAC digest suitable for storage in secret_hash columns.
+ */
+export function hashValue(value: string): string {
+  if (!value) return value;
+  try {
+    const key = getEncryptionKey();
+    const hmac = crypto.createHmac('sha256', key);
+    hmac.update(value, 'utf-8');
+    return hmac.digest('base64');
+  } catch (error) {
+    logger.error({ err: error as Error, stack: (error as Error).stack }, '[Encryption] hashValue failed');
+    throw new OrionError('Failed to hash value', ErrorCode.INTERNAL_ERROR);
+  }
+}
+
+/**
+ * Compare a plaintext value against a stored HMAC-SHA256 hash.
+ * Uses timing-safe comparison to prevent timing attacks.
+ */
+export function compareHash(plaintext: string, storedHash: string): boolean {
+  if (!plaintext || !storedHash) return false;
+  try {
+    const computed = hashValue(plaintext);
+    const a = Buffer.from(computed, 'base64');
+    const b = Buffer.from(storedHash, 'base64');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch (error) {
+    logger.error({ err: error as Error, stack: (error as Error).stack }, '[Encryption] compareHash failed');
+    return false;
+  }
+}

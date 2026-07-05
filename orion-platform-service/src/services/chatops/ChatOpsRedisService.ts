@@ -13,7 +13,7 @@
 
 import { RedisCache } from '../redis-cache';
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('ChatOpsRedis');
 
@@ -167,7 +167,10 @@ export class ChatOpsRedisService {
         source: rec.source,
         created_at: rec.createdAt.toISOString(),
       });
-      await this.redis.expire(`${KEY_PREFIX}:recommendation:${rec.id}`, 1800); // 30 min TTL
+      const client = this.redis.getClient();
+      if (client) {
+        await client.expire(`${KEY_PREFIX}:recommendation:${rec.id}`, 1800); // 30 min TTL
+      }
     } catch (err) {
       logger.warn({ err, recId: rec.id }, '[ChatOpsRedis] Failed to cache recommendation');
     }
@@ -216,7 +219,10 @@ export class ChatOpsRedisService {
         timestamp: failure.timestamp.toISOString(),
         retry_count: failure.retryCount,
       });
-      await this.redis.expire(`${KEY_PREFIX}:subscription_failure:${failure.event}`, 3600);
+      const client = this.redis.getClient();
+      if (client) {
+        await client.expire(`${KEY_PREFIX}:subscription_failure:${failure.event}`, 3600);
+      }
     } catch (err) {
       logger.warn({ err, event: failure.event }, '[ChatOpsRedis] Failed to cache subscription failure');
     }

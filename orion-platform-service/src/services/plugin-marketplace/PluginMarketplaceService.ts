@@ -8,7 +8,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   PostgresPluginRepository,
   PluginRepository,
@@ -25,7 +25,7 @@ import type { DatabasePool } from '../database';
 import { PluginInfo, PluginType, PluginState } from '../plugin-manager-service';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('PluginMarketplaceService');
 
 // ==================== Domain Types ====================
 

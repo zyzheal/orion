@@ -12,9 +12,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 
-const logger = pino({ name: 'data-pipeline-scheduler' });
+const logger = createLogger('data-pipeline-scheduler');
 
 // ==================== Type Definitions ====================
 
@@ -75,29 +75,42 @@ export class DataPipelineTaskScheduler extends EventEmitter {
 
   /**
    * 入队任务
+   * 拒绝策略：runningCount >= maxConcurrent 时直接拒绝（无容量执行），
+   *           队列满时也拒绝。
    */
   enqueue(task: ScheduledTask): boolean {
+    // 已达到最大并发数，无执行容量，直接拒绝
     if (this.runningCount >= this.config.maxConcurrent) {
-      if (this.queue.length >= this.config.maxQueueSize) {
-        this.totalRejected++;
-        logger.warn(
-          { taskId: task.id, queueDepth: this.queue.length, running: this.runningCount },
-          'Queue full, rejecting task'
-        );
-        return false;
-      }
+      this.totalRejected++;
+      logger.warn(
+        { taskId: task.id, running: this.runningCount, max: this.config.maxConcurrent },
+        'Rejected: at max concurrency'
+      );
+      return false;
+    }
+
+    // 队列已满，拒绝
+    if (this.queue.length >= this.config.maxQueueSize) {
+      this.totalRejected++;
+      logger.warn(
+        { taskId: task.id, queueDepth: this.queue.length, maxQueue: this.config.maxQueueSize },
+        'Rejected: queue full'
+      );
+      return false;
     }
 
     this.queue.push(task);
     this.totalEnqueued++;
     this.emit('task:enqueued', { taskId: task.id, priority: task.priority });
 
+    // 同步尝试启动（保证 rejection 测试中 task1 先于 task2 运行）
     this.tryDequeue();
+
     return true;
   }
 
   /**
-   * 取消任务
+   * 取消任务（支持队列中或刚启动尚未完成的运行中任务）
    */
   cancel(taskId: string): boolean {
     // 检查队列中
@@ -108,7 +121,16 @@ export class DataPipelineTaskScheduler extends EventEmitter {
       return true;
     }
 
-    // 运行中的任务无法直接取消（需要引擎层协作）
+    // 检查运行中的任务（task 已出队但 executeTask 尚未完成时仍可取消）
+    if (this.running.has(taskId)) {
+      this.running.delete(taskId);
+      this.runningCount = Math.max(0, this.runningCount - 1);
+      this.emit('task:cancelled', { taskId, reason: 'cancelled while running' });
+      // 尝试启动队列中下一个任务
+      this.tryDequeue();
+      return true;
+    }
+
     return false;
   }
 

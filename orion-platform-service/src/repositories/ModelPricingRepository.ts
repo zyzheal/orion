@@ -32,7 +32,7 @@ export class ModelPricingRepository extends BaseRepository<ModelPricingEntity> {
     return result.rows.map(row => this.mapRowToEntity(row));
   }
 
-  async upsertByModelId(modelId: string, data: { inputPrice: number; outputPrice: number; tenantId?: string }): Promise<ModelPricingEntity> {
+  async upsertByModelId(modelId: string, data: { inputPrice: number; outputPrice: number; tenantId?: string }): Promise<ModelPricingEntity | null> {
     const existing = await this.findByModelId(modelId);
     if (existing) {
       return this.update(existing.id, {

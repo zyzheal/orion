@@ -11,10 +11,10 @@
 import { FastifyRequest, FastifyReply, HookHandlerDoneFunction } from 'fastify';
 import { TenantIsolationService } from './TenantIsolationService';
 import { createTenantContext, TenantInfo } from './TenantContext';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('TenantValidatorMiddleware');
 
 /**
  * 租户验证中间件配置选项

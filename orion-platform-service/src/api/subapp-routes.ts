@@ -11,7 +11,7 @@ import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode , ValidationError, NotFoundError, ConflictError, handleError} from '../errors';
 
-const logger = pino({ name: 'subapp-routes' });
+const logger = createLogger('subapp-routes');
 
 export interface SubAppRouteOptions {
   database?: DatabasePool;

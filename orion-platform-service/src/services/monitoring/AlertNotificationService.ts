@@ -11,7 +11,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import {
   MonitoringNotificationChannelRepository,
@@ -26,7 +26,7 @@ import {
   MonitoringNotificationHistoryEntity,
 } from '../../repositories/MonitoringNotificationHistoryRepository';
 
-const logger = pino({ name: 'LAlert-LNotification-LService' });
+const logger = createLogger('LAlert-LNotification-LService');
 import {
   Alert,
   AlertChannel,

@@ -110,7 +110,7 @@ export default async function finOpsRoutes(
     }
     try {
       const body = request.body as any;
-      const tenantId = (request as any).tenantId || body.tenantId || 'default';
+      const tenantId = (request as any).tenantId || body.tenantId;
       const { serviceA, serviceB, period } = body;
 
       if (!serviceA || !serviceB || !period) {
@@ -136,7 +136,7 @@ export default async function finOpsRoutes(
     }
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = query.tenantId || (request as any).tenantId;
       const serviceId = query.serviceId || 'default';
       const period = (query.period as any) || 'monthly';
       const category = query.category;
@@ -157,7 +157,7 @@ export default async function finOpsRoutes(
     }
     try {
       const query = request.query as any;
-      const tenantId = query.tenantId || (request as any).tenantId || 'default';
+      const tenantId = query.tenantId || (request as any).tenantId;
       const serviceId = query.serviceId || 'default';
       const entityType = (query.entityType as any) || 'project';
 

@@ -5,7 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import {
   InternalLibrary,
   LibraryVersion,
@@ -27,7 +27,7 @@ import {
 } from '../../repositories/InternalLibraryRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('InternalLibraryService');
 
 export class InternalLibraryService {
   private libraryRepo?: InternalLibraryRepository;

@@ -42,7 +42,7 @@ export class AclService {
 
     const acl: ArtifactAclEntity = {
       id: uuidv4(),
-      tenantId: artifact.tenant_id || '00000000-0000-0000-0000-000000000000',
+      tenantId: artifact.tenantId || '00000000-0000-0000-0000-000000000000',
       artifactId: input.artifactId,
       subjectType: input.subjectType,
       subjectId: input.subjectId,
@@ -72,6 +72,10 @@ export class AclService {
       ...updates,
       updatedAt: new Date(),
     });
+
+    if (!updated) {
+      throw new OrionError(`ACL not found: ${id}`, ErrorCode.NOT_FOUND);
+    }
 
     logger.info({ aclId: id, updates }, 'ACL updated');
     return updated;

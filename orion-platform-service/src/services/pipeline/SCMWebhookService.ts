@@ -8,14 +8,14 @@
  */
 
 import crypto from 'crypto';
-import { createLogger } from '../utils/logger';
-import { PipelineEngine } from '../../engine/PipelineEngine';
+import { createLogger } from '../../utils/logger';
+import { PipelineEngine } from '../../services/pipeline';
 import { TriggerType } from '../../models/PipelineRun';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import { ScmTriggerRuleRepository } from '../../repositories/ScmTriggerRuleRepository';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('SCMWebhookService');
 
 /**
  * Parsed SCM webhook event

@@ -8,6 +8,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import {
   GitLabAdapter,
   GerritAdapter,
+  BitbucketAdapter,
   ICodeRepoAdapter,
   RepoType,
   PullRequestStatus,
@@ -45,6 +46,20 @@ export function registerGerritInstance(id: string, config: {
     baseUrl: config.baseUrl,
     username: config.username,
     password: config.password,
+  });
+  registerAdapter(id, adapter);
+}
+
+/** 注册 Bitbucket 实例 (Task 5.6) */
+export function registerBitbucketInstance(id: string, config: {
+  baseUrl: string;
+  token: string;
+  workspace: string;
+}): void {
+  const adapter = new BitbucketAdapter({
+    baseUrl: config.baseUrl,
+    token: config.token,
+    workspace: config.workspace,
   });
   registerAdapter(id, adapter);
 }
@@ -471,6 +486,136 @@ export class CodeRepoController {
         data: reviews,
         count: reviews.length,
       });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  // ==================== Task 5.6: Diff 与评论 ====================
+
+  /**
+   * 获取文件 diff（两个 ref 之间）
+   */
+  async getFileDiff(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId } = request.params as { adapterId: string; repoId: string };
+      const query = request.query as { from?: string; to?: string; path?: string };
+
+      if (!query.from || !query.to) {
+        return reply.status(400).send({
+          success: false,
+          error: 'from and to query parameters are required',
+        });
+      }
+
+      const adapter = getAdapter(adapterId);
+      const diffs = await adapter.getFileDiff(repoId, query.from, query.to, { path: query.path });
+
+      return reply.send({ success: true, data: diffs });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 列出 PR 评论
+   */
+  async listComments(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId, prId } = request.params as {
+        adapterId: string;
+        repoId: string;
+        prId: string;
+      };
+
+      const adapter = getAdapter(adapterId);
+      const comments = await adapter.listComments(repoId, prId);
+
+      return reply.send({ success: true, data: comments });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 添加 PR 评论
+   */
+  async addComment(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId, prId } = request.params as {
+        adapterId: string;
+        repoId: string;
+        prId: string;
+      };
+      const body = request.body as { body: string; path?: string; line?: number };
+
+      if (!body?.body) {
+        return reply.status(400).send({
+          success: false,
+          error: 'body is required in request body',
+        });
+      }
+
+      const adapter = getAdapter(adapterId);
+      const comment = await adapter.addComment(repoId, prId, body);
+
+      return reply.status(201).send({ success: true, data: comment });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 获取提交历史
+   */
+  async listCommits(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId } = request.params as { adapterId: string; repoId: string };
+      const query = request.query as { branch?: string; page?: string; limit?: string };
+
+      const adapter = getAdapter(adapterId);
+      const result = await adapter.listCommits(repoId, {
+        branch: query.branch,
+        page: query.page ? parseInt(query.page) : 1,
+        limit: query.limit ? parseInt(query.limit) : 20,
+      });
+
+      return reply.send({ success: true, data: result.commits, total: result.total });
+    } catch (error: any) {
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * 获取单个提交详情
+   */
+  async getCommit(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { adapterId, repoId, sha } = request.params as {
+        adapterId: string;
+        repoId: string;
+        sha: string;
+      };
+
+      const adapter = getAdapter(adapterId);
+      const commit = await adapter.getCommit(repoId, sha);
+
+      return reply.send({ success: true, data: commit });
     } catch (error: any) {
       return reply.status(500).send({
         success: false,

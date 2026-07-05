@@ -9,7 +9,7 @@
  * Uses PostgreSQL Repository pattern for persistence.
  */
 
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import {
   ModelVersionRepository,
@@ -21,7 +21,7 @@ import {
 } from '../../repositories/ModelVersionRepository';
 import { OrionError, ErrorCode } from '../../errors';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('ModelVersionService');
 
 // ==================== 类型定义 ====================
 
@@ -201,6 +201,9 @@ export class ModelVersionService {
       status: 'active',
       activated_at: new Date(),
     });
+    if (!updated) {
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
+    }
 
     logger.info({ msg: 'Model activated', modelId, name: entity.name, version: entity.version });
     return this.mapEntityToModel(updated);
@@ -258,6 +261,9 @@ export class ModelVersionService {
       status: 'deprecated',
       deprecated_at: new Date(),
     });
+    if (!updated) {
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
+    }
 
     logger.info({ msg: 'Model deprecated', modelId, name: entity.name, version: entity.version });
     return this.mapEntityToModel(updated);
@@ -554,6 +560,9 @@ export class ModelVersionService {
     }
 
     const updated = await this.modelRepo.update(modelId, { status: 'archived' });
+    if (!updated) {
+      throw new OrionError(`Model not found: ${modelId}`, ErrorCode.NOT_FOUND);
+    }
     logger.info({ msg: 'Model archived', modelId, name: entity.name, version: entity.version });
     return this.mapEntityToModel(updated);
   }

@@ -20,12 +20,12 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { DeadLetterMessageRepository } from '../../repositories/DeadLetterMessageRepository';
 import { ConsumerRegistryRepository } from '../../repositories/ConsumerRegistryRepository';
 
-const logger = pino({ name: 'message-queue' });
+const logger = createLogger('message-queue');
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 

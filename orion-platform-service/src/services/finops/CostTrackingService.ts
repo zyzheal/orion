@@ -10,12 +10,15 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import type { DatabasePool } from '../database';
+import { createLogger } from '../../utils/logger';
 import {
   CostEntityType,
   CostPeriod,
   CostTrend,
   CostTrendPoint,
 } from './types';
+
+const logger = createLogger('cost-tracking');
 
 /**
  * 实体成本记录
@@ -333,7 +336,7 @@ export class CostTrackingService {
       await this.pool!.query(sql, [id, tenantId, costType, amount, currency, metadata, now]);
     } catch (err) {
       // DB 写入失败时降级
-      console.error('[CostTrackingService] PG insert failed, falling back to memory only:', err);
+      logger.error({ err: err as Error, stack: (err as Error).stack, id, tenantId, costType }, '[CostTrackingService] PG insert failed, falling back to memory only');
       throw err; // 向上抛出，但调用方用 .catch() 忽略
     }
   }

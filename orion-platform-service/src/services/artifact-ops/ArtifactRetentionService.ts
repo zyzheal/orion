@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { RetentionPolicyRepository, RetentionEvaluationRepository, RetentionPolicyEntity, RetentionEvaluationEntity } from '../../repositories/ArtifactRetentionRepository';
 import { DatabasePool } from '../database';
 
+import { OrionError, ErrorCode } from '../../errors';
+
 export interface RetentionPolicyInput {
   name: string;
   maxAgeDays: number;
@@ -157,6 +159,7 @@ export class ArtifactRetentionService {
     if (updates.enabled !== undefined) updateData.enabled = updates.enabled;
 
     const updated = await this.policyRepository.update(policyId, updateData);
+    if (!updated) throw new OrionError('Failed to update retention policy', ErrorCode.OPERATION_FAILED);
     return this.policyEntityToDomain(updated);
   }
 

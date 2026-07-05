@@ -19,7 +19,7 @@ import { ScriptExecutionRepository } from '../services/script-library/ScriptExec
 import { ScriptLibraryService } from '../services/script-library/ScriptLibraryService';
 import { createLogger } from '../utils/logger';
 
-const logger = pino({ name: 'script-library-routes' });
+const logger = createLogger('script-library-routes');
 
 interface ScriptLibraryRoutesOptions {
   database: DatabasePool;

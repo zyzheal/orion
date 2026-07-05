@@ -11,7 +11,7 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../utils/logger';
 import { CodeEmbeddingService } from '../../services/ai/CodeEmbeddingService';
 import { SemanticSearchService } from '../../services/ai/SemanticSearchService';
 import { CodeEmbeddingRepository } from '../../repositories/CodeEmbeddingRepository';
@@ -24,7 +24,7 @@ import {
   EmbeddingStatus,
 } from '../../services/ai/vector-types';
 
-const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
+const logger = createLogger('VectorController');
 
 export interface VectorRoutesOptions {
   database?: {
