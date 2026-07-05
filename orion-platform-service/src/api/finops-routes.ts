@@ -128,7 +128,7 @@ export default async function finOpsRoutes(
   });
 
   // ==================== Service Cost Trend (4.40) ====================
-  app.get('/cost-operations/trend', {
+  app.get('/cost-operations/service-trend', {
     onRequest: [authenticateUser, requirePermission({ resource: 'finops', action: 'read' })],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!finOpsService) {

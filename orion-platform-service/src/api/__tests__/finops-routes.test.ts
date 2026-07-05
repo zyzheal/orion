@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { describe, it, beforeAll, afterAll, expect } from '@jest/globals';
 
 jest.mock('../../middleware/authMiddleware', () => ({
-  authenticateUser: async (req: any, reply: any) => {
+  authenticateUser: async (req, reply) => {
     const auth = req.headers.authorization;
     if (!auth) return reply.code(401).send({ error: 'UNAUTHORIZED' });
     req.user = { userId: 'test-user', username: 'testuser', roles: ['admin'] };
@@ -17,7 +17,46 @@ jest.mock('../../middleware/authMiddleware', () => ({
 }));
 
 jest.mock('../../middleware/requirePermission', () => ({
-  requirePermission: (_opts: any) => async (req: any, reply: any) => {},
+  requirePermission: () => async (req, reply) => {},
+}));
+
+// Mock all service dependencies to avoid real initialization
+jest.mock('../../services/cost/CostBudgetGuardService', () => ({
+  CostBudgetGuardService: jest.fn().mockImplementation(() => ({
+    create: jest.fn().mockResolvedValue({ id: 'guard-1', name: 'test-guard' }),
+    findAll: jest.fn().mockResolvedValue([]),
+    findById: jest.fn().mockResolvedValue(null),
+    delete: jest.fn().mockResolvedValue(true),
+    evaluate: jest.fn().mockResolvedValue({ passed: true }),
+  })),
+}));
+
+jest.mock('../../services/cost/CostAnomalyDetectionService', () => ({
+  CostAnomalyDetectionService: jest.fn().mockImplementation(() => ({
+    detect: jest.fn().mockResolvedValue([]),
+    getAnomalies: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
+jest.mock('../../services/cost/CostOptimizationService', () => ({
+  CostOptimizationService: jest.fn().mockImplementation(() => ({
+    getOptimizations: jest.fn().mockResolvedValue([]),
+    applyOptimization: jest.fn().mockResolvedValue({ success: true }),
+    rejectOptimization: jest.fn().mockResolvedValue({ success: true }),
+  })),
+}));
+
+jest.mock('../../services/finops/FinOpsRepository', () => ({
+  FinOpsRepository: jest.fn().mockImplementation(() => ({
+    createCostComparison: jest.fn(),
+    getCostComparisons: jest.fn().mockResolvedValue([]),
+  })),
+}));
+
+jest.mock('../../services/finops/FinOpsService', () => ({
+  FinOpsService: jest.fn().mockImplementation(() => ({
+    compareCosts: jest.fn().mockResolvedValue({ savings: 100 }),
+  })),
 }));
 
 import routePlugin from '../finops-routes';
