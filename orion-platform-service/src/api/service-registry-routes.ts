@@ -341,9 +341,9 @@ export function mapEntityToServiceInfo(entity: any): {
   let address = url;
 
   try {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('grpc://') || url.startsWith('tcp://')) {
       const parsed = new URL(url);
-      port = parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https' ? 443 : 80);
+      port = parsed.port ? parseInt(parsed.port, 10) : (parsed.protocol === 'https:' ? 443 : 80);
       address = parsed.hostname;
     } else if (url.includes(':')) {
       const lastColon = url.lastIndexOf(':');

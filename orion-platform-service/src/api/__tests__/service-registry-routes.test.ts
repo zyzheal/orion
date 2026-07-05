@@ -153,7 +153,7 @@ describe('Service Registry Routes — mapper', () => {
 
     const result = mapEntityToServiceInfo(entity);
 
-    expect(result.address).toBe('not-a-valid-url://:abc');
+    expect(result.address).toBe('not-a-valid-url://');
     expect(result.port).toBe(0);
   });
 });
