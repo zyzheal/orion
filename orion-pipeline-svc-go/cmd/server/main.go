@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/pipeline-svc-go/internal/config"
+	"orion/pipeline-svc-go/internal/engine"
 	"orion/pipeline-svc-go/internal/handler"
 	"orion/pipeline-svc-go/internal/repository"
 	"orion/pipeline-svc-go/internal/service"
@@ -67,7 +68,15 @@ func main() {
 	stageRepo := repository.NewStageRepository(db.DB)
 	taskRepo := repository.NewTaskRepository(db.DB)
 
-	pipelineSvc := service.NewPipelineService(pipelineRepo, runRepo, stageRepo, taskRepo)
+	pipelineEngine := engine.NewPipelineEngine(engine.EngineDeps{
+		PipelineRepo: pipelineRepo,
+		RunRepo:      runRepo,
+		StageRepo:    stageRepo,
+		TaskRepo:     taskRepo,
+		Logger:       zapLogger,
+	})
+
+	pipelineSvc := service.NewPipelineService(pipelineRepo, runRepo, stageRepo, taskRepo, pipelineEngine)
 	templateSvc := service.NewTemplateService(db.DB)
 	triggerSvc := service.NewTriggerService(db.DB, pipelineSvc)
 	versionSvc := service.NewVersionService(db.DB)

@@ -203,3 +203,10 @@ func (r *RunRepository) UpdateStatusWithDuration(ctx context.Context, id, status
 	_, err := r.db.ExecContext(ctx, query, status, startedAt, completedAt, durationMs, id)
 	return err
 }
+
+// FinalizeRun marks a pipeline run as completed with the given status and duration.
+func (r *RunRepository) FinalizeRun(ctx context.Context, id, status string, durationMs int64) error {
+	query := `UPDATE pipeline_runs SET status = $1, completed_at = NOW(), duration_ms = $2, updated_at = NOW() WHERE id = $3`
+	_, err := r.db.ExecContext(ctx, query, status, durationMs, id)
+	return err
+}

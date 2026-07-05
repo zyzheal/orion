@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"orion/pipeline-svc-go/internal/engine"
 	"orion/pipeline-svc-go/internal/models"
 	"orion/pipeline-svc-go/internal/repository"
 
@@ -30,6 +31,7 @@ type PipelineService struct {
 	runRepo      *repository.RunRepository
 	stageRepo    *repository.StageRepository
 	taskRepo     *repository.TaskRepository
+	engine       *engine.PipelineEngine
 }
 
 func NewPipelineService(
@@ -37,12 +39,14 @@ func NewPipelineService(
 	runRepo *repository.RunRepository,
 	stageRepo *repository.StageRepository,
 	taskRepo *repository.TaskRepository,
+	engine *engine.PipelineEngine,
 ) *PipelineService {
 	return &PipelineService{
 		pipelineRepo: pipelineRepo,
 		runRepo:      runRepo,
 		stageRepo:    stageRepo,
 		taskRepo:     taskRepo,
+		engine:       engine,
 	}
 }
 
@@ -192,6 +196,16 @@ func (s *PipelineService) RunPipeline(ctx context.Context, tenantID, pipelineID 
 				attribute.String("error", err.Error()),
 			))
 		}
+	}
+
+	// Launch background execution via the engine (non-blocking).
+	if s.engine != nil {
+		go func() {
+			if err := s.engine.Execute(ctx, tenantID, pipeline.ID, run.ID); err != nil {
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "engine execution failed: "+err.Error())
+			}
+		}()
 	}
 
 	return run, nil
