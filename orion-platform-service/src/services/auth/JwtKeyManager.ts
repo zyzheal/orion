@@ -106,15 +106,22 @@ class JwtKeyManager extends EventEmitter {
 
     // Fallback: try each verification key (supports multi-key during overlap period)
     const verificationKeys = this.getVerificationKeys();
-    const triedKeys = new Set<string>();
+    const triedHashes = new Set<string>();
 
     for (const key of verificationKeys) {
-      // Skip duplicates (same secret for different key versions)
-      if (triedKeys.has(key.keyHash)) continue;
-      triedKeys.add(key.keyHash);
+      // Skip duplicates (same key hash for different key versions)
+      if (triedHashes.has(key.keyHash)) continue;
+      triedHashes.add(key.keyHash);
+
+      // Retrieve the raw secret for this key version
+      const rawSecret = this.rotationService?.getRawSecret(key.keyId);
+      if (!rawSecret) {
+        // Raw secret not available (e.g. key was generated in a previous process instance)
+        continue;
+      }
 
       try {
-        return jwtVerifyFn(this.fallbackSecret);
+        return jwtVerifyFn(rawSecret);
       } catch {
         // Try next key
       }

@@ -53,6 +53,8 @@ export class JwtKeyRotationService extends EventEmitter {
   private currentKey: JwtKey | null = null;
   private previousKey: JwtKey | null = null;
   private rotationTimer?: NodeJS.Timeout;
+  // In-memory store of raw key secrets (never persisted to DB/K8s for security)
+  private rawSecrets: Map<string, string> = new Map();
 
   constructor(db: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> } | null, config: Partial<JwtKeyRotationConfig> = {}, k8sStorage?: K8sSecretKeyStorage) {
     super();
@@ -110,6 +112,10 @@ export class JwtKeyRotationService extends EventEmitter {
 
     const rawKey = crypto.randomBytes(byteLength);
     const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+
+    // Retain the raw secret in memory for verifyWithAnyKey to use
+    const rawSecret = rawKey.toString('hex');
+    this.rawSecrets.set(keyId, rawSecret);
 
     const key: JwtKey = {
       keyId,
@@ -177,6 +183,15 @@ export class JwtKeyRotationService extends EventEmitter {
     }
 
     return keys;
+  }
+
+  /**
+   * Get the raw secret for a given keyId.
+   * Returns undefined if the key was generated in a previous process instance
+   * (raw secrets are only kept in memory, never persisted).
+   */
+  getRawSecret(keyId: string): string | undefined {
+    return this.rawSecrets.get(keyId);
   }
 
   calculateNextRotationDate(fromDate: Date): Date {
