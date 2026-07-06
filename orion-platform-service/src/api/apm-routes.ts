@@ -67,7 +67,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -78,13 +78,13 @@ export default async function apmRoutes(
       const spans = await tracingService.getTrace(traceId);
 
       if (spans.length === 0) {
-        return handleError(reply, new NotFoundError('NOT_FOUND'));
+        return handleError(reply, new NotFoundError('NOT_FOUND'), request);
       }
 
       return reply.send({ success: true, data: { traceId, spans } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -95,13 +95,13 @@ export default async function apmRoutes(
       const summary = await tracingService.getTraceSummary(traceId);
 
       if (!summary) {
-        return handleError(reply, new NotFoundError('NOT_FOUND'));
+        return handleError(reply, new NotFoundError('NOT_FOUND'), request);
       }
 
       return reply.send({ success: true, data: summary });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -116,7 +116,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -132,7 +132,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: result.rows });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -156,7 +156,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: result.rows });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'TOPOLOGY_ERROR';
-      return handleError(reply, new OrionError('TOPOLOGY_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('TOPOLOGY_ERROR', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -180,7 +180,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: slowQueries });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -194,7 +194,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: stats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 

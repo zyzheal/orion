@@ -105,7 +105,7 @@ export async function registerSsoRoutes(
   // Public endpoint — no auth required (user is not yet authenticated)
   fastify.get('/sso/login', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!ssoService.isConfigured()) {
-      return handleError(reply, new ValidationError('SSO is not configured for this tenant'))
+      return handleError(reply, new ValidationError('SSO is not configured for this tenant'), request)
     }
 
     try {
@@ -113,7 +113,7 @@ export async function registerSsoRoutes(
       return reply.redirect(loginUrl);
     } catch (error) {
       fastify.log.error(error, '[SsoRoutes] Failed to generate SSO login URL');
-      return handleError(reply, new OrionError('SSO_LOGIN_ERROR', ErrorCode.INTERNAL_ERROR))
+      return handleError(reply, new OrionError('SSO_LOGIN_ERROR', ErrorCode.INTERNAL_ERROR), request)
     }
   });
 

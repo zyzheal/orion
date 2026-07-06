@@ -239,8 +239,9 @@ export function registerRateLimit(
   const limiter = new RateLimiter(options.default);
 
   fastify.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Find matching route config
-    const routeKey = `${request.method}:${request.url}`;
+    // Find matching route config — strip query params for reliable matching
+    const pathOnly = request.url.split('?')[0];
+    const routeKey = `${request.method}:${pathOnly}`;
     const routeConfig = options.routes?.[routeKey];
 
     if (routeConfig) {

@@ -2,6 +2,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { DualEngineService } from '../services/ai-training/dual-engine-service';
 import { DualEngineRepository } from '../services/ai-training/dual-engine-repository';
 import { ValidationError, NotFoundError, handleError } from '../errors';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 interface DualEngineRequest {
   name: string;
@@ -26,8 +28,12 @@ interface AnalysisRequest {
 }
 
 export async function dualEngineRoutes(fastify: FastifyInstance) {
+  // P0-A: 全局认证守卫
+  fastify.addHook('onRequest', authenticateUser);
   // 创建双引擎配置
-  fastify.post<{ Body: DualEngineRequest }>('/api/dual-engines', async (request, reply) => {
+  fastify.post<{ Body: DualEngineRequest }>('/api/dual-engines', {
+    onRequest: [requirePermission({ resource: 'dual-engine', action: 'write' })],
+  }, async (request, reply) => {
     const { name, description, astConfig, llmConfig } = request.body;
     const tenantId = (request as any).tenantId;
 
@@ -106,7 +112,9 @@ export async function dualEngineRoutes(fastify: FastifyInstance) {
   );
 
   // 删除双引擎配置
-  fastify.delete<{ Params: { id: string } }>('/api/dual-engines/:id', async (request, reply) => {
+  fastify.delete<{ Params: { id: string } }>('/api/dual-engines/:id', {
+    onRequest: [requirePermission({ resource: 'dual-engine', action: 'write' })],
+  }, async (request, reply) => {
     const { id } = request.params;
 
     const repository = new DualEngineRepository((fastify as any).db);

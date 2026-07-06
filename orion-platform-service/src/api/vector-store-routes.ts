@@ -38,7 +38,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const { content, metadata } = request.body as { content: string; metadata?: Record<string, any> };
     if (!content) {
-      return handleError(reply, new ValidationError('Document content is required'));
+      return handleError(reply, new ValidationError('Document content is required'), request);
     }
 
     const id = await vectorStore.addDocument(content, metadata);
@@ -55,7 +55,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
       filter?: Record<string, any>;
     };
     if (!query) {
-      return handleError(reply, new ValidationError('Search query is required'));
+      return handleError(reply, new ValidationError('Search query is required'), request);
     }
 
     const results = await vectorStore.search({ query, topK, filter });
@@ -69,7 +69,7 @@ export default async function vectorStoreRoutes(app: FastifyInstance, options: V
     const { id } = request.params as { id: string };
     const deleted = await vectorStore.deleteDocument(id);
     if (!deleted) {
-      return handleError(reply, new NotFoundError('Document not found'));
+      return handleError(reply, new NotFoundError('Document not found'), request);
     }
     return reply.send({ success: true });
   });

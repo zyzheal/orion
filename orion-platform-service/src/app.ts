@@ -21,6 +21,7 @@ import apiRoutes from './api/routes';
 import authRoutes from './api/routes-auth';
 import { registerSsoRoutes } from './api/sso-routes';
 import { registerMaintenanceWindowRoutes } from './api/maintenance-window-routes';
+import { registerRateLimit } from './utils/rate-limit-circuit-breaker';
 import teamRoutes from './api/team-routes';
 
 // AuthZ engine imports
@@ -341,6 +342,26 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
   });
 
   // ==================== API 路由 ====================
+
+  // P1-2: Register route-specific rate limits for sensitive endpoints
+  // Login: 5 req/min (brute force protection)
+  // Password reset: 3 req/5min (email bombing prevention)
+  // MFA verify: 10 req/min (MFA brute force)
+  // Registration: 3 req/min (account creation abuse)
+  registerRateLimit(app, {
+    default: { maxRequests: 100, windowMs: 60000 },
+    routes: {
+      'POST:/api/v1/auth/login': { maxRequests: 5, windowMs: 60000 },
+      'POST:/api/v1/auth/register': { maxRequests: 3, windowMs: 60000 },
+      'POST:/api/v1/auth/refresh': { maxRequests: 10, windowMs: 60000 },
+      'POST:/api/v1/auth/mfa/setup': { maxRequests: 5, windowMs: 60000 },
+      'POST:/api/v1/auth/mfa/confirm': { maxRequests: 10, windowMs: 60000 },
+      'POST:/api/v1/auth/mfa/verify': { maxRequests: 10, windowMs: 60000 },
+      'POST:/api/v1/auth/password-reset/request': { maxRequests: 3, windowMs: 300000 },
+      'POST:/api/v1/auth/password-reset/confirm': { maxRequests: 5, windowMs: 300000 },
+      'POST:/api/v1/auth/mfa/backup-codes/regenerate': { maxRequests: 3, windowMs: 60000 },
+    },
+  });
 
   // Register auth API routes with database access
   await app.register(authRoutes, { prefix: '/api/v1/auth', database: options.database });

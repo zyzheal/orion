@@ -69,7 +69,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         });
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get status');
-        handleError(reply, new OrionError('Failed to retrieve degradation status', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve degradation status', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -84,7 +84,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         reply.send(config);
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get config');
-        handleError(reply, new OrionError('Failed to retrieve degradation config', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve degradation config', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -99,14 +99,14 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         const stats = recoveryService!.getRecoveryStats(providerId);
 
         if (!stats) {
-          handleError(reply, new NotFoundError(`Provider ${providerId} not found`));
+          handleError(reply, new NotFoundError(`Provider ${providerId} not found`), request);
           return;
         }
 
         reply.send(stats);
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get recovery stats');
-        handleError(reply, new OrionError('Failed to retrieve recovery stats', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve recovery stats', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -121,7 +121,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         reply.send({ providers: degraded });
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get degraded providers');
-        handleError(reply, new OrionError('Failed to retrieve degraded providers', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve degraded providers', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -135,25 +135,25 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         // Authorization: only admin can update rates
         const roles = (request as any).user?.roles as string[] | undefined;
         if (!roles?.includes('admin')) {
-          handleError(reply, new ForbiddenError('Only admins can update provider success rates'));
+          handleError(reply, new ForbiddenError('Only admins can update provider success rates'), request);
           return;
         }
 
         const { providerId, successRate } = request.body;
 
         if (!providerId) {
-          handleError(reply, new ValidationError('Provider ID is required'));
+          handleError(reply, new ValidationError('Provider ID is required'), request);
           return;
         }
 
         if (successRate === undefined || successRate === null) {
-          handleError(reply, new ValidationError('Success rate is required'));
+          handleError(reply, new ValidationError('Success rate is required'), request);
           return;
         }
 
         // Validate successRate range
         if (successRate < 0 || successRate > 1) {
-          handleError(reply, new ValidationError('Success rate must be between 0 and 1'));
+          handleError(reply, new ValidationError('Success rate must be between 0 and 1'), request);
           return;
         }
 
@@ -161,7 +161,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         reply.send({ success: true });
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to update success rate');
-        handleError(reply, new OrionError('Failed to update provider success rate', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to update provider success rate', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -176,7 +176,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         reply.send({ providers: allStats });
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get all stats');
-        handleError(reply, new OrionError('Failed to retrieve all recovery stats', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve all recovery stats', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );
@@ -191,7 +191,7 @@ export default async function degradationRoutes(fastify: FastifyInstance, option
         reply.send({ successRate: rate });
       } catch (error) {
         logger.error({ err: error }, '[Degradation] Failed to get success rate');
-        handleError(reply, new OrionError('Failed to retrieve overall success rate', ErrorCode.INTERNAL_ERROR));
+        handleError(reply, new OrionError('Failed to retrieve overall success rate', ErrorCode.INTERNAL_ERROR), request);
       }
     }
   );

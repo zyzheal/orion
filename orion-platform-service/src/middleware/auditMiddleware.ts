@@ -41,8 +41,8 @@ const SENSITIVE_FIELDS = new Set([
 /**
  * Strip sensitive fields from request body before audit logging.
  */
-function sanitizeBody(body: unknown): Record<string, any> | null {
-  if (!body || typeof body !== 'object') return null;
+function sanitizeBody(body: unknown): Record<string, any> | undefined {
+  if (!body || typeof body !== 'object') return undefined;
   const sanitized: Record<string, any> = {};
   for (const [key, value] of Object.entries(body as Record<string, any>)) {
     if (SENSITIVE_FIELDS.has(key)) {
@@ -119,7 +119,7 @@ export function auditGuard(options: AuditGuardOptions) {
       resource_id: resourceId,
       request_method: request.method,
       request_path: request.url,
-      request_body: request.body as Record<string, any> | undefined,
+      request_body: sanitizeBody(request.body),
       response_code: reply.statusCode,
       ip_address: request.ip,
       user_agent: request.headers['user-agent'] || undefined,

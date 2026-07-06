@@ -23,6 +23,8 @@ import { success, created, badRequest, notFound, internalError } from '../utils/
 import { ErrorCodes } from '../types/error-codes';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = createLogger('incident-routes');
@@ -44,8 +46,13 @@ export default async function incidentRoutes(
 
   const service = new IncidentService(db, options.knowledgeIntegration);
 
+  // P0-A: 全局认证 + 读权限守卫（所有 incident 操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   // ── POST / — Create incident ──────────────────────────────────────────
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as CreateIncidentEnhancedInput;
       if (!body.title || !body.type || !body.severity) {
@@ -107,7 +114,9 @@ export default async function incidentRoutes(
   });
 
   // ── PUT /:id — Update incident ────────────────────────────────────────
-  app.put('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as any;
@@ -122,7 +131,9 @@ export default async function incidentRoutes(
   });
 
   // ── DELETE /:id — Delete incident ─────────────────────────────────────
-  app.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.delete('/:id', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const tenantId = ((request as any).tenantContext?.getCurrentTenant()?.tenantId) || getCurrentTenantId();
@@ -136,7 +147,9 @@ export default async function incidentRoutes(
   });
 
   // ── PATCH /:id/status — Update status ─────────────────────────────────
-  app.patch('/:id/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id/status', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as { status: string; actor_id?: string; reason?: string };
@@ -159,7 +172,9 @@ export default async function incidentRoutes(
   });
 
   // ── PATCH /:id/assign — Assign commander ──────────────────────────────
-  app.patch('/:id/assign', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.patch('/:id/assign', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as { commander_id: string };
@@ -179,7 +194,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/escalate — Escalate incident ────────────────────────────
-  app.post('/:id/escalate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/escalate', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as { to_level: number; reason: string; escalated_by: string };
@@ -231,7 +248,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/sla/breach — Mark SLA breach ────────────────────────────
-  app.post('/:id/sla/breach', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/sla/breach', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const tenantId = ((request as any).tenantContext?.getCurrentTenant()?.tenantId) || getCurrentTenantId();
@@ -247,7 +266,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/timeline — Add timeline event ──────────────────────────
-  app.post('/:id/timeline', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/timeline', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as { event_type: string; content: string; actor_id?: string; metadata?: Record<string, any> };
@@ -289,7 +310,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/postmortem — Create post-mortem ────────────────────────
-  app.post('/:id/postmortem', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/postmortem', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as CreatePostmortemInput;
@@ -326,7 +349,9 @@ export default async function incidentRoutes(
   });
 
   // ── PUT /:id/postmortem — Update post-mortem (draft only) ────────────
-  app.put('/:id/postmortem', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/:id/postmortem', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as any;
@@ -346,7 +371,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/postmortem/publish — Publish post-mortem ───────────────
-  app.post('/:id/postmortem/publish', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/postmortem/publish', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const body = request.body as { reviewed_by?: string };
@@ -366,7 +393,9 @@ export default async function incidentRoutes(
   });
 
   // ── POST /:id/postmortem/archive — Archive post-mortem ───────────────
-  app.post('/:id/postmortem/archive', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/:id/postmortem/archive', {
+    onRequest: [requirePermission({ resource: 'incident', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const { id } = request.params as { id: string };
       const tenantId = ((request as any).tenantContext?.getCurrentTenant()?.tenantId) || getCurrentTenantId();

@@ -11,6 +11,8 @@ import { DatabasePool } from '../services/database';
 import { PageRegistryService } from '../services/page-registry/PageRegistryService';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode, ValidationError, NotFoundError, ConflictError, handleError } from '../errors';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = createLogger('page-registry-routes');
 
@@ -85,6 +87,9 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
   /**
    * GET /api/v1/page-registry - Get all page entries
    */
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const service = getService();
@@ -98,7 +103,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entries:', error);
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -117,22 +122,22 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get enabled page entries:', error);
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * GET /api/v1/page-registry/:path - Get single page entry
    */
-  app.get('/:path', async (request: FastifyRequest<{ Params: PagePathParams }>, reply: FastifyReply) => {
+  app.get('/:path', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path } = request.params;
+      const { path } = request.params as { path: string };
       const service = getService();
       const tenantId = getTenantId(request);
       const entry = await service.getByPath(path, tenantId);
 
       if (!entry) {
-        return handleError(reply, new NotFoundError('Page entry', path));
+        return handleError(reply, new NotFoundError('Page entry', path), request);
       }
 
       return reply.send({
@@ -141,21 +146,23 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entry:', error);
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * POST /api/v1/page-registry - Create new page entry
    */
-  app.post('/', async (request: FastifyRequest<{ Body: CreatePageBody }>, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [requirePermission({ resource: 'page-registry', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const body = request.body || {};
+      const body = (request.body as any) || {};
       const tenantId = body.tenantId || getTenantId(request);
 
       // Validate required fields
       if (!body.path || !body.component) {
-        return handleError(reply, new ValidationError('Path and component are required'));
+        return handleError(reply, new ValidationError('Path and component are required'), request);
       }
 
       const service = getService();
@@ -188,20 +195,22 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       logger.error('[PageRegistryRoutes] Failed to create page entry:', error);
 
       if (error instanceof ConflictError) {
-        return handleError(reply, error);
+        return handleError(reply, error, request);
       }
 
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * PUT /api/v1/page-registry/:path - Update page entry
    */
-  app.put('/:path', async (request: FastifyRequest<{ Params: PagePathParams; Body: UpdatePageBody }>, reply: FastifyReply) => {
+  app.put('/:path', {
+    onRequest: [requirePermission({ resource: 'page-registry', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path } = request.params;
-      const body = request.body || {};
+      const { path } = request.params as { path: string };
+      const body = (request.body as any) || {};
       const tenantId = getTenantId(request);
 
       const service = getService();
@@ -233,23 +242,25 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       logger.error('[PageRegistryRoutes] Failed to update page entry:', error);
 
       if (error instanceof NotFoundError) {
-        return handleError(reply, error);
+        return handleError(reply, error, request);
       }
 
       if (error instanceof ConflictError) {
-        return handleError(reply, error);
+        return handleError(reply, error, request);
       }
 
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * DELETE /api/v1/page-registry/:path - Delete page entry
    */
-  app.delete('/:path', async (request: FastifyRequest<{ Params: PagePathParams }>, reply: FastifyReply) => {
+  app.delete('/:path', {
+    onRequest: [requirePermission({ resource: 'page-registry', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path } = request.params;
+      const { path } = request.params as { path: string };
       const tenantId = getTenantId(request);
 
       const service = getService();
@@ -263,19 +274,21 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       logger.error('[PageRegistryRoutes] Failed to delete page entry:', error);
 
       if (error instanceof NotFoundError) {
-        return handleError(reply, error);
+        return handleError(reply, error, request);
       }
 
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * PUT /api/v1/page-registry/:path/status - Toggle page status
    */
-  app.put('/:path/status', async (request: FastifyRequest<{ Params: PagePathParams }>, reply: FastifyReply) => {
+  app.put('/:path/status', {
+    onRequest: [requirePermission({ resource: 'page-registry', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path } = request.params;
+      const { path } = request.params as { path: string };
       const tenantId = getTenantId(request);
 
       const service = getService();
@@ -290,19 +303,19 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       logger.error('[PageRegistryRoutes] Failed to toggle page status:', error);
 
       if (error instanceof NotFoundError) {
-        return handleError(reply, error);
+        return handleError(reply, error, request);
       }
 
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
   /**
    * GET /api/v1/page-registry/:path/history - Get page entry history
    */
-  app.get('/:path/history', async (request: FastifyRequest<{ Params: PagePathParams }>, reply: FastifyReply) => {
+  app.get('/:path/history', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { path } = request.params;
+      const { path } = request.params as { path: string };
       const tenantId = getTenantId(request);
 
       const service = getService();
@@ -315,7 +328,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entry history:', error);
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 }

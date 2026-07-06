@@ -10,6 +10,8 @@ import { ChannelConfigRepository, ChannelMessageRepository, ChannelIngressServic
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { handleError, ServiceUnavailableError } from '../errors';
 import { createLogger } from '../utils/logger';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = createLogger('channel-routes');
 
@@ -29,6 +31,9 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   const ingressService = new ChannelIngressService(channelRepo, messageRepo);
 
   // GET /channels - List channel configurations
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
@@ -46,7 +51,9 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   });
 
   // POST /channels - Create channel configuration
-  app.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [requirePermission({ resource: 'channel', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
@@ -70,7 +77,9 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   });
 
   // PUT /channels/:id - Update channel
-  app.put<{ Params: { id: string } }>('/:id', async (request, reply) => {
+  app.put<{ Params: { id: string } }>('/:id', {
+    onRequest: [requirePermission({ resource: 'channel', action: 'write' })],
+  }, async (request, reply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const channel = await ingressService.updateChannel(request.params.id, request.body as any);
@@ -81,7 +90,9 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   });
 
   // DELETE /channels/:id - Delete channel
-  app.delete<{ Params: { id: string } }>('/:id', async (request, reply) => {
+  app.delete<{ Params: { id: string } }>('/:id', {
+    onRequest: [requirePermission({ resource: 'channel', action: 'write' })],
+  }, async (request, reply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       await ingressService.deleteChannel(request.params.id);
@@ -92,7 +103,9 @@ export default async function channelRoutes(app: FastifyInstance, options: Chann
   });
 
   // POST /channels/:id/test - Test channel
-  app.post<{ Params: { id: string } }>('/:id/test', async (request, reply) => {
+  app.post<{ Params: { id: string } }>('/:id/test', {
+    onRequest: [requirePermission({ resource: 'channel', action: 'write' })],
+  }, async (request, reply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const result = await ingressService.testChannel(request.params.id);

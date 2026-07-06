@@ -118,9 +118,13 @@ export function decryptValue(value: string): string {
 
 /**
  * Check if a value is encrypted with AES-256
+ * Recognizes both the new `ENC:AES256:` prefix and the legacy `ENC:` prefix
+ * (legacy values are still treated as encrypted for backward compatibility,
+ * to avoid double-encrypting data persisted by older code paths).
  */
 export function isEncrypted(value: string): boolean {
-  return value?.startsWith(PREFIX) ?? false;
+  if (!value) return false;
+  return value.startsWith(PREFIX) || value.startsWith('ENC:');
 }
 
 /**

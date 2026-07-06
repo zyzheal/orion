@@ -23,6 +23,8 @@ import { NotificationPolicyService } from '../services/notification-policy/Notif
 import { NotificationPolicyRepository, NotificationWorkflowRepository } from '../services/notification-policy/NotificationPolicyRepository';
 import { AlertNotificationService } from '../services/monitoring/AlertNotificationService';
 import type { Alert as MonitoringAlert } from '../services/monitoring/types';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 // Adapter: convert alert module Alert → monitoring Alert for sendNotification
 function toMonitoringAlert(alert: Alert): MonitoringAlert {
@@ -67,6 +69,9 @@ export default async function alertRoutes(
 
   // ==================== Alert Ingestion ====================
   // POST /alert/ingest - 接收告警
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.post('/ingest', async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
@@ -174,7 +179,9 @@ export default async function alertRoutes(
 
   // ==================== Alert Correlation ====================
   // POST /alert/correlate - 告警关联分析
-  app.post('/correlate', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/correlate', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
       const alerts = body.alerts as Alert[];
@@ -200,7 +207,9 @@ export default async function alertRoutes(
   });
 
   // POST /alert/topology - 设置告警拓扑图
-  app.post('/topology', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/topology', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
       await correlationService.setTopology(body as any);
@@ -241,7 +250,9 @@ export default async function alertRoutes(
   });
 
   // POST /alert/suppression/maintenance-windows - 添加维护窗口
-  app.post('/suppression/maintenance-windows', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/suppression/maintenance-windows', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
       await suppressionService.addMaintenanceWindow({
@@ -263,7 +274,9 @@ export default async function alertRoutes(
   });
 
   // POST /alert/suppression/known-issues - 添加已知问题
-  app.post('/suppression/known-issues', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/suppression/known-issues', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as Record<string, unknown>;
     try {
       await suppressionService.addKnownIssue({

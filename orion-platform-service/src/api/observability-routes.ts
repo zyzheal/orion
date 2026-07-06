@@ -42,11 +42,11 @@ export default async function observabilityRoutes(
       const limit = parseInt(query.limit, 10) || 50;
 
       if (!runId) {
-        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'), request);
       }
 
       if (!timelineService) {
-        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'), request);
       }
 
       const timelines = await timelineService.getTimelineByRunId(runId);
@@ -56,7 +56,7 @@ export default async function observabilityRoutes(
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list execution timelines');
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -68,14 +68,14 @@ export default async function observabilityRoutes(
       const { id } = (request.params as any);
 
       if (!timelineService) {
-        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'), request);
       }
 
       const events = await timelineService.getEvents(id);
       return reply.status(200).send({ success: true, data: { events, timelineId: id } });
     } catch (error: any) {
       logger.error({ error, timelineId: (request.params as any).id }, 'Failed to get timeline events');
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -99,7 +99,7 @@ export default async function observabilityRoutes(
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list executions');
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 
@@ -111,14 +111,14 @@ export default async function observabilityRoutes(
       const { id } = (request.params as any);
 
       if (!timelineService) {
-        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
+        return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'), request);
       }
 
       const replayData = await timelineService.getReplayData(id);
       return reply.status(200).send({ success: true, data: replayData });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get execution');
-      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR), request);
     }
   });
 }

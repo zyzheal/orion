@@ -10,6 +10,8 @@ import { SubAppService } from '../services/subapp';
 import { DatabasePool } from '../services/database';
 import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode , ValidationError, NotFoundError, ConflictError, handleError} from '../errors';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = createLogger('subapp-routes');
 
@@ -77,6 +79,9 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps - Get all sub-app configurations
    */
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const service = getService();
@@ -114,9 +119,9 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps/:key - Get single sub-app config
    */
-  app.get('/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.get('/:key', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { key } = request.params;
+      const { key } = request.params as { key: string };
       const service = getService();
       const app = await service.getByKey(key);
 
@@ -137,9 +142,11 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * POST /api/v1/subapps - Create new sub-app
    */
-  app.post('/', async (request: FastifyRequest<{ Body: CreateBody }>, reply: FastifyReply) => {
+  app.post('/', {
+    onRequest: [requirePermission({ resource: 'subapp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const body = request.body || {};
+      const body = (request.body as any) || {};
       const userId = getUserId(request);
 
       // Validate required fields
@@ -182,10 +189,12 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * PUT /api/v1/subapps/:key - Update sub-app config
    */
-  app.put('/:key', async (request: FastifyRequest<{ Params: SubAppParams; Body: UpdateBody }>, reply: FastifyReply) => {
+  app.put('/:key', {
+    onRequest: [requirePermission({ resource: 'subapp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { key } = request.params;
-      const body = request.body || {};
+      const { key } = request.params as { key: string };
+      const body = (request.body as any) || {};
       const userId = getUserId(request);
 
       const service = getService();
@@ -228,9 +237,11 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * PUT /api/v1/subapps/:key/status - Toggle sub-app status
    */
-  app.put('/:key/status', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.put('/:key/status', {
+    onRequest: [requirePermission({ resource: 'subapp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { key } = request.params;
+      const { key } = request.params as { key: string };
       const userId = getUserId(request);
 
       const service = getService();
@@ -255,9 +266,11 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * DELETE /api/v1/subapps/:key - Delete sub-app config
    */
-  app.delete('/:key', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.delete('/:key', {
+    onRequest: [requirePermission({ resource: 'subapp', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { key } = request.params;
+      const { key } = request.params as { key: string };
       const userId = getUserId(request);
 
       const service = getService();
@@ -281,9 +294,9 @@ export default async function subappRoutes(app: FastifyInstance, options: SubApp
   /**
    * GET /api/v1/subapps/:key/history - Get config history
    */
-  app.get('/:key/history', async (request: FastifyRequest<{ Params: SubAppParams }>, reply: FastifyReply) => {
+  app.get('/:key/history', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { key } = request.params;
+      const { key } = request.params as { key: string };
       const service = getService();
       const history = await service.getHistory(key);
 

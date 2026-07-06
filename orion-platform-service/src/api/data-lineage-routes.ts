@@ -11,6 +11,8 @@ import { DatabasePool } from '../services/database';
 import { handleError, OrionError, ErrorCode, ServiceUnavailableError, NotFoundError } from '../errors';
 import { getCurrentTenantId } from '../db/tenant-context-storage';
 import { createLogger } from '../utils/logger';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = createLogger('data-lineage-routes');
 
@@ -33,6 +35,9 @@ export default async function dataLineageRoutes(
   // ---- Graph Endpoints ----
 
   // GET /data-lineage/graph - Get full lineage graph with stats
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.get('/graph', async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
@@ -62,7 +67,9 @@ export default async function dataLineageRoutes(
   // ---- Lineage Recording Endpoints ----
 
   // POST /data-lineage/record - Record lineage for a pipeline execution
-  app.post('/record', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/record', {
+    onRequest: [requirePermission({ resource: 'data-lineage', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
@@ -105,7 +112,9 @@ export default async function dataLineageRoutes(
   // ---- Node Endpoints ----
 
   // POST /data-lineage/nodes - Add a lineage node
-  app.post('/nodes', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/nodes', {
+    onRequest: [requirePermission({ resource: 'data-lineage', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
@@ -125,7 +134,9 @@ export default async function dataLineageRoutes(
   // ---- Edge Endpoints ----
 
   // POST /data-lineage/edges - Add a lineage edge
-  app.post('/edges', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/edges', {
+    onRequest: [requirePermission({ resource: 'data-lineage', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;

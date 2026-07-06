@@ -43,7 +43,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const rule = await inspectionService.getRule(params.id);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return handleError(reply, new NotFoundError('NOT_FOUND'), request);
     return reply.send({ success: true, data: rule });
   });
 
@@ -53,7 +53,7 @@ export default async function inspectionRoutes(
     const params = request.params as { id: string };
     const body = request.body as any;
     const rule = await inspectionService.updateRule(params.id, body);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return handleError(reply, new NotFoundError('NOT_FOUND'), request);
     return reply.send({ success: true, data: rule });
   });
 
@@ -62,7 +62,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const deleted = await inspectionService.deleteRule(params.id);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return handleError(reply, new NotFoundError('NOT_FOUND'), request);
     return reply.send({ success: true, message: 'Rule deleted' });
   });
 
@@ -90,7 +90,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const task = await inspectionService.getTask(params.id);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return handleError(reply, new NotFoundError('NOT_FOUND'), request);
     return reply.send({ success: true, data: task });
   });
 
@@ -117,7 +117,7 @@ export default async function inspectionRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     const report = await inspectionService.getReport(params.id);
-    return handleError(reply, new NotFoundError('NOT_FOUND'));
+    return handleError(reply, new NotFoundError('NOT_FOUND'), request);
     return reply.send({ success: true, data: report });
   });
 

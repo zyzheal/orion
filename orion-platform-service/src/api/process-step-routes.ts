@@ -9,6 +9,8 @@ import { DatabasePool } from '../services/database';
 import { ProcessDefinitionRepository, ProcessInstanceRepository, ProcessStepEngineService } from '../services/process-step';
 import { handleError, ServiceUnavailableError } from '../errors';
 import { createLogger } from '../utils/logger';
+import { authenticateUser } from '../middleware/authMiddleware';
+import { requirePermission } from '../middleware/requirePermission';
 
 const logger = createLogger('process-step-routes');
 
@@ -30,6 +32,9 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   // ---- Definition Endpoints ----
 
   // GET /workflow/definitions - List definitions
+  // P0-A: 全局认证守卫（所有操作均需登录）
+  app.addHook('onRequest', authenticateUser);
+
   app.get('/definitions', async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
@@ -47,7 +52,9 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   });
 
   // POST /workflow/definitions - Create definition
-  app.post('/definitions', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/definitions', {
+    onRequest: [requirePermission({ resource: 'process-step', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;
@@ -71,7 +78,9 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   });
 
   // PUT /workflow/definitions/:id - Update definition
-  app.put<{ Params: { id: string } }>('/definitions/:id', async (request, reply) => {
+  app.put<{ Params: { id: string } }>('/definitions/:id', {
+    onRequest: [requirePermission({ resource: 'process-step', action: 'write' })],
+  }, async (request, reply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const def = await engineService.updateDefinition(request.params.id, request.body as any);
@@ -82,7 +91,9 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   });
 
   // DELETE /workflow/definitions/:id - Delete definition
-  app.delete<{ Params: { id: string } }>('/definitions/:id', async (request, reply) => {
+  app.delete<{ Params: { id: string } }>('/definitions/:id', {
+    onRequest: [requirePermission({ resource: 'process-step', action: 'write' })],
+  }, async (request, reply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       await engineService.deleteDefinition(request.params.id);
@@ -114,7 +125,9 @@ export default async function processStepRoutes(app: FastifyInstance, options: P
   });
 
   // POST /workflow/instances - Start a new instance
-  app.post('/instances', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/instances', {
+    onRequest: [requirePermission({ resource: 'process-step', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     return handleError(reply, new ServiceUnavailableError('SERVICE_UNAVAILABLE'));
     try {
       const body = request.body as Record<string, unknown>;

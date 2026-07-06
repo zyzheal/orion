@@ -10,7 +10,7 @@
  * 4. 统一的错误处理工具函数
  */
 
-import { FastifyReply } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 
 /**
  * 错误代码枚举 - 全系统统一
@@ -144,6 +144,12 @@ export interface ApiErrorResponse {
   error: string;
   code: ErrorCode | string;
   details?: Record<string, unknown>;
+  /** ISO timestamp of when the error occurred */
+  timestamp?: string;
+  /** Request URL path */
+  path?: string;
+  /** Request ID for tracing */
+  requestId?: string;
 }
 
 /**
@@ -272,12 +278,21 @@ export class DatabaseError extends OrionError {
 /**
  * 处理错误并发送响应
  * ARCH-013: 统一错误响应处理
+ * Aligns response format with global error handler: includes timestamp/path/requestId when request is available.
  */
-export function handleError(reply: FastifyReply, error: unknown): void {
+export function handleError(reply: FastifyReply, error: unknown, request?: FastifyRequest): void {
+  const envelope = request ? {
+    timestamp: new Date().toISOString(),
+    path: request.url,
+    requestId: request.id,
+  } : {};
+
   if (error instanceof OrionError) {
-    reply.status(error.getHttpStatus()).send(error.toJSON());
+    reply.status(error.getHttpStatus()).send({
+      ...error.toJSON(),
+      ...envelope,
+    });
   } else if (error instanceof Error) {
-    // 尝试根据错误消息推断错误类型
     const message = error.message;
     const inferredCode = inferErrorCode(message);
     const status = ErrorCodeToHttpStatus[inferredCode] || 500;
@@ -286,12 +301,14 @@ export function handleError(reply: FastifyReply, error: unknown): void {
       success: false,
       error: message,
       code: inferredCode,
+      ...envelope,
     });
   } else {
     reply.status(500).send({
       success: false,
       error: 'Internal server error',
       code: ErrorCode.INTERNAL_ERROR,
+      ...envelope,
     });
   }
 }
