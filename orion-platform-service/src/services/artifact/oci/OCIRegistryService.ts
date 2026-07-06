@@ -3,7 +3,7 @@
  *
  * 封装 DockerRegistryClient，提供高层次的 Registry 操作方法。
  * 支持多 Registry 配置（生产/测试/开发环境）。
- * 集成 FallbackStorageService 做缓存。
+ * 集成 SimpleFallbackStorage 做缓存。
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -21,7 +21,7 @@ import {
   PushResult,
   DeleteResult,
 } from './DockerRegistryClient';
-import { FallbackStorageService } from '../../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../../fallback/FallbackStorageService';
 import { OrionError, ErrorCode, ValidationError, NotFoundError, ExternalServiceError, handleError } from '../../../errors';
 
 const logger = createLogger('oci-registry-service');
@@ -85,11 +85,11 @@ export interface ImageDetail {
 export class OCIRegistryService {
   private readonly registries = new Map<string, RegistryConfig>();
   private readonly clients = new Map<string, DockerRegistryClient>();
-  private readonly cache: FallbackStorageService;
+  private readonly cache: SimpleFallbackStorage;
 
   constructor(cacheOptions?: { prefix?: string; ttlMs?: number; maxSize?: number }) {
     const prefix = cacheOptions?.prefix || 'oci-registry';
-    this.cache = new FallbackStorageService({
+    this.cache = new SimpleFallbackStorage({
       prefix,
       ttlMs: cacheOptions?.ttlMs ?? 300_000, // 5 minutes default
       maxSize: cacheOptions?.maxSize ?? 500,

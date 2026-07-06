@@ -4,9 +4,9 @@
  * Provides artifact operation tracking, history, and statistics
  * using PostgreSQL-backed repositories.
  *
- * Task 2.38: 统一 FallbackStorageService
+ * Task 2.38: 统一 SimpleFallbackStorage
  *   - 移除模块级 inMemoryOperations Map
- *   - 使用 FallbackStorageService 替代直接内存操作
+ *   - 使用 SimpleFallbackStorage 替代直接内存操作
  *   - 保持 tenant_id 隔离（key 前缀包含 tenantId）
  *
  * TASK-504: 制品运营
@@ -18,7 +18,7 @@ import {
   ArtifactOperationRepository,
   ArtifactOperationEntity,
 } from '../../repositories/ArtifactOperationRepository';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 import type { DatabasePool } from '../database';
 
 const logger = createLogger('ArtifactOperationService');
@@ -82,7 +82,7 @@ function tenantOpsKey(tenantId: string): string {
 
 export class ArtifactOperationService {
   private operationRepository: ArtifactOperationRepository | null;
-  private storage: FallbackStorageService | null;
+  private storage: SimpleFallbackStorage | null;
 
   /**
    * @param db - DatabasePool, or null for in-memory mode.
@@ -91,8 +91,8 @@ export class ArtifactOperationService {
     this.operationRepository = db ? new ArtifactOperationRepository(db) : null;
 
     if (db) {
-      // Persistent mode: FallbackStorageService with DB persistence
-      this.storage = new FallbackStorageService({
+      // Persistent mode: SimpleFallbackStorage with DB persistence
+      this.storage = new SimpleFallbackStorage({
         prefix: OPS_PREFIX,
         maxSize: 5000,
         ttlMs: 0, // Operations are permanent until deleted
@@ -102,7 +102,7 @@ export class ArtifactOperationService {
       this.storage.start();
     } else {
       // In-memory fallback mode
-      this.storage = new FallbackStorageService({
+      this.storage = new SimpleFallbackStorage({
         prefix: OPS_PREFIX,
         maxSize: 5000,
         ttlMs: 0,
@@ -139,7 +139,7 @@ export class ArtifactOperationService {
       durationMs: 0,
     };
 
-    // Store in FallbackStorageService (keyed by tenant)
+    // Store in SimpleFallbackStorage (keyed by tenant)
     const key = tenantOpsKey(tenantId);
     const existingOps = (await this.storage!.get<ArtifactOperationRecord[]>(key)) ?? [];
     existingOps.push(record);

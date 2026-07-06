@@ -5,13 +5,13 @@
  *
  * 迁移说明 (Task 4.19):
  *   - 运行时适配器实例保留在内存 Map（含方法，无法序列化）
- *   - 适配器注册元数据（name, type, config）通过 FallbackStorageService 持久化
- *   - 服务重启后可从 FallbackStorageService 恢复已注册的适配器列表
+ *   - 适配器注册元数据（name, type, config）通过 SimpleFallbackStorage 持久化
+ *   - 服务重启后可从 SimpleFallbackStorage 恢复已注册的适配器列表
  *   - 对于无法从元数据重建的适配器（如自定义实例），记录元数据但运行时需重新注册
  */
 
 import { createLogger } from '../../utils/logger';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 import {
   ICodeRepoAdapter,
   RepoType,
@@ -27,7 +27,7 @@ const logger = createLogger('code-repo-adapter-registry');
 
 // ==================== Serializable Metadata ====================
 
-/** 适配器注册元数据（可序列化，用于 FallbackStorageService 持久化） */
+/** 适配器注册元数据（可序列化，用于 SimpleFallbackStorage 持久化） */
 export interface AdapterRegistryEntry {
   /** 适配器唯一标识 */
   id: string;
@@ -43,7 +43,7 @@ export interface AdapterRegistryEntry {
   status: 'active' | 'inactive';
 }
 
-// ==================== FallbackStorageService Key Prefix ====================
+// ==================== SimpleFallbackStorage Key Prefix ====================
 
 const ADAPTERS_PREFIX = 'code-repo:adapters';
 
@@ -51,7 +51,7 @@ const ADAPTERS_PREFIX = 'code-repo:adapters';
 
 /**
  * 运行时适配器工厂映射
- * 用于从 FallbackStorageService 加载持久化的适配器元数据后重建运行时实例
+ * 用于从 SimpleFallbackStorage 加载持久化的适配器元数据后重建运行时实例
  */
 const ADAPTER_CLASS_MAP: Record<RepoType, new (config: any) => ICodeRepoAdapter> = {
   [RepoType.BITBUCKET]: BitbucketAdapter as unknown as new (config: BitbucketAdapterConfig) => ICodeRepoAdapter,
@@ -88,23 +88,23 @@ function createAdapterFromMetadata(entry: AdapterRegistryEntry): ICodeRepoAdapte
  *
  * 职责：
  *   1. 管理运行时适配器实例（内存 Map）
- *   2. 通过 FallbackStorageService 持久化适配器元数据
+ *   2. 通过 SimpleFallbackStorage 持久化适配器元数据
  *   3. 提供注册/查询/列表/恢复接口
  */
 export class AdapterRegistryService {
   /** 运行时适配器注册表（含方法，无法持久化到 FallbackStorage） */
   private readonly runtimeAdapters: Map<string, ICodeRepoAdapter> = new Map();
 
-  /** FallbackStorageService 实例（可选，提供后启用持久化） */
-  private storage: FallbackStorageService | null = null;
+  /** SimpleFallbackStorage 实例（可选，提供后启用持久化） */
+  private storage: SimpleFallbackStorage | null = null;
 
   /**
-   * @param storage - FallbackStorageService 实例（可选，提供后启用元数据持久化）
+   * @param storage - SimpleFallbackStorage 实例（可选，提供后启用元数据持久化）
    */
-  constructor(storage?: FallbackStorageService | null) {
+  constructor(storage?: SimpleFallbackStorage | null) {
     this.storage = storage ?? null;
     if (this.storage) {
-      logger.info('[AdapterRegistry] Initialized with FallbackStorageService persistence');
+      logger.info('[AdapterRegistry] Initialized with SimpleFallbackStorage persistence');
     } else {
       logger.info('[AdapterRegistry] Initialized in memory-only mode (no persistence)');
     }
@@ -117,7 +117,7 @@ export class AdapterRegistryService {
    *
    * 持久化策略：
    *   1. 同步写入运行时 Map（用于立即查询）
-   *   2. 异步持久化元数据到 FallbackStorageService（用于服务重启恢复）
+   *   2. 异步持久化元数据到 SimpleFallbackStorage（用于服务重启恢复）
    *
    * @param id - 适配器唯一标识
    * @param adapter - 适配器实例
@@ -127,7 +127,7 @@ export class AdapterRegistryService {
     // 同步写入运行时 Map
     this.runtimeAdapters.set(id, adapter);
 
-    // 异步持久化元数据到 FallbackStorageService
+    // 异步持久化元数据到 SimpleFallbackStorage
     if (this.storage) {
       try {
         const metadata: AdapterRegistryEntry = {
@@ -203,14 +203,14 @@ export class AdapterRegistryService {
   // ==================== Persistence ====================
 
   /**
-   * 从 FallbackStorageService 恢复已注册的适配器
+   * 从 SimpleFallbackStorage 恢复已注册的适配器
    *
    * 服务启动时调用，用于恢复运行时状态。
    * 注意：仅能从元数据重建使用标准工厂的适配器；自定义适配器需重新注册。
    */
   async loadFromStorage(): Promise<{ restored: number; skipped: number }> {
     if (!this.storage) {
-      logger.info('[AdapterRegistry] loadFromStorage skipped (no FallbackStorageService)');
+      logger.info('[AdapterRegistry] loadFromStorage skipped (no SimpleFallbackStorage)');
       return { restored: 0, skipped: 0 };
     }
 
@@ -229,7 +229,7 @@ export class AdapterRegistryService {
           continue;
         }
 
-        // 检查是否已过期（FallbackStorageService TTL 管理）
+        // 检查是否已过期（SimpleFallbackStorage TTL 管理）
         const adapter = createAdapterFromMetadata(metadata);
         if (adapter) {
           this.runtimeAdapters.set(metadata.id, adapter);
@@ -242,18 +242,18 @@ export class AdapterRegistryService {
 
       logger.info(
         { restored, skipped, total: this.runtimeAdapters.size },
-        '[AdapterRegistry] Adapter registry restored from FallbackStorageService'
+        '[AdapterRegistry] Adapter registry restored from SimpleFallbackStorage'
       );
 
       return { restored, skipped };
     } catch (error) {
-      logger.warn({ error }, '[AdapterRegistry] Failed to load from FallbackStorageService');
+      logger.warn({ error }, '[AdapterRegistry] Failed to load from SimpleFallbackStorage');
       return { restored: 0, skipped: 0 };
     }
   }
 
   /**
-   * 获取 FallbackStorageService 统计信息（用于监控）
+   * 获取 SimpleFallbackStorage 统计信息（用于监控）
    */
   getStorageStats(): Record<string, unknown> | null {
     return this.storage?.getStats() ?? null;

@@ -47,7 +47,7 @@ interface StoredEntry {
 
 // ─── Service ─────────────────────────────────────────────────────────────────
 
-export class FallbackStorageService {
+export class SimpleFallbackStorage {
   private readonly prefix: string;
   private readonly maxSize: number;
   private readonly defaultTtlMs: number;

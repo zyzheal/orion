@@ -6,5 +6,5 @@
  *   import { FallbackStorageService, FallbackStorageRepository } from '@/services/fallback';
  */
 
-export { FallbackStorageService, type FallbackStorageOptions } from './FallbackStorageService';
+export { SimpleFallbackStorage, type FallbackStorageOptions } from './FallbackStorageService';
 export { FallbackStorageRepository, type FallbackStorageRow } from '../../repositories/FallbackStorageRepository';

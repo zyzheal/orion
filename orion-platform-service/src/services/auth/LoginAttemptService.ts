@@ -3,16 +3,16 @@
  *
  * Storage: Two-tier persistence:
  *   Layer 1: PostgreSQL via UserRepository (source-of-truth: failed_login_attempts, locked_until)
- *   Layer 2: FallbackStorageService (cross-restart in-memory cache with TTL)
+ *   Layer 2: SimpleFallbackStorage (cross-restart in-memory cache with TTL)
  *   Layer 3: In-memory Map (fast synchronous read-through, write-through to storage)
  *
  * The in-memory Map provides synchronous fast reads during authentication.
- * FallbackStorageService provides persistence across process restarts.
+ * SimpleFallbackStorage provides persistence across process restarts.
  * PostgreSQL UserRepository is the authoritative source.
  *
  * Usage:
  *   const loginAttemptService = new LoginAttemptService(userRepository);
- *   await loginAttemptService.connect(); // init FallbackStorageService + warm cache
+ *   await loginAttemptService.connect(); // init SimpleFallbackStorage + warm cache
  *   await loginAttemptService.recordFailure(userId);
  *   const isLocked = await loginAttemptService.isLocked(userId);
  *   await loginAttemptService.recordSuccess(userId);
@@ -22,7 +22,7 @@
 import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { UserRepository, User } from '../user/UserRepository';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
 const logger = createLogger('login-attempt-service');
@@ -67,8 +67,8 @@ export class LoginAttemptService {
   // In-memory write-through cache (fast synchronous reads)
   private lockStates: Map<string, LockState> = new Map();
 
-  // FallbackStorageService for cross-restart persistence
-  private storage: FallbackStorageService;
+  // SimpleFallbackStorage for cross-restart persistence
+  private storage: SimpleFallbackStorage;
 
   // Periodic cleanup timer for in-memory Map
   private cleanupTimer: NodeJS.Timeout | null = null;
@@ -76,14 +76,14 @@ export class LoginAttemptService {
   constructor(
     userRepository: UserRepository,
     config: Partial<LoginAttemptConfig> = {},
-    storage?: FallbackStorageService,
+    storage?: SimpleFallbackStorage,
   ) {
     this.config = { ...DEFAULT_LOGIN_ATTEMPT_CONFIG, ...config };
     this.userRepository = userRepository;
 
-    // Initialize FallbackStorageService with login-attempt-specific prefix
+    // Initialize SimpleFallbackStorage with login-attempt-specific prefix
     // TTL matches lockDurationMs so entries auto-expire when lock expires
-    this.storage = storage ?? new FallbackStorageService({
+    this.storage = storage ?? new SimpleFallbackStorage({
       prefix: 'login:lock',
       maxSize: 1000,
       ttlMs: this.config.lockDurationMs,
@@ -95,8 +95,8 @@ export class LoginAttemptService {
   // ======================== Lifecycle ========================
 
   /**
-   * Connect — initialize FallbackStorageService and warm cache from storage.
-   * Call this after construction to enable FallbackStorageService-backed caching.
+   * Connect — initialize SimpleFallbackStorage and warm cache from storage.
+   * Call this after construction to enable SimpleFallbackStorage-backed caching.
    */
   async connect(): Promise<void> {
     this.storage.start();
@@ -113,7 +113,7 @@ export class LoginAttemptService {
   }
 
   /**
-   * Disconnect — clear in-memory cache and FallbackStorageService.
+   * Disconnect — clear in-memory cache and SimpleFallbackStorage.
    */
   async disconnect(): Promise<void> {
     this.stopPeriodicCleanup();
@@ -127,7 +127,7 @@ export class LoginAttemptService {
 
   /**
    * Start the service (begin periodic cleanup).
-   * Legacy sync method — prefer connect() for full FallbackStorageService init.
+   * Legacy sync method — prefer connect() for full SimpleFallbackStorage init.
    */
   start(): void {
     this.stopPeriodicCleanup();
@@ -144,7 +144,7 @@ export class LoginAttemptService {
 
   /**
    * Stop the service (clear timer and cache).
-   * Legacy sync method — prefer disconnect() for full FallbackStorageService cleanup.
+   * Legacy sync method — prefer disconnect() for full SimpleFallbackStorage cleanup.
    */
   stop(): void {
     this.stopPeriodicCleanup();
@@ -187,7 +187,7 @@ export class LoginAttemptService {
 
     const result = { attempts: newAttempts, lockedUntil };
 
-    // Update in-memory write-through cache + FallbackStorageService
+    // Update in-memory write-through cache + SimpleFallbackStorage
     if (result.lockedUntil) {
       const lockState: LockState = {
         userId,
@@ -237,7 +237,7 @@ export class LoginAttemptService {
    * @param userId - User ID that successfully authenticated
    */
   async recordSuccess(userId: string): Promise<void> {
-    // Reset in-memory write-through cache + FallbackStorageService
+    // Reset in-memory write-through cache + SimpleFallbackStorage
     this.lockStates.delete(userId);
     await this.storage.delete(userId);
 
@@ -267,7 +267,7 @@ export class LoginAttemptService {
       this.lockStates.delete(userId);
     }
 
-    // Fall back to FallbackStorageService (handles its own TTL expiry)
+    // Fall back to SimpleFallbackStorage (handles its own TTL expiry)
     const stored = await this.storage.get<LockState>(userId);
     if (stored) {
       const lockState: LockState = {
@@ -324,7 +324,7 @@ export class LoginAttemptService {
       return Math.max(0, remaining);
     }
 
-    // Fall back to FallbackStorageService
+    // Fall back to SimpleFallbackStorage
     const stored = await this.storage.get<LockState>(userId);
     if (stored) {
       const lockedUntil = new Date(stored.lockedUntil);
@@ -374,7 +374,7 @@ export class LoginAttemptService {
       return cached.failureCount;
     }
 
-    // Fall back to FallbackStorageService
+    // Fall back to SimpleFallbackStorage
     const stored = await this.storage.get<LockState>(userId);
     if (stored) {
       return stored.failureCount;
@@ -414,7 +414,7 @@ export class LoginAttemptService {
 
   /**
    * Start periodic cleanup of stale in-memory Map entries.
-   * FallbackStorageService handles its own TTL expiry automatically.
+   * SimpleFallbackStorage handles its own TTL expiry automatically.
    */
   private startPeriodicCleanup(): void {
     if (this.cleanupTimer) {
@@ -437,7 +437,7 @@ export class LoginAttemptService {
   }
 
   /**
-   * Load persisted lock states from FallbackStorageService into in-memory cache.
+   * Load persisted lock states from SimpleFallbackStorage into in-memory cache.
    * Called during connect() for cache warming.
    */
   private async loadFromStorage(): Promise<void> {
@@ -458,20 +458,20 @@ export class LoginAttemptService {
       if (loaded > 0) {
         logger.debug(
           { loaded, traceId: getCurrentTraceId() },
-          '[LoginAttemptService] Cache warmed from FallbackStorageService',
+          '[LoginAttemptService] Cache warmed from SimpleFallbackStorage',
         );
       }
     } catch (error) {
       logger.warn(
         { error, traceId: getCurrentTraceId() },
-        '[LoginAttemptService] Failed to load from FallbackStorageService',
+        '[LoginAttemptService] Failed to load from SimpleFallbackStorage',
       );
     }
   }
 
   /**
    * Remove stale lock state entries whose lock has expired from in-memory Map.
-   * FallbackStorageService TTL handles its own expiry automatically.
+   * SimpleFallbackStorage TTL handles its own expiry automatically.
    */
   private cleanupStaleEntries(): void {
     const now = new Date();

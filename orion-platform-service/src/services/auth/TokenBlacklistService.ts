@@ -18,7 +18,7 @@ import {
   BlacklistedTokenRepository,
   BlacklistedTokenEntity,
 } from '../../repositories/BlacklistedTokenRepository';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 import { FallbackStorageRepository } from '../../repositories/FallbackStorageRepository';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
 
@@ -86,8 +86,8 @@ export class TokenBlacklistService extends EventEmitter {
   // --- persistence layers -------------------------------------------------
   // Tier 1: Redis (distributed, TTL-based) — optional
   // Tier 2: PostgreSQL via BlacklistedTokenRepository (source-of-truth)
-  // Tier 3: FallbackStorageService (local read-through / write-through fallback)
-  private fallbackStore!: FallbackStorageService;
+  // Tier 3: SimpleFallbackStorage (local read-through / write-through fallback)
+  private fallbackStore!: SimpleFallbackStorage;
   private dbDown = false;    // global DB-down sentinel
 
   // Periodic cleanup timer
@@ -95,17 +95,17 @@ export class TokenBlacklistService extends EventEmitter {
   // Redis connection state
   private redisConnected = false;
 
-  constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}, fallbackStore?: FallbackStorageService) {
+  constructor(dbPool: DatabasePool | null, config: Partial<TokenBlacklistConfig> = {}, fallbackStore?: SimpleFallbackStorage) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.dbPool = dbPool;
     this.repository = dbPool ? new BlacklistedTokenRepository(dbPool) : null;
 
-    // FallbackStorageService for unified cache/persistence layer
+    // SimpleFallbackStorage for unified cache/persistence layer
     if (fallbackStore) {
       this.fallbackStore = fallbackStore;
     } else {
-      this.fallbackStore = new FallbackStorageService({
+      this.fallbackStore = new SimpleFallbackStorage({
         prefix: 'token:blacklist',
         maxSize: 5000,
         ttlMs: this.config.ttlSeconds * 1000,
@@ -161,7 +161,7 @@ export class TokenBlacklistService extends EventEmitter {
   async connect(): Promise<void> {
     logger.info('[TokenBlacklist] Service connected');
 
-    // Start FallbackStorageService with optional repository
+    // Start SimpleFallbackStorage with optional repository
     const repo = this.dbPool ? new FallbackStorageRepository(this.dbPool) : null;
     this.fallbackStore.start(repo);
     await this.fallbackStore.loadFromDb();
@@ -192,7 +192,7 @@ export class TokenBlacklistService extends EventEmitter {
   // Cache warming & periodic cleanup
   // -----------------------------------------------------------------------
 
-  /** Warm local cache from FallbackStorageService on startup. */
+  /** Warm local cache from SimpleFallbackStorage on startup. */
   private async warmCache(): Promise<void> {
     if (!this.repository && !this.fallbackStore) {
       logger.warn('[TokenBlacklist] No DB connection, cache warm skipped');

@@ -2,16 +2,16 @@
  * Artifact Promotion Service - 5-stage state machine
  * development -> testing -> staging -> production -> released
  *
- * Task 2.38: 统一 FallbackStorageService
+ * Task 2.38: 统一 SimpleFallbackStorage
  *   - 移除 deprecated 内存 Map/promotionHistory
- *   - 使用 FallbackStorageService 做 fallback 存储
+ *   - 使用 SimpleFallbackStorage 做 fallback 存储
  *   - 添加 start() / stop() 生命周期方法
  *   - 错误统一使用 OrionError
  */
 import { createLogger } from '../../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { ArtifactPromotionRepository } from '../../repositories/ArtifactPromotionRepository';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = createLogger('PromotionService');
@@ -61,8 +61,8 @@ export class PromotionService {
   /** Repository-backed persistence (primary, when DB is available) */
   private promotionRepository?: ArtifactPromotionRepository;
 
-  /** FallbackStorageService instance for in-memory / DB-backed fallback */
-  private storage: FallbackStorageService | null = null;
+  /** SimpleFallbackStorage instance for in-memory / DB-backed fallback */
+  private storage: SimpleFallbackStorage | null = null;
 
   /** Whether the service is using persistent storage */
   get isPersistent(): boolean {
@@ -71,14 +71,14 @@ export class PromotionService {
 
   /**
    * @param db - Optional DatabasePool or query interface. When provided, enables
-   *             repository-backed persistence AND FallbackStorageService with
+   *             repository-backed persistence AND SimpleFallbackStorage with
    *             persistToDb=true.
    */
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.promotionRepository = new ArtifactPromotionRepository(db);
-      // Create FallbackStorageService with DB persistence for cross-restart survival
-      this.storage = new FallbackStorageService({
+      // Create SimpleFallbackStorage with DB persistence for cross-restart survival
+      this.storage = new SimpleFallbackStorage({
         prefix: CURRENT_STAGE_PREFIX,
         maxSize: 1000,
         ttlMs: 0, // Promotions are permanent until superseded
@@ -87,8 +87,8 @@ export class PromotionService {
       });
       this.storage.start(new (require('../../repositories/FallbackStorageRepository').FallbackStorageRepository)(db as any));
     } else {
-      // In-memory fallback mode: FallbackStorageService without DB persistence
-      this.storage = new FallbackStorageService({
+      // In-memory fallback mode: SimpleFallbackStorage without DB persistence
+      this.storage = new SimpleFallbackStorage({
         prefix: CURRENT_STAGE_PREFIX,
         maxSize: 1000,
         ttlMs: 0,
@@ -102,7 +102,7 @@ export class PromotionService {
   // ==================== Lifecycle ====================
 
   /**
-   * start() — 初始化 FallbackStorageService 并从 DB 预热（如需要）。
+   * start() — 初始化 SimpleFallbackStorage 并从 DB 预热（如需要）。
    * 在服务初始化完成后调用。
    */
   async start(): Promise<void> {
@@ -112,7 +112,7 @@ export class PromotionService {
   }
 
   /**
-   * stop() — 停止服务，将 FallbackStorageService 数据 flush 到 DB 并清理。
+   * stop() — 停止服务，将 SimpleFallbackStorage 数据 flush 到 DB 并清理。
    */
   async stop(): Promise<void> {
     if (this.storage) {

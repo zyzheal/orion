@@ -1,23 +1,23 @@
 /**
- * PermissionService — 服务级权限管理（PostgreSQL + FallbackStorageService 持久化 + 内存降级）
+ * PermissionService — 服务级权限管理（PostgreSQL + SimpleFallbackStorage 持久化 + 内存降级）
  *
  * Storage:
- *   Layer 1: PostgreSQL via FallbackStorageService (persistToDb=false, in-memory with TTL)
- *   Layer 2: In-memory cache (fast synchronous reads, write-through to FallbackStorageService)
+ *   Layer 1: PostgreSQL via SimpleFallbackStorage (persistToDb=false, in-memory with TTL)
+ *   Layer 2: In-memory cache (fast synchronous reads, write-through to SimpleFallbackStorage)
  *
  * The in-memory cache provides synchronous fast reads for permission checks.
- * FallbackStorageService provides a structured KV API with TTL for cache management.
+ * SimpleFallbackStorage provides a structured KV API with TTL for cache management.
  *
  * 功能:
  * 1. CRUD 权限记录，使用 service_permissions 表
  * 2. 租户隔离：所有查询均携带 tenant_id
- * 3. 内存缓存作为 FallbackStorageService 的快速读取层
+ * 3. 内存缓存作为 SimpleFallbackStorage 的快速读取层
  * 4. 兼容 existing services/permission/PermissionService 的公开接口
  */
 
 import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
-import { FallbackStorageService } from '../fallback/FallbackStorageService';
+import { SimpleFallbackStorage } from '../fallback/FallbackStorageService';
 
 const logger = createLogger('AuthService');
 
@@ -75,14 +75,14 @@ export class PermissionService {
   private initializing = false;
   private initializingPromise: Promise<void> | null = null;
 
-  // FallbackStorageService for structured KV cache management
-  private storage: FallbackStorageService;
+  // SimpleFallbackStorage for structured KV cache management
+  private storage: SimpleFallbackStorage;
 
-  constructor(pool?: any, storage?: FallbackStorageService) {
+  constructor(pool?: any, storage?: SimpleFallbackStorage) {
     this.dbPool = pool;
 
-    // Initialize FallbackStorageService with permissions-specific prefix
-    this.storage = storage ?? new FallbackStorageService({
+    // Initialize SimpleFallbackStorage with permissions-specific prefix
+    this.storage = storage ?? new SimpleFallbackStorage({
       prefix: 'permissions',
       maxSize: 5000,
       ttlMs: 300000, // 5 minutes TTL for permission cache
@@ -94,7 +94,7 @@ export class PermissionService {
   // ==================== Lifecycle ====================
 
   /**
-   * connect — initialize FallbackStorageService and load permissions into cache.
+   * connect — initialize SimpleFallbackStorage and load permissions into cache.
    */
   async connect(): Promise<void> {
     this.storage.start();
@@ -106,7 +106,7 @@ export class PermissionService {
   }
 
   /**
-   * disconnect — clear in-memory cache and FallbackStorageService.
+   * disconnect — clear in-memory cache and SimpleFallbackStorage.
    */
   async disconnect(): Promise<void> {
     this.cache = {};
@@ -137,7 +137,7 @@ export class PermissionService {
         }
         this.cache[row.tenant_id][row.service_name][row.permission_key] = row;
       }
-      // 异步持久化到 FallbackStorageService
+      // 异步持久化到 SimpleFallbackStorage
       this._persistToStorage(tenantId, serviceName).catch(() => {});
       return rows;
     } catch (err) {
@@ -217,7 +217,7 @@ export class PermissionService {
 
       const record = this._mapRow(result.rows[0]);
       this._memPut(tenantId, serviceName, permissionKey, record);
-      // 异步持久化到 FallbackStorageService
+      // 异步持久化到 SimpleFallbackStorage
       this._persistToStorage(tenantId, serviceName).catch(() => {});
       return record;
     } catch (err: any) {
@@ -283,7 +283,7 @@ export class PermissionService {
         this._memPut(tenantId, record.service_name, record.permission_key, record);
       }
 
-      // 异步持久化到 FallbackStorageService
+      // 异步持久化到 SimpleFallbackStorage
       this._persistToStorage(tenantId, record.service_name).catch(() => {});
 
       return record;
@@ -305,7 +305,7 @@ export class PermissionService {
 
       if ((result.rowCount ?? 0) > 0) {
         this._memDelete(tenantId, existing.service_name, existing.permission_key);
-        // 异步持久化到 FallbackStorageService
+        // 异步持久化到 SimpleFallbackStorage
         this._persistToStorage(tenantId, existing.service_name).catch(() => {});
         return true;
       }
@@ -369,7 +369,7 @@ export class PermissionService {
         this._memPut(record.tenant_id, record.service_name, record.permission_key, record);
       }
 
-      // 异步持久化到 FallbackStorageService
+      // 异步持久化到 SimpleFallbackStorage
       this._persistToStorage(tenantId).catch(() => {});
 
       return records;
@@ -459,7 +459,7 @@ export class PermissionService {
       this.cache = {};
       this.cacheInitialized = false;
     }
-    // 异步清理 FallbackStorageService
+    // 异步清理 SimpleFallbackStorage
     if (tenantId) {
       this.storage.delete(`perm:${tenantId}`).catch(() => {});
     } else {
@@ -505,11 +505,11 @@ export class PermissionService {
   }
 
   // ================================================================
-  // FallbackStorageService 操作
+  // SimpleFallbackStorage 操作
   // ================================================================
 
   /**
-   * 将整个 cache 对象持久化到 FallbackStorageService。
+   * 将整个 cache 对象持久化到 SimpleFallbackStorage。
    * 异步执行，不阻塞调用方。
    */
   private async _persistToStorage(tenantId?: string, serviceName?: string): Promise<void> {
@@ -522,12 +522,12 @@ export class PermissionService {
       const key = tenantId ? `perm:${tenantId}${serviceName ? `:${serviceName}` : ''}` : 'perm:all';
       await this.storage.set(key, dataToPersist, 300000); // 5 min TTL
     } catch (error) {
-      logger.warn({ error, traceId: getCurrentTraceId() }, '[PermissionService] Failed to persist to FallbackStorageService');
+      logger.warn({ error, traceId: getCurrentTraceId() }, '[PermissionService] Failed to persist to SimpleFallbackStorage');
     }
   }
 
   /**
-   * 从 FallbackStorageService 加载所有缓存数据。
+   * 从 SimpleFallbackStorage 加载所有缓存数据。
    * 在 connect() 时调用。
    */
   private async loadFromStorage(): Promise<void> {
@@ -539,7 +539,7 @@ export class PermissionService {
         this.cacheInitialized = true;
         logger.info(
           { cacheSize: this._cacheSize(), traceId: getCurrentTraceId() },
-          '[PermissionService] Cache loaded from FallbackStorageService (full)',
+          '[PermissionService] Cache loaded from SimpleFallbackStorage (full)',
         );
         return;
       }
@@ -561,13 +561,13 @@ export class PermissionService {
         this.cacheInitialized = true;
         logger.info(
           { tenantsLoaded: loaded, cacheSize: this._cacheSize(), traceId: getCurrentTraceId() },
-          '[PermissionService] Cache loaded from FallbackStorageService (per-tenant)',
+          '[PermissionService] Cache loaded from SimpleFallbackStorage (per-tenant)',
         );
       }
     } catch (error) {
       logger.warn(
         { error, traceId: getCurrentTraceId() },
-        '[PermissionService] Failed to load from FallbackStorageService',
+        '[PermissionService] Failed to load from SimpleFallbackStorage',
       );
     }
   }
