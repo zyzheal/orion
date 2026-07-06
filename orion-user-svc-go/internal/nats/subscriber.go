@@ -26,7 +26,7 @@ type EventBusEvent struct {
 	CreatedAt   string `json:"created_at"`
 }
 
-// NATSSubscriber subscribes to LLMEvent via NATS JetStream.
+// NATSSubscriber subscribes to UserEvent via NATS JetStream.
 type NATSSubscriber struct {
 	conn        *nats.Conn
 	js          jetstream.JetStream
@@ -56,12 +56,12 @@ func NewNATSSubscriber(addr, stream string, log *zap.Logger) (*NATSSubscriber, e
 	}, nil
 }
 
-// Start subscribes to LLMEvent subjects.
+// Start subscribes to <stream>.> wildcard subjects.
 func (s *NATSSubscriber) Start(ctx context.Context) error {
 	subject := fmt.Sprintf("%s.>", s.stream)
 
 	_, err := s.js.CreateOrUpdateConsumer(ctx, s.stream, jetstream.ConsumerConfig{
-		Name:           "llm-svc-consumer",
+		Name:           "user-svc-consumer",
 		FilterSubjects: []string{subject},
 		AckPolicy:      jetstream.AckExplicitPolicy,
 		MaxDeliver:     3,
@@ -71,7 +71,7 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 		return fmt.Errorf("create consumer: %w", err)
 	}
 
-	cons, err := s.js.Consumer(ctx, s.stream, "llm-svc-consumer")
+	cons, err := s.js.Consumer(ctx, s.stream, "user-svc-consumer")
 	if err != nil {
 		return fmt.Errorf("get consumer: %w", err)
 	}
@@ -101,13 +101,13 @@ func (s *NATSSubscriber) handleMessage(ctx context.Context, msg jetstream.Msg) {
 		return
 	}
 
-	s.log.Info("received llm event",
+	s.log.Info("received UserEvent",
 		zap.String("event_type", event.EventType),
 		zap.String("source", event.Source),
 	)
 
-	if err := s.handleLLMEvent(ctx, &event); err != nil {
-		s.log.Error("handle llm event", zap.Error(err))
+	if err := s.handleUserEvent(ctx, &event); err != nil {
+		s.log.Error("handle user event", zap.Error(err))
 		msg.NakWithDelay(time.Second)
 		return
 	}
@@ -115,8 +115,11 @@ func (s *NATSSubscriber) handleMessage(ctx context.Context, msg jetstream.Msg) {
 	msg.Ack()
 }
 
-func (s *NATSSubscriber) handleLLMEvent(ctx context.Context, event *EventBusEvent) error {
-	// TODO: 根据 event.EventType 处理 LLM 相关事件
+func (s *NATSSubscriber) handleUserEvent(ctx context.Context, event *EventBusEvent) error {
+	// TODO: 根据 event.EventType 触发相应的 User 操作
+	// 例如：UserCreated → 同步用户信息到本地缓存
+	//       UserUpdated → 更新用户权限或角色映射
+	//       UserDeleted → 清理关联数据
 	return nil
 }
 

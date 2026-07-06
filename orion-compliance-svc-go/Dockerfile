@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o compliance-svc ./
 # Final stage - minimal image
 FROM alpine:3.19
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata && addgroup -g 1000 app && adduser -u 1000 -G app -s /bin/sh -D app
 
 WORKDIR /app
 
@@ -30,4 +30,5 @@ COPY --from=builder /app/migrations ./migrations
 EXPOSE 8087
 
 # Run the service
+USER app
 CMD ["./compliance-svc"]

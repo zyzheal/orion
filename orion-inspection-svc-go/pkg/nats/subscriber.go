@@ -65,6 +65,7 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 		FilterSubjects: []string{subject},
 		AckPolicy:      jetstream.AckExplicitPolicy,
 		MaxDeliver:     3,
+		InactiveThreshold: 30 * time.Minute,
 	})
 	if err != nil {
 		return fmt.Errorf("create consumer: %w", err)
@@ -81,21 +82,15 @@ func (s *NATSSubscriber) Start(ctx context.Context) error {
 }
 
 func (s *NATSSubscriber) consumeMessages(ctx context.Context, cons jetstream.Consumer) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			msgs, err := cons.Fetch(10, jetstream.FetchMaxWait(time.Second))
-			if err != nil {
-				s.log.Error("fetch messages", zap.Error(err))
-				continue
-			}
-			for msg := range msgs.Messages() {
-				s.handleMessage(ctx, msg)
-			}
-		}
+	cc, err := cons.Consume(func(msg jetstream.Msg) {
+		s.handleMessage(ctx, msg)
+	})
+	if err != nil {
+		s.log.Error("start consume", zap.Error(err))
+		return
 	}
+	defer cc.Stop()
+	<-ctx.Done()
 }
 
 func (s *NATSSubscriber) handleMessage(ctx context.Context, msg jetstream.Msg) {
