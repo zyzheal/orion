@@ -10,6 +10,7 @@ import (
 
 	"orion/user-svc-go/internal/config"
 	"orion/user-svc-go/internal/handler"
+	"orion/user-svc-go/internal/nats"
 	usmw "orion/user-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
@@ -88,6 +89,21 @@ func main() {
 
 	h := handler.New(db, rdb, zapLogger, cfg)
 
+	// NATS JetStream subscriber
+	var natsSub *nats.NATSSubscriber
+	if cfg.NATSAddr != "" {
+		sub, err := nats.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
+	}
+
 	users := r.Group("/api/v1/users")
 	users.Use(usmw.Auth(rdb, cfg.JWTSecret))
 	{
@@ -142,6 +158,11 @@ func main() {
 	<-quit
 
 	zapLogger.Info("shutting down user service (go)...")
+	if natsSub != nil {
+		if err := natsSub.Close(); err != nil {
+			zapLogger.Warn("failed to close NATS subscriber", zap.Error(err))
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {

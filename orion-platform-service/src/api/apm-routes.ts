@@ -67,7 +67,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -84,7 +84,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: { traceId, spans } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -101,7 +101,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: summary });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'GET_ERROR';
-      return handleError(reply, new OrionError('GET_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to get item', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -116,7 +116,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: traces });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -132,7 +132,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: result.rows });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -180,7 +180,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: slowQueries });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -194,7 +194,7 @@ export default async function apmRoutes(
       return reply.send({ success: true, data: stats });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'LIST_ERROR';
-      return handleError(reply, new OrionError('LIST_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Failed to list items', ErrorCode.INTERNAL_ERROR));
     }
   });
 

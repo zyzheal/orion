@@ -7,6 +7,7 @@
 
 import { DataPipelineAsyncEngine, DataPipelineTask } from '../DataPipelineAsyncEngine';
 import { DataPipeline, PipelineStage } from '../types';
+import { StageProcessor, StageExecutionContext, StageExecutionResult } from '../DataPipelineStageProcessor';
 
 describe('DataPipelineAsyncEngine', () => {
   let engine: DataPipelineAsyncEngine;
@@ -92,8 +93,8 @@ describe('DataPipelineAsyncEngine', () => {
         ...basePipeline,
         id: 'pipeline-2',
         stages: [
-          { id: 'a1', name: 'A', type: 'extract', config: {} },
-          { id: 'a2', name: 'B', type: 'load', config: {} },
+          { id: 'a1', name: 'A', type: 'extract', config: { source: 'db' } },
+          { id: 'a2', name: 'B', type: 'load', config: { target: 'warehouse' } },
         ],
       };
 
@@ -114,12 +115,31 @@ describe('DataPipelineAsyncEngine', () => {
 
   describe('concurrency control', () => {
     it('should not exceed max concurrency', async () => {
-      // Create a pipeline with many stages to test concurrency
+      // Use a slow processor to ensure tasks overlap in time
+      class SlowProcessor implements StageProcessor {
+        async execute(
+          _stageId: string,
+          _stageName: string,
+          _stageType: string,
+          _config: Record<string, unknown>,
+          _context: StageExecutionContext,
+        ): Promise<StageExecutionResult> {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          return { recordsProcessed: 1 };
+        }
+      }
+
+      const concurrencyEngine = new DataPipelineAsyncEngine(
+        { maxConcurrency: 2, defaultTimeoutMs: 5000, maxRetries: 0, baseRetryDelayMs: 100, maxRetryDelayMs: 1000, retryJitter: false },
+        undefined,
+        new SlowProcessor(),
+      );
+
       const manyStages: PipelineStage[] = Array.from({ length: 10 }, (_, i) => ({
         id: `s${i}`,
         name: `Stage ${i}`,
         type: 'extract' as const,
-        config: {},
+        config: { source: 'test' },
       }));
 
       const pipeline: DataPipeline = {
@@ -127,15 +147,18 @@ describe('DataPipelineAsyncEngine', () => {
         stages: manyStages,
       };
 
-      const execution = await engine.executePipeline(pipeline);
+      const execution = await concurrencyEngine.executePipeline(pipeline);
 
+      // Wait for all stages to complete (10 stages * 100ms / 2 concurrency = ~500ms)
       await new Promise((resolve) => setTimeout(resolve, 3000));
 
-      const status = engine.getExecutionStatus(execution.id)!;
-      const stats = engine.getStats();
+      const status = concurrencyEngine.getExecutionStatus(execution.id)!;
+      const stats = concurrencyEngine.getStats();
 
       expect(status.execution.status).toBe('completed');
       expect(stats.running).toBeLessThanOrEqual(2);
+
+      concurrencyEngine.destroy();
     });
   });
 
@@ -166,14 +189,32 @@ describe('DataPipelineAsyncEngine', () => {
 
   describe('timeout control', () => {
     it('should timeout long-running tasks', async () => {
-      const engineWithShortTimeout = new DataPipelineAsyncEngine({
-        maxConcurrency: 2,
-        defaultTimeoutMs: 200,
-        maxRetries: 0,
-        baseRetryDelayMs: 100,
-        maxRetryDelayMs: 1000,
-        retryJitter: false,
-      });
+      // Use a custom slow processor to trigger the timeout mechanism
+      class SlowProcessor implements StageProcessor {
+        async execute(
+          _stageId: string,
+          _stageName: string,
+          _stageType: string,
+          _config: Record<string, unknown>,
+          _context: StageExecutionContext,
+        ): Promise<StageExecutionResult> {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          return { recordsProcessed: 100 };
+        }
+      }
+
+      const engineWithShortTimeout = new DataPipelineAsyncEngine(
+        {
+          maxConcurrency: 2,
+          defaultTimeoutMs: 200,
+          maxRetries: 0,
+          baseRetryDelayMs: 100,
+          maxRetryDelayMs: 1000,
+          retryJitter: false,
+        },
+        undefined,
+        new SlowProcessor(),
+      );
 
       const slowPipeline: DataPipeline = {
         ...basePipeline,
@@ -182,7 +223,7 @@ describe('DataPipelineAsyncEngine', () => {
             id: 'slow',
             name: 'Slow Stage',
             type: 'extract',
-            config: { simulatedDuration: 2000 },
+            config: {},
           },
         ],
       };
@@ -194,10 +235,8 @@ describe('DataPipelineAsyncEngine', () => {
       const status = engineWithShortTimeout.getExecutionStatus(execution.id)!;
       const task = status.tasks[0];
 
-      expect(['failed', 'completed']).toContain(task.state);
-      if (task.state === 'failed') {
-        expect(task.error).toBe('Task timed out');
-      }
+      expect(task.state).toBe('failed');
+      expect(task.error).toBe('Task timed out');
 
       engineWithShortTimeout.destroy();
     });
@@ -207,19 +246,43 @@ describe('DataPipelineAsyncEngine', () => {
 
   describe('cancelExecution', () => {
     it('should cancel pending tasks', async () => {
-      const execution = await engine.executePipeline(basePipeline);
+      // Use a slow processor so tasks don't complete before we can cancel them
+      class SlowProcessor implements StageProcessor {
+        async execute(
+          _stageId: string,
+          _stageName: string,
+          _stageType: string,
+          _config: Record<string, unknown>,
+          _context: StageExecutionContext,
+        ): Promise<StageExecutionResult> {
+          // Delay long enough that cancel can catch tasks before they complete
+          return new Promise((resolve) => setTimeout(() => resolve({ recordsProcessed: 100 }), 500));
+        }
+      }
 
-      // Cancel immediately
-      const cancelled = await engine.cancelExecution(execution.id);
+      const cancelEngine = new DataPipelineAsyncEngine(
+        { maxConcurrency: 2, defaultTimeoutMs: 10000, maxRetries: 0, baseRetryDelayMs: 100, maxRetryDelayMs: 1000, retryJitter: false },
+        undefined,
+        new SlowProcessor(),
+      );
+
+      const execution = await cancelEngine.executePipeline(basePipeline);
+
+      // Cancel immediately (tasks should still be pending/running)
+      const cancelled = await cancelEngine.cancelExecution(execution.id);
       expect(cancelled).toBe(true);
 
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for any pending microtasks and the SlowProcessor's setTimeout to resolve
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      const status = engine.getExecutionStatus(execution.id);
+      const status = cancelEngine.getExecutionStatus(execution.id);
       expect(status).not.toBeNull();
-      // After cancellation, execution should be cancelled or tasks should be cancelled
+      // All tasks should be cancelled
       const allCancelled = status!.tasks.every(t => t.state === 'cancelled');
-      expect(allCancelled || status.execution.status === 'cancelled').toBe(true);
+      expect(allCancelled).toBe(true);
+      expect(status!.execution.status).toBe('cancelled');
+
+      cancelEngine.destroy();
     });
   });
 

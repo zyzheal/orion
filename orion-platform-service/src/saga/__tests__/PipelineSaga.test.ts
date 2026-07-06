@@ -12,9 +12,11 @@ import { SagaCoordinator } from '../SagaCoordinator';
 import { TransactionLog } from '../TransactionLog';
 import { IdempotencyChecker } from '../IdempotencyChecker';
 import { PipelineService } from '../../services/pipeline/PipelineService';
+import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
-import { TriggerType, PipelineRunStatus } from '../../models/PipelineRun';
-import { StageStatus } from '../../models/Stage';
+import { TriggerType, PipelineRunStatus, createPipelineRun } from '../../models/PipelineRun';
+import { StageStatus, Stage } from '../../models/Stage';
+import { Task, TaskStatus } from '../../models/Task';
 import { SagaStatus, SagaStepStatus } from '../types';
 
 // Mock Pipeline YAML
@@ -47,11 +49,109 @@ spec:
             env: staging
 `;
 
+/**
+ * Create a mock PipelineRunService that uses in-memory storage
+ * (same pattern as the old module-level maps, but wrapped in the PipelineRunService interface)
+ */
+function createMockPipelineRunService(): PipelineRunService {
+  const runs = new Map<string, any>();
+  const stagesByRun = new Map<string, any[]>();
+  const tasksByStage = new Map<string, any[]>();
+
+  return {
+    createRun: jest.fn(async (input: any) => {
+      const run = createPipelineRun(input);
+      runs.set(run.id, run);
+      return run;
+    }),
+    getRun: jest.fn(async (runId: string) => {
+      return runs.get(runId) || null;
+    }),
+    completeRun: jest.fn(async (runId: string, status: PipelineRunStatus) => {
+      const run = runs.get(runId);
+      if (!run) return null;
+      const updatedRun = { ...run, status, completedAt: new Date(), durationMs: 1000, updatedAt: new Date() };
+      runs.set(runId, updatedRun);
+      return updatedRun;
+    }),
+    cancelRun: jest.fn(async (runId: string) => {
+      const run = runs.get(runId);
+      if (!run || (run.status !== 'running' && run.status !== 'pending')) {
+        return null;
+      }
+      const updatedRun = { ...run, status: 'cancelled', completedAt: new Date(), durationMs: 1000, updatedAt: new Date() };
+      runs.set(runId, updatedRun);
+      return updatedRun;
+    }),
+    deleteRun: jest.fn(async (runId: string) => {
+      const stages = stagesByRun.get(runId) || [];
+      stagesByRun.delete(runId);
+      for (const stage of stages) {
+        tasksByStage.delete(stage.id);
+      }
+      return runs.delete(runId);
+    }),
+    addStage: jest.fn(async (runId: string, stage: Stage) => {
+      const persistedStage = {
+        ...stage,
+        id: stage.id, // Use the stage's UUID as the ID (mimics the repo pattern)
+        status: stage.status || 'pending',
+      };
+      const existing = stagesByRun.get(runId) || [];
+      stagesByRun.set(runId, [...existing, persistedStage]);
+      return persistedStage;
+    }),
+    getStages: jest.fn(async (runId: string) => {
+      return stagesByRun.get(runId) || [];
+    }),
+    updateStage: jest.fn(async (stage: Stage) => {
+      const runId = stage.runId;
+      const stages = stagesByRun.get(runId) || [];
+      const idx = stages.findIndex(s => s.id === stage.id);
+      if (idx >= 0) {
+        stages[idx] = { ...stages[idx], ...stage };
+        stagesByRun.set(runId, stages);
+      }
+    }),
+    addTask: jest.fn(async (stageId: string, task: Task) => {
+      const persistedTask = { ...task, status: task.status || 'pending' };
+      const existing = tasksByStage.get(stageId) || [];
+      tasksByStage.set(stageId, [...existing, persistedTask]);
+      return persistedTask;
+    }),
+    getTasks: jest.fn(async (stageId: string) => {
+      return tasksByStage.get(stageId) || [];
+    }),
+    updateTask: jest.fn(async (task: Task) => {
+      const stageId = task.stageId;
+      const tasks = tasksByStage.get(stageId) || [];
+      const idx = tasks.findIndex(t => t.id === task.id);
+      if (idx >= 0) {
+        tasks[idx] = { ...tasks[idx], ...task };
+        tasksByStage.set(stageId, tasks);
+      }
+    }),
+    // Additional methods not used by saga but part of the interface
+    findRunsByStatus: jest.fn(),
+    listRuns: jest.fn(),
+    startRun: jest.fn(),
+    getStage: jest.fn(),
+    getTask: jest.fn(),
+    getRunDetail: jest.fn(),
+    checkRunCompletion: jest.fn(),
+    resolveEnvironmentVariables: jest.fn(),
+    checkRunApprovalRequired: jest.fn(),
+    getRunHistory: jest.fn(),
+    setEventPublisher: jest.fn(),
+  } as unknown as PipelineRunService;
+}
+
 describe('PipelineSaga', () => {
   let pipelineSaga: PipelineSaga;
   let coordinator: SagaCoordinator;
   let pipelineService: PipelineService;
   let eventPublisher: PipelineEventPublisher;
+  let pipelineRunService: PipelineRunService;
 
   beforeEach(async () => {
     // 创建 Mock PipelineService
@@ -79,7 +179,8 @@ describe('PipelineSaga', () => {
       publishStageSkipped: async () => {},
     } as unknown as PipelineEventPublisher;
 
-    pipelineSaga = new PipelineSaga(pipelineService, eventPublisher);
+    pipelineRunService = createMockPipelineRunService();
+    pipelineSaga = new PipelineSaga(pipelineService, eventPublisher, pipelineRunService);
 
     const transactionLog = new TransactionLog();
     const idempotencyChecker = new IdempotencyChecker();
@@ -91,7 +192,7 @@ describe('PipelineSaga', () => {
 
   describe('Saga 定义', () => {
     it('should create pipeline saga definition', async () => {
-      const definition = createPipelineSagaDefinition(pipelineService, eventPublisher);
+      const definition = createPipelineSagaDefinition(pipelineService, eventPublisher, pipelineRunService);
 
       expect(definition.name).toBe('PipelineExecutionSaga');
       expect(definition.steps.length).toBe(5);
@@ -163,7 +264,7 @@ describe('PipelineSaga', () => {
         getById: async () => null,
       } as unknown as PipelineService;
 
-      const failingSaga = new PipelineSaga(failingPipelineService, eventPublisher);
+      const failingSaga = new PipelineSaga(failingPipelineService, eventPublisher, pipelineRunService);
 
       const input: PipelineSagaInput = {
         pipelineId: 'non-existent-pipeline',
@@ -188,11 +289,11 @@ describe('PipelineSaga', () => {
         getById: async () => null,
       } as unknown as PipelineService;
 
-      const failingSaga = new PipelineSaga(failingPipelineService, eventPublisher);
+      const failingSaga = new PipelineSaga(failingPipelineService, eventPublisher, pipelineRunService);
       await coordinator.execute(failingSaga.getDefinition(), input);
 
       // 验证清理方法可用
-      failingSaga.cleanup('some-run-id');
+      await failingSaga.cleanup('some-run-id');
     });
   });
 
@@ -215,7 +316,7 @@ describe('PipelineSaga', () => {
 
     it('should cleanup data correctly', async () => {
       // cleanup should not throw even with non-existent run
-      expect(() => pipelineSaga.cleanup('non-existent-run')).not.toThrow();
+      await expect(pipelineSaga.cleanup('non-existent-run')).resolves.not.toThrow();
     });
   });
 

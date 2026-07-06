@@ -17,6 +17,7 @@ import { getCurrentTraceId } from '../../db/tenant-context-storage';
 import { OrionError, ErrorCode } from '../../errors';
 import { DataPipelineRepository, PipelineExecutionRepository, StageResultEntity } from '../../repositories/DataPipelineRepository';
 import { DataPipeline, PipelineExecution, StageResult, PipelineStage } from './types';
+import { StageProcessor, StageExecutionContext, DataPipelineStageProcessor } from './DataPipelineStageProcessor';
 
 const logger = createLogger('data-pipeline-async-engine');
 
@@ -31,6 +32,7 @@ export interface DataPipelineTask {
   tenantId: string;
   stageId: string;
   stageName: string;
+  stageType: string;
   state: TaskState;
   priority: number;
   dependsOn: string[];
@@ -92,6 +94,7 @@ const DEFAULT_CONFIG: AsyncEngineConfig = {
 
 export class DataPipelineAsyncEngine extends EventEmitter {
   private config: AsyncEngineConfig;
+  private stageProcessor: StageProcessor;
   private pipelineRepo?: DataPipelineRepository;
   private execRepo?: PipelineExecutionRepository;
 
@@ -112,10 +115,12 @@ export class DataPipelineAsyncEngine extends EventEmitter {
 
   constructor(
     config?: Partial<AsyncEngineConfig>,
-    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }
+    db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
+    stageProcessor?: StageProcessor
   ) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.stageProcessor = stageProcessor || new DataPipelineStageProcessor();
 
     if (db) {
       this.pipelineRepo = new DataPipelineRepository(db);
@@ -300,14 +305,18 @@ export class DataPipelineAsyncEngine extends EventEmitter {
       }
     }
 
-    this.queue = [...otherTasks, ...remaining];
-
     // 启动就绪任务（受 execution 级并发限制）
+    let startedCount = 0;
     for (const task of ready) {
       const currentRunning = this.runningCount.get(executionId) || 0;
       if (currentRunning >= this.config.maxConcurrency) break;
       this.runTask(task, executionId, tenantId);
+      startedCount++;
     }
+
+    // 未启动的就绪任务放回队列，等待下次 processQueue 调度
+    const unstarted = ready.slice(startedCount);
+    this.queue = [...otherTasks, ...remaining, ...unstarted];
   }
 
   /**
@@ -438,59 +447,55 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   // ==================== Stage Execution ====================
 
   /**
-   * 执行单个 stage（实际业务逻辑由外部注入或通过 processor 模拟）
+   * 执行单个 stage — 委派给 StageProcessor 执行真实业务逻辑。
    *
-   * 注意：不抛异常，所有错误通过 result.success=false 返回，确保 Promise.race
+   * 不抛异常，所有错误通过 result.success=false 返回，确保 Promise.race
    * 中 timeoutPromise 和 executionPromise 都 resolve，使超时控制生效。
    */
   private async executeStage(task: DataPipelineTask): Promise<{ success: boolean; recordsProcessed: number; timedOut: boolean; error?: string }> {
-    logger.info({ taskId: task.id, stageName: task.stageName }, 'Executing stage');
+    logger.info({ taskId: task.id, stageName: task.stageName, stageType: task.stageType }, 'Executing stage');
 
-    // 分段睡眠以支持取消检查
-    const baseDuration = this.estimateStageDuration(task);
-    const chunks = 10;
-    const chunkSize = baseDuration / chunks;
-    for (let i = 0; i < chunks; i++) {
-      await this.sleep(chunkSize);
-      const currentTask = this.tasks.get(task.id);
-      if (currentTask?.state === 'cancelled') {
-        return { success: false, recordsProcessed: 0, timedOut: false, error: 'TASK_CANCELLED' };
-      }
+    // 检查执行前是否已被取消
+    const preCheck = this.tasks.get(task.id);
+    if (preCheck?.state === 'cancelled') {
+      return { success: false, recordsProcessed: 0, timedOut: false, error: 'TASK_CANCELLED' };
     }
 
-    // 模拟：10% 概率失败（用于测试重试）
-    if (Math.random() < 0.1) {
+    try {
+      const context: StageExecutionContext = {
+        pipelineId: task.pipelineId,
+        executionId: task.executionId,
+        tenantId: task.tenantId,
+      };
+
+      const result = await this.stageProcessor.execute(
+        task.stageId,
+        task.stageName,
+        task.stageType,
+        task.config,
+        context,
+      );
+
+      // 检查执行后是否已被取消
+      const postCheck = this.tasks.get(task.id);
+      if (postCheck?.state === 'cancelled') {
+        return { success: false, recordsProcessed: 0, timedOut: false, error: 'TASK_CANCELLED' };
+      }
+
+      return {
+        success: true,
+        recordsProcessed: result.recordsProcessed,
+        timedOut: false,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error({ taskId: task.id, error: errorMessage }, 'Stage execution failed');
       return {
         success: false,
         recordsProcessed: 0,
         timedOut: false,
-        error: `Stage ${task.stageName} failed: simulated transient error`,
+        error: errorMessage,
       };
-    }
-
-    return {
-      success: true,
-      recordsProcessed: Math.floor(Math.random() * 1000) + 1,
-      timedOut: false,
-    };
-  }
-
-  /**
-   * 估算 stage 执行时长（用于模拟）
-   */
-  private estimateStageDuration(task: DataPipelineTask): number {
-    const type = (task.config as any).type as string | undefined;
-    switch (type) {
-      case 'extract':
-        return 200 + Math.random() * 500;
-      case 'transform':
-        return 100 + Math.random() * 300;
-      case 'load':
-        return 300 + Math.random() * 800;
-      case 'validate':
-        return 50 + Math.random() * 150;
-      default:
-        return 100 + Math.random() * 400;
     }
   }
 
@@ -710,6 +715,7 @@ export class DataPipelineAsyncEngine extends EventEmitter {
       tenantId: pipeline.tenantId,
       stageId: stage.id,
       stageName: stage.name,
+      stageType: stage.type,
       state: 'pending' as TaskState,
       priority: index, // 按顺序优先级
       dependsOn: stage.dependsOn || [],
@@ -761,10 +767,4 @@ export class DataPipelineAsyncEngine extends EventEmitter {
     return Math.round(total / completed.length);
   }
 
-  /**
-   * 异步等待
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
-}

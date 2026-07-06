@@ -31,6 +31,31 @@ import { getCurrentTenantId } from '../db/tenant-context-storage';
 
 const logger = createLogger('audit-middleware');
 
+const SENSITIVE_FIELDS = new Set([
+  'password', 'password_hash', 'token', 'secret', 'apiKey', 'api_key',
+  'privateKey', 'private_key', 'accessToken', 'access_token', 'refreshToken',
+  'refresh_token', 'jwt', 'credential', 'credentials', 'authorization',
+  'Authorization',
+]);
+
+/**
+ * Strip sensitive fields from request body before audit logging.
+ */
+function sanitizeBody(body: unknown): Record<string, any> | null {
+  if (!body || typeof body !== 'object') return null;
+  const sanitized: Record<string, any> = {};
+  for (const [key, value] of Object.entries(body as Record<string, any>)) {
+    if (SENSITIVE_FIELDS.has(key)) {
+      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
+      sanitized[key] = sanitizeBody(value);
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 export interface AuditGuardOptions {
   /** 资源类型标识（如 'pipeline', 'config', 'deploy'） */
   resourceType: string;

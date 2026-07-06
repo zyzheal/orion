@@ -16,6 +16,8 @@ type Config struct {
 	RedisDB      int
 	JWTSecret    string
 	OTelEndpoint string
+	NATSAddr     string
+	NATSStream   string
 }
 
 func Load() (*Config, error) {
@@ -33,6 +35,8 @@ func Load() (*Config, error) {
 	v.SetDefault("redis_db", 0)
 	v.SetDefault("jwt_secret", "")
 	v.SetDefault("otel_endpoint", "")
+	v.SetDefault("nats_addr", "nats://localhost:4222")
+	v.SetDefault("nats_stream", "EVENTS")
 
 	_ = v.ReadInConfig()
 	v.AutomaticEnv()
@@ -46,6 +50,8 @@ func Load() (*Config, error) {
 		RedisDB:      v.GetInt("redis_db"),
 		JWTSecret:    getEnvOrConfig("JWT_SECRET", v.GetString("jwt_secret")),
 		OTelEndpoint: getEnvOrConfig("OTEL_ENDPOINT", v.GetString("otel_endpoint")),
+		NATSAddr:     getEnvOrConfig("NATS_ADDR", v.GetString("nats_addr")),
+		NATSStream:   getEnvOrConfig("NATS_STREAM", v.GetString("nats_stream")),
 	}
 
 	if cfg.JWTSecret == "" {

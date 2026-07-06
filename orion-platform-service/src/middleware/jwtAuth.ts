@@ -182,10 +182,10 @@ export async function jwtAuth(
 
     // Normalize field names for backward compatibility
     // Support both tenantId (camelCase) and tenant_id (snake_case)
-    if (decoded.tenantId && !decoded.tenantId) {
-      (decoded as any).tenantId = decoded.tenantId;
+    if ((decoded as any).tenant_id && !decoded.tenantId) {
+      decoded.tenantId = (decoded as any).tenant_id;
     }
-    if (decoded.tenantId && !decoded.tenantId) {
+    if (decoded.tenantId && !(decoded as any).tenant_id) {
       (decoded as any).tenant_id = decoded.tenantId;
     }
 
@@ -209,7 +209,7 @@ export function generateToken(
 ): string {
   const expiresIn = options?.expiresIn || '24h';
   const secret = jwtKeyManager.getCurrentSecret();
-  return jwt.sign(payload, secret, { expiresIn });
+  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
 /**

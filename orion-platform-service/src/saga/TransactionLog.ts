@@ -5,6 +5,9 @@
  * - 事务状态记录
  * - 事务恢复支持
  * - 事务查询
+ *
+ * 默认使用 InMemoryTransactionLogStorage（测试友好）。
+ * 生产环境请使用 TransactionLog.withPostgresStorage() 创建 Postgres 持久化实例。
  */
 
 import {
@@ -14,6 +17,7 @@ import {
   SagaStepStatus,
   createStepExecution,
 } from './types';
+import type { TransactionLogRepository } from '../repositories/TransactionLogRepository';
 
 /**
  * 事务日志条目
@@ -147,6 +151,15 @@ export class TransactionLog {
 
   constructor(storage?: TransactionLogStorage) {
     this.storage = storage || new InMemoryTransactionLogStorage();
+  }
+
+  /**
+   * 创建使用 Postgres 持久化存储的事务日志实例
+   * 生产环境应使用此方法而非默认的 InMemory 存储
+   */
+  static async withPostgresStorage(repository: TransactionLogRepository): Promise<TransactionLog> {
+    const { PostgresTransactionLogStorage } = await import('./PostgresTransactionLogStorage');
+    return new TransactionLog(new PostgresTransactionLogStorage(repository));
   }
 
   /**

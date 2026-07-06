@@ -325,9 +325,25 @@ describe('PipelineRunService', () => {
 
   describe('addStage', () => {
     it('should add a stage execution', async () => {
-      await service.addStage('r-1', { id: 's-1', name: 'Build' } as any);
+      (repository.createStageExecution as jest.Mock).mockResolvedValue({
+        id: 'se-1',
+        run_id: 'r-1',
+        stage_id: 's-1',
+        stage_name: 'Build',
+        status: 'pending',
+        logs: null,
+        started_at: null,
+        completed_at: null,
+        duration_ms: null,
+        error_message: null,
+        created_at: new Date(),
+      });
+
+      const result = await service.addStage('r-1', { id: 's-1', name: 'Build', sequence: 1 } as any);
 
       expect(repository.createStageExecution).toHaveBeenCalledWith('r-1', 's-1', 'Build');
+      expect(result.id).toBe('se-1');
+      expect(result.name).toBe('Build');
     });
   });
 
@@ -383,9 +399,27 @@ describe('PipelineRunService', () => {
 
   describe('addTask', () => {
     it('should add a task execution', async () => {
-      await service.addTask('e-1', { name: 'npm install', type: 'shell' } as any);
+      (repository.createTaskExecution as jest.Mock).mockResolvedValue({
+        id: 't-1',
+        execution_id: 'e-1',
+        task_name: 'npm install',
+        task_type: 'shell',
+        status: 'pending',
+        input: {},
+        output: null,
+        started_at: null,
+        completed_at: null,
+        duration_ms: null,
+        error_message: null,
+        logs: null,
+        created_at: new Date(),
+      });
 
-      expect(repository.createTaskExecution).toHaveBeenCalledWith('e-1', 'npm install', 'shell');
+      const result = await service.addTask('e-1', { name: 'npm install', type: 'shell', sequence: 1 } as any);
+
+      expect(repository.createTaskExecution).toHaveBeenCalledWith('e-1', 'npm install', 'shell', undefined);
+      expect(result.id).toBe('t-1');
+      expect(result.name).toBe('npm install');
     });
   });
 

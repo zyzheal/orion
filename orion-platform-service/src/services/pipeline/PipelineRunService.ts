@@ -208,10 +208,15 @@ export class PipelineRunService {
     return domainRun;
   }
 
+  async deleteRun(runId: string): Promise<boolean> {
+    return this.repository.delete(runId);
+  }
+
   // ==================== Stage Management ====================
 
-  async addStage(runId: string, stage: Stage): Promise<void> {
-    await this.repository.createStageExecution(runId, stage.id || null, stage.name);
+  async addStage(runId: string, stage: Stage): Promise<Stage> {
+    const record = await this.repository.createStageExecution(runId, stage.id || null, stage.name);
+    return this.mapStageExecution(record, runId, stage.sequence);
   }
 
   async getStages(runId: string): Promise<Stage[]> {
@@ -237,8 +242,9 @@ export class PipelineRunService {
 
   // ==================== Task Management ====================
 
-  async addTask(stageId: string, task: Task): Promise<void> {
-    await this.repository.createTaskExecution(stageId, task.name, task.type);
+  async addTask(stageId: string, task: Task): Promise<Task> {
+    const record = await this.repository.createTaskExecution(stageId, task.name, task.type, task.config);
+    return this.mapTaskExecution(record, stageId, task.sequence);
   }
 
   async getTasks(stageId: string): Promise<Task[]> {

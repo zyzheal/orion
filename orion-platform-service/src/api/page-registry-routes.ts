@@ -98,7 +98,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entries:', error);
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -117,7 +117,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get enabled page entries:', error);
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -141,7 +141,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entry:', error);
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -191,7 +191,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
         return handleError(reply, error);
       }
 
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -240,7 +240,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
         return handleError(reply, error);
       }
 
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -266,7 +266,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
         return handleError(reply, error);
       }
 
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -293,7 +293,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
         return handleError(reply, error);
       }
 
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -315,7 +315,7 @@ export default async function pageRegistryRoutes(app: FastifyInstance, options: 
       });
     } catch (error: any) {
       logger.error('[PageRegistryRoutes] Failed to get page entry history:', error);
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

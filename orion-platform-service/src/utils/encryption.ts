@@ -79,7 +79,7 @@ export function encryptValue(value: string): string {
     return `${PREFIX}${combined.toString(ENCODING)}`;
   } catch (error) {
     logger.error({ err: error as Error, stack: (error as Error).stack }, '[Encryption] Encryption failed');
-    return value; // Fallback to plaintext on error
+    throw new OrionError('Encryption failed', ErrorCode.INTERNAL_ERROR);
   }
 }
 

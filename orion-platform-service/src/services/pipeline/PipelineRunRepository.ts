@@ -1,4 +1,7 @@
 import { DatabasePool } from '../database';
+import { createLogger } from '../../utils/logger';
+
+const logger = createLogger('pipeline-run-repo');
 /**
  * PipelineRunRepository - Database layer for Pipeline Run operations
  *
@@ -91,7 +94,8 @@ export class PipelineRunRepository {
       );
       return result.rows[0] || null;
     }
-    // Fallback: no tenant filtering (tests, non-multi-tenant contexts)
+    // Warn when tenantId is missing — potential multi-tenancy bypass
+    logger.warn({ runId: id }, '[PipelineRunRepo] findById called without tenantId — multi-tenancy bypass risk');
     const result = await this.pool.query('SELECT * FROM pipeline_runs WHERE id = $1', [id]);
     return result.rows[0] || null;
   }

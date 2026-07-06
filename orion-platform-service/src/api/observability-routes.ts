@@ -56,7 +56,7 @@ export default async function observabilityRoutes(
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list execution timelines');
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -75,7 +75,7 @@ export default async function observabilityRoutes(
       return reply.status(200).send({ success: true, data: { events, timelineId: id } });
     } catch (error: any) {
       logger.error({ error, timelineId: (request.params as any).id }, 'Failed to get timeline events');
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -99,7 +99,7 @@ export default async function observabilityRoutes(
       });
     } catch (error: any) {
       logger.error({ error }, 'Failed to list executions');
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 
@@ -118,7 +118,7 @@ export default async function observabilityRoutes(
       return reply.status(200).send({ success: true, data: replayData });
     } catch (error: any) {
       logger.error({ error, id: (request.params as any).id }, 'Failed to get execution');
-      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+      return handleError(reply, new OrionError('Internal server error', ErrorCode.INTERNAL_ERROR));
     }
   });
 }

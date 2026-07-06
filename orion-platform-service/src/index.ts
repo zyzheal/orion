@@ -172,6 +172,19 @@ async function main() {
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+    // Global uncaught exception handler — Phase 1.1
+    process.on('uncaughtException', (error) => {
+      logger.error({ err: error, stack: error.stack }, '[Process] Uncaught exception — shutting down');
+      process.exit(1);
+    });
+
+    // Global unhandled rejection handler — Phase 1.1
+    process.on('unhandledRejection', (reason) => {
+      const err = reason instanceof Error ? reason : new Error(String(reason));
+      logger.error({ err, stack: err.stack }, '[Process] Unhandled rejection — shutting down');
+      process.exit(1);
+    });
+
   } catch (error) {
     logger.error(' Failed to start Platform Service:', error);
     process.exit(1);

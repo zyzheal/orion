@@ -3,6 +3,43 @@ import { DatabasePool } from '../database';
  * AuditRepository - Database layer for Audit operations
  */
 
+/**
+ * Deterministic serialization for chain hash computation.
+ * Used by both create() and verifyChain() to ensure consistent hashing.
+ */
+function serializeForHash(fields: {
+  tenant_id: string;
+  user_id: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  request_method: string | null;
+  request_path: string | null;
+  request_body: Record<string, any> | null;
+  response_code: number | null;
+  response_body: Record<string, any> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  timestamp: string;
+}): string {
+  // Keys in deterministic order to ensure hash consistency
+  return JSON.stringify({
+    tenant_id: fields.tenant_id,
+    user_id: fields.user_id,
+    action: fields.action,
+    resource_type: fields.resource_type,
+    resource_id: fields.resource_id,
+    request_method: fields.request_method,
+    request_path: fields.request_path,
+    request_body: fields.request_body,
+    response_code: fields.response_code,
+    response_body: fields.response_body,
+    ip_address: fields.ip_address,
+    user_agent: fields.user_agent,
+    timestamp: fields.timestamp,
+  });
+}
+
 
 export interface AuditLog {
   id: string;
@@ -91,7 +128,22 @@ export class AuditRepository {
   async create(input: CreateAuditLogInput, prevHash?: string): Promise<AuditLog> {
     const crypto = await import('crypto');
     const hash = crypto.createHash('sha256');
-    const data = JSON.stringify({ ...input, timestamp: new Date().toISOString() });
+    const timestamp = new Date().toISOString();
+    const data = serializeForHash({
+      tenant_id: input.tenant_id,
+      user_id: input.user_id || null,
+      action: input.action,
+      resource_type: input.resource_type,
+      resource_id: input.resource_id || null,
+      request_method: input.request_method || null,
+      request_path: input.request_path || null,
+      request_body: input.request_body || null,
+      response_code: input.response_code || null,
+      response_body: input.response_body || null,
+      ip_address: input.ip_address || null,
+      user_agent: input.user_agent || null,
+      timestamp,
+    });
     hash.update(data + (prevHash || ''));
     const hashResult = hash.digest('hex');
 
@@ -154,7 +206,7 @@ export class AuditRepository {
       // Recompute hash for entry[i-1] to verify it hasn't been tampered
       const crypto = await import('crypto');
       const prevEntry = allLogs[i - 1];
-      const prevData = JSON.stringify({
+      const prevData = serializeForHash({
         tenant_id: prevEntry.tenant_id,
         user_id: prevEntry.user_id,
         action: prevEntry.action,

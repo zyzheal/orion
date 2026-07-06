@@ -268,7 +268,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     permService.seedCommonPermissions().then((result) => {
       logger.info(`[AuthZ] Seeded ${result.created} permissions (${result.skipped} existing)`);
     }).catch((err) => {
-      logger.error('[AuthZ] Failed to seed common permissions:', err);
+      logger.error({ err }, '[AuthZ] Failed to seed common permissions:');
     });
 
     // Seed system-level default roles and bind permissions
@@ -281,7 +281,7 @@ export async function createApp(options: PlatformAppOptions = {}): Promise<{
     }).then(() => {
       logger.info('[AuthZ] Role permissions seeded successfully');
     }).catch((err) => {
-      logger.error('[AuthZ] Failed to seed roles/permissions:', err);
+      logger.error({ err }, '[AuthZ] Failed to seed roles/permissions:');
     });
 
     logger.info('[AuthZ] Authorization engine initialized (RBAC + ABAC + Relationship + Audit)');

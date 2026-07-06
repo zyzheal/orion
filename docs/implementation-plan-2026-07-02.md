@@ -1120,7 +1120,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 
 | # | 任务 | 状态 | 完成日期 | Agent | 备注 |
 |---|------|------|---------|-------|------|
-| 2.1 | **Saga 第一阶段：PipelineRun 持久化** | ✅ 已完成 | PipelineSaga PG 持久化 + recoverRunningRuns | 🔴 | 13 tests pass |
+| 2.1 | **Saga 第一阶段：PipelineRun 持久化** | ❌ 修正：目标错误 | 2026-07-06 代码评审修正：PipelineSaga 在生产代码中**完全未被使用**（grep `new PipelineSaga()` 无调用点），仅 saga/index.ts 导出。持久化目标对象错误 | 🔴 | 真正阻塞项见 2.2-修订 |
 | 2.31 | 数据库迁移文件设计（含 SagaCheckpoint 表骨架） | ✅ 已完成 | Migration 407 saga_checkpoint + RLS | 🟡 | 依赖 2.1 |
 
 **非阻塞并行任务（W4-W7）**

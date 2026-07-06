@@ -2,11 +2,13 @@
  * Pipeline Saga - Pipeline 执行的分布式事务实现
  *
  * 步骤定义：
- * 1. createRun - 补偿: deleteRun
+ * 1. createRun - 补偿: cancelRun
  * 2. reserveResources - 补偿: releaseResources
  * 3. executeStages - 补偿: cancelStages
  * 4. updateStatus - 补偿: revertStatus
  * 5. publishEvents - 补偿: publishCancelEvents
+ *
+ * 所有状态通过 PipelineRunService 持久化到 PostgreSQL，不再使用模块级内存 Map。
  */
 
 import { SagaStep, SagaContext, SagaDefinition } from './types';
@@ -16,6 +18,7 @@ import { PipelineRun, PipelineRunStatus, TriggerType, createPipelineRun } from '
 import { Stage, StageStatus, createStage } from '../models/Stage';
 import { Task, createTask } from '../models/Task';
 import { PipelineService } from '../services/pipeline/PipelineService';
+import { PipelineRunService } from '../services/pipeline/PipelineRunService';
 import { PipelineEventPublisher } from '../events/PipelineEventPublisher';
 import { OrionError, ErrorCode } from '../errors';
 
@@ -82,19 +85,13 @@ interface PublishEventsOutput {
 }
 
 /**
- * 内存存储（与 PipelineRunService 共享）
- */
-const pipelineRuns = new Map<string, PipelineRun>();
-const stagesByRun = new Map<string, Stage[]>();
-const tasksByStage = new Map<string, Task[]>();
-
-/**
  * 创建 Pipeline Saga 定义
  */
 export function createPipelineSagaDefinition(
   pipelineService: PipelineService,
   eventPublisher: PipelineEventPublisher,
-  stageExecutor?: any // StageExecutor instance for real execution (FIXED P0-5)
+  pipelineRunService: PipelineRunService,
+  stageExecutor?: any // StageExecutor instance for real execution
 ): SagaDefinition<PipelineSagaInput, PipelineSagaOutput> {
   const steps: SagaStep<PipelineSagaInput, unknown>[] = [
     // 步骤 1: 创建 PipelineRun
@@ -120,8 +117,8 @@ export function createPipelineSagaDefinition(
           throw new OrionError(`Failed to parse pipeline YAML: ${error instanceof Error ? error.message : 'Unknown error'}`, ErrorCode.NOT_FOUND);
         }
 
-        // 创建 PipelineRun
-        const run = createPipelineRun({
+        // 通过 PipelineRunService 创建 PipelineRun（持久化到 PostgreSQL）
+        const run = await pipelineRunService.createRun({
           pipelineId: input.pipelineId,
           pipelineVersion: String(pipeline.version || 1),
           triggerType: input.triggerType,
@@ -129,15 +126,11 @@ export function createPipelineSagaDefinition(
           context: input.context,
         });
 
-        // 存储到内存
-        pipelineRuns.set(run.id, run);
-
         // 将 runId 存储到上下文元数据中，供后续步骤使用
         context.metadata.runId = run.id;
         context.metadata.pipelineId = input.pipelineId;
 
-        // 发布创建事件
-        await eventPublisher.publishRunCreated(run);
+        // createRun 已通过 PipelineRunService 发布 publishRunCreated 事件
 
         return { run, pipeline, spec };
       },
@@ -145,17 +138,10 @@ export function createPipelineSagaDefinition(
         const typedOutput = output as CreateRunOutput;
         const runId = context.metadata.runId as string || typedOutput.run.id;
 
-        // 删除 PipelineRun
-        pipelineRuns.delete(runId);
-        stagesByRun.delete(runId);
+        // 删除 PipelineRun（硬删除，因为是刚创建还未执行）
+        await pipelineRunService.deleteRun(runId);
 
-        // 删除相关任务
-        const stages = stagesByRun.get(runId) || [];
-        for (const stage of stages) {
-          tasksByStage.delete(stage.id);
-        }
-
-        // 发布删除事件
+        // 发布取消事件
         await eventPublisher.publishRunCancelled(typedOutput.run);
       },
       retryConfig: {
@@ -180,7 +166,7 @@ export function createPipelineSagaDefinition(
 
         const spec = previousOutput.spec;
 
-        // 初始化 Stages
+        // 初始化 Stages（使用 createStage 生成 ID）
         const stages: Stage[] = spec.stages.map((yamlStage, index) =>
           createStage({
             runId,
@@ -193,17 +179,21 @@ export function createPipelineSagaDefinition(
           })
         );
 
-        // 存储 Stages
-        stagesByRun.set(runId, stages);
+        // 持久化 Stages 到 PostgreSQL
+        const persistedStages: Stage[] = [];
+        for (const stage of stages) {
+          const persistedStage = await pipelineRunService.addStage(runId, stage);
+          persistedStages.push(persistedStage);
+        }
 
-        // 初始化 Tasks
+        // 初始化 Tasks 并使用持久化后的 Stage ID
         const tasksByStageMap = new Map<string, Task[]>();
         for (const yamlStage of spec.stages) {
-          const stage = stages.find(s => s.name === yamlStage.name)!;
+          const persistedStage = persistedStages.find(s => s.name === yamlStage.name)!;
           const tasks: Task[] = yamlStage.steps.map((step, index) => {
             const [type] = step.uses.split('@');
             return createTask({
-              stageId: stage.id,
+              stageId: persistedStage.id,
               name: step.name,
               type,
               sequence: index,
@@ -212,8 +202,12 @@ export function createPipelineSagaDefinition(
               timeoutSeconds: 600,
             });
           });
-          tasksByStageMap.set(stage.id, tasks);
-          tasksByStage.set(stage.id, tasks);
+
+          // 持久化 Tasks 到 PostgreSQL
+          for (const task of tasks) {
+            await pipelineRunService.addTask(persistedStage.id, task);
+          }
+          tasksByStageMap.set(persistedStage.id, tasks);
         }
 
         // 资源预留 — ResourceService 尚未实现，显式失败而非静默成功
@@ -221,26 +215,20 @@ export function createPipelineSagaDefinition(
         throw new OrionError('ResourceService not implemented — cannot reserve resources for pipeline run. Implement ResourceService and inject it into PipelineSaga.', 'OPERATION_FAILED');
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
-        const typedOutput = output as ReserveResourcesOutput;
-        const runId = context.metadata.runId as string;
-
-        // 清理 Stages 和 Tasks（内存清理仍需执行）
-        stagesByRun.delete(runId);
-        for (const stage of typedOutput.stages) {
-          tasksByStage.delete(stage.id);
-        }
+        // 资源预留失败时，由 createRun 的补偿清理 PipelineRun
+        // Stage 和 Task 记录会随 PipelineRun 一起被删除
         // TODO: ResourceService 实现后，此处应调用 releaseResources
       },
       timeoutMs: 10000,
     },
 
-    // 步骤 3: 执行阶段 (FIXED P0-5)
+    // 步骤 3: 执行阶段
     {
       name: 'executeStages',
       sequence: 3,
       execute: async (input: PipelineSagaInput, context: SagaContext): Promise<ExecuteStagesOutput> => {
         const runId = context.metadata.runId as string;
-        const stages = stagesByRun.get(runId) || [];
+        const stages = await pipelineRunService.getStages(runId);
 
         if (!stages.length) {
           return { executedStages: [], status: StageStatus.SUCCESS };
@@ -256,12 +244,12 @@ export function createPipelineSagaDefinition(
               status: StageStatus.RUNNING,
               startedAt: new Date(),
             };
-            stagesByRun.set(runId, stages.map(s => s.id === stage.id ? runningStage : s));
+            await pipelineRunService.updateStage(runningStage);
             await eventPublisher.publishStageStarted(runId, runningStage);
 
             try {
               // 获取 Stage 的 Tasks 并执行
-              const tasks = tasksByStage.get(stage.id) || [];
+              const tasks = await pipelineRunService.getTasks(stage.id);
               const pipelineId = context.metadata.pipelineId as string;
               const result = await stageExecutor.executeStage(pipelineId, runId, stage, tasks);
 
@@ -273,7 +261,7 @@ export function createPipelineSagaDefinition(
                 durationMs: Date.now() - runningStage.startedAt!.getTime(),
                 error: result.error,
               };
-              stagesByRun.set(runId, stages.map(s => s.id === stage.id ? completedStage : s));
+              await pipelineRunService.updateStage(completedStage);
 
               if (!result.success) {
                 await eventPublisher.publishStageFailed(runId, completedStage, result.error || 'Unknown error');
@@ -296,7 +284,7 @@ export function createPipelineSagaDefinition(
                 durationMs: Date.now() - runningStage.startedAt!.getTime(),
                 error: errorMessage,
               };
-              stagesByRun.set(runId, stages.map(s => s.id === stage.id ? failedStage : s));
+              await pipelineRunService.updateStage(failedStage);
               await eventPublisher.publishStageFailed(runId, failedStage, errorMessage);
               return {
                 executedStages: [...executedStages, failedStage],
@@ -320,14 +308,14 @@ export function createPipelineSagaDefinition(
             durationMs: 1000,
           };
           executedStages.push(executedStage);
+          await pipelineRunService.updateStage(executedStage);
         }
 
-        stagesByRun.set(runId, executedStages);
         return { executedStages, status: StageStatus.SUCCESS };
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const runId = context.metadata.runId as string;
-        const stages = stagesByRun.get(runId) || [];
+        const stages = await pipelineRunService.getStages(runId);
 
         // 取消所有阶段
         for (const stage of stages) {
@@ -336,15 +324,9 @@ export function createPipelineSagaDefinition(
             status: StageStatus.SKIPPED,
             completedAt: new Date(),
           };
+          await pipelineRunService.updateStage(cancelledStage);
           await eventPublisher.publishStageSkipped(runId, cancelledStage);
         }
-
-        // 更新存储
-        stagesByRun.set(runId, stages.map(s => ({
-          ...s,
-          status: StageStatus.SKIPPED,
-          completedAt: new Date(),
-        })));
       },
       timeoutMs: 300000, // 5 分钟
     },
@@ -355,49 +337,34 @@ export function createPipelineSagaDefinition(
       sequence: 4,
       execute: async (input: PipelineSagaInput, context: SagaContext): Promise<UpdateStatusOutput> => {
         const runId = context.metadata.runId as string;
-        const run = pipelineRuns.get(runId);
+        const run = await pipelineRunService.getRun(runId);
 
         if (!run) {
           throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
         }
 
         const previousStatus = run.status;
-        const stages = stagesByRun.get(runId) || [];
+        const stages = await pipelineRunService.getStages(runId);
 
         // 判断最终状态
         const hasFailure = stages.some(s => s.status === StageStatus.FAILED);
         const status = hasFailure ? PipelineRunStatus.FAILED : PipelineRunStatus.SUCCESS;
 
-        // 更新 PipelineRun
-        const now = new Date();
-        const startedAt = run.startedAt || run.createdAt;
-        const updatedRun: PipelineRun = {
-          ...run,
-          status,
-          completedAt: now,
-          durationMs: now.getTime() - startedAt.getTime(),
-          updatedAt: now,
-        };
-
-        pipelineRuns.set(runId, updatedRun);
+        // 通过 PipelineRunService 持久化最终状态（completeRun 已发布完成/失败事件）
+        await pipelineRunService.completeRun(runId, status);
 
         return { status, previousStatus };
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const typedOutput = output as UpdateStatusOutput;
         const runId = context.metadata.runId as string;
-        const run = pipelineRuns.get(runId);
+        const run = await pipelineRunService.getRun(runId);
 
         if (run) {
-          // 恢复之前的状态
-          const revertedRun: PipelineRun = {
-            ...run,
-            status: typedOutput.previousStatus,
-            completedAt: undefined,
-            durationMs: undefined,
-            updatedAt: new Date(),
-          };
-          pipelineRuns.set(runId, revertedRun);
+          // 恢复之前的状态 — 通过 repository 直接更新状态
+          // 需要使用 PipelineRunService 的内容，但 completeRun 不支持回退到任意状态
+          // 标记为 cancelled 作为补偿
+          await pipelineRunService.cancelRun(runId);
         }
       },
     },
@@ -408,8 +375,8 @@ export function createPipelineSagaDefinition(
       sequence: 5,
       execute: async (input: PipelineSagaInput, context: SagaContext): Promise<PublishEventsOutput> => {
         const runId = context.metadata.runId as string;
-        const run = pipelineRuns.get(runId);
-        const stages = stagesByRun.get(runId) || [];
+        const run = await pipelineRunService.getRun(runId);
+        const stages = await pipelineRunService.getStages(runId);
 
         if (!run) {
           throw new OrionError(`PipelineRun '${runId}' not found`, ErrorCode.NOT_FOUND);
@@ -417,7 +384,7 @@ export function createPipelineSagaDefinition(
 
         const events: string[] = [];
 
-        // 发布完成/失败事件
+        // 发布完成/失败事件（completeRun 已发布，但此处确保事件发送）
         if (run.status === PipelineRunStatus.SUCCESS) {
           await eventPublisher.publishRunCompleted(run);
           events.push('run.completed');
@@ -441,7 +408,7 @@ export function createPipelineSagaDefinition(
       },
       compensate: async (input: PipelineSagaInput, output: unknown, context: SagaContext): Promise<void> => {
         const runId = context.metadata.runId as string;
-        const run = pipelineRuns.get(runId);
+        const run = await pipelineRunService.getRun(runId);
 
         if (run) {
           // 发布取消事件
@@ -460,11 +427,11 @@ export function createPipelineSagaDefinition(
   // finalize 函数
   const finalize = async (input: PipelineSagaInput, context: SagaContext): Promise<PipelineSagaOutput> => {
     const runId = context.metadata.runId as string;
-    const run = pipelineRuns.get(runId);
-    const stages = stagesByRun.get(runId) || [];
+    const run = await pipelineRunService.getRun(runId);
+    const stages = await pipelineRunService.getStages(runId);
     const tasks: Task[] = [];
     for (const stage of stages) {
-      const stageTasks = tasksByStage.get(stage.id) || [];
+      const stageTasks = await pipelineRunService.getTasks(stage.id);
       tasks.push(...stageTasks);
     }
 
@@ -495,14 +462,17 @@ export function createPipelineSagaDefinition(
 export class PipelineSaga {
   private definition: SagaDefinition<PipelineSagaInput, PipelineSagaOutput>;
   private pipelineService: PipelineService;
+  private pipelineRunService: PipelineRunService;
 
   constructor(
     pipelineService: PipelineService,
     eventPublisher: PipelineEventPublisher,
-    stageExecutor?: any // StageExecutor (FIXED P0-5)
+    pipelineRunService: PipelineRunService,
+    stageExecutor?: any // StageExecutor
   ) {
     this.pipelineService = pipelineService;
-    this.definition = createPipelineSagaDefinition(pipelineService, eventPublisher, stageExecutor);
+    this.pipelineRunService = pipelineRunService;
+    this.definition = createPipelineSagaDefinition(pipelineService, eventPublisher, pipelineRunService, stageExecutor);
   }
 
   /**
@@ -513,35 +483,30 @@ export class PipelineSaga {
   }
 
   /**
-   * 获取 PipelineRun
+   * 获取 PipelineRun（委托给 PipelineRunService）
    */
-  getRun(runId: string): PipelineRun | null {
-    return pipelineRuns.get(runId) || null;
+  async getRun(runId: string): Promise<PipelineRun | null> {
+    return this.pipelineRunService.getRun(runId);
   }
 
   /**
-   * 获取 Stages
+   * 获取 Stages（委托给 PipelineRunService）
    */
-  getStages(runId: string): Stage[] {
-    return stagesByRun.get(runId) || [];
+  async getStages(runId: string): Promise<Stage[]> {
+    return this.pipelineRunService.getStages(runId);
   }
 
   /**
-   * 获取 Tasks
+   * 获取 Tasks（委托给 PipelineRunService）
    */
-  getTasks(stageId: string): Task[] {
-    return tasksByStage.get(stageId) || [];
+  async getTasks(stageId: string): Promise<Task[]> {
+    return this.pipelineRunService.getTasks(stageId);
   }
 
   /**
-   * 清理数据
+   * 清理数据（委托给 PipelineRunService）
    */
-  cleanup(runId: string): void {
-    pipelineRuns.delete(runId);
-    const stages = stagesByRun.get(runId) || [];
-    stagesByRun.delete(runId);
-    for (const stage of stages) {
-      tasksByStage.delete(stage.id);
-    }
+  async cleanup(runId: string): Promise<void> {
+    await this.pipelineRunService.deleteRun(runId);
   }
 }

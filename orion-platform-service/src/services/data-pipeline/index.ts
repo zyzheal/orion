@@ -4,5 +4,6 @@
 
 export * from './DataPipelineService';
 export * from './DataProcessor';
+export * from './DataPipelineStageProcessor';
 export * from './DataQualityService';
 export * from './types';
