@@ -133,7 +133,7 @@ export class NotificationTemplateService {
 
     const mergedInput: CreateNotificationTemplateInput = {
       name: input.name,
-      event_type: input.event_type,
+      event_type: input.event_type ?? base.event_type,
       subject: input.subject,
       body_template: input.body_template ?? base.body_template,
       channel_ids: input.channel_ids ?? base.channel_ids,
@@ -198,12 +198,6 @@ export class NotificationTemplateService {
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    const tenantId = (this.repository as any).getTenantId ? (this.repository as any).getTenantId() : 'system';
-    const result = await this.repository.update(id, tenantId, {} as UpdateNotificationTemplateInput);
-    if (!result) {
-      throw new NotificationTemplateServiceError(`Template not found: ${id}`, 'NOT_FOUND');
-    }
-    // Repository update requires at least one field - use a direct delete approach
     const deleted = await (this.repository as any).delete(id);
     if (!deleted) {
       throw new NotificationTemplateServiceError(`Template not found: ${id}`, 'NOT_FOUND');

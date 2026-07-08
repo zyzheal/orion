@@ -73,12 +73,12 @@ export class EnvironmentRepository extends BaseRepository<EnvironmentEntity> {
   /**
    * Find environment by tenant and name (unique constraint).
    */
-  async findByTenantAndName(tenantId: string, name: string): Promise<EnvironmentEntity | undefined> {
+  async findByTenantAndName(tenantId: string, name: string): Promise<EnvironmentEntity | null> {
     const result = await this.db.query(
       `SELECT * FROM pipeline_environments WHERE tenant_id = $1 AND name = $2`,
       [tenantId, name],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

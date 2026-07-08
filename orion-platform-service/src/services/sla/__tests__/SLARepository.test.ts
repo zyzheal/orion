@@ -57,8 +57,8 @@ describe('SLADefinitionRepository', () => {
       expect(result!.target_value).toBe(15);
       expect(result!.type).toBe('response');
       expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM sla_definitions WHERE id = $1',
-        ['sla-1']
+        'SELECT * FROM sla_definitions WHERE id = $1 AND tenant_id = $2',
+        ['sla-1', '__system__']
       );
     });
 
@@ -151,8 +151,8 @@ describe('SLADefinitionRepository', () => {
       expect(result).toBeDefined();
       // Should call findById (SELECT) instead of UPDATE
       expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM sla_definitions WHERE id = $1',
-        ['sla-1']
+        'SELECT * FROM sla_definitions WHERE id = $1 AND tenant_id = $2',
+        ['sla-1', '__system__']
       );
     });
 

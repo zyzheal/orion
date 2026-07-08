@@ -22,7 +22,7 @@ import {
 // ==================== Mock Helpers ====================
 
 function createMockDb() {
-  const rows: any[] = [];
+  const _rows: any[] = [];
   return {
     query: jest.fn(async (sql: string, params?: any[]) => {
       const upperSql = sql.trim().toUpperCase();
@@ -48,7 +48,7 @@ function createMockDb() {
             created_at: new Date(),
             updated_at: new Date(),
           };
-          rows.push(synthetic);
+          _rows.push(synthetic);
           return { rows: [synthetic], rowCount: 1 };
         }
         if (upperSql.includes('CONFIG_TEMPLATE_VERSIONS')) {
@@ -63,7 +63,7 @@ function createMockDb() {
             created_by: params?.[6] || 'admin',
             created_at: new Date(),
           };
-          rows.push(synthetic);
+          _rows.push(synthetic);
           return { rows: [synthetic], rowCount: 1 };
         }
         if (upperSql.includes('CANARY_DEPLOYMENTS')) {
@@ -84,7 +84,7 @@ function createMockDb() {
             created_at: new Date(),
             updated_at: new Date(),
           };
-          rows.push(synthetic);
+          _rows.push(synthetic);
           return { rows: [synthetic], rowCount: 1 };
         }
         if (upperSql.includes('CANARY_DEPLOYMENT_HISTORY')) {
@@ -98,7 +98,7 @@ function createMockDb() {
             performed_by: params?.[6] || 'system',
             created_at: new Date(),
           };
-          rows.push(synthetic);
+          _rows.push(synthetic);
           return { rows: [synthetic], rowCount: 1 };
         }
         if (upperSql.includes('CONFIG_DEPENDENCIES')) {
@@ -114,18 +114,18 @@ function createMockDb() {
             created_at: new Date(),
             updated_at: new Date(),
           };
-          rows.push(synthetic);
+          _rows.push(synthetic);
           return { rows: [synthetic], rowCount: 1 };
         }
         // Default INSERT fallback
         const defaultRow = { id, tenant_id: tenantId };
-        rows.push(defaultRow);
+        _rows.push(defaultRow);
         return { rows: [defaultRow], rowCount: 1 };
       }
 
-      // UPDATE ... RETURNING * → apply SET clause changes to matching rows
+      // UPDATE ... RETURNING * → apply SET clause changes to matching _rows
       if (upperSql.startsWith('UPDATE')) {
-        if (rows.length === 0) return { rows: [], rowCount: 0 };
+        if (_rows.length === 0) return { rows: [], rowCount: 0 };
 
         // Parse SET clauses to extract field updates
         const setMatch = sql.match(/SET\s+(.+?)\s+WHERE/i);
@@ -141,43 +141,43 @@ function createMockDb() {
             }
           }
 
-          // Apply updates to all rows (simple mock behavior)
-          for (const row of rows) {
+          // Apply updates to all _rows (simple mock behavior)
+          for (const row of _rows) {
             Object.assign(row, updates, { updated_at: new Date() });
           }
         }
 
-        return { rows: rows.map((r: any) => ({ ...r })), rowCount: rows.length };
+        return { rows: _rows.map((r: any) => ({ ...r })), rowCount: _rows.length };
       }
 
       // DELETE → return rowCount
       if (upperSql.startsWith('DELETE')) {
-        return { rows: [], rowCount: rows.length };
+        return { rows: [], rowCount: _rows.length };
       }
 
       // SELECT MAX(version) for version management
       if (upperSql.includes('MAX(VERSION)')) {
         if (params?.length > 0 && params[0]) {
-          const templateRows = rows.filter((r: any) => r.template_id === params[0]);
+          const templateRows = _rows.filter((r: any) => r.template_id === params[0]);
           const maxVersion = templateRows.length > 0
             ? Math.max(...templateRows.map((r: any) => r.version || 0))
             : 0;
           return { rows: [{ max_version: maxVersion }], rowCount: 1 };
         }
-        const maxVersion = rows.length > 0 ? Math.max(...rows.map((r: any) => r.version || 0)) : 0;
+        const maxVersion = _rows.length > 0 ? Math.max(..._rows.map((r: any) => r.version || 0)) : 0;
         return { rows: [{ max_version: maxVersion }], rowCount: 1 };
       }
 
       // SELECT COUNT(*) → return count
       if (upperSql.includes('COUNT')) {
-        return { rows: [{ count: rows.length }], rowCount: rows.length };
+        return { rows: [{ count: _rows.length }], rowCount: _rows.length };
       }
 
       // SELECT with WHERE config_id = $1 AND tenant_id = $2 → filter by config_id and tenant_id
       if (/CONFIG_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
         const configIdParam = params?.[0];
         const tenantParam = params?.[1];
-        const matched = rows.filter(
+        const matched = _rows.filter(
           (r: any) => r.config_id === configIdParam && r.tenant_id === tenantParam,
         );
         return { rows: matched, rowCount: matched.length };
@@ -187,7 +187,7 @@ function createMockDb() {
       if (/DEPLOYMENT_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
         const deploymentIdParam = params?.[0];
         const tenantParam = params?.[1];
-        const matched = rows.filter(
+        const matched = _rows.filter(
           (r: any) => r.deployment_id === deploymentIdParam && r.tenant_id === tenantParam,
         );
         return { rows: matched, rowCount: matched.length };
@@ -197,7 +197,7 @@ function createMockDb() {
       if (/TEMPLATE_ID\s*=\s*\$\d+/.test(upperSql) && /TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
         const templateIdParam = params?.[0];
         const tenantParam = params?.[1];
-        const matched = rows.filter(
+        const matched = _rows.filter(
           (r: any) => r.template_id === templateIdParam && r.tenant_id === tenantParam,
         );
         return { rows: matched, rowCount: matched.length };
@@ -207,7 +207,7 @@ function createMockDb() {
       if (/WHERE\s+ID\s*=\s*\$\d+\s+AND\s+TENANT_ID\s*=\s*\$\d+/.test(upperSql)) {
         const idParam = params?.[0];
         const tenantParam = params?.[1];
-        const matched = rows.filter(
+        const matched = _rows.filter(
           (r: any) => r.id === idParam && r.tenant_id === tenantParam,
         );
         return { rows: matched, rowCount: matched.length };
@@ -217,7 +217,7 @@ function createMockDb() {
       if (/TENANT_ID\s*=\s*\$\d+\s+AND\s+CATEGORY\s*=\s*\$\d+/.test(upperSql)) {
         const tenantParam = params?.[0];
         const categoryParam = params?.[1];
-        const matched = rows.filter(
+        const matched = _rows.filter(
           (r: any) => r.tenant_id === tenantParam && r.category === categoryParam,
         );
         return { rows: matched, rowCount: matched.length };
@@ -226,14 +226,14 @@ function createMockDb() {
       // SELECT with WHERE tenant_id = $N → filter by tenant only
       if (upperSql.includes('TENANT_ID =')) {
         const tenantParam = params?.[0];
-        const matched = rows.filter((r: any) => r.tenant_id === tenantParam);
+        const matched = _rows.filter((r: any) => r.tenant_id === tenantParam);
         return { rows: matched, rowCount: matched.length };
       }
 
-      // Default SELECT → return all rows
-      return { rows: rows.slice(), rowCount: rows.length };
+      // Default SELECT → return all _rows
+      return { rows: _rows.slice(), rowCount: _rows.length };
     }),
-    _rows: rows,
+    _rows: _rows,
   };
 }
 
@@ -315,12 +315,13 @@ describe('ConfigTemplateRepository', () => {
     };
     mockDb._rows.push(mockRow);
 
-    const result = await repo.create('tenant-1', {
+    const result = await repo.create({
       name: 'Test Template',
       description: 'A test template',
       category: 'general',
       configData: { key: 'value' },
       createdBy: 'admin',
+      tenantId: 'tenant-1',
     });
 
     expect(result.tenant_id).toBe('tenant-1');
@@ -334,7 +335,7 @@ describe('ConfigTemplateRepository', () => {
   test('should find template by id with tenant check', async () => {
     const mockRow = {
       id: 'tmpl-1',
-      tenant_id: 'tenant-1',
+      tenant_id: '__system__',
       name: 'Test',
       description: null,
       category: null,
@@ -352,7 +353,7 @@ describe('ConfigTemplateRepository', () => {
     expect(result?.id).toBe('tmpl-1');
     expect(mockDb.query).toHaveBeenCalledWith(
       expect.stringContaining('WHERE id = $1 AND tenant_id = $2'),
-      ['tmpl-1', 'tenant-1']
+      ['tmpl-1', '__system__']
     );
   });
 
@@ -437,7 +438,7 @@ describe('ConfigTemplateRepository', () => {
     });
 
     expect(version.version).toBe(2);
-    expect(version.templateId).toBe('tmpl-1');
+    expect(version.template_id).toBe('tmpl-1');
 
     const versions = await repo.listVersions('tmpl-1', 'tenant-1');
     expect(versions.length).toBeGreaterThanOrEqual(1);
@@ -446,7 +447,7 @@ describe('ConfigTemplateRepository', () => {
   test('should delete template scoped to tenant', async () => {
     mockDb._rows.push({
       id: 'tmpl-1',
-      tenant_id: 'tenant-1',
+      tenant_id: '__system__',
       name: 'Test',
       description: null,
       category: null,
@@ -503,7 +504,7 @@ describe('CanaryDeploymentRepository', () => {
     };
     mockDb._rows.push(mockRow);
 
-    const result = await repo.create('tenant-1', {
+    const canaryData = {
       configId: 'config-1',
       configKey: 'feature.flag',
       environment: 'dev',
@@ -511,8 +512,8 @@ describe('CanaryDeploymentRepository', () => {
       canaryValue: { enabled: true },
       targetValue: { enabled: true },
       createdBy: 'admin',
-    });
-
+    };
+    const result = await repo.create({ ...canaryData, tenantId: 'tenant-1' });
     expect(result.percentage).toBeLessThanOrEqual(100);
   });
 
@@ -678,8 +679,8 @@ describe('CanaryDeploymentRepository', () => {
     mockDb._rows.push(historyRow);
 
     const history = await repo.createHistory('tenant-1', 'canary-1', 10, 30, 'percentage_update', 'admin');
-    expect(history.oldPercentage).toBe(10);
-    expect(history.newPercentage).toBe(30);
+    expect(history.old_percentage).toBe(10);
+    expect(history.new_percentage).toBe(30);
     expect(history.action).toBe('percentage_update');
   });
 });
@@ -786,16 +787,18 @@ describe('ConfigDependencyRepository', () => {
 
   test('should validate dependencies - all satisfied', async () => {
     mockDb.query = jest.fn(async (sql: string) => {
-      if (sql.includes('SELECT')) {
+      const upperSql = sql.trim().toUpperCase();
+      // configs table check must come before generic SELECT
+      if (upperSql.includes('CONFIGS') && upperSql.includes('WHERE')) {
+        return { rows: [{ id: 'config-0', status: 'active' }], rowCount: 1 };
+      }
+      if (upperSql.includes('SELECT')) {
         return {
           rows: [
             { id: 'dep-1', config_id: 'config-1', depends_on_config_id: 'config-0', dependency_type: 'hard', description: null, is_active: true, created_by: 'admin', created_at: new Date(), updated_at: new Date() },
           ],
           rowCount: 1,
         };
-      }
-      if (sql.includes('configs')) {
-        return { rows: [{ id: 'config-0', status: 'active' }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -924,16 +927,6 @@ describe('ConfigService - Template + Canary + Dependency', () => {
       createdBy: 'admin',
     });
 
-    // Debug: inspect mock return values
-    const calls = (mockDb.query as jest.Mock).mock.calls;
-    const insertCall = calls.find(c => c[0].includes('config_templates'));
-    if (insertCall) {
-      const result = insertCall[2] || insertCall[1];  // try to access return value
-    }
-    console.log('template keys:', Object.keys(template));
-    console.log('template.configData:', JSON.stringify(template.configData));
-    console.log('template.config_data:', JSON.stringify((template as any).config_data));
-
     expect(template.tenant_id).toBe('tenant-1');
     expect(template.name).toBe('My Template');
     expect(template.configData).toEqual({ key: 'value' });
@@ -959,7 +952,7 @@ describe('ConfigService - Template + Canary + Dependency', () => {
 
     const templateRow = {
       id: 'tmpl-1',
-      tenant_id: 'tenant-1',
+      tenant_id: '__system__',
       name: 'T',
       description: null,
       category: null,

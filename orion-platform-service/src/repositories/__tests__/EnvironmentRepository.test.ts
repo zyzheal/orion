@@ -272,11 +272,11 @@ describe('EnvironmentRepository', () => {
       );
     });
 
-    test('should throw if environment not found', async () => {
+    test('should return null if environment not found', async () => {
       mockDb.query.mockResolvedValue({ rows: [] });
 
-      await expect(repo.update('non-existent', { description: 'test' }))
-        .rejects.toThrow('UPDATE on pipeline_environments affected no rows');
+      const result = await repo.update('non-existent', { description: 'test' });
+      expect(result).toBeNull();
     });
 
     test('should throw if no columns to update', async () => {
@@ -296,7 +296,7 @@ describe('EnvironmentRepository', () => {
       expect(result).toBe(true);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM pipeline_environments'),
-        ['env-1'],
+        ['env-1', '__system__'],
       );
     });
 

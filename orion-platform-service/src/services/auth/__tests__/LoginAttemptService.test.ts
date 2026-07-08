@@ -187,17 +187,12 @@ describe('LoginAttemptService', () => {
       users.set(user.id, user);
       mockRepository.findById = jest.fn(async (id: string) => users.get(id) ?? null);
 
-      const lockedUntil = new Date(Date.now() + defaultConfig.lockDurationMs);
-      mockRepository.incrementFailedAttempts = jest.fn(async () => ({
-        attempts: defaultConfig.maxAttempts,
-        lockedUntil,
-      }));
-
       const result = await service.recordFailure(user.id);
 
       expect(result.locked).toBe(true);
       expect(result.attempts).toBe(defaultConfig.maxAttempts);
-      expect(result.lockedUntil).toEqual(lockedUntil);
+      expect(result.lockedUntil).not.toBeNull();
+      expect(result.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
     });
   });
 

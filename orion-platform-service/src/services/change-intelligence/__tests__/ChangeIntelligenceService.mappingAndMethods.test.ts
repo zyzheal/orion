@@ -383,7 +383,7 @@ describe('ChangeIntelligenceService - deleteReport()', () => {
 
     expect(mockDb.query).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM change_intelligence_reports'),
-      ['report-1'],
+      ['report-1', '__system__'],
     );
   });
 

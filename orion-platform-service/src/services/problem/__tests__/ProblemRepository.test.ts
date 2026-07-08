@@ -59,17 +59,17 @@ describe('ProblemRepository', () => {
       expect(result!.relatedIncidents).toEqual(['inc-1']);
       expect(result!.relatedChanges).toEqual(['chg-1']);
       expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM problems WHERE id = $1',
-        ['prob-1']
+        'SELECT * FROM problems WHERE id = $1 AND tenant_id = $2',
+        ['prob-1', '__system__']
       );
     });
 
-    it('should return undefined when not found', async () => {
+    it('should return null when not found', async () => {
       mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await repo.findById('prob-nonexistent');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
@@ -160,10 +160,11 @@ describe('ProblemRepository', () => {
       );
     });
 
-    it('should throw when update affects no rows', async () => {
+    it('should return null when update affects no rows', async () => {
       mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await expect(repo.update('prob-nonexistent', { title: 'x' })).rejects.toThrow();
+      const result = await repo.update('prob-nonexistent', { title: 'x' });
+      expect(result).toBeNull();
     });
   });
 
@@ -177,8 +178,8 @@ describe('ProblemRepository', () => {
 
       expect(result).toBe(true);
       expect(mockPool.query).toHaveBeenCalledWith(
-        'DELETE FROM problems WHERE id = $1',
-        ['prob-1']
+        'DELETE FROM problems WHERE id = $1 AND tenant_id = $2',
+        ['prob-1', '__system__']
       );
     });
 
@@ -547,7 +548,7 @@ describe('ProblemRepository', () => {
       expect(result.byStatus).toEqual({ open: 5, resolved: 7, closed: 3 });
       expect(result.bySeverity).toEqual({ high: 4, medium: 8, low: 3 });
 
-      // Verify all 3 queries filter by tenant
+      // Verify all 3 queries filter by the passed tenant
       for (const call of mockPool.query.mock.calls) {
         expect(call[1]).toEqual(['tenant-1']);
       }
@@ -690,12 +691,12 @@ describe('KnownErrorRepository', () => {
       expect(result!.affectedServices).toEqual(['api-gateway', 'auth-service']);
     });
 
-    it('should return undefined when not found', async () => {
+    it('should return null when not found', async () => {
       mockPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await repo.findById('ke-nonexistent');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

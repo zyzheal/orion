@@ -37,7 +37,7 @@ describe('SecretRepository', () => {
 
       const result = await repo.findByTenantAndName('tenant-1', 'MY_SECRET', 'project');
 
-      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
       expect(result!.name).toBe('MY_SECRET');
       expect(result!.scope).toBe('project');
       expect(result!.tenantId).toBe('tenant-1');
@@ -196,7 +196,7 @@ describe('SecretRepository', () => {
 
       const result = await repo.findById('sec-1');
 
-      expect(result).toBeDefined();
+      expect(result).not.toBeNull();
       expect(result!.id).toBe('sec-1');
     });
 

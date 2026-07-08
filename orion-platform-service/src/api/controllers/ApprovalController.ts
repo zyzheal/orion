@@ -536,7 +536,10 @@ export class ApprovalController extends BaseController {
         return reply.status(400).send({ error: 'VALIDATION_ERROR', message: 'fromUserId and toUserId are required' });
       }
 
-      const result = await this.approvalService.reassignApproval(id, fromUserId, toUserId, reason);
+      // userId from auth context is the authorizing user (requester); fromUserId is the source approver being replaced
+      const authRequest = request as FastifyRequestWithAuth;
+      const authorizingUserId = authRequest.userId || fromUserId;
+      const result = await this.approvalService.reassignApproval(id, authorizingUserId, toUserId, reason, fromUserId);
       return reply.status(200).send({ success: true, data: result });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'REASSIGN_ERROR';

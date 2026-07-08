@@ -41,13 +41,13 @@ export class SecretRepository extends BaseRepository<SecretEntity> {
   /**
    * 根据 tenant + name + scope 查找 secret
    */
-  async findByTenantAndName(tenantId: string, name: string, scope?: SecretScope): Promise<SecretEntity | undefined> {
+  async findByTenantAndName(tenantId: string, name: string, scope?: SecretScope): Promise<SecretEntity | null> {
     if (scope) {
       const result = await this.db.query(
         `SELECT * FROM ${this.tableName} WHERE tenant_id = $1 AND name = $2 AND scope = $3`,
         [tenantId, name, scope],
       );
-      if (result.rows.length === 0) return undefined;
+      if (result.rows.length === 0) return null;
       return this.mapRowToEntity(result.rows[0]);
     }
 
@@ -58,7 +58,7 @@ export class SecretRepository extends BaseRepository<SecretEntity> {
         LIMIT 1`,
       [tenantId, name],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

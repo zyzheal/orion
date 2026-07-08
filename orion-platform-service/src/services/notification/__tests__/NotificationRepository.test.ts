@@ -35,8 +35,8 @@ describe('NotificationRepository', () => {
 
       expect(result).toEqual(mockRow);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT * FROM notifications WHERE id = $1',
-        ['n1']
+        expect.stringContaining('SELECT * FROM notifications WHERE id = $1'),
+        ['n1', '__system__']
       );
     });
 
@@ -69,7 +69,7 @@ describe('NotificationRepository', () => {
       const sql = mockDb.query.mock.calls[0][0];
       expect(sql).toContain('SELECT * FROM notifications');
       expect(sql).toContain('ORDER BY created_at DESC');
-      expect(mockDb.query.mock.calls[0][1]).toEqual([]);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__']);
     });
 
     it('should filter by userId', async () => {
@@ -78,8 +78,8 @@ describe('NotificationRepository', () => {
       await repository.findAll({ userId: 'u1' });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('user_id = $1');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['u1']);
+      expect(sql).toContain('user_id = $2');
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 'u1']);
     });
 
     it('should filter by status', async () => {
@@ -88,8 +88,8 @@ describe('NotificationRepository', () => {
       await repository.findAll({ status: 'read' });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('status = $1');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['read']);
+      expect(sql).toContain('status = $2');
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 'read']);
     });
 
     it('should combine userId and status filters', async () => {
@@ -98,11 +98,11 @@ describe('NotificationRepository', () => {
       await repository.findAll({ userId: 'u1', status: 'sent' });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('user_id = $1');
-      expect(sql).toContain('status = $2');
+      expect(sql).toContain('user_id = $2');
+      expect(sql).toContain('status = $3');
       expect(sql).toContain('WHERE');
       expect(sql).toContain('AND');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['u1', 'sent']);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 'u1', 'sent']);
     });
 
     it('should apply limit', async () => {
@@ -111,8 +111,8 @@ describe('NotificationRepository', () => {
       await repository.findAll({ limit: 10 });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('LIMIT $1');
-      expect(mockDb.query.mock.calls[0][1]).toEqual([10]);
+      expect(sql).toContain('LIMIT $2');
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 10]);
     });
 
     it('should apply offset', async () => {
@@ -121,8 +121,8 @@ describe('NotificationRepository', () => {
       await repository.findAll({ offset: 20 });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('OFFSET $1');
-      expect(mockDb.query.mock.calls[0][1]).toEqual([20]);
+      expect(sql).toContain('OFFSET $2');
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 20]);
     });
 
     it('should combine userId, status, limit, and offset', async () => {
@@ -134,7 +134,7 @@ describe('NotificationRepository', () => {
       expect(sql).toContain('WHERE');
       expect(sql).toContain('LIMIT');
       expect(sql).toContain('OFFSET');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['u1', 'sent', 5, 10]);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 'u1', 'sent', 5, 10]);
     });
 
     it('should return empty array when no results', async () => {
@@ -162,7 +162,7 @@ describe('NotificationRepository', () => {
       expect(sql).toContain("'pending'");
       expect(sql).toContain('RETURNING *');
       const params = mockDb.query.mock.calls[0][1];
-      expect(params).toEqual(['t1', 'u1', 'alert', 'T', 'M', 'in-app']);
+      expect(params).toEqual(['__system__', 'u1', 'alert', 'T', 'M', 'in-app']);
     });
 
     it('should use custom channel when provided', async () => {
@@ -204,7 +204,7 @@ describe('NotificationRepository', () => {
       expect(sql).toContain("status = 'sent'");
       expect(sql).toContain('sent_at = NOW()');
       expect(sql).toContain('RETURNING *');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['n1']);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['n1', '__system__']);
     });
 
     it('should return null when notification not found', async () => {
@@ -228,7 +228,7 @@ describe('NotificationRepository', () => {
       expect(sql).toContain("status = 'read'");
       expect(sql).toContain('read_at = NOW()');
       expect(sql).toContain('RETURNING *');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['n1']);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['n1', '__system__']);
     });
 
     it('should return null when notification not found', async () => {
@@ -249,7 +249,7 @@ describe('NotificationRepository', () => {
       expect(result).toBe(7);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('COUNT(*)'),
-        ['u1']
+        ['u1', '__system__']
       );
       const sql = mockDb.query.mock.calls[0][0];
       expect(sql).toContain("status = 'sent'");
@@ -283,7 +283,7 @@ describe('NotificationRepository', () => {
       expect(result).toBe(42);
       const sql = mockDb.query.mock.calls[0][0];
       expect(sql).toContain('SELECT COUNT(*) as count FROM notifications');
-      expect(mockDb.query.mock.calls[0][1]).toEqual([]);
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__']);
     });
 
     it('should filter by userId when provided', async () => {
@@ -293,8 +293,8 @@ describe('NotificationRepository', () => {
 
       expect(result).toBe(5);
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('WHERE user_id = $1');
-      expect(mockDb.query.mock.calls[0][1]).toEqual(['u1']);
+      expect(sql).toContain('user_id = $2');
+      expect(mockDb.query.mock.calls[0][1]).toEqual(['__system__', 'u1']);
     });
 
     it('should return 0 when no notifications exist', async () => {

@@ -138,7 +138,7 @@ describe('CatalogRepository (ServiceCatalogService CRUD)', () => {
         expect(result.id).toBe('svc-1');
         expect(mockPool.query).toHaveBeenCalledWith(
           expect.stringContaining('SELECT * FROM catalog_services WHERE id = $1'),
-          ['svc-1'],
+          ['svc-1', '__system__'],
         );
       });
 
@@ -282,7 +282,7 @@ describe('CatalogRepository (ServiceCatalogService CRUD)', () => {
         expect(result).toBe(true);
         expect(mockPool.query).toHaveBeenCalledWith(
           expect.stringContaining('DELETE FROM catalog_services WHERE id = $1'),
-          ['svc-1'],
+          ['svc-1', '__system__'],
         );
       });
 
@@ -362,7 +362,7 @@ describe('CatalogRepository (ServiceCatalogService CRUD)', () => {
         expect(result.id).toBe('req-1');
         expect(mockPool.query).toHaveBeenCalledWith(
           expect.stringContaining('SELECT * FROM catalog_requests WHERE id = $1'),
-          ['req-1'],
+          ['req-1', '__system__'],
         );
       });
 

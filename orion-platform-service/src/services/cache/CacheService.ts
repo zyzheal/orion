@@ -31,6 +31,13 @@ export class CacheService {
   }
 
   /**
+   * Check if the underlying Redis cache is healthy.
+   */
+  isHealthy(): boolean {
+    return this.redis?.isHealthy() ?? false;
+  }
+
+  /**
    * Get a cached value by key.
    * Returns null if Redis is unavailable, key doesn't exist, or data is corrupt.
    */

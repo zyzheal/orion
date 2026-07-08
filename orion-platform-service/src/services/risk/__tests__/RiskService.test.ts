@@ -10,9 +10,10 @@
  * 6. High priority risks query
  */
 
-import { RiskService, RiskLevel, RiskStatus, RiskCategory } from '../RiskService';
+import { RiskService } from '../RiskService';
 import { RiskRepository, RiskEntity } from '../RiskRepository';
 import type { RiskCreateInput, RiskFindingInput, CreateMitigationInput } from '../types';
+import { RiskLevel, RiskCategory, RiskStatus } from '../types';
 
 // ==================== Mock Database ====================
 
@@ -44,53 +45,130 @@ class MockDb {
   private risks: Map<string, MockRow> = new Map();
 
   async query(text: string, params: unknown[] = []): Promise<{ rows: MockRow[]; rowCount: number | null }> {
-    // Simple SQL parser for test queries
-    const upperText = text.toUpperCase();
+    const t = text.toUpperCase();
 
     // INSERT ... RETURNING *
-    if (upperText.includes('INSERT INTO RISK_ASSESSMENTS')) {
-      const row = this.parseInsertRow(params);
+    if (t.includes('INSERT INTO RISK_ASSESSMENTS')) {
+      const row = this.buildRowFromInsert(params);
       this.risks.set(row.id, row);
       return { rows: [row], rowCount: 1 };
     }
 
+    // UPDATE ... SET ... WHERE id = $N AND tenant_id = $N+1 RETURNING *
+    if (t.includes('UPDATE') && t.includes('SET') && t.includes('WHERE ID =')) {
+      return this.handleUpdate(t, params);
+    }
+
     // SELECT * FROM risk_assessments WHERE id = $1 AND tenant_id = $2
-    if (upperText.includes('WHERE ID =') && upperText.includes('AND TENANT_ID =')) {
-      const [id, tenantId] = params;
-      const row = this.risks.get(id as string);
-      if (row && row.tenant_id === tenantId) {
-        return { rows: [row], rowCount: 1 };
-      }
+    if (t.includes('WHERE ID =') && t.includes('AND TENANT_ID =')) {
+      const [rid, tid] = params;
+      const row = this.risks.get(rid as string);
+      if (row && (tid === '' || row.tenant_id === tid)) return { rows: [row], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     }
 
-    // SELECT COUNT(*) ... WHERE tenant_id = $1
-    if (upperText.includes('COUNT(*)') && upperText.includes('TENANT_ID =')) {
-      const [tenantId] = params;
-      const count = Array.from(this.risks.values()).filter((r) => r.tenant_id === tenantId).length;
+    // SELECT COUNT(*) ... FROM risk_assessments WHERE tenant_id = $1
+    // Also handles the complex aggregate query from getStats:
+    // SELECT COUNT(*) as total, AVG(score) as avg_score, COUNT(*) FILTER (...) FROM risk_assessments WHERE tenant_id = $1
+    if (t.includes('COUNT(*)') && t.includes('FROM RISK_ASSESSMENTS')) {
+      const tidMatch = t.match(/TENANT_ID\s*=\s*\$(\d+)/);
+      const tidIdx = tidMatch ? parseInt(tidMatch[1]) - 1 : 0;
+      const tid = params[tidIdx] as string;
+      const rows = Array.from(this.risks.values()).filter((r) => r.tenant_id === tid);
+      const count = rows.length;
+
+      // Check if this is the aggregate query (has AVG, FILTER, or multiple COUNT(*))
+      if (t.includes('AVG(SCORE)') || t.includes('FILTER') || t.includes('RISK_LEVEL')) {
+        // Compute stats from in-memory data
+        const byLevel: Record<string, number> = { low: 0, medium: 0, high: 0, critical: 0 };
+        const byCategory: Record<string, number> = {};
+        const byStatus: Record<string, number> = {};
+        let totalScore = 0;
+        let openCount = 0;
+        let criticalOpen = 0;
+
+        for (const r of rows) {
+          byLevel[r.risk_level] = (byLevel[r.risk_level] || 0) + 1;
+          byCategory[r.category] = (byCategory[r.category] || 0) + 1;
+          byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+          totalScore += r.score;
+          if (r.status !== 'closed') {
+            openCount++;
+            if (r.risk_level === 'critical') criticalOpen++;
+          }
+        }
+
+        return {
+          rows: [{
+            total: String(count),
+            avg_score: count > 0 ? String(totalScore / count) : '0',
+            low_count: String(byLevel['low'] || 0),
+            medium_count: String(byLevel['medium'] || 0),
+            high_count: String(byLevel['high'] || 0),
+            critical_count: String(byLevel['critical'] || 0),
+            open_count: String(openCount),
+            critical_open: String(criticalOpen),
+            security_count: String(byCategory['security'] || 0),
+            operational_count: String(byCategory['operational'] || 0),
+            compliance_count: String(byCategory['compliance'] || 0),
+            financial_count: String(byCategory['financial'] || 0),
+            technical_count: String(byCategory['technical'] || 0),
+            strategic_count: String(byCategory['strategic'] || 0),
+            reputation_count: String(byCategory['reputation'] || 0),
+            supply_chain_count: String(byCategory['supply_chain'] || 0),
+            identified_count: String(byStatus['identified'] || 0),
+            assessed_count: String(byStatus['assessed'] || 0),
+            mitigating_count: String(byStatus['mitigating'] || 0),
+            accepted_count: String(byStatus['accepted'] || 0),
+            closed_count: String(byStatus['closed'] || 0),
+          }],
+          rowCount: 1,
+        };
+      }
+
       return { rows: [{ count: String(count) }], rowCount: 1 };
     }
 
-    // SELECT * ... WHERE tenant_id = $1 AND status != $2
-    if (upperText.includes('TENANT_ID =') && upperText.includes('STATUS !=')) {
-      const [tenantId, status] = params;
-      const rows = Array.from(this.risks.values()).filter((r) => r.tenant_id === tenantId && r.status !== status);
-      return { rows, rowCount: rows.length };
+    // SELECT * FROM risk_assessments WHERE tenant_id = $1 [AND status != $2] ORDER BY ... (findByTenant / findOpenRisks)
+    if (t.includes('FROM RISK_ASSESSMENTS WHERE TENANT_ID = $1')) {
+      const [tid] = params;
+      let rows = Array.from(this.risks.values()).filter((r) => r.tenant_id === tid);
+
+      // Handle status != filter (findOpenRisks)
+      if (t.includes('STATUS !=')) {
+        const statusVal = params[1] as string;
+        rows = rows.filter((r) => r.status !== statusVal);
+      }
+
+      // Handle LIMIT/OFFSET
+      const limitMatch = t.match(/LIMIT \$(\d+)/);
+      const offsetMatch = t.match(/OFFSET \$(\d+)/);
+      const limit = limitMatch ? Number(params[Number(limitMatch[1]) - 1]) : rows.length;
+      const offset = offsetMatch ? Number(params[Number(offsetMatch[1]) - 1]) : 0;
+      const paged = rows.slice(offset, offset + limit);
+      return { rows: paged, rowCount: paged.length };
     }
 
-    // SELECT * ... WHERE risk_level IN
-    if (upperText.includes('RISK_LEVEL IN')) {
-      const levels = upperText.includes('CRITICAL') && upperText.includes('HIGH')
-        ? [RiskLevel.HIGH, RiskLevel.CRITICAL]
-        : [];
-      const tenantId = params.find((p) => typeof p === 'string' && p.startsWith('tenant-')) as string | undefined;
-      const rows = Array.from(this.risks.values()).filter((r) => {
-        if (!levels.includes(r.risk_level as RiskLevel)) return false;
-        if (tenantId && r.tenant_id !== tenantId) return false;
-        const statusIdx = upperText.includes('STATUS !=') ? 1 : -1;
-        if (statusIdx >= 0 && params[statusIdx] && r.status === params[statusIdx]) return false;
-        return true;
-      });
+    // SELECT * ... WHERE risk_level IN ($1, $2) AND status != $3 [AND tenant_id = $4] (findHighRisk)
+    if (t.includes('RISK_LEVEL IN')) {
+      const level1 = params[0] as string;
+      const level2 = params[1] as string;
+      let rows = Array.from(this.risks.values()).filter(
+        (r) => r.risk_level === level1 || r.risk_level === level2,
+      );
+
+      // status != filter (params[2] = CLOSED)
+      if (t.includes('STATUS !=')) {
+        const excludeStatus = params[2] as string;
+        rows = rows.filter((r) => r.status !== excludeStatus);
+      }
+
+      // tenant_id filter (params[3] when 4 params, or find tenant- prefix)
+      if (params.length >= 4) {
+        const tid = params.find((p) => typeof p === 'string' && p.startsWith('tenant-')) as string | undefined;
+        if (tid) rows = rows.filter((r) => r.tenant_id === tid);
+      }
+
       return { rows, rowCount: rows.length };
     }
 
@@ -98,7 +176,13 @@ class MockDb {
     return { rows: Array.from(this.risks.values()), rowCount: this.risks.size };
   }
 
-  private parseInsertRow(params: unknown[]): MockRow {
+  // Build a MockRow from INSERT params (RiskRepository.create explicit INSERT)
+  // VALUES ($1=id, $2=tenant_id, $3=name, $4=desc, $5=risk_level, $6=score,
+  //         $7=category, $8=target_type, $9=target_id, $10=status,
+  //         $11=identified_at, $12=created_by, $13=assigned_to,
+  //         $14=findings_json, $15=mitigations_json, $16=metadata_json,
+  //         $17=created_at, $18=updated_at)
+  private buildRowFromInsert(params: unknown[]): MockRow {
     return {
       id: params[0] as string,
       tenant_id: params[1] as string,
@@ -111,17 +195,59 @@ class MockDb {
       target_id: params[8] as string,
       status: params[9] as string,
       identified_at: params[10] as Date,
-      assessed_at: params[11] as Date | null,
-      mitigated_at: params[12] as Date | null,
-      closed_at: params[13] as Date | null,
-      created_by: params[14] as string | null,
-      assigned_to: params[15] as string | null,
-      findings: params[16] as RiskFindingInput[],
-      mitigations: params[17] as any[],
-      metadata: params[18] as Record<string, unknown>,
-      created_at: params[19] as Date,
-      updated_at: params[20] as Date,
+      assessed_at: null,
+      mitigated_at: null,
+      closed_at: null,
+      created_by: params[11] as string | null,
+      assigned_to: params[12] as string | null,
+      findings: params[13] ? JSON.parse(params[13] as string) as RiskFindingInput[] : [],
+      mitigations: params[14] ? JSON.parse(params[14] as string) : [],
+      metadata: params[15] ? JSON.parse(params[15] as string) as Record<string, unknown> : {},
+      created_at: params[16] as Date,
+      updated_at: params[17] as Date,
     };
+  }
+
+  // Handle UPDATE ... SET ... WHERE id = $N AND tenant_id = $N+1 RETURNING *
+  // SET params come first in order (matching RiskRepository.updateRisk push order), then WHERE params at the end
+  private handleUpdate(t: string, params: unknown[]): { rows: MockRow[]; rowCount: number } {
+    // Find WHERE position
+    const whereIdx = t.indexOf(' WHERE ');
+    const setClause = t.substring(t.indexOf(' SET ') + 5, whereIdx);
+
+    // Extract field names with their $N numbers from SET clause in order
+    const fieldMatches = [...setClause.matchAll(/(\w+)\s*=\s*\$(\d+)/g)];
+    if (fieldMatches.length === 0) return { rows: [], rowCount: 0 };
+
+    // Extract id and tenantId from WHERE clause (last two params)
+    const id = params[params.length - 2] as string;
+    const tenantId = params[params.length - 1] as string;
+    const existing = this.risks.get(id);
+    if (!existing || existing.tenant_id !== tenantId) return { rows: [], rowCount: 0 };
+
+    const updated = { ...existing };
+
+    for (const fm of fieldMatches) {
+      const fieldName = fm[1].toUpperCase();
+      const paramNum = parseInt(fm[2]);
+      const val = params[paramNum - 1]; // $1 = params[0], $2 = params[1], etc.
+
+      switch (fieldName) {
+        case 'NAME': updated.name = val as string; break;
+        case 'DESCRIPTION': updated.description = val as string | null; break;
+        case 'RISK_LEVEL': updated.risk_level = val as string; break;
+        case 'SCORE': updated.score = val as number; break;
+        case 'STATUS': updated.status = val as string; break;
+        case 'ASSIGNED_TO': updated.assigned_to = val as string | null; break;
+        case 'FINDINGS': updated.findings = JSON.parse(val as string) as RiskFindingInput[]; break;
+        case 'MITIGATIONS': updated.mitigations = JSON.parse(val as string); break;
+        case 'METADATA': updated.metadata = JSON.parse(val as string) as Record<string, unknown>; break;
+      }
+    }
+
+    updated.updated_at = new Date();
+    this.risks.set(id, updated);
+    return { rows: [updated], rowCount: 1 };
   }
 }
 
@@ -159,7 +285,7 @@ describe('RiskService', () => {
 
       const result = await riskService.identifyRisks(context);
 
-      expect(result.findings.length).toBeGreaterThan(0);
+      expect(result.risks.length).toBeGreaterThan(0);
       expect(result.triggeredRules).toContain('rule-security-vulnerability');
       expect(result.triggeredRules).toContain('rule-unauthorized-access');
       expect(result.overallLevel).toBeOneOf([RiskLevel.HIGH, RiskLevel.CRITICAL, RiskLevel.MEDIUM]);
@@ -182,7 +308,7 @@ describe('RiskService', () => {
 
       const result = await riskService.identifyRisks(context);
 
-      expect(result.findings).toHaveLength(0);
+      expect(result.risks).toHaveLength(0);
       expect(result.triggeredRules).toHaveLength(0);
       expect(result.overallScore).toBe(0);
       expect(result.overallLevel).toBe(RiskLevel.LOW);
@@ -213,7 +339,7 @@ describe('RiskService', () => {
       };
 
       const result = await service.identifyRisks(context);
-      expect(result.findings).toHaveLength(0);
+      expect(result.risks).toHaveLength(0);
     });
   });
 
@@ -322,14 +448,14 @@ describe('RiskService', () => {
         name: 'Risk 1',
         targetType,
         targetId,
-        metadata: { category: RiskCategory.SECURITY },
+        category: RiskCategory.SECURITY,
       });
       await riskRepository.create({
         tenantId,
         name: 'Risk 2',
         targetType,
         targetId,
-        metadata: { category: RiskCategory.OPERATIONAL },
+        category: RiskCategory.OPERATIONAL,
       });
 
       const dashboard = await riskService.getRiskDashboard(tenantId);

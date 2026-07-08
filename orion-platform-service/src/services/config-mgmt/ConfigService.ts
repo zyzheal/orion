@@ -546,7 +546,7 @@ export class ConfigService {
       throw new OrionError(`Template ${templateId} not found`, ErrorCode.NOT_FOUND);
     }
 
-    const configData = (template as any).configData as Record<string, any>;
+    const configData = (template as any).config_data as Record<string, any>;
     const keys = Object.keys(configData);
     let applied = 0;
     const skipped: string[] = [];
@@ -682,26 +682,26 @@ export class ConfigService {
       name: entity.name,
       description: entity.description,
       category: entity.category,
-      configData: typeof entity.configData === 'string' ? JSON.parse(entity.configData) : (entity.configData ?? {}),
-      targetEnvironment: entity.targetEnvironment,
-      isActive: entity.isActive,
-      createdBy: entity.createdBy,
-      updatedBy: entity.updatedBy,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
+      targetEnvironment: entity.target_environment,
+      isActive: entity.is_active,
+      createdBy: entity.created_by,
+      updatedBy: entity.updated_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
     };
   }
 
   private mapTemplateVersionEntityToModel(entity: any): ConfigTemplateVersion {
     return {
       id: entity.id,
-      templateId: entity.templateId,
+      templateId: entity.template_id,
       tenant_id: entity.tenant_id,
-      configData: typeof entity.configData === 'string' ? JSON.parse(entity.configData) : (entity.configData ?? {}),
+      configData: typeof entity.config_data === 'string' ? JSON.parse(entity.config_data) : (entity.config_data ?? {}),
       version: entity.version,
-      changeLog: entity.changeLog,
-      createdBy: entity.createdBy,
-      createdAt: entity.createdAt,
+      changeLog: entity.change_log,
+      createdBy: entity.created_by,
+      createdAt: entity.created_at,
     };
   }
 
@@ -709,7 +709,7 @@ export class ConfigService {
     return {
       id: entity.id,
       tenant_id: entity.tenant_id,
-      configId: entity.configId,
+      configId: entity.config_id,
       configKey: entity.config_key,
       environment: entity.environment,
       percentage: entity.percentage,
@@ -719,9 +719,9 @@ export class ConfigService {
       targetValue: typeof entity.target_value === 'string' ? JSON.parse(entity.target_value) : (entity.target_value ?? {}),
       promotedAt: entity.promoted_at,
       rolledBackAt: entity.rolled_back_at,
-      createdBy: entity.createdBy,
-      createdAt: entity.createdAt,
-      updatedAt: entity.updatedAt,
+      createdBy: entity.created_by,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
     };
   }
 
@@ -734,7 +734,7 @@ export class ConfigService {
       newPercentage: entity.new_percentage,
       action: entity.action,
       performedBy: entity.performed_by,
-      createdAt: entity.createdAt,
+      createdAt: entity.created_at,
     };
   }
 

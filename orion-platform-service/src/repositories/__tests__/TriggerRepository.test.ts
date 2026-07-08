@@ -251,7 +251,7 @@ describe('TriggerRepository', () => {
       expect(result).toBe(true);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM pipeline_triggers'),
-        ['trigger-1'],
+        ['trigger-1', '__system__'],
       );
     });
 

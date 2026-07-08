@@ -73,8 +73,8 @@ describe('ChangeRequestRepository', () => {
       expect(result!.riskLevel).toBe('medium');
       expect(result!.relatedIncidents).toEqual([]);
       expect(mockPool.query).toHaveBeenCalledWith(
-        'SELECT * FROM change_requests WHERE id = $1',
-        ['chg-1']
+        'SELECT * FROM change_requests WHERE id = $1 AND tenant_id = $2',
+        ['chg-1', '__system__']
       );
     });
 
@@ -83,7 +83,7 @@ describe('ChangeRequestRepository', () => {
 
       const result = await repo.findById('chg-x');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

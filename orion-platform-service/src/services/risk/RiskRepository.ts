@@ -255,6 +255,12 @@ export class RiskRepository extends BaseRepository<RiskEntity> {
       paramIndex++;
     }
 
+    if (input.mitigations !== undefined) {
+      setClauses.push(`mitigations = $${paramIndex}`);
+      params.push(JSON.stringify(input.mitigations));
+      paramIndex++;
+    }
+
     if (input.metadata !== undefined) {
       setClauses.push(`metadata = $${paramIndex}`);
       params.push(JSON.stringify(input.metadata));

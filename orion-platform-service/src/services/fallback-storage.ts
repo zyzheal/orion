@@ -378,13 +378,7 @@ export class FallbackStorageService {
     // 检查 Redis 健康状态
     if (this.l2) {
       const wasAvailable = this.tierHealth.redis.available;
-      let isHealthy = false;
-      try {
-        await this.l2.get('__health__');
-        isHealthy = true;
-      } catch {
-        isHealthy = false;
-      }
+      const isHealthy = this.l2.isHealthy();
 
       if (isHealthy && !wasAvailable) {
         this.markTierAvailable('redis');

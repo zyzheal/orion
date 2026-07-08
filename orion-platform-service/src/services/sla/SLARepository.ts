@@ -152,7 +152,7 @@ export class SLADefinitionRepository extends BaseRepository<SLADefinitionEntity>
   /**
    * Update an SLA definition
    */
-  async updateDefinition(id: string, input: UpdateSLADefinitionInput): Promise<SLADefinitionEntity | undefined> {
+  async updateDefinition(id: string, input: UpdateSLADefinitionInput): Promise<SLADefinitionEntity | null> {
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
@@ -204,17 +204,18 @@ export class SLADefinitionRepository extends BaseRepository<SLADefinitionEntity>
 
     if (fields.length === 0) {
       const found = await this.findById(id);
-      return found ?? undefined;
+      return found ?? null;
     }
 
     fields.push(`updated_at = NOW()`);
-    values.push(id);
+    const tenantId = this.getTenantId();
+    values.push(tenantId);
 
     const result = await this.db.query(
-      `UPDATE sla_definitions SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
-      values,
+      `UPDATE sla_definitions SET ${fields.join(', ')} WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1} RETURNING *`,
+      [...values, id, tenantId],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 
@@ -356,7 +357,7 @@ export class SLATrackingRepository extends BaseRepository<SLATrackingEntity> {
   /**
    * Update tracking status
    */
-  async updateStatus(id: string, status: string, tenantId: string): Promise<SLATrackingEntity | undefined> {
+  async updateStatus(id: string, status: string, tenantId: string): Promise<SLATrackingEntity | null> {
     const updateFields: Record<string, unknown> = { status };
 
     // Set actual_time for met/breached
@@ -365,7 +366,7 @@ export class SLATrackingRepository extends BaseRepository<SLATrackingEntity> {
         `UPDATE sla_tracking SET status = $1, actual_time = NOW(), updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING *`,
         [status, id, tenantId],
       );
-      if (result.rows.length === 0) return undefined;
+      if (result.rows.length === 0) return null;
       return this.mapRowToEntity(result.rows[0]);
     }
 
@@ -375,7 +376,7 @@ export class SLATrackingRepository extends BaseRepository<SLATrackingEntity> {
         `UPDATE sla_tracking SET status = $1, breach_time = NOW(), actual_time = NOW(), updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING *`,
         [status, id, tenantId],
       );
-      if (result.rows.length === 0) return undefined;
+      if (result.rows.length === 0) return null;
       return this.mapRowToEntity(result.rows[0]);
     }
 
@@ -383,7 +384,7 @@ export class SLATrackingRepository extends BaseRepository<SLATrackingEntity> {
       `UPDATE sla_tracking SET status = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3 RETURNING *`,
       [status, id, tenantId],
     );
-    if (result.rows.length === 0) return undefined;
+    if (result.rows.length === 0) return null;
     return this.mapRowToEntity(result.rows[0]);
   }
 

@@ -79,7 +79,10 @@ function createMockDb() {
       if (text.includes('UPDATE')) {
         const table = text.match(/UPDATE (\w+)/)?.[1] || 'unknown';
         const rows = store[table] || [];
-        const id = params?.[params.length - 1];
+        // Extract id param position from WHERE clause (e.g. "id = $8")
+        const idMatch = text.match(/id\s*=\s*\$(\d+)/);
+        const idParamIdx = idMatch ? parseInt(idMatch[1]) - 1 : params?.length - 1;
+        const id = params?.[idParamIdx];
         const idx = rows.findIndex(r => r.id === id);
         if (idx >= 0) {
           // Parse SET clause: match column = $N assignments
@@ -92,7 +95,7 @@ function createMockDb() {
             for (const assignment of assignments) {
               const colMatch = assignment.match(/^(\w+)\s*=\s*\$(\d+)/);
               if (colMatch) {
-                const col = colMatch[1];
+                const col = toSnakeCase(colMatch[1]);
                 rows[idx][col] = params[paramIdx];
                 paramIdx++;
               } else if (assignment.includes('NOW()')) {

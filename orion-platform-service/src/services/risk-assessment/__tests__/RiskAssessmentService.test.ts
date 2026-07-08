@@ -7,6 +7,11 @@
 import { RiskAssessmentService } from '../RiskAssessmentService';
 import { DeploymentRisk, RiskLevel } from '../types';
 
+jest.mock('@/db/tenant-context-storage', () => ({
+  getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-id',
+}));
+
 /**
  * 创建内存模拟的 db 对象，支持 INSERT/SELECT/DELETE 操作
  */
@@ -175,6 +180,7 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessDeploymentRisk({
         deploymentId: 'deploy-1',
         deploymentRisk: baseDeploymentRisk,
+        tenantId: 'test-tenant',
       });
 
       expect(assessment.id).toBeDefined();
@@ -192,7 +198,7 @@ describe('RiskAssessmentService', () => {
       await service.assessDeploymentRisk({
         deploymentId: 'deploy-persist',
         deploymentRisk: baseDeploymentRisk,
-        tenantId: 'tenant-001',
+        tenantId: 'test-tenant',
       });
 
       expect(mockDb.getTableData('risk_assessments').length).toBe(1);
@@ -203,16 +209,17 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessDeploymentRisk({
         deploymentId: 'deploy-2',
         deploymentRisk: baseDeploymentRisk,
-        tenantId: 'tenant-001',
+        tenantId: 'test-tenant',
       });
 
-      expect(assessment.tenantId).toBe('tenant-001');
+      expect(assessment.tenantId).toBe('test-tenant');
     });
 
     it('should include health check results when requested', async () => {
       const assessment = await service.assessDeploymentRisk({
         deploymentId: 'deploy-3',
         deploymentRisk: baseDeploymentRisk,
+        tenantId: 'test-tenant',
         runHealthChecks: true,
         healthCheckParams: {
           pipelineStatus: 'success',
@@ -230,6 +237,7 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessDeploymentRisk({
         deploymentId: 'deploy-4',
         deploymentRisk: baseDeploymentRisk,
+        tenantId: 'test-tenant',
         runHealthChecks: true,
         healthCheckParams: {
           pipelineStatus: 'failed',
@@ -258,6 +266,7 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessDeploymentRisk({
         deploymentId: 'deploy-5',
         deploymentRisk: riskyDeployment,
+        tenantId: 'test-tenant',
       });
 
       expect(assessment.riskLevel).toBe('High');
@@ -279,6 +288,7 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessChangeRisk({
         changeId: 'change-1',
         deploymentRisk,
+        tenantId: 'test-tenant',
       });
 
       expect(assessment.id).toBeDefined();
@@ -300,10 +310,10 @@ describe('RiskAssessmentService', () => {
       const assessment = await service.assessChangeRisk({
         changeId: 'change-2',
         deploymentRisk,
-        tenantId: 'tenant-002',
+        tenantId: 'test-tenant',
       });
 
-      expect(assessment.tenantId).toBe('tenant-002');
+      expect(assessment.tenantId).toBe('test-tenant');
     });
   });
 
@@ -322,19 +332,19 @@ describe('RiskAssessmentService', () => {
       await service.assessDeploymentRisk({
         deploymentId: 'deploy-h1',
         deploymentRisk: baseRisk,
-        tenantId: 'tenant-a',
+        tenantId: 'test-tenant',
       });
 
       await service.assessDeploymentRisk({
         deploymentId: 'deploy-h2',
         deploymentRisk: baseRisk,
-        tenantId: 'tenant-b',
+        tenantId: 'test-tenant',
       });
 
       await service.assessChangeRisk({
         changeId: 'change-h1',
         deploymentRisk: baseRisk,
-        tenantId: 'tenant-a',
+        tenantId: 'test-tenant',
       });
     });
 
@@ -350,8 +360,8 @@ describe('RiskAssessmentService', () => {
     });
 
     it('should filter by tenantId', async () => {
-      const history = await service.getAssessmentHistory({ tenantId: 'tenant-a' });
-      expect(history.length).toBe(2);
+      const history = await service.getAssessmentHistory({ tenantId: 'test-tenant' });
+      expect(history.length).toBe(3);
     });
 
     it('should filter by targetId', async () => {
@@ -379,6 +389,7 @@ describe('RiskAssessmentService', () => {
           dependencyRisk: { totalDependencies: 1, unhealthyDependencies: 0, criticalDependencies: [] },
           historicalRisk: { recentFailureRate: 0.05, recentIncidents: 0, averageMTTR: 300000 },
         },
+        tenantId: 'test-tenant',
       });
 
       // 查找数据库中对应的记录
@@ -410,6 +421,7 @@ describe('RiskAssessmentService', () => {
           dependencyRisk: { totalDependencies: 5, unhealthyDependencies: 0, criticalDependencies: [] },
           historicalRisk: { recentFailureRate: 0.10, recentIncidents: 1, averageMTTR: 600000 },
         },
+        tenantId: 'test-tenant',
       });
 
       // 获取 assessment 的 ID（来自数据库）
@@ -451,7 +463,7 @@ describe('RiskAssessmentService', () => {
       await service.assessDeploymentRisk({
         deploymentId: 'deploy-rh1',
         deploymentRisk: baseRisk,
-        tenantId: 'tenant-a',
+        tenantId: 'test-tenant',
       });
       const a1Row = mockDb.getTableData('risk_assessments').find(r => r.target_id === 'deploy-rh1');
       await service.generateReport(a1Row.id);
@@ -459,7 +471,7 @@ describe('RiskAssessmentService', () => {
       await service.assessDeploymentRisk({
         deploymentId: 'deploy-rh2',
         deploymentRisk: baseRisk,
-        tenantId: 'tenant-b',
+        tenantId: 'test-tenant',
       });
       const a2Row = mockDb.getTableData('risk_assessments').find(r => r.target_id === 'deploy-rh2');
       await service.generateReport(a2Row.id);
@@ -477,8 +489,8 @@ describe('RiskAssessmentService', () => {
     });
 
     it('should filter by tenantId', async () => {
-      const reports = await service.getReportHistory({ tenantId: 'tenant-a' });
-      expect(reports.length).toBe(1);
+      const reports = await service.getReportHistory({ tenantId: 'test-tenant' });
+      expect(reports.length).toBe(2);
     });
 
     it('should limit results', async () => {
@@ -500,6 +512,7 @@ describe('RiskAssessmentService', () => {
           dependencyRisk: { totalDependencies: 1, unhealthyDependencies: 0, criticalDependencies: [] },
           historicalRisk: { recentFailureRate: 0.05, recentIncidents: 0, averageMTTR: 300000 },
         },
+        tenantId: 'test-tenant',
       });
 
       const aRow = mockDb.getTableData('risk_assessments').find(r => r.target_id === 'deploy-rid1');

@@ -33,6 +33,13 @@ export enum FaultType {
   ERROR_RATE = 'error_rate',
   RESOURCE_EXHAUSTION = 'resource_exhaustion',
   COMPLETE_OUTAGE = 'complete_outage',
+  // Task 4.37 enhanced fault types
+  NETWORK_PARTITION = 'network_partition',
+  SERVICE_DEGRADATION = 'service_degradation',
+  CPU_EXHAUSTION = 'cpu_exhaustion',
+  MEMORY_EXHAUSTION = 'memory_exhaustion',
+  DISK_EXHAUSTION = 'disk_exhaustion',
+  CASCADING_FAILURE = 'cascading_failure',
 }
 
 export interface ServiceSimulation {
@@ -114,6 +121,8 @@ export class StateSimulationEngine {
   private history: StateHistoryEntry[] = [];
   private config: Required<SimulationConfig>;
   private historyMaxLength = 1000;
+  private activeSimulations: Map<string, { startTime: number; durationMs: number; faultType: FaultType }> = new Map();
+  private serviceDependencies: Map<string, string[]> = new Map();
 
   constructor(config: SimulationConfig = {}) {
     this.config = {
@@ -228,6 +237,37 @@ export class StateSimulationEngine {
         service.latency = 0;
         service.errorRate = 1.0;
         break;
+      // Task 4.37 enhanced fault types
+      case FaultType.NETWORK_PARTITION:
+        service.state = ServiceSimulationState.DEGRADED;
+        service.latency = 800 + Math.random() * 2000;
+        service.errorRate = 0.2 + Math.random() * 0.3;
+        break;
+      case FaultType.SERVICE_DEGRADATION:
+        service.state = ServiceSimulationState.DEGRADED;
+        service.latency = 300 + Math.random() * 800;
+        service.errorRate = 0.05 + Math.random() * 0.1;
+        break;
+      case FaultType.CPU_EXHAUSTION:
+        service.state = ServiceSimulationState.DEGRADED;
+        service.latency = 150 + Math.random() * 500;
+        service.errorRate = 0.02 + Math.random() * 0.08;
+        break;
+      case FaultType.MEMORY_EXHAUSTION:
+        service.state = ServiceSimulationState.DEGRADED;
+        service.latency = 200 + Math.random() * 400;
+        service.errorRate = 0.05 + Math.random() * 0.1;
+        break;
+      case FaultType.DISK_EXHAUSTION:
+        service.state = ServiceSimulationState.DEGRADED;
+        service.latency = 100 + Math.random() * 300;
+        service.errorRate = 0.1 + Math.random() * 0.15;
+        break;
+      case FaultType.CASCADING_FAILURE:
+        service.state = ServiceSimulationState.FAULTED;
+        service.latency = 400 + Math.random() * 600;
+        service.errorRate = 0.3 + Math.random() * 0.3;
+        break;
       default:
         throw new OrionError(`Unknown fault type: ${faultType}`, ErrorCode.INTERNAL_ERROR);
     }
@@ -238,6 +278,18 @@ export class StateSimulationEngine {
       durationMs,
     };
     service.lastTransitionAt = new Date().toISOString();
+
+    // Track active simulation
+    this.activeSimulations.set(serviceName, {
+      startTime: Date.now(),
+      durationMs,
+      faultType,
+    });
+
+    // Auto-propagate cascading failures after a delay
+    if (faultType === FaultType.CASCADING_FAILURE) {
+      setTimeout(() => this.propagateFailure(serviceName), 2000);
+    }
 
     this.recordHistory(serviceName, previousState, service.state, `fault_injected:${faultType}`);
 
@@ -257,6 +309,232 @@ export class StateSimulationEngine {
       type: null,
       injectedAt: null,
       durationMs: null,
+    };
+  }
+
+  // ─── Task 4.37 Enhanced API ───────────────────────────────────────────────────
+
+  /** Alias for injectFault supporting enhanced fault types */
+  injectFailure(serviceName: string, faultType: FaultType, durationMs: number = 30000): ServiceSimulation {
+    return this.injectFault(serviceName, faultType, durationMs);
+  }
+
+  /** Inject multiple failures as a chaos scenario */
+  injectChaos(scenario: {
+    name: string;
+    failures: Array<{ serviceId: string; failureType: FaultType; durationMs: number }>;
+  }): { totalActive: number; activeSimulations: Array<{ serviceId: string; failureType: FaultType; remainingMs: number }> } {
+    for (const failure of scenario.failures) {
+      this.injectFault(failure.serviceId, failure.failureType, failure.durationMs);
+      this.activeSimulations.set(failure.serviceId, {
+        startTime: Date.now(),
+        durationMs: failure.durationMs,
+        faultType: failure.failureType,
+      });
+    }
+    return this.getSimulationStatus();
+  }
+
+  /** Stop an active simulation for a service (alias for clearFault) */
+  stopSimulation(serviceName: string): boolean {
+    const sim = this.activeSimulations.get(serviceName);
+    if (!sim) return false;
+    this.activeSimulations.delete(serviceName);
+    // Transition to RECOVERING state when stopping simulation
+    const service = this.services.get(serviceName);
+    if (service) {
+      const previousState = service.state;
+      service.state = ServiceSimulationState.RECOVERING;
+      service.lastTransitionAt = new Date().toISOString();
+      service.latency = this.computeLatency(ServiceSimulationState.RECOVERING);
+      service.errorRate = this.computeErrorRate(ServiceSimulationState.RECOVERING);
+      service.faultInjection = { type: null, injectedAt: null, durationMs: null };
+      this.recordHistory(serviceName, previousState, ServiceSimulationState.RECOVERING, 'simulation_stopped');
+    }
+    return true;
+  }
+
+  /** Get current simulation status across all services */
+  getSimulationStatus(): { totalActive: number; activeSimulations: Array<{ serviceId: string; failureType: FaultType; remainingMs: number }> } {
+    const now = Date.now();
+    const active: Array<{ serviceId: string; failureType: FaultType; remainingMs: number }> = [];
+    for (const [serviceId, sim] of this.activeSimulations) {
+      const elapsed = now - sim.startTime;
+      const remaining = Math.max(0, sim.durationMs - elapsed);
+      if (remaining > 0) {
+        active.push({ serviceId, failureType: sim.faultType, remainingMs: remaining });
+      }
+    }
+    return { totalActive: active.length, activeSimulations: active };
+  }
+
+  /** Register service dependencies for cascading failure simulation */
+  registerServiceDependency(source: string, targets: string[]): void {
+    this.serviceDependencies.set(source, targets);
+  }
+
+  /** Propagate failure from source to all dependent services */
+  propagateFailure(sourceServiceName: string): void {
+    const targets = this.serviceDependencies.get(sourceServiceName) || [];
+    const sourceService = this.services.get(sourceServiceName);
+    if (!sourceService) return;
+
+    for (const target of targets) {
+      const targetService = this.services.get(target);
+      if (targetService && targetService.state !== ServiceSimulationState.OFFLINE) {
+        if (sourceService.state === ServiceSimulationState.FAULTED || sourceService.state === ServiceSimulationState.OFFLINE) {
+          targetService.state = ServiceSimulationState.FAULTED;
+          targetService.errorRate = 0.3 + Math.random() * 0.3;
+          targetService.latency = 200 + Math.random() * 300;
+          targetService.lastTransitionAt = new Date().toISOString();
+          this.recordHistory(target, ServiceSimulationState.DEGRADED, ServiceSimulationState.FAULTED, `cascaded_from:${sourceServiceName}`);
+        }
+      }
+    }
+  }
+
+  /** Predict healing outcome for a given service and action */
+  async predictHealingOutcome(serviceName: string, action: string): Promise<{
+    serviceId: string;
+    currentState: ServiceSimulationState;
+    predictedStateAfterHealing: ServiceSimulationState;
+    recoveryProbability: number;
+    estimatedRecoveryMs: number;
+    warnings: string[];
+    cascadingImpact?: string[];
+  }> {
+    const service = this.services.get(serviceName);
+    if (!service) {
+      this.registerService(serviceName);
+      return this.predictHealingOutcome(serviceName, action);
+    }
+
+    const currentState = service.state;
+    let predictedStateAfterHealing: ServiceSimulationState;
+    let recoveryProbability: number;
+    const warnings: string[] = [];
+    const cascadingImpact: string[] = [];
+
+    switch (action) {
+      case 'restart':
+        predictedStateAfterHealing = ServiceSimulationState.RECOVERING;
+        recoveryProbability = currentState === ServiceSimulationState.FAULTED ? 0.9 : 0.7;
+        break;
+      case 'scale':
+        predictedStateAfterHealing = ServiceSimulationState.RECOVERING;
+        recoveryProbability = 0.8;
+        if (currentState === ServiceSimulationState.OFFLINE) {
+          warnings.push('Scaling may not recover from complete outage');
+        }
+        break;
+      case 'failover':
+        predictedStateAfterHealing = ServiceSimulationState.HEALTHY;
+        recoveryProbability = 0.95;
+        if (currentState !== ServiceSimulationState.OFFLINE) {
+          warnings.push('Failover is drastic for non-offline services');
+        }
+        break;
+      default:
+        predictedStateAfterHealing = ServiceSimulationState.RECOVERING;
+        recoveryProbability = 0.5;
+        warnings.push(`Unknown action: ${action}`);
+    }
+
+    // Check for cascading impact - find services that depend on this one
+    const dependentServices: string[] = [];
+    for (const [source, targets] of this.serviceDependencies) {
+      if (targets.includes(serviceName)) {
+        dependentServices.push(source);
+      }
+    }
+    if (dependentServices.length > 0) {
+      cascadingImpact.push(...dependentServices.map(d => `${d} depends on ${serviceName} and may be affected`));
+    }
+
+    return {
+      serviceId: serviceName,
+      currentState,
+      predictedStateAfterHealing,
+      recoveryProbability,
+      estimatedRecoveryMs: 5000 + Math.random() * 10000,
+      warnings,
+      cascadingImpact: cascadingImpact.length > 0 ? cascadingImpact : undefined,
+    };
+  }
+
+  /** Validate healing rules against current service state */
+  async validateHealingRules(serviceName: string, rules: Array<{ condition: string; expectedState: ServiceSimulationState }>): Promise<{
+    isValid: boolean;
+    violations: Array<{ condition: string; expectedState: ServiceSimulationState; actualState: ServiceSimulationState }>;
+    recommendedActions: string[];
+    warnings: string[];
+  }> {
+    const service = this.services.get(serviceName);
+    if (!service) {
+      this.registerService(serviceName);
+      return this.validateHealingRules(serviceName, rules);
+    }
+
+    const violations: Array<{ condition: string; expectedState: ServiceSimulationState; actualState: ServiceSimulationState }> = [];
+    const recommendedActions: string[] = [];
+    const warnings: string[] = [];
+
+    for (const rule of rules) {
+      if (!rule.condition || rule.condition === '') {
+        warnings.push('Unknown rule condition');
+        continue;
+      }
+
+      // Map conditions to their expected fault types
+      const conditionFaultMap: Record<string, { fault: FaultType; state: ServiceSimulationState }> = {
+        'high_cpu': { fault: FaultType.CPU_EXHAUSTION, state: ServiceSimulationState.DEGRADED },
+        'network_partition': { fault: FaultType.NETWORK_PARTITION, state: ServiceSimulationState.DEGRADED },
+        'service_down': { fault: FaultType.COMPLETE_OUTAGE, state: ServiceSimulationState.OFFLINE },
+        'memory_pressure': { fault: FaultType.MEMORY_EXHAUSTION, state: ServiceSimulationState.DEGRADED },
+        'disk_full': { fault: FaultType.DISK_EXHAUSTION, state: ServiceSimulationState.DEGRADED },
+      };
+
+      const conditionConfig = conditionFaultMap[rule.condition];
+      if (!conditionConfig) {
+        warnings.push(`Unknown rule condition: ${rule.condition}`);
+        continue;
+      }
+
+      // Check if the active fault type matches the condition's expected fault
+      const activeFault = service.faultInjection.type;
+      const faultMismatch = activeFault && activeFault !== conditionConfig.fault;
+
+      if (service.state !== conditionConfig.state || faultMismatch) {
+        const actualFaultLabel = activeFault ? activeFault.replace(/_/g, ' ') : 'none';
+        violations.push({
+          condition: rule.condition,
+          expectedState: conditionConfig.state,
+          actualState: service.state,
+        });
+        if (faultMismatch) {
+          recommendedActions.push(
+            `Service has ${actualFaultLabel} fault but rule checks for ${rule.condition.replace(/_/g, ' ')}`
+          );
+        } else {
+          recommendedActions.push(
+            `Service is in ${service.state} state but ${rule.condition} expects ${conditionConfig.state}`
+          );
+        }
+      } else if (service.state !== rule.expectedState) {
+        violations.push({
+          condition: rule.condition,
+          expectedState: rule.expectedState,
+          actualState: service.state,
+        });
+        recommendedActions.push(`Service is in ${service.state} state but rule expects ${rule.expectedState}`);
+      }
+    }
+
+    return {
+      isValid: violations.length === 0,
+      violations,
+      recommendedActions: recommendedActions.length > 0 ? recommendedActions : ['All rules validated successfully'],
+      warnings,
     };
   }
 
@@ -347,8 +625,14 @@ export class StateSimulationEngine {
           return ServiceSimulationState.OFFLINE;
         case FaultType.LATENCY_SPIKE:
         case FaultType.RESOURCE_EXHAUSTION:
+        case FaultType.NETWORK_PARTITION:
+        case FaultType.SERVICE_DEGRADATION:
+        case FaultType.CPU_EXHAUSTION:
+        case FaultType.MEMORY_EXHAUSTION:
+        case FaultType.DISK_EXHAUSTION:
           return ServiceSimulationState.DEGRADED;
         case FaultType.ERROR_RATE:
+        case FaultType.CASCADING_FAILURE:
           return ServiceSimulationState.FAULTED;
         default:
           break;

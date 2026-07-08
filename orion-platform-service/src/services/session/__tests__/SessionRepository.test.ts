@@ -45,7 +45,7 @@ describe('SessionRepository', () => {
 
       expect(result).toEqual(mockSession);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'INSERT INTO active_sessions (user_id, tenant_id, session_token, expires_at) VALUES ($1, $2, $3, $4) RETURNING *',
+        "INSERT INTO active_sessions (user_id, tenant_id, session_token, expires_at, status)\n       VALUES ($1, $2, $3, $4, 'active')\n       RETURNING id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent",
         ['user-1', 'tenant-1', 'abc123', expiresAt]
       );
     });
@@ -69,7 +69,9 @@ describe('SessionRepository', () => {
 
       expect(result).toEqual(mockSession);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE session_token = $1 AND expires_at > NOW()',
+        `SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent
+       FROM active_sessions
+       WHERE session_token = $1 AND expires_at > NOW()`,
         ['valid-token']
       );
     });
@@ -144,7 +146,10 @@ describe('SessionRepository', () => {
 
       expect(result).toHaveLength(2);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE user_id = $1 AND tenant_id = $2 AND expires_at > NOW() ORDER BY created_at DESC',
+        `SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent
+         FROM active_sessions
+         WHERE user_id = $1 AND tenant_id = $2 AND expires_at > NOW()
+         ORDER BY created_at DESC`,
         ['user-1', 't1']
       );
     });
@@ -159,7 +164,10 @@ describe('SessionRepository', () => {
 
       expect(result).toHaveLength(1);
       expect(mockDb.query).toHaveBeenCalledWith(
-        'SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent FROM active_sessions WHERE user_id = $1 AND expires_at > NOW() ORDER BY created_at DESC',
+        `SELECT id, user_id, tenant_id, session_token as token, expires_at, created_at, status, last_activity_at, ip_address, user_agent
+       FROM active_sessions
+       WHERE user_id = $1 AND expires_at > NOW()
+       ORDER BY created_at DESC`,
         ['user-1']
       );
     });

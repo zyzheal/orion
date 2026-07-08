@@ -140,6 +140,11 @@ export class JwtKeyRotationRepository {
     return result.rows.map((row) => this.mapRowToEntity(row));
   }
 
+  /** Alias for findAll - used by JwtKeyRotationService */
+  async listKeys(): Promise<JwtKeyEntity[]> {
+    return this.findAll();
+  }
+
   protected mapRowToEntity(row: any): JwtKeyEntity {
     return {
       id: String(row.id),

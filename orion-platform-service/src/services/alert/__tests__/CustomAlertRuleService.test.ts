@@ -43,13 +43,14 @@ function createMockDb() {
       }
       // UPDATE ... SET ... WHERE id = $N RETURNING * (BaseRepository.update)
       if (sql.includes('UPDATE custom_alert_rules')) {
-        const id = params?.[params.length - 1];
-        const existing = ruleStore.get(id);
-        if (!existing) return { rows: [], rowCount: 0 };
         const setMatch = sql.match(/SET (.+?) WHERE/);
         if (setMatch) {
           const assignments = setMatch[1].split(', ');
-          let paramIdx = 0;
+          // BaseRepository.update appends tenant_id after id: [...values, id, tenantId]
+          const id = params?.[params.length - 2];
+          const existing = ruleStore.get(id);
+          if (!existing) return { rows: [], rowCount: 0 };
+          let paramIdx = 1; // skip tenant_id at params[0]
           for (const assignment of assignments) {
             const colRaw = assignment.split(' = ')[0].trim();
             const col = toSnakeCase(colRaw);
@@ -60,9 +61,9 @@ function createMockDb() {
               paramIdx++;
             }
           }
+          ruleStore.set(id, existing);
+          return { rows: [existing], rowCount: 1 };
         }
-        ruleStore.set(id, existing);
-        return { rows: [existing], rowCount: 1 };
       }
       // DELETE FROM custom_alert_rules WHERE id = $1
       if (sql.includes('DELETE FROM custom_alert_rules')) {
@@ -71,8 +72,8 @@ function createMockDb() {
         if (existed) ruleStore.delete(id);
         return { rows: [], rowCount: existed ? 1 : 0 };
       }
-      // SELECT ... WHERE id = $1
-      if (sql.includes('WHERE id = $1')) {
+      // SELECT ... WHERE id = $1 AND tenant_id = $2 (BaseRepository: id first, tenant_id second)
+      if (sql.includes('WHERE id = $1') && sql.includes('tenant_id')) {
         const id = params?.[0];
         const row = ruleStore.get(id);
         return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };

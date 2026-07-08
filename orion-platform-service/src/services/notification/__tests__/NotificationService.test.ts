@@ -188,7 +188,7 @@ describe('NotificationRepository', () => {
       const result = await repository.findById('n1');
 
       expect(result).toEqual(mockRow);
-      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM notifications WHERE id = $1', ['n1']);
+      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM notifications WHERE id = $1 AND tenant_id = $2', ['n1', '__system__']);
     });
 
     it('should return null when not found', async () => {
@@ -218,7 +218,7 @@ describe('NotificationRepository', () => {
       await repository.findAll({ userId: 'u1' });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('user_id = $1');
+      expect(sql).toContain('user_id = $2');
     });
 
     it('should filter by status when provided', async () => {
@@ -227,7 +227,7 @@ describe('NotificationRepository', () => {
       await repository.findAll({ status: 'sent' });
 
       const sql = mockDb.query.mock.calls[0][0];
-      expect(sql).toContain('status = $1');
+      expect(sql).toContain('status = $2');
     });
 
     it('should apply limit when provided', async () => {

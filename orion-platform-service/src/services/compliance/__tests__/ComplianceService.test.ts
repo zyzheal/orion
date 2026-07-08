@@ -17,6 +17,7 @@ function createMockDb() {
   scheduleStore = new Map();
   return {
     query: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      console.log('[MOCK QUERY] sql=' + sql.substring(0, 80));
       // INSERT ... RETURNING *
       if (sql.includes('INSERT INTO')) {
         const colsMatch = sql.match(/\(([^)]+)\)\s*VALUES/);
@@ -25,10 +26,15 @@ function createMockDb() {
         cols.forEach((col, i) => {
           row[col] = params?.[i];
         });
+        // Simulate RETURNING *: generate id if not provided (DB auto-increment)
+        if (!row.id) row.id = `mock-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         if (!row.created_at) row.created_at = new Date();
         if (!row.updated_at) row.updated_at = new Date();
         // Store in appropriate store
-        if (row.id) reportStore.set(row.id, row);
+        if (row.id) {
+  
+          reportStore.set(row.id, row);
+        }
         if (sql.includes('compliance_schedules') && row.id) {
           scheduleStore.set(row.id, row);
         }
@@ -72,8 +78,33 @@ function createMockDb() {
         }
         return { rows: [existing], rowCount: 1 };
       }
+      // DELETE FROM table WHERE id = $1 AND tenant_id = $2 (before SELECT to avoid false match)
+      if (sql.includes('DELETE')) {
+        const tableMatch = sql.match(/FROM (\w+)/);
+        const tableName = tableMatch ? tableMatch[1] : null;
+        const id = params?.[0];
+        const store = tableName === 'compliance_reports' ? reportStore
+                    : tableName === 'compliance_schedules' ? scheduleStore
+                    : null;
+        if (store && id) {
+          const deleted = store.delete(id);
+
+        }
+        return { rows: [], rowCount: 1 };
+      }
+      // SELECT ... WHERE id = $1 AND tenant_id = $2 (BaseRepository findById)
+      if (sql.includes('WHERE id = $1 AND tenant_id = $2')) {
+        const id = params?.[0];
+        const tenantId = params?.[1];
+        let row = reportStore.get(id) || scheduleStore.get(id);
+
+        if (row && row.tenant_id === tenantId) {
+          return { rows: [row], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }
       // SELECT ... WHERE id = $1
-      if (sql.includes('WHERE id = \$1')) {
+      if (sql.includes('WHERE id = $1')) {
         const id = params?.[0];
         let row = reportStore.get(id) || scheduleStore.get(id);
         return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
@@ -123,6 +154,19 @@ function createMockDb() {
         const rows = Array.from(scheduleStore.values()).filter((r) => r.enabled === true);
         return { rows, rowCount: rows.length };
       }
+      // SELECT COUNT(*) FROM compliance_schedules WHERE tenant_id = $1
+      if (sql.includes('SELECT COUNT(*)') && sql.includes('compliance_schedules') && sql.includes('tenant_id')) {
+        const tenantId = params?.[0];
+        const count = Array.from(scheduleStore.values()).filter((r) => r.tenant_id === tenantId).length;
+        return { rows: [{ count: String(count) }], rowCount: 1 };
+      }
+      // SELECT COUNT(*) FROM compliance_reports WHERE tenant_id = $1
+      if (sql.includes('SELECT COUNT(*)') && sql.includes('compliance_reports') && sql.includes('tenant_id')) {
+        const tenantId = params?.[0];
+        const count = Array.from(reportStore.values()).filter((r) => r.tenant_id === tenantId).length;
+        return { rows: [{ count: String(count) }], rowCount: 1 };
+      }
+
       // SELECT * FROM table (no WHERE)
       if (sql.includes('SELECT * FROM')) {
         if (sql.includes('compliance_reports')) {

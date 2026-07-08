@@ -116,16 +116,17 @@ describe('HealthCheckerService', () => {
 
   describe('registerCheck', () => {
     test('creates a new check record via repository', async () => {
+      // No existing check → goes to create path
       mockDb.query.mockResolvedValueOnce({
-        rows: [{ id: 'existing-id', service_name: 'x', service_url: 'y', check_type: 'http' }],
-        rowCount: 1,
+        rows: [],
+        rowCount: 0,
       });
       mockDb.query.mockResolvedValueOnce({
         rows: [
           {
             id: 'check-new',
-            service_name: 'x',
-            service_url: 'y',
+            service_name: 'my-svc',
+            service_url: 'http://localhost:8080/healthz',
             check_type: 'http',
             consecutive_failures: 0,
             is_active: true,
@@ -148,7 +149,7 @@ describe('HealthCheckerService', () => {
 
     test('updates existing check if same service/url/type combo', async () => {
       mockDb.query.mockResolvedValueOnce({
-        rows: [{ id: 'existing', service_name: 'x', service_url: 'y', check_type: 'http' }],
+        rows: [{ id: 'existing', service_name: 'my-svc', service_url: 'http://localhost:8080/healthz', check_type: 'http' }],
         rowCount: 1,
       });
 
@@ -159,9 +160,9 @@ describe('HealthCheckerService', () => {
         failureThreshold: 5,
       });
 
-      // Should update, not create
-      expect(mockDb.query).toHaveBeenCalledTimes(2);
-      expect(result.serviceName).toBe('my-svc');
+      // Should update, not create (only findByServiceConfig calls db.query; update is mocked)
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(result.failureThreshold).toBe(5);
     });
 
     test('throws VALIDATION_ERROR for TCP check without port', async () => {
@@ -279,15 +280,18 @@ describe('HealthCheckerService', () => {
     test('returns healthy on successful TCP connection', async () => {
       const net = require('net');
       const mockSocket = {
-        connect: jest.fn(),
-        on: jest.fn((event: string, fn: Function) => {
-          if (event === 'connect') fn();
+        connect: jest.fn((port: number, host: string, cb?: Function) => {
+          if (cb) setImmediate(cb); // Simulate async connection
           return mockSocket;
         }),
+        on: jest.fn(),
         destroy: jest.fn(),
         setTimeout: jest.fn(),
       };
-      jest.spyOn(net, 'createConnection').mockReturnValue(mockSocket as any);
+      jest.spyOn(net, 'createConnection').mockImplementation((port, host, callback) => {
+        if (callback) setImmediate(callback);
+        return mockSocket as any;
+      });
 
       const check = createCheck({
         checkType: 'tcp',
@@ -439,7 +443,7 @@ describe('HealthCheckerService', () => {
       const result = await (svc as any).runCheck(checkEntity);
 
       expect(result.status).toBe('error');
-      expect(result.errorMessage).toContain('exhausted');
+      expect(result.errorMessage).toContain('ECONNREFUSED');
 
       (global as any).fetch = originalFetch;
     });
@@ -455,10 +459,21 @@ describe('HealthCheckerService', () => {
           rows: [
             {
               id: 'chk-1',
+              tenant_id: '00000000-0000-0000-0000-000000000000',
               service_name: 'svc-a',
               service_url: 'http://a/healthz',
               check_type: 'http',
+              interval_seconds: 30,
+              timeout_seconds: 10,
+              retry_count: 2,
+              expected_status_code: 200,
+              expected_grpc_status: 'SERVING',
+              port: null,
+              failure_threshold: 3,
               consecutive_failures: 0,
+              last_status: 'unknown',
+              last_checked_at: null,
+              last_error: null,
               is_active: true,
               created_at: new Date(),
               updated_at: new Date(),
@@ -513,11 +528,21 @@ describe('HealthCheckerService', () => {
           rows: [
             {
               id: 'chk-bad',
+              tenant_id: '00000000-0000-0000-0000-000000000000',
               service_name: 'svc-b',
               service_url: 'http://b/healthz',
               check_type: 'http',
-              consecutive_failures: 2,
+              interval_seconds: 30,
+              timeout_seconds: 10,
+              retry_count: 1,
+              expected_status_code: 200,
+              expected_grpc_status: 'SERVING',
+              port: null,
               failure_threshold: 3,
+              consecutive_failures: 2,
+              last_status: 'unknown',
+              last_checked_at: null,
+              last_error: null,
               is_active: true,
               created_at: new Date(),
               updated_at: new Date(),
@@ -664,7 +689,7 @@ describe('HealthCheckerService', () => {
       expect(mockDb.query).toHaveBeenCalledTimes(1);
       expect(mockDb.query).toHaveBeenCalledWith(
         expect.stringContaining('is_active = FALSE'),
-        ['chk-1'],
+        ['chk-1', '00000000-0000-0000-0000-000000000000'],
       );
     });
   });

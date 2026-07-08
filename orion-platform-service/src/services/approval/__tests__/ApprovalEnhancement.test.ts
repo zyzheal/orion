@@ -280,7 +280,7 @@ describe('ApprovalEnhancement - Task 5.1', () => {
   describe('ApprovalService.reassignApproval', () => {
     test('should reassign all pending steps from one approver to another', async () => {
       const req = await service.createApproval('Deploy', 'user1', ['manager1', 'manager2'], 1, undefined, { tenantId: 't1' });
-      const result = await service.reassignApproval(req.id, 'user1', 'manager3', 'manager1 out of office');
+      const result = await service.reassignApproval(req.id, 'user1', 'manager3', 'manager1 out of office', 'manager1');
       expect(result.approverIds).toContain('manager3');
       expect(result.approverIds).not.toContain('manager1');
       expect(result.status).toBe(ApprovalStatus.PENDING);
@@ -305,9 +305,9 @@ describe('ApprovalEnhancement - Task 5.1', () => {
       const req = await service.createApproval('Deploy', 'user1', ['manager1'], 1, undefined, { tenantId: 't1' });
       const { reply } = await controller.makeRequest('reassignApproval', {
         params: { id: req.id },
-        body: { fromUserId: 'user1', toUserId: 'manager2', reason: 'out of office' },
+        body: { fromUserId: 'manager1', toUserId: 'manager2', reason: 'out of office' },
         userId: 'user1',
-        tenantId: 't1',
+        headers: { 'x-tenant-id': 't1' },
       });
 
       expect(reply.status).toHaveBeenCalledWith(200);
@@ -343,7 +343,7 @@ describe('ApprovalEnhancement - Task 5.1', () => {
       const { reply } = await controller.makeRequest('getMyPendingApprovals', {
         query: { tenantId: 't1' },
         userId: 'user2',
-        tenantId: 't1',
+        headers: { 'x-tenant-id': 't1' },
       });
 
       expect(reply.status).toHaveBeenCalledWith(200);
@@ -359,6 +359,7 @@ describe('ApprovalEnhancement - Task 5.1', () => {
     test('should return 400 if userId is missing', async () => {
       const { reply } = await controller.makeRequest('getMyPendingApprovals', {
         query: { tenantId: 't1' },
+        headers: { 'x-tenant-id': 't1' },
       });
       expect(reply.status).toHaveBeenCalledWith(400);
     });

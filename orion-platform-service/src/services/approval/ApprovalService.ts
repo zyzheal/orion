@@ -313,9 +313,11 @@ export class ApprovalService {
   }
 
   /**
-   * Reassign an approval step to another user (requester or admin action)
+   * Reassign an approval step to another user (requester or system admin action)
+   * @param fromUserId - user performing the reassignment (must be requester)
+   * @param fromApproverId - specific approver whose step is being reassigned (defaults to fromUserId)
    */
-  async reassignApproval(approvalId: string, fromUserId: string, toUserId: string, reason?: string): Promise<ApprovalRequest> {
+  async reassignApproval(approvalId: string, fromUserId: string, toUserId: string, reason?: string, fromApproverId?: string): Promise<ApprovalRequest> {
     const entity = await this.repository.findById(approvalId);
     if (!entity) throw new OrionError(`Approval not found: ${approvalId}`, ErrorCode.NOT_FOUND);
     if (entity.status !== 'pending') throw new OrionError('Cannot reassign for a completed approval', ErrorCode.OPERATION_FAILED);
@@ -328,10 +330,14 @@ export class ApprovalService {
     const steps = await this.repository.findStepsByApproval(approvalId);
     if (steps.length === 0) throw new OrionError('No approval steps found', ErrorCode.OPERATION_FAILED);
 
+    // Use fromApproverId if provided (requester reassigning a specific approver),
+    // otherwise fall back to fromUserId (backward compatibility when requester is also an approver)
+    const sourceApproverId = fromApproverId ?? fromUserId;
+
     return this.withTransaction(async (txRepo: ApprovalRepository) => {
-      // Reassign all pending steps from fromUserId to toUserId
+      // Reassign all pending steps from sourceApproverId to toUserId
       for (const step of steps) {
-        if (step.approverId === fromUserId && step.status === 'pending') {
+        if (step.approverId === sourceApproverId && step.status === 'pending') {
           await txRepo.updateStepApprover(step.id, toUserId, reason);
         }
       }

@@ -168,8 +168,8 @@ describe('NotificationTemplateService', () => {
     it('should deduplicate missing variables across subject and body', () => {
       const tpl: NotificationTemplate = { ...baseTemplate, subject_template: '{{missing}}' };
       const result = service.renderTemplateFull(tpl, {});
-      // Both 'missing' (from subject_template) and 'body' (from body_template) are missing
-      expect(result.missingVariables).toEqual(['missing', 'body']);
+      // bodyResult.missing comes first, then subjectResult.missing
+      expect(result.missingVariables).toEqual(['body', 'missing']);
     });
   });
 
@@ -346,6 +346,7 @@ describe('NotificationTemplateService', () => {
       await service.createInheritedTemplate('base-1', { name: 'Child' });
 
       expect(mockRepository.create).toHaveBeenCalledWith(
+        't1',
         expect.objectContaining({
           name: 'Child',
           body_template: 'Base body',
@@ -368,6 +369,7 @@ describe('NotificationTemplateService', () => {
       });
 
       expect(mockRepository.create).toHaveBeenCalledWith(
+        't1',
         expect.objectContaining({
           name: 'Child',
           event_type: 'deploy',

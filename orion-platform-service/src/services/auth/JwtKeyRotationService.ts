@@ -228,6 +228,69 @@ export class JwtKeyRotationService extends EventEmitter {
       logger.warn(`[JwtKeyRotation] Overlap window already passed (${delay}ms), triggering rotation immediately`);
       await this.startRotation();
     }
+
+    // C5 修复：定期清理过期密钥（每日一次）
+    // 保留策略：过期后 7 天删除（与 overlapDays 一致）
+    await this.scheduleExpiredKeyCleanup();
+  }
+
+  /**
+   * C5 修复：清理已过期的 JWT 密钥
+   * 保留策略：过期后 7 天删除，避免积累过多历史密钥
+   */
+  private async cleanupExpiredKeys(): Promise<number> {
+    if (!this.repository) {
+      logger.warn('[JwtKeyRotation] Cannot cleanup expired keys: repository not initialized');
+      return 0;
+    }
+
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - this.config.overlapDays);
+
+      const allKeys = await this.repository.listKeys();
+      const expiredKeys = allKeys.filter(key =>
+        key.status === 'expired' &&
+        key.expiresAt &&
+        new Date(key.expiresAt) < cutoffDate
+      );
+
+      let deletedCount = 0;
+      for (const key of expiredKeys) {
+        try {
+          await this.repository.deleteByKeyId(key.keyId);
+          // 从内存中清除原始密钥
+          this.rawSecrets.delete(key.keyId);
+          deletedCount++;
+          logger.info({ keyId: key.keyId, expiresAt: key.expiresAt }, '[JwtKeyRotation] Deleted expired key');
+        } catch (error) {
+          logger.error({ keyId: key.keyId, error }, '[JwtKeyRotation] Failed to delete expired key');
+        }
+      }
+
+      if (deletedCount > 0) {
+        logger.info({ deleted: deletedCount, total: expiredKeys.length }, '[JwtKeyRotation] Expired keys cleanup completed');
+      }
+
+      return deletedCount;
+    } catch (error) {
+      logger.error({ error }, '[JwtKeyRotation] Cleanup expired keys failed');
+      return 0;
+    }
+  }
+
+  /**
+   * C5 修复：调度过期密钥清理任务（每日执行）
+   */
+  private async scheduleExpiredKeyCleanup(): Promise<void> {
+    const cleanupInterval = 24 * 60 * 60 * 1000; // 24 小时
+
+    setInterval(async () => {
+      await this.cleanupExpiredKeys();
+    }, cleanupInterval);
+
+    // 立即执行一次清理
+    await this.cleanupExpiredKeys();
   }
 
   private async startRotation(): Promise<void> {

@@ -423,8 +423,8 @@ describe('CircuitBreakerStateRepository', () => {
       await repo.findAll({ limit: 10, offset: 20 });
 
       const query = db.query.mock.calls[0][0] as string;
-      expect(query).toContain('LIMIT 10');
-      expect(query).toContain('OFFSET 20');
+      expect(query).toContain('LIMIT $1');
+      expect(query).toContain('OFFSET $2');
     });
 
     it('should order by target_key', async () => {
