@@ -24,7 +24,7 @@ spec:
         image: orion/orion-chaos-svc-go:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8080
+        - containerPort: 8081
           name: http
         env:
         - name: SERVICE_NAME
