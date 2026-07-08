@@ -6,7 +6,7 @@
  */
 
 import { ConfigValidationService, JsonSchema, ValidationResult } from '../ConfigValidationService';
-import { OrionError, ErrorCode } from '../../errors';
+import { OrionError, ErrorCode } from '@/errors';
 
 describe('ConfigValidationService', () => {
   let service: ConfigValidationService;

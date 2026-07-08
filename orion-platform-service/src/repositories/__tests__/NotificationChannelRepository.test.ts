@@ -88,7 +88,7 @@ describe('NotificationChannelRepository', () => {
     expect(result.enabled).toBe(false);
     expect(mockDb.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE notification_channels'),
-      [false, 'ch-1'],
+      [false, 'ch-1', expect.any(String)],
     );
   });
 });

@@ -196,13 +196,19 @@ export class ExecutionService {
             }));
 
       // 超时保护: 防止命令长时间阻塞资源
+      let timeoutId: NodeJS.Timeout | null = null;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           reject(new Error(`COMMAND_TIMEOUT: 命令执行超过 ${this.commandTimeoutMs}ms 限制`));
         }, this.commandTimeoutMs);
       });
 
       executionResult = await Promise.race([executionPromise, timeoutPromise]);
+
+      // 清理超时计时器，防止资源泄漏
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
 
       await this.executionRepo.updateStatus(
         execution.id,

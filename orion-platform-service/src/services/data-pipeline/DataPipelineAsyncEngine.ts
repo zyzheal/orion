@@ -168,18 +168,42 @@ export class DataPipelineAsyncEngine extends EventEmitter {
   /**
    * 取消执行
    * 同时从队列中移除 cancelled 任务，避免 processQueue 继续处理已取消的任务
+   *
+   * C2 修复：等待正在执行的任务完成，防止竞态条件导致取消后仍执行
    */
   async cancelExecution(executionId: string): Promise<boolean> {
     const tasks = this.getTasksByExecution(executionId);
     let cancelled = false;
+    const runningTasks: DataPipelineTask[] = [];
 
     for (const task of tasks) {
+      if (task.state === 'running') {
+        runningTasks.push(task);
+      }
       if (task.state === 'pending' || task.state === 'retrying' || task.state === 'running') {
         this.updateTaskState(task.id, 'cancelled');
         this.clearTaskTimers(task.id);
         this.stopTaskHeartbeat(task.id);
         cancelled = true;
       }
+    }
+
+    // 等待正在执行的任务完成（带超时保护）
+    if (runningTasks.length > 0) {
+      await Promise.race([
+        Promise.all(runningTasks.map(task =>
+          new Promise<void>(resolve => {
+            const checkInterval = setInterval(() => {
+              const currentTask = this.tasks.get(task.id);
+              if (currentTask && currentTask.state !== 'running') {
+                clearInterval(checkInterval);
+                resolve();
+              }
+            }, 100);
+          })
+        )),
+        new Promise<void>(resolve => setTimeout(resolve, 5000)) // 5秒超时
+      ]);
     }
 
     // 从队列中移除该 execution 的所有 cancelled/retrying 任务

@@ -3,6 +3,7 @@
  */
 jest.mock('../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-123',
 }));
 
 import { ServiceRegistryRepository } from '../ServiceRegistryRepository';
@@ -86,7 +87,7 @@ describe('ServiceRegistryRepository', () => {
     it('should return undefined if not found', async () => {
       mockQuery.mockResolvedValue({ rows: [], rowCount: 0 });
       const result = await repo.findById('non-existent');
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

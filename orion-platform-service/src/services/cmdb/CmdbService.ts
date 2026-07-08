@@ -706,6 +706,12 @@ export class CmdbService {
   }> {
     const results: Array<{ success: boolean; data?: CI; error?: string; ciId?: string }> = [];
 
+    // C4 修复：使用事务包装批量操作，确保原子性
+    // 如果部分成功部分失败，不会留下孤立数据
+    // 注意：当前实现逐个创建，如果需要真正的事务，需要使用 BEGIN/COMMIT
+    // 这里暂时保留逐个创建的方式，但记录所有错误，方便回滚
+    const createdCIs: CI[] = [];
+
     for (const item of items) {
       try {
         const ci = await this.createCI({
@@ -714,8 +720,27 @@ export class CmdbService {
           createdBy: item.createdBy || createdBy,
         });
         results.push({ success: true, data: ci });
+        createdCIs.push(ci);
       } catch (error: any) {
+        // C4 修复：如果失败，回滚已创建的 CI（补偿机制）
+        logger.error({ tenantId, item, error: error.message }, 'Batch create CI failed, rolling back');
+
+        // 回滚已创建的 CI
+        for (const createdCI of createdCIs) {
+          try {
+            await this.deleteCI(createdCI.id, tenantId);
+          } catch (rollbackError: any) {
+            logger.error({ ciId: createdCI.id, error: rollbackError.message }, 'Rollback failed');
+          }
+        }
+
         results.push({ success: false, error: error.message || 'Unknown error', ciId: item.ciId });
+
+        // 抛出错误以通知调用方批量操作失败
+        throw new OrionError(
+          `Batch create failed at item ${results.length}: ${error.message}. Rolled back ${createdCIs.length} CIs.`,
+          ErrorCode.INTERNAL_ERROR
+        );
       }
     }
 

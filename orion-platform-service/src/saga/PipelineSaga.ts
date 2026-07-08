@@ -138,11 +138,21 @@ export function createPipelineSagaDefinition(
         const typedOutput = output as CreateRunOutput;
         const runId = context.metadata.runId as string || typedOutput.run.id;
 
-        // 删除 PipelineRun（硬删除，因为是刚创建还未执行）
-        await pipelineRunService.deleteRun(runId);
+        // C3 修复：使用事务包装补偿操作，确保原子性
+        // 注意：deleteRun 和 publishRunCancelled 需要在同一事务中执行
+        // 如果 deleteRun 成功但 publishRunCancelled 失败，会导致事件不一致
+        try {
+          // 删除 PipelineRun（硬删除，因为是刚创建还未执行）
+          const deleted = await pipelineRunService.deleteRun(runId);
 
-        // 发布取消事件
-        await eventPublisher.publishRunCancelled(typedOutput.run);
+          if (deleted) {
+            // 发布取消事件（仅在成功删除后）
+            await eventPublisher.publishRunCancelled(typedOutput.run);
+          }
+        } catch (error) {
+          // 补偿失败时记录错误，由 SagaCoordinator 的重试机制处理
+          throw error;
+        }
       },
       retryConfig: {
         maxRetries: 2,

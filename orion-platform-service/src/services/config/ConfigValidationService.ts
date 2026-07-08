@@ -531,10 +531,13 @@ export class ConfigValidationService {
   // ==================== Private Helpers ====================
 
   private formatErrors(errors: ErrorObject[]): ValidationErrorDetail[] {
-    return errors.map(err => ({
-      path: err.instancePath || 'root',
-      message: err.message || 'Validation error',
-      keyword: err.keyword || '',
-    }));
+    return errors.map(err => {
+      const path = err.instancePath || 'root';
+      return {
+        path,
+        message: `${path}: ${err.message || 'Validation error'}`,
+        keyword: err.keyword || '',
+      };
+    });
   }
 }

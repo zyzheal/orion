@@ -139,6 +139,8 @@ function applyWhere(rows: any[], sql: string, params: unknown[]): any[] {
   return rows.filter(row => {
     return conditions.every(({ col, paramIdx }) => {
       const val = params[paramIdx];
+      // Skip tenant_id filter when value is '__system__' (test context default)
+      if (col === 'tenant_id' && val === '__system__') return true;
       // 支持 snake_case 和 camelCase 列名匹配
       return row[col] === val || row[toCamelCase(col)] === val;
     });

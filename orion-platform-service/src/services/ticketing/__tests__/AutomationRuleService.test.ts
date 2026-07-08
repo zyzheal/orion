@@ -8,7 +8,7 @@ import { getCurrentTenantId, getCurrentUserId } from '../../../db/tenant-context
 
 jest.mock('../../../db/tenant-context-storage', () => {
   const mockFn = jest.fn(() => '__system__');
-  return { getCurrentTenantId: mockFn, getCurrentUserId: mockFn };
+  return { getCurrentTenantId: mockFn, getCurrentUserId: mockFn, getCurrentTraceId: jest.fn(() => 'test-trace-123') };
 });
 
 const MOCK_TENANT_ID = '__system__';

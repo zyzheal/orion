@@ -373,7 +373,7 @@ describe('ConfigTemplateRepository', () => {
     });
 
     const result = await repo.findById('tmpl-1', 'tenant-B');
-    expect(result).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   test('should list templates by tenant with category filter', async () => {
@@ -560,7 +560,7 @@ describe('CanaryDeploymentRepository', () => {
     });
 
     const result = await repo.findById('canary-1', 'tenant-B');
-    expect(result).toBeUndefined();
+    expect(result).toBeNull();
   });
 
   test('should update canary percentage and create history', async () => {

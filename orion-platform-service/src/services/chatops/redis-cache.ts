@@ -1,0 +1,6 @@
+/**
+ * Re-export RedisCache from the parent directory.
+ * ChatOpsRedisService imports from '../redis-cache' (relative to chatops/).
+ */
+
+export { RedisCache, default } from '../redis-cache';

@@ -5,6 +5,7 @@ import { RunbookService } from '../RunbookService';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-123',
 }));
 
 const mockDefRepo = {

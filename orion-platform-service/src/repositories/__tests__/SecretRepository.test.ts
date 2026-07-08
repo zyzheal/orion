@@ -53,7 +53,7 @@ describe('SecretRepository', () => {
 
       const result = await repo.findByTenantAndName('tenant-1', 'MISSING', 'project');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
 
     it('should search across scopes with priority when scope not specified', async () => {
@@ -204,7 +204,7 @@ describe('SecretRepository', () => {
       mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
 
       const result = await repo.findById('nonexistent');
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

@@ -5,6 +5,7 @@ import { ChannelIngressService } from '../ChannelIngressService';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-123',
 }));
 
 const mockChannelRepo = {

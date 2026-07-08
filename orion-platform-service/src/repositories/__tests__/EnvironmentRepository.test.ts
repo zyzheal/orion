@@ -132,7 +132,7 @@ describe('EnvironmentRepository', () => {
 
       const result = await repo.findById('non-existent');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 
@@ -237,7 +237,7 @@ describe('EnvironmentRepository', () => {
 
       const result = await repo.findByTenantAndName('tenant-1', 'nonexistent');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

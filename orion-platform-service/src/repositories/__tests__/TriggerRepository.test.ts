@@ -89,7 +89,7 @@ describe('TriggerRepository', () => {
 
       const result = await repo.findById('non-existent');
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
     });
   });
 

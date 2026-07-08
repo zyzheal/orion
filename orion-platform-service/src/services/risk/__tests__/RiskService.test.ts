@@ -407,7 +407,7 @@ describe('RiskService', () => {
       });
 
       const found = await riskRepository.findById(risk.id, otherTenant);
-      expect(found).toBeUndefined();
+      expect(found).toBeNull();
     });
 
     it('should list only risks for the specified tenant', async () => {
@@ -445,7 +445,7 @@ describe('RiskService', () => {
 
       // Ensure other tenant cannot see the update
       const fromOtherTenant = await riskRepository.findById(risk.id, 'tenant-other');
-      expect(fromOtherTenant).toBeUndefined();
+      expect(fromOtherTenant).toBeNull();
     });
   });
 

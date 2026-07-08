@@ -232,7 +232,7 @@ describe('ArtifactRepository', () => {
 
     it('should return undefined for non-existent id', async () => {
       const found = await repo.findById('non-existent');
-      expect(found).toBeUndefined();
+      expect(found).toBeNull();
     });
   });
 
@@ -395,7 +395,7 @@ describe('ArtifactRepository', () => {
       expect(deleted).toBe(true);
 
       const found = await repo.findById(created.id);
-      expect(found).toBeUndefined();
+      expect(found).toBeNull();
     });
 
     it('should return false when deleting non-existent artifact', async () => {

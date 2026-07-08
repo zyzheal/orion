@@ -5,6 +5,7 @@ import { HandlerRegistry } from '../HandlerRegistry';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
+  getCurrentTraceId: () => 'test-trace-123',
 }));
 
 const mockQuery = jest.fn();
