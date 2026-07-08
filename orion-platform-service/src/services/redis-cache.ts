@@ -218,7 +218,7 @@ export class RedisCache extends EventEmitter {
       }
       return await this.client.hset(key, serialized);
     }
-    const serialized = typeof fieldOrObj === 'string' ? fieldOrObj : JSON.stringify(fieldOrObj);
+    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
     return await this.client.hset(key, fieldOrObj as string, serialized);
   }
 

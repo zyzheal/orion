@@ -26,8 +26,6 @@ export { TransactionLog, TransactionLogEntry, TransactionLogFilter, TransactionL
 
 export { IdempotencyChecker, IdempotencyCheckResult, IdempotencyCheckerOptions } from './IdempotencyChecker';
 
-export { PipelineSaga, PipelineSagaInput, PipelineSagaOutput, createPipelineSagaDefinition } from './PipelineSaga';
-
 // ARCH-011: 新增 DeploySaga
 export {
   DeploySaga,
