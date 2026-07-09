@@ -31,18 +31,28 @@ type ChannelDispatcher interface {
 
 // Service implements the notification business logic.
 type Service struct {
-	repo      *repository.Repository
-	publisher EventPublisher
-	dispatcher ChannelDispatcher
-	httpClient *http.Client
+	repo         *repository.Repository
+	publisher    EventPublisher
+	dispatcher   ChannelDispatcher
+	httpClient   *http.Client
+	channelSvc   *ChannelService
+	templateSvc  *TemplateService
+}
+
+// Repo exposes the underlying repository for sub-service construction.
+func (s *Service) Repo() *repository.Repository {
+	return s.repo
 }
 
 // NewService creates a new Service.
 func NewService(repo *repository.Repository) *Service {
-	return &Service{
-		repo:       repo,
-		httpClient: &http.Client{Timeout: 10 * time.Second},
+	s := &Service{
+		repo:        repo,
+		httpClient:  &http.Client{Timeout: 10 * time.Second},
+		channelSvc:  NewChannelService(repo, nil),
+		templateSvc: NewTemplateService(repo, nil),
 	}
+	return s
 }
 
 // WithPublisher sets an event publisher for multi-channel event emission.
@@ -246,85 +256,53 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 	return s.repo.CountNotifications(ctx, tenantID)
 }
 
-// ---- Template Operations ----
+// ---- Template Operations (delegated to TemplateService) ----
 
 // CreateTemplate creates a new notification template.
 func (s *Service) CreateTemplate(ctx context.Context, tenantID string, t *models.NotificationTemplate) error {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.CreateTemplate")
-	defer span.End()
-
-	t.ID = uuid.New().String()
-	t.TenantID = tenantID
-	return s.repo.CreateTemplate(ctx, t)
+	return s.templateSvc.CreateTemplate(ctx, tenantID, t)
 }
 
 // ListTemplates returns all templates for a tenant.
 func (s *Service) ListTemplates(ctx context.Context, tenantID string) ([]models.NotificationTemplate, error) {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.ListTemplates")
-	defer span.End()
-
-	return s.repo.ListTemplates(ctx, tenantID)
+	return s.templateSvc.ListTemplates(ctx, tenantID)
 }
 
 // GetTemplate returns a single template by id.
 func (s *Service) GetTemplate(ctx context.Context, tenantID, id string) (*models.NotificationTemplate, error) {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetTemplate")
-	defer span.End()
-
-	return s.repo.GetTemplate(ctx, tenantID, id)
+	return s.templateSvc.GetTemplate(ctx, tenantID, id)
 }
 
 // DeleteTemplate removes a template.
 func (s *Service) DeleteTemplate(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.DeleteTemplate")
-	defer span.End()
-
-	return s.repo.DeleteTemplate(ctx, tenantID, id)
+	return s.templateSvc.DeleteTemplate(ctx, tenantID, id)
 }
 
-// ---- Channel Operations ----
+// ---- Channel Operations (delegated to ChannelService) ----
 
 // CreateChannel creates a new notification channel configuration.
 func (s *Service) CreateChannel(ctx context.Context, tenantID string, c *models.NotificationChannel) error {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.CreateChannel")
-	defer span.End()
-
-	c.ID = uuid.New().String()
-	c.TenantID = tenantID
-	return s.repo.CreateChannel(ctx, c)
+	return s.channelSvc.CreateChannel(ctx, tenantID, c)
 }
 
 // ListChannels returns all channel configs for a tenant.
 func (s *Service) ListChannels(ctx context.Context, tenantID string) ([]models.NotificationChannel, error) {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.ListChannels")
-	defer span.End()
-
-	return s.repo.ListChannels(ctx, tenantID)
+	return s.channelSvc.ListChannels(ctx, tenantID)
 }
 
 // GetChannel returns a single channel config by id.
 func (s *Service) GetChannel(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error) {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.GetChannel")
-	defer span.End()
-
-	return s.repo.GetChannel(ctx, tenantID, id)
+	return s.channelSvc.GetChannel(ctx, tenantID, id)
 }
 
 // UpdateChannel updates an existing channel configuration.
 func (s *Service) UpdateChannel(ctx context.Context, tenantID string, c *models.NotificationChannel) error {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.UpdateChannel")
-	defer span.End()
-
-	c.TenantID = tenantID
-	return s.repo.UpdateChannel(ctx, c)
+	return s.channelSvc.UpdateChannel(ctx, tenantID, c)
 }
 
 // DeleteChannel removes a channel configuration.
 func (s *Service) DeleteChannel(ctx context.Context, tenantID, id string) error {
-	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.DeleteChannel")
-	defer span.End()
-
-	return s.repo.DeleteChannel(ctx, tenantID, id)
+	return s.channelSvc.DeleteChannel(ctx, tenantID, id)
 }
 
 // ---- Settings Operations ----

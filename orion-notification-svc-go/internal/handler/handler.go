@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"orion/notification-svc-go/internal/models"
 	"orion/notification-svc-go/internal/service"
@@ -34,21 +33,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	n.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
 	n.POST("/:id/read", auth.RequirePermission("notification", "write"), h.MarkAsRead)
 	n.POST("/broadcast", auth.RequirePermission("notification", "write"), h.Broadcast)
-
-	// Templates
-	t := rg.Group("/templates")
-	t.POST("", auth.RequirePermission("notification", "write"), h.CreateTemplate)
-	t.GET("", h.ListTemplates)
-	t.GET("/:id", h.GetTemplate)
-	t.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.DeleteTemplate)
-
-	// Channels
-	c := rg.Group("/channels")
-	c.POST("", auth.RequirePermission("notification", "write"), h.CreateChannel)
-	c.GET("", h.ListChannels)
-	c.GET("/:id", h.GetChannel)
-	c.PUT("/:id", auth.RequirePermission("notification", "write"), h.UpdateChannel)
-	c.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.DeleteChannel)
 
 	// Settings
 	s := rg.Group("/settings")
@@ -191,120 +175,6 @@ func (h *Handler) Count(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"count": count})
 }
 
-// ---- Template Handlers ----
-
-// CreateTemplate handles POST /templates.
-func (h *Handler) CreateTemplate(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	var t models.NotificationTemplate
-	if err := c.ShouldBindJSON(&t); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.svc.CreateTemplate(c.Request.Context(), tenantID, &t); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"data": t})
-}
-
-// ListTemplates handles GET /templates.
-func (h *Handler) ListTemplates(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListTemplates(c.Request.Context(), tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
-}
-
-// GetTemplate handles GET /templates/:id.
-func (h *Handler) GetTemplate(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	t, err := h.svc.GetTemplate(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
-}
-
-// DeleteTemplate handles DELETE /templates/:id.
-func (h *Handler) DeleteTemplate(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteTemplate(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
-}
-
-// ---- Channel Handlers ----
-
-// CreateChannel handles POST /channels.
-func (h *Handler) CreateChannel(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	var ch models.NotificationChannel
-	if err := c.ShouldBindJSON(&ch); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	if err := h.svc.CreateChannel(c.Request.Context(), tenantID, &ch); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"data": ch})
-}
-
-// ListChannels handles GET /channels.
-func (h *Handler) ListChannels(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListChannels(c.Request.Context(), tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
-}
-
-// GetChannel handles GET /channels/:id.
-func (h *Handler) GetChannel(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	ch, err := h.svc.GetChannel(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "channel not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": ch})
-}
-
-// UpdateChannel handles PUT /channels/:id.
-func (h *Handler) UpdateChannel(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	var ch models.NotificationChannel
-	if err := c.ShouldBindJSON(&ch); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	ch.ID = c.Param("id")
-	if err := h.svc.UpdateChannel(c.Request.Context(), tenantID, &ch); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"data": ch})
-}
-
-// DeleteChannel handles DELETE /channels/:id.
-func (h *Handler) DeleteChannel(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteChannel(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
-}
-
 // ---- Settings Handlers ----
 
 // GetSettings handles GET /settings - get notification preferences for a user.
@@ -403,14 +273,4 @@ func (h *Handler) Unsubscribe(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "unsubscribed"})
-}
-
-// helper for string pointer
-func strPtr(s string) *string {
-	if s == "" {
-		return nil
-	}
-	v, _ := strconv.Atoi(s)
-	_ = v
-	return &s
 }
