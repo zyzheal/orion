@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"context"
 )
 
 // NotificationStatus represents the lifecycle state of a notification.
@@ -334,6 +336,85 @@ type UpdateWorkflowRequest struct {
 	Description *string        `json:"description"`
 	Steps       []WorkflowStep `json:"steps"`
 	Enabled     *bool          `json:"enabled"`
+}
+
+// ============================================================
+// Delivery Models
+// ============================================================
+
+// DeliveryStatus represents the status of a notification delivery.
+type DeliveryStatus string
+
+const (
+	DeliveryStatusPending   DeliveryStatus = "pending"
+	DeliveryStatusSent      DeliveryStatus = "sent"
+	DeliveryStatusFailed    DeliveryStatus = "failed"
+	DeliveryStatusRetrying  DeliveryStatus = "retrying"
+	DeliveryStatusExhausted DeliveryStatus = "exhausted"
+)
+
+// DeliveryChannel identifies a delivery channel.
+type DeliveryChannel string
+
+const (
+	DeliveryChannelEmail   DeliveryChannel = "email"
+	DeliveryChannelSMS     DeliveryChannel = "sms"
+	DeliveryChannelWebhook DeliveryChannel = "webhook"
+	DeliveryChannelPush    DeliveryChannel = "push"
+	DeliveryChannelInApp   DeliveryChannel = "in-app"
+)
+
+// NotificationDelivery tracks individual channel delivery attempts.
+type NotificationDelivery struct {
+	ID              string         `db:"id" json:"id"`
+	TenantID        string         `db:"tenant_id" json:"tenantId"`
+	NotificationID  string         `db:"notification_id" json:"notificationId"`
+	Channel         DeliveryChannel `db:"channel" json:"channel"`
+	Recipient       string         `db:"recipient" json:"recipient"`
+	Subject         *string        `db:"subject" json:"subject"`
+	Body            *string        `db:"body" json:"body"`
+	Status          DeliveryStatus `db:"status" json:"status"`
+	AttemptNumber   int            `db:"attempt_number" json:"attemptNumber"`
+	MaxAttempts     int            `db:"max_attempts" json:"maxAttempts"`
+	ErrorMessage    *string        `db:"error_message" json:"errorMessage"`
+	ResponseBody    *string        `db:"response_body" json:"responseBody"`
+	ResponseStatus  *int           `db:"response_status" json:"responseStatus"`
+	SentAt          *time.Time     `db:"sent_at" json:"sentAt"`
+	NextRetryAt     *time.Time     `db:"next_retry_at" json:"nextRetryAt"`
+	FallbackChannel *string        `db:"fallback_channel" json:"fallbackChannel"`
+	Metadata        JSONB          `db:"metadata" json:"metadata"`
+	CreatedAt       time.Time      `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time      `db:"updated_at" json:"updatedAt"`
+}
+
+// CreateDeliveryInput is the payload for creating a delivery record.
+type CreateDeliveryInput struct {
+	NotificationID  string                 `json:"notificationId"`
+	Channel         DeliveryChannel        `json:"channel"`
+	Recipient       string                 `json:"recipient"`
+	Subject         *string                `json:"subject"`
+	Body            *string                `json:"body"`
+	MaxAttempts     int                    `json:"maxAttempts"`
+	FallbackChannel *string                `json:"fallbackChannel"`
+	Metadata        map[string]interface{} `json:"metadata"`
+}
+
+// UpdateDeliveryInput is the payload for updating delivery status.
+type UpdateDeliveryInput struct {
+	Status         *DeliveryStatus `json:"status"`
+	AttemptNumber  *int            `json:"attemptNumber"`
+	ErrorMessage   *string         `json:"errorMessage"`
+	ResponseBody   *string         `json:"responseBody"`
+	ResponseStatus *int            `json:"responseStatus"`
+	SentAt         *time.Time      `json:"sentAt"`
+	NextRetryAt    *time.Time      `json:"nextRetryAt"`
+	Metadata       JSONB           `json:"metadata"`
+}
+
+// ChannelExecutor executes delivery for a specific channel.
+type ChannelExecutor interface {
+	Channel() DeliveryChannel
+	Execute(ctx context.Context, delivery *NotificationDelivery) (success bool, responseStatus int, responseBody string, err error)
 }
 
 // ============================================================

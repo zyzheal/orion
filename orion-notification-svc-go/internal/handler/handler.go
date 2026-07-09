@@ -55,6 +55,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	s.GET("", h.GetSettings)
 	s.PUT("", auth.RequirePermission("notification", "write"), h.UpdateSettings)
 
+	// Settings by user_id (frontend compatibility)
+	s2 := rg.Group("/notifications/settings")
+	s2.GET("/:user_id", h.GetSettings)
+	s2.PUT("/:user_id", auth.RequirePermission("notification", "write"), h.UpdateSettings)
+
 	// Subscriptions
 	sub := rg.Group("/subscriptions")
 	sub.GET("", h.GetSubscriptions)
