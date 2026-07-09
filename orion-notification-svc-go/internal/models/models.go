@@ -485,6 +485,30 @@ type ParsedCronSchedule struct {
 }
 
 // ============================================================
+// Do Not Disturb Models
+// ============================================================
+
+// DoNotDisturb represents a user's do-not-disturb settings.
+type DoNotDisturb struct {
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenantId"`
+	UserID    string    `db:"user_id" json:"userId"`
+	StartTime time.Time `db:"start_time" json:"startTime"`
+	EndTime   time.Time `db:"end_time" json:"endTime"`
+	Reason    *string   `db:"reason" json:"reason"`
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
+}
+
+// CreateDoNotDisturbInput is the payload for creating/updating DND settings.
+type CreateDoNotDisturbInput struct {
+	UserID    string    `json:"userId" binding:"required"`
+	StartTime time.Time `json:"startTime" binding:"required"`
+	EndTime   time.Time `json:"endTime" binding:"required"`
+	Reason    *string   `json:"reason"`
+}
+
+// ============================================================
 // JSONB Helpers
 // ============================================================
 
