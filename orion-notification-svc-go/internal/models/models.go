@@ -217,3 +217,161 @@ type SubscribeRequest struct {
 	Channel string `json:"channel" binding:"required"`
 	Enabled bool   `json:"enabled"`
 }
+
+// ============================================================
+// Policy / Workflow Models
+// ============================================================
+
+// PolicyConditionOperator represents a comparison operator for policy conditions.
+type PolicyConditionOperator string
+
+const (
+	PolicyOpEQ        PolicyConditionOperator = "eq"
+	PolicyOpNEQ       PolicyConditionOperator = "neq"
+	PolicyOpContains  PolicyConditionOperator = "contains"
+	PolicyOpGT        PolicyConditionOperator = "gt"
+	PolicyOpLT        PolicyConditionOperator = "lt"
+	PolicyOpGTE       PolicyConditionOperator = "gte"
+	PolicyOpLTE       PolicyConditionOperator = "lte"
+	PolicyOpIn        PolicyConditionOperator = "in"
+	PolicyOpRegex     PolicyConditionOperator = "regex"
+)
+
+// PolicyCondition represents a single condition in a notification policy.
+type PolicyCondition struct {
+	Field    string                 `db:"-" json:"field"`
+	Operator PolicyConditionOperator `db:"-" json:"operator"`
+	Value    interface{}            `db:"-" json:"value"`
+}
+
+// WorkflowStepType represents the type of a workflow step.
+type WorkflowStepType string
+
+const (
+	StepTypeNotify   WorkflowStepType = "notify"
+	StepTypeWait     WorkflowStepType = "wait"
+	StepTypeEscalate WorkflowStepType = "escalate"
+	StepTypeWebhook  WorkflowStepType = "webhook"
+)
+
+// WorkflowStep represents a single step in a notification workflow.
+type WorkflowStep struct {
+	ID    string                 `db:"-" json:"id"`
+	Name  string                 `db:"-" json:"name"`
+	Type  WorkflowStepType       `db:"-" json:"type"`
+	Config map[string]interface{} `db:"-" json:"config"`
+	Order int                    `db:"-" json:"order"`
+}
+
+// NotificationPolicyEntity represents a notification policy record.
+type NotificationPolicyEntity struct {
+	ID              string            `db:"id" json:"id"`
+	TenantID        string            `db:"tenant_id" json:"tenantId"`
+	Name            string            `db:"name" json:"name"`
+	Description     *string           `db:"description" json:"description"`
+	Conditions      []PolicyCondition `db:"-" json:"conditions"`
+	Channels        []string          `db:"-" json:"channels"`
+	Recipients      []string          `db:"-" json:"recipients"`
+	ThrottleMinutes int               `db:"throttle_minutes" json:"throttleMinutes"`
+	Enabled         bool              `db:"enabled" json:"enabled"`
+	CreatedBy       *string           `db:"created_by" json:"createdBy"`
+	CreatedAt       time.Time         `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time         `db:"updated_at" json:"updatedAt"`
+}
+
+// NotificationWorkflowEntity represents a notification workflow record.
+type NotificationWorkflowEntity struct {
+	ID          string            `db:"id" json:"id"`
+	TenantID    string            `db:"tenant_id" json:"tenantId"`
+	Name        string            `db:"name" json:"name"`
+	Description *string           `db:"description" json:"description"`
+	PolicyID    string            `db:"policy_id" json:"policyId"`
+	Steps       []WorkflowStep    `db:"-" json:"steps"`
+	Enabled     bool              `db:"enabled" json:"enabled"`
+	CreatedBy   *string           `db:"created_by" json:"createdBy"`
+	CreatedAt   time.Time         `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time         `db:"updated_at" json:"updatedAt"`
+}
+
+// ============================================================
+// DTOs
+// ============================================================
+
+// CreatePolicyRequest is the payload for creating a notification policy.
+type CreatePolicyRequest struct {
+	Name           string             `json:"name" binding:"required"`
+	Description    *string            `json:"description"`
+	Conditions     []PolicyCondition  `json:"conditions"`
+	Channels       []string           `json:"channels"`
+	Recipients     []string           `json:"recipients"`
+	ThrottleMinutes int               `json:"throttleMinutes"`
+	Enabled        *bool              `json:"enabled"`
+}
+
+// UpdatePolicyRequest is the payload for updating a notification policy.
+type UpdatePolicyRequest struct {
+	Name           *string            `json:"name"`
+	Description    *string            `json:"description"`
+	Conditions     []PolicyCondition  `json:"conditions"`
+	Channels       []string           `json:"channels"`
+	Recipients     []string           `json:"recipients"`
+	ThrottleMinutes *int              `json:"throttleMinutes"`
+	Enabled        *bool              `json:"enabled"`
+}
+
+// CreateWorkflowRequest is the payload for creating a notification workflow.
+type CreateWorkflowRequest struct {
+	Name        string         `json:"name" binding:"required"`
+	Description *string        `json:"description"`
+	PolicyID    string         `json:"policyId" binding:"required"`
+	Steps       []WorkflowStep `json:"steps" binding:"required,min=1"`
+	Enabled     *bool          `json:"enabled"`
+}
+
+// UpdateWorkflowRequest is the payload for updating a notification workflow.
+type UpdateWorkflowRequest struct {
+	Name        *string         `json:"name"`
+	Description *string        `json:"description"`
+	Steps       []WorkflowStep `json:"steps"`
+	Enabled     *bool          `json:"enabled"`
+}
+
+// ============================================================
+// JSONB Helpers
+// ============================================================
+
+// ParseJSONB unmarshals a JSONB value into a typed slice.
+func ParseJSONB(value interface{}, dest interface{}) error {
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, dest)
+	case string:
+		if v == "" {
+			return nil
+		}
+		return json.Unmarshal([]byte(v), dest)
+	case JSONB:
+		b, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		return json.Unmarshal(b, dest)
+	case nil:
+		return nil
+	default:
+		return fmt.Errorf("cannot unmarshal %T into JSONB", value)
+	}
+}
+
+// MustMarshalJSONB marshals a value to JSONB, returning nil on failure.
+func MustMarshalJSONB(v interface{}) JSONB {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return nil
+	}
+	var result JSONB
+	if err := json.Unmarshal(b, &result); err != nil {
+		return nil
+	}
+	return result
+}

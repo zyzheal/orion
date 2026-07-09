@@ -50,7 +50,10 @@ func main() {
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
+	policyRepo := repository.NewPolicyRepository(db)
+	policySvc := service.NewPolicyService(policyRepo, logger)
 	h := handler.NewHandler(svc)
+	policyHandler := handler.NewPolicyHandler(policySvc)
 
 	// NATS JetStream subscriber
 	var natsSub *nats_subscriber.NATSSubscriber
@@ -75,6 +78,7 @@ func main() {
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
+	policyHandler.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-notification-svc"))
 
