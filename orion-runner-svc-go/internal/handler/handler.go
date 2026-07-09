@@ -74,6 +74,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	jobs.POST("/:id/start", auth.RequirePermission("runner", "execute"), h.MarkJobStarted)
 	jobs.POST("/:id/complete", auth.RequirePermission("runner", "execute"), h.MarkJobComplete)
 	jobs.POST("/:id/fail", auth.RequirePermission("runner", "write"), h.MarkJobFailed)
+
+	// Runner job result callback — Runner agent reports job result (Node.js compatible)
+	// POST /runners/:runnerId/jobs/:jobId/result — accepts {status: 'completed'|'failed', result?, error?}
+	runners.POST("/:runnerId/jobs/:jobId/result", auth.RequirePermission("runner", "write"), h.ReportJobResult)
 }
 
 // ==================== Runner Endpoints ====================
@@ -517,4 +521,50 @@ func (h *Handler) MarkJobFailed(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, job)
+}
+
+// ReportJobResult is the Runner agent callback endpoint — Node.js compatible.
+// POST /runners/:runnerId/jobs/:jobId/result
+// Body: {status: 'completed'|'failed', result?: map, error?: string}
+func (h *Handler) ReportJobResult(c *gin.Context) {
+	var req struct {
+		Status string                 `json:"status" binding:"required"`
+		Result map[string]interface{} `json:"result"`
+		Error  string                 `json:"error"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing status field"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	jobID := c.Param("jobId")
+	runnerID := c.Param("runnerId")
+
+	if req.Status == "completed" {
+		if req.Result == nil {
+			req.Result = map[string]interface{}{}
+		}
+		job, err := h.svc.MarkJobComplete(ctx, jobID, req.Result)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "jobId": job.ID})
+	} else if req.Status == "failed" {
+		errMsg := req.Error
+		if errMsg == "" {
+			errMsg = "Unknown error"
+		}
+		if _, err := h.svc.MarkJobFailed(ctx, jobID, errMsg); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "jobId": jobID})
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'completed' or 'failed'"})
+		return
+	}
+
+	_ = runnerID
 }
