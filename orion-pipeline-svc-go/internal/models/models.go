@@ -23,6 +23,7 @@ const (
 	StatusFailed    PipelineRunStatus = "failed"
 	StatusCancelled PipelineRunStatus = "cancelled"
 	StatusTimeout   PipelineRunStatus = "timeout"
+	StatusPaused    PipelineRunStatus = "paused"
 )
 
 // StageStatus represents the lifecycle of a stage.
@@ -180,10 +181,10 @@ type PipelineStats struct {
 
 // RunLogEntry represents a single log line from a pipeline run.
 type RunLogEntry struct {
-	StageName string  `json:"stage_name"`
-	Logs      *string `json:"logs,omitempty"`
-	Status    string  `json:"status"`
-	StartedAt *time.Time `json:"started_at,omitempty"`
+	StageName   string     `json:"stage_name"`
+	Logs        *string    `json:"logs,omitempty"`
+	Status      string     `json:"status"`
+	StartedAt   *time.Time `json:"started_at,omitempty"`
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }
 
@@ -191,4 +192,159 @@ type RunLogEntry struct {
 type RunListResponse struct {
 	Data  []PipelineRun `json:"data"`
 	Total int           `json:"total"`
+}
+
+// ==================== Phase Group & Batch Models ====================
+
+// PhaseGroup represents a group of pipeline phases for batch execution.
+type PhaseGroup struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	PipelineIDs string    `db:"pipeline_ids" json:"pipeline_ids"`
+	Config      string    `db:"config" json:"config"`
+	Status      string    `db:"status" json:"status"`
+	CreatedBy   string    `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// PhaseGroupRun records a single execution of a phase group.
+type PhaseGroupRun struct {
+	ID           string     `db:"id" json:"id"`
+	PhaseGroupID string     `db:"phase_group_id" json:"phase_group_id"`
+	TenantID     string     `db:"tenant_id" json:"tenant_id"`
+	PipelineIDs  string     `db:"pipeline_ids" json:"pipeline_ids"`
+	Status       string     `db:"status" json:"status"`
+	StartedAt    *time.Time `db:"started_at" json:"started_at,omitempty"`
+	CompletedAt  *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+	DurationMs   int64      `db:"duration_ms" json:"duration_ms"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+}
+
+// BatchRun represents a one-time batch execution of pipelines.
+type BatchRun struct {
+	ID          string     `db:"id" json:"id"`
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	PipelineIDs string     `db:"pipeline_ids" json:"pipeline_ids"`
+	Count       int        `db:"count" json:"count"`
+	Status      string     `db:"status" json:"status"`
+	StartedAt   *time.Time `db:"started_at" json:"started_at,omitempty"`
+	CompletedAt *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+	DurationMs  int64      `db:"duration_ms" json:"duration_ms"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+}
+
+// CreatePhaseGroupRequest is the input for creating a phase group.
+type CreatePhaseGroupRequest struct {
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
+	PipelineIDs []string `json:"pipeline_ids" binding:"required"`
+	Config      string   `json:"config"`
+}
+
+// UpdatePhaseGroupRequest is the input for updating a phase group.
+type UpdatePhaseGroupRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	PipelineIDs []string `json:"pipeline_ids"`
+	Config      *string  `json:"config"`
+}
+
+// CreateBatchRunRequest is the input for creating a batch run.
+type CreateBatchRunRequest struct {
+	PipelineIDs []string `json:"pipeline_ids" binding:"required"`
+}
+
+// ==================== Autonomous Pipeline Models ====================
+
+// ErrorClassificationRule defines a rule for classifying pipeline errors.
+type ErrorClassificationRule struct {
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	PipelineID string    `db:"pipeline_id" json:"pipeline_id"`
+	Name       string    `db:"name" json:"name"`
+	Pattern    string    `db:"pattern" json:"pattern"`
+	Category   string    `db:"category" json:"category"`
+	Action     string    `db:"action" json:"action"`
+	Priority   int       `db:"priority" json:"priority"`
+	Enabled    bool      `db:"enabled" json:"enabled"`
+	CreatedBy  string    `db:"created_by" json:"created_by"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// AdaptiveTimeoutConfig defines adaptive timeout configuration.
+type AdaptiveTimeoutConfig struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	PipelineID  string    `db:"pipeline_id" json:"pipeline_id"`
+	MinTimeout  int       `db:"min_timeout" json:"min_timeout"`
+	MaxTimeout  int       `db:"max_timeout" json:"max_timeout"`
+	Strategy    string    `db:"strategy" json:"strategy"`
+	Multiplier  float64   `db:"multiplier" json:"multiplier"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedBy   string    `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// AutoRetryStrategy defines automatic retry configuration.
+type AutoRetryStrategy struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	PipelineID  string    `db:"pipeline_id" json:"pipeline_id"`
+	MaxRetries  int       `db:"max_retries" json:"max_retries"`
+	Backoff     string    `db:"backoff" json:"backoff"`
+	Conditions  string    `db:"conditions" json:"conditions"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedBy   string    `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// SelfHealingRequest is the input for triggering self-healing.
+type SelfHealingRequest struct {
+	RunID      string `json:"run_id" binding:"required"`
+	PipelineID string `json:"pipeline_id" binding:"required"`
+	Action     string `json:"action" binding:"required"`
+	Reason     string `json:"reason"`
+	StageName  string `json:"stage_name"`
+}
+
+// SelfHealingStatus represents the result of a self-healing operation.
+type SelfHealingStatus struct {
+	ID         string     `db:"id" json:"id"`
+	TenantID   string     `db:"tenant_id" json:"tenant_id"`
+	RunID      string     `db:"run_id" json:"run_id"`
+	PipelineID string     `db:"pipeline_id" json:"pipeline_id"`
+	Action     string     `db:"action" json:"action"`
+	Status     string     `db:"status" json:"status"`
+	Message    string     `db:"message" json:"message"`
+	StageName  string     `db:"stage_name" json:"stage_name"`
+	CreatedBy  string     `db:"created_by" json:"created_by"`
+	CreatedAt  time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time  `db:"updated_at" json:"updated_at"`
+	CompletedAt *time.Time `db:"completed_at" json:"completed_at,omitempty"`
+}
+
+// Checkpoint represents a pipeline execution checkpoint.
+type Checkpoint struct {
+	ID        string    `db:"id" json:"id"`
+	RunID     string    `db:"run_id" json:"run_id"`
+	StageID   string    `db:"stage_id" json:"stage_id"`
+	Name      string    `db:"name" json:"name"`
+	Data      string    `db:"data" json:"data"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+// ControlLog records an execution control action.
+type ControlLog struct {
+	ID        string    `db:"id" json:"id"`
+	RunID     string    `db:"run_id" json:"run_id"`
+	Action    string    `db:"action" json:"action"`
+	UserID    string    `db:"user_id" json:"user_id"`
+	Message   string    `db:"message" json:"message"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }

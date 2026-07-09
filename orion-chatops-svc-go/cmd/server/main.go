@@ -67,7 +67,7 @@ func main() {
 	messageSvc := service.NewMessageService(webhookSvc)
 	configSvc := service.NewConfigService(repo)
 	commandSvc := service.NewCommandService(repo, rateLimitSvc, auditSvc)
-
+adminSvc := service.NewAdminService()
 	// New handlers
 	commandH := handler.NewCommandHandler(commandSvc)
 	webhookH := handler.NewWebhookHandler(webhookSvc)
@@ -77,7 +77,7 @@ func main() {
 	recommendationH := handler.NewRecommendationHandler(recommendationSvc)
 	messageH := handler.NewMessageHandler(messageSvc)
 	configH := handler.NewConfigHandler(configSvc)
-
+adminH := handler.NewAdminHandler(adminSvc)
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -98,7 +98,7 @@ func main() {
 	recommendationH.RegisterRoutes(rg)
 	messageH.RegisterRoutes(rg)
 	configH.RegisterRoutes(rg)
-
+adminH.RegisterRoutes(rg)
 	r.GET("/healthz", middleware.HealthCheck("orion-chatops-svc"))
 
 	// Initialize NATS JetStream subscriber (for consuming events)

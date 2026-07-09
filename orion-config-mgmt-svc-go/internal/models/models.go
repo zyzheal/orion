@@ -159,3 +159,19 @@ func (p *PaginatedRequest) Limit() int {
 	}
 	return p.PageSize
 }
+
+// JSONBFromSlice converts a string slice into a JSONB map via JSON marshaling.
+func JSONBFromSlice(s []string) (JSONB, error) {
+	if s == nil {
+		return nil, nil
+	}
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	var j JSONB
+	if err := json.Unmarshal(data, &j); err != nil {
+		return nil, err
+	}
+	return j, nil
+}

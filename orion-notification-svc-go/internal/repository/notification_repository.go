@@ -185,6 +185,15 @@ func (r *Repository) DeleteTemplate(ctx context.Context, tenantID, id string) er
 	return err
 }
 
+// UpdateTemplate updates an existing notification template.
+func (r *Repository) UpdateTemplate(ctx context.Context, tenantID, id string, t *models.NotificationTemplate) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE notification_templates SET name=$1, channel=$2, subject=$3, body=$4 WHERE id=$5 AND tenant_id=$6`,
+		t.Name, t.Channel, t.Subject, t.Body, id, tenantID,
+	)
+	return err
+}
+
 // ---- Channel CRUD ----
 
 // CreateChannel inserts a new notification channel configuration.

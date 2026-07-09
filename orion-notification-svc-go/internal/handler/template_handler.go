@@ -29,6 +29,7 @@ func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		t.POST("", h.Create)
 		t.GET("", h.List)
 		t.GET("/:id", h.Get)
+		t.PUT("/:id", h.Update)
 		t.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
 	}
 }
@@ -65,6 +66,24 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 	t, err := h.templateSvc.GetTemplate(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": t})
+}
+
+// Update handles PUT /templates/:id - update an existing template.
+func (h *TemplateHandler) Update(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	var t models.NotificationTemplate
+	if err := c.ShouldBindJSON(&t); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.templateSvc.UpdateTemplate(c.Request.Context(), tenantID, id, &t); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": t})

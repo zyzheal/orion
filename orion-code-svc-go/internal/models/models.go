@@ -305,7 +305,146 @@ type CreateCommitStatusRequest struct {
 
 // CommitReadiness is the result of checking whether all statuses pass.
 type CommitReadiness struct {
-	Ready         bool           `json:"ready"`
-	Statuses      []CommitStatus `json:"statuses"`
-	FailedContexts []string      `json:"failed_contexts"`
+	Ready          bool           `json:"ready"`
+	Statuses       []CommitStatus `json:"statuses"`
+	FailedContexts []string       `json:"failed_contexts"`
+}
+
+// ==================== Code Branches ====================
+
+// CodeBranch represents a cached branch from a Git provider.
+type CodeBranch struct {
+	ID        string    `db:"id" json:"id"`
+	RepoID    string    `db:"repo_id" json:"repo_id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Name      string    `db:"name" json:"name"`
+	IsDefault bool      `db:"is_default" json:"is_default"`
+	CommitSHA string    `db:"commit_sha" json:"commit_sha,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// SyncBranchesRequest is the request to sync branches from a Git provider.
+type SyncBranchesRequest struct {
+	Branches []SyncBranchItem `json:"branches" binding:"required"`
+}
+
+type SyncBranchItem struct {
+	Name      string `json:"name"`
+	CommitSHA string `json:"commit_sha"`
+	IsDefault bool   `json:"is_default"`
+}
+
+// ==================== Code Commits ====================
+
+// CodeCommit represents a single git commit.
+type CodeCommit struct {
+	ID           string    `db:"id" json:"id"`
+	RepoID       string    `db:"repo_id" json:"repo_id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	SHA          string    `db:"sha" json:"sha"`
+	Message      string    `db:"message" json:"message,omitempty"`
+	AuthorName   string    `db:"author_name" json:"author_name,omitempty"`
+	AuthorEmail  string    `db:"author_email" json:"author_email,omitempty"`
+	CommittedAt  time.Time `db:"committed_at" json:"committed_at,omitempty"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+}
+
+// SyncCommitsRequest is the request to sync commits from a Git provider.
+type SyncCommitsRequest struct {
+	Commits []SyncCommitItem `json:"commits" binding:"required"`
+}
+
+type SyncCommitItem struct {
+	SHA          string    `json:"sha"`
+	Message      string    `json:"message"`
+	AuthorName   string    `json:"author_name"`
+	AuthorEmail  string    `json:"author_email"`
+	CommittedAt  time.Time `json:"committed_at"`
+}
+
+// ==================== Code Pull Requests ====================
+
+// CodePullRequest represents a pull request / merge request.
+type CodePullRequest struct {
+	ID           string    `db:"id" json:"id"`
+	RepoID       string    `db:"repo_id" json:"repo_id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	Number       int       `db:"number" json:"number"`
+	Title        string    `db:"title" json:"title"`
+	Description  string    `db:"description" json:"description,omitempty"`
+	SourceBranch string    `db:"source_branch" json:"source_branch,omitempty"`
+	TargetBranch string    `db:"target_branch" json:"target_branch,omitempty"`
+	State        string    `db:"state" json:"state"`
+	Author       string    `db:"author" json:"author,omitempty"`
+	CommitSHA    string    `db:"commit_sha" json:"commit_sha,omitempty"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// SyncPullRequestsRequest is the request to sync pull requests from a Git provider.
+type SyncPullRequestsRequest struct {
+	PullRequests []SyncPRItem `json:"pull_requests" binding:"required"`
+}
+
+type SyncPRItem struct {
+	Number       int    `json:"number"`
+	Title        string `json:"title"`
+	Description  string `json:"description"`
+	SourceBranch string `json:"source_branch"`
+	TargetBranch string `json:"target_branch"`
+	State        string `json:"state"`
+	Author       string `json:"author"`
+	CommitSHA    string `json:"commit_sha"`
+}
+
+// ==================== Code Reviews ====================
+
+// CodeReview represents a code review on a pull request.
+type CodeReview struct {
+	ID        string    `db:"id" json:"id"`
+	PRID      string    `db:"pr_id" json:"pr_id"`
+	RepoID    string    `db:"repo_id" json:"repo_id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Reviewer  string    `db:"reviewer" json:"reviewer"`
+	State     string    `db:"state" json:"state"`
+	Content   string    `db:"content" json:"content,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateReviewRequest struct {
+	PRID     string `json:"pr_id" binding:"required"`
+	RepoID   string `json:"repo_id" binding:"required"`
+	Reviewer string `json:"reviewer" binding:"required"`
+	State    string `json:"state" binding:"required"`
+	Content  string `json:"content"`
+}
+
+type ReviewApproveRequest struct {
+	Content string `json:"content"`
+}
+
+// ==================== Code Builds ====================
+
+// CodeBuild represents a CI/CD build for a repository.
+type CodeBuild struct {
+	ID          string     `db:"id" json:"id"`
+	RepoID      string     `db:"repo_id" json:"repo_id"`
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	CommitSHA   string     `db:"commit_sha" json:"commit_sha,omitempty"`
+	Branch      string     `db:"branch" json:"branch,omitempty"`
+	Status      string     `db:"status" json:"status"`
+	TriggeredBy string     `db:"triggered_by" json:"triggered_by,omitempty"`
+	StartedAt   *time.Time `db:"started_at" json:"started_at,omitempty"`
+	FinishedAt  *time.Time `db:"finished_at" json:"finished_at,omitempty"`
+	CreatedAt   time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+type CreateBuildRequest struct {
+	RepoID    string `json:"repo_id" binding:"required"`
+	CommitSHA string `json:"commit_sha"`
+	Branch    string `json:"branch"`
+	Status    string `json:"status"`
 }

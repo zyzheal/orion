@@ -78,13 +78,19 @@ func main() {
 	featureFlagSvc := service.NewFeatureFlagService(repo)
 	gitSyncSvc := service.NewGitSyncService(repo)
 	approvalSvc := service.NewApprovalService(repo, configSvc)
-
+	snapshotSvc := service.NewSnapshotService(repo)
+	canarySvc := service.NewCanaryService(repo)
+templateSvc := service.NewTemplateService(repo)
+webhookSvc := service.NewWebhookService(repo)
 	// New handlers
 	driftH := handler.NewDriftHandler(driftSvc)
 	featureFlagH := handler.NewFeatureFlagHandler(featureFlagSvc)
 	gitSyncH := handler.NewGitSyncHandler(gitSyncSvc)
 	approvalH := handler.NewApprovalHandler(approvalSvc)
-
+	snapshotH := handler.NewSnapshotHandler(snapshotSvc)
+	canaryH := handler.NewCanaryHandler(canarySvc)
+		templateH := handler.NewTemplateHandler(templateSvc)
+		webhookH := handler.NewWebhookHandler(webhookSvc)
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -101,7 +107,10 @@ func main() {
 	featureFlagH.RegisterRoutes(rg)
 	gitSyncH.RegisterRoutes(rg)
 	approvalH.RegisterRoutes(rg)
-
+	snapshotH.RegisterRoutes(rg)
+	canaryH.RegisterRoutes(rg)
+		templateH.RegisterRoutes(rg)
+		webhookH.RegisterRoutes(rg)
 	r.GET("/healthz", middleware.HealthCheck("orion-config-mgmt-svc"))
 
 	addr := fmt.Sprintf(":%d", cfg.Port)

@@ -68,6 +68,8 @@ func main() {
 	runRepo := repository.NewRunRepository(db.DB)
 	stageRepo := repository.NewStageRepository(db.DB)
 	taskRepo := repository.NewTaskRepository(db.DB)
+	budgetRepo := repository.NewBudgetRepository(db.DB)
+	auditLogRepo := repository.NewAuditLogRepository(db.DB)
 
 	pipelineEngine := engine.NewPipelineEngine(engine.EngineDeps{
 		PipelineRepo: pipelineRepo,
@@ -83,7 +85,13 @@ func main() {
 	versionSvc := service.NewVersionService(db.DB)
 	rbacSvc := service.NewRBACService(db.DB)
 	approvalGateSvc := service.NewApprovalGateService(db.DB)
+	batchSvc := service.NewBatchService(db.DB)
 	sseSvc := service.NewSSEService()
+	budgetSvc := service.NewBudgetService(budgetRepo)
+	auditLogSvc := service.NewAuditLogService(auditLogRepo)
+	graphSvc := service.NewGraphService(pipelineSvc)
+	autonomousSvc := service.NewAutonomousService(db.DB, pipelineSvc)
+	controlSvc := service.NewControlService(db.DB, pipelineSvc)
 
 	// NATS subscriber (graceful degradation)
 	var natsSub *nats.NATSSubscriber
@@ -106,7 +114,13 @@ func main() {
 	versionHandler := handler.NewVersionHandler(versionSvc)
 	rbacHandler := handler.NewRBACHandler(rbacSvc)
 	approvalGateHandler := handler.NewApprovalGateHandler(approvalGateSvc)
+	batchHandler := handler.NewBatchHandler(batchSvc)
 	sseHandler := handler.NewSSEHandler(sseSvc)
+	budgetHandler := handler.NewBudgetHandler(budgetSvc)
+	auditLogHandler := handler.NewAuditLogHandler(auditLogSvc)
+	graphHandler := handler.NewGraphHandler(graphSvc)
+	autonomousHandler := handler.NewAutonomousHandler(autonomousSvc)
+	controlHandler := handler.NewControlHandler(controlSvc)
 
 	r := gin.New()
 	r.Use(middleware.RequestID())
@@ -130,7 +144,13 @@ func main() {
 	versionHandler.RegisterRoutes(v1)
 	rbacHandler.RegisterRoutes(v1)
 	approvalGateHandler.RegisterRoutes(v1)
+	batchHandler.RegisterRoutes(v1)
 	sseHandler.RegisterRoutes(v1)
+	budgetHandler.RegisterRoutes(v1)
+	auditLogHandler.RegisterRoutes(v1)
+	graphHandler.RegisterRoutes(v1)
+	autonomousHandler.RegisterRoutes(v1)
+	controlHandler.RegisterRoutes(v1)
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}
 	go func() {

@@ -440,3 +440,222 @@ type WebhookVerifyResult struct {
 	UserID   string `json:"user_id,omitempty"`
 	Error    string `json:"error,omitempty"`
 }
+
+// ==================== Admin: Capability Mapping ====================
+
+// CapabilityMapping defines which commands are mapped to which capabilities.
+type CapabilityMapping struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Capability  string    `db:"capability" json:"capability"`
+	CommandName string    `db:"command_name" json:"command_name"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateCapabilityMappingRequest struct {
+	Capability  string `json:"capability" binding:"required"`
+	CommandName string `json:"command_name" binding:"required"`
+	Enabled     *bool  `json:"enabled"`
+}
+
+type UpdateCapabilityMappingRequest struct {
+	Capability  *string `json:"capability"`
+	CommandName *string `json:"command_name"`
+	Enabled     *bool   `json:"enabled"`
+}
+
+// ==================== Admin: Approval Config ====================
+
+// ApprovalConfig defines approval rules for a specific capability.
+type ApprovalConfig struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Capability  string    `db:"capability" json:"capability"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	MinApprovers int      `db:"min_approvers" json:"min_approvers"`
+	TimeoutSec  int       `db:"timeout_sec" json:"timeout_sec"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type UpdateApprovalConfigRequest struct {
+	Enabled      *bool `json:"enabled"`
+	MinApprovers *int  `json:"min_approvers"`
+	TimeoutSec   *int  `json:"timeout_sec"`
+}
+
+// ==================== Admin: Approver ====================
+
+// Approver represents a user who can approve operations.
+type Approver struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	UserID      string    `db:"user_id" json:"user_id"`
+	UserName    string    `db:"user_name" json:"user_name"`
+	Level       string    `db:"level" json:"level"`
+	Enabled     bool      `db:"enabled" json:"enabled"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateApproverRequest struct {
+	UserID   string `json:"user_id" binding:"required"`
+	UserName string `json:"user_name" binding:"required"`
+	Level    string `json:"level"`
+}
+
+// ApproverSchedule represents an on-call schedule for approvers.
+type ApproverSchedule struct {
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	UserID    string    `db:"user_id" json:"user_id"`
+	DayOfWeek int       `db:"day_of_week" json:"day_of_week"`
+	StartTime string    `db:"start_time" json:"start_time"`
+	EndTime   string    `db:"end_time" json:"end_time"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type UpdateApproverScheduleRequest struct {
+	UserID    string `json:"user_id" binding:"required"`
+	DayOfWeek int    `json:"day_of_week" binding:"required"`
+	StartTime string `json:"start_time" binding:"required"`
+	EndTime   string `json:"end_time" binding:"required"`
+}
+
+// ==================== Admin: Approval Global Config ====================
+
+// ApprovalGlobalConfig stores tenant-level approval settings.
+type ApprovalGlobalConfig struct {
+	TenantID              string `db:"tenant_id" json:"tenant_id"`
+	DefaultMinApprovers   int    `db:"default_min_approvers" json:"default_min_approvers"`
+	DefaultTimeoutSec     int    `db:"default_timeout_sec" json:"default_timeout_sec"`
+	RequireApprovalForAll bool   `db:"require_approval_for_all" json:"require_approval_for_all"`
+	UpdatedAt             time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type UpdateApprovalGlobalConfigRequest struct {
+	DefaultMinApprovers   *int  `json:"default_min_approvers"`
+	DefaultTimeoutSec     *int  `json:"default_timeout_sec"`
+	RequireApprovalForAll *bool `json:"require_approval_for_all"`
+}
+
+// ==================== Admin: Role ====================
+
+// AdminRole defines a custom role for ChatOps.
+type AdminRole struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	Permissions StringArray `db:"permissions" json:"permissions"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateAdminRoleRequest struct {
+	Name        string      `json:"name" binding:"required"`
+	Description string      `json:"description"`
+	Permissions StringArray `json:"permissions"`
+}
+
+type UpdateAdminRoleRequest struct {
+	Name        *string     `json:"name"`
+	Description *string     `json:"description"`
+	Permissions *StringArray `json:"permissions"`
+}
+
+// ==================== Admin: Command Permission ====================
+
+// CommandPermission defines which roles can execute which commands.
+type CommandPermission struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	CommandName string    `db:"command_name" json:"command_name"`
+	RoleName    string    `db:"role_name" json:"role_name"`
+	Allow       bool      `db:"allow" json:"allow"`
+	Priority    int       `db:"priority" json:"priority"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateCommandPermissionRequest struct {
+	CommandName string `json:"command_name" binding:"required"`
+	RoleName    string `json:"role_name" binding:"required"`
+	Allow       *bool  `json:"allow"`
+	Priority    int    `json:"priority"`
+}
+
+type UpdateCommandPermissionRequest struct {
+	CommandName *string `json:"command_name"`
+	RoleName    *string `json:"role_name"`
+	Allow       *bool   `json:"allow"`
+	Priority    *int    `json:"priority"`
+}
+
+// ==================== Admin: Environment Permission ====================
+
+// EnvironmentPermission defines which roles can access which environments.
+type EnvironmentPermission struct {
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	Environment   string    `db:"environment" json:"environment"`
+	RoleName      string    `db:"role_name" json:"role_name"`
+	Allow         bool      `db:"allow" json:"allow"`
+	Priority      int       `db:"priority" json:"priority"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateEnvironmentPermissionRequest struct {
+	Environment string `json:"environment" binding:"required"`
+	RoleName    string `json:"role_name" binding:"required"`
+	Allow       *bool  `json:"allow"`
+	Priority    int    `json:"priority"`
+}
+
+type UpdateEnvironmentPermissionRequest struct {
+	Environment *string `json:"environment"`
+	RoleName    *string `json:"role_name"`
+	Allow       *bool   `json:"allow"`
+	Priority    *int    `json:"priority"`
+}
+
+// ==================== Admin: Command Version ====================
+
+// CommandVersion stores version history for commands.
+type CommandVersion struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	CommandID   string    `db:"command_id" json:"command_id"`
+	Version     int       `db:"version" json:"version"`
+	SchemaDef   JSONB     `db:"schema_def" json:"schema_def"`
+	Aliases     StringArray `db:"aliases" json:"aliases"`
+	Examples    StringArray `db:"examples" json:"examples"`
+	Tags        StringArray `db:"tags" json:"tags"`
+	CreatedBy   string    `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateCommandVersionRequest struct {
+	CommandID string      `json:"command_id" binding:"required"`
+	SchemaDef JSONB       `json:"schema_def"`
+	Aliases   StringArray `json:"aliases"`
+	Examples  StringArray `json:"examples"`
+	CreatedBy string      `json:"created_by"`
+}
+
+type AddCommandVersionTagRequest struct {
+	Tag string `json:"tag" binding:"required"`
+}
+
+// WebhookTestResult is the result of a webhook test.
+type WebhookTestResult struct {
+	Success      bool   `json:"success"`
+	StatusCode   int    `json:"status_code"`
+	ResponseBody string `json:"response_body"`
+	DurationMs   int64  `json:"duration_ms"`
+}

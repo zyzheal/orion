@@ -58,3 +58,11 @@ func (s *TemplateService) DeleteTemplate(ctx context.Context, tenantID, id strin
 
 	return s.repo.DeleteTemplate(ctx, tenantID, id)
 }
+
+// UpdateTemplate updates an existing template.
+func (s *TemplateService) UpdateTemplate(ctx context.Context, tenantID, id string, t *models.NotificationTemplate) error {
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "TemplateService.Update")
+	defer span.End()
+
+	return s.repo.UpdateTemplate(ctx, tenantID, id, t)
+}

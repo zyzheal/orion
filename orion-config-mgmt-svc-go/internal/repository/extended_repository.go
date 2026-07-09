@@ -194,3 +194,76 @@ func (r *Repository) MarkApprovalApplied(ctx context.Context, tenantID, id strin
 		now, id, tenantID)
 	return err
 }
+
+// ==================== Config Snapshots ====================
+
+func (r *Repository) CreateSnapshot(ctx context.Context, s *models.ConfigSnapshot) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO config_snapshots (id, tenant_id, config_id, version_id, data, description, created_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		s.ID, s.TenantID, s.ConfigID, s.VersionID, s.Data, s.Description, s.CreatedBy)
+	return err
+}
+
+func (r *Repository) ListSnapshots(ctx context.Context, tenantID, configID string, offset, limit int) ([]models.ConfigSnapshot, error) {
+	var items []models.ConfigSnapshot
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM config_snapshots WHERE tenant_id=$1 AND config_id=$2 ORDER BY created_at DESC OFFSET $3 LIMIT $4`,
+		tenantID, configID, offset, limit)
+	return items, err
+}
+
+func (r *Repository) GetSnapshot(ctx context.Context, tenantID, id string) (*models.ConfigSnapshot, error) {
+	var s models.ConfigSnapshot
+	err := r.db.GetContext(ctx, &s,
+		`SELECT * FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *Repository) DeleteSnapshot(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM config_snapshots WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+// ==================== Config Canary ====================
+
+func (r *Repository) CreateCanary(ctx context.Context, c *models.ConfigCanary) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO config_canaries (id, tenant_id, config_id, canary_value, baseline_value, status, created_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		c.ID, c.TenantID, c.ConfigID, c.CanaryValue, c.BaselineValue, c.Status, c.CreatedBy)
+	return err
+}
+
+func (r *Repository) GetCanary(ctx context.Context, tenantID, id string) (*models.ConfigCanary, error) {
+	var c models.ConfigCanary
+	err := r.db.GetContext(ctx, &c,
+		`SELECT * FROM config_canaries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *Repository) GetActiveCanary(ctx context.Context, tenantID, configID string) (*models.ConfigCanary, error) {
+	var c models.ConfigCanary
+	err := r.db.GetContext(ctx, &c,
+		`SELECT * FROM config_canaries WHERE tenant_id=$1 AND config_id=$2 AND status=$3 ORDER BY created_at DESC LIMIT 1`,
+		tenantID, configID, models.CanaryStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *Repository) UpdateCanaryStatus(ctx context.Context, tenantID, id, status string) error {
+	now := time.Now()
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE config_canaries SET status=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4`,
+		status, now, id, tenantID)
+	return err
+}

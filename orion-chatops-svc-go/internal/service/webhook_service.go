@@ -289,3 +289,45 @@ func computeHMAC(body []byte, secret string) string {
 }
 
 func strPtr(s string) *string { return &s }
+
+// Test sends a test payload to a webhook and returns the result.
+func (s *WebhookService) Test(ctx context.Context, tenantID, id string) (map[string]interface{}, error) {
+	wh, err := s.repo.GetWebhook(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	testPayload := map[string]interface{}{
+		"event":     "test",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"payload":   map[string]string{"message": "This is a test webhook notification"},
+	}
+
+	body, _ := json.Marshal(testPayload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, wh.URL, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Webhook-Event", "test")
+	if wh.SecretKey != nil {
+		req.Header.Set("X-Signature-256", computeHMAC(body, *wh.SecretKey))
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return map[string]interface{}{
+			"success": false,
+			"error":   err.Error(),
+		}, nil
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	return map[string]interface{}{
+		"success":    resp.StatusCode >= 200 && resp.StatusCode < 300,
+		"statusCode": resp.StatusCode,
+		"response":   string(respBody),
+	}, nil
+}

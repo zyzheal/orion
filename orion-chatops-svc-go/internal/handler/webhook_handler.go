@@ -88,6 +88,16 @@ func (h *WebhookHandler) GetLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": logs})
 }
 
+func (h *WebhookHandler) Test(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.Test(c.Request.Context(), tenantID, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *WebhookHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	wh := rg.Group("/webhooks")
 	{
@@ -97,5 +107,6 @@ func (h *WebhookHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		wh.PUT("/:id", h.Update)
 		wh.DELETE("/:id", h.Delete)
 		wh.GET("/:id/logs", h.GetLogs)
+		wh.POST("/:id/test", h.Test)
 	}
 }

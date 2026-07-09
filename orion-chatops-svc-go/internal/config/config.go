@@ -20,7 +20,7 @@ type Config struct {
 }
 
 func Load() *Config {
-	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
+	port, _ := strconv.Atoi(getEnv("PORT", "3027"))
 	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 
 	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")

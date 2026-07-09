@@ -163,3 +163,79 @@ type ReviewApprovalRequest struct {
 	ReviewedBy  string `json:"reviewed_by" binding:"required"`
 	Comment     string `json:"comment"`
 }
+
+// ==================== Config Templates ====================
+
+// ConfigTemplate represents a reusable configuration template.
+type ConfigTemplate struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	Content     string    `db:"content" json:"content"`
+	Format      string    `db:"format" json:"format"` // yaml, json, toml, ini, etc.
+	Tags        JSONB     `db:"tags" json:"tags"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateTemplateRequest struct {
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description"`
+	Content     string   `json:"content" binding:"required"`
+	Format      string   `json:"format" binding:"required"`
+	Tags        []string `json:"tags"`
+}
+
+type UpdateTemplateRequest struct {
+	Name        *string  `json:"name"`
+	Description *string  `json:"description"`
+	Content     *string  `json:"content"`
+	Format      *string  `json:"format"`
+	Tags        *[]string `json:"tags"`
+}
+
+// TemplateVersion represents a version of a configuration template.
+type TemplateVersion struct {
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	TemplateID    string    `db:"template_id" json:"template_id"`
+	VersionNumber int       `db:"version_number" json:"version_number"`
+	Content       string    `db:"content" json:"content"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+}
+
+type CreateTemplateVersionRequest struct {
+	Content string `json:"content" binding:"required"`
+}
+
+// ==================== Webhooks ====================
+
+// Webhook represents a configuration webhook target.
+type Webhook struct {
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenant_id"`
+	Name      string    `db:"name" json:"name"`
+	URL       string    `db:"url" json:"url"`
+	Secret    string    `db:"secret" json:"secret"`
+	Events    JSONB     `db:"events" json:"events"` // ["config.created", "config.updated", etc.]
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type CreateWebhookRequest struct {
+	Name    string   `json:"name" binding:"required"`
+	URL     string   `json:"url" binding:"required"`
+	Secret  string   `json:"secret"`
+	Events  []string `json:"events" binding:"required"`
+	Enabled *bool    `json:"enabled"`
+}
+
+type UpdateWebhookRequest struct {
+	Name    *string   `json:"name"`
+	URL     *string   `json:"url"`
+	Secret  *string   `json:"secret"`
+	Events  *[]string `json:"events"`
+	Enabled *bool     `json:"enabled"`
+}
