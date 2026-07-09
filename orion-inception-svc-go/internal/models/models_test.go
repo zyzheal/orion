@@ -2,8 +2,8 @@ package models
 
 import "testing"
 
-func TestInceptionProjectFields(t *testing.T) {
-	d := InceptionProject{ID: "d1", TenantID: "t1"}
+func TestInceptionConfigFields(t *testing.T) {
+	d := InceptionConfig{ID: "d1", TenantID: "t1", Host: "localhost"}
 	if d.TenantID != "t1" { t.Errorf("expected t1, got %s", d.TenantID) }
 }
 

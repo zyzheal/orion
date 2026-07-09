@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("not found")
-	ErrBlacklisted   = errors.New("sql blocked by blacklist")
-	ErrInvalidStatus = errors.New("invalid status transition")
+	ErrNotFound                = errors.New("not found")
+	ErrBlacklisted             = errors.New("sql blocked by blacklist")
+	ErrInvalidStatus           = errors.New("invalid status transition")
+	ErrInceptionProjectNotFound = errors.New("project not found")
 )
 
 // Service provides business logic for the inception SQL audit engine.

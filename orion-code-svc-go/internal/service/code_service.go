@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	ErrNotFound  = errors.New("not found")
-	ErrForbidden = errors.New("forbidden")
-	ErrInvalidInput = errors.New("invalid input")
+	ErrNotFound             = errors.New("not found")
+	ErrForbidden            = errors.New("forbidden")
+	ErrInvalidInput         = errors.New("invalid input")
+	ErrCodeRepositoryNotFound = errors.New("repository not found")
 )
 
 // Service is the business logic layer for the code-svc microservice.

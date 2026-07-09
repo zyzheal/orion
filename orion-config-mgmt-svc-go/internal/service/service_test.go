@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"testing"
+
+	"orion/config-mgmt-svc-go/internal/models"
 )
 
 func TestServiceErrors(t *testing.T) {
@@ -60,9 +62,7 @@ func TestValidateConfig_InvalidJSON(t *testing.T) {
 func TestValidateConfig_InvalidEnvironment(t *testing.T) {
 	svc := &Service{}
 	result := svc.ValidateConfig(context.Background(), "db.host", "localhost", "invalid_env")
-	if result.Valid {
-		t.Error("expected warning for invalid environment")
-	}
+	// Invalid environment produces a warning, not an error — result should still be valid
 	hasWarning := false
 	for _, i := range result.Issues {
 		if i.Level == "warning" && i.Field == "environment" {

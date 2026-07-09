@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrDuplicateName  = errors.New("skill name already exists")
-	ErrInvalidInput   = errors.New("invalid input")
-	ErrInvalidState   = errors.New("invalid state transition")
-	ErrVersionLocked  = errors.New("skill version is locked")
-	ErrTenantMismatch = errors.New("skill not available for this tenant")
+	ErrNotFound         = errors.New("not found")
+	ErrDuplicateName    = errors.New("skill name already exists")
+	ErrInvalidInput     = errors.New("invalid input")
+	ErrInvalidState     = errors.New("invalid state transition")
+	ErrVersionLocked    = errors.New("skill version is locked")
+	ErrTenantMismatch   = errors.New("skill not available for this tenant")
+	ErrSkillConfigNotFound = errors.New("config not found")
 )
 
 // Service provides business logic for the skill-config domain.
