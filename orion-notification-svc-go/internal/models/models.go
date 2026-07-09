@@ -418,6 +418,73 @@ type ChannelExecutor interface {
 }
 
 // ============================================================
+// Scheduled Notification Models
+// ============================================================
+
+// ScheduledNotificationStatus represents the status of a scheduled notification.
+type ScheduledNotificationStatus string
+
+const (
+	ScheduledStatusPending   ScheduledNotificationStatus = "pending"
+	ScheduledStatusSent      ScheduledNotificationStatus = "sent"
+	ScheduledStatusFailed    ScheduledNotificationStatus = "failed"
+	ScheduledStatusCancelled ScheduledNotificationStatus = "cancelled"
+	ScheduledStatusPaused    ScheduledNotificationStatus = "paused"
+)
+
+// ScheduledNotification represents a delayed or periodic notification.
+type ScheduledNotification struct {
+	ID             string                     `db:"id" json:"id"`
+	TenantID       string                     `db:"tenant_id" json:"tenantId"`
+	UserID         *string                    `db:"user_id" json:"userId"`
+	TemplateID     *string                    `db:"template_id" json:"templateId"`
+	Type           string                     `db:"type" json:"type"`
+	Title          string                     `db:"title" json:"title"`
+	Message        string                     `db:"message" json:"message"`
+	Channel        ChannelType                `db:"channel" json:"channel"`
+	ScheduledAt    time.Time                  `db:"scheduled_at" json:"scheduledAt"`
+	Status         ScheduledNotificationStatus `db:"status" json:"status"`
+	SentAt         *time.Time                 `db:"sent_at" json:"sentAt"`
+	ErrorMessage   *string                    `db:"error_message" json:"errorMessage"`
+	CreatedAt      time.Time                  `db:"created_at" json:"createdAt"`
+	UpdatedAt      time.Time                  `db:"updated_at" json:"updatedAt"`
+}
+
+// CreateScheduledNotificationInput is the payload for creating a scheduled notification.
+type CreateScheduledNotificationInput struct {
+	UserID      string                 `json:"userId" binding:"required"`
+	Type        string                 `json:"type" binding:"required"`
+	Title       string                 `json:"title" binding:"required"`
+	Message     string                 `json:"message" binding:"required"`
+	Channel     ChannelType            `json:"channel"`
+	ScheduledAt time.Time              `json:"scheduledAt" binding:"required"`
+	TemplateID  *string                `json:"templateId"`
+	Metadata    map[string]interface{} `json:"metadata"`
+}
+
+// UpdateScheduledNotificationInput is the payload for updating a scheduled notification.
+type UpdateScheduledNotificationInput struct {
+	Title       *string    `json:"title"`
+	Message     *string    `json:"message"`
+	ScheduledAt *time.Time `json:"scheduledAt"`
+	Status      *string    `json:"status"`
+}
+
+// ============================================================
+// Cron Validation Models
+// ============================================================
+
+// ParsedCronSchedule represents the result of validating a cron expression.
+type ParsedCronSchedule struct {
+	Expression   string     `json:"expression"`
+	Description  string     `json:"description"`
+	Valid        bool       `json:"valid"`
+	Error        string     `json:"error"`
+	NextFireTime *time.Time `json:"nextFireTime"`
+	Timezone     string     `json:"timezone"`
+}
+
+// ============================================================
 // JSONB Helpers
 // ============================================================
 

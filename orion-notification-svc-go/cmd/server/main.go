@@ -57,6 +57,9 @@ func main() {
 	deliveryRepo := repository.NewDeliveryRepository(db.DB)
 	deliverySvc := service.NewDeliveryService(deliveryRepo, logger)
 	deliveryHandler := handler.NewDeliveryHandler(deliverySvc)
+	scheduledRepo := repository.NewScheduledNotificationRepository(db.DB)
+	scheduledSvc := service.NewScheduledNotificationService(scheduledRepo, logger)
+	scheduledHandler := handler.NewScheduledNotificationHandler(scheduledSvc)
 
 	// NATS JetStream subscriber
 	var natsSub *nats_subscriber.NATSSubscriber
@@ -83,7 +86,8 @@ func main() {
 	h.RegisterRoutes(rg)
 	policyHandler.RegisterRoutes(rg)
 	deliveryHandler.RegisterRoutes(rg)
-	policyHandler.RegisterRoutes(rg)
+
+	scheduledHandler.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-notification-svc"))
 
