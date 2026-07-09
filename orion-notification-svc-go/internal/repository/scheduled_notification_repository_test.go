@@ -199,7 +199,7 @@ func TestScheduledNotificationRepository_Update(t *testing.T) {
 
 	now := time.Now()
 	newTitle := "Updated Title"
-	repo.nowFunc = func() time.Time { return now }
+	repo.NowFunc = func() time.Time { return now }
 
 	mock.ExpectQuery("UPDATE scheduled_notifications").
 		WithArgs(now, newTitle, "sn-1", "tenant-1").

@@ -13,12 +13,12 @@ import (
 // ScheduledNotificationRepository provides data access for scheduled notifications.
 type ScheduledNotificationRepository struct {
 	db      *sqlx.DB
-	nowFunc func() time.Time // overridable for testing
+	NowFunc func() time.Time // overridable for testing
 }
 
 // NewScheduledNotificationRepository creates a new ScheduledNotificationRepository.
 func NewScheduledNotificationRepository(db *sqlx.DB) *ScheduledNotificationRepository {
-	return &ScheduledNotificationRepository{db: db, nowFunc: time.Now}
+	return &ScheduledNotificationRepository{db: db, NowFunc: time.Now}
 }
 
 // Create inserts a new scheduled notification.
@@ -102,7 +102,7 @@ func (r *ScheduledNotificationRepository) FindPendingByTimeRange(ctx context.Con
 // Update updates mutable fields of a scheduled notification.
 func (r *ScheduledNotificationRepository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ScheduledNotification, error) {
 	setParts := []string{"updated_at = $1"}
-	args := []interface{}{r.nowFunc()}
+	args := []interface{}{r.NowFunc()}
 	argIdx := 2
 
 	for key, val := range updates {

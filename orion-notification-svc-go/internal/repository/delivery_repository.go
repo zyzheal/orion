@@ -12,12 +12,13 @@ import (
 
 // DeliveryRepository provides data access for notification delivery records.
 type DeliveryRepository struct {
-	db *sqlx.DB
+	db      *sqlx.DB
+	NowFunc func() time.Time // overridable for testing
 }
 
 // NewDeliveryRepository creates a new DeliveryRepository.
 func NewDeliveryRepository(db *sqlx.DB) *DeliveryRepository {
-	return &DeliveryRepository{db: db}
+	return &DeliveryRepository{db: db, NowFunc: time.Now}
 }
 
 // CreateDelivery inserts a new delivery record.
@@ -67,7 +68,7 @@ func (r *DeliveryRepository) FindPendingForRetry(ctx context.Context, tenantID s
 		   AND attempt_number <= max_attempts
 		 ORDER BY next_retry_at ASC
 		 LIMIT $3`,
-		tenantID, time.Now(), limit)
+		tenantID, r.NowFunc(), limit)
 	return items, err
 }
 
@@ -95,7 +96,7 @@ func (r *DeliveryRepository) IncrementAttempt(ctx context.Context, tenantID, id 
 		     updated_at = $1
 		 WHERE id=$2 AND tenant_id=$3
 		 RETURNING *`,
-		time.Now(), id, tenantID)
+		r.NowFunc(), id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +113,7 @@ func (r *DeliveryRepository) MarkExhausted(ctx context.Context, tenantID, id, la
 		     updated_at = $4
 		 WHERE id=$1 AND tenant_id=$2
 		 RETURNING *`,
-		id, tenantID, lastError, time.Now())
+		id, tenantID, lastError, r.NowFunc())
 	if err != nil {
 		return nil, err
 	}
