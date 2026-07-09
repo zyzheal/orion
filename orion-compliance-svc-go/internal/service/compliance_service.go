@@ -16,25 +16,32 @@ import (
 )
 
 var (
-	ErrReportNotFound    = errors.New("compliance report not found")
-	ErrScheduleNotFound  = errors.New("compliance schedule not found")
-	ErrInvalidStatus     = errors.New("invalid report status")
+	ErrReportNotFound       = errors.New("compliance report not found")
+	ErrScheduleNotFound     = errors.New("compliance schedule not found")
+	ErrInvalidStatus        = errors.New("invalid report status")
+	ErrPolicyNotFound       = errors.New("compliance policy not found")
+	ErrInvalidPolicyStatus  = errors.New("invalid policy status")
+	ErrInvalidPolicySeverity = errors.New("invalid policy severity")
+	ErrInvalidExpression    = errors.New("invalid policy expression")
 )
 
-// ComplianceService provides business logic for compliance reports and schedules.
+// ComplianceService provides business logic for compliance reports, schedules, and policies.
 type ComplianceService struct {
 	reportRepo   *repository.ComplianceReportRepository
 	scheduleRepo *repository.ComplianceScheduleRepository
+	policyRepo   *repository.CompliancePolicyRepository
 }
 
 // NewComplianceService creates a new ComplianceService with the given repositories.
 func NewComplianceService(
 	reportRepo *repository.ComplianceReportRepository,
 	scheduleRepo *repository.ComplianceScheduleRepository,
+	policyRepo *repository.CompliancePolicyRepository,
 ) *ComplianceService {
 	return &ComplianceService{
 		reportRepo:   reportRepo,
 		scheduleRepo: scheduleRepo,
+		policyRepo:   policyRepo,
 	}
 }
 
@@ -501,4 +508,156 @@ func SortFindingsBySeverity(findings []models.ComplianceFinding) {
 	sort.Slice(findings, func(i, j int) bool {
 		return severityOrder[findings[i].Severity] < severityOrder[findings[j].Severity]
 	})
+}
+
+// ==================== Policy CRUD ====================
+
+// CreatePolicy creates a new compliance policy.
+func (s *ComplianceService) CreatePolicy(ctx context.Context, tenantID string, input *models.CreatePolicyInput) (*models.CompliancePolicy, error) {
+	var expr models.JSONB
+	if input.Expression != nil {
+		b, err := json.Marshal(input.Expression)
+		if err != nil {
+			return nil, ErrInvalidExpression
+		}
+		expr = b
+	}
+	policy := &models.CompliancePolicy{
+		ID:        generatePolicyID(),
+		TenantID:  tenantID,
+		Name:      input.Name,
+		Framework: input.Framework,
+		Category:  input.Category,
+		Severity:  input.Severity,
+		Status:    models.PolicyStatusDraft,
+		RuleType:  input.RuleType,
+		Expression: expr,
+		Action:    input.Action,
+	}
+	if input.Action == "" {
+		policy.Action = "warn"
+	}
+	if input.Enabled != nil {
+		policy.Enabled = *input.Enabled
+	} else {
+		policy.Enabled = true
+	}
+	if input.Description != "" {
+		desc := input.Description
+		policy.Description = &desc
+	}
+
+	if !isValidPolicySeverity(input.Severity) {
+		return nil, ErrInvalidPolicySeverity
+	}
+
+	if err := s.policyRepo.Create(ctx, policy); err != nil {
+		return nil, fmt.Errorf("failed to create policy: %w", err)
+	}
+	return policy, nil
+}
+
+// GetPolicy retrieves a compliance policy by ID.
+func (s *ComplianceService) GetPolicy(ctx context.Context, id string) (*models.CompliancePolicy, error) {
+	policy, err := s.policyRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get policy: %w", err)
+	}
+	if policy == nil {
+		return nil, ErrPolicyNotFound
+	}
+	return policy, nil
+}
+
+// ListPolicies retrieves all policies for a tenant with optional filters.
+func (s *ComplianceService) ListPolicies(ctx context.Context, tenantID, framework, category string, offset, limit int) ([]models.CompliancePolicy, error) {
+	policies, err := s.policyRepo.FindByTenant(ctx, tenantID, framework, category, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list policies: %w", err)
+	}
+	// Parse expression JSONB for each policy
+	for i := range policies {
+		if len(policies[i].Expression) > 0 {
+			var expr map[string]interface{}
+			if err := json.Unmarshal(policies[i].Expression, &expr); err == nil {
+				// expression remains as JSONB bytes
+			}
+		}
+	}
+	return policies, nil
+}
+
+// UpdatePolicy updates a compliance policy by ID.
+func (s *ComplianceService) UpdatePolicy(ctx context.Context, id string, input *models.UpdatePolicyInput) (*models.CompliancePolicy, error) {
+	existing, err := s.policyRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find policy for update: %w", err)
+	}
+	if existing == nil {
+		return nil, ErrPolicyNotFound
+	}
+
+	if input.Severity != nil && !isValidPolicySeverity(*input.Severity) {
+		return nil, ErrInvalidPolicySeverity
+	}
+	if input.Status != nil && !isValidPolicyStatus(*input.Status) {
+		return nil, ErrInvalidPolicyStatus
+	}
+
+	policy, err := s.policyRepo.Update(ctx, id, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update policy: %w", err)
+	}
+	if policy == nil {
+		return nil, ErrPolicyNotFound
+	}
+
+	// Parse expression JSONB
+	if len(policy.Expression) > 0 {
+		var expr map[string]interface{}
+		if err := json.Unmarshal(policy.Expression, &expr); err == nil {
+			// expression remains as JSONB bytes
+		}
+	}
+	return policy, nil
+}
+
+// DeletePolicy deletes a compliance policy by ID.
+func (s *ComplianceService) DeletePolicy(ctx context.Context, id string) error {
+	existing, err := s.policyRepo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to find policy for deletion: %w", err)
+	}
+	if existing == nil {
+		return ErrPolicyNotFound
+	}
+	if err := s.policyRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete policy: %w", err)
+	}
+	return nil
+}
+
+// ==================== Policy Helpers ====================
+
+// generatePolicyID creates a unique policy ID.
+func generatePolicyID() string {
+	return fmt.Sprintf("pol-%d-%s", time.Now().UnixNano(), randomStr(7))
+}
+
+// isValidPolicySeverity checks if a severity value is valid.
+func isValidPolicySeverity(severity models.PolicySeverity) bool {
+	switch severity {
+	case models.PolicySeverityCritical, models.PolicySeverityHigh, models.PolicySeverityMedium, models.PolicySeverityLow:
+		return true
+	}
+	return false
+}
+
+// isValidPolicyStatus checks if a status value is valid.
+func isValidPolicyStatus(status models.PolicyStatus) bool {
+	switch status {
+	case models.PolicyStatusDraft, models.PolicyStatusActive, models.PolicyStatusArchived:
+		return true
+	}
+	return false
 }

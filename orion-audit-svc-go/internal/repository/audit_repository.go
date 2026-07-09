@@ -281,6 +281,28 @@ func (r *Repository) VerifyChain(ctx context.Context, tenantID string) (*models.
 	}, nil
 }
 
+// Update modifies non-hash-chain fields of an audit log entry.
+// Audit log integrity (hash, prev_hash) is preserved — update only touches
+// response_code, response_body, ip_address, user_agent, request_body.
+func (r *Repository) Update(ctx context.Context, tenantID, id string, req *models.UpdateAuditRequest) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE audit_logs
+		 SET response_code = COALESCE($1, response_code),
+		     response_body = $2,
+		     ip_address = NULLIF($3, ''),
+		     user_agent = NULLIF($4, ''),
+		     request_body = $5
+		  WHERE id = $6 AND tenant_id = $7`,
+		nullInt(req.ResponseCode),
+		models.JSONB(req.ResponseBody),
+		req.IPAddress,
+		req.UserAgent,
+		models.JSONB(req.RequestBody),
+		id, tenantID,
+	)
+	return err
+}
+
 // GetActions returns the distinct action values for a given tenant,
 // ordered alphabetically.
 func (r *Repository) GetActions(ctx context.Context, tenantID string) ([]string, error) {
@@ -326,6 +348,14 @@ func nullIntVal(ni sql.NullInt32) interface{} {
 		return ni.Int32
 	}
 	return nil
+}
+
+// nullInt converts an optional *int to sql.NullInt32.
+func nullInt(i *int) sql.NullInt32 {
+	if i == nil {
+		return sql.NullInt32{}
+	}
+	return sql.NullInt32{Int32: int32(*i), Valid: true}
 }
 
 // joinAnd joins condition strings with " AND ".

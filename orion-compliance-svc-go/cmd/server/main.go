@@ -60,9 +60,10 @@ func main() {
 	// Initialize repositories
 	reportRepo := repository.NewComplianceReportRepository(db.DB)
 	scheduleRepo := repository.NewComplianceScheduleRepository(db.DB)
+	policyRepo := repository.NewCompliancePolicyRepository(db.DB)
 
 	// Initialize service
-	complianceSvc := service.NewComplianceService(reportRepo, scheduleRepo)
+	complianceSvc := service.NewComplianceService(reportRepo, scheduleRepo, policyRepo)
 	h := handler.NewHandler(complianceSvc)
 
 	// Setup Gin router

@@ -56,4 +56,16 @@ func (s *AuthService) SaveRefreshToken(ctx context.Context, t *model.RefreshToke
 	return s.repo.SaveRefreshToken(ctx, t)
 }
 
+func (s *AuthService) FindValidRefreshToken(ctx context.Context, userID, tokenHash string) (*model.RefreshToken, error) {
+	return s.repo.FindValidRefreshToken(ctx, userID, tokenHash)
+}
+
+func (s *AuthService) RevokeRefreshToken(ctx context.Context, id string) error {
+	return s.repo.RevokeRefreshToken(ctx, id)
+}
+
+func (s *AuthService) FindValidRefreshTokenByHash(ctx context.Context, tokenHash string) (*model.RefreshToken, error) {
+	return s.repo.FindRefreshTokenByHash(ctx, tokenHash)
+}
+
 var ErrInvalidCredentials = errors.New("invalid credentials")

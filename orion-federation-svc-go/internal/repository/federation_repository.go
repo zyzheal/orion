@@ -10,7 +10,10 @@ type Repository struct { db *sqlx.DB }
 func NewRepository(db *sqlx.DB) *Repository { return &Repository{db: db} }
 
 func (r *Repository) Create(ctx context.Context, d *models.FederatedCluster) error {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO federation_peers (id, tenant_id, name, peer_url, protocol, status, config) VALUES ($1,$2,$3, $4, $5, $6, $7)`, d.ID, d.TenantID, d.Name)
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO federated_clusters (id, tenant_id, name, peer_url, protocol, status, config, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
+		d.ID, d.TenantID, d.Name, d.PeerURL, d.Protocol, d.Status, d.Config,
+	)
 	return err
 }
 
@@ -28,12 +31,20 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM federation_peers WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM federated_clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	return err
 }
 
 func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM federation_peers WHERE tenant_id=$1`, tenantID)
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM federated_clusters WHERE tenant_id=$1`, tenantID)
 	return count, err
+}
+
+func (r *Repository) Update(ctx context.Context, d *models.FederatedCluster) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE federated_clusters SET name=$3, peer_url=$4, protocol=$5, status=$6, config=$7, last_sync=NOW() WHERE id=$1 AND tenant_id=$2`,
+		d.ID, d.TenantID, d.Name, d.PeerURL, d.Protocol, d.Status, d.Config,
+	)
+	return err
 }

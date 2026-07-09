@@ -61,7 +61,7 @@ func main() {
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
-	rg := r.Group("/api/v1")
+	rg := r.Group("/api/federation")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
 

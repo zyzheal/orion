@@ -308,6 +308,31 @@ type AssessChangeRequest struct {
 	DeploymentRisk DeploymentRisk `json:"deployment_risk" binding:"required"`
 }
 
+// CreateAssessmentRequest is the HTTP body for POST /api/risk/assessments.
+type CreateAssessmentRequest struct {
+	Name            string        `json:"name" binding:"required"`
+	TargetType      string        `json:"target_type" binding:"required"`
+	TargetID        string        `json:"target_id" binding:"required"`
+	RiskScore       float64       `json:"risk_score"`
+	RiskLevel       string        `json:"risk_level"`
+	Status          string        `json:"status"`
+	Factors         JSONBSlice    `json:"factors"`
+	Recommendations JSONBSlice    `json:"recommendations"`
+	Metadata        JSONB         `json:"metadata"`
+}
+
+// UpdateAssessmentRequest is the HTTP body for PUT /api/risk/assessments/:id.
+type UpdateAssessmentRequest struct {
+	Name            *string       `json:"name"`
+	TargetType      *string       `json:"target_type"`
+	TargetID        *string       `json:"target_id"`
+	RiskScore       *float64      `json:"risk_score"`
+	RiskLevel       *string       `json:"risk_level"`
+	Status          *string       `json:"status"`
+	Factors         *JSONBSlice   `json:"factors"`
+	Recommendations *JSONBSlice   `json:"recommendations"`
+}
+
 // GenerateReportRequest is the HTTP body for POST /risks/reports.
 type GenerateReportRequest struct {
 	AssessmentID string `json:"assessment_id" binding:"required"`
@@ -346,4 +371,21 @@ func (p *PaginatedRequest) Limit() int {
 		p.PageSize = 100
 	}
 	return p.PageSize
+}
+
+// ============================================================
+// Assessment-specific request wrapper for POST (combines scoring + direct)
+// ============================================================
+
+// PostAssessmentRequest is the HTTP body for POST /api/risk/assessments.
+type PostAssessmentRequest struct {
+	Name            string           `json:"name"`
+	TargetType      string           `json:"target_type" binding:"required"`
+	TargetID        string           `json:"target_id" binding:"required"`
+	DeploymentRisk  *DeploymentRisk  `json:"deployment_risk"` // if provided, score is computed
+	RiskScore       *float64         `json:"risk_score"`      // if provided, used directly
+	RiskLevel       string           `json:"risk_level"`
+	Status          string           `json:"status"`
+	Factors         JSONBSlice       `json:"factors"`
+	Recommendations JSONBSlice       `json:"recommendations"`
 }

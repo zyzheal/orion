@@ -152,6 +152,70 @@ type UpdateScheduleInput struct {
 
 // ==================== Framework Info ====================
 
+// PolicyStatus represents the lifecycle status of a compliance policy.
+type PolicyStatus string
+
+const (
+	PolicyStatusDraft  PolicyStatus = "draft"
+	PolicyStatusActive PolicyStatus = "active"
+	PolicyStatusArchived PolicyStatus = "archived"
+)
+
+// PolicySeverity represents the severity of a compliance policy.
+type PolicySeverity string
+
+const (
+	PolicySeverityCritical PolicySeverity = "critical"
+	PolicySeverityHigh     PolicySeverity = "high"
+	PolicySeverityMedium   PolicySeverity = "medium"
+	PolicySeverityLow      PolicySeverity = "low"
+)
+
+// CompliancePolicy represents a compliance policy rule.
+type CompliancePolicy struct {
+	ID            string         `db:"id" json:"id"`
+	TenantID      string         `db:"tenant_id" json:"tenant_id"`
+	Name          string         `db:"name" json:"name"`
+	Description   *string        `db:"description" json:"description,omitempty"`
+	Framework     string         `db:"framework" json:"framework"`
+	Category      string         `db:"category" json:"category"`
+	Severity      PolicySeverity `db:"severity" json:"severity"`
+	Status        PolicyStatus   `db:"status" json:"status"`
+	RuleType      string         `db:"rule_type" json:"rule_type"`
+	Expression    JSONB          `db:"expression" json:"expression,omitempty"`
+	Action        string         `db:"action" json:"action"`
+	Enabled       bool           `db:"enabled" json:"enabled"`
+	CreatedAt     time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time      `db:"updated_at" json:"updated_at"`
+}
+
+// CreatePolicyInput is the input for creating a compliance policy.
+type CreatePolicyInput struct {
+	Name        string         `json:"name" binding:"required"`
+	Description string         `json:"description"`
+	Framework   string         `json:"framework" binding:"required"`
+	Category    string         `json:"category" binding:"required"`
+	Severity    PolicySeverity `json:"severity" binding:"required"`
+	RuleType    string         `json:"rule_type" binding:"required"`
+	Expression  map[string]interface{} `json:"expression"`
+	Action      string         `json:"action"`
+	Enabled     *bool          `json:"enabled"`
+}
+
+// UpdatePolicyInput is the input for updating a compliance policy.
+type UpdatePolicyInput struct {
+	Name        *string         `json:"name,omitempty"`
+	Description *string         `json:"description,omitempty"`
+	Framework   *string         `json:"framework,omitempty"`
+	Category    *string         `json:"category,omitempty"`
+	Severity    *PolicySeverity `json:"severity,omitempty"`
+	Status      *PolicyStatus   `json:"status,omitempty"`
+	RuleType    *string         `json:"rule_type,omitempty"`
+	Expression  map[string]interface{} `json:"expression,omitempty"`
+	Action      *string         `json:"action,omitempty"`
+	Enabled     *bool           `json:"enabled,omitempty"`
+}
+
 // ComplianceFrameworkInfo represents a supported compliance framework.
 type ComplianceFrameworkInfo struct {
 	ID              string   `json:"id"`

@@ -29,6 +29,16 @@ type CreateFederatedClusterRequest struct {
 
 	PeerURL  string `json:"peer_url" binding:"required"`
 	Protocol string `json:"protocol" binding:"required"`
+	Status   string `json:"status"`
+	Config   JSONB  `json:"config,omitempty"`
+}
+
+type UpdateFederatedClusterRequest struct {
+	Name     string `json:"name" binding:"required"`
+	PeerURL  string `json:"peer_url" binding:"required"`
+	Protocol string `json:"protocol" binding:"required"`
+	Status   string `json:"status"`
+	Config   JSONB  `json:"config,omitempty"`
 }
 
 type PaginatedRequest struct { Page int `form:"page"`; PageSize int `form:"page_size"` }

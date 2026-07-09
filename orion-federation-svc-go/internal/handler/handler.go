@@ -14,8 +14,9 @@ type Handler struct { svc *service.Service }
 func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	r := rg.Group("/clusters")
+	r := rg.Group("/instances")
 	r.POST("", auth.RequirePermission("federation", "write"), h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
+	r.PUT("/:id", auth.RequirePermission("federation", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("federation", "delete"), h.Delete)
 	r.GET("/count", h.Count)
 }
@@ -40,6 +41,15 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
+	c.JSON(http.StatusOK, d)
+}
+
+func (h *Handler) Update(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.UpdateFederatedClusterRequest
+	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
 	c.JSON(http.StatusOK, d)
 }

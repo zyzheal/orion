@@ -17,9 +17,9 @@ import (
 	"orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
-	"orion/go-common/pkg/redis"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -53,26 +53,27 @@ func main() {
 	}
 	defer db.Close()
 
-	rdb := redis.NewClient(redis.Config{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
-	defer rdb.Close()
+	// Redis client (optional — required for token blacklist on logout)
+	var rdb *redis.Client
+	if cfg.RedisAddr != "" {
+		rdb = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, DB: cfg.RedisDB})
+		defer rdb.Close()
+	}
+
 	// NATS JetStream subscriber
 	var natsSub *nats_subscriber.NATSSubscriber
 	if cfg.NATSAddr != "" {
-	    sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
-	    if err != nil {
-	        zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
-	    } else {
-	        natsSub = sub
-	        if err := natsSub.Start(context.Background()); err != nil {
-	            zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
-	            natsSub = nil
-	        }
-	    }
+		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, zapLogger)
+		if err != nil {
+			zapLogger.Warn("failed to init NATS subscriber", zap.Error(err))
+		} else {
+			natsSub = sub
+			if err := natsSub.Start(context.Background()); err != nil {
+				zapLogger.Warn("failed to start NATS subscriber", zap.Error(err))
+				natsSub = nil
+			}
+		}
 	}
-
-
-
-
 
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -94,23 +95,45 @@ func main() {
 			return
 		}
 		status["db"] = "ok"
-		if err := rdb.Ping(c.Request.Context()).Err(); err != nil {
-			status["status"] = "unhealthy"
-			status["redis"] = "error"
-			c.JSON(http.StatusServiceUnavailable, status)
-			return
+		if rdb != nil {
+			if err := rdb.Ping(c.Request.Context()).Err(); err != nil {
+				status["status"] = "unhealthy"
+				status["redis"] = "error"
+				c.JSON(http.StatusServiceUnavailable, status)
+				return
+			}
+			status["redis"] = "ok"
 		}
-		status["redis"] = "ok"
 		c.JSON(http.StatusOK, status)
 	})
 
-	h := handler.New(db, zapLogger, cfg.JWTSecret)
+	h := handler.New(db, zapLogger, cfg.JWTSecret, rdb)
 
+	// --- /api/auth group (public auth endpoints) ---
+	authAPI := r.Group("/api/auth")
+	{
+		authAPI.POST("/login", h.Login)
+		authAPI.POST("/refresh", h.RefreshToken)
+		authAPI.POST("/logout", h.Logout)
+
+		// Protected endpoints — require valid JWT
+		protected := authAPI.Group("")
+		protected.Use(auth.Auth(auth.AuthConfig{
+			JWTSecret:   cfg.JWTSecret,
+			RedisClient: rdb,
+			SkipPaths:   []string{"/healthz"},
+		}))
+		{
+			protected.GET("/me", h.Me)
+			protected.GET("/permissions", h.Permissions)
+		}
+	}
+
+	// --- /api/v1 group (existing user management endpoints) ---
 	api := r.Group("/api/v1")
 	{
 		api.POST("/login", h.Login)
 		api.POST("/refresh", h.RefreshToken)
-		api.POST("/revoke", h.RevokeToken)
 
 		users := api.Group("/users")
 		users.Use(auth.Auth(auth.AuthConfig{

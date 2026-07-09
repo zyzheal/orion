@@ -293,6 +293,34 @@ func (s *Service) GetResourceTypes(ctx context.Context, tenantID string) ([]stri
 	return types, nil
 }
 
+// Update modifies non-hash-chain fields of an existing audit log entry.
+// The entry must exist; if not found, returns NOT_FOUND.
+func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateAuditRequest) (*models.AuditLog, error) {
+	ctx, span := tracer.Start(ctx, "Service.Update",
+		trace.WithAttributes(
+			attribute.String("audit.tenant_id", tenantID),
+			attribute.String("audit.id", id),
+		))
+	defer span.End()
+
+	if err := s.repo.Update(ctx, tenantID, id, req); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, &ServiceError{Message: fmt.Sprintf("database error: %v", err), Code: ErrCodeInternal}
+	}
+
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, &ServiceError{Message: fmt.Sprintf("database error: %v", err), Code: ErrCodeInternal}
+	}
+	if updated == nil {
+		return nil, &ServiceError{Message: fmt.Sprintf("Audit log not found: %s", id), Code: ErrCodeNotFound}
+	}
+	return updated, nil
+}
+
 // computeEntryHash computes SHA256(JSON.stringify(payload) + prevHash),
 // exactly matching the Node.js AuditRepository.create() hash logic.
 func computeEntryHash(a *models.AuditLog, prevHash string) string {

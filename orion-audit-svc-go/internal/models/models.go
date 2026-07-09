@@ -116,6 +116,16 @@ type ChainVerificationResult struct {
 	TotalVerified int        `json:"total_verified"`
 }
 
+// UpdateAuditRequest is the input payload for updating an audit log entry.
+// Only non-hash-chain fields can be modified.
+type UpdateAuditRequest struct {
+	ResponseCode  *int                 `json:"response_code"`
+	ResponseBody  map[string]interface{} `json:"response_body"`
+	IPAddress     string               `json:"ip_address"`
+	UserAgent     string               `json:"user_agent"`
+	RequestBody   map[string]interface{} `json:"request_body"`
+}
+
 // ListAuditLogFilters contains optional filters for listing audit logs.
 type ListAuditLogFilters struct {
 	TenantID     string

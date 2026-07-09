@@ -144,6 +144,19 @@ func (r *Repository) FindAssessmentsByLevel(ctx context.Context, riskLevel, tena
 	return items, err
 }
 
+// UpdateAssessment updates an existing assessment.
+func (r *Repository) UpdateAssessment(ctx context.Context, a *models.RiskAssessment) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE risk_assessments SET name=$1, target_type=$2, target_id=$3, risk_score=$4,
+		 risk_level=$5, factors=$6, recommendations=$7, status=$8, metadata=$9, updated_at=NOW()
+		 WHERE id=$10 AND tenant_id=$11`,
+		a.Name, a.TargetType, a.TargetID, a.RiskScore, a.RiskLevel,
+		a.Factors, a.Recommendations, a.Status, a.Metadata,
+		a.ID, a.TenantID,
+	)
+	return err
+}
+
 // ============================================================
 // risk_reports CRUD
 // ============================================================

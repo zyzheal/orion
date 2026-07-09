@@ -89,3 +89,12 @@ func (r *AuthRepository) FindPermissionByID(ctx context.Context, id string) (*mo
 	}
 	return &p, err
 }
+
+func (r *AuthRepository) FindRefreshTokenByHash(ctx context.Context, tokenHash string) (*model.RefreshToken, error) {
+	var t model.RefreshToken
+	err := r.db.GetContext(ctx, "SELECT * FROM refresh_tokens WHERE token_hash = $1 AND expires_at > now() AND revoked_at IS NULL", tokenHash)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	return &t, err
+}

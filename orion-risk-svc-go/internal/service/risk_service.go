@@ -1015,6 +1015,44 @@ func (s *Service) GetAssessment(ctx context.Context, tenantID, id string) (*mode
 	return s.repo.GetAssessmentByID(ctx, tenantID, id)
 }
 
+// UpdateAssessment updates an existing risk assessment.
+func (s *Service) UpdateAssessment(ctx context.Context, tenantID, id string, req *models.UpdateAssessmentRequest) (*models.RiskAssessment, error) {
+	existing, err := s.repo.GetAssessmentByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, ErrAssessmentNotFound
+	}
+
+	if req.Name != nil {
+		existing.Name = *req.Name
+	}
+	if req.TargetType != nil {
+		existing.TargetType = *req.TargetType
+	}
+	if req.TargetID != nil {
+		existing.TargetID = *req.TargetID
+	}
+	if req.RiskScore != nil {
+		existing.RiskScore = *req.RiskScore
+	}
+	if req.RiskLevel != nil {
+		existing.RiskLevel = *req.RiskLevel
+	}
+	if req.Status != nil {
+		existing.Status = *req.Status
+	}
+	if req.Factors != nil {
+		existing.Factors = *req.Factors
+	}
+	if req.Recommendations != nil {
+		existing.Recommendations = *req.Recommendations
+	}
+
+	if err := s.repo.UpdateAssessment(ctx, existing); err != nil {
+		return nil, err
+	}
+	return existing, nil
+}
+
 // ListAssessments returns a paginated list of assessments.
 func (s *Service) ListAssessments(ctx context.Context, tenantID string, offset, limit int) ([]models.RiskAssessment, error) {
 	return s.repo.ListAssessments(ctx, tenantID, offset, limit)

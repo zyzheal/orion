@@ -36,6 +36,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/schedules", auth.RequirePermission("compliance", "write"), h.CreateSchedule)
 	rg.GET("/schedules", auth.RequirePermission("compliance", "read"), h.ListSchedules)
 	rg.DELETE("/schedules/:id", auth.RequirePermission("compliance", "delete"), h.DeleteSchedule)
+
+	// Compliance Policies
+	rg.POST("/policies", auth.RequirePermission("compliance", "write"), h.CreatePolicy)
+	rg.GET("/policies", auth.RequirePermission("compliance", "read"), h.ListPolicies)
+	rg.GET("/policies/:id", auth.RequirePermission("compliance", "read"), h.GetPolicy)
+	rg.PUT("/policies/:id", auth.RequirePermission("compliance", "write"), h.UpdatePolicy)
+	rg.DELETE("/policies/:id", auth.RequirePermission("compliance", "delete"), h.DeletePolicy)
 }
 
 // ==================== Report Handlers ====================
@@ -84,7 +91,7 @@ func (h *Handler) GetReport(c *gin.Context) {
 // ListReports handles GET /reports.
 func (h *Handler) ListReports(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	framework := c.Query("framework")
+		framework := c.Query("framework")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -212,3 +219,88 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": gin.H{"deleted": true}})
 }
+
+	// ==================== Policy Handlers ====================
+
+	// CreatePolicy handles POST /policies.
+	func (h *Handler) CreatePolicy(c *gin.Context) {
+		var input models.CreatePolicyInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+			return
+		}
+		tenantID := c.GetString("tenant_id")
+		policy, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, &input)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "message": "OK", "data": policy})
+	}
+
+	// ListPolicies handles GET /policies.
+	func (h *Handler) ListPolicies(c *gin.Context) {
+		tenantID := c.GetString("tenant_id")
+		framework := c.Query("framework")
+		category := c.Query("category")
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+		if page <= 0 { page = 1 }
+		if pageSize <= 0 || pageSize > 100 { pageSize = 20 }
+		offset := (page - 1) * pageSize
+		policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, framework, category, offset, pageSize)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policies})
+	}
+
+	// GetPolicy handles GET /policies/:id.
+	func (h *Handler) GetPolicy(c *gin.Context) {
+		id := c.Param("id")
+		policy, err := h.svc.GetPolicy(c.Request.Context(), id)
+		if err != nil {
+			if err == service.ErrPolicyNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policy})
+	}
+
+	// UpdatePolicy handles PUT /policies/:id.
+	func (h *Handler) UpdatePolicy(c *gin.Context) {
+		id := c.Param("id")
+		var input models.UpdatePolicyInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+			return
+		}
+		policy, err := h.svc.UpdatePolicy(c.Request.Context(), id, &input)
+		if err != nil {
+			if err == service.ErrPolicyNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policy})
+	}
+
+	// DeletePolicy handles DELETE /policies/:id.
+	func (h *Handler) DeletePolicy(c *gin.Context) {
+		id := c.Param("id")
+		if err := h.svc.DeletePolicy(c.Request.Context(), id); err != nil {
+			if err == service.ErrPolicyNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": gin.H{"deleted": true}})
+	}

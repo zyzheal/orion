@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	a.GET("/actions", h.GetActions)
 	a.GET("/resource-types", h.GetResourceTypes)
 	a.GET("/verify", h.VerifyChain)
+	a.PUT("/:id", h.Update)
 	a.GET("/:id", h.Get)
 	a.DELETE("/:id", auth.RequirePermission("audit_log", "delete"), h.Delete)
 }
@@ -85,6 +86,34 @@ func (h *Handler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// Update handles PUT /audit-logs/:id — updates non-hash-chain fields.
+func (h *Handler) Update(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	var req models.UpdateAuditRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	entry, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if se, ok := err.(*service.ServiceError); ok {
+			if se.Code == service.ErrCodeNotFound {
+				status = http.StatusNotFound
+			} else if se.Code == service.ErrCodeInvalidInput {
+				status = http.StatusBadRequest
+			}
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, entry)
 }
 
 // Get handles GET /audit-logs/:id — returns a single audit log by ID.
