@@ -10,6 +10,7 @@ import (
 	"orion/notification-svc-go/internal/repository"
 	"orion/go-common/pkg/otel"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -180,9 +181,8 @@ func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression str
 		}
 	}
 
-	cronFieldRegex := "^[\\d\\*\\/\\-,]+$"
 	for _, field := range fields {
-		valid, _ := regexpMatchString(cronFieldRegex, field)
+		valid, _ := regexpMatchString("^[\\d\\*\\/\\-,]+$", field)
 		if !valid {
 			return models.ParsedCronSchedule{
 				Expression: cronExpression,
@@ -208,11 +208,7 @@ func (s *ScheduledNotificationService) ValidateCronExpression(cronExpression str
 // ==================== Helpers ====================
 
 func mustGenerateID() string {
-	return "sn-" + strings.ReplaceAll(mustGenerateUUID(), "-", "")[:12]
-}
-
-func mustGenerateUUID() string {
-	return time.Now().Format("20060102150405")
+	return "sn-" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 }
 
 func regexpMatchString(pattern, s string) (bool, error) {

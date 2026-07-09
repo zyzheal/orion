@@ -17,12 +17,17 @@ var ErrDNDNotFound = fmt.Errorf("DND settings not found")
 
 // DNDService implements the do-not-disturb business logic.
 type DNDService struct {
-	repo *repository.DNDRepository
+	repo     *repository.DNDRepository
+	logger   *zap.Logger
+	timeNow  func() time.Time // overridable for testing
 }
 
 // NewDNDService creates a new DNDService.
-func NewDNDService(repo *repository.DNDRepository) *DNDService {
-	return &DNDService{repo: repo}
+func NewDNDService(repo *repository.DNDRepository, logger *zap.Logger) *DNDService {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
+	return &DNDService{repo: repo, logger: logger, timeNow: time.Now}
 }
 
 // SetDND creates or updates DND settings for a user.
@@ -67,11 +72,13 @@ func (s *DNDService) IsDndActive(ctx context.Context, tenantID, userID string) (
 		return false, nil // No DND settings = not active
 	}
 
-	now := time.Now()
+	now := s.timeNow()
 	active := now.After(dnd.StartTime) && now.Before(dnd.EndTime)
 	if !active && now.After(dnd.EndTime) {
 		// Auto-clear expired DND
-		_, _ = s.repo.DeleteByUser(ctx, tenantID, userID)
+		if _, err := s.repo.DeleteByUser(ctx, tenantID, userID); err != nil {
+			s.logger.Warn("failed to auto-clear expired DND", zap.Error(err), zap.String("user_id", userID))
+		}
 		return false, nil
 	}
 	return active, nil
@@ -94,7 +101,7 @@ func (s *DNDService) GetActiveUsers(ctx context.Context, tenantID string) ([]str
 	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "DNDService.GetActiveUsers")
 	defer span.End()
 
-	users, err := s.repo.FindActiveUsers(ctx, tenantID, time.Now())
+	users, err := s.repo.FindActiveUsers(ctx, tenantID, s.timeNow())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active users: %w", err)
 	}
@@ -103,8 +110,5 @@ func (s *DNDService) GetActiveUsers(ctx context.Context, tenantID string) ([]str
 
 // NewDNDServiceWithLogger creates a new DNDService with a logger (for compatibility).
 func NewDNDServiceWithLogger(repo *repository.DNDRepository, logger *zap.Logger) *DNDService {
-	if logger == nil {
-		_ = zap.NewNop()
-	}
-	return NewDNDService(repo)
+	return NewDNDService(repo, logger)
 }

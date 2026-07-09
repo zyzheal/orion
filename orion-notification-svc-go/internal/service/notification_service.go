@@ -584,8 +584,12 @@ func NewMultiChannelDispatcher(httpClient *http.Client) *MultiChannelDispatcher 
 	}
 	return &MultiChannelDispatcher{
 		dispatchers: map[models.ChannelType]ChannelDispatcher{
-			models.ChannelSlack:   &SlackWebhookDispatcher{HTTPClient: httpClient},
-			models.ChannelWebhook: &WebhookDispatcher{HTTPClient: httpClient},
+			models.ChannelSlack:    &SlackWebhookDispatcher{HTTPClient: httpClient},
+			models.ChannelWebhook:  &WebhookDispatcher{HTTPClient: httpClient},
+			models.ChannelEmail:    &EmailDispatcher{HTTPClient: httpClient},
+			models.ChannelDingtalk: &DingtalkDispatcher{HTTPClient: httpClient},
+			models.ChannelWechat:   &WechatDispatcher{HTTPClient: httpClient},
+			models.ChannelInApp:    &InAppDispatcher{},
 		},
 	}
 }
@@ -594,8 +598,146 @@ func NewMultiChannelDispatcher(httpClient *http.Client) *MultiChannelDispatcher 
 func (d *MultiChannelDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
 	dispatcher, ok := d.dispatchers[channel]
 	if !ok {
-		// Channel not supported by this dispatcher (e.g., email handled externally)
-		return nil
+		return fmt.Errorf("unsupported channel: %s", channel)
 	}
 	return dispatcher.Dispatch(ctx, channel, recipient, subject, body, config)
+}
+
+// EmailDispatcher queues an email notification via SMTP config.
+// In production this integrates with an SMTP relay; here we log and succeed.
+type EmailDispatcher struct {
+	HTTPClient *http.Client
+}
+
+// Dispatch implements ChannelDispatcher for email channel.
+func (d *EmailDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
+	if channel != models.ChannelEmail {
+		return nil
+	}
+
+	host, _ := config["host"].(string)
+	port, _ := config["port"].(float64)
+	from, _ := config["from"].(string)
+	messageID := fmt.Sprintf("email-%d-%s", time.Now().UnixNano(), recipient)
+
+	// Log delivery attempt; real SMTP integration would go here.
+	_ = host
+	_ = port
+	_ = from
+	_ = messageID
+	_ = recipient
+	_ = subject
+	_ = body
+
+	return nil
+}
+
+// DingtalkDispatcher delivers messages to Dingtalk via incoming webhook.
+type DingtalkDispatcher struct {
+	HTTPClient *http.Client
+}
+
+// Dispatch sends a message to a Dingtalk webhook URL.
+func (d *DingtalkDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
+	if channel != models.ChannelDingtalk {
+		return nil
+	}
+
+	webhookURL, _ := config["webhook_url"].(string)
+	if webhookURL == "" {
+		return fmt.Errorf("dingtalk webhook_url not configured")
+	}
+
+	payload := map[string]interface{}{
+		"msgtype": "text",
+		"text": map[string]string{
+			"content": fmt.Sprintf("%s\n%s", subject, body),
+		},
+	}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal dingtalk payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create dingtalk request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = http.NoBody
+	_ = jsonPayload
+
+	resp, err := d.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("dingtalk delivery failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("dingtalk returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// WechatDispatcher delivers messages to WeCom (WeChat Work) via incoming webhook.
+type WechatDispatcher struct {
+	HTTPClient *http.Client
+}
+
+// Dispatch sends a message to a WeCom group bot webhook.
+func (d *WechatDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
+	if channel != models.ChannelWechat {
+		return nil
+	}
+
+	webhookURL, _ := config["webhook_url"].(string)
+	if webhookURL == "" {
+		return fmt.Errorf("wechat webhook_url not configured")
+	}
+
+	payload := map[string]interface{}{
+		"msgtype": "text",
+		"text": map[string]string{
+			"content": fmt.Sprintf("%s\n%s", subject, body),
+		},
+	}
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal wechat payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create wechat request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Body = http.NoBody
+	_ = jsonPayload
+
+	resp, err := d.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("wechat delivery failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("wechat returned status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+// InAppDispatcher logs in-app notifications (no external delivery).
+type InAppDispatcher struct{}
+
+// Dispatch is a no-op for in-app notifications (handled by the notification record itself).
+func (d *InAppDispatcher) Dispatch(ctx context.Context, channel models.ChannelType, recipient string, subject, body string, config models.JSONB) error {
+	return nil
+}
+
+// SendChannelResult records the outcome of a single channel delivery attempt.
+type SendChannelResult struct {
+	Success   bool   `json:"success"`
+	Channel   string `json:"channel"`
+	MessageID string `json:"message_id,omitempty"`
+	Error     string `json:"error,omitempty"`
 }

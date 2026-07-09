@@ -61,7 +61,7 @@ func main() {
 	scheduledSvc := service.NewScheduledNotificationService(scheduledRepo, logger)
 	scheduledHandler := handler.NewScheduledNotificationHandler(scheduledSvc)
 	dndRepo := repository.NewDNDRepository(db.DB)
-	dndSvc := service.NewDNDService(dndRepo)
+	dndSvc := service.NewDNDService(dndRepo, logger)
 	dndHandler := handler.NewDNDHandler(dndSvc)
 
 	// NATS JetStream subscriber

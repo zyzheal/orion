@@ -27,6 +27,8 @@ const (
 	ChannelSlack   ChannelType = "slack"
 	ChannelWebhook ChannelType = "webhook"
 	ChannelInApp   ChannelType = "in-app"
+	ChannelDingtalk ChannelType = "dingtalk"
+	ChannelWechat   ChannelType = "wechat"
 )
 
 // JSONB is a convenience type for PostgreSQL JSONB columns.
@@ -74,13 +76,17 @@ type Notification struct {
 
 // NotificationTemplate stores reusable message templates.
 type NotificationTemplate struct {
-	ID        string      `db:"id" json:"id"`
-	TenantID  string      `db:"tenant_id" json:"tenant_id"`
-	Name      string      `db:"name" json:"name"`
-	Channel   ChannelType `db:"channel" json:"channel"`
-	Subject   string      `db:"subject" json:"subject"`
-	Body      string      `db:"body" json:"body"`
-	CreatedAt time.Time   `db:"created_at" json:"created_at"`
+	ID              string      `db:"id" json:"id"`
+	TenantID        string      `db:"tenant_id" json:"tenant_id"`
+	Name            string      `db:"name" json:"name"`
+	EventType       string      `db:"event_type" json:"event_type"`
+	Channel         ChannelType `db:"channel" json:"channel"`
+	ChannelIDs      []string    `db:"channel_ids" json:"channel_ids"`
+	Subject         string      `db:"subject" json:"subject"`
+	SubjectTemplate string      `db:"subject_template" json:"subject_template"`
+	BodyTemplate    string      `db:"body_template" json:"body_template"`
+	Body            string      `db:"body" json:"body"`
+	CreatedAt       time.Time   `db:"created_at" json:"created_at"`
 }
 
 // NotificationChannel stores channel configuration (email server, slack webhook, etc.).
@@ -218,6 +224,32 @@ type UpdateSettingsRequest struct {
 type SubscribeRequest struct {
 	Channel string `json:"channel" binding:"required"`
 	Enabled bool   `json:"enabled"`
+}
+
+// ============================================================
+// Template Input DTOs
+// ============================================================
+
+// CreateNotificationTemplateInput is the payload for creating a notification template.
+type CreateNotificationTemplateInput struct {
+	Name            string   `json:"name" binding:"required"`
+	EventType       string   `json:"event_type" binding:"required"`
+	Channel         ChannelType `json:"channel"`
+	ChannelIDs      []string `json:"channel_ids"`
+	Subject         string   `json:"subject"`
+	SubjectTemplate string   `json:"subject_template"`
+	BodyTemplate    string   `json:"body_template" binding:"required"`
+}
+
+// UpdateNotificationTemplateInput is the payload for updating a notification template.
+type UpdateNotificationTemplateInput struct {
+	Name            *string   `json:"name"`
+	EventType       *string   `json:"event_type"`
+	Channel         *ChannelType `json:"channel"`
+	ChannelIDs      *[]string `json:"channel_ids"`
+	Subject         *string   `json:"subject"`
+	SubjectTemplate *string   `json:"subject_template"`
+	BodyTemplate    *string   `json:"body_template"`
 }
 
 // ============================================================
