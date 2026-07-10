@@ -456,3 +456,40 @@ func (p *PaginatedRequest) Limit() int {
 	}
 	return p.PageSize
 }
+
+// CreateROIRequest is the input for creating an ROI analysis.
+type CreateROIRequest struct {
+	InvestmentType string  `json:"investment_type" binding:"required"`
+	Name           string  `json:"name" binding:"required"`
+	Cost           float64 `json:"cost" binding:"required"`
+	Savings        float64 `json:"savings" binding:"required"`
+	Period         string  `json:"period"`
+	ROIPercentage  float64 `json:"roi_percentage"`
+	PaybackMonths  float64 `json:"payback_months"`
+	Description    string  `json:"description"`
+	Details        string  `json:"details"`
+}
+
+// CreateCostComparisonRequest is the input for creating a cost comparison.
+type CreateCostComparisonRequest struct {
+	Description    string  `json:"description" binding:"required"`
+	BeforeCost     float64 `json:"before_cost" binding:"required"`
+	AfterCost      float64 `json:"after_cost" binding:"required"`
+	Savings        float64 `json:"savings"`
+	SavingsPercent float64 `json:"savings_percent"`
+	Period         string  `json:"period"`
+}
+
+// LegacyBudgetAlert represents a legacy budget alert configuration.
+type LegacyBudgetAlert struct {
+	ID               string    `db:"id" json:"id"`
+	TenantID         string    `db:"tenant_id" json:"tenant_id"`
+	Environment      string    `db:"environment" json:"environment"`
+	BudgetAmount     float64   `db:"budget_amount" json:"budget_amount"`
+	ThresholdPercent float64   `db:"threshold_percent" json:"threshold_percent"`
+	CurrentSpend     float64   `db:"current_spend" json:"current_spend"`
+	Triggered        bool      `db:"triggered" json:"triggered"`
+	Currency         string    `db:"currency" json:"currency"`
+	Period           string    `db:"period" json:"period"`
+	CreatedAt        time.Time `db:"created_at" json:"created_at"`
+}

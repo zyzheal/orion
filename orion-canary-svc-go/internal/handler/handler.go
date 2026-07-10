@@ -28,6 +28,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		canaries.POST("", auth.RequirePermission("canary", "write"), h.CreateCanary)
 		canaries.GET("", h.ListCanaries)
 		canaries.GET("/:id", h.GetCanary)
+		canaries.PUT("/:id", auth.RequirePermission("canary", "write"), h.UpdateCanary)
+		canaries.PUT("/:id/traffic", auth.RequirePermission("canary", "write"), h.ConfigureTraffic)
+		canaries.GET("/:id/traffic", h.GetTrafficConfig)
 		canaries.POST("/:id/promote", auth.RequirePermission("canary", "write"), h.Promote)
 		canaries.POST("/:id/rollback", auth.RequirePermission("canary", "execute"), h.Rollback)
 		canaries.POST("/:id/metrics", auth.RequirePermission("canary", "write"), h.AddMetric)
@@ -170,6 +173,72 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": metrics})
+}
+
+// UpdateCanary updates a canary deployment's version, weight, and target weight.
+func (h *Handler) UpdateCanary(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	var req models.CreateCanaryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Update weight if provided
+	if req.Weight > 0 {
+		err := h.svc.UpdateWeight(c.Request.Context(), tenantID, id, req.Weight)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	canary, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "canary not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, canary)
+}
+
+// ConfigureTraffic configures traffic split for a canary (Istio VirtualService or NGINX upstream).
+func (h *Handler) ConfigureTraffic(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		Strategy       string `json:"strategy" binding:"required"`
+		CanaryPercent  int    `json:"canary_percent" binding:"min=0,max=100"`
+		Host           string `json:"host"`
+		Upstream       string `json:"upstream"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	req.Strategy = req.Strategy // "istio" or "nginx"
+
+	result, err := h.svc.ConfigureTraffic(c.Request.Context(), id, req.Strategy, req.Host, req.Upstream, req.CanaryPercent)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetTrafficConfig retrieves the current traffic split configuration for a canary.
+func (h *Handler) GetTrafficConfig(c *gin.Context) {
+	id := c.Param("id")
+
+	config, err := h.svc.GetTrafficConfig(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "traffic config not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
 }
 
 func (h *Handler) Delete(c *gin.Context) {

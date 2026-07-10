@@ -38,6 +38,35 @@ type InspectionResult struct {
 	ExecutedAt time.Time `db:"executed_at" json:"executed_at"`
 }
 
+type InspectionTask struct {
+	ID          string      `db:"id" json:"id"`
+	TenantID    string      `db:"tenant_id" json:"tenant_id"`
+	RuleID      string      `db:"rule_id" json:"rule_id"`
+	Status      string      `db:"status" json:"status"`
+	ResultID    string      `db:"result_id" json:"result_id"`
+	StartedAt   *time.Time  `db:"started_at" json:"started_at,omitempty"`
+	CompletedAt *time.Time  `db:"completed_at" json:"completed_at,omitempty"`
+	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
+}
+
+type InspectionReport struct {
+	ID          string     `db:"id" json:"id"`
+	TenantID    string     `db:"tenant_id" json:"tenant_id"`
+	Title       string     `db:"title" json:"title"`
+	Summary     JSONB      `db:"summary" json:"summary"`
+	GeneratedAt time.Time  `db:"generated_at" json:"generated_at"`
+}
+
+type ReportSummary struct {
+	Total   int `json:"total"`
+	Passed  int `json:"passed"`
+	Failed  int `json:"failed"`
+	Warning int `json:"warning"`
+	Score   int `json:"score"`
+}
+
+// --- Request/Response types ---
+
 type CreateRuleRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
@@ -46,6 +75,15 @@ type CreateRuleRequest struct {
 	Condition   JSONB  `json:"condition" binding:"required"`
 	Severity    string `json:"severity"`
 	Schedule    string `json:"schedule"`
+}
+
+type CreateReportRequest struct {
+	Title   string   `json:"title"`
+	RuleIds []string `json:"rule_ids"`
+}
+
+type CreateTaskRequest struct {
+	RuleId string `json:"rule_id" binding:"required"`
 }
 
 type PaginatedRequest struct { Page int `form:"page"`; PageSize int `form:"page_size"` }

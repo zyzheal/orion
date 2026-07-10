@@ -621,6 +621,35 @@ func (s *CanaryService) GetTrafficHistory(ctx context.Context, canaryID string) 
 	return s.historyRepo.FindAll(ctx)
 }
 
+// UpdateWeight updates the weight of a canary deployment.
+func (s *CanaryService) UpdateWeight(ctx context.Context, tenantID, id string, weight int) error {
+	// Validate that the canary exists and belongs to the tenant
+	_, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return ErrCanaryNotFound
+	}
+	if weight < 0 || weight > 100 {
+		return ErrInvalidStatus
+	}
+	return s.repo.UpdateWeight(ctx, id, weight)
+}
+
+func (s *CanaryService) ConfigureTraffic(ctx context.Context, canaryID, strategy, host, upstream string, canaryPercent int) (*TrafficSplitResult, error) {
+	if strategy == "istio" {
+		if host == "" {
+			return nil, fmt.Errorf("host is required for istio strategy")
+		}
+		return s.ConfigureIstioVirtualService(ctx, canaryID, host, canaryPercent)
+	}
+	if strategy == "nginx" {
+		if upstream == "" {
+			return nil, fmt.Errorf("upstream is required for nginx strategy")
+		}
+		return s.ConfigureNGINXWeight(ctx, canaryID, upstream, canaryPercent)
+	}
+	return nil, fmt.Errorf("unknown strategy: %s, must be 'istio' or 'nginx'", strategy)
+}
+
 // ==================== Increment / Promote / Rollback Traffic ====================
 
 func (s *CanaryService) IncrementTraffic(ctx context.Context, canaryID string) (*models.TrafficConfig, error) {
