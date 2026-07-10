@@ -6,6 +6,7 @@
  */
 
 import { ReviewComment } from './types';
+import { safeFetch } from '../../utils/safeFetch';
 
 export interface LLMClientConfig {
   provider: 'openai' | 'anthropic' | 'nvidia' | 'mock';
@@ -44,7 +45,7 @@ export class OpenAIClient extends LLMClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await safeFetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +125,7 @@ export class AnthropicClient extends LLMClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await safeFetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -201,7 +202,7 @@ export class NvidiaClient extends LLMClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(`${this.baseURL}/chat/completions`, {
+      const response = await safeFetch(`${this.baseURL}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

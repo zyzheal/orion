@@ -14,6 +14,24 @@ const mockFetch = jest.fn().mockResolvedValue({
 });
 global.fetch = mockFetch;
 
+// Mock safeFetch to bypass SSRF validation in tests
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn().mockImplementation((_url: string, options?: RequestInit) => {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: jest.fn().mockResolvedValue('{}'),
+      json: jest.fn().mockResolvedValue({}),
+      clone: () => ({ json: jest.fn().mockResolvedValue({}) }),
+      blob: () => Promise.resolve(new Blob()),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      formData: () => Promise.resolve(new FormData()),
+    } as Response);
+  }),
+  safeFetchWithDomains: jest.fn(),
+}));
+
 beforeEach(() => {
   mockFetch.mockClear();
 });

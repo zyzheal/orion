@@ -10,6 +10,7 @@ import { readFile } from 'fs/promises';
 import { createHmac, createSign } from 'crypto';
 import { OrionError, ErrorCode } from '../../errors';
 import { MarketUploader, UploadRequest, UploadResult, MarketCredentials } from './ApkMarketUploadService';
+import { safeFetch } from '../../utils/safeFetch';
 
 /**
  * 读取本地文件为 Blob（用于 FormData 上传）
@@ -78,7 +79,7 @@ export class HuaweiUploader implements MarketUploader {
   private async getAuthToken(creds: NonNullable<MarketCredentials['huawei']>): Promise<string> {
     if (creds.clientId && creds.clientSecret) {
       // Client Credentials认证
-      const response = await fetch('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
+      const response = await safeFetch('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -109,7 +110,7 @@ export class HuaweiUploader implements MarketUploader {
       throw new OrionError('Service Account assertion is required', ErrorCode.VALIDATION_ERROR);
     }
 
-    const response = await fetch('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
+    const response = await safeFetch('https://oauth-login.cloud.huawei.com/oauth2/v3/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -128,7 +129,7 @@ export class HuaweiUploader implements MarketUploader {
 
   private async getAppId(packageName: string, token: string): Promise<string> {
     const url = `https://developer-api.dbankcloud.com/publish/v2/appid-list?packageNames=${encodeURIComponent(packageName)}`;
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
@@ -145,7 +146,7 @@ export class HuaweiUploader implements MarketUploader {
   }
 
   private async getUploadUrl(appId: string, token: string): Promise<{ uploadUrl: string; authCode: string }> {
-    const response = await fetch(`https://developer-api.dbankcloud.com/publish/v2/upload-url?appId=${appId}`, {
+    const response = await safeFetch(`https://developer-api.dbankcloud.com/publish/v2/upload-url?appId=${appId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
@@ -165,7 +166,7 @@ export class HuaweiUploader implements MarketUploader {
     const formData = new FormData();
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch(uploadUrl, {
+    const response = await safeFetch(uploadUrl, {
       method: 'POST',
       headers: { 'authCode': authCode },
       body: formData,
@@ -183,7 +184,7 @@ export class HuaweiUploader implements MarketUploader {
   }
 
   private async bindFileInfo(appId: string, fileInfo: any, token: string): Promise<void> {
-    const response = await fetch('https://developer-api.dbankcloud.com/publish/v2/app-file-info', {
+    const response = await safeFetch('https://developer-api.dbankcloud.com/publish/v2/app-file-info', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -198,7 +199,7 @@ export class HuaweiUploader implements MarketUploader {
   }
 
   private async updateChangelog(appId: string, changelog: string, token: string): Promise<void> {
-    const response = await fetch('https://developer-api.dbankcloud.com/publish/v2/app-info', {
+    const response = await safeFetch('https://developer-api.dbankcloud.com/publish/v2/app-info', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -213,7 +214,7 @@ export class HuaweiUploader implements MarketUploader {
   }
 
   private async submitApp(appId: string, token: string): Promise<void> {
-    const response = await fetch('https://developer-api.dbankcloud.com/publish/v2/app-submit', {
+    const response = await safeFetch('https://developer-api.dbankcloud.com/publish/v2/app-submit', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -286,7 +287,7 @@ export class XiaomiUploader implements MarketUploader {
       pkgName: packageName,
     });
 
-    const response = await fetch('https://dev.mi.com/api/dev/query', {
+    const response = await safeFetch('https://dev.mi.com/api/dev/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -318,7 +319,7 @@ export class XiaomiUploader implements MarketUploader {
     formData.append('SIG', sig);
     formData.append('apkFile', fileBlob, request.apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch('https://dev.mi.com/api/dev/push', {
+    const response = await safeFetch('https://dev.mi.com/api/dev/push', {
       method: 'POST',
       body: formData,
     });
@@ -408,7 +409,7 @@ export class OppoUploader implements MarketUploader {
   }
 
   private async getAuthToken(creds: NonNullable<MarketCredentials['oppo']>): Promise<string> {
-    const response = await fetch('https://api.open.oppomobile.com/developer/v1/token', {
+    const response = await safeFetch('https://api.open.oppomobile.com/developer/v1/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -426,7 +427,7 @@ export class OppoUploader implements MarketUploader {
   }
 
   private async getAppInfo(packageName: string, token: string): Promise<{ appId: string }> {
-    const response = await fetch(`https://api.open.oppomobile.com/resource/v1/app/info?package_name=${packageName}`, {
+    const response = await safeFetch(`https://api.open.oppomobile.com/resource/v1/app/info?package_name=${packageName}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
@@ -439,7 +440,7 @@ export class OppoUploader implements MarketUploader {
   }
 
   private async getUploadUrl(appId: string, token: string): Promise<string> {
-    const response = await fetch(`https://api.open.oppomobile.com/resource/v1/upload/get-upload-url?appId=${appId}`, {
+    const response = await safeFetch(`https://api.open.oppomobile.com/resource/v1/upload/get-upload-url?appId=${appId}`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
 
@@ -456,7 +457,7 @@ export class OppoUploader implements MarketUploader {
     const formData = new FormData();
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch(uploadUrl, {
+    const response = await safeFetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });
@@ -470,7 +471,7 @@ export class OppoUploader implements MarketUploader {
   }
 
   private async submitApp(appId: string, fileId: string, token: string): Promise<void> {
-    const response = await fetch('https://api.open.oppomobile.com/resource/v1/app/upd', {
+    const response = await safeFetch('https://api.open.oppomobile.com/resource/v1/app/upd', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -486,7 +487,7 @@ export class OppoUploader implements MarketUploader {
 
   private async pollTaskStatus(appId: string, token: string, maxAttempts: number = 30): Promise<{ success: boolean; error?: string }> {
     for (let i = 0; i < maxAttempts; i++) {
-      const response = await fetch(`https://api.open.oppomobile.com/resource/v1/app/task-state?appId=${appId}`, {
+      const response = await safeFetch(`https://api.open.oppomobile.com/resource/v1/app/task-state?appId=${appId}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
@@ -574,7 +575,7 @@ export class VivoUploader implements MarketUploader {
     formData.append('sign', signature);
     formData.append('apkFile', fileBlob, request.apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch('https://developer-api.vivo.com.cn/router/rest', {
+    const response = await safeFetch('https://developer-api.vivo.com.cn/router/rest', {
       method: 'POST',
       body: formData,
     });
@@ -656,7 +657,7 @@ export class HonorUploader implements MarketUploader {
   }
 
   private async getAuthToken(creds: NonNullable<MarketCredentials['honor']>): Promise<string> {
-    const response = await fetch('https://developer.honor.com/oauth2/v1/token', {
+    const response = await safeFetch('https://developer.honor.com/oauth2/v1/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -685,7 +686,7 @@ export class HonorUploader implements MarketUploader {
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
     formData.append('appId', appId);
 
-    const response = await fetch('https://developer.honor.com/api/v1/app/upload', {
+    const response = await safeFetch('https://developer.honor.com/api/v1/app/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData,
@@ -700,7 +701,7 @@ export class HonorUploader implements MarketUploader {
   }
 
   private async submitApp(appId: string, fileId: string, token: string): Promise<void> {
-    const response = await fetch('https://developer.honor.com/api/v1/app/submit', {
+    const response = await safeFetch('https://developer.honor.com/api/v1/app/submit', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -774,7 +775,7 @@ export class TencentUploader implements MarketUploader {
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const signature = this.buildSignature(creds, { timestamp });
 
-    const response = await fetch('https://open.tencent.com/api/auth/token', {
+    const response = await safeFetch('https://open.tencent.com/api/auth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -807,7 +808,7 @@ export class TencentUploader implements MarketUploader {
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
     formData.append('appId', appId);
 
-    const response = await fetch('https://open.tencent.com/api/app/upload', {
+    const response = await safeFetch('https://open.tencent.com/api/app/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData,
@@ -822,7 +823,7 @@ export class TencentUploader implements MarketUploader {
   }
 
   private async submitApp(appId: string, fileId: string, token: string): Promise<void> {
-    const response = await fetch('https://open.tencent.com/api/app/submit', {
+    const response = await safeFetch('https://open.tencent.com/api/app/submit', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -919,7 +920,7 @@ export class GooglePlayUploader implements MarketUploader {
   private async uploadApk(editId: string, apkPath: string, token: string, packageName: string): Promise<{ uploadId: string; versionCode: number }> {
     const fileBlob = await readFileAsBlob(apkPath);
 
-    const response = await fetch(`https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles`, {
+    const response = await safeFetch(`https://androidpublisher.googleapis.com/upload/androidpublisher/v3/applications/${packageName}/edits/${editId}/bundles`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -940,7 +941,7 @@ export class GooglePlayUploader implements MarketUploader {
   }
 
   private async assignTrack(editId: string, versionCode: number, track: string, token: string, packageName: string): Promise<void> {
-    const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/edits/${editId}/tracks/${track}`, {
+    const response = await safeFetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/edits/${editId}/tracks/${track}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -960,7 +961,7 @@ export class GooglePlayUploader implements MarketUploader {
   }
 
   private async commitEdit(editId: string, token: string, packageName: string): Promise<void> {
-    const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/edits/${editId}:commit`, {
+    const response = await safeFetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/edits/${editId}:commit`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -1030,7 +1031,7 @@ export class SamsungUploader implements MarketUploader {
     const timestamp = Date.now().toString();
     const signature = this.buildSignature(creds, { timestamp });
 
-    const response = await fetch('https://seller.samsungapps.com/api/oauth/token', {
+    const response = await safeFetch('https://seller.samsungapps.com/api/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1063,7 +1064,7 @@ export class SamsungUploader implements MarketUploader {
     const formData = new FormData();
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch('https://seller.samsungapps.com/api/app/upload', {
+    const response = await safeFetch('https://seller.samsungapps.com/api/app/upload', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },
       body: formData,
@@ -1078,7 +1079,7 @@ export class SamsungUploader implements MarketUploader {
   }
 
   private async submitApp(contentId: string, fileId: string, token: string): Promise<void> {
-    const response = await fetch('https://seller.samsungapps.com/api/app/submit', {
+    const response = await safeFetch('https://seller.samsungapps.com/api/app/submit', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -1148,7 +1149,7 @@ export class PgyerUploader implements MarketUploader {
   }
 
   private async getUploadToken(apiKey: string): Promise<any> {
-    const response = await fetch('https://www.pgyer.com/apiv2/app/getCOSToken', {
+    const response = await safeFetch('https://www.pgyer.com/apiv2/app/getCOSToken', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ _api_key: apiKey }),
@@ -1174,7 +1175,7 @@ export class PgyerUploader implements MarketUploader {
     formData.append('key', key);
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch(uploadUrl, {
+    const response = await safeFetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });
@@ -1188,7 +1189,7 @@ export class PgyerUploader implements MarketUploader {
 
   private async pollBuildInfo(apiKey: string, maxAttempts: number = 30): Promise<any> {
     for (let i = 0; i < maxAttempts; i++) {
-      const response = await fetch('https://www.pgyer.com/apiv2/app/buildInfo', {
+      const response = await safeFetch('https://www.pgyer.com/apiv2/app/buildInfo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ _api_key: apiKey }),
@@ -1268,7 +1269,7 @@ export class FirUploader implements MarketUploader {
       api_token: apiToken,
     });
 
-    const response = await fetch('https://api.bq04.com/apps', {
+    const response = await safeFetch('https://api.bq04.com/apps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: formData,
@@ -1286,7 +1287,7 @@ export class FirUploader implements MarketUploader {
     const formData = new FormData();
     formData.append('file', fileBlob, apkPath.split('/').pop() || 'app.apk');
 
-    const response = await fetch(uploadUrl, {
+    const response = await safeFetch(uploadUrl, {
       method: 'POST',
       body: formData,
     });

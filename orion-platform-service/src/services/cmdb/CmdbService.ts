@@ -54,6 +54,7 @@ export class CmdbService {
   private memoryRelations = new Map<string, CIRelation>();
   private memoryRelationTypes = new Map<string, RelationTypeDefinition>();
   private memoryTenantCis = new Map<string, Map<string, CI>>(); // tenantId_str -> (id -> CI)
+  private memoryVersions = new Map<string, CIVersion[]>(); // ciId -> CIVersion[]
 
   // 仓库访问器（自动降级到内存模式）
   private get repo(): CmdbRepository {
@@ -170,6 +171,21 @@ export class CmdbService {
     const store = this.getMemoryTenantStore(input.tenantId);
     store.set(id, ci);
     this.memoryCis.set(id, ci);
+
+    // 记录初始版本（内存模式）
+    const version: CIVersion = {
+      id: `mem-ver-${Date.now()}`,
+      ciId: ci.ciId,
+      version: 1,
+      changes: 'Initial creation',
+      data: { ...ci },
+      createdBy: input.createdBy,
+      createdAt: now,
+    };
+    const versions = this.memoryVersions.get(ci.ciId) || [];
+    versions.push(version);
+    this.memoryVersions.set(ci.ciId, versions);
+
     return ci;
   }
 
@@ -213,6 +229,86 @@ export class CmdbService {
     ci.archivedAt = undefined;
     ci.status = 'ACTIVE';
     ci.updatedAt = new Date();
+    return true;
+  }
+
+  // ========== 扩展内存模式辅助方法 ==========
+
+  private memoryGetCIById(id: string, tenantId: bigint): CI | undefined {
+    const store = this.getMemoryTenantStore(tenantId);
+    const ci = store.get(id);
+    if (!ci || ci.deletedAt) return undefined;
+    return ci;
+  }
+
+  private memoryListCIs(filters: CIFilters): CIListResponse {
+    const resolvedTenantId = filters.tenantId ?? BigInt(1);
+    const store = this.getMemoryTenantStore(resolvedTenantId);
+    let results = Array.from(store.values()).filter(ci => !ci.deletedAt);
+
+    if (filters.ciType) {
+      results = results.filter(ci => ci.ciType === filters.ciType);
+    }
+    if (filters.status) {
+      results = results.filter(ci => ci.status === filters.status);
+    }
+    if (filters.environment) {
+      results = results.filter(ci => ci.environment === filters.environment);
+    }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      results = results.filter(ci =>
+        ci.name.toLowerCase().includes(q) ||
+        ci.ciId.toLowerCase().includes(q) ||
+        ci.description?.toLowerCase().includes(q)
+      );
+    }
+    if (filters.tags && filters.tags.length > 0) {
+      results = results.filter(ci =>
+        filters.tags!.some(t => (ci.tags || []).includes(t))
+      );
+    }
+
+    const total = results.length;
+    const offset = filters.offset || 0;
+    const limit = filters.limit || 100;
+    const page = results.slice(offset, offset + limit);
+
+    return { data: page, total, limit, offset };
+  }
+
+  private memoryGetCIRelations(ciId: string, tenantId: bigint): CIRelation[] {
+    return Array.from(this.memoryRelations.values()).filter(
+      r => (r.fromCiId === ciId || r.toCiId === ciId) && r.tenantId === tenantId && !r.deletedAt
+    );
+  }
+
+  private memoryCreateRelation(input: CreateRelationInput, tenantId: bigint, user: string): CIRelation {
+    const now = new Date();
+    const relation: CIRelation = {
+      id: `mem-rel-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      fromCiId: input.fromCiId,
+      toCiId: input.toCiId,
+      relationType: input.relationType,
+      description: input.description,
+      tenantId,
+      createdBy: user,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.memoryRelations.set(relation.id, relation);
+    return relation;
+  }
+
+  private memoryGetVersions(ciId: string): CIVersion[] {
+    const versions = this.memoryVersions.get(ciId) || [];
+    return versions.sort((a, b) => b.version - a.version);
+  }
+
+  private memoryDeleteRelation(relationId: string, tenantId: bigint): boolean {
+    const relation = this.memoryRelations.get(relationId);
+    if (!relation || relation.tenantId !== tenantId || relation.deletedAt) return false;
+    relation.deletedAt = new Date();
     return true;
   }
 
@@ -303,10 +399,13 @@ export class CmdbService {
    */
   async getCI(id: string, tenantId?: bigint): Promise<CI | null> {
     const resolvedTenantId = tenantId ?? BigInt(1);
-    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
-
-    if (!ci || ci.deletedAt) {
-      return null;
+    let ci: CI | null | undefined;
+    if (this.ciRepository) {
+      ci = await this.ciRepository.getCIById(id, resolvedTenantId);
+      if (!ci || ci.deletedAt) return null;
+    } else {
+      ci = this.memoryGetCIById(id, resolvedTenantId);
+      if (!ci) return null;
     }
 
     // 加载关联关系
@@ -323,11 +422,13 @@ export class CmdbService {
    */
   async getCIByCiId(ciId: string, tenantId?: bigint): Promise<CI | null> {
     const resolvedTenantId = tenantId ?? BigInt(1);
-    const ci = await this.ciRepository!.getCIByCiId(ciId, resolvedTenantId);
-
-    if (!ci) {
-      return null;
+    let ci: CI | null | undefined;
+    if (this.ciRepository) {
+      ci = await this.ciRepository.getCIByCiId(ciId, resolvedTenantId);
+    } else {
+      ci = this.memoryGetCIByCiId(ciId, resolvedTenantId) || null;
     }
+    if (!ci) return null;
 
     // 加载关联关系
     const ciRelations = await this.getCIRelations(ciId);
@@ -347,7 +448,9 @@ export class CmdbService {
     const resolvedTenantId = tenantId ?? BigInt(1);
 
     // 先获取旧值用于变更记录
-    const oldCI = await this.ciRepository!.getCIById(id, resolvedTenantId);
+    const oldCI = this.ciRepository
+      ? await this.ciRepository.getCIById(id, resolvedTenantId)
+      : this.memoryGetCIById(id, resolvedTenantId) || null;
     if (!oldCI) {
       return null;
     }
@@ -375,19 +478,40 @@ export class CmdbService {
       changes.push(`attributes updated`);
     }
 
-    const ci = await this.ciRepository!.updateCI(id, input, user, resolvedTenantId);
+    let ci: CI | null;
+    if (this.ciRepository) {
+      ci = await this.ciRepository.updateCI(id, input, user, resolvedTenantId);
+    } else {
+      ci = this.memoryUpdateCI(id, input, resolvedTenantId);
+    }
     if (!ci) {
       return null;
     }
 
     // 创建版本记录
-    await this.versionRepository!.createVersion({
-      ciId: ci.ciId,
-      version: ci.version,
-      changes: changes.join('; '),
-      data: { ...ci },
-      createdBy: user,
-    });
+    if (this.versionRepository) {
+      await this.versionRepository.createVersion({
+        ciId: ci.ciId,
+        version: ci.version,
+        changes: changes.join('; '),
+        data: { ...ci },
+        createdBy: user,
+      });
+    } else if (!this.ciRepository) {
+      // 内存模式版本记录
+      const version: CIVersion = {
+        id: `mem-ver-${Date.now()}`,
+        ciId: ci.ciId,
+        version: ci.version,
+        changes: changes.join('; '),
+        data: { ...ci },
+        createdBy: user,
+        createdAt: new Date(),
+      };
+      const versions = this.memoryVersions.get(ci.ciId) || [];
+      versions.push(version);
+      this.memoryVersions.set(ci.ciId, versions);
+    }
 
     // 发布事件
     await this.eventPublisher?.publishCIUpdated(ci, changes);
@@ -403,12 +527,19 @@ export class CmdbService {
   async deleteCI(id: string, tenantId?: bigint): Promise<boolean> {
     const resolvedTenantId = tenantId ?? BigInt(1);
 
-    const ci = await this.ciRepository!.getCIById(id, resolvedTenantId);
+    const ci = this.ciRepository
+      ? await this.ciRepository.getCIById(id, resolvedTenantId)
+      : this.memoryGetCIById(id, resolvedTenantId) || null;
     if (!ci) {
       return false;
     }
 
-    const deleted = await this.ciRepository!.deleteCI(id, resolvedTenantId);
+    let deleted: boolean;
+    if (this.ciRepository) {
+      deleted = await this.ciRepository.deleteCI(id, resolvedTenantId);
+    } else {
+      deleted = this.memoryDeleteCI(id, resolvedTenantId);
+    }
     if (!deleted) {
       return false;
     }
@@ -472,14 +603,21 @@ export class CmdbService {
    * 查询配置项列表
    */
   async listCIs(filters: CIFilters): Promise<CIListResponse> {
-    return await this.ciRepository!.listCIs(filters);
+    if (this.ciRepository) {
+      return await this.ciRepository.listCIs(filters);
+    }
+    return this.memoryListCIs(filters);
   }
 
   /**
    * 获取配置项关联关系
    */
   async getCIRelations(ciId: string, tenantId?: bigint): Promise<CIRelation[]> {
-    return await this.relationRepository!.getCIRelations(ciId, tenantId);
+    const resolvedTenantId = tenantId ?? BigInt(1);
+    if (this.relationRepository) {
+      return await this.relationRepository.getCIRelations(ciId, resolvedTenantId);
+    }
+    return this.memoryGetCIRelations(ciId, resolvedTenantId);
   }
 
   /**
@@ -489,8 +627,12 @@ export class CmdbService {
     const resolvedTenantId = tenantId ?? BigInt(1);
 
     // 验证 CI 是否存在（含租户隔离）
-    const fromCI = await this.ciRepository!.getCIByCiId(input.fromCiId, resolvedTenantId);
-    const toCI = await this.ciRepository!.getCIByCiId(input.toCiId, resolvedTenantId);
+    const fromCI = this.ciRepository
+      ? await this.ciRepository.getCIByCiId(input.fromCiId, resolvedTenantId)
+      : this.memoryGetCIByCiId(input.fromCiId, resolvedTenantId) || null;
+    const toCI = this.ciRepository
+      ? await this.ciRepository.getCIByCiId(input.toCiId, resolvedTenantId)
+      : this.memoryGetCIByCiId(input.toCiId, resolvedTenantId) || null;
 
     if (!fromCI) {
       throw new OrionError(`Source CI '${input.fromCiId}' not found`, ErrorCode.NOT_FOUND);
@@ -509,17 +651,30 @@ export class CmdbService {
     }
 
     // 检查是否已存在相同关系（含租户隔离）
-    const exists = await this.relationRepository!.relationExists(
-      input.fromCiId,
-      input.toCiId,
-      input.relationType,
-      resolvedTenantId
-    );
+    let exists: boolean;
+    if (this.relationRepository) {
+      exists = await this.relationRepository.relationExists(
+        input.fromCiId,
+        input.toCiId,
+        input.relationType,
+        resolvedTenantId
+      );
+    } else {
+      const relations = this.memoryGetCIRelations(input.fromCiId, resolvedTenantId);
+      exists = relations.some(
+        r => r.toCiId === input.toCiId && r.relationType === input.relationType && !r.deletedAt
+      );
+    }
     if (exists) {
       throw new OrionError(`Relation already exists between '${input.fromCiId}' and '${input.toCiId}'`, ErrorCode.NOT_FOUND);
     }
 
-    const relation = await this.relationRepository!.createRelation(input, user, resolvedTenantId);
+    let relation: CIRelation;
+    if (this.relationRepository) {
+      relation = await this.relationRepository.createRelation(input, user, resolvedTenantId);
+    } else {
+      relation = this.memoryCreateRelation(input, resolvedTenantId, user);
+    }
 
     // 发布事件
     await this.eventPublisher?.publishRelationCreated(relation);
@@ -532,7 +687,12 @@ export class CmdbService {
    */
   async deleteRelation(relationId: string, tenantId?: bigint): Promise<boolean> {
     const resolvedTenantId = tenantId ?? BigInt(1);
-    const deleted = await this.relationRepository!.deleteRelation(relationId, resolvedTenantId);
+    let deleted: boolean;
+    if (this.relationRepository) {
+      deleted = await this.relationRepository.deleteRelation(relationId, resolvedTenantId);
+    } else {
+      deleted = this.memoryDeleteRelation(relationId, resolvedTenantId);
+    }
 
     if (!deleted) {
       return false;
@@ -550,14 +710,22 @@ export class CmdbService {
    * 通过 ID 获取关联关系（内部使用，含租户隔离）
    */
   private async getCIRelationById(id: string, tenantId: bigint): Promise<CIRelation | null> {
-    return await this.relationRepository!.getRelationById(id, tenantId);
+    if (this.relationRepository) {
+      return await this.relationRepository.getRelationById(id, tenantId);
+    }
+    const relation = this.memoryRelations.get(id);
+    if (!relation || relation.tenantId !== tenantId || relation.deletedAt) return null;
+    return relation;
   }
 
   /**
    * 获取配置项版本历史
    */
   async getVersions(ciId: string): Promise<CIVersion[]> {
-    return await this.versionRepository!.getVersions(ciId);
+    if (this.versionRepository) {
+      return await this.versionRepository.getVersions(ciId);
+    }
+    return this.memoryGetVersions(ciId);
   }
 
   /**

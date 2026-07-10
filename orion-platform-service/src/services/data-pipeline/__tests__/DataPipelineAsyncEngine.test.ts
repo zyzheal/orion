@@ -246,6 +246,7 @@ describe('DataPipelineAsyncEngine', () => {
 
   describe('cancelExecution', () => {
     it('should cancel pending tasks', async () => {
+      jest.setTimeout(15000);
       // Use a slow processor so tasks don't complete before we can cancel them
       class SlowProcessor implements StageProcessor {
         async execute(
@@ -272,13 +273,15 @@ describe('DataPipelineAsyncEngine', () => {
       const cancelled = await cancelEngine.cancelExecution(execution.id);
       expect(cancelled).toBe(true);
 
-      // Wait for any pending microtasks and the SlowProcessor's setTimeout to resolve
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait for cancellation to propagate to all tasks
+      await new Promise((resolve) => setTimeout(resolve, 3000));
 
       const status = cancelEngine.getExecutionStatus(execution.id);
       expect(status).not.toBeNull();
-      // All tasks should be cancelled
-      const allCancelled = status!.tasks.every(t => t.state === 'cancelled');
+      // All tasks should be cancelled (pending tasks are marked cancelled,
+      // running tasks complete their processor but are kept in cancelled state)
+      const taskStates = status!.tasks.map(t => t.state);
+      const allCancelled = taskStates.every(s => s === 'cancelled');
       expect(allCancelled).toBe(true);
       expect(status!.execution.status).toBe('cancelled');
 

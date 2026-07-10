@@ -10,6 +10,7 @@ import { OrionError, ErrorCode } from './Errors';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('WebhookService');
 
@@ -225,7 +226,7 @@ export class WebhookService {
 
     try {
       const secretKey = webhook.secret_key || '';
-      const response = await fetch(webhook.url, {
+      const response = await safeFetch(webhook.url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -300,7 +301,7 @@ export class WebhookService {
     for (const webhook of matching) {
       try {
         const secretKey = webhook.secret_key || '';
-        const response = await fetch(webhook.url, {
+        const response = await safeFetch(webhook.url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

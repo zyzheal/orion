@@ -13,6 +13,7 @@
  */
 
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 import { ConfigWebhookRepository, ConfigWebhookEntity, CreateWebhookInput, UpdateWebhookInput } from '../../repositories/ConfigWebhookRepository';
 import { ConfigWebhookDeliveryLogRepository } from '../../repositories/ConfigWebhookDeliveryLogRepository';
 import { ConfigChangeEvent } from './ConfigEventBus';
@@ -175,7 +176,7 @@ export class ConfigWebhookService {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), webhook.timeoutMs);
 
-        const response = await fetch(url, {
+        const response = await safeFetch(url, {
           method,
           headers,
           body,

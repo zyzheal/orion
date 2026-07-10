@@ -3,6 +3,13 @@
  */
 
 import { PrometheusClient, createPrometheusClient, CanaryPromQL } from '../PrometheusClient';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 describe('PrometheusClient', () => {
   let client: PrometheusClient;
@@ -18,7 +25,7 @@ describe('PrometheusClient', () => {
 
   describe('queryRange', () => {
     it('should return query results', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         text: () => Promise.resolve(JSON.stringify({
           status: 'success',
@@ -34,19 +41,19 @@ describe('PrometheusClient', () => {
     });
 
     it('should return empty array on failure', async () => {
-      mockFetch.mockRejectedValue(new Error('network error'));
+      mockSafeFetch.mockRejectedValue(new Error('network error'));
       const results = await client.queryRange('test', new Date(), new Date(), '1m');
       expect(results).toEqual([]);
     });
 
     it('should return empty array on HTTP error', async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+      mockSafeFetch.mockResolvedValue({ ok: false, status: 500 });
       const results = await client.queryRange('test', new Date(), new Date(), '1m');
       expect(results).toEqual([]);
     });
 
     it('should return empty array on empty result', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         text: () => Promise.resolve(JSON.stringify({
           status: 'success',
@@ -60,7 +67,7 @@ describe('PrometheusClient', () => {
 
   describe('query', () => {
     it('should return instant query results', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         text: () => Promise.resolve(JSON.stringify({
           status: 'success',
@@ -75,7 +82,7 @@ describe('PrometheusClient', () => {
     });
 
     it('should return empty array on failure', async () => {
-      mockFetch.mockRejectedValue(new Error('network error'));
+      mockSafeFetch.mockRejectedValue(new Error('network error'));
       const results = await client.query('up');
       expect(results).toEqual([]);
     });

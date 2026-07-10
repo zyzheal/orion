@@ -25,6 +25,7 @@ import {
   WebhookEventType,
   MergeStrategy,
 } from './types';
+import { safeFetch } from '../../utils/safeFetch';
 
 /** GitLab 适配器配置 */
 export interface GitLabAdapterConfig {
@@ -82,7 +83,7 @@ class GitLabApiClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(this.apiUrl(path), {
+      const response = await safeFetch(this.apiUrl(path), {
         method: 'GET',
         headers: this.getHeaders(),
         signal: controller.signal,
@@ -106,7 +107,7 @@ class GitLabApiClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(this.apiUrl(path), {
+      const response = await safeFetch(this.apiUrl(path), {
         method: 'POST',
         headers: this.getHeaders(),
         body: JSON.stringify(body),
@@ -131,7 +132,7 @@ class GitLabApiClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(this.apiUrl(path), {
+      const response = await safeFetch(this.apiUrl(path), {
         method: 'PUT',
         headers: this.getHeaders(),
         body: JSON.stringify(body),
@@ -156,7 +157,7 @@ class GitLabApiClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(this.apiUrl(path), {
+      const response = await safeFetch(this.apiUrl(path), {
         method: 'DELETE',
         headers: this.getHeaders(),
         signal: controller.signal,

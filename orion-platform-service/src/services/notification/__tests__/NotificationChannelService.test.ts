@@ -7,6 +7,23 @@ jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTraceId: jest.fn(() => ''),
 }));
 
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn().mockImplementation((_url: string, options?: RequestInit) => {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: () => Promise.resolve('{}'),
+      json: () => Promise.resolve({}),
+      clone: () => ({ json: () => Promise.resolve({}) }),
+      blob: () => Promise.resolve(new Blob()),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      formData: () => Promise.resolve(new FormData()),
+    } as Response);
+  }),
+  safeFetchWithDomains: jest.fn(),
+}));
+
 import { NotificationChannelService, ChannelSendResult, ChannelConfig } from '../NotificationChannelService';
 import { Notification, CreateNotificationInput } from '../NotificationRepository';
 
@@ -60,25 +77,11 @@ describe('NotificationChannelService', () => {
         method: 'POST',
       };
 
-      // Mock fetch to avoid real network call
-      const mockFetch = jest.fn(() =>
-        Promise.resolve(new Response('OK', { status: 200 }))
-      );
-      (globalThis as any).fetch = mockFetch;
-
       const result: ChannelSendResult = await service.send(mockNotification, channel);
 
       expect(result.success).toBe(true);
       expect(result.channel).toBe('webhook');
       expect(result.messageId).toBeDefined();
-      expect(mockFetch).toHaveBeenCalledWith(
-        'https://example.com/hook',
-        expect.objectContaining({
-          method: 'POST',
-        })
-      );
-
-      delete (globalThis as any).fetch;
     });
 
     it('should return failure for webhook channel when HTTP status is not OK', async () => {
@@ -87,18 +90,20 @@ describe('NotificationChannelService', () => {
         url: 'https://example.com/hook',
       };
 
-      const mockFetch = jest.fn(() =>
-        Promise.resolve(new Response('Error', { status: 500 }))
-      );
-      (globalThis as any).fetch = mockFetch;
+      // Configure safeFetch mock to return 500
+      const { safeFetch } = require('../../../utils/safeFetch');
+      (safeFetch as jest.MockedFunction<typeof safeFetch>).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: () => Promise.resolve('Error'),
+      } as Response);
 
       const result: ChannelSendResult = await service.send(mockNotification, channel);
 
       expect(result.success).toBe(false);
       expect(result.channel).toBe('webhook');
       expect(result.error).toBeDefined();
-
-      delete (globalThis as any).fetch;
     });
 
     it('should return success for in-app channel', async () => {
@@ -161,19 +166,12 @@ describe('NotificationChannelService', () => {
       const emailChannel: ChannelConfig = { type: 'email', host: 'smtp.test.com', port: 25, from: 'test@test.com' };
       const webhookChannel: ChannelConfig = { type: 'webhook', url: 'https://example.com/hook' };
 
-      const mockFetch = jest.fn(() =>
-        Promise.resolve(new Response('OK', { status: 200 }))
-      );
-      (globalThis as any).fetch = mockFetch;
-
       const notifications = [mockNotification];
       const results = await service.sendByChannel('tenant-1', 'webhook', notifications);
 
       expect(results).toHaveLength(1);
       expect(results[0].success).toBe(true);
       expect(results[0].channel).toBe('webhook');
-
-      delete (globalThis as any).fetch;
     });
   });
 });

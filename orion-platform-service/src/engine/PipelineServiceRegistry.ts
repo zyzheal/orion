@@ -29,6 +29,8 @@ import { GlobalParamService } from '../services/pipeline/GlobalParamService';
 import { EnvProfileService } from '../services/pipeline/EnvProfileService';
 import { ScriptVersionService } from '../services/pipeline/ScriptVersionService';
 import { PipelineAuditLogService } from '../services/pipeline/PipelineAuditLogService';
+import { PipelineCheckpointManager } from './PipelineCheckpointManager';
+import { DebugController } from './DebugController';
 
 export interface IPipelineServiceRegistry {
   getSubPipelineService(): SubPipelineService | null;
@@ -49,6 +51,8 @@ export interface IPipelineServiceRegistry {
   getEnvProfileService(): EnvProfileService | null;
   getScriptVersionService(): ScriptVersionService | null;
   getPipelineAuditLogService(): PipelineAuditLogService | null;
+  getCheckpointManager(): PipelineCheckpointManager | null;
+  getDebugController(): DebugController | null;
   initializeSecrets(
     database: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> },
     masterKey?: string
@@ -75,6 +79,8 @@ export class PipelineServiceRegistry implements IPipelineServiceRegistry {
   private envProfileService: EnvProfileService | null = null;
   private scriptVersionService: ScriptVersionService | null = null;
   private pipelineAuditLogService: PipelineAuditLogService | null = null;
+  private checkpointManager: PipelineCheckpointManager | null = null;
+  private debugController: DebugController | null = null;
 
   // ==================== Registration methods ====================
 
@@ -155,6 +161,16 @@ export class PipelineServiceRegistry implements IPipelineServiceRegistry {
     return this;
   }
 
+  registerCheckpointManager(manager: PipelineCheckpointManager | null): this {
+    this.checkpointManager = manager;
+    return this;
+  }
+
+  registerDebugController(controller: DebugController | null): this {
+    this.debugController = controller;
+    return this;
+  }
+
   // ==================== Lookup methods ====================
 
   getSubPipelineService(): SubPipelineService | null {
@@ -227,6 +243,14 @@ export class PipelineServiceRegistry implements IPipelineServiceRegistry {
 
   getPipelineAuditLogService(): PipelineAuditLogService | null {
     return this.pipelineAuditLogService;
+  }
+
+  getCheckpointManager(): PipelineCheckpointManager | null {
+    return this.checkpointManager;
+  }
+
+  getDebugController(): DebugController | null {
+    return this.debugController;
   }
 
   // ==================== Secret management ====================

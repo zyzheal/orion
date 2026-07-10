@@ -23,17 +23,25 @@ function createMockDb() {
   return {
     query: jest.fn().mockImplementation((text: string, params?: unknown[]) => {
       if (text.includes('INSERT') && text.includes('RETURNING')) {
+        // BaseRepository.create() auto-injects tenant_id as params[0],
+        // shifting all entity field indices by +1
+        const colToParam: Record<string, number> = {
+          tenant_id: 0,
+          id: 1, deployment_id: 2, rollback_type: 3, reason: 4,
+          triggered_by: 5, started_at: 6, completed_at: 7, status: 8,
+          previous_version: 9, target_version: 10, error_message: 11, created_at: 12,
+        };
         const row = {
-          id: params?.[0] || 'mock-id',
-          deployment_id: params?.[1],
-          rollback_type: params?.[2],
-          reason: params?.[3],
-          triggered_by: params?.[4],
-          started_at: params?.[5],
+          id: params?.[colToParam.id] || 'mock-id',
+          deployment_id: params?.[colToParam.deployment_id],
+          rollback_type: params?.[colToParam.rollback_type],
+          reason: params?.[colToParam.reason],
+          triggered_by: params?.[colToParam.triggered_by],
+          started_at: params?.[colToParam.started_at],
           completed_at: null,
-          status: params?.[7] || 'pending',
-          previous_version: params?.[8],
-          target_version: params?.[9],
+          status: params?.[colToParam.status] || 'pending',
+          previous_version: params?.[colToParam.previous_version],
+          target_version: params?.[colToParam.target_version],
           error_message: null,
           created_at: new Date(),
         };

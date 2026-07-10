@@ -44,7 +44,9 @@ describe('DataPipelineTaskScheduler', () => {
       const result = scheduler.enqueue(task);
 
       expect(result).toBe(true);
-      expect(scheduler.getQueueDepth()).toBe(1);
+      // tryDequeue runs synchronously, so task starts immediately and queue is empty
+      expect(scheduler.getQueueDepth()).toBe(0);
+      expect(scheduler.getRunningCount()).toBe(1);
     });
 
     it('should reject task when queue is full', () => {
@@ -55,12 +57,14 @@ describe('DataPipelineTaskScheduler', () => {
 
       const task1 = createTask('task-1');
       const task2 = createTask('task-2');
+      const task3 = createTask('task-3');
 
+      // task1 starts immediately
       expect(fullScheduler.enqueue(task1)).toBe(true);
-
-      // Queue is full, but maxConcurrent is 1 so first task starts immediately
-      // Second task should be rejected
-      const result = fullScheduler.enqueue(task2);
+      // task2: queue has room (task1 is running, not queued), so it's queued
+      expect(fullScheduler.enqueue(task2)).toBe(true);
+      // task3: queue is now full (1/1)
+      const result = fullScheduler.enqueue(task3);
       expect(result).toBe(false);
 
       fullScheduler.destroy();
@@ -134,7 +138,7 @@ describe('DataPipelineTaskScheduler', () => {
       const task1 = createTask('task-1');
       task1.execute = jest.fn().mockImplementation(async () => {
         startTimes.push(Date.now());
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 500));
       });
 
       const task2 = createTask('task-2');
@@ -145,9 +149,10 @@ describe('DataPipelineTaskScheduler', () => {
       scheduler.enqueue(task1);
       scheduler.enqueue(task2);
 
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
 
-      // task2 should start after task1 completes
+      // task2 should start after task1 completes (500ms delay)
+      expect(startTimes.length).toBeGreaterThanOrEqual(2);
       expect(startTimes[1] - startTimes[0]).toBeGreaterThanOrEqual(250);
 
       scheduler.destroy();
@@ -177,9 +182,14 @@ describe('DataPipelineTaskScheduler', () => {
 
       const task1 = createTask('task-1');
       const task2 = createTask('task-2');
+      const task3 = createTask('task-3');
 
+      // task1 starts immediately (queue empties via tryDequeue)
       fullScheduler.enqueue(task1);
+      // task2: queue has room, gets queued (runningCount=1 blocks execution)
       fullScheduler.enqueue(task2);
+      // task3: queue is full (1/1) → rejected
+      fullScheduler.enqueue(task3);
 
       const stats = fullScheduler.getStats();
       expect(stats.totalRejected).toBeGreaterThanOrEqual(1);

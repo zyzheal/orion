@@ -22,7 +22,7 @@ function createMockDb() {
         const cols = colsMatch ? colsMatch[1].split(', ').map((c) => c.trim()) : [];
         const row: any = {};
         cols.forEach((col, i) => {
-          row[toSnakeCase(col)] = params?.[i];
+          row[col] = params?.[i];
         });
         if (!row.created_at) row.created_at = new Date();
         if (!row.updated_at) row.updated_at = new Date();
@@ -46,19 +46,17 @@ function createMockDb() {
         const setMatch = sql.match(/SET (.+?) WHERE/);
         if (setMatch) {
           const assignments = setMatch[1].split(', ');
-          // BaseRepository.update appends tenant_id after id: [...values, id, tenantId]
           const id = params?.[params.length - 2];
           const existing = ruleStore.get(id);
           if (!existing) return { rows: [], rowCount: 0 };
-          let paramIdx = 1; // skip tenant_id at params[0]
           for (const assignment of assignments) {
-            const colRaw = assignment.split(' = ')[0].trim();
-            const col = toSnakeCase(colRaw);
-            if (col === 'updated_at') {
-              existing[col] = new Date();
-            } else {
+            const col = assignment.split(' = ')[0].trim();
+            if (col === 'updated_at') continue; // NOW() - no param slot
+            // Extract the actual $N placeholder index from the assignment
+            const placeholderMatch = assignment.match(/\$(\d+)/);
+            if (placeholderMatch) {
+              const paramIdx = parseInt(placeholderMatch[1]) - 1;
               existing[col] = params?.[paramIdx];
-              paramIdx++;
             }
           }
           ruleStore.set(id, existing);

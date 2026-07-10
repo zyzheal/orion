@@ -4,6 +4,14 @@
  * 测试飞书 Webhook 通知适配器的消息格式和错误处理。
  */
 
+// Mock safeFetch to bypass SSRF validation in tests
+jest.mock('../../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn().mockImplementation((url: string, options?: RequestInit) => {
+    return global.fetch(url, options);
+  }),
+  safeFetchWithDomains: jest.fn(),
+}));
+
 import { FeishuAdapter } from '../../im-adapters/FeishuAdapter';
 import { IMNotificationConfig, IMNotificationPayload } from '../IMNotifier';
 

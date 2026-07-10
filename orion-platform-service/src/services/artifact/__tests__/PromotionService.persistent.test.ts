@@ -42,7 +42,10 @@ describe('PromotionService (persistent mode)', () => {
   // ==================== getCurrentStage (persistent) ====================
   describe('getCurrentStage (persistent)', () => {
     it('should return DEVELOPMENT when no promotion records exist', async () => {
-      mockDb.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      // loadSingleFromDb (storage fallback) + findByArtifact both need responses
+      mockDb.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // loadSingleFromDb find
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // findByArtifact
       const service = new PromotionService(mockDb as any);
 
       const stage = await service.getCurrentStage('artifact-new');
@@ -74,25 +77,25 @@ describe('PromotionService (persistent mode)', () => {
       expect(stage).toBe(PromotionStage.RELEASED);
     });
 
-    it('should return undefined when repository throws DB error', async () => {
+    it('should return DEVELOPMENT when repository throws DB error (graceful fallback)', async () => {
       mockDb.query.mockRejectedValue(new Error('Connection lost'));
       const service = new PromotionService(mockDb as any);
 
       const stage = await service.getCurrentStage('a1');
 
-      // Graceful degradation: returns undefined instead of throwing
-      expect(stage).toBeUndefined();
+      // Graceful degradation: returns DEVELOPMENT instead of throwing/undefined
+      expect(stage).toBe(PromotionStage.DEVELOPMENT);
     });
   });
 
   // ==================== getCurrentStage (in-memory fallback) ====================
   describe('getCurrentStage (in-memory fallback)', () => {
-    it('should return undefined for unknown artifact in memory mode', async () => {
+    it('should return DEVELOPMENT for unknown artifact in memory mode', async () => {
       const service = new PromotionService();
 
       const stage = await service.getCurrentStage('unknown');
 
-      expect(stage).toBeUndefined();
+      expect(stage).toBe(PromotionStage.DEVELOPMENT);
     });
 
     it('should return the set stage in memory mode', async () => {
@@ -109,10 +112,12 @@ describe('PromotionService (persistent mode)', () => {
   describe('promote (persistent)', () => {
     it('should promote from DEVELOPMENT to TESTING and persist to DB', async () => {
       // Mock sequence:
-      // 1. getCurrentStage → findByArtifact returns empty (new artifact)
-      // 2. storage.set calls persistToDbSilently → upsert
-      // 3. promote → repository.create
+      // 1. getCurrentStage → loadSingleFromDb find (storage fallback)
+      // 2. getCurrentStage → findByArtifact returns empty (new artifact)
+      // 3. storage.set calls persistToDbSilently → upsert
+      // 4. promote → repository.create
       mockDb.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // loadSingleFromDb find
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findByArtifact
         .mockResolvedValueOnce({ rows: [{ id: 'upsert-1' }], rowCount: 1 }) // upsert (cache)
         .mockResolvedValueOnce({ rows: [{ id: 'p1' }], rowCount: 1 }); // create
@@ -138,11 +143,13 @@ describe('PromotionService (persistent mode)', () => {
 
       for (let i = 0; i < stages.length; i++) {
         mockDb.query.mockReset();
-        // getCurrentStage → findByArtifact returns current stage
-        mockDb.query.mockResolvedValueOnce({
-          rows: [{ id: `p${i}`, artifact_id: 'a1', from_env: stages[i], to_env: stages[i], status: 'completed', promoted_by: 'user1', approved_by: null, approved_at: null, reason: null, created_at: new Date() }],
-          rowCount: 1,
-        });
+        // getCurrentStage → loadSingleFromDb find + findByArtifact returns current stage
+        mockDb.query
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // loadSingleFromDb find
+          .mockResolvedValueOnce({
+            rows: [{ id: `p${i}`, artifact_id: 'a1', from_env: stages[i], to_env: stages[i], status: 'completed', promoted_by: 'user1', approved_by: null, approved_at: null, reason: null, created_at: new Date() }],
+            rowCount: 1,
+          });
         // storage.set → upsert
         mockDb.query.mockResolvedValueOnce({ rows: [{ id: `upsert-${i}` }], rowCount: 1 });
         // create returns created row
@@ -164,15 +171,15 @@ describe('PromotionService (persistent mode)', () => {
       });
     });
 
-    it('should propagate DB errors during promote when getCurrentStage fails', async () => {
+    it('should promote from DEVELOPMENT when repository throws DB error (graceful fallback)', async () => {
       mockDb.query.mockRejectedValue(new Error('DB write failed'));
       const service = new PromotionService(mockDb as any);
 
-      // When getCurrentStage's repository call fails, it returns undefined
-      // promote then throws BUSINESS_ERROR (Unknown stage: undefined)
-      await expect(service.promote('a1', 'user1')).rejects.toMatchObject({
-        code: 'BUSINESS_ERROR',
-      });
+      // When getCurrentStage's repository call fails, it returns DEVELOPMENT as fallback
+      // promote then succeeds (promotes from DEVELOPMENT to TESTING)
+      const record = await service.promote('a1', 'user1');
+      expect(record.fromStage).toBe(PromotionStage.DEVELOPMENT);
+      expect(record.toStage).toBe(PromotionStage.TESTING);
     });
   });
 
@@ -213,13 +220,17 @@ describe('PromotionService (persistent mode)', () => {
   describe('promoteWithApproval (persistent)', () => {
     it('should promote and then approve in repository', async () => {
       // Mock sequence:
-      // 1. getCurrentStage → findByArtifact returns empty
-      // 2. storage.set → upsert (cache DEVELOPMENT)
-      // 3. promote → repository.create
-      // 4. promoteWithApproval → repository.approve
+      // 1. getCurrentStage → loadSingleFromDb (storage fallback find) returns empty
+      // 2. getCurrentStage → findByArtifact returns empty (new artifact)
+      // 3. storage.set (current stage) → upsert
+      // 4. storage.set (history) → upsert
+      // 5. promote → repository.create
+      // 6. promoteWithApproval → repository.approve
       mockDb.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // loadSingleFromDb find
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findByArtifact
-        .mockResolvedValueOnce({ rows: [{ id: 'upsert-1' }], rowCount: 1 }) // upsert
+        .mockResolvedValueOnce({ rows: [{ id: 'upsert-1' }], rowCount: 1 }) // upsert (current stage)
+        .mockResolvedValueOnce({ rows: [{ id: 'upsert-2' }], rowCount: 1 }) // upsert (history)
         .mockResolvedValueOnce({ rows: [{ id: 'promo-uuid' }], rowCount: 1 }) // create
         .mockResolvedValueOnce({ rows: [{ id: 'promo-uuid', approved_by: 'manager1' }], rowCount: 1 }); // approve
 
@@ -338,14 +349,15 @@ describe('PromotionService (persistent mode)', () => {
     it('should allow DEVELOPMENT when current stage is undefined (new artifact)', async () => {
       const service = new PromotionService();
 
-      // undefined current stage → canPromote returns toStage === DEVELOPMENT
-      expect(await service.canPromote('unknown', PromotionStage.DEVELOPMENT)).toBe(true);
+      // New artifact starts at DEVELOPMENT, so canPromote to next stage (TESTING) is true
+      expect(await service.canPromote('unknown', PromotionStage.TESTING)).toBe(true);
     });
 
-    it('should reject non-DEVELOPMENT when current stage is undefined', async () => {
+    it('should reject skipping stages from DEVELOPMENT', async () => {
       const service = new PromotionService();
 
-      expect(await service.canPromote('unknown', PromotionStage.TESTING)).toBe(false);
+      // New artifact starts at DEVELOPMENT, so canPromote to STAGING (skipping TESTING) is false
+      expect(await service.canPromote('unknown', PromotionStage.STAGING)).toBe(false);
     });
 
     it('should work in persistent mode', async () => {

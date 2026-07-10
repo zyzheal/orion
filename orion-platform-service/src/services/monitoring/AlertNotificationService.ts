@@ -13,6 +13,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 import {
   MonitoringNotificationChannelRepository,
   MonitoringNotificationChannelEntity,
@@ -438,7 +439,7 @@ export class AlertNotificationService {
     };
 
     // In production:
-    // const response = await fetch(config.url, {
+    // const response = await safeFetch(config.url, {
     //   method: config.method || 'POST',
     //   headers: { 'Content-Type': 'application/json', ...config.headers },
     //   body: JSON.stringify(payload),
@@ -474,7 +475,7 @@ export class AlertNotificationService {
       text: this.formatSlackMessage(alert),
     };
 
-    // In production: await fetch(config.webhookUrl, { method: 'POST', body: JSON.stringify(message) });
+    // In production: await safeFetch(config.webhookUrl, { method: 'POST', body: JSON.stringify(message) });
     logger.info(`[Slack] Channel: ${message.channel} | Text: ${message.text.substring(0, 200)}...`);
 
     record.status = 'sent';

@@ -18,6 +18,7 @@
 
 import crypto from 'crypto';
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 import { pipelineCircuitBreaker } from '../circuit-breaker/pipeline-circuit-breaker';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
@@ -292,7 +293,7 @@ export class WebhookNotifier {
 
     // F004: 通过熔断器执行 webhook 调用
     await pipelineCircuitBreaker.execute('notification', this.extractProvider(config.url), async () => {
-      const response = await fetch(config.url, {
+      const response = await safeFetch(config.url, {
         method: config.method || 'POST',
         headers,
         body,

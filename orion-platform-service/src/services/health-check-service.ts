@@ -16,6 +16,7 @@ import { createLogger } from '../utils/logger';
 import { OrionError, ErrorCode } from '../errors';
 import { Pool } from 'pg';
 import Redis from 'ioredis';
+import { safeFetch } from '../utils/safeFetch';
 
 const logger = createLogger('HealthCheckService');
 
@@ -292,7 +293,7 @@ export class HealthCheckService {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'GET',
         signal: controller.signal,
         headers: {

@@ -11,6 +11,7 @@ import {
   IntegrationEvent,
 } from '../ConnectorRegistry';
 import { OrionError, ErrorCode } from '../../../errors';
+import { safeFetch } from '../../../utils/safeFetch';
 
 // GitLab API response types
 interface GitLabProject {
@@ -131,7 +132,7 @@ export class GitLabConnector implements Connector {
   async testConnection(config: ConnectorConfig): Promise<boolean> {
     try {
       const baseUrl = config.host?.replace(/\/$/, '') || 'https://gitlab.com';
-      const response = await fetch(`${baseUrl}/api/v4/user`, {
+      const response = await safeFetch(`${baseUrl}/api/v4/user`, {
         headers: {
           'PRIVATE-TOKEN': config.token || '',
         },
@@ -382,7 +383,7 @@ export class GitLabConnector implements Connector {
       throw new OrionError('GitLab token not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
-    const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {
+    const response = await safeFetch(`${this.baseUrl}/api/v4${endpoint}`, {
       headers: {
         'PRIVATE-TOKEN': this.config.token,
       },
@@ -401,7 +402,7 @@ export class GitLabConnector implements Connector {
       throw new OrionError('GitLab token not configured', ErrorCode.SERVICE_UNAVAILABLE);
     }
 
-    const response = await fetch(`${this.baseUrl}/api/v4${endpoint}`, {
+    const response = await safeFetch(`${this.baseUrl}/api/v4${endpoint}`, {
       method: 'POST',
       headers: {
         'PRIVATE-TOKEN': this.config.token,

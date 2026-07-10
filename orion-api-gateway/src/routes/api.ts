@@ -440,22 +440,22 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
 
-  // ========== Notify Service (3019) — routed to platform-service (3001) ==========
+  // ========== Notify Service (3019) ==========
   {
     prefix: '/api/v1/notify',
-    target: services().platform?.url || 'http://localhost:3001',
+    target: services().notify?.url || 'http://localhost:3019',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/notification',
-    target: services().platform?.url || 'http://localhost:3001',
+    target: services().notify?.url || 'http://localhost:3019',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/notifications',
-    target: services().platform?.url || 'http://localhost:3001',
+    target: services().notify?.url || 'http://localhost:3019',
     timeout: 30000,
     stripPrefix: false,
   },
@@ -545,16 +545,16 @@ const routeConfigs: RouteConfig[] = [
     stripPrefix: false,
   },
 
-  // ========== ChatOps Service (3027) — routed to platform-service (3001) ==========
+  // ========== ChatOps Service (3027) ==========
   {
     prefix: '/api/v1/chatops',
-    target: services().platform?.url || 'http://localhost:3001',
+    target: services().chatops?.url || 'http://localhost:3027',
     timeout: 30000,
     stripPrefix: false,
   },
   {
     prefix: '/api/v1/chat',
-    target: services().platform?.url || 'http://localhost:3001',
+    target: services().chatops?.url || 'http://localhost:3027',
     timeout: 30000,
     stripPrefix: false,
   },

@@ -77,6 +77,11 @@ export interface ResourcePoolInput {
 export class FederationAdvancedService {
   private repo?: FederationAdvancedRepository;
 
+  // In-memory maps for consistency verification (repairConsistency clears these)
+  schedulingPolicies = new Map<string, SchedulingPolicy>();
+  crossClusterJobs = new Map<string, CrossClusterJob>();
+  resourcePools = new Map<string, ResourcePool>();
+
   constructor(db?: { query: (text: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount: number | null }> }) {
     if (db) {
       this.repo = new FederationAdvancedRepository(db);
@@ -121,13 +126,19 @@ export class FederationAdvancedService {
         status: policy.status,
         version: 0,
       });
+      // Update in-memory cache with DB-returned values
+      this.schedulingPolicies.set(policy.id, {
+        ...policy,
+        updatedAt: persisted.updatedAt.toISOString(),
+      });
       return {
         ...policy,
         updatedAt: persisted.updatedAt.toISOString(),
       };
     }
 
-    // No DB: return in-memory only (no caching)
+    // No DB: store in-memory only
+    this.schedulingPolicies.set(policy.id, policy);
     return policy;
   }
 
@@ -182,10 +193,12 @@ export class FederationAdvancedService {
         completedAt: null,
         version: 0,
       });
+      this.crossClusterJobs.set(job.id, job);
       return job;
     }
 
-    // No DB: return job (no in-memory caching)
+    // No DB: store in-memory only
+    this.crossClusterJobs.set(job.id, job);
     return job;
   }
 
@@ -225,10 +238,12 @@ export class FederationAdvancedService {
         status: pool.status,
         version: 0,
       });
+      this.resourcePools.set(pool.id, pool);
       return pool;
     }
 
-    // No DB: return pool (no in-memory caching)
+    // No DB: store in-memory only
+    this.resourcePools.set(pool.id, pool);
     return pool;
   }
 
@@ -267,7 +282,6 @@ export class FederationAdvancedService {
     expectedVersion?: number,
   ): Promise<CrossClusterJob | null> {
     const completedAtDate = completedAt ? new Date(completedAt) : null;
-    const scheduledAtDate = new Date(Date.now());
 
     if (this.repo) {
       try {
@@ -279,7 +293,6 @@ export class FederationAdvancedService {
             spec: {},
             targetClusters: [],
             status,
-            scheduledAt: scheduledAtDate,
             completedAt: completedAtDate,
             version: 0,
           },
@@ -360,6 +373,53 @@ export class FederationAdvancedService {
       logger.warn({ err, poolId }, 'DB updatePoolUsage failed');
       throw err;
     }
+  }
+
+  // ========== Consistency Verification ==========
+
+  /**
+   * Verify that in-memory state matches DB state.
+   */
+  async verifyConsistency(): Promise<{
+    isConsistent: boolean;
+    divergences: Array<{ id: string; type: string; memoryValue: unknown; dbValue: unknown }>;
+  }> {
+    const divergences: Array<{ id: string; type: string; memoryValue: unknown; dbValue: unknown }> = [];
+
+    if (!this.repo) {
+      return { isConsistent: true, divergences: [] };
+    }
+
+    // Check for in-memory entries not in DB (raw queries, no tenant filter)
+    for (const [id, _mem] of this.schedulingPolicies) {
+      const row = await this.repo['db'].query('SELECT * FROM federation_scheduling_policies WHERE id = $1', [id]);
+      if (row.rows.length === 0) {
+        divergences.push({ id, type: 'policy', memoryValue: _mem, dbValue: null });
+      }
+    }
+    for (const [id, _mem] of this.crossClusterJobs) {
+      const row = await this.repo['db'].query('SELECT * FROM federation_cross_cluster_jobs WHERE id = $1', [id]);
+      if (row.rows.length === 0) {
+        divergences.push({ id, type: 'job', memoryValue: _mem, dbValue: null });
+      }
+    }
+    for (const [id, _mem] of this.resourcePools) {
+      const row = await this.repo['db'].query('SELECT * FROM federation_resource_pools WHERE id = $1', [id]);
+      if (row.rows.length === 0) {
+        divergences.push({ id, type: 'pool', memoryValue: _mem, dbValue: null });
+      }
+    }
+
+    return { isConsistent: divergences.length === 0, divergences };
+  }
+
+  /**
+   * Repair consistency by clearing in-memory maps (force re-read from DB).
+   */
+  async repairConsistency(): Promise<void> {
+    this.schedulingPolicies.clear();
+    this.crossClusterJobs.clear();
+    this.resourcePools.clear();
   }
 
 }

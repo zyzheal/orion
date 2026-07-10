@@ -30,6 +30,7 @@ import {
 } from '../../repositories/ServiceHealthRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('health-checker');
 
@@ -280,7 +281,7 @@ export class HealthCheckerService {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(check.serviceUrl, {
+      const response = await safeFetch(check.serviceUrl, {
         method: 'GET',
         signal: controller.signal,
         headers: { Accept: 'application/json' },
@@ -649,7 +650,7 @@ export class HealthCheckerService {
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'GET',
         signal: controller.signal,
         headers: {

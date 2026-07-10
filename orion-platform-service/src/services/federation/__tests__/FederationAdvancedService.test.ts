@@ -6,8 +6,8 @@
  */
 
 import { FederationAdvancedService } from '../FederationAdvancedService';
-import { FederationAdvancedRepository } from '../../repositories/FederationAdvancedRepository';
-import { OptimisticLockError } from '../../repositories/FederationAdvancedRepository';
+import { FederationAdvancedRepository } from '../../../repositories/FederationAdvancedRepository';
+import { OptimisticLockError } from '../../../repositories/FederationAdvancedRepository';
 
 // Helper to create a mock DB that records all queries and returns controlled results
 function createMockDb() {
@@ -33,8 +33,13 @@ function createMockDb() {
       const existingIndex = store[tableName].findIndex((r: any) => r[conflictCol] === idParam);
 
       if (existingIndex >= 0) {
-        // UPDATE path: merge params into existing row
+        // UPDATE path: optimistic locking check
         const row = store[tableName][existingIndex];
+        // expectedVersion is the last param in the UPSERT (WHERE version = $N)
+        const expectedVersion = Number(_params[_params.length - 1]);
+        if (row.version !== expectedVersion) {
+          return { rows: [], rowCount: 0 };
+        }
         if (tableName === 'federation_scheduling_policies') {
           row.name = _params[1];
           row.description = _params[2];
@@ -44,9 +49,12 @@ function createMockDb() {
           row.version = Number(_params[6]) || row.version + 1;
           row.updated_at = new Date().toISOString();
         } else if (tableName === 'federation_cross_cluster_jobs') {
-          row.status = _params[4];
-          row.completed_at = _params[5];
-          row.version = Number(_params[6]) || row.version + 1;
+          // UPSERT param order: $1=id,$2=tenantId,$3=name,$4=spec,$5=targetClusters,$6=status,$7=scheduledAt,$8=completedAt,$9=newVersion,$10=expectedVersion
+          row.target_clusters = _params[4];
+          row.status = _params[5];
+          row.scheduled_at = _params[6] instanceof Date ? _params[6].toISOString() : _params[6];
+          row.completed_at = _params[7] instanceof Date ? _params[7].toISOString() : _params[7];
+          row.version = Number(_params[8]) || row.version + 1;
         } else if (tableName === 'federation_resource_pools') {
           row.name = _params[1];
           row.description = _params[2];
@@ -77,8 +85,8 @@ function createMockDb() {
           newRow.spec = typeof _params[3] === 'string' ? JSON.parse(_params[3]) : _params[3];
           newRow.target_clusters = _params[4];
           newRow.status = _params[5];
-          newRow.scheduled_at = _params[6] instanceof Date ? _params[6].toISOString() : _params[6];
-          newRow.completed_at = _params[7] instanceof Date ? _params[7].toISOString() : _params[7];
+          newRow.scheduled_at = _params[6];
+          newRow.completed_at = _params[7];
           newRow.version = 1;
           newRow.created_at = new Date().toISOString();
         } else if (tableName === 'federation_resource_pools') {
@@ -99,11 +107,21 @@ function createMockDb() {
       }
     }
 
-    // SELECT handlers
+    // SELECT handlers (id-based must come before tenant_id-based to avoid wrong match)
+    if (sql.includes('SELECT * FROM federation_scheduling_policies WHERE id')) {
+      const id = _params?.[0];
+      const row = store.federation_scheduling_policies.find((r: any) => r.id === id);
+      return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+    }
     if (sql.includes('SELECT * FROM federation_scheduling_policies WHERE tenant_id')) {
       const tenantId = _params?.[0];
       const rows = store.federation_scheduling_policies.filter((r: any) => r.tenant_id === tenantId);
       return { rows, rowCount: rows.length };
+    }
+    if (sql.includes('SELECT * FROM federation_cross_cluster_jobs WHERE id')) {
+      const id = _params?.[0];
+      const row = store.federation_cross_cluster_jobs.find((r: any) => r.id === id);
+      return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
     }
     if (sql.includes('SELECT * FROM federation_cross_cluster_jobs WHERE tenant_id')) {
       const tenantId = _params?.[0];
@@ -143,7 +161,7 @@ describe('FederationAdvancedService', () => {
   describe('createSchedulingPolicy', () => {
     it('应该成功创建调度策略', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.createSchedulingPolicy('tenant-1', {
         name: 'cost-optimized-policy',
@@ -165,7 +183,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该使用默认值创建策略', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.createSchedulingPolicy('tenant-1', {
         name: 'minimal-policy',
@@ -179,7 +197,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该支持不同的策略类型', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const strategies = ['cost-optimized', 'latency-optimized', 'balanced', 'custom'] as const;
 
@@ -194,7 +212,7 @@ describe('FederationAdvancedService', () => {
 
     it('写后应立即能通过 listSchedulingPolicies 读取到新策略（读写一致性）', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       await service.createSchedulingPolicy('tenant-1', {
         name: 'consistency-test-policy',
@@ -217,7 +235,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该只返回指定租户的策略', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       await service.createSchedulingPolicy('tenant-1', { name: 'policy-1' });
       await service.createSchedulingPolicy('tenant-1', { name: 'policy-2' });
@@ -237,7 +255,7 @@ describe('FederationAdvancedService', () => {
   describe('scheduleCrossClusterJob', () => {
     it('应该成功调度跨集群作业', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.scheduleCrossClusterJob('tenant-1', {
         name: 'deploy-app',
@@ -257,7 +275,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该支持单集群调度', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.scheduleCrossClusterJob('tenant-1', {
         name: 'single-cluster-job',
@@ -274,7 +292,7 @@ describe('FederationAdvancedService', () => {
   describe('createResourcePool', () => {
     it('应该成功创建资源池', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.createResourcePool('tenant-1', {
         name: 'compute-pool',
@@ -299,7 +317,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该使用默认描述', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const result = await service.createResourcePool('tenant-1', {
         name: 'pool-no-desc',
@@ -321,7 +339,7 @@ describe('FederationAdvancedService', () => {
 
     it('应该返回资源池状态', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const pool = await service.createResourcePool('tenant-1', {
         name: 'compute-pool',
@@ -348,7 +366,7 @@ describe('FederationAdvancedService', () => {
   describe('updateJobStatus (optimistic locking)', () => {
     it('应该成功更新作业状态', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const job = await service.scheduleCrossClusterJob('tenant-1', {
         name: 'test-job',
@@ -365,7 +383,7 @@ describe('FederationAdvancedService', () => {
 
     it('乐观锁冲突时应抛出 OptimisticLockError', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const job = await service.scheduleCrossClusterJob('tenant-1', {
         name: 'lock-test-job',
@@ -389,7 +407,7 @@ describe('FederationAdvancedService', () => {
   describe('updatePoolUsage (optimistic locking)', () => {
     it('应该成功更新资源池使用率', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const pool = await service.createResourcePool('tenant-1', {
         name: 'usage-pool',
@@ -410,7 +428,7 @@ describe('FederationAdvancedService', () => {
 
     it('乐观锁冲突时应抛出 OptimisticLockError', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       const pool = await service.createResourcePool('tenant-1', {
         name: 'lock-test-pool',
@@ -445,7 +463,7 @@ describe('FederationAdvancedService', () => {
 
     it('写后应立即通过一致性检查', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       await service.createSchedulingPolicy('tenant-1', {
         name: 'consistent-policy',
@@ -459,7 +477,7 @@ describe('FederationAdvancedService', () => {
 
     it('创建策略和资源池后整体应一致', async () => {
       const { query } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       await service.createSchedulingPolicy('tenant-1', { name: 'policy-a' });
       await service.createResourcePool('tenant-1', {
@@ -477,7 +495,7 @@ describe('FederationAdvancedService', () => {
   describe('repairConsistency', () => {
     it('应该同步内存状态与 DB 状态', async () => {
       const { query, store } = createMockDb();
-      const service = new FederationAdvancedService(query);
+      const service = new FederationAdvancedService({ query });
 
       // Create a policy
       await service.createSchedulingPolicy('tenant-1', { name: 'repair-policy' });

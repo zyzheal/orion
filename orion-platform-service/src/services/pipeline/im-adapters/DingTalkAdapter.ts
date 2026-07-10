@@ -7,6 +7,7 @@
 
 import { IMAdapter, IMNotificationConfig, IMNotificationPayload } from '../IMNotifier';
 import { OrionError } from '../../../errors';
+import { safeFetch } from '../../../utils/safeFetch';
 
 export class DingTalkAdapter implements IMAdapter {
   readonly platformType = 'dingtalk' as const;
@@ -20,7 +21,7 @@ export class DingTalkAdapter implements IMAdapter {
       },
     };
 
-    const response = await fetch(config.webhookUrl, {
+    const response = await safeFetch(config.webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -22,7 +22,29 @@ jest.mock('pino', () => {
 const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
+// Mock safeFetch to bypass SSRF validation in tests
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn().mockImplementation((_url: string, options?: RequestInit) => {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: () => Promise.resolve('OK'),
+      json: () => Promise.resolve({}),
+      clone: () => ({ json: () => Promise.resolve({}) }),
+      blob: () => Promise.resolve(new Blob()),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      formData: () => Promise.resolve(new FormData()),
+    } as Response);
+  }),
+  safeFetchWithDomains: jest.fn(),
+}));
+
 import { WebhookService } from '../WebhookService';
+import { safeFetch } from '../../../utils/safeFetch';
+
+// Store reference to mocked safeFetch for test configuration
+const mockedSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 describe('WebhookService', () => {
   let service: WebhookService;
@@ -143,9 +165,9 @@ describe('WebhookService', () => {
         events: ['test'],
       });
 
-      // Verify secret was generated (32 bytes hex = 64 chars)
+      // Verify secret was generated (now encrypted as ENC:<base64>)
       const insertParams = mockPool.query.mock.calls[0][1];
-      expect(insertParams[4]).toMatch(/^[a-f0-9]{64}$/); // secret
+      expect(insertParams[4]).toMatch(/^ENC:[A-Za-z0-9+/=]+$/); // encrypted secret
     });
 
     it('should use provided secret', async () => {
@@ -161,7 +183,7 @@ describe('WebhookService', () => {
       });
 
       const insertParams = mockPool.query.mock.calls[0][1];
-      expect(insertParams[4]).toBe('my-secret');
+      expect(insertParams[4]).toMatch(/^ENC:/); // secret is encrypted before storage
     });
 
     it('should use defaults for optional fields', async () => {
@@ -274,11 +296,12 @@ describe('WebhookService', () => {
         .mockResolvedValueOnce({ rows: [] }) // logDelivery insert
         .mockResolvedValueOnce({ rows: [] }); // update webhook status
 
-      mockFetch.mockResolvedValue({
+      mockedSafeFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
+        statusText: 'OK',
         text: () => Promise.resolve('OK'),
-      });
+      } as Response);
 
       const result = await service.testWebhook('wh-1');
 
@@ -292,7 +315,7 @@ describe('WebhookService', () => {
         .mockResolvedValueOnce({ rows: [] }) // logDelivery
         .mockResolvedValueOnce({ rows: [] }); // update status
 
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      mockedSafeFetch.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await service.testWebhook('wh-1');
 
@@ -363,15 +386,16 @@ describe('WebhookService', () => {
         .mockResolvedValueOnce({ rows: [] }) // logDelivery
         .mockResolvedValueOnce({ rows: [] }); // update status
 
-      mockFetch.mockResolvedValue({
+      mockedSafeFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
+        statusText: 'OK',
         text: () => Promise.resolve('OK'),
-      });
+      } as Response);
 
       await service.deliverEvent('deploy.finished', { service: 'api' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockedSafeFetch).toHaveBeenCalledWith(
         'https://example.com/hook',
         expect.objectContaining({ method: 'POST' }),
       );
@@ -384,7 +408,7 @@ describe('WebhookService', () => {
 
       await service.deliverEvent('deploy.finished', { service: 'api' });
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockedSafeFetch).not.toHaveBeenCalled();
     });
 
     it('should skip webhooks without matching event', async () => {
@@ -394,7 +418,7 @@ describe('WebhookService', () => {
 
       await service.deliverEvent('unrelated.event', { data: 'test' });
 
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockedSafeFetch).not.toHaveBeenCalled();
     });
 
     it('should handle delivery failure', async () => {
@@ -403,7 +427,7 @@ describe('WebhookService', () => {
         .mockResolvedValueOnce({ rows: [] }) // logDelivery
         .mockResolvedValueOnce({ rows: [] }); // update status
 
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockedSafeFetch.mockRejectedValueOnce(new Error('Connection refused'));
 
       // Should not throw
       await service.deliverEvent('deploy.finished', { service: 'api' });
@@ -412,6 +436,7 @@ describe('WebhookService', () => {
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO chatops_webhook_logs'),
         expect.arrayContaining([expect.stringContaining('Connection refused')]),
+      );
       );
     });
   });

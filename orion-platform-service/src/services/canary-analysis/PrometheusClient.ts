@@ -1,9 +1,11 @@
 /**
  * Prometheus HTTP API Client for Canary Analysis
  *
- * Uses native fetch() to query Prometheus.
+ * Uses safeFetch to query Prometheus.
  * Falls back to empty results when Prometheus is unavailable.
  */
+
+import { safeFetch } from '../../utils/safeFetch';
 
 export interface PrometheusConfig {
   baseUrl: string;
@@ -50,7 +52,7 @@ export class PrometheusClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(`${this.baseUrl}/api/v1/query_range?${params}`, {
+      const response = await safeFetch(`${this.baseUrl}/api/v1/query_range?${params}`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -74,7 +76,7 @@ export class PrometheusClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
-      const response = await fetch(`${this.baseUrl}/api/v1/query?${params}`, {
+      const response = await safeFetch(`${this.baseUrl}/api/v1/query?${params}`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);

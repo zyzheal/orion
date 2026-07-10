@@ -15,6 +15,7 @@
 import { createLogger } from '../../utils/logger';
 import { getCurrentTenantId } from '../../db/tenant-context-storage';
 import { OrionError } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 import {
   ApprovalAgentPlugin,
   ApprovalContext,
@@ -149,7 +150,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const response = await fetch(`${this.aiServiceUrl}/healthz`, {
+      const response = await safeFetch(`${this.aiServiceUrl}/healthz`, {
         signal: controller.signal,
       });
 
@@ -441,7 +442,7 @@ export class DefaultApprovalAgent implements ApprovalAgentPlugin {
   private async callLLM(context: ApprovalContext): Promise<ApprovalDecision> {
     const timeout = (this.config.timeoutSeconds || 10) * 1000;
 
-    const response = await fetch(`${this.aiServiceUrl}/api/v1/approval/evaluate`, {
+    const response = await safeFetch(`${this.aiServiceUrl}/api/v1/approval/evaluate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -100,17 +100,15 @@ export class PipelineEngine {
     eventPublisher: PipelineEventPublisher,
     stageExecutor: StageExecutor,
     serviceRegistry: PipelineServiceRegistry,
-    checkpointManager?: PipelineCheckpointManager,
-    yamlPreprocessor?: YamlPreprocessor | null,
-    debugController?: DebugController | null
+    yamlPreprocessor?: YamlPreprocessor | null
   ) {
     this.pipelineService = pipelineService;
     this.runService = runService;
     this.eventPublisher = eventPublisher;
     this.stageExecutor = stageExecutor;
     this.serviceRegistry = serviceRegistry;
-    this.checkpointManager = checkpointManager || null;
-    this.debugController = debugController || null;
+    this.checkpointManager = this.serviceRegistry.getCheckpointManager();
+    this.debugController = this.serviceRegistry.getDebugController();
     this.yamlPreprocessor = yamlPreprocessor || null;
 
     // Cached references from registry

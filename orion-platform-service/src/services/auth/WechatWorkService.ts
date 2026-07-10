@@ -21,6 +21,7 @@ import crypto from 'crypto';
 import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('WechatWorkService');
 
@@ -146,7 +147,7 @@ export class WechatWorkService {
 
     try {
       const url = `${WECHAT_API_BASE}/gettoken?corpid=${this.config.corpId}&corpsecret=${this.config.corpSecret}`;
-      const response = await fetch(url);
+      const response = await safeFetch(url);
       const data: WechatWorkTokenResponse = await response.json() as WechatWorkTokenResponse;
 
       if (data.errcode !== 0) {
@@ -163,7 +164,7 @@ export class WechatWorkService {
       logger.info('[WechatWorkService] Access token refreshed');
       return data.access_token;
     } catch (error) {
-      logger.error('[WechatWorkService] Failed to fetch access token:', error);
+      logger.error('[WechatWorkService] Failed to safeFetch access token:', error);
       throw error;
     }
   }
@@ -183,7 +184,7 @@ export class WechatWorkService {
 
       // Step 1: Exchange code for user ID
       const userIdUrl = `${WECHAT_API_BASE}/user/getuserinfo?access_token=${accessToken}&code=${code}`;
-      const userIdResponse = await fetch(userIdUrl);
+      const userIdResponse = await safeFetch(userIdUrl);
       const userIdData = await userIdResponse.json() as { errcode: number; errmsg: string; UserId?: string; OpenId?: string };
 
       if (userIdData.errcode !== 0) {
@@ -198,7 +199,7 @@ export class WechatWorkService {
 
       // Step 2: Get detailed user information
       const userDetailUrl = `${WECHAT_API_BASE}/user/get?access_token=${accessToken}&userid=${userId}`;
-      const userDetailResponse = await fetch(userDetailUrl);
+      const userDetailResponse = await safeFetch(userDetailUrl);
       const userData: WechatWorkUserInfoResponse = await userDetailResponse.json() as WechatWorkUserInfoResponse;
 
       if (userData.errcode !== 0) {

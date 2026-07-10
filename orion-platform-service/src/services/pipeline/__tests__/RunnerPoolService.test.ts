@@ -5,6 +5,13 @@
  */
 
 import { RunnerPoolService } from '../RunnerPoolService';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock DatabasePool
 const mockDbQuery = jest.fn();
@@ -260,7 +267,7 @@ describe('RunnerPoolService', () => {
         parameters: { script: 'echo hello' },
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({ jobId: 'job-1', status: 'running' }),
       });
@@ -278,7 +285,7 @@ describe('RunnerPoolService', () => {
 
       expect(result.status).toBe('running');
       expect(result.jobId).toBe('job-1');
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'http://runner-1:8080/execute',
         expect.objectContaining({
           method: 'POST',
@@ -305,7 +312,7 @@ describe('RunnerPoolService', () => {
         return { rows: [] };
       });
 
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',

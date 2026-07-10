@@ -7,6 +7,7 @@
 
 import { IMAdapter, IMNotificationConfig, IMNotificationPayload } from '../IMNotifier';
 import { OrionError } from '../../../errors';
+import { safeFetch } from '../../../utils/safeFetch';
 
 export class WeComAdapter implements IMAdapter {
   readonly platformType = 'wecom' as const;
@@ -19,7 +20,7 @@ export class WeComAdapter implements IMAdapter {
       },
     };
 
-    const response = await fetch(config.webhookUrl, {
+    const response = await safeFetch(config.webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

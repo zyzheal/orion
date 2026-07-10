@@ -8,6 +8,7 @@ import { GitLabAdapter } from './GitLabAdapter';
 import { GitLabClient } from '../../clients/GitLabClient';
 import { GitHubClient } from '../../clients/GitHubClient';
 import { OrionError } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 
 // Local type definitions (not yet in types.ts)
 export enum CommitStatus {
@@ -578,7 +579,7 @@ export class CommitStatusService {
     const repo = this.extractRepo(repositoryId);
     const url = `${this.githubClient['baseUrl']}/repos/${owner}/${repo}/issues/${prNumber}/comments`;
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: 'POST',
       headers: this.githubClient['headers'] as Record<string, string>,
       body: JSON.stringify({ body }),
@@ -601,7 +602,7 @@ export class CommitStatusService {
   ): Promise<void> {
     const url = `${this.gitLabClient['baseUrl']}/api/v4/projects/${encodeURIComponent(projectId)}/merge_requests/${mrIid}/notes`;
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: 'POST',
       headers: this.gitLabClient['headers'] as Record<string, string>,
       body: JSON.stringify({ body }),
@@ -662,7 +663,7 @@ export class CommitStatusService {
         body.output = input.output;
       }
 
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'POST',
         headers: checkHeaders,
         body: JSON.stringify(body),
@@ -735,7 +736,7 @@ export class CommitStatusService {
         body.details_url = input.detailsUrl;
       }
 
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'PATCH',
         headers: checkHeaders,
         body: JSON.stringify(body),

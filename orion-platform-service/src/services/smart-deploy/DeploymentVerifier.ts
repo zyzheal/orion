@@ -19,6 +19,7 @@ import {
   VerificationReport,
   Deployment,
 } from './types';
+import { safeFetch } from '../../utils/safeFetch';
 
 /**
  * Deployment verification service
@@ -333,7 +334,7 @@ export class DeploymentVerifier {
 
           try {
             const startTime = Date.now();
-            const response = await fetch(`${baseUrl}${endpoint}`, {
+            const response = await safeFetch(`${baseUrl}${endpoint}`, {
               signal: controller.signal,
             });
             clearTimeout(timeout);

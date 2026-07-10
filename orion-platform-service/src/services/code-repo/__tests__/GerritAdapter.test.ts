@@ -10,27 +10,30 @@
 
 import { GerritAdapter } from '../GerritAdapter';
 import { RepoType, PullRequestStatus } from '../types';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 describe('GerritAdapter', () => {
   let adapter: GerritAdapter;
-  let mockFetch: jest.Mock;
   const origFetch = global.fetch;
 
   beforeEach(() => {
     process.env.GERRIT_API_ENABLED = 'true';
+    mockSafeFetch.mockClear();
 
     adapter = new GerritAdapter({
       baseUrl: 'https://gerrit.example.com',
       username: 'test-user',
       password: 'test-pass',
     });
-
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
   });
 
   afterEach(() => {
-    global.fetch = origFetch;
     delete process.env.GERRIT_API_ENABLED;
   });
 
@@ -57,7 +60,7 @@ describe('GerritAdapter', () => {
 
   describe('getRepository', () => {
     it('should return repository info from Gerrit', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         id: 'my-project',
         name: 'my-project',
         state: 'ACTIVE',
@@ -78,7 +81,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when API returns empty object', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const repo = await adapter.getRepository('non-existent');
 
@@ -88,7 +91,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when fetch fails', async () => {
-      mockFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
+      mockSafeFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
 
       const repo = await adapter.getRepository('my-project');
 
@@ -108,7 +111,7 @@ describe('GerritAdapter', () => {
       const repo = await adapter.getRepository('my-project');
 
       expect(repo.fullName).toBe('my-project');
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockSafeFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -116,7 +119,7 @@ describe('GerritAdapter', () => {
 
   describe('listRepositories', () => {
     it('should list repositories', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         'project-a': { state: 'ACTIVE', description: 'Project A' },
         'project-b': { state: 'READ_ONLY', description: 'Project B' },
       }));
@@ -128,7 +131,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return empty list when no projects', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const result = await adapter.listRepositories();
 
@@ -137,7 +140,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should filter empty key entries', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         '': {},
         'valid-project': { state: 'ACTIVE' },
       }));
@@ -152,7 +155,7 @@ describe('GerritAdapter', () => {
 
   describe('listBranches', () => {
     it('should list branches', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         main: { revision: 'abc123' },
         develop: { revision: 'def456' },
       }));
@@ -164,7 +167,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return empty list when no branches', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const result = await adapter.listBranches('my-project');
 
@@ -176,7 +179,7 @@ describe('GerritAdapter', () => {
 
   describe('getBranch', () => {
     it('should return branch info', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         revision: 'abc123',
       }));
 
@@ -188,7 +191,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when empty response', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const branch = await adapter.getBranch('my-project', 'main');
 
@@ -201,7 +204,7 @@ describe('GerritAdapter', () => {
 
   describe('createBranch', () => {
     it('should create a branch', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         revision: 'new-branch-sha',
       }));
 
@@ -212,7 +215,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when empty response', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const branch = await adapter.createBranch('my-project', 'feature', 'main');
 
@@ -225,13 +228,13 @@ describe('GerritAdapter', () => {
 
   describe('deleteBranch', () => {
     it('should delete a branch', async () => {
-      mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('') });
+      mockSafeFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('') });
 
       await expect(adapter.deleteBranch('my-project', 'feature')).resolves.not.toThrow();
     });
 
     it('should handle delete failure gracefully', async () => {
-      mockFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
+      mockSafeFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
 
       await expect(adapter.deleteBranch('my-project', 'feature')).resolves.not.toThrow();
     });
@@ -251,7 +254,7 @@ describe('GerritAdapter', () => {
 
   describe('listCommits', () => {
     it('should list commits', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([
+      mockSafeFetch.mockResolvedValue(gerritResponse([
         {
           current_revision: 'abc123',
           subject: 'Initial commit',
@@ -270,7 +273,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return empty list when no commits', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([]));
+      mockSafeFetch.mockResolvedValue(gerritResponse([]));
 
       const result = await adapter.listCommits('my-project');
 
@@ -282,7 +285,7 @@ describe('GerritAdapter', () => {
 
   describe('getCommit', () => {
     it('should return commit info', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([{
+      mockSafeFetch.mockResolvedValue(gerritResponse([{
         current_revision: 'abc123',
         subject: 'Fix bug',
         owner: { name: 'Dev', email: 'dev@example.com' },
@@ -298,7 +301,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when commit not found', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([]));
+      mockSafeFetch.mockResolvedValue(gerritResponse([]));
 
       const commit = await adapter.getCommit('my-project', 'non-existent');
 
@@ -331,7 +334,7 @@ describe('GerritAdapter', () => {
 
   describe('getPullRequest', () => {
     it('should return change details', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         change_id: 'I1234',
         subject: 'Fix issue',
         branch: 'feature',
@@ -348,7 +351,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should map MERGED status', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         change_id: 'I1234',
         subject: 'Merged',
         branch: 'feature',
@@ -362,7 +365,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should map ABANDONED status to CLOSED', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         change_id: 'I1234',
         subject: 'Abandoned',
         branch: 'feature',
@@ -376,7 +379,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return fallback when empty response', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const pr = await adapter.getPullRequest('my-project', 'I1234');
 
@@ -389,7 +392,7 @@ describe('GerritAdapter', () => {
 
   describe('listPullRequests', () => {
     it('should list open changes', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([
+      mockSafeFetch.mockResolvedValue(gerritResponse([
         {
           change_id: 'I1',
           subject: 'Change 1',
@@ -408,22 +411,22 @@ describe('GerritAdapter', () => {
     });
 
     it('should filter by MERGED status', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([]));
+      mockSafeFetch.mockResolvedValue(gerritResponse([]));
 
       await adapter.listPullRequests('my-project', { state: PullRequestStatus.MERGED });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = mockFetch.mock.calls[0][0] as string;
+      expect(mockSafeFetch).toHaveBeenCalledTimes(1);
+      const url = mockSafeFetch.mock.calls[0][0] as string;
       expect(url).toContain('status:merged');
     });
 
     it('should filter by CLOSED status', async () => {
-      mockFetch.mockResolvedValue(gerritResponse([]));
+      mockSafeFetch.mockResolvedValue(gerritResponse([]));
 
       await adapter.listPullRequests('my-project', { state: PullRequestStatus.CLOSED });
 
-      expect(mockFetch).toHaveBeenCalledTimes(1);
-      const url = mockFetch.mock.calls[0][0] as string;
+      expect(mockSafeFetch).toHaveBeenCalledTimes(1);
+      const url = mockSafeFetch.mock.calls[0][0] as string;
       expect(url).toContain('status:abandoned');
     });
   });
@@ -432,7 +435,7 @@ describe('GerritAdapter', () => {
 
   describe('mergePullRequest', () => {
     it('should merge a change', async () => {
-      mockFetch.mockResolvedValue(rawResponse({}));
+      mockSafeFetch.mockResolvedValue(rawResponse({}));
 
       const pr = await adapter.mergePullRequest('my-project', 'I1234');
 
@@ -445,7 +448,7 @@ describe('GerritAdapter', () => {
 
   describe('closePullRequest', () => {
     it('should abandon a change', async () => {
-      mockFetch.mockResolvedValue(rawResponse({}));
+      mockSafeFetch.mockResolvedValue(rawResponse({}));
 
       const pr = await adapter.closePullRequest('my-project', 'I1234');
 
@@ -477,7 +480,7 @@ describe('GerritAdapter', () => {
 
   describe('addReview', () => {
     it('should add review with score', async () => {
-      mockFetch.mockResolvedValue(rawResponse({}));
+      mockSafeFetch.mockResolvedValue(rawResponse({}));
 
       const review = await adapter.addReview('my-project', 'I1234', {
         content: 'LGTM',
@@ -490,7 +493,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should add review with request_changes state', async () => {
-      mockFetch.mockResolvedValue(rawResponse({}));
+      mockSafeFetch.mockResolvedValue(rawResponse({}));
 
       const review = await adapter.addReview('my-project', 'I1234', {
         content: 'Needs work',
@@ -501,7 +504,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should add review with comment state', async () => {
-      mockFetch.mockResolvedValue(rawResponse({}));
+      mockSafeFetch.mockResolvedValue(rawResponse({}));
 
       const review = await adapter.addReview('my-project', 'I1234', {
         content: 'Just a comment',
@@ -515,7 +518,7 @@ describe('GerritAdapter', () => {
 
   describe('listReviews', () => {
     it('should list reviews from comments', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({
+      mockSafeFetch.mockResolvedValue(gerritResponse({
         'src/main.ts': [
           { id: 'c1', author: { name: 'Reviewer' }, message: 'LGTM', updated: '2024-01-01T00:00:00Z' },
         ],
@@ -532,7 +535,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should return empty when no comments', async () => {
-      mockFetch.mockResolvedValue(gerritResponse({}));
+      mockSafeFetch.mockResolvedValue(gerritResponse({}));
 
       const reviews = await adapter.listReviews('my-project', 'I1234');
 
@@ -571,13 +574,13 @@ describe('GerritAdapter', () => {
 
   describe('deleteWebhook', () => {
     it('should delete a webhook', async () => {
-      mockFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('') });
+      mockSafeFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve('') });
 
       await expect(adapter.deleteWebhook('my-project', 'hook-1')).resolves.not.toThrow();
     });
 
     it('should handle delete failure gracefully', async () => {
-      mockFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
+      mockSafeFetch.mockResolvedValue({ ok: false, text: () => Promise.resolve('') });
 
       await expect(adapter.deleteWebhook('my-project', 'hook-1')).resolves.not.toThrow();
     });
@@ -587,7 +590,7 @@ describe('GerritAdapter', () => {
 
   describe('error handling', () => {
     it('should return fallback when fetch throws', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      mockSafeFetch.mockRejectedValue(new Error('Network error'));
 
       const repo = await adapter.getRepository('my-project');
 
@@ -596,7 +599,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should handle non-ok response for GET', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: false,
         text: () => Promise.resolve('Server Error'),
       });
@@ -607,7 +610,7 @@ describe('GerritAdapter', () => {
     });
 
     it('should handle non-ok response for POST', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: false,
         text: () => Promise.resolve('Server Error'),
       });

@@ -72,13 +72,13 @@ function createMockDb() {
     }
     // UPDATE ... RETURNING (health check count update)
     if (sql.includes('UPDATE') && sql.includes('db_health_check_counts') && sql.includes('RETURNING')) {
-      // Extract count from SET clause
-      const countMatch = sql.match(/check_count = \$(\d+)/);
+      // Extract count from SET clause - use word boundary to avoid matching $2 as $1
+      const countMatch = sql.match(/check_count\s*=\s*\$(\d+)/);
       if (countMatch && params) {
         const countIdx = parseInt(countMatch[1]) - 1;
         const count = params[countIdx];
-        // Find row id from WHERE clause (last param)
-        const rowId = params[params.length - 1];
+        // id is second-to-last param (last is tenant_id injected by BaseRepository.update)
+        const rowId = params[params.length - 2];
         // Look up node_id from our mapping
         const nodeId = rowIdToNodeId.get(rowId);
         if (nodeId) {
@@ -86,7 +86,7 @@ function createMockDb() {
         }
       }
       // Return a mock row with the updated values so mapRowToEntity works
-      const rowId = params?.[params.length - 1] || 'hcc-updated';
+      const rowId = params?.[params.length - 2] || 'hcc-updated';
       const nodeId = rowIdToNodeId.get(rowId);
       const updatedCount = nodeId ? (healthCounts.get(nodeId) || 0) : 0;
       return { rows: [{ id: rowId, node_id: nodeId, check_count: updatedCount, tenant_id: null, created_at: new Date(), updated_at: new Date() }], rowCount: 1 };

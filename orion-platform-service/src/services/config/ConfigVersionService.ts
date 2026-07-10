@@ -114,7 +114,7 @@ export class ConfigVersionService {
     rolledBackBy: string,
     reason?: string
   ): Promise<ConfigVersion> {
-    const history = await this.getHistory(domain, key, targetVersion);
+    const history = await this.getHistory(domain, key);
     const targetRecord = history.find(v => v.version === targetVersion);
 
     if (!targetRecord) {

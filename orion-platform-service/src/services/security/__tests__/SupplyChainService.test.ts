@@ -6,6 +6,7 @@
  * dependency poisoning scan, security score dashboard
  */
 
+import { createHttpsServer, request } from 'https';
 import { SupplyChainService } from '../SupplyChainService';
 
 // Mock database pool
@@ -13,8 +14,52 @@ const mockPool = {
   query: jest.fn(),
 };
 
+// Mock HTTPS to prevent real network calls during tests
+const originalHttpsGet = require('https').get;
+const mockHttpsResponse = (body: string, statusCode = 200) => ({
+  statusCode,
+  on: (_event: string, cb: (chunk: string) => void) => {
+    if (statusCode < 400) cb(body);
+  },
+  setTimeout: (_ms: number, _cb: () => void) => {},
+  destroy: () => {},
+});
+
+require('https').get = jest.fn((_options: any, cb: (res: any) => void) => {
+  const url = _options?.hostname + _options?.path || '';
+  if (url.includes('/express/4.18.0')) {
+    cb(mockHttpsResponse(JSON.stringify({
+      name: 'express', version: '4.18.0',
+      dependencies: {},
+      'dist-tags': { latest: '4.18.0' },
+      versions: { '4.18.0': {} },
+    })));
+  } else if (url.includes('/lodash/4.17.21')) {
+    cb(mockHttpsResponse(JSON.stringify({
+      name: 'lodash', version: '4.17.21',
+      dependencies: {},
+      'dist-tags': { latest: '4.17.21' },
+      versions: { '4.17.21': {} },
+    })));
+  } else if (url.includes('/registry.npmjs.org/') && !url.includes('/')) {
+    // Root package metadata request (for resolveSemverVersion)
+    cb(mockHttpsResponse(JSON.stringify({
+      'dist-tags': { latest: '1.0.0' },
+      versions: { '1.0.0': {} },
+    })));
+  } else {
+    cb(mockHttpsResponse('', 404));
+  }
+  return { on: () => {}, setTimeout: () => {}, destroy: () => {} } as any;
+});
+
 describe('SupplyChainService', () => {
   let service: SupplyChainService;
+
+  afterAll(() => {
+    // Restore original https.get
+    require('https').get = originalHttpsGet;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

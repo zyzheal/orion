@@ -33,6 +33,7 @@ import {
 } from '../../repositories/DeploymentStepTrackerRepository';
 import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('DeploymentStrategyService');
 
@@ -852,7 +853,7 @@ export class DeploymentStrategyService {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      const response = await fetch(endpoint, {
+      const response = await safeFetch(endpoint, {
         method: 'GET',
         signal: controller.signal,
       });

@@ -22,7 +22,6 @@ export class PipelineController extends BaseController {
   async create(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     try {
       const body = request.body as any || {};
-      const tenantId = this.getTenantId(request);
       const { name, version, description, yamlDefinition, createdBy } = body;
 
       if (!name || !version || !yamlDefinition) {
@@ -33,6 +32,8 @@ export class PipelineController extends BaseController {
         });
         return;
       }
+
+      const tenantId = this.getTenantId(request);
 
       const pipeline = await this.pipelineService.create({
         tenant_id: tenantId,
@@ -70,6 +71,16 @@ export class PipelineController extends BaseController {
           return;
         }
       }
+      // Handle OrionError with VALIDATION_ERROR code (e.g. getTenantId throws)
+      const orionErr = error as any;
+      if (orionErr?.code === 'VALIDATION_ERROR') {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: orionErr.message,
+        });
+        return;
+      }
       await reply.status(500).send({
         error: 'INTERNAL_ERROR',
         code: '50000',
@@ -102,6 +113,15 @@ export class PipelineController extends BaseController {
         total: pipelines.length,
       });
     } catch (error) {
+      const orionErr = error as any;
+      if (orionErr?.code === 'VALIDATION_ERROR') {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: orionErr.message,
+        });
+        return;
+      }
       await reply.status(500).send({
         error: 'INTERNAL_ERROR',
         code: '50000',
@@ -184,6 +204,15 @@ export class PipelineController extends BaseController {
         total: versions.length,
       });
     } catch (error) {
+      const orionErr = error as any;
+      if (orionErr?.code === 'VALIDATION_ERROR') {
+        await reply.status(400).send({
+          error: 'VALIDATION_ERROR',
+          code: '30101',
+          message: orionErr.message,
+        });
+        return;
+      }
       await reply.status(500).send({
         error: 'INTERNAL_ERROR',
         code: '50000',

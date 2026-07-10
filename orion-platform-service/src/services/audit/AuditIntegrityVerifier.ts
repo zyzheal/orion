@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuditLogChain } from './AuditLogChain';
 import { ImmutableAuditStorage } from './ImmutableAuditStorage';
 import { OrionError } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 import {
   IntegrityReport,
   IntegrityIssue,
@@ -366,7 +367,7 @@ export class AuditIntegrityVerifier extends EventEmitter {
     if (!this.alertConfig.webhookUrl) return;
 
     try {
-      const response = await fetch(this.alertConfig.webhookUrl, {
+      const response = await safeFetch(this.alertConfig.webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

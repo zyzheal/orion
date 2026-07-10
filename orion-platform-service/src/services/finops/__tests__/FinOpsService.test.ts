@@ -696,7 +696,7 @@ describe('FinOpsService', () => {
 
       expect(result).toEqual(mockRecord);
       expect(mockRepository.insertSaaSCost).toHaveBeenCalledWith(
-        expect.objectContaining({ totalCost: 1000 })
+        expect.objectContaining({ total_cost: 1000 })
       );
     });
   });
@@ -710,7 +710,7 @@ describe('FinOpsService', () => {
       expect(result).toBeDefined();
       expect(mockRepository.updateSaaSCost).toHaveBeenCalledWith(
         'saas-1',
-        expect.objectContaining({ totalCost: 2000 })
+        expect.objectContaining({ total_cost: 2000 })
       );
     });
   });

@@ -37,7 +37,7 @@ export class UEBAService {
     const recentDenies = denies.filter((d: any) => {
       const denyTime = new Date(d.evaluated_at);
       const hoursAgo = (Date.now() - denyTime.getTime()) / (1000 * 60 * 60);
-      return hoursAgo <= hours;
+      return hoursAgo <= hours + 0.001; // small epsilon for float precision
     });
 
     if (recentDenies.length === 0) return null;
@@ -54,7 +54,7 @@ export class UEBAService {
     return {
       userId,
       denyCount,
-      denyRate: denyCount / hours,
+      denyRate: hours > 0 ? denyCount / hours : denyCount,
       riskLevel,
       lastDenyAt: recentDenies[0]?.evaluated_at,
     };

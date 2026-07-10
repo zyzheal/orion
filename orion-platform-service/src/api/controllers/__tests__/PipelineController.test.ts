@@ -77,7 +77,7 @@ describe('PipelineController', () => {
 
       const request = {
         body: { name: 'dup', version: '1.0.0', yamlDefinition: 'stages: []' },
-        headers: {},
+        headers: { 'x-tenant-id': 'tenant-1' },
       } as any;
       const reply = createMockReply();
 
@@ -91,7 +91,7 @@ describe('PipelineController', () => {
 
       const request = {
         body: { name: 'test', version: '1.0.0', yamlDefinition: 'stages: []' },
-        headers: {},
+        headers: { 'x-tenant-id': 'tenant-1' },
       } as any;
       const reply = createMockReply();
 
@@ -105,7 +105,7 @@ describe('PipelineController', () => {
 
       const request = {
         body: { name: 'test', version: '1.0.0', yamlDefinition: 'stages: []' },
-        headers: {},
+        headers: { 'x-tenant-id': 'tenant-1' },
       } as any;
       const reply = createMockReply();
 
@@ -135,7 +135,7 @@ describe('PipelineController', () => {
     it('should return 500 on service error', async () => {
       mockPipelineService.list.mockRejectedValue(new Error('db error'));
 
-      const request = { query: {}, headers: {} } as any;
+      const request = { query: {}, headers: { 'x-tenant-id': 'tenant-1' } } as any;
       const reply = createMockReply();
 
       await controller.list(request, reply);
@@ -178,7 +178,7 @@ describe('PipelineController', () => {
         { id: 'v-1', name: 'v1', version: '1.0', description: '', status: 'active', createdAt: '' },
       ]);
 
-      const request = { params: { id: 'p-1' }, headers: {} } as any;
+      const request = { params: { id: 'p-1' }, headers: { 'x-tenant-id': 'tenant-1' } } as any;
       const reply = createMockReply();
 
       await controller.getVersions(request, reply);

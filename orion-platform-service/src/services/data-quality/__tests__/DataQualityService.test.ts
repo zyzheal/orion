@@ -75,6 +75,14 @@ function createMockDb() {
         return { rows: [{ count: String(count) }], rowCount: 1 };
       }
 
+
+      // SELECT rule by ID (BaseRepository.findById: WHERE id = $1 AND tenant_id = $2)
+      // MUST come before tenant handler since findById SQL also contains TENANT_ID
+      if (upperSql.includes('SELECT * FROM DATA_QUALITY_RULES WHERE ID')) {
+        const id = params?.[0];
+        const row = tables.data_quality_rules.find(r => r.id === id);
+        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+      }
       // SELECT rules by tenant
       if (upperSql.includes('SELECT * FROM DATA_QUALITY_RULES') && upperSql.includes('TENANT_ID')) {
         const tenantId = params?.[0];
@@ -92,12 +100,8 @@ function createMockDb() {
         return { rows, rowCount: rows.length };
       }
 
-      // SELECT rule by ID
-      if (upperSql.includes('SELECT * FROM DATA_QUALITY_RULES WHERE ID')) {
-        const id = params?.[0];
-        const row = tables.data_quality_rules.find(r => r.id === id);
-        return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
-      }
+
+
 
       // UPDATE rule check result
       if (upperSql.startsWith('UPDATE DATA_QUALITY_RULES') && upperSql.includes('LAST_CHECK_AT')) {
@@ -129,7 +133,7 @@ function createMockDb() {
 
       // UPDATE rule (general)
       if (upperSql.startsWith('UPDATE DATA_QUALITY_RULES')) {
-        const id = params?.[params.length - 1];
+        const id = params?.[params.length - 2];
         const row = tables.data_quality_rules.find(r => r.id === id);
         if (row) {
           // Parse SET clause to apply values
@@ -166,6 +170,18 @@ function createMockDb() {
 
       return { rows: [], rowCount: 0 };
     }),
+  };
+
+  console.log = console.log || (() => {});
+  const originalQuery = db.query;
+  db.query = async (...args) => {
+    const result = await originalQuery(...args);
+    if (args[0].includes('DATA_QUALITY_RULES') && args[0].includes('WHERE')) {
+      console.log('MOCK SQL:', args[0]);
+      console.log('MOCK PARAMS:', args[1]);
+      console.log('MOCK RESULT rows:', result.rows.length);
+    }
+    return result;
   };
 
   return { db, tables };

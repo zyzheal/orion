@@ -157,13 +157,16 @@ function createMockDb() {
 
 function createHandler(config?: Partial<EfficiencyEventHandlerConfig>): EfficiencyEventHandler {
   const defaultStorage = new FakeLocalStorage();
-  return new EfficiencyEventHandler({
+  const handler = new EfficiencyEventHandler({
     eventBus: undefined,
     doraMetricsService: new DoraMetricsService(),
     db: createMockDb(),
     ...config,
     localStorage: config?.localStorage || defaultStorage,
   });
+  // 使用 FakeLocalStorage 替代 PostgresLocalStorage（构造函数会创建 PostgresLocalStorage）
+  handler.setLocalStorage(config?.localStorage || defaultStorage);
+  return handler;
 }
 
 // ==================== Tests ====================

@@ -347,6 +347,12 @@ export class DataPipelineAsyncEngine extends EventEmitter {
    * 运行单个任务
    */
   private async runTask(task: DataPipelineTask, executionId: string, tenantId: string): Promise<void> {
+    // 检查是否已被取消（可能在排队期间被 cancelExecution 标记）
+    const preCheck = this.tasks.get(task.id);
+    if (preCheck?.state === 'cancelled') {
+      return;
+    }
+
     this.updateTaskState(task.id, 'running');
 
     // Per-execution running count (queue isolation)
@@ -373,8 +379,14 @@ export class DataPipelineAsyncEngine extends EventEmitter {
         await this.handleTaskFailure(task, executionId, tenantId, 'timeout');
       } else if (!result.success) {
         // 执行失败（executeStage 返回错误而非抛异常）
-        this.updateTaskState(task.id, 'failed', result.error);
-        await this.handleTaskFailure(task, executionId, tenantId, result.error || 'unknown');
+        // 但如果任务已被取消，保持 cancelled 状态
+        const currentTask = this.tasks.get(task.id);
+        if (currentTask?.state === 'cancelled') {
+          this.updateTaskState(task.id, 'cancelled');
+        } else {
+          this.updateTaskState(task.id, 'failed', result.error);
+          await this.handleTaskFailure(task, executionId, tenantId, result.error || 'unknown');
+        }
       } else {
         // 成功：检查是否已被取消
         const currentTask = this.tasks.get(task.id);
@@ -564,8 +576,11 @@ export class DataPipelineAsyncEngine extends EventEmitter {
 
     if (!allDone) return;
 
-    const hasFailure = tasks.some((t) => t.state === 'failed' || t.state === 'cancelled');
     const execution = this.executions.get(executionId);
+    // 如果已被 cancelExecution 标记为 cancelled，不再覆盖
+    if (execution?.status === 'cancelled') return;
+
+    const hasFailure = tasks.some((t) => t.state === 'failed' || t.state === 'cancelled');
     if (execution) {
       execution.status = hasFailure ? 'failed' : 'completed';
       execution.completedAt = new Date().toISOString();

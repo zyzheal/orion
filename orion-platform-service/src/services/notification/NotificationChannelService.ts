@@ -12,6 +12,7 @@
 
 import { Notification, CreateNotificationInput } from './NotificationRepository';
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('notification-channel');
 
@@ -222,7 +223,7 @@ export class NotificationChannelService {
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      const response = await fetch(config.url, {
+      const response = await safeFetch(config.url, {
         method,
         headers: {
           'Content-Type': 'application/json',

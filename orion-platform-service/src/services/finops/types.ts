@@ -550,3 +550,226 @@ export interface RightSizingRecommendation {
   /** 所属租户 */
   tenantId?: string;
 }
+
+/**
+ * 预算状态
+ */
+export interface BudgetStatus {
+  /** 预算 ID */
+  budgetId: string;
+  /** 实体类型 */
+  entityType: CostEntityType;
+  /** 实体 ID */
+  entityId: string;
+  /** 预算金额 */
+  budgetAmount: number;
+  /** 当前已花费 */
+  currentSpend: number;
+  /** 使用百分比 */
+  usagePercent: number;
+  /** 剩余金额 */
+  remaining: number;
+  /** 预算周期 */
+  period: CostPeriod;
+  /** 是否超预算 */
+  overBudget: boolean;
+  /** 已触发的告警 */
+  triggeredAlerts: any[];
+  /** 预测花费 */
+  forecastedSpend?: number;
+}
+
+/**
+ * 预算预测
+ */
+export interface BudgetForecast {
+  /** 预算 ID */
+  budgetId: string;
+  /** 当前已花费 */
+  currentSpend: number;
+  /** 预测花费 */
+  forecastedSpend: number;
+  /** 预计超支金额 */
+  projectedOverage: number;
+  /** 日均花费 */
+  dailySpendRate: number;
+  /** 耗尽天数 */
+  daysUntilExhausted: number;
+  /** 是否在预算内 */
+  withinBudget: boolean;
+  /** 历史数据 */
+  history: { date: Date; cumulativeCost: number }[];
+}
+
+// ==================== FinOpsService I/O Types ====================
+
+/**
+ * Cost record input for tracking
+ */
+export interface CostRecordInput {
+  entityType: CostEntityType;
+  entityId: string;
+  amount: number;
+  category: string;
+  environment?: string;
+  tags?: Record<string, string>;
+  currency?: string;
+  timestamp?: Date;
+}
+
+/**
+ * Budget creation input
+ */
+export interface BudgetInput {
+  entityType: CostEntityType;
+  entityId: string;
+  amount: number;
+  period: CostPeriod;
+  currency?: string;
+  alerts?: { percentage: number }[];
+  environment?: string;
+  description?: string;
+}
+
+/**
+ * Budget update input
+ */
+export interface BudgetUpdateInput {
+  amount?: number;
+  period?: CostPeriod;
+  alerts?: { percentage: number }[];
+  environment?: string;
+  description?: string;
+}
+
+/**
+ * ROI analysis input
+ */
+export interface ROIInput {
+  investmentType: string;
+  name: string;
+  cost: number;
+  monthlySavings: number;
+  timeSavingsHours?: number;
+  description?: string;
+  details?: Record<string, any>;
+}
+
+/**
+ * Period comparison input
+ */
+export interface PeriodComparisonInput {
+  description: string;
+  beforeCost: number;
+  afterCost: number;
+  timeSavingsHours?: number;
+  period: CostPeriod;
+}
+
+/**
+ * Entity cost summary
+ */
+export interface EntityCostSummary {
+  entityType: CostEntityType;
+  entityId: string;
+  totalCost: number;
+  breakdown: Record<string, number>;
+  period: CostPeriod;
+  currency: string;
+  recordCount: number;
+}
+
+/**
+ * Chargeback report
+ */
+export interface ChargebackReport {
+  id: string;
+  generatedAt: Date;
+  period: CostPeriod;
+  totalCost: number;
+  entities: {
+    entityType: CostEntityType;
+    entityId: string;
+    cost: number;
+    percentage: number;
+    breakdown: Record<string, number>;
+  }[];
+  currency: string;
+}
+
+/**
+ * Cloud cost input
+ */
+export interface CloudCostInput {
+  provider: CloudProvider;
+  resourceType: CloudResourceType;
+  resourceId: string;
+  resourceName?: string;
+  region: string;
+  cost: number;
+  currency?: string;
+  tags?: Record<string, string>;
+  timestamp?: Date;
+  tenantId?: string;
+  environment?: string;
+  billingPeriod?: string;
+}
+
+/**
+ * K8s cost input
+ */
+export interface K8sCostInput {
+  namespace: string;
+  deployment: string;
+  podName?: string;
+  cpuCost: number;
+  memoryCost: number;
+  storageCost: number;
+  networkCost: number;
+  totalCost: number;
+  tenantId?: string;
+  timestamp?: Date;
+  clusterName?: string;
+  nodeName?: string;
+}
+
+/**
+ * SaaS cost input
+ */
+export interface SaaSCostInput {
+  tool: string;
+  subscription: string;
+  seats: number;
+  unitCost: number;
+  billingCycle: BillingCycle;
+  startDate: Date;
+  endDate: Date;
+  tenantId?: string;
+  notes?: string;
+}
+
+/**
+ * SaaS cost update input
+ */
+export interface SaaSCostUpdate {
+  seats?: number;
+  unitCost?: number;
+  totalCost?: number;
+  billingCycle?: BillingCycle;
+  startDate?: Date;
+  endDate?: Date;
+  status?: 'active' | 'cancelled' | 'expired';
+  notes?: string;
+}
+
+/**
+ * Legacy budget alert input
+ */
+export interface LegacyBudgetAlertInput {
+  budgetAmount: number;
+  thresholdPercent: number;
+  tenantId?: string;
+  environment?: string;
+  currency?: string;
+  period?: CostPeriod;
+}

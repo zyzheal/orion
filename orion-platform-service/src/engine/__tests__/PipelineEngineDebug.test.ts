@@ -25,6 +25,8 @@ import { Pipeline, createPipeline } from '../../models/Pipeline';
 import { PipelineRun, PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
 import { Stage, StageStatus, createStage } from '../../models/Stage';
 import { Task, TaskStatus, createTask } from '../../models/Task';
+import { PipelineServiceRegistry } from '../PipelineServiceRegistry';
+import { PipelineCheckpointManager } from '../PipelineCheckpointManager';
 
 // ==================== Helpers ====================
 
@@ -134,22 +136,17 @@ function createEngineWithDebug(debugController?: DebugController): {
     getById: jest.fn().mockResolvedValue(null),
   } as unknown as jest.Mocked<PipelineService>;
 
+  const registry = new PipelineServiceRegistry()
+    .registerSubPipelineService(null)
+    .registerCheckpointManager({ cleanupCompleted: jest.fn().mockResolvedValue(true) } as any)
+    .registerDebugController(debugController || null);
+
   const engine = new PipelineEngine(
     pipelineService,
     runService,
     eventPublisher,
     stageExecutor,
-    undefined, // sseBridge
-    undefined, // subPipelineService
-    undefined, // artifactService
-    undefined, // approvalGateService
-    undefined, // executionQueue
-    undefined, // autoRetryService
-    undefined, // onRunComplete
-    undefined, // checkpointManager
-    undefined, // imNotifier
-    undefined, // imNotificationConfigs
-    debugController || undefined
+    registry,
   );
 
   return {
@@ -286,9 +283,12 @@ describe('PipelineEngine Debug Integration', () => {
 
       const mockPs = { getById: jest.fn().mockResolvedValue(null) } as unknown as jest.Mocked<PipelineService>;
       const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, undefined, debugController);
+      const slowRegistry = new PipelineServiceRegistry()
+        .registerCheckpointManager({ cleanupCompleted: jest.fn().mockResolvedValue(true) } as any)
+        .registerDebugController(debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        slowRegistry,
       );
 
       const pipeline: Pipeline = {
@@ -409,9 +409,12 @@ describe('PipelineEngine Debug Integration', () => {
 
       const mockPs = { getById: jest.fn().mockResolvedValue(null) } as unknown as jest.Mocked<PipelineService>;
       const slowStageExecutor = new StageExecutor(slowRunner, mockEp, undefined, undefined, undefined, debugController);
+      const slowRegistry = new PipelineServiceRegistry()
+        .registerCheckpointManager({ cleanupCompleted: jest.fn().mockResolvedValue(true) } as any)
+        .registerDebugController(debugController);
       const slowEngine = new PipelineEngine(
         mockPs, mockRs, mockEp, slowStageExecutor,
-        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, debugController
+        slowRegistry,
       );
 
       const pipeline: Pipeline = {

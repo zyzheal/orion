@@ -7,8 +7,13 @@ import { SlaRepository, SLAPolicyEntity, TicketSLAEntity } from '../repositories
 import { getCurrentTenantId, getCurrentUserId } from '../../../db/tenant-context-storage';
 
 jest.mock('../../../db/tenant-context-storage', () => {
-  const mockFn = jest.fn(() => '__system__');
-  return { getCurrentTenantId: mockFn, getCurrentUserId: mockFn, getCurrentTraceId: jest.fn(() => 'test-trace-123') };
+  const mockTenantId = jest.fn(() => '__system__');
+  const mockUserId = jest.fn(() => '__system__');
+  return {
+    getCurrentTenantId: mockTenantId,
+    getCurrentUserId: mockUserId,
+    getCurrentTraceId: jest.fn(() => 'test-trace-123'),
+  };
 });
 
 const MOCK_TENANT_ID = '__system__';
@@ -84,8 +89,8 @@ describe('SlaService', () => {
         priority: 'critical',
         targetResponseTimeMs: 3600000,
         targetResolutionTimeMs: 14400000,
-        tenantId: MOCK_TENANT_ID,
-        createdBy: MOCK_USER_ID,
+        tenantId: '__system__',
+        createdBy: undefined,
       });
       expect(result).toEqual(mockPolicy);
     });

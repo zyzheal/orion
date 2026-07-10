@@ -24,6 +24,7 @@ import {
 } from './vector-types';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('CodeEmbeddingService');
 
@@ -317,7 +318,7 @@ export class CodeEmbeddingService {
     const model = this.providerConfig.model || 'text-embedding-ada-002';
     const baseUrl = this.providerConfig.baseUrl || 'https://api.openai.com/v1';
 
-    const response = await fetch(`${baseUrl}/embeddings`, {
+    const response = await safeFetch(`${baseUrl}/embeddings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -346,7 +347,7 @@ export class CodeEmbeddingService {
     const model = this.providerConfig.model || 'voyage-2';
     const baseUrl = this.providerConfig.baseUrl || 'https://api.voyageai.com/v1';
 
-    const response = await fetch(`${baseUrl}/embeddings`, {
+    const response = await safeFetch(`${baseUrl}/embeddings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

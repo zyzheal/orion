@@ -25,6 +25,14 @@ jest.mock('pino', () => {
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
+// Mock safeFetch to bypass SSRF validation in tests
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn().mockImplementation((url: string, options?: RequestInit) => {
+    return global.fetch(url, options);
+  }),
+  safeFetchWithDomains: jest.fn(),
+}));
+
 describe('WebhookNotifier', () => {
   let notifier: WebhookNotifier;
 

@@ -8,6 +8,7 @@
  */
 
 import { createLogger } from '../../../utils/logger';
+import { safeFetch } from '../../../utils/safeFetch';
 
 const logger = createLogger('docker-registry-client');
 
@@ -149,7 +150,7 @@ async function getBearerToken(
     url.searchParams.set('account', registry.auth.username);
   }
 
-  const response = await fetch(url.toString(), {
+  const response = await safeFetch(url.toString(), {
     headers: authHeader,
   });
 
@@ -221,7 +222,7 @@ async function registryFetch(
     }
   }
 
-  const response = await fetch(url, fetchOptions);
+  const response = await safeFetch(url, fetchOptions);
 
   // Handle 401 authentication challenge
   if (response.status === 401 && !skipAuth) {
@@ -249,7 +250,7 @@ async function registryFetch(
         }
       }
 
-      const retryResponse = await fetch(url, retryOptions);
+      const retryResponse = await safeFetch(url, retryOptions);
       return { response: retryResponse, headers: retryResponse.headers };
     }
   }
@@ -638,7 +639,7 @@ export class DockerRegistryClient {
     const end = offset + data.length;
     const contentRange = `bytes ${offset}-${end - 1}/${totalSize}`;
 
-    const response = await fetch(uploadUrl, {
+    const response = await safeFetch(uploadUrl, {
       method: 'PATCH',
       headers: {
         'Content-Range': contentRange,
@@ -668,7 +669,7 @@ export class DockerRegistryClient {
     const url = new URL(uploadUrl);
     url.searchParams.set('digest', digest);
 
-    const response = await fetch(url.toString(), {
+    const response = await safeFetch(url.toString(), {
       method: 'PUT',
       headers: {
         ...buildAuthHeader(this.registry),

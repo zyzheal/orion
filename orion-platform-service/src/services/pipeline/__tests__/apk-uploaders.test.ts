@@ -17,6 +17,13 @@ import {
   PgyerUploader,
   FirUploader,
 } from '../apk-uploaders';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock readFile for all uploaders
 jest.mock('fs/promises', () => ({
@@ -197,7 +204,7 @@ describe('APK Market Uploaders', () => {
     });
 
     it('should fail when auth token request fails', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Unauthorized',
       });
@@ -237,7 +244,7 @@ describe('APK Market Uploaders', () => {
 
   describe('PgyerUploader', () => {
     it('should fail when COS token is invalid', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         ok: true,
         json: jest.fn().mockResolvedValue({ data: {} }), // missing endpoint/key
       });
@@ -250,7 +257,7 @@ describe('APK Market Uploaders', () => {
     });
 
     it('should succeed when COS token is valid', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           ok: true,
           json: jest.fn().mockResolvedValue({

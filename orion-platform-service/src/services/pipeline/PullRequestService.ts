@@ -10,6 +10,7 @@
 import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('pull-request-service');
 
@@ -101,7 +102,7 @@ export class GitHubPRClient implements PRApiClient {
   }
 
   private async request<T>(method: string, url: string, body?: any): Promise<T> {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method,
       headers: {
         'Authorization': `token ${this.token}`,
@@ -184,7 +185,7 @@ export class GitLabPRClient implements PRApiClient {
   }
 
   private async request<T>(method: string, url: string, body?: any): Promise<T> {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method,
       headers: {
         'PRIVATE-TOKEN': this.token,

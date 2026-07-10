@@ -4,6 +4,7 @@
 import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('AIDiagnosisService');
 
@@ -175,7 +176,7 @@ export class AIDiagnosisService {
       recent_logs: context.recentLogs || [],
     };
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

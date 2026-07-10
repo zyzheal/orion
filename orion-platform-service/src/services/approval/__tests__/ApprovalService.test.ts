@@ -239,8 +239,10 @@ describe('ApprovalService', () => {
   });
 
   test('should allow approver to withdraw their approval', async () => {
-    const req = await service.createApproval('Deploy', 'user1', ['manager1']);
+    const req = await service.createApproval('Deploy', 'user1', ['manager1', 'manager2'], 2);
+    // manager1 approves first step
     await service.approve(req.id, 'manager1');
+    // approval stays 'pending' since requiredApprovals=2 but only 1 approved
     const result = await service.withdrawApproval(req.id, 'manager1', 'mistake');
     expect(result.status).toBe(ApprovalStatus.PENDING);
   });

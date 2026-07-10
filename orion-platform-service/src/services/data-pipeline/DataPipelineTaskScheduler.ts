@@ -79,16 +79,6 @@ export class DataPipelineTaskScheduler extends EventEmitter {
    *           队列满时也拒绝。
    */
   enqueue(task: ScheduledTask): boolean {
-    // 已达到最大并发数，无执行容量，直接拒绝
-    if (this.runningCount >= this.config.maxConcurrent) {
-      this.totalRejected++;
-      logger.warn(
-        { taskId: task.id, running: this.runningCount, max: this.config.maxConcurrent },
-        'Rejected: at max concurrency'
-      );
-      return false;
-    }
-
     // 队列已满，拒绝
     if (this.queue.length >= this.config.maxQueueSize) {
       this.totalRejected++;
@@ -103,7 +93,7 @@ export class DataPipelineTaskScheduler extends EventEmitter {
     this.totalEnqueued++;
     this.emit('task:enqueued', { taskId: task.id, priority: task.priority });
 
-    // 同步尝试启动（保证 rejection 测试中 task1 先于 task2 运行）
+    // 同步尝试启动
     this.tryDequeue();
 
     return true;

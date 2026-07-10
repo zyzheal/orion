@@ -16,6 +16,7 @@ import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
 import { HookChainDefinitionRepository } from '../../repositories/HookChainDefinitionRepository';
 import { HookChainExecutionRepository } from '../../repositories/HookChainExecutionRepository';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('HookChainService');
 
@@ -99,7 +100,7 @@ class WebhookExecutor implements HookExecutor {
     const { url, method = 'POST', headers = {} } = config;
 
     // 发送 HTTP 请求
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method,
       headers: {
         'Content-Type': 'application/json',

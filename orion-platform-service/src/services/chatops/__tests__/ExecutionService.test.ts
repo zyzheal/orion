@@ -142,8 +142,19 @@ describe('ExecutionService', () => {
   describe('execute', () => {
     it('should execute command successfully', async () => {
       mockExecutionRepo.findById.mockResolvedValue(sampleExecutionEntity);
+      const mockShellExecutor = {
+        execute: jest.fn().mockResolvedValue({ output: 'ok', exitCode: 0, durationMs: 100, stdout: '', stderr: '' }),
+      };
+      const svc = new ExecutionService({
+        commandService: mockCommandService as any,
+        eventBus: mockEventBus,
+        executionRepo: mockExecutionRepo as any,
+        sessionRepo: mockSessionRepo as any,
+        auditRepo: mockAuditRepo as any,
+        shellExecutor: mockShellExecutor as any,
+      });
 
-      const result = await service.execute({
+      const result = await svc.execute({
         commandId: 'deploy',
         userId: 'user-1',
         platform: 'slack',

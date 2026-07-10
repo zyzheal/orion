@@ -25,6 +25,7 @@ import { QualityGateRepository } from '../../repositories/QualityGateRepository'
 import { QualityGateResultRepository } from '../../repositories/QualityGateResultRepository';
 import { createLogger } from '../../utils/logger';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('QualityGateService');
 
@@ -401,7 +402,7 @@ export class QualityGateService {
     }
 
     try {
-      const response = await fetch(url, { headers });
+      const response = await safeFetch(url, { headers });
       if (!response.ok) {
         throw new QualityGateServiceError(
           `SonarQube API returned ${response.status}: ${response.statusText}`,
@@ -455,7 +456,7 @@ export class QualityGateService {
     const fullUrl = queryString ? `${url}?${queryString}` : url;
 
     try {
-      const response = await fetch(fullUrl);
+      const response = await safeFetch(fullUrl);
       if (!response.ok) {
         throw new QualityGateServiceError(
           `Provider returned ${response.status}: ${response.statusText}`,

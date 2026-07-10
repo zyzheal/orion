@@ -4,6 +4,7 @@
 import { createLogger } from '../../utils/logger';
 import { OrionError } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('AIGenerateService');
 
@@ -190,7 +191,7 @@ export class AIGenerateService {
   private async callAIGeneration(request: GenerateRequest): Promise<GeneratedScript | null> {
     const url = `${this.aiServiceUrl}/api/generate-script`;
 
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

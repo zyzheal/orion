@@ -15,6 +15,7 @@ import { PipelineEventPublisher } from '../../events/PipelineEventPublisher';
 import { PipelineService } from '../../services/pipeline/PipelineService';
 import { PipelineRunService } from '../../services/pipeline/PipelineRunService';
 import { SubPipelineService } from '../../services/pipeline/SubPipelineService';
+import { PipelineServiceRegistry } from '../PipelineServiceRegistry';
 import { Pipeline, createPipeline } from '../../models/Pipeline';
 import { PipelineRun, PipelineRunStatus, TriggerType } from '../../models/PipelineRun';
 import { StageStatus } from '../../models/Stage';
@@ -158,16 +159,17 @@ describe('SubPipeline Integration', () => {
   });
 
   function createEngine(subPipelineService?: SubPipelineService | null): PipelineEngine {
+    const registry = new PipelineServiceRegistry()
+      .registerSubPipelineService(subPipelineService || null)
+      .registerCheckpointManager({ cleanupCompleted: jest.fn().mockResolvedValue(true) } as any)
+      .registerDebugController(null);
+
     return new PipelineEngine(
       mockPipelineService,
       mockRunService,
       mockEventPublisher,
       stageExecutor,
-      undefined, // sseBridge
-      subPipelineService || null,
-      undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined, undefined,
-      undefined, undefined, undefined, undefined,
+      registry,
     );
   }
 
@@ -376,7 +378,7 @@ describe('SubPipeline Integration', () => {
       const updateCalls = (mockRunService.updateStage as jest.Mock).mock.calls;
       const failedCall = updateCalls.find((c: any[]) => c[0]?.status === StageStatus.FAILED);
       expect(failedCall).toBeDefined();
-      expect(failedCall[0].error).toContain('Sub-pipeline');
+      expect(failedCall[0].error).toContain('Child pipeline failed');
 
       expect(mockSubPipelineService.markFailed).toHaveBeenCalled();
     });

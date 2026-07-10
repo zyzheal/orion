@@ -27,6 +27,7 @@ import { PostgresRunnerRepository, RunnerRepository } from '../../repositories/R
 import { PostgresRunnerJobRepository, RunnerJobRepository } from '../../repositories/RunnerJobRepository';
 import { OrionError, ErrorCode } from '../../errors';
 import { getCurrentTraceId } from '../../db/tenant-context-storage';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('runner-pool-service');
 
@@ -213,7 +214,7 @@ export class RunnerPoolService {
     };
 
     try {
-      const response = await fetch(`${runnerEndpoint}/execute`, {
+      const response = await safeFetch(`${runnerEndpoint}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

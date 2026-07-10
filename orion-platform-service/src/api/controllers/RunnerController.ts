@@ -83,8 +83,14 @@ export class RunnerController extends BaseController {
    * GET /api/v1/runners — 获取 Runner 列表
    */
   async listRunners(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const query = request.query as { tenantId?: string };
-    const tenantId = query.tenantId || this.getTenantId(request);
+    let tenantId: string;
+    try {
+      const query = request.query as { tenantId?: string };
+      tenantId = query.tenantId || this.getTenantId(request);
+    } catch (error) {
+      reply.code(400).send({ error: (error as Error).message });
+      return;
+    }
 
     try {
       const runners = await this.poolService.listRunners(tenantId);

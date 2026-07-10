@@ -7,6 +7,7 @@
 import * as crypto from 'crypto';
 import { WebhookRepository, Webhook, WebhookDelivery, WebhookRepositoryEnhanced, WebhookEndpoint, WebhookSubscription, WebhookDeliveryEnhanced } from './WebhookRepository';
 import { createLogger } from '../../utils/logger';
+import { safeFetch } from '../../utils/safeFetch';
 import { OrionError, ErrorCode } from '../../errors';
 
 const logger = createLogger('webhook-service');
@@ -64,7 +65,7 @@ export class WebhookService {
         const timeout = setTimeout(() => controller.abort(), 10_000);
 
         try {
-          const response = await fetch(webhook.url, {
+          const response = await safeFetch(webhook.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ event, payload, timestamp: new Date().toISOString() }),
@@ -370,7 +371,7 @@ export class WebhookServiceEnhanced {
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
     try {
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         method: 'POST',
         headers,
         body,

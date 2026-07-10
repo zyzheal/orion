@@ -2,6 +2,13 @@
  * Tests for DefaultApprovalAgent
  */
 import { DefaultApprovalAgent, createDefaultApprovalAgent } from '../DefaultApprovalAgent';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -17,7 +24,7 @@ describe('DefaultApprovalAgent', () => {
 
   describe('evaluate', () => {
     it('should reject high risk prod operations', async () => {
-      mockFetch.mockResolvedValue({ ok: true }); // healthy
+      mockSafeFetch.mockResolvedValue({ ok: true }); // healthy
 
       const result = await agent.evaluate({
         operation: 'deploy',
@@ -33,7 +40,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should reject high-risk operations in prod', async () => {
-      mockFetch.mockResolvedValue({ ok: true }); // healthy
+      mockSafeFetch.mockResolvedValue({ ok: true }); // healthy
 
       const result = await agent.evaluate({
         operation: 'delete',
@@ -48,7 +55,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should approve low risk dev operations', async () => {
-      mockFetch.mockResolvedValue({ ok: true }); // healthy
+      mockSafeFetch.mockResolvedValue({ ok: true }); // healthy
 
       const result = await agent.evaluate({
         operation: 'deploy',
@@ -63,7 +70,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should approve read operations', async () => {
-      mockFetch.mockResolvedValue({ ok: true }); // healthy
+      mockSafeFetch.mockResolvedValue({ ok: true }); // healthy
 
       const result = await agent.evaluate({
         operation: 'get',
@@ -78,7 +85,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should fallback to rules when AI is unhealthy', async () => {
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockSafeFetch.mockRejectedValue(new Error('Connection refused'));
 
       const result = await agent.evaluate({
         operation: 'deploy',
@@ -94,7 +101,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should escalate when AI is unhealthy and prod environment', async () => {
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockSafeFetch.mockRejectedValue(new Error('Connection refused'));
 
       const result = await agent.evaluate({
         operation: 'deploy',
@@ -109,7 +116,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should call LLM for medium risk operations', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({ ok: true }) // health check
         .mockResolvedValueOnce({
           ok: true,
@@ -135,7 +142,7 @@ describe('DefaultApprovalAgent', () => {
     });
 
     it('should fallback to rules when LLM call fails', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({ ok: true }) // health check
         .mockRejectedValueOnce(new Error('LLM error'));
 
@@ -154,21 +161,21 @@ describe('DefaultApprovalAgent', () => {
 
   describe('isHealthy', () => {
     it('should return true when AI service is healthy', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
 
       const result = await agent.isHealthy();
       expect(result).toBe(true);
     });
 
     it('should return false when AI service is unhealthy', async () => {
-      mockFetch.mockRejectedValue(new Error('Connection refused'));
+      mockSafeFetch.mockRejectedValue(new Error('Connection refused'));
 
       const result = await agent.isHealthy();
       expect(result).toBe(false);
     });
 
     it('should return false when response is not ok', async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 503 });
+      mockSafeFetch.mockResolvedValue({ ok: false, status: 503 });
 
       const result = await agent.isHealthy();
       expect(result).toBe(false);

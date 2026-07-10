@@ -4,6 +4,118 @@
  * SBOM generation + dependency poisoning detection flow
  */
 
+// Mock Node.js https to avoid real network calls during dependency resolution
+jest.mock('https', () => {
+  const { EventEmitter } = require('events');
+
+  // Canned npm registry responses
+  const registryResponses: Record<string, any> = {
+    'express@4.18.2': {
+      name: 'express',
+      version: '4.18.2',
+      dependencies: {
+        accepts: '~1.3.8',
+        'body-parser': '~1.20.1',
+        'content-disposition': '~0.5.4',
+        cookie: '~0.4.2',
+        'cookie-signature': '~1.0.6',
+        debug: '~2.6.9',
+        depd: '~1.1.2',
+        encodeurl: '~1.0.2',
+        'escape-html': '~1.0.3',
+        etag: '~1.8.1',
+        finalhandler: '~1.1.2',
+        fresh: '~0.5.2',
+        'merge-descriptors': '~1.0.1',
+        methods: '~1.1.3',
+        'on-finished': '~2.3.0',
+        parseurl: '~1.3.3',
+        'path-to-regexp': '~0.1.10',
+        'proxy-addr': '~2.0.7',
+        qs: '~6.5.3',
+        'range-parser': '~1.2.1',
+        'safe-buffer': '~5.2.0',
+        send: '~0.17.1',
+        'serve-static': '~1.14.2',
+        setprototypeof: '~1.1.1',
+        statuses: '~2.0.1',
+        'type-is': '~1.6.18',
+        'utils-merge': '~1.0.1',
+        vary: '~1.1.2',
+      },
+    },
+    express: {
+      name: 'express',
+      versions: { '4.18.2': { name: 'express', version: '4.18.2' } },
+      'dist-tags': { latest: '4.18.2' },
+    },
+  };
+
+  // Generic response for any other package (returns no deps to keep recursion bounded)
+  function getGenericResponse(pkgName: string, version: string) {
+    return {
+      name: pkgName,
+      version,
+      dependencies: {},
+      devDependencies: {},
+    };
+  }
+
+  function mockGet(url: string, _options: any, callback: (res: any) => void) {
+    let body = '';
+    const pkgMatch = url.match(/registry\.npmjs\.org\/([^/]+)(?:\/([^/]+))?/);
+    let statusCode = 200;
+
+    if (pkgMatch) {
+      const pkgName = decodeURIComponent(pkgMatch[1]);
+      const version = pkgMatch[2] ? decodeURIComponent(pkgMatch[2]) : null;
+      const cacheKey = version ? `${pkgName}@${version}` : pkgName;
+
+      if (registryResponses[cacheKey]) {
+        body = JSON.stringify(registryResponses[cacheKey]);
+      } else if (version) {
+        body = JSON.stringify(getGenericResponse(pkgName, version));
+      } else {
+        // Version listing request - return minimal metadata
+        body = JSON.stringify({
+          name: pkgName,
+          versions: { [version || '1.0.0']: { name: pkgName, version: version || '1.0.0' } },
+          'dist-tags': { latest: version || '1.0.0' },
+        });
+      }
+    } else {
+      statusCode = 404;
+    }
+
+    const res = new EventEmitter() as any;
+    res.statusCode = statusCode;
+
+    // Emit response data asynchronously (simulates network)
+    setImmediate(() => {
+      callback(res);
+      setImmediate(() => {
+        res.emit('data', body);
+        res.emit('end');
+      });
+    });
+
+    return {
+      on: (_event: string, fn: () => void) => { res.on('error', fn); return {}; },
+      setHeader: jest.fn(),
+      setTimeout: jest.fn(),
+      destroy: jest.fn(),
+    };
+  }
+
+  return {
+    default: {
+      get: jest.fn(mockGet),
+      request: jest.fn(),
+    },
+    get: jest.fn(mockGet),
+  };
+});
+
 import { SupplyChainService, SBOMInput, DependencyPoisoningReport } from '@/services/security/SupplyChainService';
 
 // ============================================================

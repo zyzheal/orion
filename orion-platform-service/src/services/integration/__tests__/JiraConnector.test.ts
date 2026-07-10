@@ -13,6 +13,13 @@
 
 import { JiraConnector } from '../connectors/JiraConnector';
 import { ConnectorCapability } from '../ConnectorRegistry';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock global fetch
 const originalFetch = global.fetch;
@@ -77,9 +84,9 @@ describe('JiraConnector', () => {
         token: 'token',
       });
       // Verify by checking testConnection URL
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
       await connector.testConnection({ host: 'https://company.atlassian.net/', token: 'token' });
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://company.atlassian.net/rest/api/3/myself',
         expect.anything()
       );
@@ -103,13 +110,13 @@ describe('JiraConnector', () => {
         token: 'token',
         apiVersion: '2',
       });
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
       await connector.testConnection({
         host: 'https://company.atlassian.net',
         token: 'token',
         apiVersion: '2',
       });
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://company.atlassian.net/rest/api/2/myself',
         expect.anything()
       );
@@ -153,7 +160,7 @@ describe('JiraConnector', () => {
 
   describe('testConnection', () => {
     it('should return true when API responds with ok (token auth)', async () => {
-      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+      mockSafeFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await connector.testConnection({
         host: 'https://company.atlassian.net',
@@ -162,7 +169,7 @@ describe('JiraConnector', () => {
       expect(result).toBe(true);
 
       const expectedAuth = `Basic ${Buffer.from(':api-token').toString('base64')}`;
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://company.atlassian.net/rest/api/3/myself',
         expect.objectContaining({
           headers: {
@@ -174,7 +181,7 @@ describe('JiraConnector', () => {
     });
 
     it('should return true when API responds with ok (username/password auth)', async () => {
-      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+      mockSafeFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await connector.testConnection({
         host: 'https://company.atlassian.net',
@@ -184,7 +191,7 @@ describe('JiraConnector', () => {
       expect(result).toBe(true);
 
       const expectedAuth = `Basic ${Buffer.from('user@example.com:mypassword').toString('base64')}`;
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -195,7 +202,7 @@ describe('JiraConnector', () => {
     });
 
     it('should return false when API responds with error status', async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+      mockSafeFetch.mockResolvedValue({ ok: false, status: 401 });
 
       const result = await connector.testConnection({
         host: 'https://company.atlassian.net',
@@ -205,7 +212,7 @@ describe('JiraConnector', () => {
     });
 
     it('should return false when fetch throws (network error)', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      mockSafeFetch.mockRejectedValue(new Error('Network error'));
 
       const result = await connector.testConnection({
         host: 'https://company.atlassian.net',
@@ -215,14 +222,14 @@ describe('JiraConnector', () => {
     });
 
     it('should use default apiVersion 3 when not specified', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
 
       await connector.testConnection({
         host: 'https://company.atlassian.net',
         token: 'token',
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         expect.stringContaining('/rest/api/3/'),
         expect.anything()
       );
@@ -257,7 +264,7 @@ describe('JiraConnector', () => {
     describe('getProjects', () => {
       it('should list projects', async () => {
         const projects = [{ id: '1', key: 'TEST', name: 'Test Project' }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(projects),
           text: jest.fn().mockResolvedValue(''),
@@ -268,14 +275,14 @@ describe('JiraConnector', () => {
       });
 
       it('should pass expand parameter', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue([]),
           text: jest.fn().mockResolvedValue(''),
         });
 
         await connector.execute('getProjects', { expand: 'lead' });
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('expand=lead');
       });
     });
@@ -285,7 +292,7 @@ describe('JiraConnector', () => {
     describe('getProject', () => {
       it('should get a project by key', async () => {
         const project = { id: '1', key: 'TEST', name: 'Test' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(project),
           text: jest.fn().mockResolvedValue(''),
@@ -293,7 +300,7 @@ describe('JiraConnector', () => {
 
         const result = await connector.execute('getProject', { projectKey: 'TEST' });
         expect(result).toEqual(project);
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockSafeFetch).toHaveBeenCalledWith(
           expect.stringContaining('/project/TEST'),
           expect.anything()
         );
@@ -310,7 +317,7 @@ describe('JiraConnector', () => {
 
     describe('createIssue', () => {
       it('should create an issue', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({ id: '10001', key: 'TEST-1' }),
           text: jest.fn().mockResolvedValue(''),
@@ -333,7 +340,7 @@ describe('JiraConnector', () => {
       });
 
       it('should create issue with minimal required params', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({ id: '10002', key: 'TEST-2' }),
           text: jest.fn().mockResolvedValue(''),
@@ -359,7 +366,7 @@ describe('JiraConnector', () => {
 
     describe('updateIssue', () => {
       it('should update an issue', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({}),
           text: jest.fn().mockResolvedValue(''),
@@ -373,14 +380,14 @@ describe('JiraConnector', () => {
           assigneeAccountId: 'user-456',
         });
 
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockSafeFetch).toHaveBeenCalledWith(
           expect.stringContaining('/issue/TEST-1'),
           expect.objectContaining({ method: 'PUT' })
         );
       });
 
       it('should clear assignee when assigneeAccountId is null', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({}),
           text: jest.fn().mockResolvedValue(''),
@@ -391,7 +398,7 @@ describe('JiraConnector', () => {
           assigneeAccountId: null,
         });
 
-        const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+        const body = JSON.parse(mockSafeFetch.mock.calls[0][1].body);
         expect(body.fields.assignee).toBeNull();
       });
 
@@ -407,7 +414,7 @@ describe('JiraConnector', () => {
     describe('getIssue', () => {
       it('should get an issue by key', async () => {
         const issue = { id: '10001', key: 'TEST-1', fields: { summary: 'Test' } };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(issue),
           text: jest.fn().mockResolvedValue(''),
@@ -418,7 +425,7 @@ describe('JiraConnector', () => {
       });
 
       it('should pass fields parameter', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({}),
           text: jest.fn().mockResolvedValue(''),
@@ -428,7 +435,7 @@ describe('JiraConnector', () => {
           issueKey: 'TEST-1',
           fields: ['summary', 'status'],
         });
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('fields=summary%2Cstatus');
       });
 
@@ -444,7 +451,7 @@ describe('JiraConnector', () => {
     describe('searchIssues', () => {
       it('should search issues with JQL', async () => {
         const searchResult = { issues: [], total: 0, maxResults: 50, startAt: 0 };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(searchResult),
           text: jest.fn().mockResolvedValue(''),
@@ -459,7 +466,7 @@ describe('JiraConnector', () => {
       });
 
       it('should pass fields parameter as array', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({ issues: [], total: 0 }),
           text: jest.fn().mockResolvedValue(''),
@@ -468,12 +475,12 @@ describe('JiraConnector', () => {
         await connector.execute('searchIssues', {
           fields: ['summary', 'status'],
         });
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('fields=summary%2Cstatus');
       });
 
       it('should pass fields parameter as string', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({ issues: [], total: 0 }),
           text: jest.fn().mockResolvedValue(''),
@@ -482,7 +489,7 @@ describe('JiraConnector', () => {
         await connector.execute('searchIssues', {
           fields: 'summary,status',
         });
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('fields=summary%2Cstatus');
       });
     });
@@ -491,7 +498,7 @@ describe('JiraConnector', () => {
 
     describe('transitionIssue', () => {
       it('should transition issue by ID', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({}),
           text: jest.fn().mockResolvedValue(''),
@@ -502,7 +509,7 @@ describe('JiraConnector', () => {
           transitionId: '31',
         });
 
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockSafeFetch).toHaveBeenCalledWith(
           expect.stringContaining('/issue/TEST-1/transitions'),
           expect.objectContaining({ method: 'POST' })
         );
@@ -510,7 +517,7 @@ describe('JiraConnector', () => {
 
       it('should transition issue by name (fetching transitions first)', async () => {
         // First call: getTransitions
-        mockFetch
+        mockSafeFetch
           .mockResolvedValueOnce({
             ok: true,
             json: jest.fn().mockResolvedValue({
@@ -533,11 +540,11 @@ describe('JiraConnector', () => {
           transitionName: 'done',
         });
 
-        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(mockSafeFetch).toHaveBeenCalledTimes(2);
       });
 
       it('should throw when transition name is not found', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({
             transitions: [{ id: '31', name: 'In Progress', to: { name: 'In Progress', id: '3' } }],
@@ -571,7 +578,7 @@ describe('JiraConnector', () => {
     describe('addComment', () => {
       it('should add a comment to an issue', async () => {
         const comment = { id: '10000', body: 'test comment', author: { displayName: 'User' } };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(comment),
           text: jest.fn().mockResolvedValue(''),
@@ -602,7 +609,7 @@ describe('JiraConnector', () => {
 
     describe('getTransitions', () => {
       it('should get transitions for an issue', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({
             transitions: [
@@ -633,7 +640,7 @@ describe('JiraConnector', () => {
           comments: [{ id: '1', body: 'hello' }],
           total: 1,
         };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(commentsResponse),
           text: jest.fn().mockResolvedValue(''),
@@ -644,7 +651,7 @@ describe('JiraConnector', () => {
       });
 
       it('should pass pagination params', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue({ comments: [], total: 0 }),
           text: jest.fn().mockResolvedValue(''),
@@ -655,7 +662,7 @@ describe('JiraConnector', () => {
           startAt: 10,
           maxResults: 25,
         });
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('startAt=10');
         expect(url).toContain('maxResults=25');
       });
@@ -679,7 +686,7 @@ describe('JiraConnector', () => {
     });
 
     it('should throw OrionError when API returns error status', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: false,
         status: 403,
         text: jest.fn().mockResolvedValue('Forbidden'),

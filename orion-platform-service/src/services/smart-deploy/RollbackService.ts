@@ -24,6 +24,7 @@ import { RollbackRepository, RollbackEntity } from '../../repositories/RollbackR
 import { DeploymentVerifier } from './DeploymentVerifier';
 import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('LRollback-LService');
 
@@ -233,7 +234,7 @@ export class RollbackService {
       const timeout = setTimeout(() => controller.abort(), 10_000);
 
       try {
-        const response = await fetch(`${baseUrl}/api/v1/traffic/switch`, {
+        const response = await safeFetch(`${baseUrl}/api/v1/traffic/switch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ appName, version, environment }),

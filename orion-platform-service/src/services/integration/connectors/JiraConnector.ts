@@ -11,6 +11,7 @@ import {
   IntegrationEvent,
 } from '../ConnectorRegistry';
 import { OrionError, ErrorCode } from '../../../errors';
+import { safeFetch } from '../../../utils/safeFetch';
 
 // Jira API response types
 interface JiraProject {
@@ -155,7 +156,7 @@ export class JiraConnector implements Connector {
         ? `Basic ${Buffer.from(`:${config.token}`).toString('base64')}`
         : `Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}`;
 
-      const response = await fetch(`${baseUrl}/rest/api/${version}/myself`, {
+      const response = await safeFetch(`${baseUrl}/rest/api/${version}/myself`, {
         headers: {
           'Authorization': auth,
           'Accept': 'application/json',
@@ -486,7 +487,7 @@ export class JiraConnector implements Connector {
       ? `Basic ${Buffer.from(`:${this.config.token}`).toString('base64')}`
       : `Basic ${Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64')}`;
 
-    const response = await fetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
+    const response = await safeFetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
       headers: {
         'Authorization': auth,
         'Accept': 'application/json',
@@ -510,7 +511,7 @@ export class JiraConnector implements Connector {
       ? `Basic ${Buffer.from(`:${this.config.token}`).toString('base64')}`
       : `Basic ${Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64')}`;
 
-    const response = await fetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
+    const response = await safeFetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
       method: 'POST',
       headers: {
         'Authorization': auth,
@@ -537,7 +538,7 @@ export class JiraConnector implements Connector {
       ? `Basic ${Buffer.from(`:${this.config.token}`).toString('base64')}`
       : `Basic ${Buffer.from(`${this.config.username}:${this.config.password}`).toString('base64')}`;
 
-    const response = await fetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
+    const response = await safeFetch(`${this.baseUrl}/rest/api/${this.apiVersion}${endpoint}`, {
       method: 'PUT',
       headers: {
         'Authorization': auth,

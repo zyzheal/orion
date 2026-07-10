@@ -22,6 +22,14 @@ import {
   HookExecutionResult,
   HookExecutor,
 } from '../HookChainService';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
+
 import { OrionError, ErrorCode } from '../../../errors';
 
 // ==================== Helpers ====================
@@ -1275,18 +1283,15 @@ describe('HookChainService', () => {
   // ==================== WebhookExecutor ====================
 
   describe('WebhookExecutor', () => {
-    const originalFetch = global.fetch;
-
     afterEach(() => {
-      global.fetch = originalFetch;
+      jest.clearAllMocks();
     });
 
     it('should send HTTP request with correct parameters', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue({ received: true }),
-      });
-      global.fetch = mockFetch;
+      } as any);
 
       const chain = makeChain({
         hooks: [
@@ -1301,7 +1306,7 @@ describe('HookChainService', () => {
       const result = await service.executeChain(chain.id, 'test-trigger', { data: 'test' }, 't1');
 
       expect(result.success).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://api.example.com/hook',
         expect.objectContaining({
           method: 'POST',
@@ -1311,12 +1316,11 @@ describe('HookChainService', () => {
     });
 
     it('should throw OrionError when webhook response is not ok', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-      });
-      global.fetch = mockFetch;
+      } as any);
 
       const chain = makeChain({
         hooks: [makeHook({ type: 'webhook', config: { url: 'https://api.example.com/hook' } })],
@@ -1329,11 +1333,10 @@ describe('HookChainService', () => {
     });
 
     it('should default method to POST when not specified', async () => {
-      const mockFetch = jest.fn().mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: jest.fn().mockResolvedValue({}),
-      });
-      global.fetch = mockFetch;
+      } as any);
 
       const chain = makeChain({
         hooks: [makeHook({ type: 'webhook', config: { url: 'https://example.com' } })],
@@ -1341,7 +1344,7 @@ describe('HookChainService', () => {
       service.createChain(chain);
 
       await service.executeChain(chain.id, 'test', {}, 't1');
-      expect(mockFetch).toHaveBeenCalledWith('https://example.com', expect.objectContaining({ method: 'POST' }));
+      expect(mockSafeFetch).toHaveBeenCalledWith('https://example.com', expect.objectContaining({ method: 'POST' }));
     });
   });
 

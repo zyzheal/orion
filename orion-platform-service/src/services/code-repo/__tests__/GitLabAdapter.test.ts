@@ -4,27 +4,29 @@
 
 import { GitLabAdapter } from '../GitLabAdapter';
 import { RepoType, PullRequestStatus, MergeStrategy } from '../types';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 describe('GitLabAdapter', () => {
   let adapter: GitLabAdapter;
-  let mockFetch: jest.Mock;
-  const origFetch = global.fetch;
 
   beforeEach(async () => {
-    // Enable real API mode so fetch mocks are used
+    // Enable real API mode so safeFetch mocks are used
     process.env.GITLAB_API_ENABLED = 'true';
+    mockSafeFetch.mockClear();
 
     adapter = new GitLabAdapter({
       baseUrl: 'https://gitlab.example.com',
       token: 'test-token',
     });
-
-    mockFetch = jest.fn();
-    global.fetch = mockFetch;
   });
 
   afterEach(async () => {
-    global.fetch = origFetch;
     delete process.env.GITLAB_API_ENABLED;
   });
 
@@ -36,7 +38,7 @@ describe('GitLabAdapter', () => {
 
   describe('getRepository', () => {
     it('should return repository info', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           id: 1,
@@ -60,7 +62,7 @@ describe('GitLabAdapter', () => {
 
   describe('listRepositories', () => {
     it('should return repos object with repos array', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { id: 1, path_with_namespace: 'group/project-1', name: 'project-1', web_url: 'https://gitlab.example.com/group/project-1' },
@@ -77,7 +79,7 @@ describe('GitLabAdapter', () => {
 
   describe('branch management', () => {
     it('should return branch info', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           name: 'main',
@@ -93,7 +95,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should list branches', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { name: 'main', commit: { id: 'abc123' }, protected: false },
@@ -106,7 +108,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should create a branch', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           name: 'feature-branch',
@@ -119,7 +121,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should delete a branch', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({}),
       });
@@ -127,7 +129,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should return branch protection status', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           name: 'main',
@@ -143,7 +145,7 @@ describe('GitLabAdapter', () => {
 
   describe('commit management', () => {
     it('should list commits', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { id: 'abc123', short_message: 'Initial commit', author_name: 'Test User', authored_date: '2024-01-01T00:00:00Z' },
@@ -155,7 +157,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should return commit info', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           id: 'abc123',
@@ -172,7 +174,7 @@ describe('GitLabAdapter', () => {
 
   describe('pull request management', () => {
     it('should create a merge request', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           iid: 1,
@@ -201,7 +203,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should get merge request details', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           iid: 1,
@@ -217,7 +219,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should list merge requests', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { iid: 1, title: 'MR 1', state: 'opened' },
@@ -232,7 +234,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should merge a merge request', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           iid: 1,
@@ -249,7 +251,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should close a merge request', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           iid: 1,
@@ -264,7 +266,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should update a merge request', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           iid: 1,
@@ -286,7 +288,7 @@ describe('GitLabAdapter', () => {
 
   describe('review management', () => {
     it('should add a review', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           id: 1,
@@ -306,7 +308,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should list reviews', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { id: 1, body: 'LGTM', state: 'approved' },
@@ -319,7 +321,7 @@ describe('GitLabAdapter', () => {
 
   describe('webhook management', () => {
     it('should create a webhook', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           id: 1,
@@ -344,7 +346,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should list webhooks', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([
           { id: 1, url: 'https://example.com/webhook', active: true, events: ['push'] },
@@ -355,7 +357,7 @@ describe('GitLabAdapter', () => {
     });
 
     it('should delete a webhook', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({}),
       });

@@ -41,6 +41,7 @@ jest.mock('../../../errors', () => ({
       this.name = 'OrionError';
     }
   },
+  ErrorCode: { INTERNAL_ERROR: 'INTERNAL_ERROR' },
 }));
 
 // Mock child_process.spawn

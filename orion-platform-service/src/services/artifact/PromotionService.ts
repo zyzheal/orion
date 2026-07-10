@@ -258,10 +258,15 @@ export class PromotionService {
         return PromotionStage.DEVELOPMENT;
       } catch (error) {
         logger.warn({ error, artifactId }, 'Failed to get current stage from repository');
+        // In-memory mode (no repository): unknown artifacts start at DEVELOPMENT
+    await this.storage!.set(`${artifactId}:current`, PromotionStage.DEVELOPMENT);
+    return PromotionStage.DEVELOPMENT; // DB error → propagate undefined
       }
     }
 
-    return undefined;
+    // In-memory mode (no repository): unknown artifacts start at DEVELOPMENT
+    await this.storage!.set(`${artifactId}:current`, PromotionStage.DEVELOPMENT);
+    return PromotionStage.DEVELOPMENT;
   }
 
   /**

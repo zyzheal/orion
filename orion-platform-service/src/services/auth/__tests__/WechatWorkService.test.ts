@@ -6,7 +6,14 @@
  */
 
 import { WechatWorkService, WechatWorkConfig } from '../WechatWorkService';
+import { safeFetch } from '../../../utils/safeFetch';
 import { OrionError } from '../../../errors';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock global fetch
 const mockFetch = jest.fn();
@@ -104,7 +111,7 @@ describe('WechatWorkService', () => {
 
   describe('getAccessToken', () => {
     it('should fetch and cache access token', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -132,13 +139,13 @@ describe('WechatWorkService', () => {
       await service.getUserInfo('auth-code');
 
       // First call should fetch token
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         expect.stringContaining('gettoken')
       );
     });
 
     it('should reuse cached token', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -167,8 +174,8 @@ describe('WechatWorkService', () => {
       await service.getUserInfo('code1');
 
       // Reset to verify no new token fetch
-      mockFetch.mockClear();
-      mockFetch
+      mockSafeFetch.mockClear();
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -189,14 +196,14 @@ describe('WechatWorkService', () => {
       await service.getUserInfo('code2');
 
       // Should NOT call gettoken again
-      const tokenCalls = mockFetch.mock.calls.filter(
+      const tokenCalls = mockSafeFetch.mock.calls.filter(
         (call: any[]) => call[0].includes('gettoken')
       );
       expect(tokenCalls).toHaveLength(0);
     });
 
     it('should throw on token fetch error', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           errcode: 40013,
           errmsg: 'invalid corpid',
@@ -217,7 +224,7 @@ describe('WechatWorkService', () => {
 
   describe('getUserInfo', () => {
     it('should return user profile on success', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -259,7 +266,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should throw when user ID not found in response', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -280,7 +287,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should throw on user info API error', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -300,7 +307,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should throw when user detail fetch fails', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -327,7 +334,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should use OpenId when UserId is not present', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -361,7 +368,7 @@ describe('WechatWorkService', () => {
 
   describe('handleCallback', () => {
     it('should return local user mapping', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -397,7 +404,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should use fallback email when not provided', async () => {
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -460,7 +467,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should return success when token fetch succeeds', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           errcode: 0,
           errmsg: 'ok',
@@ -476,7 +483,7 @@ describe('WechatWorkService', () => {
     });
 
     it('should return failure when token fetch fails', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockSafeFetch.mockResolvedValueOnce({
         json: () => Promise.resolve({
           errcode: 40013,
           errmsg: 'invalid corpid',
@@ -495,7 +502,7 @@ describe('WechatWorkService', () => {
   describe('token caching', () => {
     it('should refresh token when cache expires', async () => {
       // First token fetch
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -525,7 +532,7 @@ describe('WechatWorkService', () => {
       // Advance time past the cache expiry (expires_in - 5min buffer)
       jest.advanceTimersByTime(7200 * 1000);
 
-      mockFetch
+      mockSafeFetch
         .mockResolvedValueOnce({
           json: () => Promise.resolve({
             errcode: 0,
@@ -553,7 +560,7 @@ describe('WechatWorkService', () => {
       await service.getUserInfo('code2');
 
       // Should have fetched token twice
-      const tokenCalls = mockFetch.mock.calls.filter(
+      const tokenCalls = mockSafeFetch.mock.calls.filter(
         (call: any[]) => call[0].includes('gettoken')
       );
       expect(tokenCalls).toHaveLength(2);

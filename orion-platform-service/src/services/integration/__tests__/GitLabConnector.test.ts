@@ -13,6 +13,13 @@
 
 import { GitLabConnector } from '../connectors/GitLabConnector';
 import { ConnectorCapability } from '../ConnectorRegistry';
+import { safeFetch } from '../../../utils/safeFetch';
+
+jest.mock('../../../utils/safeFetch', () => ({
+  safeFetch: jest.fn(),
+}));
+
+const mockSafeFetch = safeFetch as jest.MockedFunction<typeof safeFetch>;
 
 // Mock global fetch
 const mockFetch = jest.fn();
@@ -89,11 +96,11 @@ describe('GitLabConnector', () => {
 
   describe('testConnection', () => {
     it('should return true when API responds with ok', async () => {
-      mockFetch.mockResolvedValue({ ok: true, status: 200 });
+      mockSafeFetch.mockResolvedValue({ ok: true, status: 200 });
 
       const result = await connector.testConnection({ token: 'valid-token' });
       expect(result).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://gitlab.com/api/v4/user',
         expect.objectContaining({
           headers: { 'PRIVATE-TOKEN': 'valid-token' },
@@ -102,39 +109,39 @@ describe('GitLabConnector', () => {
     });
 
     it('should return false when API responds with error status', async () => {
-      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+      mockSafeFetch.mockResolvedValue({ ok: false, status: 401 });
 
       const result = await connector.testConnection({ token: 'bad-token' });
       expect(result).toBe(false);
     });
 
     it('should return false when fetch throws (network error)', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'));
+      mockSafeFetch.mockRejectedValue(new Error('Network error'));
 
       const result = await connector.testConnection({ token: 'token' });
       expect(result).toBe(false);
     });
 
     it('should use custom host when provided', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
 
       await connector.testConnection({
         token: 'token',
         host: 'https://custom.gitlab.com/',
       });
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://custom.gitlab.com/api/v4/user',
         expect.anything()
       );
     });
 
     it('should use default host when host is not provided', async () => {
-      mockFetch.mockResolvedValue({ ok: true });
+      mockSafeFetch.mockResolvedValue({ ok: true });
 
       await connector.testConnection({ token: 'token' });
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockSafeFetch).toHaveBeenCalledWith(
         'https://gitlab.com/api/v4/user',
         expect.anything()
       );
@@ -162,7 +169,7 @@ describe('GitLabConnector', () => {
     describe('listProjects', () => {
       it('should list projects with default params', async () => {
         const projects = [{ id: 1, name: 'test-project' }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(projects),
           text: jest.fn().mockResolvedValue(''),
@@ -170,14 +177,14 @@ describe('GitLabConnector', () => {
 
         const result = await connector.execute('listProjects', {});
         expect(result).toEqual(projects);
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockSafeFetch).toHaveBeenCalledWith(
           expect.stringContaining('/api/v4/projects?'),
           expect.objectContaining({ headers: { 'PRIVATE-TOKEN': 'test-token' } })
         );
       });
 
       it('should pass search and membership params', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue([]),
           text: jest.fn().mockResolvedValue(''),
@@ -190,7 +197,7 @@ describe('GitLabConnector', () => {
           membership: true,
         });
 
-        const url = mockFetch.mock.calls[0][0] as string;
+        const url = mockSafeFetch.mock.calls[0][0] as string;
         expect(url).toContain('page=2');
         expect(url).toContain('per_page=10');
         expect(url).toContain('search=my-project');
@@ -203,7 +210,7 @@ describe('GitLabConnector', () => {
         const page1 = Array.from({ length: 100 }, (_, i) => ({ id: i + 1, name: `p${i + 1}` }));
         const page2 = [{ id: 101, name: 'p101' }];
 
-        mockFetch
+        mockSafeFetch
           .mockResolvedValueOnce({
             ok: true,
             json: jest.fn().mockResolvedValue(page1),
@@ -220,7 +227,7 @@ describe('GitLabConnector', () => {
       });
 
       it('should stop when empty page is returned', async () => {
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue([]),
           text: jest.fn().mockResolvedValue(''),
@@ -234,7 +241,7 @@ describe('GitLabConnector', () => {
     describe('getProject', () => {
       it('should get a project by ID', async () => {
         const project = { id: 42, name: 'my-project' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(project),
           text: jest.fn().mockResolvedValue(''),
@@ -242,7 +249,7 @@ describe('GitLabConnector', () => {
 
         const result = await connector.execute('getProject', { projectId: 42 });
         expect(result).toEqual(project);
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockSafeFetch).toHaveBeenCalledWith(
           expect.stringContaining('/projects/42'),
           expect.anything()
         );
@@ -258,7 +265,7 @@ describe('GitLabConnector', () => {
     describe('listBranches', () => {
       it('should list branches for a project', async () => {
         const branches = [{ name: 'main', protected: true }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(branches),
           text: jest.fn().mockResolvedValue(''),
@@ -278,7 +285,7 @@ describe('GitLabConnector', () => {
     describe('getCommit', () => {
       it('should get a commit by sha', async () => {
         const commit = { id: 'abc123', title: 'Fix bug' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(commit),
           text: jest.fn().mockResolvedValue(''),
@@ -307,7 +314,7 @@ describe('GitLabConnector', () => {
     describe('listCommits', () => {
       it('should list commits for a project', async () => {
         const commits = [{ id: 'abc', title: 'commit 1' }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(commits),
           text: jest.fn().mockResolvedValue(''),
@@ -330,7 +337,7 @@ describe('GitLabConnector', () => {
     describe('createMergeRequest', () => {
       it('should create a merge request', async () => {
         const mr = { id: 1, iid: 1, title: 'New MR' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(mr),
           text: jest.fn().mockResolvedValue(''),
@@ -356,7 +363,7 @@ describe('GitLabConnector', () => {
     describe('listMergeRequests', () => {
       it('should list merge requests', async () => {
         const mrs = [{ id: 1, title: 'MR 1' }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(mrs),
           text: jest.fn().mockResolvedValue(''),
@@ -379,7 +386,7 @@ describe('GitLabConnector', () => {
     describe('triggerPipeline', () => {
       it('should trigger a pipeline', async () => {
         const pipeline = { id: 99, status: 'created' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(pipeline),
           text: jest.fn().mockResolvedValue(''),
@@ -406,7 +413,7 @@ describe('GitLabConnector', () => {
     describe('getPipelineStatus', () => {
       it('should get pipeline status', async () => {
         const pipeline = { id: 10, status: 'success' };
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(pipeline),
           text: jest.fn().mockResolvedValue(''),
@@ -429,7 +436,7 @@ describe('GitLabConnector', () => {
     describe('getPipelineJobs', () => {
       it('should get pipeline jobs', async () => {
         const jobs = [{ id: 1, name: 'build', status: 'success' }];
-        mockFetch.mockResolvedValue({
+        mockSafeFetch.mockResolvedValue({
           ok: true,
           json: jest.fn().mockResolvedValue(jobs),
           text: jest.fn().mockResolvedValue(''),
@@ -456,7 +463,7 @@ describe('GitLabConnector', () => {
     });
 
     it('should throw OrionError when API returns error status', async () => {
-      mockFetch.mockResolvedValue({
+      mockSafeFetch.mockResolvedValue({
         ok: false,
         status: 403,
         text: jest.fn().mockResolvedValue('Forbidden'),

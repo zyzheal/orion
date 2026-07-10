@@ -8,6 +8,7 @@ import { createLogger } from '../../utils/logger';
 import { SearchQuery, SearchResult, VectorStoreConfig } from './types';
 import { VectorRepository } from '../../repositories/VectorRepository';
 import { OrionError } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('VectorStore');
 
@@ -112,7 +113,7 @@ export class VectorStore {
   private createOpenAIEmbeddingFn(apiKey: string, model?: string): EmbeddingFn {
     const embeddingModel = model || 'text-embedding-ada-002';
     return async (text: string): Promise<number[]> => {
-      const response = await fetch('https://api.openai.com/v1/embeddings', {
+      const response = await safeFetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

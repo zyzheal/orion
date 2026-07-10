@@ -12,6 +12,7 @@
 
 import { createLogger } from '../../utils/logger';
 import { OrionError, ErrorCode } from '../../errors';
+import { safeFetch } from '../../utils/safeFetch';
 
 const logger = createLogger('nvd-client');
 
@@ -170,7 +171,7 @@ export class NVDClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超时
 
-      const response = await fetch(url, {
+      const response = await safeFetch(url, {
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',

@@ -6,6 +6,12 @@
 export { FinOpsRepository, FinOpsReport, ResourceCost, CloudCostRecord, K8sCostRecord, SaaSCostRecord, LegacyBudgetAlertRecord } from './FinOpsRepository';
 export { FinOpsService, FinOpsServiceError } from './FinOpsService';
 
+// Specialized FinOps services (extracted from FinOpsService for single responsibility)
+export { FinOpsCostCalculator } from './FinOpsCostCalculator';
+export { FinOpsReportGenerator } from './FinOpsReportGenerator';
+export { FinOpsOptimizer } from './FinOpsOptimizer';
+export { FinOpsAlertService } from './FinOpsAlertService';
+
 // FinOpsService input/output types
 export type {
   CostRecordInput,
@@ -25,6 +31,9 @@ export type {
   SaaSCostUpdate,
   LegacyBudgetAlertInput,
 } from './FinOpsService';
+
+// FinOpsOptimizer types
+export type { OptimizationQuery } from './FinOpsOptimizer';
 
 // Legacy in-memory services (kept for backward compatibility, will be deprecated)
 export { CloudCostCollector } from './CloudCostCollector';
