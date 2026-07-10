@@ -175,7 +175,7 @@ func (r *KnowledgeRepository) ListDocs(ctx context.Context, tenantID string, fil
 	}
 	if filters.Source != nil && *filters.Source != "" {
 		query += fmt.Sprintf(" AND source = $%d", argIdx)
-	=args = append(args, *filters.Source)
+	args = append(args, *filters.Source)
 		argIdx++
 	}
 
