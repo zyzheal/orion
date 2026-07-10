@@ -33,6 +33,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.PUT("/:id", auth.RequirePermission("feature_flag", "write"), h.Update)
 	f.DELETE("/:id", auth.RequirePermission("feature_flag", "delete"), h.Delete)
 	f.PUT("/:id/rollout", auth.RequirePermission("feature_flag", "write"), h.SetRollout)
+	f.POST("/:id/toggle", auth.RequirePermission("feature_flag", "write"), h.RecordToggle)
 	f.GET("/:id/toggle-history", h.ToggleHistory)
 
 	// Evaluation endpoints (key-based, not id-based).

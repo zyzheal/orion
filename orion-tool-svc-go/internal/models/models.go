@@ -11,24 +11,24 @@ var ErrToolNotFound = errors.New("tool not found")
 
 // Tool represents a registered tool in the tool center.
 type Tool struct {
-	ID          string         `db:"id" json:"id"`
-	TenantID    string         `db:"tenant_id" json:"tenant_id"`
-	Name        string         `db:"name" json:"name"`
-	DisplayName string         `db:"display_name" json:"display_name"`
-	Description string         `db:"description" json:"description"`
-	Category    string         `db:"category" json:"category"`
-	Type        string         `db:"type" json:"type"` // cli, api, script, container
-	Version     string         `db:"version" json:"version"`
-	Config      string         `db:"config" json:"config"` // JSON
-	Endpoint    string         `db:"endpoint" json:"endpoint"`
-	AuthType    string         `db:"auth_type" json:"auth_type"` // none, api_key, oauth2, basic
-	AuthConfig  string         `db:"auth_config" json:"auth_config"` // JSON
-	Tags        string         `db:"tags" json:"tags"` // JSON array
-	Status      string         `db:"status" json:"status"` // active, disabled, deprecated
-	CreatedBy   string         `db:"created_by" json:"created_by"`
-	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time      `db:"updated_at" json:"updated_at"`
-	DeprecatedAt sql.NullTime  `db:"deprecated_at" json:"deprecated_at,omitempty"`
+	ID           string         `db:"id" json:"id"`
+	TenantID     string         `db:"tenant_id" json:"tenant_id"`
+	Name         string         `db:"name" json:"name"`
+	DisplayName  string         `db:"display_name" json:"display_name"`
+	Description  string         `db:"description" json:"description"`
+	Category     string         `db:"category" json:"category"`
+	Type         string         `db:"type" json:"type"` // cli, api, script, container
+	Version      string         `db:"version" json:"version"`
+	Config       string         `db:"config" json:"config"` // JSON
+	Endpoint     string         `db:"endpoint" json:"endpoint"`
+	AuthType     string         `db:"auth_type" json:"auth_type"` // none, api_key, oauth2, basic
+	AuthConfig   string         `db:"auth_config" json:"auth_config"` // JSON
+	Tags         string         `db:"tags" json:"tags"` // JSON array
+	Status       string         `db:"status" json:"status"` // active, disabled, deprecated
+	CreatedBy    string         `db:"created_by" json:"created_by"`
+	CreatedAt    time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time      `db:"updated_at" json:"updated_at"`
+	DeprecatedAt sql.NullTime   `db:"deprecated_at" json:"deprecated_at,omitempty"`
 }
 
 // ToolVersion represents a version history entry for a tool.
@@ -102,12 +102,57 @@ type InvokeToolRequest struct {
 	Input string `json:"input" binding:"required"` // JSON input
 }
 
+// CreateToolVersionRequest is the request body for creating a tool version.
+type CreateToolVersionRequest struct {
+	Version   string `json:"version" binding:"required"`
+	Config    string `json:"config"`
+	Changelog string `json:"changelog"`
+}
+
 // ToolListParams contains query parameters for listing tools.
 type ToolListParams struct {
 	Category string `form:"category"`
 	Type     string `form:"type"`
 	Status   string `form:"status"`
 	Search   string `form:"search"`
+	Page     int    `form:"page,default=1"`
+	PageSize int    `form:"page_size,default=20"`
+}
+
+// StatsPeriod defines the time period for usage statistics.
+type StatsPeriod string
+
+const (
+	StatsPeriodDay  StatsPeriod = "day"
+	StatsPeriodWeek StatsPeriod = "week"
+	StatsPeriodMonth StatsPeriod = "month"
+)
+
+// ToolStats contains aggregated usage statistics for a tool or tenant.
+type ToolStats struct {
+	TotalInvocations int64   `json:"total_invocations"`
+	SuccessfulCalls  int64   `json:"successful_calls"`
+	FailedCalls      int64   `json:"failed_calls"`
+	SuccessRate      float64 `json:"success_rate"`    // 0.0 - 1.0
+	AvgDurationMs    float64 `json:"avg_duration_ms"` // milliseconds
+	P95DurationMs    float64 `json:"p95_duration_ms"` // milliseconds
+	P99DurationMs    float64 `json:"p99_duration_ms"` // milliseconds
+	ActiveUsers      int64   `json:"active_users"`    // unique callers in period
+}
+
+// ToolUsageRank represents a tool's position in usage rankings.
+type ToolUsageRank struct {
+	ToolID          string `json:"tool_id"`
+	ToolName        string `json:"tool_name"`
+	Category        string `json:"category"`
+	InvocationCount int64  `json:"invocation_count"`
+}
+
+// MarketSearchParams contains query parameters for marketplace search.
+type MarketSearchParams struct {
+	Query    string `form:"q"`
+	Category string `form:"category"`
+	Type     string `form:"type"`
 	Page     int    `form:"page,default=1"`
 	PageSize int    `form:"page_size,default=20"`
 }

@@ -188,6 +188,34 @@ func (s *Service) InstallSkill(ctx context.Context, id string) error {
 	return s.repo.IncrementInstallCount(ctx, id)
 }
 
+// UninstallSkillSoft decrements install_count for a skill (soft uninstall alias).
+// This mirrors the Node.js POST /:id/uninstall endpoint which reduces the install counter.
+func (s *Service) UninstallSkillSoft(ctx context.Context, id string) error {
+	_, err := s.repo.FindSkillByID(ctx, id)
+	if err != nil {
+		return ErrSkillNotFound
+	}
+	return s.repo.DecrementInstallCount(ctx, id)
+}
+
+// UnpublishSkill transitions a published skill back to draft (enable/disable toggle).
+func (s *Service) UnpublishSkill(ctx context.Context, id, userID string) (*models.SkillPackage, error) {
+	existing, err := s.repo.FindSkillByID(ctx, id)
+	if err != nil {
+		return nil, ErrSkillNotFound
+	}
+	if existing.Status != "published" {
+		return nil, ErrInvalidState
+	}
+	draftStatus := "draft"
+	updated, err := s.repo.UpdateSkill(ctx, id, &models.UpdateSkillRequest{Status: &draftStatus})
+	if err != nil {
+		return nil, fmt.Errorf("unpublish skill: %w", err)
+	}
+	_ = s.createAudit(ctx, id, userID, "unpublished", "published", "draft", "Unpublished")
+	return updated, nil
+}
+
 // SearchSkills returns published skills matching a query string.
 func (s *Service) SearchSkills(ctx context.Context, query string, limit int) ([]models.SkillPackage, error) {
 	if limit <= 0 || limit > 100 {

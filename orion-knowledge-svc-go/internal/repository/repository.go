@@ -60,8 +60,13 @@ func (r *KnowledgeRepository) ListSpaces(ctx context.Context, tenantID string, f
 		args = append(args, *filters.Type)
 		argIdx++
 	}
+	if filters.Source != nil && *filters.Source != "" {
+		query += fmt.Sprintf(" AND source = $%d", argIdx)
+		args = append(args, *filters.Source)
+		argIdx++
+	}
 	if filters.Search != nil && *filters.Search != "" {
-		query += fmt.Sprintf(" AND name ILIKE $%d", argIdx)
+		query += fmt.Sprintf(" AND (name ILIKE $%d OR description ILIKE $%d)", argIdx, argIdx)
 		args = append(args, "%"+*filters.Search+"%")
 		argIdx++
 	}
@@ -161,6 +166,16 @@ func (r *KnowledgeRepository) ListDocs(ctx context.Context, tenantID string, fil
 	if filters.Search != nil && *filters.Search != "" {
 		query += fmt.Sprintf(" AND (title ILIKE $%d OR content ILIKE $%d)", argIdx, argIdx)
 		args = append(args, "%"+*filters.Search+"%")
+		argIdx++
+	}
+	if filters.Type != nil && *filters.Type != "" {
+		query += fmt.Sprintf(" AND type = $%d", argIdx)
+		args = append(args, *filters.Type)
+		argIdx++
+	}
+	if filters.Source != nil && *filters.Source != "" {
+		query += fmt.Sprintf(" AND source = $%d", argIdx)
+	=args = append(args, *filters.Source)
 		argIdx++
 	}
 

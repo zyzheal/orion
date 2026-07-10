@@ -109,6 +109,13 @@ func (r *Repository) IncrementInstallCount(ctx context.Context, id string) error
 	return err
 }
 
+// DecrementInstallCount atomically decrements install_count, capped at 0.
+func (r *Repository) DecrementInstallCount(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE skill_packages SET install_count = GREATEST(install_count - 1, 0) WHERE id = $1`, id)
+	return err
+}
+
 // SearchSkills returns published skills matching a name/description ILIKE pattern.
 func (r *Repository) SearchSkills(ctx context.Context, query string, limit int) ([]models.SkillPackage, error) {
 	var items []models.SkillPackage

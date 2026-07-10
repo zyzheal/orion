@@ -250,6 +250,7 @@ type RAGSource struct {
 // SpaceListFilters represents filter options for listing spaces.
 type SpaceListFilters struct {
 	Type    *string
+	Source  *string
 	Search  *string
 	Limit   int
 	Offset  int
@@ -261,6 +262,8 @@ type DocListFilters struct {
 	Status  *string
 	Tag     *string
 	Search  *string
+	Type    *string
+	Source  *string
 	Limit   int
 	Offset  int
 }

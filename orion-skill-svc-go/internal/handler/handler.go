@@ -38,6 +38,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	skills.DELETE("/:id", auth.RequirePermission("skill", "delete"), h.DeleteSkill)
 	skills.POST("/:id/publish", auth.RequirePermission("skill", "execute"), h.PublishSkill)
 	skills.POST("/:id/install", auth.RequirePermission("skill", "write"), h.InstallSkill)
+	skills.POST("/:id/uninstall", auth.RequirePermission("skill", "write"), h.UninstallSkill)
+	skills.POST("/:id/rate", auth.RequirePermission("skill", "write"), h.RateSkill)
+	skills.POST("/:id/unpublish", auth.RequirePermission("skill", "execute"), h.UnpublishSkill)
 	skills.POST("/:id/submit-review", auth.RequirePermission("skill", "write"), h.SubmitForReview)
 	skills.POST("/:id/approve", auth.RequirePermission("skill", "execute"), h.ApproveSkill)
 	skills.POST("/:id/reject", auth.RequirePermission("skill", "execute"), h.RejectSkill)
@@ -157,6 +160,51 @@ func (h *Handler) InstallSkill(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "installed"})
+}
+
+// UninstallSkill decrements the install counter (POST /:id/uninstall).
+// Distinct from DELETE /:id (soft-delete of the package itself).
+func (h *Handler) UninstallSkill(c *gin.Context) {
+	if err := h.svc.UninstallSkillSoft(c.Request.Context(), c.Param("id")); err != nil {
+		mapError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "uninstalled"})
+}
+
+// RateSkill is a POST /:id/rate endpoint that extracts user_id from the JWT claim.
+// It forwards to AddReview after validating the rating range.
+func (h *Handler) RateSkill(c *gin.Context) {
+	var body struct {
+		Rating  int    `json:"rating" binding:"required"`
+		Comment string `json:"comment"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	review := &models.CreateReviewRequest{
+		UserID:  c.GetString("user_id"),
+		Rating:  body.Rating,
+		Comment: body.Comment,
+	}
+	r, err := h.svc.AddReview(c.Request.Context(), c.Param("id"), review)
+	if err != nil {
+		mapError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, r)
+}
+
+// UnpublishSkill toggles a published skill back to draft (disable).
+func (h *Handler) UnpublishSkill(c *gin.Context) {
+	userID := c.GetString("user_id")
+	skill, err := h.svc.UnpublishSkill(c.Request.Context(), c.Param("id"), userID)
+	if err != nil {
+		mapError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, skill)
 }
 
 func (h *Handler) SearchSkills(c *gin.Context) {
