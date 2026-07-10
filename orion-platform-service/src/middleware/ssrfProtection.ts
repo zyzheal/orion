@@ -17,10 +17,8 @@
 import { OrionError, ErrorCode } from '../errors';
 import { createLogger } from '../utils/logger';
 import * as dns from 'dns';
-import { promisify } from 'util';
 
 const logger = createLogger('ssrf-protection');
-const lookup = promisify(dns.lookup);
 
 /**
  * CIDR range representation
@@ -201,35 +199,69 @@ export class SSRFProtection {
   }
 
   /**
-   * Resolve DNS with timeout - resolves ALL A records and checks each against blocked CIDRs
+   * Resolve DNS with timeout - resolves ALL A (IPv4) and AAAA (IPv6) records
+   * and checks each against blocked CIDRs.
+   * Dual-stack resolution prevents SSRF bypass via IPv6-only domains.
    */
   private async resolveDNS(hostname: string): Promise<string> {
+    let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('DNS lookup timeout')), this.dnsTimeout);
+      timeoutHandle = setTimeout(() => reject(new Error('DNS lookup timeout')), this.dnsTimeout);
     });
 
     const resolvePromise = new Promise<string[]>((resolve, reject) => {
+      // Resolve both A (IPv4) and AAAA (IPv6) records in parallel
+      let resolved: string[] = [];
+      let pending = 2;
+
       dns.resolve4(hostname, (err, addresses) => {
-        if (err) {
-          reject(new Error(`DNS resolution failed: ${err.message}`));
-        } else {
-          resolve(addresses);
+        if (!err && addresses) {
+          resolved = resolved.concat(addresses);
+        }
+        pending--;
+        if (pending === 0) {
+          if (resolved.length === 0) {
+            reject(new Error(`DNS resolution failed: no A or AAAA records for ${hostname}`));
+          } else {
+            resolve(resolved);
+          }
+        }
+      });
+
+      dns.resolve6(hostname, (err, addresses) => {
+        if (!err && addresses) {
+          resolved = resolved.concat(addresses);
+        }
+        pending--;
+        if (pending === 0) {
+          if (resolved.length === 0) {
+            reject(new Error(`DNS resolution failed: no A or AAAA records for ${hostname}`));
+          } else {
+            resolve(resolved);
+          }
         }
       });
     });
 
-    const addresses = await Promise.race([resolvePromise, timeoutPromise]);
+    try {
+      const addresses = await Promise.race([resolvePromise, timeoutPromise]);
+      // Clear timeout to prevent lingering handle
+      clearTimeout(timeoutHandle);
 
-    // Validate ALL resolved IPs against blocked CIDRs
-    for (const ip of addresses) {
-      for (const cidr of this.blockedCIDRs) {
-        if (this.isIPInCIDR(ip, cidr)) {
-          throw new Error(`Blocked IP detected: ${ip} in ${cidr.network}/${cidr.prefix}`);
+      // Validate ALL resolved IPs against blocked CIDRs
+      for (const ip of addresses) {
+        for (const cidr of this.blockedCIDRs) {
+          if (this.isIPInCIDR(ip, cidr)) {
+            throw new Error(`Blocked IP detected: ${ip} in ${cidr.network}/${cidr.prefix}`);
+          }
         }
       }
-    }
 
-    return addresses[0];
+      return addresses[0];
+    } finally {
+      clearTimeout(timeoutHandle);
+    }
   }
 
   /**

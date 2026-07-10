@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/scrypt"
 )
 
 const bcryptRounds = 12
@@ -116,59 +117,9 @@ func verifyScrypt(password, storedHash string) bool {
 	return subtleEqual(keyBytes, supplied)
 }
 
-// scryptCompute uses the scrypt package from golang.org/x/crypto.
+// scryptCompute uses the official scrypt package from golang.org/x/crypto.
 func scryptCompute(password, salt []byte, keyLen int) ([]byte, error) {
-	// Use scrypt from golang.org/x/crypto
-	return scrypt(password, salt, keyLen, 16384, 8, 1)
-}
-
-// scrypt implements RFC 7914 scrypt using PBKDF2 as base.
-func scrypt(password, salt []byte, dkLen, N, r, p int) ([]byte, error) {
-	blkSize := 128 * r
-	// Derive initial blocks via PBKDF2-HMAC-SHA256
-	b := pbkdf2.Key(password, salt, 1, p*blkSize, sha256.New)
-	if len(b) < p*blkSize {
-		b = make([]byte, p*blkSize)
-		copy(b, pbkdf2.Key(password, salt, 1, p*blkSize, sha256.New))
-	}
-
-	// Apply scryptMixing to each block (Salsa20/8)
-	for i := 0; i < p; i++ {
-		block := b[i*blkSize : (i+1)*blkSize]
-		mixing(block, N)
-	}
-
-	if dkLen <= len(b) {
-		return b[:dkLen], nil
-	}
-	// If dkLen exceeds derived key, extend via PBKDF2
-	return pbkdf2.Key([]byte("extend"), b, 1, dkLen, sha256.New), nil
-}
-
-// mixing implements scryptMixing using Salsa20/8 core.
-func mixing(block []byte, N int) {
-	// Minimal implementation: XOR-based mixing for compatibility
-	blkSize := len(block)
-	if blkSize < 32 {
-		return
-	}
-	x := make([]byte, blkSize)
-	copy(x, block)
-	for i := 0; i < N; i++ {
-		// Simple mixing: XOR adjacent 16-byte chunks
-		for j := 0; j < blkSize; j += 32 {
-			if j+32 <= blkSize {
-				for k := 0; k < 32; k++ {
-					x[j+k] ^= block[(j+k)%blkSize]
-				}
-			}
-		}
-		// Rotate to simulate Salsa20
-		for k := 0; k < blkSize-1; k++ {
-			block[k] = x[k+1]
-		}
-		block[blkSize-1] = x[0]
-	}
+	return scrypt.Key(password, salt, 16384, 8, 1, keyLen)
 }
 
 // subtleEqual uses constant-time comparison.

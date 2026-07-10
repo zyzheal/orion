@@ -291,7 +291,7 @@ func (s *BuildCacheService) GetCacheEntryByKey(ctx context.Context, configID, ca
 		return nil, nil // cache miss
 	}
 	// Check expiration
-	if entry.ExpiresAt != nil && entry.ExpiresAt != nil {
+	if entry.ExpiresAt != nil && entry.ExpiresAt.Before(time.Now()) {
 		// Entry is expired if past expiration
 		return nil, nil // simplified: rely on SQL check; in production compare against NOW()
 	}

@@ -13,10 +13,10 @@ import (
 )
 
 type Handler struct {
-	svc       *service.BuildService
-	imageSvc  *service.BuilderImageService
+	svc      *service.BuildService
+	imageSvc *service.BuilderImageService
 	cacheSvc *service.BuildCacheService
-	logger    *zap.Logger
+	logger   *zap.Logger
 }
 
 func New(db *database.DB, logger *zap.Logger) *Handler {
@@ -490,7 +490,7 @@ func parseLimitOffset(c *gin.Context) (offset, limit int) {
 		page = 1
 	}
 	if pageSize < 1 {
-	pageSize = 20
+		pageSize = 20
 	}
 	if pageSize > 100 {
 		pageSize = 100
@@ -631,7 +631,7 @@ func (h *Handler) GetAvailableBuilderImages(c *gin.Context) {
 	images, err := h.imageSvc.GetAvailable(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get available images", zap.Error(err))
-	h.err(c, http.StatusInternalServerError, "internal error")
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, images)
@@ -663,7 +663,7 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 
 	cfgs, err := h.cacheSvc.ListConfigs(c.Request.Context(), opts)
 	if err != nil {
-	h.logger.Error("failed to list cache configs", zap.Error(err))
+		h.logger.Error("failed to list cache configs", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -680,7 +680,7 @@ func (h *Handler) CreateCacheConfig(c *gin.Context) {
 
 	cfg, err := h.cacheSvc.CreateConfig(c.Request.Context(), input)
 	if err != nil {
-	h.logger.Error("failed to create cache config", zap.Error(err))
+		h.logger.Error("failed to create cache config", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -714,7 +714,7 @@ func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.cacheSvc.DeleteConfig(c.Request.Context(), id); err != nil {
 		h.logger.Error("failed to delete cache config", zap.Error(err))
-	h.err(c, http.StatusInternalServerError, "internal error")
+		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, gin.H{"message": "cache config deleted"})
@@ -763,7 +763,7 @@ func (h *Handler) CleanupCache(c *gin.Context) {
 // CleanupCacheLRU POST /api/v1/cache/cleanup-lru
 func (h *Handler) CleanupCacheLRU(c *gin.Context) {
 	var input struct {
-		ConfigID  string `json:"config_id" binding:"required"`
+		ConfigID   string `json:"config_id" binding:"required"`
 		MaxEntries int    `json:"max_entries" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -773,7 +773,7 @@ func (h *Handler) CleanupCacheLRU(c *gin.Context) {
 
 	count, err := h.cacheSvc.CleanupLRU(c.Request.Context(), input.ConfigID, input.MaxEntries)
 	if err != nil {
-	h.logger.Error("failed to cleanup cache LRU", zap.Error(err))
+		h.logger.Error("failed to cleanup cache LRU", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}

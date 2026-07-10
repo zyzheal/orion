@@ -7,6 +7,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/nats-io/nats.go v1.52.0
+	orion/go-common v0.0.0
 	go.uber.org/zap v1.28.0
 )
 

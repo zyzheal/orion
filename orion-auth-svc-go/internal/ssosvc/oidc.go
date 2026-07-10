@@ -53,7 +53,6 @@ type OIDCDiscoveryResponse struct {
 	TokenURL          string   `json:"token_endpoint"`
 	UserInfoURL       string   `json:"userinfo_endpoint"`
 	JWKSURL           string   `json:"jwks_uri"`
-	JWKSURI           string   `json:"jwks_uri"` // alias
 	ScopesSupported   []string `json:"scopes_supported"`
 	ResponseTypesSupported []string `json:"response_types_supported"`
 	SubjectTypesSupported  []string `json:"subject_types_supported"`
@@ -153,11 +152,6 @@ func (s *OIDCService) Discover(ctx context.Context, cfg Config) (*OIDCDiscoveryR
 	var disc OIDCDiscoveryResponse
 	if err := json.Unmarshal(body, &disc); err != nil {
 		return nil, fmt.Errorf("%w: invalid JSON: %v", ErrDiscoveryFailed, err)
-	}
-
-	// fallback alias for jwks_uri
-	if disc.JWKSURL == "" && disc.JWKSURI != "" {
-		disc.JWKSURL = disc.JWKSURI
 	}
 
 	if disc.AuthorizationURL == "" || disc.TokenURL == "" {

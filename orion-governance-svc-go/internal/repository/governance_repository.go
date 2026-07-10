@@ -95,45 +95,67 @@ func (r *Repository) ListEnabledPolicies(ctx context.Context, tenantID string) (
 	return items, err
 }
 
+// allowedPolicyColumns is a whitelist of valid column names for the policy_definitions
+// table, used to prevent SQL injection via fmt.Sprintf in dynamic UPDATE SET clauses.
+var allowedPolicyColumns = map[string]bool{
+	"description": true,
+	"category":    true,
+	"rego_path":   true,
+	"gate_id":     true,
+	"severity":    true,
+	"enabled":     true,
+	"metadata":    true,
+}
+
 func (r *Repository) UpdatePolicy(ctx context.Context, tenantID, id string, req *models.UpdatePolicyRequest) (*models.Policy, error) {
 	sets := []string{}
 	args := []interface{}{}
 	idx := 1
 
-	if req.Description != nil {
-		sets = append(sets, fmt.Sprintf("description = $%d", idx))
-		args = append(args, *req.Description)
+	addSet := func(col string, val interface{}) error {
+		if !allowedPolicyColumns[col] {
+			return fmt.Errorf("invalid column name: %s", col)
+		}
+		sets = append(sets, fmt.Sprintf("%s = $%d", col, idx))
+		args = append(args, val)
 		idx++
+		return nil
+	}
+
+	if req.Description != nil {
+		if err := addSet("description", *req.Description); err != nil {
+			return nil, err
+		}
 	}
 	if req.Category != nil {
-		sets = append(sets, fmt.Sprintf("category = $%d", idx))
-		args = append(args, *req.Category)
-		idx++
+		if err := addSet("category", *req.Category); err != nil {
+			return nil, err
+		}
 	}
 	if req.RegoPath != nil {
-		sets = append(sets, fmt.Sprintf("rego_path = $%d", idx))
-		args = append(args, *req.RegoPath)
-		idx++
+		if err := addSet("rego_path", *req.RegoPath); err != nil {
+			return nil, err
+		}
 	}
 	if req.GateID != nil {
-		sets = append(sets, fmt.Sprintf("gate_id = $%d", idx))
-		args = append(args, *req.GateID)
-		idx++
+		if err := addSet("gate_id", *req.GateID); err != nil {
+			return nil, err
+		}
 	}
 	if req.Severity != nil {
-		sets = append(sets, fmt.Sprintf("severity = $%d", idx))
-		args = append(args, *req.Severity)
-		idx++
+		if err := addSet("severity", *req.Severity); err != nil {
+			return nil, err
+		}
 	}
 	if req.Enabled != nil {
-		sets = append(sets, fmt.Sprintf("enabled = $%d", idx))
-		args = append(args, *req.Enabled)
-		idx++
+		if err := addSet("enabled", *req.Enabled); err != nil {
+			return nil, err
+		}
 	}
 	if req.Metadata != nil {
-		sets = append(sets, fmt.Sprintf("metadata = $%d", idx))
-		args = append(args, req.Metadata)
-		idx++
+		if err := addSet("metadata", req.Metadata); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(sets) == 0 {

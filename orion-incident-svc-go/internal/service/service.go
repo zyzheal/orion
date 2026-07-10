@@ -548,7 +548,7 @@ func (s *IncidentService) AddTimelineEvent(ctx context.Context, incidentID, tena
 		return nil, ErrIncidentNotFound
 	}
 
-	if !containsStr(validEventTypes, eventType) {
+	if !contains(validEventTypes, eventType) {
 		return nil, fmt.Errorf("invalid event type: %s. Must be one of: %v", eventType, validEventTypes)
 	}
 
@@ -931,71 +931,103 @@ func (s *IncidentService) GetStats(ctx context.Context, tenantID string) (*model
 		Trends:     []models.TrendPoint{},
 	}
 
-	// Count by status
-	statusRows, err := s.incidentRepo.DB().QueryContext(ctx,
+	s.countByStatus(ctx, tenantID, stats)
+	s.countBySeverity(ctx, tenantID, stats)
+	s.countByPriority(ctx, tenantID, stats)
+	stats.SLABreachCount = s.getSLABreachCount(ctx, tenantID)
+	stats.EscalationCount = s.getEscalationCount(ctx, tenantID)
+	stats.MTTR = s.getMTTRStats(ctx, tenantID)
+	stats.Trends = s.getTrends(ctx, tenantID)
+
+	return stats, nil
+}
+
+
+// countByStatus queries incident status counts and updates stats.
+func (s *IncidentService) countByStatus(ctx context.Context, tenantID string, stats *models.IncidentStats) {
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		"SELECT status, COUNT(*) as count FROM incidents WHERE tenant_id = $1 GROUP BY status", tenantID)
-	if err == nil {
-		defer statusRows.Close()
-		for statusRows.Next() {
-			var status string
-			var count int
-			if err := statusRows.Scan(&status, &count); err == nil {
-				stats.ByStatus[status] = count
-				stats.Total += count
-			}
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err == nil {
+			stats.ByStatus[status] = count
+			stats.Total += count
 		}
 	}
+}
 
-	// Count by severity
-	severityRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// countBySeverity queries incident severity counts and updates stats.
+func (s *IncidentService) countBySeverity(ctx context.Context, tenantID string, stats *models.IncidentStats) {
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		"SELECT severity, COUNT(*) as count FROM incidents WHERE tenant_id = $1 GROUP BY severity", tenantID)
-	if err == nil {
-		defer severityRows.Close()
-		for severityRows.Next() {
-			var severity string
-			var count int
-			if err := severityRows.Scan(&severity, &count); err == nil {
-				stats.BySeverity[severity] = count
-			}
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var severity string
+		var count int
+		if err := rows.Scan(&severity, &count); err == nil {
+			stats.BySeverity[severity] = count
 		}
 	}
+}
 
-	// Count by priority
-	priorityRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// countByPriority queries incident priority counts and updates stats.
+func (s *IncidentService) countByPriority(ctx context.Context, tenantID string, stats *models.IncidentStats) {
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		"SELECT priority, COUNT(*) as count FROM incidents WHERE tenant_id = $1 GROUP BY priority", tenantID)
-	if err == nil {
-		defer priorityRows.Close()
-		for priorityRows.Next() {
-			var priority sql.NullString
-			var count int
-			if err := priorityRows.Scan(&priority, &count); err == nil && priority.Valid {
-				stats.ByPriority[priority.String] = count
-			}
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var priority sql.NullString
+		var count int
+		if err := rows.Scan(&priority, &count); err == nil && priority.Valid {
+			stats.ByPriority[priority.String] = count
 		}
 	}
+}
 
-	// SLA breach count
-	slaRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// getSLABreachCount returns the number of incidents with SLA breaches.
+func (s *IncidentService) getSLABreachCount(ctx context.Context, tenantID string) int {
+	var count int
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		"SELECT COUNT(*) FROM incidents WHERE tenant_id = $1 AND sla_breach = TRUE", tenantID)
-	if err == nil {
-		defer slaRows.Close()
-		if slaRows.Next() {
-			_ = slaRows.Scan(&stats.SLABreachCount)
-		}
+	if err != nil {
+		return 0
 	}
+	defer rows.Close()
+	if rows.Next() {
+		_ = rows.Scan(&count)
+	}
+	return count
+}
 
-	// Escalation count
-	escRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// getEscalationCount returns the number of escalations for a tenant.
+func (s *IncidentService) getEscalationCount(ctx context.Context, tenantID string) int {
+	var count int
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		"SELECT COUNT(*) FROM incident_escalations WHERE tenant_id = $1", tenantID)
-	if err == nil {
-		defer escRows.Close()
-		if escRows.Next() {
-			_ = escRows.Scan(&stats.EscalationCount)
-		}
+	if err != nil {
+		return 0
 	}
+	defer rows.Close()
+	if rows.Next() {
+		_ = rows.Scan(&count)
+	}
+	return count
+}
 
-	// MTTR stats
-	mttrRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// getMTTRStats computes MTTR statistics (avg, median, p90, p99) for resolved incidents.
+func (s *IncidentService) getMTTRStats(ctx context.Context, tenantID string) models.MTTRStats {
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		`SELECT
 			COUNT(*) as total,
 			AVG(recovery_time_ms) as avg_ms,
@@ -1005,24 +1037,28 @@ func (s *IncidentService) GetStats(ctx context.Context, tenantID string) (*model
 		FROM incidents
 		WHERE tenant_id = $1 AND status IN ('resolved','closed') AND recovery_time_ms IS NOT NULL`,
 		tenantID)
-	if err == nil {
-		defer mttrRows.Close()
-		if mttrRows.Next() {
-			var avgMs, medianMs, p90Ms, p99Ms sql.NullFloat64
-			var total int
-			if err := mttrRows.Scan(&total, &avgMs, &medianMs, &p90Ms, &p99Ms); err == nil {
-				stats.MTTR = models.MTTRStats{
-					AvgMs:    nullFloat64ToFloat64(avgMs),
-					MedianMs: nullFloat64ToFloat64(medianMs),
-					P90Ms:    nullFloat64ToFloat64(p90Ms),
-					P99Ms:    nullFloat64ToFloat64(p99Ms),
-				}
+	if err != nil {
+		return models.MTTRStats{}
+	}
+	defer rows.Close()
+	if rows.Next() {
+		var avgMs, medianMs, p90Ms, p99Ms sql.NullFloat64
+		var total int
+		if err := rows.Scan(&total, &avgMs, &medianMs, &p90Ms, &p99Ms); err == nil {
+			return models.MTTRStats{
+				AvgMs:    nullFloat64ToFloat64(avgMs),
+				MedianMs: nullFloat64ToFloat64(medianMs),
+				P90Ms:    nullFloat64ToFloat64(p90Ms),
+				P99Ms:    nullFloat64ToFloat64(p99Ms),
 			}
 		}
 	}
+	return models.MTTRStats{}
+}
 
-	// Trends (last 7 days)
-	trendRows, err := s.incidentRepo.DB().QueryContext(ctx,
+// getTrends computes daily incident trends for the last 7 days.
+func (s *IncidentService) getTrends(ctx context.Context, tenantID string) []models.TrendPoint {
+	rows, err := s.incidentRepo.DB().QueryContext(ctx,
 		`SELECT
 			TO_CHAR(DATE_TRUNC('day', detected_at), 'YYYY-MM-DD') as period,
 			SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as opened,
@@ -1032,22 +1068,23 @@ func (s *IncidentService) GetStats(ctx context.Context, tenantID string) (*model
 		GROUP BY DATE_TRUNC('day', detected_at)
 		ORDER BY period ASC`,
 		tenantID)
-	if err == nil {
-		defer trendRows.Close()
-		for trendRows.Next() {
-			var period string
-			var opened, resolved int
-			if err := trendRows.Scan(&period, &opened, &resolved); err == nil {
-				stats.Trends = append(stats.Trends, models.TrendPoint{
-					Period:  period,
-					Opened:  opened,
-					Resolved: resolved,
-				})
-			}
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var trends []models.TrendPoint
+	for rows.Next() {
+		var period string
+		var opened, resolved int
+		if err := rows.Scan(&period, &opened, &resolved); err == nil {
+			trends = append(trends, models.TrendPoint{
+				Period:   period,
+				Opened:   opened,
+				Resolved: resolved,
+			})
 		}
 	}
-
-	return stats, nil
+	return trends
 }
 
 // ── List Postmortems ─────────────────────────────────────────────────────
@@ -1177,15 +1214,6 @@ func toLower(s string) string {
 }
 
 func contains(slice []string, val string) bool {
-	for _, v := range slice {
-		if v == val {
-			return true
-		}
-	}
-	return false
-}
-
-func containsStr(slice []string, val string) bool {
 	for _, v := range slice {
 		if v == val {
 			return true
