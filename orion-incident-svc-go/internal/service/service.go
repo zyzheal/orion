@@ -1050,7 +1050,102 @@ func (s *IncidentService) GetStats(ctx context.Context, tenantID string) (*model
 	return stats, nil
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────
+// ── List Postmortems ─────────────────────────────────────────────────────
+func (s *IncidentService) ListPostmortems(ctx context.Context, tenantID string, status *string, limit, offset int) ([]models.PostmortemRecord, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	records, total, err := s.postmortemRepo.FindByTenant(ctx, tenantID, status, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list postmortems: %w", err)
+	}
+	if records == nil {
+		return []models.PostmortemRecord{}, total, nil
+	}
+	return records, total, nil
+}
+
+// ── Knowledge Recommendations ────────────────────────────────────────────
+// GetKnowledgeRecommendations returns knowledge base recommendations for an incident.
+// NOTE: The knowledge integration service is not wired into this Go service yet.
+// This method validates the incident exists and returns an empty slice.
+// When the knowledge service is available, populate this with actual KB article lookups.
+func (s *IncidentService) GetKnowledgeRecommendations(ctx context.Context, incidentID, tenantID string, limit int) ([]string, error) {
+	_, err := s.incidentRepo.GetByID(ctx, incidentID, tenantID)
+	if err != nil {
+		return nil, ErrIncidentNotFound
+	}
+	if limit <= 0 {
+		limit = 5
+	}
+	// Stub: knowledge integration not yet available in Go service.
+	// TODO: Wire in knowledge integration service and return KB article IDs.
+	return []string{}, nil
+}
+
+// ── Link Problem ─────────────────────────────────────────────────────────
+func (s *IncidentService) LinkProblem(ctx context.Context, incidentID, problemID, tenantID string) (*IncidentResponse, error) {
+	incident, err := s.incidentRepo.GetByID(ctx, incidentID, tenantID)
+	if err != nil {
+		return nil, ErrIncidentNotFound
+	}
+	incident.RelatedProblemID = &problemID
+	incident.LinkedProblemID = &problemID
+	incident.UpdatedAt = time.Now().UTC()
+
+	if err := s.incidentRepo.Update(ctx, incident); err != nil {
+		return nil, fmt.Errorf("failed to link problem: %w", err)
+	}
+
+	now := time.Now().UTC()
+	timelineEvent := &models.TimelineEvent{
+		ID:         newID(),
+		IncidentID: incidentID,
+		TenantID:   tenantID,
+		EventType:  "update",
+		ActorID:    nil,
+		Content:    fmt.Sprintf("Linked to problem: %s", problemID),
+		Metadata:   []byte(fmt.Sprintf(`{"problem_id":"%s"}`, problemID)),
+		CreatedAt:  now,
+	}
+	_ = s.timelineRepo.Create(ctx, timelineEvent)
+
+	resp := toResponse(incident)
+	return &resp, nil
+}
+
+// ── Link Change ──────────────────────────────────────────────────────────
+func (s *IncidentService) LinkChange(ctx context.Context, incidentID, changeID, tenantID string) (*IncidentResponse, error) {
+	incident, err := s.incidentRepo.GetByID(ctx, incidentID, tenantID)
+	if err != nil {
+		return nil, ErrIncidentNotFound
+	}
+	incident.LinkedChangeID = &changeID
+	incident.UpdatedAt = time.Now().UTC()
+
+	if err := s.incidentRepo.Update(ctx, incident); err != nil {
+		return nil, fmt.Errorf("failed to link change: %w", err)
+	}
+
+	now := time.Now().UTC()
+	timelineEvent := &models.TimelineEvent{
+		ID:         newID(),
+		IncidentID: incidentID,
+		TenantID:   tenantID,
+		EventType:  "update",
+		ActorID:    nil,
+		Content:    fmt.Sprintf("Linked to change: %s", changeID),
+		Metadata:   []byte(fmt.Sprintf(`{"change_id":"%s"}`, changeID)),
+		CreatedAt:  now,
+	}
+	_ = s.timelineRepo.Create(ctx, timelineEvent)
+
+	resp := toResponse(incident)
+	return &resp, nil
+}
 
 func calculatePriority(impact, urgency string) string {
 	i := toLower(impact)

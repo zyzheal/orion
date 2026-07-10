@@ -122,11 +122,21 @@ func main() {
 		incidents.POST("/:id/sla/breach", auth.RequirePermission("incident", "write"), h.MarkSLABreach)
 		incidents.POST("/:id/timeline", auth.RequirePermission("incident", "write"), h.AddTimelineEvent)
 		incidents.GET("/:id/timeline", h.GetTimeline)
+		incidents.GET("/:id/knowledge", h.GetKnowledgeRecommendations)
+		incidents.POST("/:id/link-problem", auth.RequirePermission("incident", "write"), h.LinkProblem)
+		incidents.POST("/:id/link-change", auth.RequirePermission("incident", "write"), h.LinkChange)
 		incidents.POST("/:id/postmortem", auth.RequirePermission("incident", "write"), h.CreatePostmortem)
 		incidents.GET("/:id/postmortem", h.GetPostmortem)
 		incidents.PUT("/:id/postmortem", auth.RequirePermission("incident", "write"), h.UpdatePostmortem)
 		incidents.POST("/:id/postmortem/publish", auth.RequirePermission("incident", "write"), h.PublishPostmortem)
 		incidents.POST("/:id/postmortem/archive", auth.RequirePermission("incident", "write"), h.ArchivePostmortem)
+	}
+
+	// Postmortems list (separate group)
+	postmortems := r.Group("/api/v1/postmortems")
+	postmortems.Use(isvw.Auth(rdb, cfg.JWTSecret))
+	{
+		postmortems.GET("", h.ListPostmortems)
 	}
 
 	zapLogger.Info("incident service (go) starting", zap.String("addr", cfg.HTTPAddr))

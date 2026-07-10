@@ -524,6 +524,114 @@ func (h *Handler) GetStats(c *gin.Context) {
 	h.success(c, stats)
 }
 
+// ── Postmortems ──────────────────────────────────────────────────────────
+
+// ListPostmortems handles GET /api/v1/postmortems
+func (h *Handler) ListPostmortems(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	status := c.Query("status")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	offset := (page - 1) * pageSize
+
+	var statusPtr *string
+	if status != "" {
+		statusPtr = strPtrOrNil(status)
+	}
+
+	ctx := c.Request.Context()
+	records, total, err := h.incidentSvc.ListPostmortems(ctx, tenantID, statusPtr, pageSize, offset)
+	if err != nil {
+		h.logger.Error("failed to list postmortems", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	h.success(c, gin.H{
+		"data":  records,
+		"total": total,
+	})
+}
+
+// ── Knowledge Recommendations ────────────────────────────────────────────
+
+// GetKnowledgeRecommendations handles GET /api/v1/incidents/:id/knowledge
+func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
+
+	ctx := c.Request.Context()
+	recs, err := h.incidentSvc.GetKnowledgeRecommendations(ctx, id, tenantID, limit)
+	if err != nil {
+		h.logger.Error("failed to get knowledge recommendations", zap.Error(err))
+		h.err(c, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	h.success(c, recs)
+}
+
+// ── Link to Problem / Change ─────────────────────────────────────────────
+
+// LinkProblem handles POST /api/v1/incidents/:id/link-problem
+func (h *Handler) LinkProblem(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+
+	var req struct {
+		ProblemID string `json:"problem_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
+		return
+	}
+
+	ctx := c.Request.Context()
+	incident, err := h.incidentSvc.LinkProblem(ctx, id, req.ProblemID, tenantID)
+	if err != nil {
+		switch err {
+		case service.ErrIncidentNotFound:
+			h.err(c, http.StatusNotFound, "incident not found")
+		default:
+			h.logger.Error("failed to link problem", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+
+	h.success(c, incident)
+}
+
+// LinkChange handles POST /api/v1/incidents/:id/link-change
+func (h *Handler) LinkChange(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+
+	var req struct {
+		ChangeID string `json:"change_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.err(c, http.StatusBadRequest, "invalid request: "+err.Error())
+		return
+	}
+
+	ctx := c.Request.Context()
+	incident, err := h.incidentSvc.LinkChange(ctx, id, req.ChangeID, tenantID)
+	if err != nil {
+		switch err {
+		case service.ErrIncidentNotFound:
+			h.err(c, http.StatusNotFound, "incident not found")
+		default:
+			h.logger.Error("failed to link change", zap.Error(err))
+			h.err(c, http.StatusInternalServerError, "internal error")
+		}
+		return
+	}
+
+	h.success(c, incident)
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 func strPtrOrNil(s string) *string {
