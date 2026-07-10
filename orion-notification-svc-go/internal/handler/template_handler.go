@@ -31,6 +31,8 @@ func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		t.GET("/:id", h.Get)
 		t.PUT("/:id", h.Update)
 		t.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
+		t.POST("/:id/preview", h.Preview)
+		t.POST("/:id/variables/render", h.RenderVariables)
 	}
 }
 

@@ -167,3 +167,102 @@ type PaginatedResult struct {
 	Limit      int         `json:"limit"`
 	TotalPages int         `json:"total_pages"`
 }
+
+// ==================== Builder Image ====================
+
+// BuilderImage represents a builder image (Node.js BuilderImageService).
+type BuilderImage struct {
+	ID          string          `db:"id" json:"id"`
+	TenantID    string          `db:"tenant_id" json:"tenant_id"`
+	Name        string          `db:"name" json:"name"`
+	DisplayName string          `db:"display_name" json:"display_name"`
+	Image       string          `db:"image" json:"image"`
+	Type        string          `db:"type" json:"type"` // node, python, go, java, dotnet, rust
+	Version     string          `db:"version" json:"version"`
+	Description string          `db:"description" json:"description"`
+	PullPolicy  string          `db:"pull_policy" json:"pull_policy"` // if_not_present, always, never
+	Status      string          `db:"status" json:"status"` // active, deprecated, disabled
+	IsPreset    bool            `db:"is_preset" json:"is_preset"`
+	Env         json.RawMessage `db:"env" json:"env,omitempty"`
+	Labels      json.RawMessage `db:"labels" json:"labels,omitempty"`
+	CreatedBy   *string         `db:"created_by" json:"created_by,omitempty"`
+	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time       `db:"updated_at" json:"updated_at"`
+}
+
+// CreateBuilderImageInput is the payload for creating a builder image.
+type CreateBuilderImageInput struct {
+	TenantID    string          `json:"tenant_id"`
+	Name        string          `json:"name" binding:"required"`
+	DisplayName string          `json:"display_name"`
+	Image       string          `json:"image" binding:"required"`
+	Type        string          `json:"type" binding:"required"`
+	Version     string          `json:"version"`
+	Description string          `json:"description"`
+	PullPolicy  string          `json:"pull_policy"`
+	Env         json.RawMessage `json:"env,omitempty"`
+	Labels      json.RawMessage `json:"labels,omitempty"`
+}
+
+// ListBuilderImageFilter holds query parameters for listing builder images.
+type ListBuilderImageFilter struct {
+	Type     string
+	Status   string
+	IsPreset *bool // nil = not specified, true/false = filter by preset
+}
+
+// ==================== Build Cache Config ====================
+
+// BuildCacheConfig represents a build cache configuration (Node.js BuildCacheService).
+type BuildCacheConfig struct {
+	ID             string          `db:"id" json:"id"`
+	TenantID       string          `db:"tenant_id" json:"tenant_id"`
+	Level          string          `db:"level" json:"level"` // global, pipeline, task
+	TargetID       *string         `db:"target_id" json:"target_id,omitempty"`
+	Status         string          `db:"status" json:"status"` // enabled, disabled
+	StorageType    string          `db:"storage_type" json:"storage_type"` // local, s3, redis
+	StoragePath    string          `db:"storage_path" json:"storage_path"`
+	MaxTotalSize   int64           `db:"max_total_size" json:"max_total_size"`
+	MaxAgeDays     int             `db:"max_age_days" json:"max_age_days"`
+	CleanupPolicy  string          `db:"cleanup_policy" json:"cleanup_policy"` // lru, expired, none
+	CacheKeyPattern string         `db:"cache_key_pattern" json:"cache_key_pattern"`
+	CachePaths     json.RawMessage `db:"cache_paths" json:"cache_paths,omitempty"`
+	Description    *string         `db:"description" json:"description,omitempty"`
+	CreatedAt      time.Time       `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time       `db:"updated_at" json:"updated_at"`
+}
+
+// CreateBuildCacheConfigInput is the payload for creating a cache config.
+type CreateBuildCacheConfigInput struct {
+	TenantID        string          `json:"tenant_id"`
+	Level           string          `json:"level" binding:"required"`
+	TargetID        string          `json:"target_id"`
+	Status          string          `json:"status"`
+	StorageType     string          `json:"storage_type"`
+	StoragePath     string          `json:"storage_path"`
+	MaxTotalSize    int64           `json:"max_total_size"`
+	MaxAgeDays      int             `json:"max_age_days"`
+	CleanupPolicy   string          `json:"cleanup_policy"`
+	CacheKeyPattern string          `json:"cache_key_pattern"`
+	CachePaths      json.RawMessage `json:"cache_paths,omitempty"`
+	Description     string          `json:"description"`
+}
+
+// UpdateBuildCacheConfigInput is the payload for updating a cache config.
+type UpdateBuildCacheConfigInput struct {
+	Status        string          `json:"status"`
+	StorageType   string          `json:"storage_type"`
+	StoragePath   string          `json:"storage_path"`
+	MaxTotalSize  int64           `json:"max_total_size"`
+	MaxAgeDays    int             `json:"max_age_days"`
+	CleanupPolicy string          `json:"cleanup_policy"`
+	CacheKeyPattern string        `json:"cache_key_pattern"`
+	CachePaths    json.RawMessage `json:"cache_paths,omitempty"`
+	Description   string          `json:"description"`
+}
+
+// ListCacheConfigFilter holds query parameters for listing cache configs.
+type ListCacheConfigFilter struct {
+	Level  string
+	Status string
+}

@@ -309,3 +309,124 @@ type HealthStatus struct {
 	RulesCount   int    `json:"rules_count"`
 	ActiveAlerts int    `json:"active_alerts"`
 }
+
+// ==================== Notification Channels ====================
+
+// NotificationChannel represents a notification channel config.
+type NotificationChannel struct {
+	ID            uuid.UUID       `json:"id"`
+	TenantID      uuid.UUID       `json:"tenant_id"`
+	Name          string          `json:"name"`
+	Type          string          `json:"type"`
+	Config        json.RawMessage `json:"config"`
+	IsEnabled     bool            `json:"is_enabled"`
+	SeverityFilter json.RawMessage `json:"severity_filter"`
+	CreatedAt     time.Time       `json:"created_at"`
+	UpdatedAt     time.Time       `json:"updated_at"`
+}
+
+// CreateNotificationChannelRequest is the request body for creating a channel.
+type CreateNotificationChannelRequest struct {
+	Name          string                 `json:"name" binding:"required"`
+	Type          string                 `json:"type" binding:"required,oneof=email webhook slack"`
+	Config        map[string]interface{} `json:"config" binding:"required"`
+	IsEnabled     *bool                  `json:"is_enabled"`
+	SeverityFilter []string               `json:"severity_filter"`
+}
+
+// NotificationChannelResponse wraps notification channel query results.
+type NotificationChannelResponse struct {
+	Total int64                `json:"total"`
+	Data  []NotificationChannel `json:"data"`
+}
+
+// ==================== Escalation Policies ====================
+
+// EscalationPolicy represents an escalation policy.
+type EscalationPolicy struct {
+	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
+	Name        string          `json:"name"`
+	Steps       json.RawMessage `json:"steps"`
+	RepeatCount int             `json:"repeat_count"`
+	IsEnabled   bool            `json:"is_enabled"`
+	Description string          `json:"description,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
+}
+
+// CreateEscalationPolicyRequest is the request body for creating a policy.
+type CreateEscalationPolicyRequest struct {
+	Name        string                 `json:"name" binding:"required"`
+	Steps       []map[string]interface{} `json:"steps" binding:"required"`
+	RepeatCount *int                   `json:"repeat_count"`
+	IsEnabled   *bool                  `json:"is_enabled"`
+	Description *string                `json:"description"`
+}
+
+// EscalationPolicyResponse wraps escalation policy query results.
+type EscalationPolicyResponse struct {
+	Total int64             `json:"total"`
+	Data  []EscalationPolicy `json:"data"`
+}
+
+// ==================== Notification History ====================
+
+// NotificationHistory represents a notification delivery record.
+type NotificationHistory struct {
+	ID            uuid.UUID `json:"id"`
+	TenantID      uuid.UUID `json:"tenant_id"`
+	AlertID       *uuid.UUID `json:"alert_id,omitempty"`
+	ChannelID     *uuid.UUID `json:"channel_id,omitempty"`
+	ChannelType   string    `json:"channel_type"`
+	Status        string    `json:"status"`
+	SentAt        time.Time `json:"sent_at"`
+	ErrorMessage  string    `json:"error_message,omitempty"`
+	ResponsePayload string  `json:"response_payload,omitempty"`
+	EscalationStep *int     `json:"escalation_step,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// NotificationHistoryQueryRequest is the request for querying notification history.
+type NotificationHistoryQueryRequest struct {
+	AlertID     *uuid.UUID `json:"alert_id" binding:"omitempty,uuid"`
+	ChannelID   *uuid.UUID `json:"channel_id" binding:"omitempty,uuid"`
+	Status      string     `json:"status"`
+	StartTime   time.Time  `json:"start_time"`
+	EndTime     time.Time  `json:"end_time"`
+	Limit       int        `json:"limit"`
+	Offset      int        `json:"offset"`
+}
+
+// NotificationHistoryResponse wraps notification history query results.
+type NotificationHistoryResponse struct {
+	Total int64                `json:"total"`
+	Data  []NotificationHistory `json:"data"`
+}
+
+// ==================== Metric Registration ====================
+
+// MetricRegistration represents a registered metric definition.
+type MetricRegistration struct {
+	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
+	Name        string          `json:"name"`
+	Unit        string          `json:"unit"`
+	DefaultTags json.RawMessage `json:"default_tags,omitempty"`
+	Description string          `json:"description,omitempty"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+// RegisterMetricRequest is the request body for registering a metric.
+type RegisterMetricRequest struct {
+	Name        string                 `json:"name" binding:"required"`
+	Unit        string                 `json:"unit" binding:"required"`
+	DefaultTags map[string]string      `json:"default_tags"`
+	Description *string                `json:"description"`
+}
+
+// MetricRegistrationResponse wraps metric registration query results.
+type MetricRegistrationResponse struct {
+	Total int64               `json:"total"`
+	Data  []MetricRegistration `json:"data"`
+}

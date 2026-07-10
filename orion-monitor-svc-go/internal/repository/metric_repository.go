@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -103,6 +104,34 @@ func (r *MetricRepository) GetLatest(ctx context.Context, tenantID uuid.UUID, me
 		return nil, fmt.Errorf("get latest metric: %w", err)
 	}
 	return &m, nil
+}
+
+func (r *MetricRepository) GetSeries(ctx context.Context, tenantID uuid.UUID, metricName string, startTime, endTime time.Time) ([]models.Metric, error) {
+	query := `SELECT id, tenant_id, metric_name, value, tags, timestamp, created_at FROM metrics WHERE tenant_id = $1 AND metric_name = $2 AND timestamp >= $3 AND timestamp <= $4 ORDER BY timestamp`
+	var metrics []models.Metric
+	rows, err := r.db.Pool().Query(ctx, query, tenantID, metricName, startTime, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("get metric series: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m models.Metric
+		if err := rows.Scan(&m.ID, &m.TenantID, &m.MetricName, &m.Value, &m.Tags, &m.Timestamp, &m.CreatedAt); err != nil {
+			continue
+		}
+		metrics = append(metrics, m)
+	}
+	return metrics, nil
+}
+
+func (r *MetricRepository) GetSummary(ctx context.Context, tenantID uuid.UUID, metricName string, windowMs int64) (*models.MetricAggregation, error) {
+	var endTime time.Time
+	var startTime time.Time
+	if windowMs > 0 {
+		endTime = time.Now()
+		startTime = endTime.Add(-time.Duration(windowMs) * time.Millisecond)
+	}
+	return r.GetAggregation(ctx, tenantID, metricName, startTime, endTime)
 }
 
 func (r *MetricRepository) GetServiceMetrics(ctx context.Context, tenantID uuid.UUID, serviceName string) ([]models.Metric, error) {

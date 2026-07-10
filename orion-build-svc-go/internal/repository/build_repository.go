@@ -360,3 +360,208 @@ func (r *BuildRepository) CleanupArtifactsByRun(ctx context.Context, tenantID, r
 	rows, _ := result.RowsAffected()
 	return int(rows), nil
 }
+
+// ==================== Builder Images ====================
+
+func (r *BuildRepository) CreateBuilderImage(ctx context.Context, img *models.BuilderImage) error {
+	query := `INSERT INTO builder_images (tenant_id, name, display_name, image, type, version,
+		description, pull_policy, status, is_preset, env, labels, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id, created_at, updated_at`
+	return r.db.QueryRowContext(ctx, query,
+		img.TenantID, img.Name, img.DisplayName, img.Image, img.Type, img.Version,
+		img.Description, img.PullPolicy, img.Status, img.IsPreset, img.Env, img.Labels, img.CreatedBy,
+	).Scan(&img.ID, &img.CreatedAt, &img.UpdatedAt)
+}
+
+func (r *BuildRepository) GetBuilderImageByID(ctx context.Context, tenantID, id string) (*models.BuilderImage, error) {
+	var img models.BuilderImage
+	query := `SELECT id, tenant_id, name, display_name, image, type, version, description,
+		pull_policy, status, is_preset, env, labels, created_by, created_at, updated_at
+		FROM builder_images WHERE id = $1 AND tenant_id = $2`
+	err := r.db.GetContext(ctx, &img, query, id, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("builder image not found: %w", err)
+	}
+	return &img, nil
+}
+
+func (r *BuildRepository) GetBuilderImageByName(ctx context.Context, tenantID, name string) (*models.BuilderImage, error) {
+	var img models.BuilderImage
+	query := `SELECT id, tenant_id, name, display_name, image, type, version, description,
+		pull_policy, status, is_preset, env, labels, created_by, created_at, updated_at
+		FROM builder_images WHERE name = $1 AND tenant_id = $2`
+	err := r.db.GetContext(ctx, &img, query, name, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("builder image not found: %w", err)
+	}
+	return &img, nil
+}
+
+func (r *BuildRepository) ListBuilderImages(ctx context.Context, tenantID string, filter models.ListBuilderImageFilter, offset, limit int) ([]models.BuilderImage, error) {
+	var imgs []models.BuilderImage
+	var conditions []string
+	var args []interface{}
+	argIdx := 1
+
+	conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", argIdx))
+	args = append(args, tenantID)
+	argIdx++
+
+	if filter.Type != "" {
+		conditions = append(conditions, fmt.Sprintf("type = $%d", argIdx))
+		args = append(args, filter.Type)
+		argIdx++
+	}
+	if filter.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
+		args = append(args, filter.Status)
+		argIdx++
+	}
+	if filter.IsPreset != nil {
+		conditions = append(conditions, fmt.Sprintf("is_preset = $%d", argIdx))
+		args = append(args, *filter.IsPreset)
+		argIdx++
+	}
+
+	where := "WHERE " + strings.Join(conditions, " AND ")
+	query := fmt.Sprintf(`SELECT id, tenant_id, name, display_name, image, type, version, description,
+		pull_policy, status, is_preset, env, labels, created_by, created_at, updated_at
+		FROM builder_images %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	err := r.db.SelectContext(ctx, &imgs, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return imgs, nil
+}
+
+func (r *BuildRepository) UpdateBuilderImage(ctx context.Context, img *models.BuilderImage) error {
+	query := `UPDATE builder_images SET display_name = $1, image = $2, type = $3, version = $4,
+		description = $5, pull_policy = $6, status = $7, env = $8, labels = $9, updated_at = NOW()
+		WHERE id = $10 AND tenant_id = $11`
+	_, err := r.db.ExecContext(ctx, query,
+		img.DisplayName, img.Image, img.Type, img.Version, img.Description, img.PullPolicy,
+		img.Status, img.Env, img.Labels, img.ID, img.TenantID,
+	)
+	return err
+}
+
+func (r *BuildRepository) UpdateBuilderImageStatus(ctx context.Context, tenantID, id, status string) error {
+	query := `UPDATE builder_images SET status = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`
+	_, err := r.db.ExecContext(ctx, query, status, id, tenantID)
+	return err
+}
+
+func (r *BuildRepository) DeleteBuilderImage(ctx context.Context, tenantID, id string) error {
+	query := `DELETE FROM builder_images WHERE id = $1 AND tenant_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, tenantID)
+	return err
+}
+
+// ==================== Build Cache Config ====================
+
+func (r *BuildRepository) CreateBuildCacheConfig(ctx context.Context, cfg *models.BuildCacheConfig) error {
+	query := `INSERT INTO build_cache_configs (tenant_id, level, target_id, status, storage_type,
+		storage_path, max_total_size, max_age_days, cleanup_policy, cache_key_pattern, cache_paths, description)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, created_at, updated_at`
+	return r.db.QueryRowContext(ctx, query,
+		cfg.TenantID, cfg.Level, cfg.TargetID, cfg.Status, cfg.StorageType,
+		cfg.StoragePath, cfg.MaxTotalSize, cfg.MaxAgeDays, cfg.CleanupPolicy,
+		cfg.CacheKeyPattern, cfg.CachePaths, cfg.Description,
+	).Scan(&cfg.ID, &cfg.CreatedAt, &cfg.UpdatedAt)
+}
+
+func (r *BuildRepository) GetBuildCacheConfigByID(ctx context.Context, tenantID, id string) (*models.BuildCacheConfig, error) {
+	var cfg models.BuildCacheConfig
+	query := `SELECT id, tenant_id, level, target_id, status, storage_type, storage_path,
+		max_total_size, max_age_days, cleanup_policy, cache_key_pattern, cache_paths, description,
+		created_at, updated_at
+		FROM build_cache_configs WHERE id = $1 AND tenant_id = $2`
+	err := r.db.GetContext(ctx, &cfg, query, id, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("cache config not found: %w", err)
+	}
+	return &cfg, nil
+}
+
+func (r *BuildRepository) GetBuildCacheConfigByLevelAndTarget(ctx context.Context, tenantID, level, targetID string) (*models.BuildCacheConfig, error) {
+	var cfg models.BuildCacheConfig
+	var query string
+	var args []interface{}
+	if targetID != "" {
+		query = `SELECT id, tenant_id, level, target_id, status, storage_type, storage_path,
+			max_total_size, max_age_days, cleanup_policy, cache_key_pattern, cache_paths, description,
+			created_at, updated_at
+			FROM build_cache_configs WHERE tenant_id = $1 AND level = $2 AND target_id = $3`
+		args = []interface{}{tenantID, level, targetID}
+	} else {
+		// Global level does not have target_id
+		query = `SELECT id, tenant_id, level, target_id, status, storage_type, storage_path,
+			max_total_size, max_age_days, cleanup_policy, cache_key_pattern, cache_paths, description,
+			created_at, updated_at
+			FROM build_cache_configs WHERE tenant_id = $1 AND level = $2 AND target_id IS NULL`
+		args = []interface{}{tenantID, level}
+	}
+	err := r.db.GetContext(ctx, &cfg, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("cache config not found: %w", err)
+	}
+	return &cfg, nil
+}
+
+func (r *BuildRepository) ListBuildCacheConfigs(ctx context.Context, tenantID string, filter models.ListCacheConfigFilter, offset, limit int) ([]models.BuildCacheConfig, error) {
+	var cfgs []models.BuildCacheConfig
+	var conditions []string
+	var args []interface{}
+	argIdx := 1
+
+	conditions = append(conditions, fmt.Sprintf("tenant_id = $%d", argIdx))
+	args = append(args, tenantID)
+	argIdx++
+
+	if filter.Level != "" {
+		conditions = append(conditions, fmt.Sprintf("level = $%d", argIdx))
+		args = append(args, filter.Level)
+		argIdx++
+	}
+	if filter.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
+		args = append(args, filter.Status)
+		argIdx++
+	}
+
+	where := "WHERE " + strings.Join(conditions, " AND ")
+	query := fmt.Sprintf(`SELECT id, tenant_id, level, target_id, status, storage_type, storage_path,
+		max_total_size, max_age_days, cleanup_policy, cache_key_pattern, cache_paths, description,
+		created_at, updated_at
+		FROM build_cache_configs %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, argIdx, argIdx+1)
+	args = append(args, limit, offset)
+
+	err := r.db.SelectContext(ctx, &cfgs, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return cfgs, nil
+}
+
+func (r *BuildRepository) UpdateBuildCacheConfig(ctx context.Context, cfg *models.BuildCacheConfig) error {
+	query := `UPDATE build_cache_configs SET status = $1, storage_type = $2, storage_path = $3,
+		max_total_size = $4, max_age_days = $5, cleanup_policy = $6, cache_key_pattern = $7,
+		cache_paths = $8, description = $9, updated_at = NOW()
+		WHERE id = $10 AND tenant_id = $11`
+	_, err := r.db.ExecContext(ctx, query,
+		cfg.Status, cfg.StorageType, cfg.StoragePath,
+		cfg.MaxTotalSize, cfg.MaxAgeDays, cfg.CleanupPolicy, cfg.CacheKeyPattern,
+		cfg.CachePaths, cfg.Description, cfg.ID, cfg.TenantID,
+	)
+	return err
+}
+
+func (r *BuildRepository) DeleteBuildCacheConfig(ctx context.Context, tenantID, id string) error {
+	query := `DELETE FROM build_cache_configs WHERE id = $1 AND tenant_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, tenantID)
+	return err
+}

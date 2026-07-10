@@ -136,9 +136,55 @@ CREATE TABLE IF NOT EXISTS metric_registrations (
 );
 CREATE INDEX IF NOT EXISTS idx_metric_registrations_tenant ON metric_registrations(tenant_id);
 `
+	// 003: Notification channels, escalation policies, notification history
+	sql3 := `
+CREATE TABLE IF NOT EXISTS notification_channels (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}',
+    is_enabled BOOLEAN DEFAULT true,
+    severity_filter JSONB DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notification_channels_tenant ON notification_channels(tenant_id);
+
+CREATE TABLE IF NOT EXISTS escalation_policies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    steps JSONB NOT NULL DEFAULT '[]',
+    repeat_count INTEGER DEFAULT 0,
+    is_enabled BOOLEAN DEFAULT true,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_escalation_policies_tenant ON escalation_policies(tenant_id);
+
+CREATE TABLE IF NOT EXISTS notification_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    alert_id UUID,
+    channel_id UUID,
+    channel_type VARCHAR(50),
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    sent_at TIMESTAMP DEFAULT NOW(),
+    error_message TEXT,
+    response_payload TEXT,
+    escalation_step INTEGER,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notification_history_tenant ON notification_history(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_notification_history_alert ON notification_history(alert_id);
+CREATE INDEX IF NOT EXISTS idx_notification_history_channel ON notification_history(channel_id);
+`
 	return []migrationFile{
 		{Name: "001_create_monitor_tables", SQL: sql},
 		{Name: "002_create_dashboard_widgets", SQL: sql2},
+		{Name: "003_create_notification_channels", SQL: sql3},
 	}, nil
 }
 
