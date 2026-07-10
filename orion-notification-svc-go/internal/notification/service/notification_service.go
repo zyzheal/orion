@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 	"orion/go-common/pkg/otel"
-	"orion/notification-svc-go/internal/repository"
+	"orion/notification-svc-go/internal/notification/repository"
 
 	"github.com/google/uuid"
 )

@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"log"
+	"os"
 
-	"orion/notification-svc-go/internal/config"
-	"orion/notification-svc-go/internal/handler"
-	"orion/notification-svc-go/internal/repository"
-	"orion/notification-svc-go/internal/service"
+	"orion/notification-svc-go/internal/notification/config"
+	notif_handler "orion/notification-svc-go/internal/notification/handler"
+	notif_repo "orion/notification-svc-go/internal/notification/repository"
+	notif_service "orion/notification-svc-go/internal/notification/service"
 	nats_subscriber "orion/notification-svc-go/pkg/nats"
+
+	chatops_handler "orion/notification-svc-go/internal/chatops/handler"
+	chatops_repo "orion/notification-svc-go/internal/chatops/repository"
+	chatops_service "orion/notification-svc-go/internal/chatops/service"
+
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -48,25 +53,49 @@ func main() {
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
 	defer rdb.Close()
 
-	repo := repository.NewRepository(db.DB)
-	svc := service.NewService(repo)
-	h := handler.NewHandler(svc)
-	policyRepo := repository.NewPolicyRepository(db)
-	policySvc := service.NewPolicyService(policyRepo, logger)
-	policyHandler := handler.NewPolicyHandler(policySvc)
-	deliveryRepo := repository.NewDeliveryRepository(db.DB)
-	deliverySvc := service.NewDeliveryService(deliveryRepo, logger)
-	deliveryHandler := handler.NewDeliveryHandler(deliverySvc)
-	scheduledRepo := repository.NewScheduledNotificationRepository(db.DB)
-	scheduledSvc := service.NewScheduledNotificationService(scheduledRepo, logger)
-	scheduledHandler := handler.NewScheduledNotificationHandler(scheduledSvc)
-	dndRepo := repository.NewDNDRepository(db.DB)
-	dndSvc := service.NewDNDService(dndRepo, logger)
-	dndHandler := handler.NewDNDHandler(dndSvc)
-	channelSvc := service.NewChannelService(repo, logger)
-	channelHandler := handler.NewChannelHandler(channelSvc)
-	templateSvc := service.NewTemplateService(repo, logger)
-	templateHandler := handler.NewTemplateHandler(templateSvc)
+	// Notification services
+	repo := notif_repo.NewRepository(db.DB)
+	svc := notif_service.NewService(repo)
+	h := notif_handler.NewHandler(svc)
+	policyRepo := notif_repo.NewPolicyRepository(db)
+	policySvc := notif_service.NewPolicyService(policyRepo, logger)
+	policyHandler := notif_handler.NewPolicyHandler(policySvc)
+	deliveryRepo := notif_repo.NewDeliveryRepository(db.DB)
+	deliverySvc := notif_service.NewDeliveryService(deliveryRepo, logger)
+	deliveryHandler := notif_handler.NewDeliveryHandler(deliverySvc)
+	scheduledRepo := notif_repo.NewScheduledNotificationRepository(db.DB)
+	scheduledSvc := notif_service.NewScheduledNotificationService(scheduledRepo, logger)
+	scheduledHandler := notif_handler.NewScheduledNotificationHandler(scheduledSvc)
+	dndRepo := notif_repo.NewDNDRepository(db.DB)
+	dndSvc := notif_service.NewDNDService(dndRepo, logger)
+	dndHandler := notif_handler.NewDNDHandler(dndSvc)
+	channelSvc := notif_service.NewChannelService(repo, logger)
+	channelHandler := notif_handler.NewChannelHandler(channelSvc)
+	templateSvc := notif_service.NewTemplateService(repo, logger)
+	templateHandler := notif_handler.NewTemplateHandler(templateSvc)
+
+	// ChatOps services
+	chatopsRepo := chatops_repo.NewRepository(db.DB)
+	chatopsSvc := chatops_service.NewService(chatopsRepo)
+	chatopsH := chatops_handler.NewHandler(chatopsSvc)
+	chatopsAuditSvc := chatops_service.NewAuditService(chatopsRepo)
+	chatopsRateLimitSvc := chatops_service.NewRateLimitService(chatopsRepo)
+	chatopsWebhookSvc := chatops_service.NewWebhookService(chatopsRepo)
+	chatopsSessionSvc := chatops_service.NewSessionService(chatopsRepo)
+	chatopsRecommendationSvc := chatops_service.NewRecommendationService(chatopsRepo)
+	chatopsMessageSvc := chatops_service.NewMessageService(chatopsWebhookSvc)
+	chatopsConfigSvc := chatops_service.NewConfigService(chatopsRepo)
+	chatopsCommandSvc := chatops_service.NewCommandService(chatopsRepo, chatopsRateLimitSvc, chatopsAuditSvc)
+	chatopsAdminSvc := chatops_service.NewAdminService()
+	chatopsCommandH := chatops_handler.NewCommandHandler(chatopsCommandSvc)
+	chatopsWebhookH := chatops_handler.NewWebhookHandler(chatopsWebhookSvc)
+	chatopsRateLimitH := chatops_handler.NewRateLimitHandler(chatopsRateLimitSvc)
+	chatopsSessionH := chatops_handler.NewSessionHandler(chatopsSessionSvc)
+	chatopsAuditH := chatops_handler.NewAuditHandler(chatopsAuditSvc)
+	chatopsRecommendationH := chatops_handler.NewRecommendationHandler(chatopsRecommendationSvc)
+	chatopsMessageH := chatops_handler.NewMessageHandler(chatopsMessageSvc)
+	chatopsConfigH := chatops_handler.NewConfigHandler(chatopsConfigSvc)
+	chatopsAdminH := chatops_handler.NewAdminHandler(chatopsAdminSvc)
 
 	// NATS JetStream subscriber
 	var natsSub *nats_subscriber.NATSSubscriber
@@ -90,6 +119,8 @@ func main() {
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// Notification routes
 	h.RegisterRoutes(rg)
 	policyHandler.RegisterRoutes(rg)
 	deliveryHandler.RegisterRoutes(rg)
@@ -97,6 +128,18 @@ func main() {
 	dndHandler.RegisterRoutes(rg)
 	channelHandler.RegisterRoutes(rg)
 	templateHandler.RegisterRoutes(rg)
+
+	// ChatOps routes
+	chatopsH.RegisterRoutes(rg)
+	chatopsCommandH.RegisterRoutes(rg)
+	chatopsWebhookH.RegisterRoutes(rg)
+	chatopsRateLimitH.RegisterRoutes(rg)
+	chatopsSessionH.RegisterRoutes(rg)
+	chatopsAuditH.RegisterRoutes(rg)
+	chatopsRecommendationH.RegisterRoutes(rg)
+	chatopsMessageH.RegisterRoutes(rg)
+	chatopsConfigH.RegisterRoutes(rg)
+	chatopsAdminH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-notification-svc"))
 

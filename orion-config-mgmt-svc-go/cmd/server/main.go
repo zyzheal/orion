@@ -10,10 +10,10 @@ import (
 	"syscall"
 	"time"
 
-	"orion/config-mgmt-svc-go/internal/config"
-	"orion/config-mgmt-svc-go/internal/handler"
-	"orion/config-mgmt-svc-go/internal/repository"
-	"orion/config-mgmt-svc-go/internal/service"
+	"orion/config-mgmt-svc-go/internal/config-pkg/config"
+	configHandler "orion/config-mgmt-svc-go/internal/config/handler"
+	"orion/config-mgmt-svc-go/internal/config/repository"
+	"orion/config-mgmt-svc-go/internal/config/service"
 	"orion/go-common/pkg/auth"
 	 nats_subscriber "orion/config-mgmt-svc-go/pkg/nats"
 	"orion/go-common/pkg/database"
@@ -71,7 +71,7 @@ func main() {
 
 	// Core config service
 	configSvc := service.NewService(repo)
-	h := handler.NewHandler(configSvc)
+	h := configHandler.NewHandler(configSvc)
 
 	// New services
 	driftSvc := service.NewDriftService(repo)
@@ -83,14 +83,14 @@ func main() {
 templateSvc := service.NewTemplateService(repo)
 webhookSvc := service.NewWebhookService(repo)
 	// New handlers
-	driftH := handler.NewDriftHandler(driftSvc)
-	featureFlagH := handler.NewFeatureFlagHandler(featureFlagSvc)
-	gitSyncH := handler.NewGitSyncHandler(gitSyncSvc)
-	approvalH := handler.NewApprovalHandler(approvalSvc)
-	snapshotH := handler.NewSnapshotHandler(snapshotSvc)
-	canaryH := handler.NewCanaryHandler(canarySvc)
-		templateH := handler.NewTemplateHandler(templateSvc)
-		webhookH := handler.NewWebhookHandler(webhookSvc)
+	driftH := configHandler.NewDriftHandler(driftSvc)
+	featureFlagH := configHandler.NewFeatureFlagHandler(featureFlagSvc)
+	gitSyncH := configHandler.NewGitSyncHandler(gitSyncSvc)
+	approvalH := configHandler.NewApprovalHandler(approvalSvc)
+	snapshotH := configHandler.NewSnapshotHandler(snapshotSvc)
+	canaryH := configHandler.NewCanaryHandler(canarySvc)
+		templateH := configHandler.NewTemplateHandler(templateSvc)
+		webhookH := configHandler.NewWebhookHandler(webhookSvc)
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())

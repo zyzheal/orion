@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 )
 
 func TestDeliveryServiceErrors(t *testing.T) {

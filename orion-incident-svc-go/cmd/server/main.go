@@ -8,10 +8,18 @@ import (
 	"syscall"
 	"time"
 
-	"orion/incident-svc-go/internal/config"
-	"orion/incident-svc-go/internal/handler"
-	isvw "orion/incident-svc-go/internal/middleware"
+	"orion/incident-svc-go/internal/incident/config"
+	"orion/incident-svc-go/internal/incident/handler"
+	isvw "orion/incident-svc-go/internal/incident/middleware"
 	nats_subscriber "orion/incident-svc-go/pkg/nats"
+
+	diag_handler "orion/incident-svc-go/internal/diagnostic/handler"
+	diag_repo "orion/incident-svc-go/internal/diagnostic/repository"
+	diag_service "orion/incident-svc-go/internal/diagnostic/service"
+
+	sh_handler "orion/incident-svc-go/internal/selfhealing/handler"
+	sh_repo "orion/incident-svc-go/internal/selfhealing/repository"
+	sh_service "orion/incident-svc-go/internal/selfhealing/service"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
@@ -103,8 +111,30 @@ func main() {
 		}
 	}
 
+	// ===== Incident handler =====
 	h := handler.New(db, rdb, zapLogger, cfg)
 
+	// ===== Diagnostic handler =====
+	sqlxDB := db.DB
+	sessionRepo := diag_repo.NewSessionRepository(sqlxDB)
+	reportRepo := diag_repo.NewReportRepository(sqlxDB)
+	stepRepo := diag_repo.NewStepRepository(sqlxDB)
+	knowledgeRepo := diag_repo.NewKnowledgeRepository(sqlxDB)
+
+	diagSvc := diag_service.NewService(sessionRepo)
+	kbSvc := diag_service.NewKnowledgeService(knowledgeRepo)
+	diagEngine := diag_service.NewEngine(kbSvc)
+	reporter := &diag_service.Reporter{}
+	agentSvc := diag_service.NewAgentService(diagSvc, reportRepo, stepRepo, diagEngine, kbSvc, reporter)
+	agentSvc.EnsureSeeded()
+	diagH := diag_handler.NewHandler(diagSvc, agentSvc)
+
+	// ===== Self-healing handler =====
+	shRepo := sh_repo.NewRepository(sqlxDB)
+	shSvc := sh_service.NewService(shRepo)
+	shH := sh_handler.NewHandler(shSvc)
+
+	// ===== Routes =====
 	incidents := r.Group("/api/v1/incidents")
 	incidents.Use(isvw.Auth(rdb, cfg.JWTSecret))
 	{
@@ -132,12 +162,17 @@ func main() {
 		incidents.POST("/:id/postmortem/archive", auth.RequirePermission("incident", "write"), h.ArchivePostmortem)
 	}
 
-	// Postmortems list (separate group)
 	postmortems := r.Group("/api/v1/postmortems")
 	postmortems.Use(isvw.Auth(rdb, cfg.JWTSecret))
 	{
 		postmortems.GET("", h.ListPostmortems)
 	}
+
+	// Diagnostic routes
+	diagH.RegisterRoutes(r.Group("/api/v1"))
+
+	// Self-healing routes
+	shH.RegisterRoutes(r.Group("/api/v1"))
 
 	zapLogger.Info("incident service (go) starting", zap.String("addr", cfg.HTTPAddr))
 

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"orion/notification-svc-go/internal/repository"
-	"orion/notification-svc-go/internal/service"
+	"orion/notification-svc-go/internal/notification/repository"
+	"orion/notification-svc-go/internal/notification/service"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"

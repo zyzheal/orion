@@ -1,0 +1,50 @@
+package repository
+
+import (
+	"context"
+	"orion/platform-svc-go/internal/federation/models"
+	"github.com/jmoiron/sqlx"
+)
+
+type Repository struct { db *sqlx.DB }
+func NewRepository(db *sqlx.DB) *Repository { return &Repository{db: db} }
+
+func (r *Repository) Create(ctx context.Context, d *models.FederatedCluster) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO federated_clusters (id, tenant_id, name, peer_url, protocol, status, config, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
+		d.ID, d.TenantID, d.Name, d.PeerURL, d.Protocol, d.Status, d.Config,
+	)
+	return err
+}
+
+func (r *Repository) List(ctx context.Context, tenantID string, offset, limit int) ([]models.FederatedCluster, error) {
+	var items []models.FederatedCluster
+	err := r.db.SelectContext(ctx, &items, `SELECT * FROM federated_clusters WHERE tenant_id=$1 ORDER BY created_at DESC OFFSET $2 LIMIT $3`, tenantID, offset, limit)
+	return items, err
+}
+
+func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.FederatedCluster, error) {
+	var d models.FederatedCluster
+	err := r.db.GetContext(ctx, &d, `SELECT * FROM federated_clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil { return nil, err }
+	return &d, nil
+}
+
+func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM federated_clusters WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
+func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM federated_clusters WHERE tenant_id=$1`, tenantID)
+	return count, err
+}
+
+func (r *Repository) Update(ctx context.Context, d *models.FederatedCluster) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE federated_clusters SET name=$3, peer_url=$4, protocol=$5, status=$6, config=$7, last_sync=NOW() WHERE id=$1 AND tenant_id=$2`,
+		d.ID, d.TenantID, d.Name, d.PeerURL, d.Protocol, d.Status, d.Config,
+	)
+	return err
+}

@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"orion/notification-svc-go/internal/models"
-	"orion/notification-svc-go/internal/service"
+	"orion/notification-svc-go/internal/notification/models"
+	"orion/notification-svc-go/internal/notification/service"
 
 	"orion/go-common/pkg/auth"
 

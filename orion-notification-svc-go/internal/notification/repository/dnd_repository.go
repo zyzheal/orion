@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 
 	"github.com/jmoiron/sqlx"
 )

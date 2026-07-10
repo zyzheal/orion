@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"orion/notification-svc-go/internal/models"
-	"orion/notification-svc-go/internal/service"
+	"orion/notification-svc-go/internal/notification/models"
+	"orion/notification-svc-go/internal/notification/service"
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"

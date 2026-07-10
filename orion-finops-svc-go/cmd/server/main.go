@@ -3,23 +3,35 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"orion/finops-svc-go/internal/config"
-	"orion/finops-svc-go/internal/handler"
-	"orion/finops-svc-go/internal/repository"
-	"orion/finops-svc-go/internal/service"
-	nats_subscriber "orion/finops-svc-go/pkg/nats"
+	cost_handler "orion/finops-svc-go/internal/cost/handler"
+	cost_repo "orion/finops-svc-go/internal/cost/repository"
+	cost_svc "orion/finops-svc-go/internal/cost/service"
+
+	eff_handler "orion/finops-svc-go/internal/efficiency/handler"
+	eff_repo "orion/finops-svc-go/internal/efficiency/repository"
+	eff_svc "orion/finops-svc-go/internal/efficiency/service"
+	eff_nats "orion/finops-svc-go/internal/efficiency/pkg/nats"
+
+	finops_handler "orion/finops-svc-go/internal/finops/handler"
+	finops_repo "orion/finops-svc-go/internal/finops/repository"
+	finops_svc "orion/finops-svc-go/internal/finops/service"
+
+	rd_handler "orion/finops-svc-go/internal/report-designer/handler"
+	rd_repo "orion/finops-svc-go/internal/report-designer/repository"
+	rd_svc "orion/finops-svc-go/internal/report-designer/service"
+
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-
 	orionredis "orion/go-common/pkg/redis"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -28,10 +40,20 @@ func main() {
 	logger := orionlog.Must(orionlog.DefaultConfig("orion-finops-svc"))
 	defer logger.Sync()
 
-	cfg := config.Load()
+	port := getEnvInt("PORT", 8080)
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbPort := getEnvInt("DB_PORT", 5432)
+	dbUser := requireEnv("DB_USER")
+	dbPassword := requireEnv("DB_PASSWORD")
+	dbName := getEnv("DB_NAME", "orion_finops")
+	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+	natsAddr := getEnv("NATS_ADDR", "")
+	natsStream := getEnv("NATS_STREAM", "EVENTS")
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode)
+		dbHost, dbPort, dbUser, dbPassword, dbName, dbSSLMode)
 	dbCfg := database.DefaultConfig(dsn)
 
 	ctx := context.Background()
@@ -48,43 +70,67 @@ func main() {
 		}
 	}
 
-	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	rdb := orionredis.NewClient(orionredis.Config{Addr: redisAddr})
 	defer rdb.Close()
 
+	// ── FINOPS (original) ──
+	finopsCostRepo := finops_repo.NewCostRepository(db.DB)
+	finopsSvc := finops_svc.NewFinOpsService(finopsCostRepo)
+	finopsOptSvc := finops_svc.NewOptimizationService(finopsCostRepo)
+	finopsBudgetSvc := finops_svc.NewBudgetService(finopsCostRepo)
+	finopsCostTrendSvc := finops_svc.NewCostTrendService(finopsCostRepo)
+	finopsHandler := finops_handler.NewHandler(finopsSvc)
+	finopsOptHandler := finops_handler.NewOptimizationHandler(finopsOptSvc)
+	finopsBudgetHandler := finops_handler.NewBudgetHandler(finopsBudgetSvc)
+	finopsCostTrendHandler := finops_handler.NewCostTrendHandler(finopsCostTrendSvc)
 
-	costRepo := repository.NewCostRepository(db.DB)
+	// ── COST ──
+	costRepository := cost_repo.NewCostRepository(db.DB)
+	costSvc := cost_svc.NewCostService(costRepository, logger)
+	costCalculator := cost_svc.NewCostCalculator(logger)
+	costBudgetSvc := cost_svc.NewBudgetService(costRepository, logger)
+	costOptSvc := cost_svc.NewOptimizationService(costRepository, logger)
+	costAnomalySvc := cost_svc.NewAnomalyService(costRepository)
+	costHandler := cost_handler.New(costSvc, costCalculator, costBudgetSvc, costOptSvc, costAnomalySvc, logger)
 
-	// Initialize services
-	finopsSvc := service.NewFinOpsService(costRepo)
-	optimizationSvc := service.NewOptimizationService(costRepo)
-	budgetSvc := service.NewBudgetService(costRepo)
-	costTrendSvc := service.NewCostTrendService(costRepo)
+	// ── EFFICIENCY ──
+	effRepo := eff_repo.NewRepository(db.DB)
+	effSvc := eff_svc.NewService(effRepo)
+	effHandler := eff_handler.NewHandler(effSvc)
 
-	// Initialize handlers
-	h := handler.NewHandler(finopsSvc)
-	optimizationHandler := handler.NewOptimizationHandler(optimizationSvc)
-	budgetHandler := handler.NewBudgetHandler(budgetSvc)
-	costTrendHandler := handler.NewCostTrendHandler(costTrendSvc)
+	// ── REPORT-DESIGNER ──
+	rdDefRepo := rd_repo.NewReportDefinitionRepository(db.DB)
+	rdDsRepo := rd_repo.NewReportDatasourceRepository(db.DB)
+	rdSchedRepo := rd_repo.NewReportScheduleRepository(db.DB)
+	rdExecRepo := rd_repo.NewReportExecutionRepository(db.DB)
+	rdSvc := rd_svc.NewReportDesignerService(rdDefRepo, rdDsRepo, rdSchedRepo, rdExecRepo)
+	rdHandler := rd_handler.NewHandler(rdSvc)
 
+	// ── Router ──
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
-	rg := r.Group("/api/v1")
-	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 
-	h.RegisterRoutes(rg)
-	optimizationHandler.RegisterRoutes(rg)
-	budgetHandler.RegisterRoutes(rg)
-	costTrendHandler.RegisterRoutes(rg)
+	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: jwtSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// Register all service routes
+	finopsHandler.RegisterRoutes(rg)
+	finopsOptHandler.RegisterRoutes(rg)
+	finopsBudgetHandler.RegisterRoutes(rg)
+	finopsCostTrendHandler.RegisterRoutes(rg)
+	costHandler.RegisterRoutes(rg)
+	effHandler.RegisterRoutes(rg)
+	rdHandler.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-finops-svc"))
 
-	// Initialize NATS JetStream subscriber (for consuming events)
-	var natsSub *nats_subscriber.NATSSubscriber
-	if cfg.NATSAddr != "" {
-		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+	// ── NATS JetStream subscriber ──
+	var natsSub *eff_nats.NATSSubscriber
+	if natsAddr != "" {
+		sub, err := eff_nats.NewNATSSubscriber(natsAddr, natsStream, logger)
 		if err != nil {
 			logger.Warn("failed to init NATS subscriber", zap.Error(err))
 		} else {
@@ -96,7 +142,7 @@ func main() {
 		}
 	}
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	addr := fmt.Sprintf(":%d", port)
 	logger.Info("finops-svc listening", zap.String("addr", addr))
 
 	srv := &http.Server{Addr: addr, Handler: r}
@@ -116,9 +162,34 @@ func main() {
 			logger.Warn("failed to close NATS subscriber", zap.Error(err))
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Fatal("server forced to shutdown", zap.Error(err))
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
+}
+
+func requireEnv(key string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	panic("required environment variable not set: " + key)
+}
+
+func getEnvInt(key string, defaultValue int) int {
+	if v := os.Getenv(key); v != "" {
+		var i int
+		_, err := fmt.Sscanf(v, "%d", &i)
+		if err == nil {
+			return i
+		}
+	}
+	return defaultValue
 }

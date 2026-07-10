@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 
-	"orion/artifact-svc-go/internal/handler"
-	"orion/artifact-svc-go/internal/repository"
-	"orion/artifact-svc-go/internal/service"
+	"orion/artifact-svc-go/internal/artifact/handler"
+	"orion/artifact-svc-go/internal/artifact/repository"
+	"orion/artifact-svc-go/internal/artifact/service"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/config"
 	"orion/go-common/pkg/database"

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"orion/notification-svc-go/internal/models"
-	"orion/notification-svc-go/internal/repository"
+	"orion/notification-svc-go/internal/notification/models"
+	"orion/notification-svc-go/internal/notification/repository"
 
 	"go.uber.org/zap"
 )

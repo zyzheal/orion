@@ -3,22 +3,30 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"orion/security-svc-go/internal/config"
-	"orion/security-svc-go/internal/handler"
-	"orion/security-svc-go/internal/repository"
-	"orion/security-svc-go/internal/service"
+	secretcfg "orion/security-svc-go/internal/secret/config"
+	sech "orion/security-svc-go/internal/secret/handler"
+	secrepo "orion/security-svc-go/internal/secret/repository"
+	secsvc "orion/security-svc-go/internal/secret/service"
+
+	securitycfg "orion/security-svc-go/internal/security/config"
+	securityh "orion/security-svc-go/internal/security/handler"
+	securityrepo "orion/security-svc-go/internal/security/repository"
+	securitysvc "orion/security-svc-go/internal/security/service"
+
+	nats_subscriber "orion/security-svc-go/pkg/nats"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-	nats_subscriber "orion/security-svc-go/pkg/nats"
 	orionredis "orion/go-common/pkg/redis"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -27,10 +35,11 @@ func main() {
 	logger := orionlog.Must(orionlog.DefaultConfig("orion-security-svc"))
 	defer logger.Sync()
 
-	cfg := config.Load()
+	// Security config
+	secCfg := securitycfg.Load()
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode)
+		secCfg.DBHost, secCfg.DBPort, secCfg.DBUser, secCfg.DBPassword, secCfg.DBName, secCfg.DBSSLMode)
 	dbCfg := database.DefaultConfig(dsn)
 
 	ctx := context.Background()
@@ -43,31 +52,29 @@ func main() {
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			logger.Warn("warning: failed to run migrations", zap.Error(err))
+			log.Printf("warning: failed to run migrations: %v", err)
 		}
 	}
 
-	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.RedisAddr})
+	rdb := orionredis.NewClient(orionredis.Config{Addr: secCfg.RedisAddr})
 	defer rdb.Close()
 
-	repo := repository.NewRepository(db.DB)
-	svc := service.NewService(repo)
-	h := handler.NewHandler(svc)
+	// ---- Security service ----
+	secRepo := securityrepo.NewRepository(db.DB)
+	secSvc := securitysvc.NewService(secRepo)
+	secHandler := securityh.NewHandler(secSvc)
 
-	r := gin.New()
-	r.Use(middleware.Recovery(logger))
-	r.Use(middleware.RequestID())
-	r.Use(middleware.StructuredLogger(logger))
-	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
-	rg := r.Group("/api/v1")
-	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
-	h.RegisterRoutes(rg)
+	// ---- Secret service ----
+	_ = secretcfg.Load()
+	encryptionKey := os.Getenv("ORION_SECRET_ENCRYPTION_KEY")
+	secretRepo := secrepo.NewRepository(db.DB)
+	secretSvc := secsvc.NewService(secretRepo, encryptionKey)
+	secretHandler := sech.NewHandler(secretSvc)
 
-	r.GET("/healthz", middleware.HealthCheck("orion-security-svc"))
-
+	// ---- NATS JetStream subscriber ----
 	var natsSub *nats_subscriber.NATSSubscriber
-	if cfg.NATSAddr != "" {
-		sub, err := nats_subscriber.NewNATSSubscriber(cfg.NATSAddr, cfg.NATSStream, logger)
+	if secCfg.NATSAddr != "" {
+		sub, err := nats_subscriber.NewNATSSubscriber(secCfg.NATSAddr, secCfg.NATSStream, logger)
 		if err != nil {
 			logger.Warn("failed to init NATS subscriber", zap.Error(err))
 		} else {
@@ -79,10 +86,29 @@ func main() {
 		}
 	}
 
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	// ---- Routes ----
+	r := gin.New()
+	r.Use(middleware.Recovery(logger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(logger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+
+	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: secCfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// Security routes (/api/v1/secur...)
+	secHandler.RegisterRoutes(rg)
+
+	// Secret routes (/api/v1/secret...)
+	secretHandler.RegisterRoutes(rg)
+
+	r.GET("/healthz", middleware.HealthCheck("orion-security-svc"))
+
+	addr := fmt.Sprintf(":%d", secCfg.Port)
 	srv := &http.Server{Addr: addr, Handler: r}
+
 	go func() {
-		logger.Info("security-svc listening", zap.String("addr", addr))
+		logger.Info("security-svc (secret + security) listening", zap.String("addr", addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("server error", zap.Error(err))
 		}

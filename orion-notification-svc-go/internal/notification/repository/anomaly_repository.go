@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"

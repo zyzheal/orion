@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 )
 
 func TestEvaluateCondition(t *testing.T) {

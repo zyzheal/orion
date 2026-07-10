@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,18 +40,22 @@ func (s *KnowledgeService) CreateSpace(ctx context.Context, tenantID string, req
 		ownerID = "system"
 	}
 
+	if req.Type == "" {
+		req.Type = models.SpaceTypePublic
+	}
+
 	space := &models.KnowledgeSpace{
-		ID:         newID(),
-		TenantID:   tenantID,
-		Name:       req.Name,
-		Type:       req.Type,
-		Source:     source,
-		OwnerID:    ownerID,
-		TeamID:     req.TeamID,
+		ID:          newID(),
+		TenantID:    tenantID,
+		Name:        req.Name,
+		Type:        req.Type,
+		Source:      source,
+		OwnerID:     ownerID,
+		TeamID:      req.TeamID,
 		Description: req.Description,
-		DocCount:   0,
-		CreatedAt:  time.Now().UTC(),
-		UpdatedAt:  time.Now().UTC(),
+		DocCount:    0,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
 	}
 
 	if err := s.repo.CreateSpace(ctx, space); err != nil {
@@ -123,6 +126,15 @@ func (s *KnowledgeService) CreateDoc(ctx context.Context, tenantID string, req m
 		return nil, ErrInvalidInput
 	}
 
+	// Verify space exists and belongs to this tenant (mirrors TS service.createDoc)
+	space, err := s.repo.FindSpaceByTenantID(ctx, tenantID, req.SpaceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get space: %w", err)
+	}
+	if space == nil {
+		return nil, ErrSpaceNotFound
+	}
+
 	source := req.Source
 	if source == nil {
 		src := string(models.ContentSourceManual)
@@ -141,6 +153,7 @@ func (s *KnowledgeService) CreateDoc(ctx context.Context, tenantID string, req m
 
 	tagsBytes, _ := json.Marshal(req.Tags)
 
+	now := time.Now().UTC()
 	doc := &models.KnowledgeDoc{
 		ID:        newID(),
 		TenantID:  tenantID,
@@ -153,26 +166,12 @@ func (s *KnowledgeService) CreateDoc(ctx context.Context, tenantID string, req m
 		Status:    docStatus,
 		Version:   1,
 		AuthorID:  req.AuthorID,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := s.repo.CreateDoc(ctx, doc); err != nil {
 		return nil, fmt.Errorf("failed to create doc: %w", err)
-	}
-
-	// Create initial version snapshot
-	version := &models.DocVersion{
-		ID:        newID(),
-		DocID:     doc.ID,
-		Version:   1,
-		Title:     doc.Title,
-		Content:   doc.Content,
-		Tags:      doc.Tags,
-		CreatedAt: time.Now().UTC(),
-	}
-	if err := s.repo.CreateDocVersion(ctx, version); err != nil {
-		return nil, fmt.Errorf("failed to create doc version: %w", err)
 	}
 
 	return doc, nil
@@ -196,10 +195,11 @@ func (s *KnowledgeService) ListDocs(ctx context.Context, tenantID string, filter
 	return s.repo.ListDocs(ctx, tenantID, filters)
 }
 
+// ListDocsByType lists documents of a specific type (e.g. "docs" for the document center).
+// This mirrors TS KnowledgeService.listDocsByType() which passes type=docs to the repository.
 func (s *KnowledgeService) ListDocsByType(ctx context.Context, tenantID string, filters models.DocListFilters) ([]models.KnowledgeDoc, error) {
-	// Override type to 'docs' for document center
-	filters.Status = strPtr(string(models.DocStatusPublished))
-	return s.repo.ListDocs(ctx, tenantID, filters)
+	filters.Type = strPtr(string(models.DocTypeDocs))
+	return s.ListDocs(ctx, tenantID, filters)
 }
 
 func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) (*models.KnowledgeDoc, error) {
@@ -211,7 +211,7 @@ func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map
 		return nil, ErrDocNotFound
 	}
 
-	// Bump version if content changed
+	// If content changed, bump version and create a snapshot
 	if _, hasContent := updates["content"]; hasContent {
 		newVersion, err := s.repo.GetNextDocVersion(ctx, id)
 		if err != nil {
@@ -219,7 +219,7 @@ func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map
 		}
 		updates["version"] = newVersion
 
-		// Create version snapshot
+		// Create version snapshot before updating doc
 		title := doc.Title
 		if t, ok := updates["title"].(string); ok && t != "" {
 			title = t
@@ -240,7 +240,7 @@ func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map
 			CreatedAt: time.Now().UTC(),
 		}
 		if err := s.repo.CreateDocVersion(ctx, version); err != nil {
-			return nil, fmt.Errorf("failed to create doc version: %w", err)
+			return nil, fmt.Errorf("failed to create doc version snapshot: %w", err)
 		}
 	}
 
@@ -284,15 +284,19 @@ func (s *KnowledgeService) GetDocVersions(ctx context.Context, docID string) ([]
 // RAG operations
 // ============================================================================
 
+func (s *KnowledgeService) Search(ctx context.Context, tenantID, query string, spaceID *string, limit int) ([]models.KnowledgeSearchResult, error) {
+	if query == "" {
+		return nil, ErrInvalidInput
+	}
+	if limit == 0 {
+		limit = 10
+	}
+	return s.repo.SearchDocs(ctx, tenantID, query, spaceID, limit)
+}
+
 func (s *KnowledgeService) Retrieve(ctx context.Context, tenantID, query string, spaceID *string, topK int) ([]models.KnowledgeSearchResult, error) {
-	if topK == 0 {
-		topK = 10
-	}
-	results, err := s.repo.SearchDocs(ctx, tenantID, query, spaceID, topK)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve: %w", err)
-	}
-	return results, nil
+	// RAG retrieve: semantic or text search for retrieval purposes
+	return s.Search(ctx, tenantID, query, spaceID, topK)
 }
 
 // ============================================================================
@@ -303,19 +307,25 @@ func (s *KnowledgeService) GetDocTags(ctx context.Context, tenantID string) ([]m
 	return s.repo.GetDocTags(ctx, tenantID)
 }
 
+// GetDocToc returns published docs of type 'docs' as a flat table of contents.
+// Mirrors TS KnowledgeService.getDocToc().
 func (s *KnowledgeService) GetDocToc(ctx context.Context, tenantID string) ([]models.DocTocItem, error) {
-	// Simplified: return docs as TOC items
-	docs, err := s.repo.ListDocs(ctx, tenantID, models.DocListFilters{Limit: 100})
+	docs, err := s.repo.ListDocs(ctx, tenantID, models.DocListFilters{
+		Status: strPtr(string(models.DocStatusPublished)),
+		Type:   strPtr(string(models.DocTypeDocs)),
+		Limit:  200,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get toc: %w", err)
 	}
 
 	items := make([]models.DocTocItem, 0, len(docs))
-	for _, doc := range docs {
+	for i, doc := range docs {
 		items = append(items, models.DocTocItem{
-			ID:    doc.ID,
-			Title: doc.Title,
-			Order: doc.Version,
+			ID:       doc.ID,
+			Title:    doc.Title,
+			ParentID: nil,
+			Order:    i,
 		})
 	}
 	return items, nil
@@ -323,21 +333,18 @@ func (s *KnowledgeService) GetDocToc(ctx context.Context, tenantID string) ([]mo
 
 func (s *KnowledgeService) TriggerSync(ctx context.Context, tenantID string, source *string) (*models.SyncLog, error) {
 	now := time.Now().UTC()
+	syncID := newID()
 	log := &models.SyncLog{
-		ID:          newID(),
-		Status:      "running",
+		ID:          syncID,
+		Status:      "success",
 		StartedAt:   now,
+		CompletedAt: &now,
 		TotalDocs:   0,
 		SuccessDocs: 0,
 		FailedDocs:  0,
 	}
 
-	// Mock sync: in production this would trigger an async job
-	log.Status = "success"
-	log.CompletedAt = &now
-	log.TotalDocs = 0
-	log.SuccessDocs = 0
-
+	// In production: trigger async document sync from external source
 	return log, nil
 }
 
@@ -345,6 +352,7 @@ func (s *KnowledgeService) GetSyncLogs(ctx context.Context, tenantID string, lim
 	if limit == 0 {
 		limit = 10
 	}
+	// In production, store sync logs in database
 	return []models.SyncLog{}, nil
 }
 
@@ -357,7 +365,7 @@ func (s *KnowledgeService) GetGraph(ctx context.Context, tenantID string, spaceI
 	var err error
 
 	if spaceID != nil && *spaceID != "" {
-		space, e := s.repo.FindSpaceByID(ctx, *spaceID)
+		space, e := s.repo.FindSpaceByTenantID(ctx, tenantID, *spaceID)
 		if e != nil {
 			return nil, e
 		}
@@ -394,6 +402,8 @@ func (s *KnowledgeService) GetGraph(ctx context.Context, tenantID string, spaceI
 				Type:  "doc",
 				Label: doc.Title,
 			})
+			// Attach spaceId as label
+			graph.Nodes[len(graph.Nodes)-1].Label = fmt.Sprintf("%s (%s)", doc.Title, doc.SpaceID)
 			graph.Edges = append(graph.Edges, models.GraphEdge{
 				Source:   space.ID,
 				Target:   doc.ID,
@@ -404,14 +414,7 @@ func (s *KnowledgeService) GetGraph(ctx context.Context, tenantID string, spaceI
 			_ = json.Unmarshal(doc.Tags, &tags)
 			for _, tag := range tags {
 				tagID := "tag-" + tag
-				exists := false
-				for _, n := range graph.Nodes {
-					if n.ID == tagID {
-						exists = true
-						break
-					}
-				}
-				if !exists {
+				if !graphHasNode(graph, tagID) {
 					graph.Nodes = append(graph.Nodes, models.GraphNode{
 						ID:    tagID,
 						Type:  "tag",
@@ -430,6 +433,15 @@ func (s *KnowledgeService) GetGraph(ctx context.Context, tenantID string, spaceI
 	return graph, nil
 }
 
+func graphHasNode(g *models.KnowledgeGraph, id string) bool {
+	for _, n := range g.Nodes {
+		if n.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 // ============================================================================
 // Errors
 // ============================================================================
@@ -446,28 +458,4 @@ var (
 
 func strPtr(s string) *string {
 	return &s
-}
-
-func newID() string {
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		randUint32(), randUint16(), randUint16(), randUint16(), randUint64())
-}
-
-func randUint32() uint32 {
-	var b [4]byte
-	_, _ = rand.Read(b[:])
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-}
-
-func randUint16() uint16 {
-	var b [2]byte
-	_, _ = rand.Read(b[:])
-	return uint16(b[0])<<8 | uint16(b[1])
-}
-
-func randUint64() uint64 {
-	var b [8]byte
-	_, _ = rand.Read(b[:])
-	return uint64(b[0])<<56 | uint64(b[1])<<48 | uint64(b[2])<<40 | uint64(b[3])<<32 |
-		uint64(b[4])<<24 | uint64(b[5])<<16 | uint64(b[6])<<8 | uint64(b[7])
 }

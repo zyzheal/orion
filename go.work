@@ -1,65 +1,36 @@
 go 1.25.0
 
 use (
+	./orion-go-common
 	./orion-api-gateway-go
+	./orion-auth-svc
+	./orion-user-svc
+	./orion-ai-svc-go
 	./orion-approval-svc-go
 	./orion-artifact-svc-go
-	./orion-auth-svc
-	./orion-backup-svc-go
-	./orion-build-svc-go
-	./orion-canary-svc-go
-	./orion-capacity-svc-go
-	./orion-chaos-svc-go
-	./orion-chatops-svc-go
-		./orion-ci-cd-svc-go
+	./orion-ci-cd-svc-go
 	./orion-cmdb-svc-go
-	./orion-code-svc-go
 	./orion-community-svc-go
-	./orion-compliance-svc-go
 	./orion-config-mgmt-svc-go
-	./orion-cost-svc-go
-	./orion-cron-svc-go
-	./orion-deploy-svc-go
-	./orion-diagnostic-svc-go
-	./orion-digital-twin-svc-go
-	./orion-dr-svc-go
-	./orion-efficiency-svc-go
 	./orion-event-bus-svc-go
-	./orion-feature-flag-svc-go
-	./orion-federation-svc-go
 	./orion-finops-svc-go
-	./orion-go-common
 	./orion-governance-svc-go
-	./orion-graph-svc-go
-	./orion-infra-ops-svc-go
 	./orion-identity-svc-go
-		./orion-inception-svc-go
+	./orion-infra-ops-svc-go
 	./orion-incident-svc-go
 	./orion-inspection-svc-go
-	./orion-intelligence-svc-go
 	./orion-knowledge-svc-go
-	./orion-llm-svc-go
 	./orion-lowcode-svc-go
-	./orion-middleware-ops-svc-go
 	./orion-monitor-svc-go
-		./orion-monitoring-svc-go
+	./orion-monitoring-svc-go
 	./orion-notification-svc-go
-		./orion-ai-svc-go
 	./orion-pandawiki-svc-go
-		./orion-platform-svc-go
-	./orion-pipeline-svc-go
-	./orion-pipeline-template-svc-go
-	./orion-plugin-svc-go
-	./orion-report-designer-svc-go
-	./orion-risk-svc-go
-	./orion-runner-svc-go
-	./orion-scheduler-svc-go
+	./orion-platform-svc-go
 	./orion-security-svc-go
 	./orion-skill-config-svc-go
+	./orion-tenant-svc-go
 	./orion-ticket-svc-go
 	./orion-tool-svc-go
-	./orion-user-svc
-	./orion-user-svc-go
 	./orion-visor-svc-go
 	./orion-workflow-svc-go
 )

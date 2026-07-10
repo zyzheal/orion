@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"orion/notification-svc-go/internal/models"
+	"orion/notification-svc-go/internal/notification/models"
 	"orion/go-common/pkg/database"
 
 	"github.com/google/uuid"

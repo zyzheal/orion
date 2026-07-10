@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"orion/notification-svc-go/internal/repository"
+	"orion/notification-svc-go/internal/notification/repository"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"

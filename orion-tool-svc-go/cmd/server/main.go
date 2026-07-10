@@ -25,77 +25,6 @@ import (
 	"orion-tool-svc-go/pkg/nats"
 )
 
-func runMigrations(db *database.DB) error {
-	migrations := []string{
-		`CREATE TABLE IF NOT EXISTS tools (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			tenant_id VARCHAR(64) NOT NULL,
-			name VARCHAR(128) NOT NULL,
-			display_name VARCHAR(256),
-			description TEXT,
-			category VARCHAR(64) NOT NULL,
-			type VARCHAR(32) NOT NULL,
-			version VARCHAR(32) NOT NULL,
-			config JSONB DEFAULT '{}',
-			endpoint VARCHAR(512),
-			auth_type VARCHAR(32) DEFAULT 'none',
-			auth_config JSONB DEFAULT '{}',
-			tags JSONB DEFAULT '[]',
-			status VARCHAR(32) DEFAULT 'active',
-			created_by VARCHAR(64) NOT NULL,
-			created_at TIMESTAMP DEFAULT NOW(),
-			updated_at TIMESTAMP DEFAULT NOW(),
-			deprecated_at TIMESTAMP
-		)`,
-		`CREATE TABLE IF NOT EXISTS tool_versions (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			tool_id UUID NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
-			version VARCHAR(32) NOT NULL,
-			config JSONB DEFAULT '{}',
-			changelog TEXT,
-			created_by VARCHAR(64),
-			created_at TIMESTAMP DEFAULT NOW()
-		)`,
-		`CREATE TABLE IF NOT EXISTS tool_categories (
-			id VARCHAR(64) PRIMARY KEY,
-			tenant_id VARCHAR(64) NOT NULL,
-			name VARCHAR(128) NOT NULL,
-			display_name VARCHAR(256),
-			description TEXT,
-			icon VARCHAR(64),
-			sort_order INT DEFAULT 0,
-			created_at TIMESTAMP DEFAULT NOW()
-		)`,
-		`CREATE TABLE IF NOT EXISTS tool_invocations (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			tool_id UUID NOT NULL REFERENCES tools(id) ON DELETE CASCADE,
-			tenant_id VARCHAR(64) NOT NULL,
-			input JSONB DEFAULT '{}',
-			output JSONB DEFAULT '{}',
-			status VARCHAR(32) NOT NULL,
-			error TEXT,
-			duration BIGINT DEFAULT 0,
-			called_by VARCHAR(64),
-			created_at TIMESTAMP DEFAULT NOW()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_tools_tenant ON tools(tenant_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_tools_category ON tools(tenant_id, category)`,
-		`CREATE INDEX IF NOT EXISTS idx_tools_status ON tools(tenant_id, status)`,
-		`CREATE INDEX IF NOT EXISTS idx_tools_name ON tools(tenant_id, name)`,
-		`CREATE INDEX IF NOT EXISTS idx_tool_versions_tool ON tool_versions(tool_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_tool_invocations_tool ON tool_invocations(tool_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_tool_invocations_tenant ON tool_invocations(tenant_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_tool_categories_tenant ON tool_categories(tenant_id)`,
-	}
-
-	for _, m := range migrations {
-		if _, err := db.Exec(m); err != nil {
-			return fmt.Errorf("migration failed: %w", err)
-		}
-	}
-	return nil
-}
-
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -125,7 +54,7 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := runMigrations(db); err != nil {
+	if err := database.RunMigrations(db, "migrations"); err != nil {
 		zapLogger.Fatal("failed to run migrations", zap.Error(err))
 	}
 	zapLogger.Info("migrations completed")
@@ -152,17 +81,7 @@ func main() {
 
 	v1 := r.Group("/api/v1")
 	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWT.Secret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
-	{
-		v1.GET("/tools", toolHandler.ListTools)
-		v1.POST("/tools", auth.RequirePermission("tool", "write"), toolHandler.CreateTool)
-		v1.GET("/tools/search", toolHandler.SearchTools)
-		v1.GET("/tools/categories", toolHandler.GetCategories)
-		v1.GET("/tools/:id", toolHandler.GetTool)
-		v1.PUT("/tools/:id", auth.RequirePermission("tool", "write"), toolHandler.UpdateTool)
-		v1.DELETE("/tools/:id", auth.RequirePermission("tool", "delete"), toolHandler.DeleteTool)
-		v1.GET("/tools/:id/versions", toolHandler.GetVersions)
-		v1.GET("/tools/:id/invocations", toolHandler.GetInvocations)
-	}
+	toolHandler.RegisterRoutes(v1)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		if err := db.Health(c.Request.Context()); err != nil {
