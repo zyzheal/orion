@@ -1,6 +1,0 @@
-service_name: orion-tenant-svc
-environment: development
-http_addr: ":8083"
-database_url: "postgres://orion:orion@localhost:5432/orion_tenant?sslmode=disable"
-jwt_secret: "change-me"
-otel_endpoint: ""
