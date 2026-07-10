@@ -257,3 +257,169 @@ func (r *ApprovalRepository) ActivateWaitingStepsTx(ctx context.Context, tx *sql
 	_, err := tx.ExecContext(ctx, query, approvalID)
 	return err
 }
+
+// ========== Delegate / Reassign ==========
+
+// DelegateStep transfers a pending step from one approver to another.
+// It updates the step's approver_id and records the delegation.
+func (r *ApprovalRepository) DelegateStepTx(ctx context.Context, tx *sqlx.Tx, approvalID, fromUserID, toUserID string) (*models.ApprovalStep, error) {
+	var step models.ApprovalStep
+	query := `SELECT * FROM approval_steps WHERE approval_id = $1 AND approver_id = $2 AND status = 'pending' ORDER BY step_index LIMIT 1`
+	err := tx.GetContext(ctx, &step, query, approvalID, fromUserID)
+	if err != nil {
+		return nil, fmt.Errorf("step not found for approver %s: %w", fromUserID, err)
+	}
+	updateQuery := `UPDATE approval_steps SET approver_id = $1 WHERE id = $2`
+	_, err = tx.ExecContext(ctx, updateQuery, toUserID, step.ID)
+	if err != nil {
+		return nil, err
+	}
+	step.ApproverID = &toUserID
+	return &step, nil
+}
+
+// ReassignStep transfers a pending step from one approver to another (same as delegate but with audit reason).
+// In the current schema, delegate and reassign are equivalent; the difference is in the audit trail.
+func (r *ApprovalRepository) ReassignStepTx(ctx context.Context, tx *sqlx.Tx, approvalID, fromUserID, toUserID string) (*models.ApprovalStep, error) {
+	return r.DelegateStepTx(ctx, tx, approvalID, fromUserID, toUserID)
+}
+
+// ========== History / Timeline ==========
+
+// GetHistory returns the approval timeline as HistoryEvents derived from steps.
+func (r *ApprovalRepository) GetHistory(ctx context.Context, approvalID string) ([]models.HistoryEvent, error) {
+	steps, err := r.GetStepsByApprovalID(ctx, approvalID)
+	if err != nil {
+		return nil, err
+	}
+	events := make([]models.HistoryEvent, 0, len(steps))
+	for _, s := range steps {
+		level := s.Level
+		stepIdx := s.StepIndex
+		eventType := string(s.Status)
+		// Map "waiting"/"pending" to "created" for history
+		if s.Status == models.StepWaiting {
+			eventType = "created"
+		}
+		approver := ""
+		if s.ApproverID != nil {
+			approver = *s.ApproverID
+		}
+		comment := ""
+		if s.Comment != nil {
+			comment = *s.Comment
+		}
+		timestamp := s.ActedAt
+		if timestamp == nil {
+			// Use the step index as a proxy; in production we'd store an explicit created_at per step
+			continue // skip pending steps with no acted_at from timeline
+		}
+		events = append(events, models.HistoryEvent{
+			EventType:  eventType,
+			ActorID:    approver,
+			Comment:    comment,
+			Timestamp:  *timestamp,
+			StepIndex:  &stepIdx,
+			LevelIndex: &level,
+		})
+	}
+	return events, nil
+}
+
+// ========== Trend / Statistics ==========
+
+// GetTrend returns daily approval counts for a tenant within a date range.
+func (r *ApprovalRepository) GetTrend(ctx context.Context, tenantID, startDate, endDate string) ([]models.ApprovalTrend, error) {
+	var trends []models.ApprovalTrend
+	query := `
+		SELECT
+			date_trunc('day', created_at)::date::text AS date,
+			COUNT(*) AS submitted,
+			COUNT(*) FILTER (WHERE status = 'approved') AS approved,
+			COUNT(*) FILTER (WHERE status = 'rejected') AS rejected,
+			COUNT(*) FILTER (WHERE status = 'canceled') AS canceled
+		FROM approvals
+		WHERE tenant_id = $1
+		  AND date_trunc('day', created_at)::date >= $2::date
+		  AND date_trunc('day', created_at)::date <= $3::date
+		GROUP BY date_trunc('day', created_at)::date
+		ORDER BY date
+	`
+	err := r.db.SelectContext(ctx, &trends, query, tenantID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	return trends, nil
+}
+
+// GetStatistics returns aggregate statistics for a tenant within a date range.
+func (r *ApprovalRepository) GetStatistics(ctx context.Context, tenantID, startDate, endDate string) (*models.ApprovalStatistics, error) {
+	var stats models.ApprovalStatistics
+	query := `
+		SELECT
+			COUNT(*) AS total_submitted,
+			COUNT(*) FILTER (WHERE status = 'approved') AS total_approved,
+			COUNT(*) FILTER (WHERE status = 'rejected') AS total_rejected,
+			COUNT(*) FILTER (WHERE status = 'canceled') AS total_canceled,
+			AVG(EXTRACT(EPOCH FROM (completed_at - created_at))/3600) AS avg_duration_hours
+		FROM approvals
+		WHERE tenant_id = $1
+		  AND date_trunc('day', created_at)::date >= $2::date
+		  AND date_trunc('day', created_at)::date <= $3::date
+	`
+	err := r.db.GetContext(ctx, &stats, query, tenantID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	if stats.TotalSubmitted > 0 {
+		stats.ApprovalRate = float64(stats.TotalApproved) / float64(stats.TotalSubmitted)
+	}
+	return &stats, nil
+}
+
+// ========== Templates ==========
+
+// CreateTemplate inserts a new template.
+func (r *ApprovalRepository) CreateTemplate(ctx context.Context, t *models.ApprovalTemplate) error {
+	query := `
+		INSERT INTO approval_templates (tenant_id, name, description, resource_type, levels, mode, is_default)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at
+	`
+	err := r.db.QueryRowContext(ctx, query,
+		t.TenantID, t.Name, t.Description, t.ResourceType, t.Levels, t.Mode, t.IsDefault,
+	).Scan(&t.ID, &t.CreatedAt)
+	return err
+}
+
+// GetTemplates returns all templates for a tenant.
+func (r *ApprovalRepository) GetTemplates(ctx context.Context, tenantID string) ([]models.ApprovalTemplate, error) {
+	var templates []models.ApprovalTemplate
+	query := `SELECT * FROM approval_templates WHERE tenant_id = $1 ORDER BY created_at DESC`
+	err := r.db.SelectContext(ctx, &templates, query, tenantID)
+	return templates, err
+}
+
+// ========== Emergency Approval ==========
+
+// CreateEmergency inserts a new emergency approval.
+func (r *ApprovalRepository) CreateEmergency(ctx context.Context, e *models.EmergencyApproval) error {
+	query := `
+		INSERT INTO emergency_approvals (tenant_id, title, description, requested_by, resource_type, resource_id, reason, impact_description, approver_ids, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id, created_at
+	`
+	err := r.db.QueryRowContext(ctx, query,
+		e.TenantID, e.Title, e.Description, e.RequestedBy, e.ResourceType, e.ResourceID,
+		e.Reason, e.ImpactDescription, e.ApproverIDs, e.Status,
+	).Scan(&e.ID, &e.CreatedAt)
+	return err
+}
+
+// ========== My Pending ==========
+
+// FindPendingByUserID returns pending approvals where the given user has a pending/active step,
+// including the approver_id filter (same query as FindPendingByUser but with tenant_id scoping).
+func (r *ApprovalRepository) FindPendingByUserID(ctx context.Context, tenantID, userID string) ([]models.Approval, error) {
+	return r.FindPendingByUser(ctx, tenantID, userID)
+}

@@ -126,6 +126,88 @@ func (r *Repository) IncrementExecutionCount(ctx context.Context, id string) err
 	return err
 }
 
+// ==================== Healing Strategies ====================
+
+// CreateStrategy inserts a new healing strategy.
+func (r *Repository) CreateStrategy(ctx context.Context, s *models.HealingStrategy) error {
+	actions, _ := json.Marshal(s.Actions)
+	conditions, _ := json.Marshal(s.Conditions)
+	envs, _ := json.Marshal(s.Environments)
+
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO healing_strategies (id, name, trigger_type, actions, conditions, confidence, enabled,
+		  description, environments, max_retries, retry_cooldown_ms)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (id) DO UPDATE SET
+		 	name=$2, trigger_type=$3, actions=$4, conditions=$5, confidence=$6, enabled=$7,
+		 	description=$8, environments=$9, max_retries=$10, retry_cooldown_ms=$11, updated_at=NOW()`,
+		s.ID, s.Name, string(s.TriggerType), actions, conditions, s.Confidence, s.Enabled,
+		s.Description, envs, &s.MaxRetries, &s.RetryCooldownMs)
+	return err
+}
+
+// FindStrategyByID returns a strategy by ID.
+func (r *Repository) FindStrategyByID(ctx context.Context, id string) (*models.HealingStrategy, error) {
+	var s models.HealingStrategy
+	err := r.db.GetContext(ctx, &s,
+		`SELECT id, name, trigger_type, actions, conditions, confidence, enabled,
+		  description, environments, max_retries, retry_cooldown_ms, created_at, updated_at
+		 FROM healing_strategies WHERE id=$1`, id)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+// FindEnabledStrategies returns all enabled strategies.
+func (r *Repository) FindEnabledStrategies(ctx context.Context) ([]models.HealingStrategy, error) {
+	var items []models.HealingStrategy
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT id, name, trigger_type, actions, conditions, confidence, enabled,
+		  description, environments, max_retries, retry_cooldown_ms, created_at, updated_at
+		 FROM healing_strategies WHERE enabled=$1 ORDER BY confidence DESC`, true)
+	return items, err
+}
+
+// FindAllStrategies returns all strategies.
+func (r *Repository) FindAllStrategies(ctx context.Context) ([]models.HealingStrategy, error) {
+	var items []models.HealingStrategy
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT id, name, trigger_type, actions, conditions, confidence, enabled,
+		  description, environments, max_retries, retry_cooldown_ms, created_at, updated_at
+		 FROM healing_strategies ORDER BY created_at DESC`)
+	return items, err
+}
+
+// DeleteStrategy removes a strategy.
+func (r *Repository) DeleteStrategy(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM healing_strategies WHERE id=$1`, id)
+	return err
+}
+
+// SetStrategyEnabled updates the enabled flag of a strategy.
+func (r *Repository) SetStrategyEnabled(ctx context.Context, id string, enabled bool) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE healing_strategies SET enabled=$1, updated_at=NOW() WHERE id=$2`, enabled, id)
+	return err
+}
+
+// SeedStrategy inserts a strategy only if it does not exist.
+func (r *Repository) SeedStrategy(ctx context.Context, s *models.HealingStrategy) error {
+	actions, _ := json.Marshal(s.Actions)
+	conditions, _ := json.Marshal(s.Conditions)
+	envs, _ := json.Marshal(s.Environments)
+
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO healing_strategies (id, name, trigger_type, actions, conditions, confidence, enabled,
+		  description, environments, max_retries, retry_cooldown_ms)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		 ON CONFLICT (id) DO NOTHING`,
+		s.ID, s.Name, string(s.TriggerType), actions, conditions, s.Confidence, s.Enabled,
+		s.Description, envs, &s.MaxRetries, &s.RetryCooldownMs)
+	return err
+}
+
 // ==================== Healing Incidents ====================
 
 // CreateIncident inserts a new healing incident.
@@ -210,8 +292,17 @@ func (r *Repository) FindIncidents(ctx context.Context, tenantID string, q *mode
 	}
 
 	// Data
-	limit := q.Limit()
-	offset := q.Offset()
+	limit := q.PageSize
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := (q.Page - 1) * limit
+	if q.Page <= 0 {
+		offset = 0
+	}
 	args = append(args, limit, offset)
 	dataQuery := fmt.Sprintf(
 		`SELECT id, tenant_id, alert_id, type, severity, app_name, environment,
@@ -394,6 +485,36 @@ func (r *Repository) FindExecutionsByRule(ctx context.Context, ruleID string, li
 		`SELECT * FROM healing_executions WHERE rule_id=$1 ORDER BY started_at DESC LIMIT $2`,
 		ruleID, limit)
 	return items, err
+}
+
+// ==================== Guardian Audit ====================
+
+// InsertAudit inserts a guardian audit entry.
+func (r *Repository) InsertAudit(ctx context.Context, a *models.HealingAuditEntry) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO guardian_audit (id, tenant_id, incident_id, action_type, target, environment,
+		  risk_level, approvers, executor, status, reason, result)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+		a.ID, "", a.IncidentID, a.ActionType, a.Target, a.Environment,
+		string(a.RiskLevel), a.Approvers, a.Executor, a.Status, a.Reason, a.Result)
+	return err
+}
+
+// FindAuditsByIncident returns audit entries for an incident.
+func (r *Repository) FindAuditsByIncident(ctx context.Context, tenantID string, incidentID string, limit int) ([]models.HealingAuditEntry, error) {
+	var items []models.HealingAuditEntry
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM guardian_audit WHERE tenant_id=$1 AND incident_id=$2 ORDER BY created_at DESC LIMIT $3`,
+		tenantID, incidentID, limit)
+	return items, err
+}
+
+// CountAudits returns total audit count for a tenant.
+func (r *Repository) CountAudits(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM guardian_audit WHERE tenant_id=$1`, tenantID)
+	return count, err
 }
 
 // ==================== Helpers ====================

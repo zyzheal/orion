@@ -433,6 +433,34 @@ func (s *Service) Quarantine(ctx context.Context, tenantID, id, reason string) (
 }
 
 // ============================================================
+// Statistics
+// ============================================================
+
+// GetStats returns aggregate stats for a tenant's artifacts.
+func (s *Service) GetStats(ctx context.Context, tenantID string) (*models.ArtifactStats, error) {
+	ctx, span := tracer.Start(ctx, "ArtifactService.GetStats")
+	defer span.End()
+
+	return s.repo.GetStats(ctx, tenantID)
+}
+
+// GetTypeStats returns artifact counts grouped by type.
+func (s *Service) GetTypeStats(ctx context.Context, tenantID string) ([]models.TypeStat, error) {
+	ctx, span := tracer.Start(ctx, "ArtifactService.GetTypeStats")
+	defer span.End()
+
+	return s.repo.GetTypeStats(ctx, tenantID)
+}
+
+// GetNamespaces returns distinct namespaces with artifact counts.
+func (s *Service) GetNamespaces(ctx context.Context, tenantID string) ([]models.NamespaceStat, error) {
+	ctx, span := tracer.Start(ctx, "ArtifactService.GetNamespaces")
+	defer span.End()
+
+	return s.repo.GetNamespaces(ctx, tenantID)
+}
+
+// ============================================================
 // Internal helpers
 // ============================================================
 

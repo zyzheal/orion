@@ -159,6 +159,34 @@ func (r *IncidentRepository) SoftDelete(ctx context.Context, id, tenantID string
 	return err
 }
 
+// Acknowledge sets incident status to 'acknowledged' and sets acknowledged_at.
+func (r *IncidentRepository) Acknowledge(ctx context.Context, id, tenantID string) (*models.Incident, error) {
+	var incident models.Incident
+	query := `UPDATE incidents SET status = 'acknowledged', acknowledged_at = NOW(), updated_at = NOW()
+		WHERE id = $1 AND tenant_id = $2 RETURNING *`
+	err := r.DB().GetContext(ctx, &incident, query, id, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acknowledge incident: %w", err)
+	}
+	return &incident, nil
+}
+
+// Resolve sets incident status to 'resolved', sets resolved_at, and auto-calculates recovery_time_ms.
+func (r *IncidentRepository) Resolve(ctx context.Context, id, tenantID string) (*models.Incident, error) {
+	var incident models.Incident
+	query := `UPDATE incidents SET
+		status = 'resolved',
+		resolved_at = NOW(),
+		recovery_time_ms = EXTRACT(EPOCH FROM (NOW() - detected_at))::BIGINT * 1000,
+		updated_at = NOW()
+		WHERE id = $1 AND tenant_id = $2 RETURNING *`
+	err := r.DB().GetContext(ctx, &incident, query, id, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve incident: %w", err)
+	}
+	return &incident, nil
+}
+
 // GenerateIncidentID generates a UUID-style incident ID.
 func GenerateIncidentID() (string, error) {
 	buf := make([]byte, 16)

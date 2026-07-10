@@ -435,3 +435,202 @@ func (s *ApprovalService) areAllLevelsComplete(steps []models.ApprovalStep, leve
 	}
 	return true
 }
+
+// ========== Additional Service Methods ==========
+
+// Review provides a unified approve/reject action.
+func (s *ApprovalService) Review(ctx context.Context, tenantID, approvalID string, req *models.ReviewRequest) (*models.ApprovalWithSteps, error) {
+	switch req.Action {
+	case "approve":
+		return s.Approve(ctx, tenantID, approvalID, req.ReviewerID, req.Comment)
+	case "reject":
+		return s.Reject(ctx, tenantID, approvalID, req.ReviewerID, req.Comment)
+	default:
+		return nil, fmt.Errorf("invalid action: %s", req.Action)
+	}
+}
+
+// Withdraw withdraws a pending approval. Only the requester can withdraw.
+func (s *ApprovalService) Withdraw(ctx context.Context, tenantID, id, userID string, reason *string) error {
+	approval, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return ErrApprovalNotFound
+	}
+	if approval.Status != models.ApprovalPending {
+		return ErrInvalidStatus
+	}
+	if approval.RequestedBy == nil || *approval.RequestedBy != userID {
+		return ErrNotAuthorized
+	}
+	if err := s.repo.UpdateStatus(ctx, tenantID, id, models.ApprovalCanceled); err != nil {
+		return err
+	}
+	if s.notificationSvc != nil {
+		_ = s.notificationSvc.NotifyApprovalRejected(ctx, approval, userID, deref(reason))
+	}
+	return nil
+}
+
+// Delegate transfers a pending step from one approver to another.
+func (s *ApprovalService) Delegate(ctx context.Context, tenantID, approvalID string, req *models.DelegateRequest) (*models.ApprovalStep, error) {
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.Delegate")
+	defer span.End()
+
+	approval, err := s.repo.GetByID(ctx, tenantID, approvalID)
+	if err != nil {
+		return nil, ErrApprovalNotFound
+	}
+	if approval.Status != models.ApprovalPending {
+		return nil, ErrInvalidStatus
+	}
+
+	var step *models.ApprovalStep
+	err = s.repo.RunInTx(ctx, func(tx *sqlx.Tx) error {
+		step, err = s.repo.DelegateStepTx(ctx, tx, approvalID, req.FromUserID, req.ToUserID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return step, nil
+}
+
+// Reassign transfers a pending step from one approver to another (same as delegate).
+func (s *ApprovalService) Reassign(ctx context.Context, tenantID, approvalID, authorizingUserID, reqFromUserID string, toUserID string, reason *string) (*models.ApprovalStep, error) {
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.Reassign")
+	defer span.End()
+
+	approval, err := s.repo.GetByID(ctx, tenantID, approvalID)
+	if err != nil {
+		return nil, ErrApprovalNotFound
+	}
+	if approval.Status != models.ApprovalPending {
+		return nil, ErrInvalidStatus
+	}
+
+	var step *models.ApprovalStep
+	err = s.repo.RunInTx(ctx, func(tx *sqlx.Tx) error {
+		step, err = s.repo.ReassignStepTx(ctx, tx, approvalID, reqFromUserID, toUserID)
+		return err
+	})
+	return step, err
+}
+
+// GetHistory returns the approval history/timeline.
+func (s *ApprovalService) GetHistory(ctx context.Context, tenantID, id string) (*models.ApprovalHistory, error) {
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetHistory")
+	defer span.End()
+
+	approval, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, ErrApprovalNotFound
+	}
+	events, err := s.repo.GetHistory(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	totalLevels := 1
+	for _, step := range events {
+		if step.LevelIndex != nil && *step.LevelIndex+1 > totalLevels {
+			totalLevels = *step.LevelIndex + 1
+		}
+	}
+	return &models.ApprovalHistory{
+		RequestID:   id,
+		Title:       deref(approval.Title),
+		Status:      approval.Status,
+		TotalLevels: totalLevels,
+		History:     events,
+	}, nil
+}
+
+// GetTrend returns daily trend data.
+func (s *ApprovalService) GetTrend(ctx context.Context, tenantID string, startDate, endDate string) (*models.TrendResult, error) {
+	ctx, span := otel.Tracer("orion-approval-svc").Start(ctx, "ApprovalService.GetTrend")
+	defer span.End()
+	trends, err := s.repo.GetTrend(ctx, tenantID, startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	return &models.TrendResult{
+		TenantID:  tenantID,
+		StartDate: startDate,
+		EndDate:   endDate,
+		Trend:     trends,
+	}, nil
+}
+
+// GetStatistics returns aggregate statistics.
+func (s *ApprovalService) GetStatistics(ctx context.Context, tenantID string, startDate, endDate string) (*models.ApprovalStatistics, error) {
+	return s.repo.GetStatistics(ctx, tenantID, startDate, endDate)
+}
+
+// GetMyPending returns pending approvals where the authenticated user is an approver.
+func (s *ApprovalService) GetMyPending(ctx context.Context, tenantID, userID string) ([]models.ApprovalWithSteps, error) {
+	return s.GetPendingForUser(ctx, tenantID, userID)
+}
+
+// CreateTemplate creates a new approval template.
+func (s *ApprovalService) CreateTemplate(ctx context.Context, tenantID string, req *models.CreateTemplateRequest) (*models.ApprovalTemplate, error) {
+	levelConfigs := make(models.LevelConfigs, 0, len(req.Levels))
+	for _, level := range req.Levels {
+		levelConfigs = append(levelConfigs, models.LevelConfig{
+			Level:             level.LevelIndex,
+			RequiredApprovals: level.RequiredApprovals,
+		})
+	}
+	mode := req.Mode
+	if mode == "" {
+		mode = models.ModeSerial
+	}
+	template := &models.ApprovalTemplate{
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		ResourceType: req.ResourceType,
+		Levels:       levelConfigs,
+		Mode:         mode,
+		IsDefault:    req.IsDefault,
+	}
+	if err := s.repo.CreateTemplate(ctx, template); err != nil {
+		return nil, fmt.Errorf("failed to create template: %w", err)
+	}
+	return template, nil
+}
+
+// GetTemplates returns all templates for a tenant.
+func (s *ApprovalService) GetTemplates(ctx context.Context, tenantID string) ([]models.ApprovalTemplate, error) {
+	return s.repo.GetTemplates(ctx, tenantID)
+}
+
+// CreateEmergency creates an emergency approval request.
+func (s *ApprovalService) CreateEmergency(ctx context.Context, tenantID string, req *models.EmergencyApprovalRequest) (*models.EmergencyApproval, error) {
+	levelConfigs := make(models.LevelConfigs, 0, len(req.ApproverIDs))
+	for i, approverID := range req.ApproverIDs {
+		levelConfigs = append(levelConfigs, models.LevelConfig{
+			Level:             i,
+			RequiredApprovals: 1,
+		})
+	}
+	emergency := &models.EmergencyApproval{
+		TenantID:          tenantID,
+		Title:             req.Title,
+		Description:       req.Description,
+		RequestedBy:       req.RequestedBy,
+		ResourceType:      req.ResourceType,
+		ResourceID:        req.ResourceID,
+		Reason:            req.Reason,
+		ImpactDescription: req.ImpactDescription,
+		ApproverIDs:       levelConfigs,
+		Status:            models.ApprovalPending,
+	}
+	if err := s.repo.CreateEmergency(ctx, emergency); err != nil {
+		return nil, fmt.Errorf("failed to create emergency approval: %w", err)
+	}
+	if s.notificationSvc != nil {
+		_ = s.notificationSvc.NotifyApprovalCreated(ctx, &models.Approval{
+			Title: &req.Title,
+		}, nil)
+	}
+	return emergency, nil
+}

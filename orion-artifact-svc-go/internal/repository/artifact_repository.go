@@ -322,3 +322,55 @@ func (r *Repository) GetPromotionHistory(ctx context.Context, artifactID string)
 	)
 	return records, err
 }
+
+// ============================================================
+// Statistics
+// ============================================================
+
+// GetStats returns aggregate stats for a tenant's artifacts.
+func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.ArtifactStats, error) {
+	var stats models.ArtifactStats
+	err := r.db.GetContext(ctx, &stats,
+		`SELECT
+			COUNT(*) AS total_count,
+			COUNT(CASE WHEN status = 'available' THEN 1 END) AS available_count,
+			COUNT(CASE WHEN status = 'deprecated' THEN 1 END) AS deprecated_count,
+			COUNT(CASE WHEN status = 'quarantined' THEN 1 END) AS quarantined_count,
+			COALESCE(SUM(size_bytes), 0) AS total_size_bytes
+		FROM artifacts
+		WHERE tenant_id = $1 AND status != 'deleted'`,
+		tenantID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &stats, nil
+}
+
+// GetTypeStats returns artifact counts grouped by type for a tenant.
+func (r *Repository) GetTypeStats(ctx context.Context, tenantID string) ([]models.TypeStat, error) {
+	var stats []models.TypeStat
+	err := r.db.SelectContext(ctx, &stats,
+		`SELECT type, COUNT(*) AS count
+		 FROM artifacts
+		 WHERE tenant_id = $1 AND status != 'deleted'
+		 GROUP BY type
+		 ORDER BY count DESC`,
+		tenantID,
+	)
+	return stats, err
+}
+
+// GetNamespaces returns distinct namespaces for a tenant with artifact counts.
+func (r *Repository) GetNamespaces(ctx context.Context, tenantID string) ([]models.NamespaceStat, error) {
+	var namespaces []models.NamespaceStat
+	err := r.db.SelectContext(ctx, &namespaces,
+		`SELECT namespace, COUNT(*) AS count
+		 FROM artifacts
+		 WHERE tenant_id = $1 AND status != 'deleted'
+		 GROUP BY namespace
+		 ORDER BY namespace`,
+		tenantID,
+	)
+	return namespaces, err
+}
