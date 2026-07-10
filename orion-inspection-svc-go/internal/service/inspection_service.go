@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"orion/inspection-svc-go/internal/models"
 	"orion/inspection-svc-go/internal/repository"
@@ -43,7 +43,7 @@ func NewService(
 // --- Rule operations ---
 
 func (s *Service) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.InspectionRule, error) {
-	now := timeNow()
+	now := time.Now()
 	rule := &models.InspectionRule{
 		ID:          uuid.New().String(),
 		TenantID:    tenantID,
@@ -101,7 +101,7 @@ func (s *Service) DeleteRule(ctx context.Context, tenantID, id string) error {
 
 // CreateTask runs a single inspection rule and returns the completed task.
 func (s *Service) CreateTask(ctx context.Context, tenantID, ruleID string) (*models.InspectionTask, error) {
-	now := timeNow()
+	now := time.Now()
 
 	taskID := uuid.New().String()
 	task := &models.InspectionTask{
@@ -141,13 +141,13 @@ func (s *Service) CreateTask(ctx context.Context, tenantID, ruleID string) (*mod
 		Target:     rule.Target,
 		Details:    models.JSONB{},
 		Remediation: message,
-		ExecutedAt: timeNow(),
+		ExecutedAt: time.Now(),
 	}
 	if err := s.resultRepo.Create(ctx, result); err != nil {
 		return nil, err
 	}
 
-	completedAt := timeNow()
+	completedAt := time.Now()
 	if err := s.taskRepo.UpdateStatus(ctx, taskID, "completed", resultID, &completedAt); err != nil {
 		return nil, err
 	}
@@ -218,8 +218,8 @@ func (s *Service) GenerateReport(ctx context.Context, tenantID string, req *mode
 		ID:          uuid.New().String(),
 		TenantID:    tenantID,
 		Title:       title,
-		Summary:     summary,
-		GeneratedAt: timeNow(),
+		Summary:     models.JSONB{"total": summary.Total, "passed": summary.Passed, "failed": summary.Failed, "warning": summary.Warning, "score": summary.Score},
+		GeneratedAt: time.Now(),
 	}
 	if err := s.reportRepo.Create(ctx, report); err != nil {
 		return nil, err
@@ -302,6 +302,14 @@ func (s *Service) GetHealthScore(ctx context.Context, tenantID string) (map[stri
 
 func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 	return s.ruleRepo.Count(ctx, tenantID)
+}
+
+func (s *Service) ListResults(ctx context.Context, tenantID string, offset, limit int) ([]models.InspectionResult, error) {
+	return s.resultRepo.List(ctx, tenantID, offset, limit)
+}
+
+func (s *Service) ListResultsByRule(ctx context.Context, tenantID, ruleID string, offset, limit int) ([]models.InspectionResult, error) {
+	return s.resultRepo.ListByRule(ctx, tenantID, ruleID, offset, limit)
 }
 
 // --- Helpers ---

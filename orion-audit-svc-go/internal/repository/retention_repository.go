@@ -308,7 +308,7 @@ func (r *Repository) CountByTenant(ctx context.Context) ([]models.TenantLogStat,
 // TotalAuditLogs returns total audit log count.
 func (r *Repository) TotalAuditLogs(ctx context.Context) (int, error) {
 	var count int
-	err := r.db.GetContext(ctx, `SELECT COUNT(*) FROM audit_logs`, &count)
+	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM audit_logs`)
 	return count, err
 }
 
@@ -454,15 +454,15 @@ func ToCSV(logs []models.AuditLog) string {
 			nullVal(log.ActorID),
 			log.Action,
 			log.ResourceType,
-			nullVal(log.ResourceID),
-			nullVal(log.RequestMethod),
-			nullVal(log.RequestPath),
+			toString(log.ResourceID),
+			toString(log.RequestMethod),
+			toString(log.RequestPath),
 			jsonVal(log.RequestBody),
 			nullValInt(log.ResponseCode),
 			jsonVal(log.ResponseBody),
 			toString(log.IPAddress),
 			toString(log.UserAgent),
-			nullVal(log.PrevHash),
+			toString(log.PrevHash),
 			log.Hash,
 			log.CreatedAt.UTC().Format("2006-01-02T15:04:05.000Z"),
 		}

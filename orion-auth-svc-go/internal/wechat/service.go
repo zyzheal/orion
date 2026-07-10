@@ -3,6 +3,7 @@ package wechat
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -272,9 +273,9 @@ func (s *Service) buildAccount(profile *UserProfile, tenantID, userID string, li
 	}
 }
 
-func mustNullString(s string) interface{} {
+func mustNullString(s string) sql.NullString {
 	if s == "" {
-		return interface{}(nil)
+		return sql.NullString{}
 	}
-	return &sql.NullString{String: s, Valid: true}
+	return sql.NullString{String: s, Valid: true}
 }

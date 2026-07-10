@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"orion/auth-svc-go/internal/mfa"
@@ -216,7 +217,7 @@ func (h *MFAHandler) Status(c *gin.Context) {
 // ExtractClaims extracts JWT claims from the Authorization header.
 func ExtractClaims(c *gin.Context, secret string) *jwt.MapClaims {
 	tokenString := c.GetHeader("Authorization")
-	tokenString = auth.TrimBearerPrefix(tokenString)
+	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil

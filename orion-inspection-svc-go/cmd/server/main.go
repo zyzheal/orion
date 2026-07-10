@@ -45,7 +45,9 @@ func main() {
 
 	ruleRepo := repository.NewRuleRepository(db.DB)
 	resultRepo := repository.NewResultRepository(db.DB)
-	svc := service.NewService(ruleRepo, resultRepo)
+	taskRepo := repository.NewTaskRepository(db.DB)
+	reportRepo := repository.NewReportRepository(db.DB)
+	svc := service.NewService(ruleRepo, resultRepo, taskRepo, reportRepo)
 	h := handler.NewHandler(svc)
 
 	r := gin.New()

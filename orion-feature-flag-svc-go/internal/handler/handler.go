@@ -194,6 +194,31 @@ func (h *Handler) SetRollout(c *gin.Context) {
 	c.JSON(http.StatusOK, flag)
 }
 
+// RecordToggle records a toggle event for a flag.
+func (h *Handler) RecordToggle(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	changedBy := c.GetString("user_id")
+
+	var req models.RecordToggleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Verify the flag exists and belongs to this tenant.
+	_, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.RecordToggle(c.Request.Context(), c.Param("id"), req.OldValue, req.NewValue, changedBy, req.Reason); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "toggle recorded"})
+}
+
 // Evaluate evaluates a single feature flag.
 func (h *Handler) Evaluate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")

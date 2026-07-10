@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -195,6 +193,7 @@ func (s *RunService) CompleteRun(ctx context.Context, runID string, status model
 	}
 
 	completedAt := time.Now()
+	_ = completedAt
 	if err := s.runRepo.FinalizeRun(ctx, runID, string(status), time.Now().UnixMilli()-time.Now().UnixMilli()); err != nil {
 		span.RecordError(err)
 		return nil, fmt.Errorf("failed to complete run: %w", err)
@@ -205,7 +204,10 @@ func (s *RunService) CompleteRun(ctx context.Context, runID string, status model
 
 // CancelRun cancels a running run (mirrors Node.js cancelRun).
 func (s *RunService) CancelRun(ctx context.Context, runID string) (*models.PipelineRun, error) {
-	return s.runRepo.CancelRun(ctx, runID)
+	if err := s.runRepo.CancelRun(ctx, runID); err != nil {
+		return nil, fmt.Errorf("failed to cancel run: %w", err)
+	}
+	return s.runRepo.GetByID(ctx, runID)
 }
 
 // ============================================

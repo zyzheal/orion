@@ -61,9 +61,9 @@ func (h *Handler) paginated(c *gin.Context) (offset, limit int) {
 	return p.Offset(), p.Limit()
 }
 
-	/ ==================== Build Endpoints ====================
+// ==================== Build Endpoints ====================
 
-	/ ListBuilds GET /api/v1/builds
+// ListBuilds GET /api/v1/builds
 func (h *Handler) ListBuilds(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	offset, limit := h.paginated(c)
@@ -83,7 +83,7 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 	h.success(c, result)
 }
 
-	/ CreateBuild POST /api/v1/builds
+// CreateBuild POST /api/v1/builds
 func (h *Handler) CreateBuild(c *gin.Context) {
 	var input models.CreateBuildInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -101,7 +101,7 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ GetBuild GET /api/v1/builds/:id
+// GetBuild GET /api/v1/builds/:id
 func (h *Handler) GetBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -114,7 +114,7 @@ func (h *Handler) GetBuild(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ UpdateBuild PUT /api/v1/builds/:id
+// UpdateBuild PUT /api/v1/builds/:id
 func (h *Handler) UpdateBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -135,7 +135,7 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 	h.success(c, req)
 }
 
-	/ DeleteBuild DELETE /api/v1/builds/:id
+// DeleteBuild DELETE /api/v1/builds/:id
 func (h *Handler) DeleteBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -148,7 +148,7 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 	h.success(c, gin.H{"message": "build deleted"})
 }
 
-	/ TriggerBuild POST /api/v1/builds/:id/trigger
+// TriggerBuild POST /api/v1/builds/:id/trigger
 func (h *Handler) TriggerBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -169,7 +169,7 @@ func (h *Handler) TriggerBuild(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ GetBuildStatus GET /api/v1/builds/:id/status
+// GetBuildStatus GET /api/v1/builds/:id/status
 func (h *Handler) GetBuildStatus(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -187,7 +187,7 @@ func (h *Handler) GetBuildStatus(c *gin.Context) {
 	h.success(c, status)
 }
 
-	/ CancelBuild POST /api/v1/builds/:id/cancel
+// CancelBuild POST /api/v1/builds/:id/cancel
 func (h *Handler) CancelBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -208,7 +208,7 @@ func (h *Handler) CancelBuild(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ RetryBuild POST /api/v1/builds/:id/retry
+// RetryBuild POST /api/v1/builds/:id/retry
 func (h *Handler) RetryBuild(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -229,7 +229,7 @@ func (h *Handler) RetryBuild(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ GetBuildLogs GET /api/v1/builds/:id/logs
+// GetBuildLogs GET /api/v1/builds/:id/logs
 func (h *Handler) GetBuildLogs(c *gin.Context) {
 	id := c.Param("id")
 	tenantID := h.tenantID(c)
@@ -247,7 +247,7 @@ func (h *Handler) GetBuildLogs(c *gin.Context) {
 	h.success(c, logs)
 }
 
-	/ GetBuildByPipelineRun GET /api/v1/builds/pipeline-run/:runId
+// GetBuildByPipelineRun GET /api/v1/builds/pipeline-run/:runId
 func (h *Handler) GetBuildByPipelineRun(c *gin.Context) {
 	runID := c.Param("runId")
 	tenantID := h.tenantID(c)
@@ -265,7 +265,7 @@ func (h *Handler) GetBuildByPipelineRun(c *gin.Context) {
 	h.success(c, build)
 }
 
-	/ GetBuildStats GET /api/v1/builds/stats
+// GetBuildStats GET /api/v1/builds/stats
 func (h *Handler) GetBuildStats(c *gin.Context) {
 	tenantID := h.tenantID(c)
 
@@ -278,7 +278,7 @@ func (h *Handler) GetBuildStats(c *gin.Context) {
 	h.success(c, stats)
 }
 
-	/ Count GET /api/v1/builds/count
+// Count GET /api/v1/builds/count
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
@@ -290,9 +290,9 @@ func (h *Handler) Count(c *gin.Context) {
 	h.success(c, gin.H{"count": count})
 }
 
-	/ ==================== Build Environment Endpoints ====================
+// ==================== Build Environment Endpoints ====================
 
-	/ ListEnvironments GET /api/v1/environments
+// ListEnvironments GET /api/v1/environments
 func (h *Handler) ListEnvironments(c *gin.Context) {
 	tenantID := h.tenantID(c)
 
@@ -305,7 +305,7 @@ func (h *Handler) ListEnvironments(c *gin.Context) {
 	h.success(c, envs)
 }
 
-	/ CreateEnvironment POST /api/v1/environments
+// CreateEnvironment POST /api/v1/environments
 func (h *Handler) CreateEnvironment(c *gin.Context) {
 	var input models.CreateEnvironmentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -323,7 +323,7 @@ func (h *Handler) CreateEnvironment(c *gin.Context) {
 	h.success(c, env)
 }
 
-	/ GetEnvironment GET /api/v1/environments/:id
+// GetEnvironment GET /api/v1/environments/:id
 func (h *Handler) GetEnvironment(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -336,7 +336,7 @@ func (h *Handler) GetEnvironment(c *gin.Context) {
 	h.success(c, env)
 }
 
-	/ UpdateEnvironment PUT /api/v1/environments/:id
+// UpdateEnvironment PUT /api/v1/environments/:id
 func (h *Handler) UpdateEnvironment(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -360,7 +360,7 @@ func (h *Handler) UpdateEnvironment(c *gin.Context) {
 	h.success(c, env)
 }
 
-	/ DeleteEnvironment DELETE /api/v1/environments/:id
+// DeleteEnvironment DELETE /api/v1/environments/:id
 func (h *Handler) DeleteEnvironment(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -377,9 +377,9 @@ func (h *Handler) DeleteEnvironment(c *gin.Context) {
 	h.success(c, gin.H{"message": "environment deleted"})
 }
 
-	/ ==================== Artifact Endpoints ====================
+// ==================== Artifact Endpoints ====================
 
-	/ ListArtifacts GET /api/v1/artifacts
+// ListArtifacts GET /api/v1/artifacts
 func (h *Handler) ListArtifacts(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	offset, limit := h.paginated(c)
@@ -399,7 +399,7 @@ func (h *Handler) ListArtifacts(c *gin.Context) {
 	h.success(c, artifacts)
 }
 
-	/ CreateArtifact POST /api/v1/artifacts
+// CreateArtifact POST /api/v1/artifacts
 func (h *Handler) CreateArtifact(c *gin.Context) {
 	var input models.CreateArtifactInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -417,7 +417,7 @@ func (h *Handler) CreateArtifact(c *gin.Context) {
 	h.success(c, artifact)
 }
 
-	/ GetArtifact GET /api/v1/artifacts/:id
+// GetArtifact GET /api/v1/artifacts/:id
 func (h *Handler) GetArtifact(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -430,7 +430,7 @@ func (h *Handler) GetArtifact(c *gin.Context) {
 	h.success(c, artifact)
 }
 
-	/ DeleteArtifact DELETE /api/v1/artifacts/:id
+// DeleteArtifact DELETE /api/v1/artifacts/:id
 func (h *Handler) DeleteArtifact(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -443,7 +443,7 @@ func (h *Handler) DeleteArtifact(c *gin.Context) {
 	h.success(c, gin.H{"message": "artifact deleted"})
 }
 
-	/ RecordDownload POST /api/v1/artifacts/:id/download
+// RecordDownload POST /api/v1/artifacts/:id/download
 func (h *Handler) RecordDownload(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	id := c.Param("id")
@@ -456,7 +456,7 @@ func (h *Handler) RecordDownload(c *gin.Context) {
 	h.success(c, gin.H{"message": "download recorded"})
 }
 
-	/ CleanupExpiredArtifacts POST /api/v1/artifacts/cleanup
+// CleanupExpiredArtifacts POST /api/v1/artifacts/cleanup
 func (h *Handler) CleanupExpiredArtifacts(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	count, err := h.svc.CleanupExpiredArtifacts(c.Request.Context(), tenantID)
@@ -468,7 +468,7 @@ func (h *Handler) CleanupExpiredArtifacts(c *gin.Context) {
 	h.success(c, gin.H{"cleaned": count})
 }
 
-	/ CleanupArtifactsByRun DELETE /api/v1/artifacts/run/:runId
+// CleanupArtifactsByRun DELETE /api/v1/artifacts/run/:runId
 func (h *Handler) CleanupArtifactsByRun(c *gin.Context) {
 	tenantID := h.tenantID(c)
 	runID := c.Param("runId")
@@ -482,7 +482,7 @@ func (h *Handler) CleanupArtifactsByRun(c *gin.Context) {
 	h.success(c, gin.H{"cleaned": count})
 }
 
-	/ parseLimitOffset is a helper for artifact pagination that uses page/page_size.
+// parseLimitOffset is a helper for artifact pagination that uses page/page_size.
 func parseLimitOffset(c *gin.Context) (offset, limit int) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -490,7 +490,7 @@ func parseLimitOffset(c *gin.Context) (offset, limit int) {
 		page = 1
 	}
 	if pageSize < 1 {
-	&pageSize = 20
+	pageSize = 20
 	}
 	if pageSize > 100 {
 		pageSize = 100
@@ -498,9 +498,9 @@ func parseLimitOffset(c *gin.Context) (offset, limit int) {
 	return (page - 1) * pageSize, pageSize
 }
 
-	/ ==================== Builder Image Endpoints ====================
+// ==================== Builder Image Endpoints ====================
 
-	/ ListBuilderImages GET /api/v1/build-images
+// ListBuilderImages GET /api/v1/build-images
 func (h *Handler) ListBuilderImages(c *gin.Context) {
 	opts := models.BuilderImageQueryOptions{
 		Type:   models.PresetImageType(c.Query("type")),
@@ -524,7 +524,7 @@ func (h *Handler) ListBuilderImages(c *gin.Context) {
 	h.success(c, images)
 }
 
-	/ RegisterBuilderImage POST /api/v1/build-images
+// RegisterBuilderImage POST /api/v1/build-images
 func (h *Handler) RegisterBuilderImage(c *gin.Context) {
 	var input models.CreateBuilderImageInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -544,7 +544,7 @@ func (h *Handler) RegisterBuilderImage(c *gin.Context) {
 	}
 }
 
-	/ GetBuilderImage GET /api/v1/build-images/:id
+// GetBuilderImage GET /api/v1/build-images/:id
 func (h *Handler) GetBuilderImage(c *gin.Context) {
 	id := c.Param("id")
 	img, err := h.imageSvc.GetByID(c.Request.Context(), id)
@@ -555,7 +555,7 @@ func (h *Handler) GetBuilderImage(c *gin.Context) {
 	h.success(c, img)
 }
 
-	/ UpdateBuilderImage PUT /api/v1/build-images/:id
+// UpdateBuilderImage PUT /api/v1/build-images/:id
 func (h *Handler) UpdateBuilderImage(c *gin.Context) {
 	id := c.Param("id")
 	var input models.UpdateBuilderImageInput
@@ -576,7 +576,7 @@ func (h *Handler) UpdateBuilderImage(c *gin.Context) {
 	}
 }
 
-	/ DeleteBuilderImage DELETE /api/v1/build-images/:id
+// DeleteBuilderImage DELETE /api/v1/build-images/:id
 func (h *Handler) DeleteBuilderImage(c *gin.Context) {
 	id := c.Param("id")
 	err := h.imageSvc.Delete(c.Request.Context(), id)
@@ -591,7 +591,7 @@ func (h *Handler) DeleteBuilderImage(c *gin.Context) {
 	}
 }
 
-	/ DeprecateBuilderImage GET /api/v1/build-images/:id/deprecate
+// DeprecateBuilderImage GET /api/v1/build-images/:id/deprecate
 func (h *Handler) DeprecateBuilderImage(c *gin.Context) {
 	id := c.Param("id")
 	img, err := h.imageSvc.Deprecate(c.Request.Context(), id)
@@ -603,7 +603,7 @@ func (h *Handler) DeprecateBuilderImage(c *gin.Context) {
 	h.success(c, img)
 }
 
-	/ RestoreBuilderImage GET /api/v1/build-images/:id/restore
+// RestoreBuilderImage GET /api/v1/build-images/:id/restore
 func (h *Handler) RestoreBuilderImage(c *gin.Context) {
 	id := c.Param("id")
 	img, err := h.imageSvc.Restore(c.Request.Context(), id)
@@ -615,7 +615,7 @@ func (h *Handler) RestoreBuilderImage(c *gin.Context) {
 	h.success(c, img)
 }
 
-	/ GetBuilderImagePresets GET /api/v1/build-images/presets
+// GetBuilderImagePresets GET /api/v1/build-images/presets
 func (h *Handler) GetBuilderImagePresets(c *gin.Context) {
 	images, err := h.imageSvc.GetPresets(c.Request.Context())
 	if err != nil {
@@ -626,18 +626,18 @@ func (h *Handler) GetBuilderImagePresets(c *gin.Context) {
 	h.success(c, images)
 }
 
-	/ GetAvailableBuilderImages GET /api/v1/build-images/available
+// GetAvailableBuilderImages GET /api/v1/build-images/available
 func (h *Handler) GetAvailableBuilderImages(c *gin.Context) {
 	images, err := h.imageSvc.GetAvailable(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get available images", zap.Error(err))
-	/h.err(c, http.StatusInternalServerError, "internal error")
+	h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, images)
 }
 
-	/ GetBuilderImagesByType GET /api/v1/build-images/by-type/:type
+// GetBuilderImagesByType GET /api/v1/build-images/by-type/:type
 func (h *Handler) GetBuilderImagesByType(c *gin.Context) {
 	typ := c.Param("type")
 	images, err := h.imageSvc.GetByType(c.Request.Context(), typ)
@@ -649,9 +649,9 @@ func (h *Handler) GetBuilderImagesByType(c *gin.Context) {
 	h.success(c, images)
 }
 
-	/ ==================== Build Cache Endpoints ====================
+// ==================== Build Cache Endpoints ====================
 
-	/ ListCacheConfigs GET /api/v1/cache/configs
+// ListCacheConfigs GET /api/v1/cache/configs
 func (h *Handler) ListCacheConfigs(c *gin.Context) {
 	opts := models.ListCacheConfigsOptions{
 		Level:  models.CacheLevel(c.Query("level")),
@@ -663,14 +663,14 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 
 	cfgs, err := h.cacheSvc.ListConfigs(c.Request.Context(), opts)
 	if err != nil {
-	/h.logger.Error("failed to list cache configs", zap.Error(err))
+	h.logger.Error("failed to list cache configs", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, cfgs)
 }
 
-	/ CreateCacheConfig POST /api/v1/cache/configs
+// CreateCacheConfig POST /api/v1/cache/configs
 func (h *Handler) CreateCacheConfig(c *gin.Context) {
 	var input models.CreateBuildCacheConfigInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -680,14 +680,14 @@ func (h *Handler) CreateCacheConfig(c *gin.Context) {
 
 	cfg, err := h.cacheSvc.CreateConfig(c.Request.Context(), input)
 	if err != nil {
-	/h.logger.Error("failed to create cache config", zap.Error(err))
+	h.logger.Error("failed to create cache config", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, cfg)
 }
 
-	/ UpdateCacheConfig PUT /api/v1/cache/configs
+// UpdateCacheConfig PUT /api/v1/cache/configs
 func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 	id := c.Param("id")
 	var input models.UpdateBuildCacheConfigInput
@@ -709,18 +709,18 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 	h.success(c, cfg)
 }
 
-	/ DeleteCacheConfig DELETE /api/v1/cache/configs
+// DeleteCacheConfig DELETE /api/v1/cache/configs
 func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.cacheSvc.DeleteConfig(c.Request.Context(), id); err != nil {
 		h.logger.Error("failed to delete cache config", zap.Error(err))
-	/h.err(c, http.StatusInternalServerError, "internal error")
+	h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}
 	h.success(c, gin.H{"message": "cache config deleted"})
 }
 
-	/ ListCacheEntries GET /api/v1/cache/entries
+// ListCacheEntries GET /api/v1/cache/entries
 func (h *Handler) ListCacheEntries(c *gin.Context) {
 	opts := models.ListCacheEntriesOptions{
 		ConfigID: c.Query("config_id"),
@@ -738,7 +738,7 @@ func (h *Handler) ListCacheEntries(c *gin.Context) {
 	h.success(c, entries)
 }
 
-	/ DeleteCacheEntry DELETE /api/v1/cache/entries
+// DeleteCacheEntry DELETE /api/v1/cache/entries
 func (h *Handler) DeleteCacheEntry(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.cacheSvc.DeleteCacheEntry(c.Request.Context(), id); err != nil {
@@ -749,7 +749,7 @@ func (h *Handler) DeleteCacheEntry(c *gin.Context) {
 	h.success(c, gin.H{"message": "cache entry deleted"})
 }
 
-	/ CleanupCache POST /api/v1/cache/cleanup
+// CleanupCache POST /api/v1/cache/cleanup
 func (h *Handler) CleanupCache(c *gin.Context) {
 	count, err := h.cacheSvc.CleanupExpired(c.Request.Context())
 	if err != nil {
@@ -760,7 +760,7 @@ func (h *Handler) CleanupCache(c *gin.Context) {
 	h.success(c, gin.H{"cleaned": count})
 }
 
-	/ CleanupCacheLRU POST /api/v1/cache/cleanup-lru
+// CleanupCacheLRU POST /api/v1/cache/cleanup-lru
 func (h *Handler) CleanupCacheLRU(c *gin.Context) {
 	var input struct {
 		ConfigID  string `json:"config_id" binding:"required"`
@@ -773,7 +773,7 @@ func (h *Handler) CleanupCacheLRU(c *gin.Context) {
 
 	count, err := h.cacheSvc.CleanupLRU(c.Request.Context(), input.ConfigID, input.MaxEntries)
 	if err != nil {
-	/h.logger.Error("failed to cleanup cache LRU", zap.Error(err))
+	h.logger.Error("failed to cleanup cache LRU", zap.Error(err))
 		h.err(c, http.StatusInternalServerError, "internal error")
 		return
 	}

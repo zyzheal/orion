@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
+	"orion/finops-svc-go/internal/models"
 	"orion/finops-svc-go/internal/service"
 )
 
@@ -22,7 +25,7 @@ func NewAnalysisHandler(svc *service.AnalysisService) *AnalysisHandler {
 
 // RecordCost records an entity-level cost.
 func (h *AnalysisHandler) RecordCost(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	_ = c.GetString("tenant_id")
 
 	var req struct {
 		EntityType  string            `json:"entity_type" binding:"required"`
@@ -187,7 +190,7 @@ func (h *AnalysisHandler) CreateROI(c *gin.Context) {
 		paybackMonths = req.Cost / req.MonthlySavings
 	}
 
-	analysis, err := h.svc.CreateROIAnalysis(c.Request.Context(), service.CreateROIInput{
+	analysis, err := h.svc.CreateROIAnalysis(c.Request.Context(), models.CreateROIRequest{
 		InvestmentType: req.InvestmentType,
 		Name:           req.Name,
 		Cost:           req.Cost,
@@ -251,7 +254,14 @@ func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
 		savingsPct = (savings / req.BeforeCost) * 100
 	}
 
-	comparison, err := h.svc.CreateCostComparison(c.Request.Context(), req.Description, req.BeforeCost, req.AfterCost, savings, savingsPct, req.Period, req.TimeSavingsHours)
+	comparison, err := h.svc.CreateCostComparison(c.Request.Context(), models.CreateCostComparisonRequest{
+		Description:    req.Description,
+		BeforeCost:     req.BeforeCost,
+		AfterCost:      req.AfterCost,
+		Savings:        savings,
+		SavingsPercent: savingsPct,
+		Period:         req.Period,
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -333,7 +343,7 @@ func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
 		req.ThresholdPercent = 80
 	}
 
-	err := h.svc.CreateLegacyBudgetAlert(c.Request.Context(), tenantID, &service.LegacyBudgetAlertInput{
+	err := h.svc.CreateLegacyBudgetAlert(c.Request.Context(), tenantID, &models.LegacyBudgetAlert{
 		Environment:      req.Environment,
 		BudgetAmount:     req.BudgetAmount,
 		ThresholdPercent: req.ThresholdPercent,

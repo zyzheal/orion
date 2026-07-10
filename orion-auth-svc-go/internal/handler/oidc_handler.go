@@ -223,7 +223,6 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		TenantID:  existingUser.TenantID,
 		ActorID:   existingUser.ID,
 		Action:    "login",
-		Method:    "oidc",
 		IPAddress: c.ClientIP(),
 		CreatedAt: now,
 	})

@@ -547,3 +547,26 @@ func nullStr(s *string) sql.NullString {
 	}
 	return sql.NullString{String: *s, Valid: true}
 }
+
+// ==================== Query Parameter Structs ====================
+
+// HistoryQuery holds query parameters for listing healing incidents.
+type HistoryQuery struct {
+	AppName    *string     `json:"app_name"`
+	Environment *string     `json:"environment"`
+	Type       *string     `json:"type"`
+	Status     *string     `json:"status"`
+	Severity   *string     `json:"severity"`
+	StartDate  *time.Time  `json:"start_date"`
+	EndDate    *time.Time  `json:"end_date"`
+	Page       int         `json:"page"`
+	PageSize   int         `json:"page_size"`
+}
+
+// EffectivenessQuery holds query parameters for effectiveness stats.
+type EffectivenessQuery struct {
+	AppName     *string     `json:"app_name"`
+	Environment *string     `json:"environment"`
+	StartDate   *time.Time  `json:"start_date"`
+	EndDate     *time.Time  `json:"end_date"`
+}

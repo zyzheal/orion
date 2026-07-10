@@ -100,9 +100,9 @@ func (s *BuilderImageService) List(ctx context.Context, opts models.BuilderImage
 	case opts.IsPreset != nil:
 		result, err = s.repo.ListByIsPreset(ctx, *opts.IsPreset)
 	case opts.Type != "":
-		result, err = s.repo.ListByType(ctx, opts.Type)
+		result, err = s.repo.ListByType(ctx, string(opts.Type))
 	case opts.Status != "":
-		result, err = s.repo.ListByStatus(ctx, opts.Status)
+		result, err = s.repo.ListByStatus(ctx, string(opts.Status))
 	default:
 		result, err = s.repo.ListAll(ctx, opts.Offset, opts.Limit)
 	}
@@ -156,7 +156,8 @@ func (s *BuilderImageService) Disable(ctx context.Context, id string) error {
 	if img.IsPreset {
 		return fmt.Errorf("%w: use deprecate instead", ErrImageProtected)
 	}
-	if err := s.repo.UpdateStatus(ctx, id, string(models.BuilderImageStatusDisabled)); err != nil {
+	_, err = s.repo.UpdateStatus(ctx, id, string(models.BuilderImageStatusDisabled))
+	if err != nil {
 		return err
 	}
 	return nil

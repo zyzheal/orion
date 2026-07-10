@@ -42,14 +42,11 @@ func (s *BuildCacheService) createConfig(ctx context.Context, input models.Creat
 		return nil, fmt.Errorf("cache config already exists for level=%s, target=%s", input.Level, input.TargetID)
 	}
 
-	cachePathsJSON, _ := json.Marshal(input.CachePaths)
-
 	cfg := &models.BuildCacheConfig{
 		Level:         models.CacheLevel(input.Level),
 		Status:        models.CacheStatusEnabled,
 		StorageType:   models.CacheStorageTypeLocalVolume,
 		CleanupPolicy: models.CacheCleanupPolicyLRU,
-		CachePaths:    string(cachePathsJSON),
 	}
 
 	if input.TargetID != "" {
@@ -64,8 +61,8 @@ func (s *BuildCacheService) createConfig(ctx context.Context, input models.Creat
 	if input.StoragePath != "" {
 		cfg.StoragePath = &input.StoragePath
 	}
-	if input.MaxTotalSize != "" {
-		cfg.MaxTotalSize = &input.MaxTotalSize
+	if input.MaxTotalSize != 0 {
+		cfg.MaxTotalSize = ptrInt64(input.MaxTotalSize)
 	}
 	if input.MaxAgeDays != nil {
 		cfg.MaxAgeDays = input.MaxAgeDays
@@ -118,8 +115,8 @@ func (s *BuildCacheService) UpdateConfig(ctx context.Context, id string, input m
 	if input.StoragePath != "" {
 		cfg.StoragePath = &input.StoragePath
 	}
-	if input.MaxTotalSize != "" {
-		cfg.MaxTotalSize = &input.MaxTotalSize
+	if input.MaxTotalSize != 0 {
+		cfg.MaxTotalSize = ptrInt64(input.MaxTotalSize)
 	}
 	if input.MaxAgeDays != nil {
 		cfg.MaxAgeDays = input.MaxAgeDays
@@ -132,7 +129,8 @@ func (s *BuildCacheService) UpdateConfig(ctx context.Context, id string, input m
 	}
 	if len(input.CachePaths) > 0 {
 		cachePathsJSON, _ := json.Marshal(input.CachePaths)
-		cfg.CachePaths = string(cachePathsJSON)
+		s := string(cachePathsJSON)
+		cfg.CachePaths = &s
 	}
 	if input.Description != "" {
 		cfg.Description = &input.Description
@@ -347,5 +345,9 @@ func (s *BuildCacheService) ClearConfigCache(ctx context.Context, configID strin
 }
 
 func intPtr(v int) *int {
+	return &v
+}
+
+func ptrInt64(v int64) *int64 {
 	return &v
 }

@@ -89,7 +89,7 @@ func (s *MetricsService) Record(run *models.PipelineRun) {
 		PipelineID:  run.PipelineID,
 		Status:      run.Status,
 		DurationMs:  run.DurationMs,
-		TriggerType: run.TriggerType,
+		TriggerType: string(run.TriggerType),
 		CompletedAt: time.Now(),
 	}
 

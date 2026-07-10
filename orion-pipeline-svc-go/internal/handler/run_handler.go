@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"orion/pipeline-svc-go/internal/models"
 	"orion/pipeline-svc-go/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -13,10 +12,10 @@ import (
 // RunHandler provides HTTP handlers for comprehensive run operations.
 type RunHandler struct {
 	runSvc    *service.RunService
-	metricsSvc *service.PipelineMetricsService
+	metricsSvc *service.MetricsService
 }
 
-func NewRunHandler(runSvc *service.RunService, metricsSvc *service.PipelineMetricsService) *RunHandler {
+func NewRunHandler(runSvc *service.RunService, metricsSvc *service.MetricsService) *RunHandler {
 	return &RunHandler{
 		runSvc:     runSvc,
 		metricsSvc: metricsSvc,
@@ -155,11 +154,7 @@ func (h *RunHandler) GetRecentRuns(c *gin.Context) {
 		limit = 20
 	}
 
-	runs, err := h.metricsSvc.GetRecentRuns(c.Request.Context(), limit)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	runs := h.metricsSvc.GetRecentRuns(limit)
 
 	c.JSON(http.StatusOK, gin.H{"data": runs})
 }
@@ -170,7 +165,7 @@ func (h *RunHandler) GetRecentRuns(c *gin.Context) {
 
 // GetMetrics returns aggregated pipeline metrics.
 func (h *RunHandler) GetMetrics(c *gin.Context) {
-	metrics, err := h.metricsSvc.GetMetricsFromDB(c.Request.Context())
+	metrics, err := h.metricsSvc.GetMetricsFromDB()
 	if err != nil {
 		// Fallback to memory
 		metrics = h.metricsSvc.GetMetrics()
@@ -183,11 +178,7 @@ func (h *RunHandler) GetMetrics(c *gin.Context) {
 func (h *RunHandler) GetMetricsByPipeline(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 
-	summary, err := h.metricsSvc.GetMetricsByPipeline(c.Request.Context(), pipelineID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	summary := h.metricsSvc.GetMetricsByPipeline(pipelineID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"total":         summary.Total,

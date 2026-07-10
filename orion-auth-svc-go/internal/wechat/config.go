@@ -18,7 +18,7 @@ type Config struct {
 func LoadConfig() *Config {
 	enabled := os.Getenv("WECHAT_WORK_ENABLED") == "true"
 
-	tokenExpiry := 7200
+	var tokenExpiry int64 = 7200
 	if raw := os.Getenv("WECHAT_WORK_TOKEN_EXPIRY"); raw != "" {
 		if v, err := strconv.ParseInt(raw, 10, 64); err == nil {
 			tokenExpiry = v

@@ -141,7 +141,7 @@ func (s *KeyRotationService) Rotate() (*model.JwtKey, error) {
 // EmergencyRotate immediately rotates to a new key, expiring the previous key
 // without overlap (marks previous key as expired instantly).
 func (s *KeyRotationService) EmergencyRotate() (*model.JwtKey, error) {
-	return s.rotateWith(RotationTypeEmergency, true)
+	return s.rotateWith(RotationTypeEmergency)
 }
 
 // GetActiveKey returns the active key metadata.

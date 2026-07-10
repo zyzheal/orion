@@ -1,13 +1,49 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
-// ==================== Builder Image (canonical types in models.go) ====================
-// BuilderImage, CreateBuilderImageInput, ListBuilderImageFilter, and
-// BuilderImageQueryOptions are defined in models.go.
-//
-// Additional domain-only helpers below — these are NOT in models.go because
-// they are only used by the builder image service.
+// ==================== Builder Image ====================
+
+// BuilderImage represents a builder container image.
+type BuilderImage struct {
+	ID          string            `db:"id" json:"id"`
+	TenantID    string            `db:"tenant_id" json:"tenant_id"`
+	Name        string            `db:"name" json:"name"`
+	DisplayName string            `db:"display_name" json:"display_name"`
+	Image       string            `db:"image" json:"image"`
+	Type        PresetImageType   `db:"type" json:"type"`
+	Version     string            `db:"version" json:"version"`
+	Description string            `db:"description" json:"description"`
+	PullPolicy  ImagePullPolicy   `db:"pull_policy" json:"pull_policy"`
+	Status      BuilderImageStatus `db:"status" json:"status"`
+	IsPreset    bool              `db:"is_preset" json:"is_preset"`
+	Env         json.RawMessage   `db:"env" json:"env,omitempty"`
+	Labels      json.RawMessage   `db:"labels" json:"labels,omitempty"`
+	CreatedBy   string            `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time         `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time         `db:"updated_at" json:"updated_at"`
+}
+
+// CreateBuilderImageInput is the payload for creating a builder image.
+type CreateBuilderImageInput struct {
+	Name        string          `json:"name" binding:"required"`
+	DisplayName string          `json:"display_name" binding:"required"`
+	Image       string          `json:"image" binding:"required"`
+	Type        PresetImageType `json:"type" binding:"required"`
+	Version     string          `json:"version"`
+	Description string          `json:"description"`
+	PullPolicy  ImagePullPolicy `json:"pull_policy"`
+	Status      BuilderImageStatus `json:"status"`
+	IsPreset    bool            `json:"is_preset"`
+	Env         json.RawMessage `json:"env,omitempty"`
+	Labels      json.RawMessage `json:"labels,omitempty"`
+	CreatedBy   string          `json:"created_by"`
+}
+
+// ==================== Domain types ====================
 
 // PresetImageDef defines a built-in preset builder image.
 type PresetImageDef struct {

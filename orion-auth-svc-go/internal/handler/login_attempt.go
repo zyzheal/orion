@@ -88,7 +88,7 @@ func (h *LoginAttemptHandler) Unlock(c *gin.Context) {
 	h.tracker.Unlock(username)
 
 	// Also clear any lockout state in the database if applicable
-	_ = h.repo.DB().ExecContext(c.Request.Context(),
+	_, _ = h.repo.DB().ExecContext(c.Request.Context(),
 		"UPDATE users SET locked_until = NULL WHERE username = $1", username)
 
 	c.JSON(http.StatusOK, gin.H{

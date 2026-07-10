@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -289,7 +290,7 @@ func (s *ToolService) InvokeTool(ctx context.Context, tenantID, userID, toolID, 
 		var response []byte
 		var execErr error
 		inv.Status = "success"
-		inv.Error = nil
+		inv.Error = sql.NullString{}
 
 		// Build auth headers based on tool auth config
 		var authHeader string
@@ -301,7 +302,7 @@ func (s *ToolService) InvokeTool(ctx context.Context, tenantID, userID, toolID, 
 		response, execErr = callToolEndpoint(ctx, tool.Endpoint, req.Input, authHeader, getToolTimeout(ctx, tool))
 		if execErr != nil {
 			inv.Status = "error"
-			inv.Error = fmt.Sprintf("%v", execErr)
+			inv.Error = sql.NullString{String: fmt.Sprintf("%v", execErr), Valid: true}
 		} else {
 			inv.Output = string(response)
 		}

@@ -145,6 +145,17 @@ type UserOIDCLink struct {
 	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
 }
 
+// UserPermission represents a permission grant linking a user/role to a permission.
+type UserPermission struct {
+	ID           string    `db:"id" json:"id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	UserID       string    `db:"user_id" json:"user_id"`
+	RoleID       string    `db:"role_id" json:"role_id"`
+	PermissionID string    `db:"permission_id" json:"permission_id"`
+	GrantedAt    time.Time `db:"granted_at" json:"granted_at"`
+	GrantedBy    string    `db:"granted_by" json:"granted_by"`
+}
+
 // SSOState is a transient record for OAuth2 state/nonce pairing.
 type SSOState struct {
 	ID           string    `db:"id" json:"id"`

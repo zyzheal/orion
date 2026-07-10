@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -137,7 +139,7 @@ func (h *Handler) RegisterMetric(c *gin.Context) {
 		return
 	}
 
-	reg, err := h.notifSvc.RegisterMetric(c.Request.Context(), tenantID, req.Name, req.Unit, req.DefaultTags, req.Description)
+	reg, err := h.notifSvc.RegisterMetric(c.Request.Context(), tenantID, req.Name, req.Unit, req.DefaultTags, &req.Description)
 	if err != nil {
 		h.logger.Error("failed to register metric", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to register metric"})
@@ -718,6 +720,24 @@ func (h *Handler) ListWidgetConfigs(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"widgets": widgets}})
 }
 
+func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+
+	widgetIDStr := c.Param("id")
+	widgetID, err := uuid.Parse(widgetIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Invalid widget ID"})
+		return
+	}
+
+	if err := h.notifSvc.DeleteWidgetConfig(c.Request.Context(), tenantID, widgetID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to delete widget config"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Widget config deleted"})
+}
+
 func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 
@@ -728,8 +748,11 @@ func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 	}
 
 	var metrics []string
-	for _, m := range convert.CommaSeparated(metricsParam) {
-		metrics = append(metrics, m)
+	for _, m := range strings.Split(metricsParam, ",") {
+		m = strings.TrimSpace(m)
+		if m != "" {
+			metrics = append(metrics, m)
+		}
 	}
 
 	timeWindow := models.TimeWindow(c.Query("time_window"))
@@ -765,7 +788,7 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 
 	thresholdStr := c.Query("threshold")
 	threshold := 3.0
-	if ts, ok := convert.ToFloat64(thresholdStr); ok {
+	if ts, err := strconv.ParseFloat(thresholdStr, 64); err == nil {
 		threshold = ts
 	}
 

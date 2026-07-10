@@ -76,7 +76,7 @@ func (s *MetricService) GetTraceDetail(ctx context.Context, tenantID uuid.UUID, 
 
 // GetSeries proxies to MetricRepository.GetSeries.
 func (s *MetricService) GetSeries(ctx context.Context, tenantID uuid.UUID, metricName string) ([]models.Metric, error) {
-	return s.metricRepo.GetSeries(ctx, tenantID, metricName)
+	return s.metricRepo.GetSeries(ctx, tenantID, metricName, time.Now().Add(-time.Hour), time.Now())
 }
 
 // GetAggregation proxies to MetricRepository.GetSummary.

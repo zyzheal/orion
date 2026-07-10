@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"time"
 
 	"orion/finops-svc-go/internal/models"
@@ -29,26 +29,16 @@ func (s *AnalysisService) RecordEntityCost(ctx context.Context, entityType, enti
 		currency = "USD"
 	}
 
-	var tagStr interface{}
-	if tags != "" {
-		tagStr = tags
-	}
-
-	var envStr interface{}
-	if environment != "" {
-		envStr = environment
-	}
-
 	rec := repository.EntityCostRecord{
-		EntityType: entityType,
-		EntityID:   entityID,
-		Amount:     amount,
-		Category:   category,
-		Currency:   currency,
-		Timestamp:  ts,
+		EntityType:  entityType,
+		EntityID:    entityID,
+		Amount:      amount,
+		Category:    category,
+		Environment: sql.NullString{String: environment, Valid: environment != ""},
+		Tags:        sql.NullString{String: tags, Valid: tags != ""},
+		Currency:    currency,
+		Timestamp:   ts,
 	}
-	// Note: repository.EntityCostRecord uses sql.NullString for tags/environment
-	// We pass empty for now; the DB handles NULLs via the query.
 	if err := s.repo.CreateEntityCostRecord(ctx, &rec); err != nil {
 		return "", err
 	}
@@ -82,15 +72,9 @@ func (s *AnalysisService) GenerateReport(ctx context.Context, tenantID, period s
 	if breakdown == nil {
 		breakdown = make(map[string]float64)
 	}
-	bj, _ := json.Marshal(breakdown)
 	rep, err := s.repo.CreateReport(ctx, tenantID, period, totalCost, breakdown)
 	if err != nil {
 		return nil, err
-	}
-	// Parse breakdown for response
-	var breakdownMap map[string]float64
-	if err := json.Unmarshal([]byte(rep.Breakdown.String), &breakdownMap); err == nil {
-		rep.Breakdown = json.RawMessage(bj) // no-op, just for type
 	}
 	return rep, nil
 }

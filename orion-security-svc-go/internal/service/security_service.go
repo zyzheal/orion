@@ -453,7 +453,7 @@ func (s *Service) GetComplianceScore(ctx context.Context, tenantID string) (*mod
 
 func (s *Service) evaluatePolicyRules(policy *models.CompliancePolicy) []models.ComplianceGap {
 	var gaps []models.ComplianceGap
-	for i, rule := range policy.Rules {
+	for i, _ := range policy.Rules {
 		gaps = append(gaps, models.ComplianceGap{
 			ID:          fmt.Sprintf("gap-%d", i+1),
 			Rule:        fmt.Sprintf("rule-%d", i+1),

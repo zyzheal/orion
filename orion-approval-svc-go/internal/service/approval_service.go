@@ -606,7 +606,7 @@ func (s *ApprovalService) GetTemplates(ctx context.Context, tenantID string) ([]
 // CreateEmergency creates an emergency approval request.
 func (s *ApprovalService) CreateEmergency(ctx context.Context, tenantID string, req *models.EmergencyApprovalRequest) (*models.EmergencyApproval, error) {
 	levelConfigs := make(models.LevelConfigs, 0, len(req.ApproverIDs))
-	for i, approverID := range req.ApproverIDs {
+	for i, _ := range req.ApproverIDs {
 		levelConfigs = append(levelConfigs, models.LevelConfig{
 			Level:             i,
 			RequiredApprovals: 1,

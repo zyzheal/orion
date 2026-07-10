@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql/driver"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -209,6 +210,27 @@ type PaginatedResponse struct {
 	PageSize   int         `json:"page_size"`
 }
 
+// ArtifactStats holds aggregate statistics for a tenant's artifacts.
+type ArtifactStats struct {
+	TotalCount      int64 `db:"total_count" json:"total_count"`
+	AvailableCount  int64 `db:"available_count" json:"available_count"`
+	DeprecatedCount int64 `db:"deprecated_count" json:"deprecated_count"`
+	QuarantinedCount int64 `db:"quarantined_count" json:"quarantined_count"`
+	TotalSizeBytes  int64 `db:"total_size_bytes" json:"total_size_bytes"`
+}
+
+// TypeStat holds artifact count for a single artifact type.
+type TypeStat struct {
+	Type  string `db:"type" json:"type"`
+	Count int64  `db:"count" json:"count"`
+}
+
+// NamespaceStat holds artifact count for a single namespace.
+type NamespaceStat struct {
+	Namespace string `db:"namespace" json:"namespace"`
+	Count     int64  `db:"count" json:"count"`
+}
+
 // ListQueryOptions holds query parameters for listing artifacts.
 type ListQueryOptions struct {
 	Namespace string `form:"namespace"`
@@ -241,3 +263,24 @@ func (o *ListQueryOptions) Limit() int {
 	}
 	return o.PageSize
 }
+
+// --- Sentinel errors and helpers ---
+
+var (
+	ErrNotFound      = errors.New("not found")
+	ErrInvalidInput  = errors.New("invalid input")
+	ErrAlreadyExists = errors.New("already exists")
+	ErrNotAvailable  = errors.New("not available")
+)
+
+// IsNotFound returns true if the error is a "not found" error.
+func IsNotFound(err error) bool { return errors.Is(err, ErrNotFound) }
+
+// IsInvalidInput returns true if the error is an "invalid input" error.
+func IsInvalidInput(err error) bool { return errors.Is(err, ErrInvalidInput) }
+
+// IsAlreadyExists returns true if the error is an "already exists" error.
+func IsAlreadyExists(err error) bool { return errors.Is(err, ErrAlreadyExists) }
+
+// IsNotAvailable returns true if the error is a "not available" error.
+func IsNotAvailable(err error) bool { return errors.Is(err, ErrNotAvailable) }
