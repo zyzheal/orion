@@ -14,10 +14,6 @@ type AlertRepository struct {
 	db *DB
 }
 
-func (r *AlertRepository) db() *DB {
-	return r.db
-}
-
 func NewAlertRepository(db *DB) *AlertRepository {
 	return &AlertRepository{db: db}
 }

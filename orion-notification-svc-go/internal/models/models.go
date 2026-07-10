@@ -544,6 +544,29 @@ type CreateDoNotDisturbInput struct {
 // JSONB Helpers
 // ============================================================
 
+// ============================================================
+// Stats Models
+// ============================================================
+
+// NotificationStats holds aggregate counts for notifications.
+type NotificationStats struct {
+	Total       int `db:"-" json:"total"`
+	Pending     int `db:"-" json:"pending"`
+	Sent        int `db:"-" json:"sent"`
+	Failed      int `db:"-" json:"failed"`
+	Read        int `db:"-" json:"read"`
+	UnreadCount int `db:"-" json:"unreadCount"`
+}
+
+// ============================================================
+// Scheduled Notification Extensions
+// ============================================================
+
+// ToggleScheduledNotificationInput is the payload for toggling a scheduled notification.
+type ToggleScheduledNotificationInput struct {
+	Enabled *bool `json:"enabled" binding:"required"`
+}
+
 // ParseJSONB unmarshals a JSONB value into a typed slice.
 func ParseJSONB(value interface{}, dest interface{}) error {
 	switch v := value.(type) {

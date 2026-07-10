@@ -30,6 +30,7 @@ func (h *ScheduledNotificationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		scheduled.GET("", h.List)
 		scheduled.GET("/:id", h.Get)
 		scheduled.PUT("/:id", h.Update)
+		scheduled.PUT("/:id/toggle", h.Toggle)
 		scheduled.POST("/:id/cancel", h.Cancel)
 		scheduled.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
 	}
@@ -93,6 +94,27 @@ func (h *ScheduledNotificationHandler) Update(c *gin.Context) {
 	}
 
 	n, err := h.scheduledSvc.UpdateScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), &req)
+	if err != nil {
+		if err == service.ErrScheduledNotificationNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": n})
+}
+
+// Toggle handles PUT /scheduled-notifications/:id/toggle - toggle enabled/disabled status.
+func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.ToggleScheduledNotificationInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	n, err := h.scheduledSvc.ToggleScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), *req.Enabled)
 	if err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})

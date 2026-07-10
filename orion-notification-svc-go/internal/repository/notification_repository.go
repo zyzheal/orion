@@ -144,6 +144,33 @@ func (r *Repository) CountNotifications(ctx context.Context, tenantID string) (i
 	return count, err
 }
 
+// NotificationStatsCount returns the notification stats for a tenant.
+func (r *Repository) NotificationStatsCount(ctx context.Context, tenantID string) (*NotificationStats, error) {
+	s := &NotificationStats{}
+	if err := r.db.GetContext(ctx, &s.Total,
+		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1`, tenantID); err != nil {
+		return nil, err
+	}
+	if err := r.db.GetContext(ctx, &s.Pending,
+		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1 AND status=$2`, tenantID, models.StatusPending); err != nil {
+		return nil, err
+	}
+	if err := r.db.GetContext(ctx, &s.Sent,
+		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1 AND status=$2`, tenantID, models.StatusSent); err != nil {
+		return nil, err
+	}
+	if err := r.db.GetContext(ctx, &s.Failed,
+		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1 AND status=$2`, tenantID, models.StatusFailed); err != nil {
+		return nil, err
+	}
+	if err := r.db.GetContext(ctx, &s.Read,
+		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1 AND status=$2`, tenantID, models.StatusRead); err != nil {
+		return nil, err
+	}
+	s.UnreadCount = s.Sent // sent but not marked read
+	return s, nil
+}
+
 // ---- Template CRUD ----
 
 // CreateTemplate inserts a new notification template.

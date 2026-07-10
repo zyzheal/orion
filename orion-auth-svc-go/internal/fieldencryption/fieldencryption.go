@@ -1,7 +1,6 @@
 package fieldencryption
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"

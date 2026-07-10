@@ -1,11 +1,24 @@
 package models
 
-import (
-	"encoding/json"
-	"time"
-)
+import "encoding/json"
 
-// ==================== Builder Image ====================
+// ==================== Builder Image (canonical types in models.go) ====================
+// BuilderImage, CreateBuilderImageInput, ListBuilderImageFilter, and
+// BuilderImageQueryOptions are defined in models.go.
+//
+// Additional domain-only helpers below — these are NOT in models.go because
+// they are only used by the builder image service.
+
+// PresetImageDef defines a built-in preset builder image.
+type PresetImageDef struct {
+	Name        string
+	DisplayName string
+	Image       string
+	Type        PresetImageType
+	Version     string
+	Description string
+	Env         map[string]string
+}
 
 // ImagePullPolicy defines how images are pulled.
 type ImagePullPolicy string
@@ -38,37 +51,13 @@ const (
 	PresetImageTypeCustom  PresetImageType = "custom"
 )
 
-// BuilderImage represents a builder image in the registry.
-type BuilderImage struct {
-	ID          string          `db:"id" json:"id"`
-	Name        string          `db:"name" json:"name"`
-	DisplayName string          `db:"display_name" json:"display_name"`
-	Image       string          `db:"image" json:"image"`
-	Type        PresetImageType `db:"type" json:"type"`
-	Version     string          `db:"version" json:"version"`
-	Description string          `db:"description" json:"description"`
-	PullPolicy  ImagePullPolicy `db:"pull_policy" json:"pull_policy"`
-	Status      BuilderImageStatus `db:"status" json:"status"`
-	IsPreset    bool            `db:"is_preset" json:"is_preset"`
-	Env         json.RawMessage `db:"env" json:"env,omitempty"`
-	Labels      json.RawMessage `db:"labels" json:"labels,omitempty"`
-	CreatedBy   string          `db:"created_by" json:"created_by,omitempty"`
-	CreatedAt   time.Time       `db:"created_at" json:"created_at"`
-	UpdatedAt   *time.Time      `db:"updated_at" json:"updated_at,omitempty"`
-}
-
-// CreateBuilderImageInput is the payload for registering a new builder image.
-type CreateBuilderImageInput struct {
-	Name        string          `json:"name" binding:"required"`
-	DisplayName string          `json:"display_name,omitempty"`
-	Image       string          `json:"image" binding:"required"`
-	Type        string          `json:"type,omitempty"`
-	Version     string          `json:"version,omitempty"`
-	Description string          `json:"description,omitempty"`
-	PullPolicy  string          `json:"pull_policy,omitempty"`
-	Env         json.RawMessage `json:"env,omitempty"`
-	Labels      json.RawMessage `json:"labels,omitempty"`
-	CreatedBy   string          `json:"created_by,omitempty"`
+// BuilderImageQueryOptions filters builder images.
+type BuilderImageQueryOptions struct {
+	Type     PresetImageType
+	Status   BuilderImageStatus
+	IsPreset *bool
+	Limit    int
+	Offset   int
 }
 
 // UpdateBuilderImageInput is the payload for updating a builder image.
@@ -79,26 +68,6 @@ type UpdateBuilderImageInput struct {
 	Status      string          `json:"status,omitempty"`
 	Env         json.RawMessage `json:"env,omitempty"`
 	Labels      json.RawMessage `json:"labels,omitempty"`
-}
-
-// BuilderImageQueryOptions filters builder images.
-type BuilderImageQueryOptions struct {
-	Type     PresetImageType
-	Status   BuilderImageStatus
-	IsPreset *bool
-	Limit    int
-	Offset   int
-}
-
-// PresetImageDef defines a built-in preset builder image.
-type PresetImageDef struct {
-	Name        string
-	DisplayName string
-	Image       string
-	Type        PresetImageType
-	Version     string
-	Description string
-	Env         map[string]string
 }
 
 // DefaultPresetImages returns the list of default preset builder images.

@@ -28,6 +28,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	n.POST("", auth.RequirePermission("notification", "write"), h.Send)
 	n.GET("", h.List)
 	n.GET("/count", h.Count)
+	n.GET("/stats", h.Stats)
 	n.GET("/unread-count", h.GetUnreadCount)
 	n.GET("/:id", h.Get)
 	n.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
@@ -173,6 +174,17 @@ func (h *Handler) Count(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"count": count})
+}
+
+// Stats handles GET /notifications/stats.
+func (h *Handler) Stats(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
 // ---- Settings Handlers ----

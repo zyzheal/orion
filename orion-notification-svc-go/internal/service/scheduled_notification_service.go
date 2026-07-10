@@ -270,3 +270,37 @@ func padLeft(s, pad string, length int) string {
 	}
 	return s
 }
+
+// ToggleScheduledNotification toggles the enabled/disabled status of a scheduled notification.
+func (s *ScheduledNotificationService) ToggleScheduledNotification(ctx context.Context, tenantID, id string, enabled bool) (*models.ScheduledNotification, error) {
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "ScheduledNotificationService.Toggle")
+	defer span.End()
+
+	// Verify exists
+	n, err := s.repo.FindByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, ErrScheduledNotificationNotFound
+	}
+
+	// Determine new status
+	var newStatus models.ScheduledNotificationStatus
+	if enabled {
+		newStatus = models.ScheduledStatusPending
+	} else {
+		newStatus = models.ScheduledStatusPaused
+	}
+
+	if n.Status == newStatus {
+		return n, nil
+	}
+
+	updates := map[string]interface{}{"status": newStatus}
+	n, err = s.repo.Update(ctx, tenantID, id, updates)
+	if err != nil {
+		s.logger.Error("failed to toggle scheduled notification", zap.Error(err), zap.String("id", id))
+		return nil, fmt.Errorf("failed to toggle scheduled notification: %w", err)
+	}
+
+	s.logger.Info("scheduled notification toggled", zap.String("id", id), zap.Bool("enabled", enabled), zap.String("status", string(newStatus)))
+	return n, nil
+}

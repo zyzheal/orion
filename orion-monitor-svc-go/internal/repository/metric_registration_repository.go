@@ -60,11 +60,11 @@ func (r *MetricRegistrationRepository) List(ctx context.Context, tenantID uuid.U
 	defer rows.Close()
 
 	for rows.Next() {
-		var r models.MetricRegistration
-		if err := rows.Scan(&r.ID, &r.TenantID, &r.Name, &r.Unit, &r.DefaultTags, &r.Description, &r.CreatedAt); err != nil {
+		var reg models.MetricRegistration
+		if err := rows.Scan(&reg.ID, &reg.TenantID, &reg.Name, &reg.Unit, &reg.DefaultTags, &reg.Description, &reg.CreatedAt); err != nil {
 			continue
 		}
-		resp.Data = append(resp.Data, r)
+		resp.Data = append(resp.Data, reg)
 	}
 	return resp, nil
 }
@@ -72,14 +72,14 @@ func (r *MetricRegistrationRepository) List(ctx context.Context, tenantID uuid.U
 func (r *MetricRegistrationRepository) GetByName(ctx context.Context, tenantID uuid.UUID, name string) (*models.MetricRegistration, error) {
 	query := `SELECT id, tenant_id, name, unit, default_tags, description, created_at
 	FROM metric_registrations WHERE tenant_id = $1 AND name = $2`
-	var r models.MetricRegistration
+	var reg models.MetricRegistration
 	err := r.db.Pool().QueryRow(ctx, query, tenantID, name).Scan(
-		&r.ID, &r.TenantID, &r.Name, &r.Unit, &r.DefaultTags, &r.Description, &r.CreatedAt,
+		&reg.ID, &reg.TenantID, &reg.Name, &reg.Unit, &reg.DefaultTags, &reg.Description, &reg.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get metric registration: %w", err)
 	}
-	return &r, nil
+	return &reg, nil
 }
 
 func (r *MetricRegistrationRepository) Delete(ctx context.Context, tenantID uuid.UUID, name string) error {

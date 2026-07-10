@@ -417,13 +417,7 @@ type MetricRegistration struct {
 	CreatedAt   time.Time       `json:"created_at"`
 }
 
-// RegisterMetricRequest is the request body for registering a metric.
-type RegisterMetricRequest struct {
-	Name        string                 `json:"name" binding:"required"`
-	Unit        string                 `json:"unit" binding:"required"`
-	DefaultTags map[string]string      `json:"default_tags"`
-	Description *string                `json:"description"`
-}
+// ==================== End Metric Registration ====================
 
 // MetricRegistrationResponse wraps metric registration query results.
 type MetricRegistrationResponse struct {

@@ -31,8 +31,13 @@ func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		t.GET("/:id", h.Get)
 		t.PUT("/:id", h.Update)
 		t.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
-		t.POST("/:id/preview", h.Preview)
-		t.POST("/:id/variables/render", h.RenderVariables)
+	}
+
+	// Public read-only endpoints (no write permission required)
+	tr := rg.Group("/templates")
+	{
+		tr.POST("/:id/preview", h.Preview)
+		tr.GET("/:id/variables", h.RenderVariables)
 	}
 }
 
@@ -95,8 +100,36 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 func (h *TemplateHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.templateSvc.DeleteTemplate(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// Preview handles POST /templates/:id/preview - render a template with sample variables.
+func (h *TemplateHandler) Preview(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var input models.TemplatePreviewInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.templateSvc.Preview(c.Request.Context(), tenantID, c.Param("id"), &input)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}
+
+// RenderVariables handles GET /templates/:id/variables - extract variable placeholders.
+func (h *TemplateHandler) RenderVariables(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	vars, err := h.templateSvc.RenderVariables(c.Request.Context(), tenantID, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": vars})
 }

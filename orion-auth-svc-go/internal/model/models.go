@@ -98,3 +98,15 @@ type AuditLog struct {
 	IPAddress  string         `db:"ip_address" json:"ip_address"`
 	CreatedAt  time.Time      `db:"created_at" json:"created_at"`
 }
+
+// JwtKey represents a stored JWT key with metadata (hash only; raw key is held in memory).
+type JwtKey struct {
+	KeyID        string     `db:"key_id" json:"key_id"`
+	KeyHash      string     `db:"key_hash" json:"key_hash"`
+	KeyStrength  string     `db:"key_strength" json:"key_strength"`
+	Status       string     `db:"status" json:"status"`
+	RotationType string     `db:"rotation_type" json:"rotation_type"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	ActivatedAt  *time.Time `db:"activated_at" json:"activated_at,omitempty"`
+	ExpiresAt    *time.Time `db:"expires_at" json:"expires_at,omitempty"`
+}

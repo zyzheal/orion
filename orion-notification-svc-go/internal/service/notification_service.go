@@ -13,6 +13,7 @@ import (
 	"orion/notification-svc-go/internal/repository"
 
 	"github.com/google/uuid"
+	"orion/notification-svc-go/internal/repository"
 )
 
 // ErrNotificationNotFound is returned when a notification lookup fails.
@@ -254,6 +255,14 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 	defer span.End()
 
 	return s.repo.CountNotifications(ctx, tenantID)
+}
+
+// Stats returns aggregate notification stats for a tenant.
+func (s *Service) Stats(ctx context.Context, tenantID string) (*models.NotificationStats, error) {
+	ctx, span := otel.Tracer("orion-notification-svc").Start(ctx, "Service.Stats")
+	defer span.End()
+
+	return s.repo.NotificationStatsCount(ctx, tenantID)
 }
 
 // ---- Template Operations (delegated to TemplateService) ----
