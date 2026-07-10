@@ -149,6 +149,20 @@ func main() {
 		}
 	}
 
+	// --- /sso/oidc group (OIDC SSO endpoints) ---
+	sso := r.Group("/sso/oidc")
+	{
+		sso.GET("/authorize", h.OIDCAuthorize)
+		sso.GET("/callback", h.OIDCCallback)
+		sso.GET("/providers", h.OIDCListProviders)
+		sso.POST("/providers", h.OIDCCreateProvider)
+		sso.GET("/providers/:id", h.OIDCGetProvider)
+		sso.PUT("/providers/:id", h.OIDCUpdateProvider)
+		sso.DELETE("/providers/:id", h.OIDCDeleteProvider)
+		sso.GET("/links", h.OIDCListLinks)
+		sso.DELETE("/links/:id", h.OIDCDeleteLink)
+	}
+
 	zapLogger.Info("auth service starting", zap.String("addr", cfg.HTTPAddr))
 
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: r}

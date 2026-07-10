@@ -145,8 +145,8 @@ func (r *Repository) CountNotifications(ctx context.Context, tenantID string) (i
 }
 
 // NotificationStatsCount returns the notification stats for a tenant.
-func (r *Repository) NotificationStatsCount(ctx context.Context, tenantID string) (*NotificationStats, error) {
-	s := &NotificationStats{}
+func (r *Repository) NotificationStatsCount(ctx context.Context, tenantID string) (*models.NotificationStats, error) {
+	s := &models.NotificationStats{}
 	if err := r.db.GetContext(ctx, &s.Total,
 		`SELECT COUNT(*) FROM notifications WHERE tenant_id=$1`, tenantID); err != nil {
 		return nil, err

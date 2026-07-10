@@ -110,3 +110,54 @@ type JwtKey struct {
 	ActivatedAt  *time.Time `db:"activated_at" json:"activated_at,omitempty"`
 	ExpiresAt    *time.Time `db:"expires_at" json:"expires_at,omitempty"`
 }
+
+// --- OIDC SSO models ---
+
+// OIDCProvider stores the configuration for an OIDC provider (Google, Azure AD, etc.).
+type OIDCProvider struct {
+	ID                    string    `db:"id" json:"id"`
+	TenantID              string    `db:"tenant_id" json:"tenant_id"`
+	Name                  string    `db:"name" json:"name"`
+	DisplayName           string    `db:"display_name" json:"display_name"`
+	IssuerURL             string    `db:"issuer_url" json:"issuer_url"`
+	ClientID              string    `db:"client_id" json:"client_id"`
+	ClientSecretEncrypted string    `db:"client_secret_encrypted" json:"-"` // secret field, never serialized
+	RedirectURI           string    `db:"redirect_uri" json:"redirect_uri"`
+	Scopes                string    `db:"scopes" json:"scopes"`
+	Enabled               bool      `db:"enabled" json:"enabled"`
+	CreatedAt             time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt             time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// UserOIDCLink binds an OIDC identity to an Orion user account.
+type UserOIDCLink struct {
+	ID           string     `db:"id" json:"id"`
+	TenantID     string     `db:"tenant_id" json:"tenant_id"`
+	ProviderName string     `db:"provider_name" json:"provider_name"`
+	Subject      string     `db:"subject" json:"subject"`
+	UserID       string     `db:"user_id" json:"user_id"`
+	Email        string     `db:"email" json:"email"`
+	Name         string     `db:"name" json:"name"`
+	Groups       string     `db:"groups" json:"groups"`
+	Roles        string     `db:"roles" json:"roles"`
+	LastLoginAt  *time.Time `db:"last_login_at" json:"last_login_at,omitempty"`
+	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+// SSOState is a transient record for OAuth2 state/nonce pairing.
+type SSOState struct {
+	ID           string    `db:"id" json:"id"`
+	TenantID     string    `db:"tenant_id" json:"tenant_id"`
+	State        string    `db:"state" json:"state"`
+	ProviderName string    `db:"provider_name" json:"provider_name"`
+	Data         string    `db:"data" json:"-"` // JSON blob: nonce, code_verifier, etc.
+	ExpiresAt    time.Time `db:"expires_at" json:"expires_at"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+}
+
+// SSOStatePayload is the JSON payload stored in SSOState.Data.
+type SSOStatePayload struct {
+	Nonce        string `json:"nonce"`
+	CodeVerifier string `json:"code_verifier"`
+}

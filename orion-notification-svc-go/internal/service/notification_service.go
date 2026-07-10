@@ -13,7 +13,6 @@ import (
 	"orion/notification-svc-go/internal/repository"
 
 	"github.com/google/uuid"
-	"orion/notification-svc-go/internal/repository"
 )
 
 // ErrNotificationNotFound is returned when a notification lookup fails.

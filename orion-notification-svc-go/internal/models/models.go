@@ -602,3 +602,105 @@ func MustMarshalJSONB(v interface{}) JSONB {
 	}
 	return result
 }
+
+// ============================================================
+// Dashboard Models
+// ============================================================
+
+// WidgetType identifies the type of a dashboard widget.
+type WidgetType string
+
+const (
+	WidgetTypeTotalNotifications WidgetType = "totalNotifications"
+	WidgetTypeDeliveryStatus     WidgetType = "deliveryStatus"
+	WidgetTypeTopChannels        WidgetType = "topChannels"
+	WidgetTypeRecentActivity     WidgetType = "recentActivity"
+	WidgetTypeFailureRate        WidgetType = "failureRate"
+	WidgetTypeCustom             WidgetType = "custom"
+)
+
+// Dashboard is a collection of widgets for a tenant.
+type Dashboard struct {
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenantId"`
+	Name        string    `db:"name" json:"name"`
+	Description *string   `db:"description" json:"description"`
+	IsDefault   bool      `db:"is_default" json:"isDefault"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
+}
+
+// DashboardWidget is a configurable widget on a dashboard.
+type DashboardWidget struct {
+	ID          string     `db:"id" json:"id"`
+	DashboardID string     `db:"dashboard_id" json:"dashboardId"`
+	TenantID    string     `db:"tenant_id" json:"tenantId"`
+	Name        string     `db:"name" json:"name"`
+	Type        WidgetType `db:"type" json:"type"`
+	Position    int        `db:"position" json:"position"`
+	Size        string     `db:"size" json:"size"`
+	Config      JSONB      `db:"config" json:"config"`
+	Enabled     bool       `db:"enabled" json:"enabled"`
+	CreatedAt   time.Time  `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time  `db:"updated_at" json:"updatedAt"`
+}
+
+// DashboardOverview aggregates dashboard-level stats.
+type DashboardOverview struct {
+	TotalNotifications int64                  `json:"totalNotifications"`
+	PendingCount       int64                  `json:"pendingCount"`
+	DeliveredCount     int64                  `json:"deliveredCount"`
+	FailedCount        int64                  `json:"failedCount"`
+	ChannelsEnabled    int64                  `json:"channelsEnabled"`
+	ActiveTemplates    int64                  `json:"activeTemplates"`
+	RecentDeliveries   []NotificationDelivery `json:"recentDeliveries"`
+}
+
+// ============================================================
+// Anomaly Detection Models
+// ============================================================
+
+// AnomalySeverity indicates the severity of an anomaly.
+type AnomalySeverity string
+
+const (
+	AnomalySeverityLow      AnomalySeverity = "low"
+	AnomalySeverityMedium   AnomalySeverity = "medium"
+	AnomalySeverityHigh     AnomalySeverity = "high"
+	AnomalySeverityCritical AnomalySeverity = "critical"
+)
+
+// AnomalyType identifies the type of anomaly detected.
+type AnomalyType string
+
+const (
+	AnomalyTypeSpamThreshold      AnomalyType = "spamThreshold"
+	AnomalyTypeDeliverySpike      AnomalyType = "deliverySpike"
+	AnomalyTypeFailureRate        AnomalyType = "failureRate"
+	AnomalyTypeDuplicateRecipients AnomalyType = "duplicateRecipients"
+	AnomalyTypeChannelDown        AnomalyType = "channelDown"
+)
+
+// Anomaly is a detected anomaly in notification delivery.
+type Anomaly struct {
+	ID           string           `db:"id" json:"id"`
+	TenantID     string           `db:"tenant_id" json:"tenantId"`
+	Type         AnomalyType      `db:"type" json:"type"`
+	Severity     AnomalySeverity  `db:"severity" json:"severity"`
+	Message      string           `db:"message" json:"message"`
+	Details      JSONB            `db:"details" json:"details"`
+	SourceID     *string          `db:"source_id" json:"sourceId"`
+	SourceIDType string           `db:"source_id_type" json:"sourceIdType"`
+	Status       string           `db:"status" json:"status"`
+	ResolvedAt   *time.Time       `db:"resolved_at" json:"resolvedAt"`
+	CreatedAt    time.Time        `db:"created_at" json:"createdAt"`
+}
+
+// ListAnomaliesQuery contains filter parameters for anomaly listing.
+type ListAnomaliesQuery struct {
+	Severity *AnomalySeverity `form:"severity"`
+	Status   *string          `form:"status"`
+	Type     *AnomalyType     `form:"type"`
+	Page     int              `form:"page" binding:"min=1"`
+	Size     int              `form:"size" binding:"min=1,max=100"`
+}

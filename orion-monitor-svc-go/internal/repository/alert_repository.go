@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"orion/monitor-svc-go/internal/models"
 	"go.uber.org/zap"
 )
@@ -228,4 +229,9 @@ func (r *AlertRepository) Count(ctx context.Context, tenantID string) (int, erro
 	var count int
 	err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM alerts WHERE tenant_id=$1`, tenantID)
 	return count, err
+}
+
+// Pool returns the underlying pgx pool (used by AcknowledgeAlert).
+func (r *AlertRepository) Pool() *pgxpool.Pool {
+	return r.db.Pool()
 }

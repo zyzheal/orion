@@ -73,3 +73,13 @@ func (s *MetricService) GetTraces(ctx context.Context, tenantID uuid.UUID, req m
 func (s *MetricService) GetTraceDetail(ctx context.Context, tenantID uuid.UUID, traceID string) ([]models.Trace, error) {
 	return s.traceRepo.GetByTraceID(ctx, tenantID, traceID)
 }
+
+// GetSeries proxies to MetricRepository.GetSeries.
+func (s *MetricService) GetSeries(ctx context.Context, tenantID uuid.UUID, metricName string) ([]models.Metric, error) {
+	return s.metricRepo.GetSeries(ctx, tenantID, metricName)
+}
+
+// GetAggregation proxies to MetricRepository.GetSummary.
+func (s *MetricService) GetAggregation(ctx context.Context, tenantID uuid.UUID, metricName string, windowMs int64) (*models.MetricAggregation, error) {
+	return s.metricRepo.GetSummary(ctx, tenantID, metricName, windowMs)
+}

@@ -91,13 +91,22 @@ func main() {
 	metricRepo := repository.NewMetricRepository(db)
 	traceRepo := repository.NewTraceRepository(db)
 	alertRepo := repository.NewAlertRepository(db)
+	metricRegRepo := repository.NewMetricRegistrationRepository(db)
+	channelRepo := repository.NewNotificationChannelRepository(db)
+	policyRepo := repository.NewEscalationPolicyRepository(db)
+	historyRepo := repository.NewNotificationHistoryRepository(db)
+	dashboardRepo := repository.NewDashboardRepository(db)
 
 	// Initialize services
 	metricSvc := service.NewMetricService(metricRepo, traceRepo, logger)
 	alertSvc := service.NewAlertService(alertRepo, logger)
+	notifSvc := service.NewNotificationService(
+		channelRepo, policyRepo, historyRepo, dashboardRepo,
+		metricRepo, alertRepo, metricRegRepo, logger,
+	)
 
 	// Initialize handlers
-	h := handler.New(metricSvc, alertSvc, logger)
+	h := handler.New(metricSvc, alertSvc, notifSvc, logger)
 
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
@@ -132,8 +141,34 @@ func main() {
 		// Alerts
 		v1.GET("/alerts", h.QueryAlerts)
 		v1.GET("/alerts/:id", h.GetAlertByID)
+		v1.GET("/alerts/active", h.GetActiveAlerts)
+		v1.GET("/alerts/stats", h.GetAlertStats)
+		v1.POST("/alerts/:id/acknowledge", auth.RequirePermission("alert", "execute"), h.AcknowledgeAlert)
 		v1.POST("/alerts/:id/silence", auth.RequirePermission("alert", "execute"), h.SilenceAlert)
 		v1.POST("/alerts/:id/resolve", auth.RequirePermission("alert", "execute"), h.ResolveAlert)
+
+		// Notification Channels
+		v1.GET("/channels", h.ListChannels)
+		v1.POST("/channels", auth.RequirePermission("alert", "write"), h.CreateChannel)
+		v1.PUT("/channels/:id", auth.RequirePermission("alert", "write"), h.ToggleChannel)
+		v1.DELETE("/channels/:id", auth.RequirePermission("alert", "delete"), h.DeleteChannel)
+
+		// Escalation Policies
+		v1.GET("/escalation-policies", h.ListEscalationPolicies)
+		v1.POST("/escalation-policies", auth.RequirePermission("alert", "write"), h.CreateEscalationPolicy)
+
+		// Dashboard
+		v1.GET("/dashboard", h.GetDashboard)
+		v1.GET("/dashboard/widgets", h.ListWidgetConfigs)
+		v1.POST("/dashboard/widgets", auth.RequirePermission("alert", "write"), h.CreateWidgetConfig)
+		v1.DELETE("/dashboard/widgets/:id", auth.RequirePermission("alert", "delete"), h.DeleteWidgetConfig)
+
+		// Anomaly Detection
+		v1.GET("/anomalies", h.DetectAnomalies)
+		v1.POST("/anomalies/detect", h.DetectAnomalies)
+
+		// Notification History
+		v1.GET("/notifications", h.ListNotificationHistory)
 
 		// Alert Rules
 		v1.GET("/alert-rules", h.QueryAlertRules)

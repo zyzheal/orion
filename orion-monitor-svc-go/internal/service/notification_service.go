@@ -365,13 +365,13 @@ func (s *NotificationService) GetActiveAlerts(ctx context.Context, tenantID uuid
 // ==================== Acknowledge Alert ====================
 
 func (s *NotificationService) AcknowledgeAlert(ctx context.Context, tenantID, id uuid.UUID) error {
-	// Use alert repo's Acknowledge alert (update status to 'acknowledged')
+	// Use alert repo's Pool accessor to acknowledge alert (update status to 'acknowledged')
 	query := `UPDATE alerts SET status = 'acknowledged' WHERE tenant_id = $1 AND id = $2 AND status IN ('firing', 'silenced')`
-	tag, err := s.alertRepo.db().Pool().Exec(ctx, query, tenantID, id)
+	tag, err := s.alertRepo.Pool().Exec(ctx, query, tenantID, id)
 	if err != nil {
 		return fmt.Errorf("acknowledge alert: %w", err)
 	}
-	if tag == 0 {
+	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("alert not found or already acknowledged/resolved")
 	}
 	return nil

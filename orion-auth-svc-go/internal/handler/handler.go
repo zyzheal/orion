@@ -13,6 +13,7 @@ import (
 	"orion/auth-svc-go/internal/model"
 	"orion/auth-svc-go/internal/repository"
 	"orion/auth-svc-go/internal/service"
+	"orion/auth-svc-go/internal/ssosvc"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 
@@ -24,16 +25,20 @@ import (
 )
 
 type Handler struct {
-	svc       *service.AuthService
-	log       *zap.Logger
-	jwtSecret string
-	redis     *redis.Client
+	svc        *service.AuthService
+	oidcSVC    *ssosvc.OIDCService
+	oidcRepo   *repository.OIDCRepository
+	log        *zap.Logger
+	jwtSecret  string
+	redis      *redis.Client
 }
 
 func New(db *database.DB, log *zap.Logger, jwtSecret string, redisClient *redis.Client) *Handler {
 	repo := repository.NewAuthRepository(db)
 	svc := service.NewAuthService(repo, log)
-	return &Handler{svc: svc, log: log, jwtSecret: jwtSecret, redis: redisClient}
+	oidcRepo := repository.NewOIDCRepository(db)
+	oidcSVC := ssosvc.NewOIDCService(oidcRepo, repo, log, jwtSecret)
+	return &Handler{svc: svc, oidcSVC: oidcSVC, oidcRepo: oidcRepo, log: log, jwtSecret: jwtSecret, redis: redisClient}
 }
 
 // GetUser returns a user by ID.

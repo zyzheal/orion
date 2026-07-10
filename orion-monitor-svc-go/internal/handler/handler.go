@@ -786,3 +786,19 @@ func (h *Handler) GetAnomalySummary(c *gin.Context) {
 		"last_updated":  time.Now(),
 	}}})
 }
+
+func (h *Handler) GetAlertStats(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+
+	// Count by status
+	firingResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "firing"})
+	ackResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "acknowledged"})
+	silencedResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "silenced"})
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"stats": gin.H{
+		"firing":      len(firingResp.Data),
+		"acknowledged": len(ackResp.Data),
+		"silenced":    len(silencedResp.Data),
+		"total":       len(firingResp.Data) + len(ackResp.Data) + len(silencedResp.Data),
+	}}})
+}
