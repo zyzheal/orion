@@ -1,23 +1,25 @@
 go 1.25.0
 
 use (
-	./orion-go-common
-	./orion-api-gateway-go
-	./orion-auth-svc
-	./orion-user-svc
 	./orion-ai-svc-go
+	./orion-api-gateway-go
 	./orion-approval-svc-go
 	./orion-artifact-svc-go
+	./orion-audit-svc-go
+	./orion-auth-svc
+	./orion-build-env-svc-go
 	./orion-ci-cd-svc-go
 	./orion-cmdb-svc-go
 	./orion-community-svc-go
 	./orion-config-mgmt-svc-go
+	./orion-deploy-svc-go
 	./orion-event-bus-svc-go
 	./orion-finops-svc-go
+	./orion-go-common
 	./orion-governance-svc-go
 	./orion-identity-svc-go
-	./orion-infra-ops-svc-go
 	./orion-incident-svc-go
+	./orion-infra-ops-svc-go
 	./orion-inspection-svc-go
 	./orion-knowledge-svc-go
 	./orion-lowcode-svc-go
@@ -31,6 +33,7 @@ use (
 	./orion-tenant-svc-go
 	./orion-ticket-svc-go
 	./orion-tool-svc-go
+	./orion-user-svc
 	./orion-visor-svc-go
 	./orion-workflow-svc-go
 )
