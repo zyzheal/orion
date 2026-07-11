@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_incidents_service ON incidents(service);
 CREATE INDEX IF NOT EXISTS idx_incidents_environment ON incidents(environment);
 
 -- Timeline events
-CREATE TABLE IF NOT EXISTS timeline_events (
+CREATE TABLE IF NOT EXISTS incident_timeline (
     id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     tenant_id VARCHAR(64) NOT NULL,
@@ -62,11 +62,11 @@ CREATE TABLE IF NOT EXISTS timeline_events (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_timeline_events_incident ON timeline_events(incident_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_tenant ON timeline_events(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_incident_timeline_incident ON incident_timeline(incident_id);
+CREATE INDEX IF NOT EXISTS idx_incident_timeline_tenant ON incident_timeline(tenant_id);
 
 -- Postmortems
-CREATE TABLE IF NOT EXISTS postmortems (
+CREATE TABLE IF NOT EXISTS incident_postmortems (
     id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     tenant_id VARCHAR(64) NOT NULL,
@@ -87,11 +87,11 @@ CREATE TABLE IF NOT EXISTS postmortems (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_postmortems_incident ON postmortems(incident_id);
-CREATE INDEX IF NOT EXISTS idx_postmortems_tenant ON postmortems(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_incident_postmortems_incident ON incident_postmortems(incident_id);
+CREATE INDEX IF NOT EXISTS idx_incident_postmortems_tenant ON incident_postmortems(tenant_id);
 
 -- Escalation records
-CREATE TABLE IF NOT EXISTS escalation_records (
+CREATE TABLE IF NOT EXISTS incident_escalations (
     id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
     tenant_id VARCHAR(64) NOT NULL,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS escalation_records (
     escalated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_escalation_records_incident ON escalation_records(incident_id);
+CREATE INDEX IF NOT EXISTS idx_incident_escalations_incident ON incident_escalations(incident_id);
 
 -- SLA configs
 CREATE TABLE IF NOT EXISTS sla_configs (

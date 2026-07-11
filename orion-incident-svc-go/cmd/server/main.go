@@ -21,6 +21,18 @@ import (
 	sh_repo "orion/incident-svc-go/internal/selfhealing/repository"
 	sh_service "orion/incident-svc-go/internal/selfhealing/service"
 
+	change_handler "orion/incident-svc-go/internal/change/handler"
+	changerequest_handler "orion/incident-svc-go/internal/changerequest/handler"
+	changeintelligence_handler "orion/incident-svc-go/internal/changeintelligence/handler"
+	changeintelligence_repo "orion/incident-svc-go/internal/changeintelligence/repository"
+	changeintelligence_service "orion/incident-svc-go/internal/changeintelligence/service"
+	escalation_handler "orion/incident-svc-go/internal/escalation/handler"
+	escalation_repo "orion/incident-svc-go/internal/escalation/repository"
+	escalation_service "orion/incident-svc-go/internal/escalation/service"
+	oncall_handler "orion/incident-svc-go/internal/oncall/handler"
+	oncall_repo "orion/incident-svc-go/internal/oncall/repository"
+	oncall_service "orion/incident-svc-go/internal/oncall/service"
+
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	"orion/go-common/pkg/logger"
@@ -134,6 +146,27 @@ func main() {
 	shSvc := sh_service.NewService(shRepo)
 	shH := sh_handler.NewHandler(shSvc)
 
+	// ===== Change handler =====
+	changeH := change_handler.NewHandler(sqlxDB, zapLogger)
+
+	// ===== changerequest handler =====
+	changerequestH := changerequest_handler.NewHandler(sqlxDB, zapLogger)
+
+	// ===== changeintelligence handler =====
+	changeintelligenceRepo := changeintelligence_repo.NewRepository(sqlxDB)
+	changeintelligenceSvc := changeintelligence_service.NewService(changeintelligenceRepo)
+	changeintelligenceH := changeintelligence_handler.NewHandler(changeintelligenceSvc)
+
+	// ===== escalation handler =====
+	escalationRepo := escalation_repo.NewRepository(sqlxDB)
+	escalationSvc := escalation_service.NewService(escalationRepo)
+	escalationH := escalation_handler.NewHandler(escalationSvc)
+
+	// ===== oncall handler =====
+	oncallRepo := oncall_repo.NewRepository(sqlxDB)
+	oncallSvc := oncall_service.NewService(oncallRepo)
+	oncallH := oncall_handler.NewHandler(oncallSvc)
+
 	// ===== Routes =====
 	incidents := r.Group("/api/v1/incidents")
 	incidents.Use(isvw.Auth(rdb, cfg.JWTSecret))
@@ -173,6 +206,17 @@ func main() {
 
 	// Self-healing routes
 	shH.RegisterRoutes(r.Group("/api/v1"))
+
+	// Change routes
+	changeH.RegisterRoutes(r.Group("/api/v1"))
+	// changerequest routes
+	changerequestH.RegisterRoutes(r.Group("/api/v1"))
+	// changeintelligence routes
+	changeintelligenceH.RegisterRoutes(r.Group("/api/v1"))
+	// escalation routes
+	escalationH.RegisterRoutes(r.Group("/api/v1"))
+	// oncall routes
+	oncallH.RegisterRoutes(r.Group("/api/v1"))
 
 	zapLogger.Info("incident service (go) starting", zap.String("addr", cfg.HTTPAddr))
 

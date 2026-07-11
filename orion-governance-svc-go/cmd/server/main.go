@@ -33,6 +33,21 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 
+	abacpolicy_handler "orion/governance-svc-go/internal/abac-policy/handler"
+	abacpolicy_repo "orion/governance-svc-go/internal/abac-policy/repository"
+	abacpolicy_service "orion/governance-svc-go/internal/abac-policy/service"
+	policy_handler "orion/governance-svc-go/internal/policy/handler"
+	policy_repo "orion/governance-svc-go/internal/policy/repository"
+	policy_service "orion/governance-svc-go/internal/policy/service"
+	permissionaudit_handler "orion/governance-svc-go/internal/permission-audit/handler"
+	permissionaudit_repo "orion/governance-svc-go/internal/permission-audit/repository"
+	permissionaudit_service "orion/governance-svc-go/internal/permission-audit/service"
+	terminalaudit_handler "orion/governance-svc-go/internal/terminal-audit/handler"
+	terminalaudit_repo "orion/governance-svc-go/internal/terminal-audit/repository"
+	terminalaudit_service "orion/governance-svc-go/internal/terminal-audit/service"
+	apigovernance_handler "orion/governance-svc-go/internal/api-governance/handler"
+	apigovernance_repo "orion/governance-svc-go/internal/api-governance/repository"
+	apigovernance_service "orion/governance-svc-go/internal/api-governance/service"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -87,6 +102,33 @@ func main() {
 	riskSvc := risk_service.NewService(riskRepo)
 	riskHandler := risk_handler.NewHandler(riskSvc)
 
+
+
+	// abac-policy services
+	abacpolicyRepo := abacpolicy_repo.NewRepository(db.DB)
+	abacpolicySvc := abacpolicy_service.NewService(abacpolicyRepo)
+	abacpolicyH := abacpolicy_handler.NewHandler(abacpolicySvc)
+
+	// policy services
+	policyRepo := policy_repo.NewRepository(db.DB)
+	policySvc := policy_service.NewService(policyRepo)
+	policyH := policy_handler.NewHandler(policySvc)
+
+	// permission-audit services
+	permissionauditRepo := permissionaudit_repo.NewRepository(db.DB)
+	permissionauditSvc := permissionaudit_service.NewService(permissionauditRepo)
+	permissionauditH := permissionaudit_handler.NewHandler(permissionauditSvc)
+
+	// terminal-audit services
+	terminalauditRepo := terminalaudit_repo.NewRepository(db.DB)
+	terminalauditSvc := terminalaudit_service.NewService(terminalauditRepo)
+	terminalauditH := terminalaudit_handler.NewHandler(terminalauditSvc)
+
+	// api-governance services
+	apigovernanceRepo := apigovernance_repo.NewRepository(db.DB)
+	apigovernanceSvc := apigovernance_service.NewService(apigovernanceRepo)
+	apigovernanceH := apigovernance_handler.NewHandler(apigovernanceSvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -99,6 +141,13 @@ func main() {
 	complianceHandler.RegisterRoutes(rg)
 	governanceHandler.RegisterRoutes(rg)
 	riskHandler.RegisterRoutes(rg)
+
+
+	abacpolicyH.RegisterRoutes(rg)
+	policyH.RegisterRoutes(rg)
+	permissionauditH.RegisterRoutes(rg)
+	terminalauditH.RegisterRoutes(rg)
+	apigovernanceH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-governance-svc"))
 

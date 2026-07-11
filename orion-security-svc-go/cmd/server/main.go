@@ -26,6 +26,21 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	orionredis "orion/go-common/pkg/redis"
+	securitycompliance_handler "orion/security-svc-go/internal/security-compliance/handler"
+	securitycompliance_repo "orion/security-svc-go/internal/security-compliance/repository"
+	securitycompliance_service "orion/security-svc-go/internal/security-compliance/service"
+	ueba_handler "orion/security-svc-go/internal/ueba/handler"
+	ueba_repo "orion/security-svc-go/internal/ueba/repository"
+	ueba_service "orion/security-svc-go/internal/ueba/service"
+	privacy_handler "orion/security-svc-go/internal/privacy/handler"
+	privacy_repo "orion/security-svc-go/internal/privacy/repository"
+	privacy_service "orion/security-svc-go/internal/privacy/service"
+	crossdomain_handler "orion/security-svc-go/internal/cross-domain/handler"
+	crossdomain_repo "orion/security-svc-go/internal/cross-domain/repository"
+	crossdomain_service "orion/security-svc-go/internal/cross-domain/service"
+	branchpolicy_handler "orion/security-svc-go/internal/branch-policy/handler"
+	branchpolicy_repo "orion/security-svc-go/internal/branch-policy/repository"
+	branchpolicy_service "orion/security-svc-go/internal/branch-policy/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -87,6 +102,33 @@ func main() {
 	}
 
 	// ---- Routes ----
+
+
+	// security-compliance services
+	securitycomplianceRepo := securitycompliance_repo.NewRepository(db.DB)
+	securitycomplianceSvc := securitycompliance_service.NewService(securitycomplianceRepo)
+	securitycomplianceH := securitycompliance_handler.NewHandler(securitycomplianceSvc)
+
+	// ueba services
+	uebaRepo := ueba_repo.NewRepository(db.DB)
+	uebaSvc := ueba_service.NewService(uebaRepo)
+	uebaH := ueba_handler.NewHandler(uebaSvc)
+
+	// privacy services
+	privacyRepo := privacy_repo.NewRepository(db.DB)
+	privacySvc := privacy_service.NewService(privacyRepo)
+	privacyH := privacy_handler.NewHandler(privacySvc)
+
+	// cross-domain services
+	crossdomainRepo := crossdomain_repo.NewRepository(db.DB)
+	crossdomainSvc := crossdomain_service.NewService(crossdomainRepo)
+	crossdomainH := crossdomain_handler.NewHandler(crossdomainSvc)
+
+	// branch-policy services
+	branchpolicyRepo := branchpolicy_repo.NewRepository(db.DB)
+	branchpolicySvc := branchpolicy_service.NewService(branchpolicyRepo)
+	branchpolicyH := branchpolicy_handler.NewHandler(branchpolicySvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -101,6 +143,13 @@ func main() {
 
 	// Secret routes (/api/v1/secret...)
 	secretHandler.RegisterRoutes(rg)
+
+
+	securitycomplianceH.RegisterRoutes(rg)
+	uebaH.RegisterRoutes(rg)
+	privacyH.RegisterRoutes(rg)
+	crossdomainH.RegisterRoutes(rg)
+	branchpolicyH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-security-svc"))
 

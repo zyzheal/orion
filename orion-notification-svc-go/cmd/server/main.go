@@ -21,6 +21,21 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 
+	notificationmanagement_handler "orion/notification-svc-go/internal/notification-management/handler"
+	notificationmanagement_repo "orion/notification-svc-go/internal/notification-management/repository"
+	notificationmanagement_service "orion/notification-svc-go/internal/notification-management/service"
+	notificationpolicy_handler "orion/notification-svc-go/internal/notification-policy/handler"
+	notificationpolicy_repo "orion/notification-svc-go/internal/notification-policy/repository"
+	notificationpolicy_service "orion/notification-svc-go/internal/notification-policy/service"
+	notificationtemplate_handler "orion/notification-svc-go/internal/notification-template/handler"
+	notificationtemplate_repo "orion/notification-svc-go/internal/notification-template/repository"
+	notificationtemplate_service "orion/notification-svc-go/internal/notification-template/service"
+	schedulednotification_handler "orion/notification-svc-go/internal/scheduled-notification/handler"
+	schedulednotification_repo "orion/notification-svc-go/internal/scheduled-notification/repository"
+	schedulednotification_service "orion/notification-svc-go/internal/scheduled-notification/service"
+	donotdisturb_handler "orion/notification-svc-go/internal/do-not-disturb/handler"
+	donotdisturb_repo "orion/notification-svc-go/internal/do-not-disturb/repository"
+	donotdisturb_service "orion/notification-svc-go/internal/do-not-disturb/service"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -112,6 +127,34 @@ func main() {
 		}
 	}
 
+
+
+	// notification-management services
+	notificationmanagementRepo := notificationmanagement_repo.NewRepository(db.DB)
+	notificationmanagementSvc := notificationmanagement_service.NewService(notificationmanagementRepo)
+	notificationmanagementH := notificationmanagement_handler.NewHandler(notificationmanagementSvc)
+
+	// notification-policy services
+	notificationpolicyRepo := notificationpolicy_repo.NewRepository(db.DB)
+	notificationpolicySvc := notificationpolicy_service.NewService(notificationpolicyRepo)
+	notificationpolicyH := notificationpolicy_handler.NewHandler(notificationpolicySvc)
+
+	// notification-template services
+	notificationtemplateRepo := notificationtemplate_repo.NewRepository(db.DB)
+	notificationtemplateSvc := notificationtemplate_service.NewService(notificationtemplateRepo)
+	notificationtemplateH := notificationtemplate_handler.NewHandler(notificationtemplateSvc)
+
+
+	// scheduled-notification services
+	schedulednotificationRepo := schedulednotification_repo.NewRepository(db.DB)
+	schedulednotificationSvc := schedulednotification_service.NewService(schedulednotificationRepo)
+	schedulednotificationH := schedulednotification_handler.NewHandler(schedulednotificationSvc)
+
+	// do-not-disturb services
+	donotdisturbRepo := donotdisturb_repo.NewRepository(db.DB)
+	donotdisturbSvc := donotdisturb_service.NewService(donotdisturbRepo)
+	donotdisturbH := donotdisturb_handler.NewHandler(donotdisturbSvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -140,6 +183,13 @@ func main() {
 	chatopsMessageH.RegisterRoutes(rg)
 	chatopsConfigH.RegisterRoutes(rg)
 	chatopsAdminH.RegisterRoutes(rg)
+
+
+	notificationmanagementH.RegisterRoutes(rg)
+	notificationpolicyH.RegisterRoutes(rg)
+	notificationtemplateH.RegisterRoutes(rg)
+	schedulednotificationH.RegisterRoutes(rg)
+	donotdisturbH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-notification-svc"))
 
