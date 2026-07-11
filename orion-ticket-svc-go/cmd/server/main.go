@@ -200,6 +200,44 @@ func runMigrations(db *database.DB) error {
 			"order" INT DEFAULT 0,
 			created_at TIMESTAMP DEFAULT NOW()
 		)`,
+		`CREATE TABLE IF NOT EXISTS sla_policies (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			tenant_id UUID NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			priority VARCHAR(50),
+			target_response_time_ms BIGINT DEFAULT 0,
+			target_resolution_time_ms BIGINT DEFAULT 0,
+			enabled BOOLEAN DEFAULT true,
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS automation_rules (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			tenant_id UUID NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			description TEXT,
+			condition TEXT NOT NULL,
+			actions TEXT NOT NULL,
+			enabled BOOLEAN DEFAULT true,
+			execution_count INT DEFAULT 0,
+			created_by VARCHAR(255),
+			created_at TIMESTAMP DEFAULT NOW(),
+			updated_at TIMESTAMP DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS automation_rule_executions (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			rule_id UUID REFERENCES automation_rules(id),
+			ticket_id UUID REFERENCES tickets(id),
+			tenant_id UUID NOT NULL,
+			triggered_by VARCHAR(50),
+			conditions_met BOOLEAN DEFAULT false,
+			actions_taken TEXT,
+			status VARCHAR(50) DEFAULT 'running',
+			error_message TEXT,
+			created_at TIMESTAMP DEFAULT NOW(),
+			completed_at TIMESTAMP
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_tickets_tenant ON tickets(tenant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_tickets_assigned ON tickets(assigned_to)`,
@@ -324,6 +362,13 @@ func main() {
 	loadBalancer := service.NewLoadBalancer(dispatchRepo)
 	analyticsEnhanced := service.NewAnalyticsEnhanced(analyticsRepo, dispatchRepo, slaRepo, ticketRepo)
 
+	// New services for remaining endpoints
+	slaPolicyRepo := repository.NewSLAPolicyRepository(db)
+	automationRuleRepo := repository.NewAutomationRuleRepository(db)
+	slaPolicySvc := service.NewSLAPolicyService(slaPolicyRepo)
+	automationRuleSvc := service.NewAutomationRuleService(automationRuleRepo, ticketRepo)
+	ticketGenSvc := service.NewTicketGeneratorService(ticketRepo)
+
 	ticketHandler := handler.NewTicketHandler(ticketSvc)
 	workflowHandler := handler.NewWorkflowHandler(ticketSvc)
 	dispatchHandler := handler.NewDispatchHandler(dispatchSvc)
@@ -335,6 +380,12 @@ func main() {
 	queueHandler := handler.NewQueueHandler(queueMgr)
 	loadBalancerHandler := handler.NewLoadBalancerHandler(loadBalancer)
 	analyticsEnhancedHandler := handler.NewAnalyticsEnhancedHandler(analyticsEnhanced)
+
+	// New handlers for remaining endpoints
+	slaPolicyHandler := handler.NewSLAPolicyHandler(slaPolicySvc)
+	automationRuleHandler := handler.NewAutomationRuleHandler(automationRuleSvc)
+	ticketSourceHandler := handler.NewTicketSourceHandler(ticketGenSvc)
+	serviceControlHandler := handler.NewServiceControlHandler(ticketSvc)
 
 	v1 := rg
 	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWT.Secret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
@@ -419,7 +470,28 @@ func main() {
 		v1.GET("/tickets/bi/engineer/:engineerId/categories", analyticsEnhancedHandler.GetCategoryBreakdown)
 		v1.GET("/tickets/bi/dashboard/manager-enhanced", analyticsEnhancedHandler.GetManagerDashboardEnhanced)
 		v1.GET("/tickets/bi/dashboard/engineer-enhanced/:engineerId", analyticsEnhancedHandler.GetEngineerDashboardEnhanced)
+
+		// Service control
+		v1.POST("/ticketing/start", serviceControlHandler.StartTicketingService)
+		v1.POST("/ticketing/stop", serviceControlHandler.StopTicketingService)
+		v1.GET("/ticketing/health", serviceControlHandler.TicketingHealthCheck)
+
+		// Assignment rules (reuse existing dispatch rules)
+		v1.POST("/ticketing/rules", auth.RequirePermission("ticket", "write"), dispatchHandler.AddDispatchRule)
+		v1.GET("/ticketing/rules", dispatchHandler.GetDispatchRules)
+		v1.DELETE("/ticketing/rules/:id", auth.RequirePermission("ticket", "delete"), dispatchHandler.RemoveDispatchRule)
+
+		// Ticket source
+		v1.POST("/tickets/from-alert", auth.RequirePermission("ticket", "write"), ticketSourceHandler.FromAlert)
+		v1.POST("/tickets/from-incident", auth.RequirePermission("ticket", "write"), ticketSourceHandler.FromIncident)
+
+		// BI efficiency (reuse GetEfficiencyScore which covers efficiency metrics)
+		v1.GET("/tickets/bi/efficiency/:engineerId", analyticsHandler.GetEfficiencyScore)
 	}
+
+	// SLA policies and automation rules (using RegisterRoutes)
+	slaPolicyHandler.RegisterRoutes(rg)
+	automationRuleHandler.RegisterRoutes(rg)
 
 
 	ticketingH.RegisterRoutes(rg)
