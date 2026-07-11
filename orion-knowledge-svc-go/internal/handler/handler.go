@@ -119,9 +119,10 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 
 // GetSpace handles GET /api/v1/knowledge/spaces/:id
 func (h *Handler) GetSpace(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	space, err := h.knowledge.GetSpace(c.Request.Context(), id)
+	space, err := h.knowledge.GetSpace(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrSpaceNotFound {
 			h.err(c, http.StatusNotFound, "space not found")
@@ -137,6 +138,7 @@ func (h *Handler) GetSpace(c *gin.Context) {
 
 // UpdateSpace handles PUT /api/v1/knowledge/spaces/:id
 func (h *Handler) UpdateSpace(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
 	var body map[string]interface{}
@@ -145,7 +147,7 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 		return
 	}
 
-	space, err := h.knowledge.UpdateSpace(c.Request.Context(), id, body)
+	space, err := h.knowledge.UpdateSpace(c.Request.Context(), tenantID, id, body)
 	if err != nil {
 		if err == service.ErrSpaceNotFound {
 			h.err(c, http.StatusNotFound, "space not found")
@@ -161,9 +163,10 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 
 // DeleteSpace handles DELETE /api/v1/knowledge/spaces/:id
 func (h *Handler) DeleteSpace(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.knowledge.DeleteSpace(c.Request.Context(), id); err != nil {
+	if err := h.knowledge.DeleteSpace(c.Request.Context(), tenantID, id); err != nil {
 		if err == service.ErrSpaceNotFound {
 			h.err(c, http.StatusNotFound, "space not found")
 			return
@@ -327,9 +330,10 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 
 // GetDoc handles GET /api/v1/knowledge/docs/:id
 func (h *Handler) GetDoc(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	doc, err := h.knowledge.GetDoc(c.Request.Context(), id)
+	doc, err := h.knowledge.GetDoc(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrDocNotFound {
 			h.err(c, http.StatusNotFound, "doc not found")
@@ -345,6 +349,7 @@ func (h *Handler) GetDoc(c *gin.Context) {
 
 // UpdateDoc handles PUT /api/v1/knowledge/docs/:id
 func (h *Handler) UpdateDoc(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
 	var body map[string]interface{}
@@ -353,7 +358,7 @@ func (h *Handler) UpdateDoc(c *gin.Context) {
 		return
 	}
 
-	doc, err := h.knowledge.UpdateDoc(c.Request.Context(), id, body)
+	doc, err := h.knowledge.UpdateDoc(c.Request.Context(), tenantID, id, body)
 	if err != nil {
 		if err == service.ErrDocNotFound {
 			h.err(c, http.StatusNotFound, "doc not found")
@@ -369,9 +374,10 @@ func (h *Handler) UpdateDoc(c *gin.Context) {
 
 // DeleteDoc handles DELETE /api/v1/knowledge/docs/:id
 func (h *Handler) DeleteDoc(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.knowledge.DeleteDoc(c.Request.Context(), id); err != nil {
+	if err := h.knowledge.DeleteDoc(c.Request.Context(), tenantID, id); err != nil {
 		if err == service.ErrDocNotFound {
 			h.err(c, http.StatusNotFound, "doc not found")
 			return
@@ -386,9 +392,10 @@ func (h *Handler) DeleteDoc(c *gin.Context) {
 
 // GetDocVersions handles GET /api/v1/knowledge/docs/:id/versions
 func (h *Handler) GetDocVersions(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	versions, err := h.knowledge.GetDocVersions(c.Request.Context(), id)
+	versions, err := h.knowledge.GetDocVersions(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrDocNotFound {
 			h.err(c, http.StatusNotFound, "doc not found")

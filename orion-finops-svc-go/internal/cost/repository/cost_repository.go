@@ -396,6 +396,56 @@ func (r *CostRepository) CountCostRecords(ctx context.Context, tenantID string) 
 	return count, err
 }
 
+// GetMonthlyCost returns the total cost for a given month.
+func (r *CostRepository) GetMonthlyCost(ctx context.Context, tenantID, mode string) (float64, error) {
+	var total float64
+	if mode == "previous" {
+		err := r.db.QueryRowContext(ctx,
+			`SELECT COALESCE(SUM(cost),0) FROM cost_records WHERE tenant_id=$1 AND date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month' AND date < DATE_TRUNC('month', CURRENT_DATE)`, tenantID).Scan(&total)
+		return total, err
+	}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(cost),0) FROM cost_records WHERE tenant_id=$1 AND date >= DATE_TRUNC('month', CURRENT_DATE)`, tenantID).Scan(&total)
+	return total, err
+}
+
+// GetCostByServiceName returns the total cost for a specific service.
+func (r *CostRepository) GetCostByServiceName(ctx context.Context, tenantID, serviceName, period string) (float64, error) {
+	var total float64
+	var err error
+	switch period {
+	case "monthly":
+		err = r.db.QueryRowContext(ctx,
+			`SELECT COALESCE(SUM(cost),0) FROM cost_records WHERE tenant_id=$1 AND service=$2 AND date >= DATE_TRUNC('month', CURRENT_DATE)`, tenantID, serviceName).Scan(&total)
+	case "previous":
+		err = r.db.QueryRowContext(ctx,
+			`SELECT COALESCE(SUM(cost),0) FROM cost_records WHERE tenant_id=$1 AND service=$2 AND date >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month' AND date < DATE_TRUNC('month', CURRENT_DATE)`, tenantID, serviceName).Scan(&total)
+	default:
+		err = r.db.QueryRowContext(ctx,
+			`SELECT COALESCE(SUM(cost),0) FROM cost_records WHERE tenant_id=$1 AND service=$2`, tenantID, serviceName).Scan(&total)
+	}
+	return total, err
+}
+
+// GetServiceCostTrend returns daily aggregated costs for a specific service.
+func (r *CostRepository) GetServiceCostTrend(ctx context.Context, tenantID, serviceName, category string) ([]models.CostTrendPoint, error) {
+	query := `SELECT DATE(date) as date, COALESCE(SUM(cost),0) as cost
+		FROM cost_records WHERE tenant_id=$1 AND service=$2`
+	args := []interface{}{tenantID, serviceName}
+	argIdx := 3
+
+	if category != "" {
+		args = append(args, category)
+		query += fmt.Sprintf(` AND category=$%d`, argIdx)
+		argIdx++
+	}
+	query += ` GROUP BY DATE(date) ORDER BY DATE(date)`
+
+	var points []models.CostTrendPoint
+	err := r.db.SelectContext(ctx, &points, query, args...)
+	return points, err
+}
+
 // ==================== Query Filters ====================
 
 // ListFilter holds optional query filters.

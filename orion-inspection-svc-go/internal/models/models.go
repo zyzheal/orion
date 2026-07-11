@@ -89,3 +89,19 @@ type CreateTaskRequest struct {
 type PaginatedRequest struct { Page int `form:"page"`; PageSize int `form:"page_size"` }
 func (p *PaginatedRequest) Offset() int { if p.Page <= 0 { p.Page = 1 }; if p.PageSize <= 0 { p.PageSize = 20 }; return (p.Page - 1) * p.PageSize }
 func (p *PaginatedRequest) Limit() int { if p.PageSize <= 0 { p.PageSize = 20 }; if p.PageSize > 100 { p.PageSize = 100 }; return p.PageSize }
+
+// HealthScore represents the aggregated health score for a tenant.
+type HealthScore struct {
+	Total  int                `json:"total"`
+	Passed int                `json:"passed"`
+	Failed int                `json:"failed"`
+	Score  float64            `json:"score"`
+	Issues []InspectionIssue  `json:"issues"`
+}
+
+// InspectionIssue represents a single issue contributing to the health score.
+type InspectionIssue struct {
+	RuleID string `json:"rule_id"`
+	Title  string `json:"title"`
+	Sev    string `json:"severity"`
+}

@@ -363,3 +363,56 @@ type GetOptimizationsQueryParams struct {
 	Status     OptimizationStatus   `form:"status"`
 	MinSavings float64              `form:"min_savings"`
 }
+
+// ==================== Cost Operations DTOs ====================
+
+// EvaluateCostRequest is the input for cost evaluation against budget.
+type EvaluateCostRequest struct {
+	Service    string  `json:"service"`
+	ResourceID string  `json:"resource_id"`
+	Amount     float64 `json:"amount"`
+}
+
+// EvaluateCostResult is the output of cost evaluation.
+type EvaluateCostResult struct {
+	BudgetCents       int     `json:"budget_cents"`
+	UsedCents         int     `json:"used_cents"`
+	RemainingCents    int     `json:"remaining_cents"`
+	UsagePercent      float64 `json:"usage_percent"`
+	IsWithinBudget    bool    `json:"is_within_budget"`
+	ExceedsThreshold  bool    `json:"exceeds_threshold"`
+	ThresholdPercent  float64 `json:"threshold_percent"`
+	EstimatedSavings  float64 `json:"estimated_savings"`
+	OptimizationTiers []int   `json:"optimization_tiers"`
+}
+
+// CostOverview represents the high-level cost overview.
+type CostOverview struct {
+	TotalCost            float64 `json:"total_cost"`
+	CurrentMonthCost     float64 `json:"current_month_cost"`
+	PreviousMonthCost    float64 `json:"previous_month_cost"`
+	MonthOverMonthChange float64 `json:"month_over_month_change"`
+	ProjectedMonthlyCost float64 `json:"projected_monthly_cost"`
+	BudgetRemaining      float64 `json:"budget_remaining"`
+	BudgetTotal          float64 `json:"budget_total"`
+	BudgetUsagePercent   float64 `json:"budget_usage_percent"`
+}
+
+// CompareCostsRequest is the input for comparing costs between services.
+type CompareCostsRequest struct {
+	ServiceA string `json:"service_a" binding:"required"`
+	ServiceB string `json:"service_b" binding:"required"`
+	Period   string `json:"period" binding:"required"`
+}
+
+// ServiceCostComparison represents the output of a service cost comparison.
+type ServiceCostComparison struct {
+	ServiceA string  `json:"service_a"`
+	ServiceB string  `json:"service_b"`
+	Period   string  `json:"period"`
+	CostA    float64 `json:"cost_a"`
+	CostB    float64 `json:"cost_b"`
+	Diff     float64 `json:"diff"`
+	PctDiff  float64 `json:"pct_diff"`
+	Higher   string  `json:"higher"`
+}

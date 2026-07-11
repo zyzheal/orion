@@ -98,12 +98,13 @@ func main() {
 
 	// ── COST ──
 	costRepository := cost_repo.NewCostRepository(db.DB)
-	costSvc := cost_svc.NewCostService(costRepository, logger)
 	costCalculator := cost_svc.NewCostCalculator(logger)
 	costBudgetSvc := cost_svc.NewBudgetService(costRepository, logger)
 	costOptSvc := cost_svc.NewOptimizationService(costRepository, logger)
 	costAnomalySvc := cost_svc.NewAnomalyService(costRepository)
+	costSvc := cost_svc.NewCostService(costRepository, costOptSvc, logger)
 	costHandler := cost_handler.New(costSvc, costCalculator, costBudgetSvc, costOptSvc, costAnomalySvc, logger)
+	costOperationsHandler := cost_handler.NewCostOperationsHandler(costSvc, costAnomalySvc, costOptSvc, costBudgetSvc, logger)
 
 	// ── EFFICIENCY ──
 	effRepo := eff_repo.NewRepository(db.DB)
@@ -156,6 +157,7 @@ func main() {
 	finopsBudgetHandler.RegisterRoutes(rg)
 	finopsCostTrendHandler.RegisterRoutes(rg)
 	costHandler.RegisterRoutes(rg)
+	costOperationsHandler.RegisterRoutes(rg)
 	effHandler.RegisterRoutes(rg)
 	rdHandler.RegisterRoutes(rg)
 

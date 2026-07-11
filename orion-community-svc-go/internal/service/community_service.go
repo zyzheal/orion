@@ -125,7 +125,7 @@ func (s *Service) GetBestPractice(ctx context.Context, tenantID, id string) (*mo
 		return nil, err
 	}
 	// Increment views (fire-and-forget, ignore error)
-	_ = s.repo.IncrementBestPracticeViews(ctx, id)
+	_ = s.repo.IncrementBestPracticeViews(ctx, tenantID, id)
 	bp.Views++
 	return bp, nil
 }
@@ -140,7 +140,7 @@ func (s *Service) VoteBestPractice(ctx context.Context, tenantID, id, direction 
 	if direction == "down" {
 		delta = -1
 	}
-	return s.repo.VoteBestPractice(ctx, id, delta)
+	return s.repo.VoteBestPractice(ctx, tenantID, id, delta)
 }
 
 func (s *Service) DeleteBestPractice(ctx context.Context, tenantID, id string) error {
@@ -207,7 +207,7 @@ func (s *Service) ReviewPlugin(ctx context.Context, tenantID, pluginID string, r
 	if req.Action != "approve" && req.Action != "reject" {
 		return nil, ErrInvalidAction
 	}
-	return s.repo.ReviewPlugin(ctx, pluginID, req.Action, req.Comment)
+	return s.repo.ReviewPlugin(ctx, tenantID, pluginID, req.Action, req.Comment)
 }
 
 // ============================================================

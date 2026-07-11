@@ -234,22 +234,22 @@ func (r *Repository) GetBestPracticeByID(ctx context.Context, tenantID, id strin
 	return &bp, nil
 }
 
-func (r *Repository) IncrementBestPracticeViews(ctx context.Context, id string) error {
+func (r *Repository) IncrementBestPracticeViews(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE best_practices SET views = views + 1, updated_at = NOW() WHERE id = $1`, id)
+		`UPDATE best_practices SET views = views + 1, updated_at = NOW() WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
 
-func (r *Repository) VoteBestPractice(ctx context.Context, id string, delta int) (*models.BestPractice, error) {
+func (r *Repository) VoteBestPractice(ctx context.Context, tenantID, id string, delta int) (*models.BestPractice, error) {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE best_practices SET votes = votes + $1, updated_at = NOW() WHERE id = $2`, delta, id)
+		`UPDATE best_practices SET votes = votes + $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`, delta, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	var bp models.BestPractice
 	err = r.db.GetContext(ctx, &bp,
 		`SELECT id, tenant_id, title, description, category, tags, content, author_id, author_name, status, votes, views, created_at, updated_at
-		 FROM best_practices WHERE id = $1`, id)
+		 FROM best_practices WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -398,17 +398,17 @@ func (r *Repository) GetPluginByID(ctx context.Context, tenantID, id string) (*m
 	return &p, nil
 }
 
-func (r *Repository) ReviewPlugin(ctx context.Context, id, status, comment string) (*models.CommunityPlugin, error) {
+func (r *Repository) ReviewPlugin(ctx context.Context, tenantID, id, status, comment string) (*models.CommunityPlugin, error) {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE community_plugins SET status = $1, review_comment = $2, reviewed_at = NOW() WHERE id = $3`,
-		status, comment, id)
+		`UPDATE community_plugins SET status = $1, review_comment = $2, reviewed_at = NOW() WHERE id = $3 AND tenant_id = $4`,
+		status, comment, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	var p models.CommunityPlugin
 	err = r.db.GetContext(ctx, &p,
 		`SELECT id, tenant_id, name, version, description, author, category, repository, compatibility, status, review_comment, submitted_at, reviewed_at
-		 FROM community_plugins WHERE id = $1`, id)
+		 FROM community_plugins WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}

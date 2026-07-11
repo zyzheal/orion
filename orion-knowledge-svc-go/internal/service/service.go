@@ -65,8 +65,8 @@ func (s *KnowledgeService) CreateSpace(ctx context.Context, tenantID string, req
 	return space, nil
 }
 
-func (s *KnowledgeService) GetSpace(ctx context.Context, id string) (*models.KnowledgeSpace, error) {
-	space, err := s.repo.FindSpaceByID(ctx, id)
+func (s *KnowledgeService) GetSpace(ctx context.Context, tenantID, id string) (*models.KnowledgeSpace, error) {
+	space, err := s.repo.FindSpaceByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get space: %w", err)
 	}
@@ -83,8 +83,8 @@ func (s *KnowledgeService) ListSpaces(ctx context.Context, tenantID string, filt
 	return s.repo.ListSpaces(ctx, tenantID, filters)
 }
 
-func (s *KnowledgeService) UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) (*models.KnowledgeSpace, error) {
-	space, err := s.repo.FindSpaceByID(ctx, id)
+func (s *KnowledgeService) UpdateSpace(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.KnowledgeSpace, error) {
+	space, err := s.repo.FindSpaceByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get space: %w", err)
 	}
@@ -92,26 +92,26 @@ func (s *KnowledgeService) UpdateSpace(ctx context.Context, id string, updates m
 		return nil, ErrSpaceNotFound
 	}
 
-	if err := s.repo.UpdateSpace(ctx, id, updates); err != nil {
+	if err := s.repo.UpdateSpace(ctx, tenantID, id, updates); err != nil {
 		return nil, fmt.Errorf("failed to update space: %w", err)
 	}
 
-	updated, err := s.repo.FindSpaceByID(ctx, id)
+	updated, err := s.repo.FindSpaceByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated space: %w", err)
 	}
 	return updated, nil
 }
 
-func (s *KnowledgeService) DeleteSpace(ctx context.Context, id string) error {
-	space, err := s.repo.FindSpaceByID(ctx, id)
+func (s *KnowledgeService) DeleteSpace(ctx context.Context, tenantID, id string) error {
+	space, err := s.repo.FindSpaceByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return fmt.Errorf("failed to get space: %w", err)
 	}
 	if space == nil {
 		return ErrSpaceNotFound
 	}
-	if err := s.repo.DeleteSpace(ctx, id); err != nil {
+	if err := s.repo.DeleteSpace(ctx, tenantID, id); err != nil {
 		return fmt.Errorf("failed to delete space: %w", err)
 	}
 	return nil
@@ -177,8 +177,8 @@ func (s *KnowledgeService) CreateDoc(ctx context.Context, tenantID string, req m
 	return doc, nil
 }
 
-func (s *KnowledgeService) GetDoc(ctx context.Context, id string) (*models.KnowledgeDoc, error) {
-	doc, err := s.repo.FindDocByID(ctx, id)
+func (s *KnowledgeService) GetDoc(ctx context.Context, tenantID, id string) (*models.KnowledgeDoc, error) {
+	doc, err := s.repo.FindDocByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get doc: %w", err)
 	}
@@ -202,8 +202,8 @@ func (s *KnowledgeService) ListDocsByType(ctx context.Context, tenantID string, 
 	return s.ListDocs(ctx, tenantID, filters)
 }
 
-func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) (*models.KnowledgeDoc, error) {
-	doc, err := s.repo.FindDocByID(ctx, id)
+func (s *KnowledgeService) UpdateDoc(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.KnowledgeDoc, error) {
+	doc, err := s.repo.FindDocByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get doc: %w", err)
 	}
@@ -244,33 +244,33 @@ func (s *KnowledgeService) UpdateDoc(ctx context.Context, id string, updates map
 		}
 	}
 
-	if err := s.repo.UpdateDoc(ctx, id, updates); err != nil {
+	if err := s.repo.UpdateDoc(ctx, tenantID, id, updates); err != nil {
 		return nil, fmt.Errorf("failed to update doc: %w", err)
 	}
 
-	updated, err := s.repo.FindDocByID(ctx, id)
+	updated, err := s.repo.FindDocByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get updated doc: %w", err)
 	}
 	return updated, nil
 }
 
-func (s *KnowledgeService) DeleteDoc(ctx context.Context, id string) error {
-	doc, err := s.repo.FindDocByID(ctx, id)
+func (s *KnowledgeService) DeleteDoc(ctx context.Context, tenantID, id string) error {
+	doc, err := s.repo.FindDocByTenantID(ctx, tenantID, id)
 	if err != nil {
 		return fmt.Errorf("failed to get doc: %w", err)
 	}
 	if doc == nil {
 		return ErrDocNotFound
 	}
-	if err := s.repo.DeleteDoc(ctx, id); err != nil {
+	if err := s.repo.DeleteDoc(ctx, tenantID, id); err != nil {
 		return fmt.Errorf("failed to delete doc: %w", err)
 	}
 	return nil
 }
 
-func (s *KnowledgeService) GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error) {
-	doc, err := s.repo.FindDocByID(ctx, docID)
+func (s *KnowledgeService) GetDocVersions(ctx context.Context, tenantID, docID string) ([]models.DocVersion, error) {
+	doc, err := s.repo.FindDocByTenantID(ctx, tenantID, docID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get doc: %w", err)
 	}

@@ -21,9 +21,10 @@ func NewWorkflowHandler(svc *service.Service) *WorkflowHandler {
 }
 
 // RegisterRoutes registers all workflow-related routes.
+// Prefix /api/v1/lowcode (rg is /api/v1) to match Node.js lowcode-routes.ts.
 func (h *WorkflowHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Flows (alias for workflow definitions)
-	r := rg.Group("/flows")
+	r := rg.Group("/lowcode/flows")
 	r.GET("", h.ListWorkflows)
 	r.GET("/:id", h.GetWorkflow)
 	r.POST("", auth.RequirePermission("lowcode", "write"), h.CreateWorkflow)
@@ -33,14 +34,14 @@ func (h *WorkflowHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/:id/execute", auth.RequirePermission("lowcode", "execute"), h.ExecuteWorkflow)
 
 	// Workflows (versions, import, export)
-	wf := rg.Group("/workflows")
+	wf := rg.Group("/lowcode/workflows")
 	wf.POST("/:id/versions", auth.RequirePermission("lowcode", "write"), h.CreateVersion)
 	wf.GET("/:id/versions", h.ListVersions)
 	wf.POST("/import", auth.RequirePermission("lowcode", "write"), h.ImportWorkflow)
 	wf.POST("/:id/export", h.ExportWorkflow)
 
 	// Templates
-	tpl := rg.Group("/templates")
+	tpl := rg.Group("/lowcode/templates")
 	tpl.GET("", h.ListTemplates)
 	tpl.POST("", auth.RequirePermission("lowcode", "write"), h.CreateTemplate)
 	tpl.POST("/:id/apply", auth.RequirePermission("lowcode", "write"), h.ApplyTemplate)

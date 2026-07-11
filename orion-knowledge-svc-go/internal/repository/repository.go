@@ -98,7 +98,7 @@ func (r *KnowledgeRepository) ListSpaces(ctx context.Context, tenantID string, f
 	return spaces, nil
 }
 
-func (r *KnowledgeRepository) UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *KnowledgeRepository) UpdateSpace(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
 	setParts, args, argIdx := buildSet(updates, []string{"name", "type", "source", "team_id", "description"})
 	if len(setParts) == 0 {
 		return nil
@@ -108,8 +108,9 @@ func (r *KnowledgeRepository) UpdateSpace(ctx context.Context, id string, update
 	args = append(args, "now()")
 	argIdx++
 	args = append(args, id)
+	args = append(args, tenantID)
 
-	query := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d", joinSet(setParts), argIdx)
+	query := fmt.Sprintf("UPDATE kb_spaces SET %s WHERE id = $%d AND tenant_id = $%d", joinSet(setParts), argIdx, argIdx+1)
 	_, err := r.DB().ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to update space: %w", err)
@@ -117,8 +118,8 @@ func (r *KnowledgeRepository) UpdateSpace(ctx context.Context, id string, update
 	return nil
 }
 
-func (r *KnowledgeRepository) DeleteSpace(ctx context.Context, id string) error {
-	_, err := r.DB().ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1", id)
+func (r *KnowledgeRepository) DeleteSpace(ctx context.Context, tenantID, id string) error {
+	_, err := r.DB().ExecContext(ctx, "DELETE FROM kb_spaces WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to delete space: %w", err)
 	}
@@ -189,6 +190,20 @@ func (r *KnowledgeRepository) FindDocByID(ctx context.Context, id string) (*mode
 	return &doc, nil
 }
 
+// FindDocByTenantID finds a document by ID with tenant isolation.
+func (r *KnowledgeRepository) FindDocByTenantID(ctx context.Context, tenantID, id string) (*models.KnowledgeDoc, error) {
+	var doc models.KnowledgeDoc
+	err := r.DB().GetContext(ctx, &doc,
+		"SELECT id, tenant_id, space_id, title, content, type, source, tags, status, version, author_id, embedding, created_at, updated_at FROM kb_docs WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find doc: %w", err)
+	}
+	return &doc, nil
+}
+
 func (r *KnowledgeRepository) ListDocs(ctx context.Context, tenantID string, filters models.DocListFilters) ([]models.KnowledgeDoc, error) {
 	selectCols := `SELECT id, tenant_id, space_id, title, content, type, source, tags, status, version, author_id, embedding, created_at, updated_at FROM kb_docs WHERE tenant_id = $1`
 	args := []interface{}{tenantID}
@@ -239,7 +254,7 @@ func (r *KnowledgeRepository) ListDocs(ctx context.Context, tenantID string, fil
 	return docs, nil
 }
 
-func (r *KnowledgeRepository) UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) error {
+func (r *KnowledgeRepository) UpdateDoc(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
 	setParts, args, argIdx := buildSet(updates, []string{"title", "content", "tags", "status", "source"})
 	if len(setParts) == 0 {
 		return nil
@@ -249,8 +264,9 @@ func (r *KnowledgeRepository) UpdateDoc(ctx context.Context, id string, updates 
 	args = append(args, "now()")
 	argIdx++
 	args = append(args, id)
+	args = append(args, tenantID)
 
-	query := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d", joinSet(setParts), argIdx)
+	query := fmt.Sprintf("UPDATE kb_docs SET %s WHERE id = $%d AND tenant_id = $%d", joinSet(setParts), argIdx, argIdx+1)
 	_, err := r.DB().ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to update doc: %w", err)
@@ -260,16 +276,16 @@ func (r *KnowledgeRepository) UpdateDoc(ctx context.Context, id string, updates 
 
 // DeleteDoc deletes a document and decrements the space's doc_count — in a single
 // transaction, mirroring TS KnowledgeRepository.deleteDoc().
-func (r *KnowledgeRepository) DeleteDoc(ctx context.Context, id string) error {
+func (r *KnowledgeRepository) DeleteDoc(ctx context.Context, tenantID, id string) error {
 	tx, err := r.DB().BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Get space_id
+	// Get space_id with tenant isolation
 	var spaceID string
-	err = tx.GetContext(ctx, &spaceID, "SELECT space_id FROM kb_docs WHERE id = $1", id)
+	err = tx.GetContext(ctx, &spaceID, "SELECT space_id FROM kb_docs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil // already gone
@@ -277,15 +293,15 @@ func (r *KnowledgeRepository) DeleteDoc(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to get doc space: %w", err)
 	}
 
-	// Delete doc (FK cascade removes versions)
-	_, err = tx.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1", id)
+	// Delete doc with tenant isolation (FK cascade removes versions)
+	_, err = tx.ExecContext(ctx, "DELETE FROM kb_docs WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to delete doc: %w", err)
 	}
 
-	// Decrement doc_count
+	// Decrement doc_count with tenant isolation
 	_, err = tx.ExecContext(ctx,
-		"UPDATE kb_spaces SET doc_count = GREATEST(doc_count - 1, 0), updated_at = now() WHERE id = $1", spaceID)
+		"UPDATE kb_spaces SET doc_count = GREATEST(doc_count - 1, 0), updated_at = now() WHERE id = $1 AND tenant_id = $2", spaceID, tenantID)
 	if err != nil {
 		return fmt.Errorf("failed to update space doc_count: %w", err)
 	}
