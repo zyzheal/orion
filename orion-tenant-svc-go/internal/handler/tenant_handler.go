@@ -409,7 +409,7 @@ func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
 		return
 	}
 
-	db := h.repo.DB().DB
+	db := h.repo.DB().DB.DB
 	if err := h.repo.SetTenantSessionVariable(c.Request.Context(), db, req.TenantID); err != nil {
 		h.log.Error("set session variable failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
