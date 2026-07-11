@@ -86,10 +86,10 @@ func main() {
 	})
 	defer rdb.Close()
 
-	// Wire up layers
-	repo := repository.NewRepository(db.DB)
-	svc := service.NewService(repo)
-	_ = handler.NewHandler(svc) // unused
+	// Wire up core artifact layers
+	artifactRepo := repository.NewRepository(db.DB)
+	artifactSvc := service.NewService(artifactRepo)
+	artifactH := handler.NewHandler(artifactSvc)
 
 	// Setup Gin router
 	r := gin.New()
@@ -138,6 +138,7 @@ func main() {
 	apkuploadhistoryH := apkuploadhistory_handler.NewHandler(apkuploadhistorySvc)
 
 
+	artifactH.RegisterRoutes(rg)
 	artifactlifecycleH.RegisterRoutes(rg)
 	artifactopsH.RegisterRoutes(rg)
 	artifactversionH.RegisterRoutes(rg)
