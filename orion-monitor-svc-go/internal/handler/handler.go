@@ -117,6 +117,30 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"summary": agg}})
 }
 
+// CollectSystemMetrics accepts a batch of system-level metrics (CPU, memory, disk, network)
+// for a host and persists them as individual metric data points.
+func (h *Handler) CollectSystemMetrics(c *gin.Context) {
+	tenantID := h.GetTenantID(c)
+
+	var req models.CollectSystemMetricsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		return
+	}
+
+	resp, err := h.metricSvc.CollectSystemMetrics(c.Request.Context(), tenantID, req)
+	if err != nil {
+		h.logger.Error("failed to collect system metrics",
+			zap.String("hostname", req.Hostname),
+			zap.Error(err),
+		)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to collect system metrics"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, resp)
+}
+
 func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 

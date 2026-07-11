@@ -404,6 +404,35 @@ type NotificationHistoryResponse struct {
 	Data  []NotificationHistory `json:"data"`
 }
 
+// CollectSystemMetricsRequest is the request body for collecting system metrics.
+type CollectSystemMetricsRequest struct {
+	Hostname       string   `json:"hostname" binding:"required"`
+	MetricName     string   `json:"metric_name"`
+	CPUUsage       float64  `json:"cpu_usage"`
+	MemoryUsage    float64  `json:"memory_usage"`
+	MemoryUsed     uint64   `json:"memory_used"`
+	MemoryTotal    uint64   `json:"memory_total"`
+	LoadAvg1m      float64  `json:"load_avg_1m"`
+	LoadAvg5m      float64  `json:"load_avg_5m"`
+	LoadAvg15m     float64  `json:"load_avg_15m"`
+	Goroutines     int      `json:"goroutines"`
+	DiskUsed       uint64   `json:"disk_used"`
+	DiskTotal      uint64   `json:"disk_total"`
+	NetInBytes     uint64   `json:"net_in_bytes"`
+	NetOutBytes    uint64   `json:"net_out_bytes"`
+	Tags           map[string]string `json:"tags"`
+	CollectedAt    time.Time `json:"collected_at"`
+}
+
+// CollectSystemMetricsResponse wraps the result of a system metrics collection.
+type CollectSystemMetricsResponse struct {
+	Success    bool              `json:"success"`
+	Message    string            `json:"message"`
+	System     SystemMetrics     `json:"system"`
+	PointCount int               `json:"point_count"`
+	Tags       json.RawMessage   `json:"tags,omitempty"`
+}
+
 // ==================== Metric Registration ====================
 
 // MetricRegistration represents a registered metric definition.

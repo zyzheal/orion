@@ -128,6 +128,7 @@ func main() {
 	{
 		// Metrics
 		v1.POST("/metrics", auth.RequirePermission("alert", "write"), h.ReportMetric)
+		v1.POST("/metrics/collect", auth.RequirePermission("alert", "write"), h.CollectSystemMetrics)
 		v1.GET("/metrics", h.QueryMetrics)
 
 		// Traces
