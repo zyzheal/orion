@@ -456,6 +456,33 @@ type RCAStats struct {
 	DeduplicationRate int           `json:"deduplication_rate"`
 }
 
+// ==================== Service Management ====================
+
+// EscalateAlertRequest is the request body for escalating an alert.
+type EscalateAlertRequest struct {
+	Reason      string `json:"reason"`
+	ToLevel     string `json:"to_level"`
+	EscalatedBy string `json:"escalated_by"`
+}
+
+// ServiceInstanceResult is returned by StartService and StopService.
+type ServiceInstanceResult struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Running  bool   `json:"running"`
+	UptimeMs int64  `json:"uptime_ms"`
+}
+
+// ServiceHealthResult is returned by GetServiceHealth.
+type ServiceHealthResult struct {
+	Name     string `json:"name"`
+	Status   string `json:"status"`
+	Running  bool   `json:"running"`
+	Health   string `json:"health"`
+	UptimeMs int64  `json:"uptime_ms"`
+}
+
 // ==================== Additional types ====================
 
 // AlertStats holds summary statistics for a tenant's alerts.

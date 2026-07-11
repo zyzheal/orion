@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"orion/go-common/pkg/auth"
 	"orion-tool-svc-go/internal/models"
 	"orion-tool-svc-go/internal/service"
 )
@@ -27,10 +28,10 @@ func (h *ToolHandler) CreateTool(c *gin.Context) {
 		return
 	}
 
-	tenantID := c.GetHeader("X-Tenant-ID")
-	userID := c.GetHeader("X-User-ID")
+	tenantID := auth.GetTenantID(c)
+	userID := auth.GetUserID(c)
 	if tenantID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "X-Tenant-ID and X-User-ID headers required"})
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "tenant_id and user_id required"})
 		return
 	}
 
@@ -43,7 +44,7 @@ func (h *ToolHandler) CreateTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetTool(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	tool, err := h.svc.Get(c.Request.Context(), tenantID, id)
@@ -59,7 +60,7 @@ func (h *ToolHandler) GetTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) ListTools(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 
 	var params models.ToolListParams
 	if err := c.ShouldBindQuery(&params); err != nil {
@@ -76,7 +77,7 @@ func (h *ToolHandler) ListTools(c *gin.Context) {
 }
 
 func (h *ToolHandler) UpdateTool(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	var req models.UpdateToolRequest
@@ -98,7 +99,7 @@ func (h *ToolHandler) UpdateTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) DeleteTool(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
@@ -109,7 +110,7 @@ func (h *ToolHandler) DeleteTool(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetCategories(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 
 	cats, err := h.svc.GetCategories(c.Request.Context(), tenantID)
 	if err != nil {
@@ -120,7 +121,7 @@ func (h *ToolHandler) GetCategories(c *gin.Context) {
 }
 
 func (h *ToolHandler) SearchTools(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	query := c.Query("q")
 	if len(query) < 2 {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "search query must be at least 2 characters"})
@@ -136,7 +137,7 @@ func (h *ToolHandler) SearchTools(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetVersions(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	versions, err := h.svc.GetVersions(c.Request.Context(), tenantID, id)
@@ -152,7 +153,7 @@ func (h *ToolHandler) GetVersions(c *gin.Context) {
 }
 
 func (h *ToolHandler) GetInvocations(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -174,7 +175,7 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 
 // CreateVersion creates a new version record for a tool.
 func (h *ToolHandler) CreateVersion(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	userID := c.GetHeader("X-User-ID")
 	toolID := c.Param("id")
 
@@ -203,7 +204,7 @@ func (h *ToolHandler) CreateVersion(c *gin.Context) {
 
 // GetInvocationDetail retrieves a single invocation record.
 func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	id := c.Param("id")
 
 	inv, err := h.svc.GetInvocationDetail(c.Request.Context(), tenantID, id)
@@ -216,7 +217,7 @@ func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
 
 // InvokeTool executes a tool and records the invocation.
 func (h *ToolHandler) InvokeTool(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	userID := c.GetHeader("X-User-ID")
 	toolID := c.Param("id")
 	version := c.Query("version")
@@ -246,7 +247,7 @@ func (h *ToolHandler) InvokeTool(c *gin.Context) {
 
 // GetStats returns overall tenant usage statistics.
 func (h *ToolHandler) GetStats(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	period := c.DefaultQuery("period", "day")
 
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID, models.StatsPeriod(period))
@@ -259,7 +260,7 @@ func (h *ToolHandler) GetStats(c *gin.Context) {
 
 // GetToolStats returns usage statistics for a specific tool.
 func (h *ToolHandler) GetToolStats(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	toolID := c.Param("id")
 
 	stats, err := h.svc.GetToolStats(c.Request.Context(), tenantID, toolID)
@@ -276,7 +277,7 @@ func (h *ToolHandler) GetToolStats(c *gin.Context) {
 
 // GetTopTools returns the most-used tools for a tenant.
 func (h *ToolHandler) GetTopTools(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if limit < 1 || limit > 50 {
 		limit = 10
@@ -292,7 +293,7 @@ func (h *ToolHandler) GetTopTools(c *gin.Context) {
 
 // MarketSearch searches active tools with filters.
 func (h *ToolHandler) MarketSearch(c *gin.Context) {
-	tenantID := c.GetHeader("X-Tenant-ID")
+	tenantID := auth.GetTenantID(c)
 
 	var params models.MarketSearchParams
 	if err := c.ShouldBindQuery(&params); err != nil {

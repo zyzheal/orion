@@ -110,3 +110,45 @@ func (s *AlertService) DeleteAlertRule(ctx context.Context, tenantID, id uuid.UU
 func (s *AlertService) Count(ctx context.Context, tenantID string) (int, error) {
 	return s.alertRepo.Count(ctx, tenantID)
 }
+
+// EscalateAlert raises the severity of an alert.
+func (s *AlertService) EscalateAlert(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, escalatedBy, reason, toLevel string) (*models.Alert, error) {
+	s.logger.Info("escalating alert", zap.String("alertId", id.String()), zap.String("toLevel", toLevel))
+	return s.alertRepo.EscalateAlert(ctx, tenantID, id, toLevel)
+}
+
+// SuppressRule disables an alert rule.
+func (s *AlertService) SuppressRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID, reason string) (*models.AlertRule, error) {
+	s.logger.Info("suppressing alert rule", zap.String("ruleId", id.String()))
+	return s.alertRepo.SuppressRule(ctx, tenantID, id, "system", reason)
+}
+
+// UnsuppressRule re-enables a suppressed rule.
+func (s *AlertService) UnsuppressRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*models.AlertRule, error) {
+	s.logger.Info("unsuppressing alert rule", zap.String("ruleId", id.String()))
+	return s.alertRepo.UnsuppressRule(ctx, tenantID, id)
+}
+
+// EvaluateRule performs a manual rule evaluation.
+func (s *AlertService) EvaluateRule(ctx context.Context, tenantID uuid.UUID, id uuid.UUID) (*models.EvaluateRuleResult, error) {
+	s.logger.Info("evaluating alert rule", zap.String("ruleId", id.String()))
+	return s.alertRepo.EvaluateRule(ctx, tenantID, id)
+}
+
+// StartService marks a service as running.
+func (s *AlertService) StartService(ctx context.Context, tenantID uuid.UUID, name string) (*models.ServiceInstance, error) {
+	s.logger.Info("starting service", zap.String("serviceName", name))
+	return s.alertRepo.StartService(ctx, tenantID, name)
+}
+
+// StopService marks a service as stopped.
+func (s *AlertService) StopService(ctx context.Context, tenantID uuid.UUID, name string) (*models.ServiceInstance, error) {
+	s.logger.Info("stopping service", zap.String("serviceName", name))
+	return s.alertRepo.StopService(ctx, tenantID, name)
+}
+
+// GetServiceHealth returns the health status of a service.
+func (s *AlertService) GetServiceHealth(ctx context.Context, tenantID uuid.UUID, name string) (*models.GetServiceHealthResult, error) {
+	s.logger.Info("getting service health", zap.String("serviceName", name))
+	return s.alertRepo.GetServiceHealth(ctx, tenantID, name)
+}

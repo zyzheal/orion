@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"orion/monitoring-svc-go/internal/alert/models"
 	"orion/monitoring-svc-go/internal/alert/repository"
 	"time"
@@ -236,6 +238,257 @@ func (s *AlertService) GetStats(ctx context.Context, tenantID string) (*models.A
 		}
 	}
 	return stats, nil
+}
+
+// EscalateAlert raises an alert's severity level.
+func (s *AlertService) EscalateAlert(ctx context.Context, tenantID string, id string, req *models.EscalateAlertRequest) (*models.Alert, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	alertUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	alert := &models.Alert{
+		ID:       alertUUID,
+		TenantID: tenantUUID,
+		Severity: req.ToLevel,
+		Status:   models.StatusFiring,
+	}
+	if err := s.repo.Update(ctx, alert); err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByID(ctx, tenantUUID, alertUUID)
+}
+
+// SuppressRule disables an alert rule.
+func (s *AlertService) SuppressRule(ctx context.Context, tenantID string, id string, reason string) (*models.AlertRule, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	rule, err := s.ruleRepo.GetByID(ctx, tenantUUID, ruleUUID)
+	if err != nil {
+		return nil, err
+	}
+	_ = reason
+	rule.Enabled = false
+
+	if err := s.ruleRepo.Update(ctx, ruleUUID, tenantUUID, rule); err != nil {
+		return nil, err
+	}
+	return rule, nil
+}
+
+// UnsuppressRule re-enables a suppressed alert rule.
+func (s *AlertService) UnsuppressRule(ctx context.Context, tenantID string, id string) (*models.AlertRule, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+
+	rule, err := s.ruleRepo.GetByID(ctx, tenantUUID, ruleUUID)
+	if err != nil {
+		return nil, err
+	}
+	rule.Enabled = true
+
+	if err := s.ruleRepo.Update(ctx, ruleUUID, tenantUUID, rule); err != nil {
+		return nil, err
+	}
+	return rule, nil
+}
+
+// EvaluateRule triggers a manual rule evaluation and returns a stub result.
+func (s *AlertService) EvaluateRule(ctx context.Context, tenantID string, id string) (map[string]interface{}, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+	rule, err := s.ruleRepo.GetByID(ctx, tenantUUID, ruleUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := map[string]interface{}{
+		"rule_id":      rule.ID.String(),
+		"rule_name":    rule.Name,
+		"evaluated_at": time.Now().Format(time.RFC3339),
+		"matched":      false,
+		"status":       "ok",
+	}
+	return result, nil
+}
+
+// CreateRule creates a new alert rule.
+func (s *AlertService) CreateRule(ctx context.Context, tenantID string, req *models.CreateRuleRequest) (*models.AlertRule, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	cond, err := json.Marshal(req.Condition)
+	if err != nil {
+		return nil, err
+	}
+	notifCh, err := json.Marshal(req.NotificationChannels)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	rule := &models.AlertRule{
+		ID:                    uuid.New(),
+		TenantID:              tenantUUID,
+		Name:                  req.Name,
+		Description:           req.Description,
+		RuleType:              req.RuleType,
+		Condition:             cond,
+		Severity:              req.Severity,
+		Enabled:               true,
+		NotificationChannels:  notifCh,
+		EvaluationIntervalSec: 60,
+		CooldownSec:           300,
+		CreatedAt:             now,
+		UpdatedAt:             now,
+	}
+
+	if req.EvaluationIntervalSec != nil {
+		rule.EvaluationIntervalSec = *req.EvaluationIntervalSec
+	}
+	if req.CooldownSec != nil {
+		rule.CooldownSec = *req.CooldownSec
+	}
+
+	if err := s.ruleRepo.Create(ctx, rule); err != nil {
+		return nil, err
+	}
+	return rule, nil
+}
+
+// ListRules returns alert rules for a tenant.
+func (s *AlertService) ListRules(ctx context.Context, tenantID string) (*models.AlertRuleResponse, error) {
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := s.ruleRepo.List(ctx, tenantUUID)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// GetRule retrieves an alert rule by ID.
+func (s *AlertService) GetRule(ctx context.Context, tenantID string, id string) (*models.AlertRule, error) {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, err
+	}
+	return s.ruleRepo.GetByID(ctx, tenantUUID, ruleUUID)
+}
+
+// UpdateRule updates an existing alert rule.
+func (s *AlertService) UpdateRule(ctx context.Context, tenantID string, id string, req *models.UpdateRuleRequest) error {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	rule, err := s.ruleRepo.GetByID(ctx, tenantUUID, ruleUUID)
+	if err != nil {
+		return err
+	}
+
+	if req.Name != nil && *req.Name != "" {
+		rule.Name = *req.Name
+	}
+	if req.Description != nil {
+		rule.Description = req.Description
+	}
+	if req.Condition != nil {
+		cond, err := json.Marshal(req.Condition)
+		if err != nil {
+			return err
+		}
+		rule.Condition = cond
+	}
+	if req.Severity != "" {
+		rule.Severity = req.Severity
+	}
+	if req.Enabled != nil {
+		rule.Enabled = *req.Enabled
+	}
+	if req.NotificationChannels != nil {
+		notifCh, err := json.Marshal(req.NotificationChannels)
+		if err != nil {
+			return err
+		}
+		rule.NotificationChannels = notifCh
+	}
+	if req.EvaluationIntervalSec != nil {
+		rule.EvaluationIntervalSec = *req.EvaluationIntervalSec
+	}
+	if req.CooldownSec != nil {
+		rule.CooldownSec = *req.CooldownSec
+	}
+	rule.UpdatedAt = time.Now()
+
+	return s.ruleRepo.Update(ctx, ruleUUID, tenantUUID, rule)
+}
+
+// DeleteRule removes an alert rule.
+func (s *AlertService) DeleteRule(ctx context.Context, tenantID string, id string) error {
+	tenantUUID, _ := uuid.Parse(tenantID)
+	ruleUUID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+	return s.ruleRepo.Delete(ctx, tenantUUID, ruleUUID)
+}
+
+// StartService marks a service as running (stub implementation).
+func (s *AlertService) StartService(ctx context.Context, tenantID string, serviceName string) (*models.ServiceInstanceResult, error) {
+	if serviceName == "" {
+		return nil, fmt.Errorf("service name is required")
+	}
+	return &models.ServiceInstanceResult{
+		ID:       1,
+		Name:     serviceName,
+		Status:   "running",
+		Running:  true,
+		UptimeMs: 0,
+	}, nil
+}
+
+// StopService marks a service as stopped (stub implementation).
+func (s *AlertService) StopService(ctx context.Context, tenantID string, serviceName string) (*models.ServiceInstanceResult, error) {
+	if serviceName == "" {
+		return nil, fmt.Errorf("service name is required")
+	}
+	return &models.ServiceInstanceResult{
+		ID:       1,
+		Name:     serviceName,
+		Status:   "stopped",
+		Running:  false,
+		UptimeMs: 0,
+	}, nil
+}
+
+// GetServiceHealth returns the health status of a service (stub implementation).
+func (s *AlertService) GetServiceHealth(ctx context.Context, tenantID string, serviceName string) (*models.ServiceHealthResult, error) {
+	if serviceName == "" {
+		return nil, fmt.Errorf("service name is required")
+	}
+	return &models.ServiceHealthResult{
+		Name:     serviceName,
+		Status:   "running",
+		Running:  true,
+		Health:   "healthy",
+		UptimeMs: 0,
+	}, nil
 }
 
 // computeFingerprint creates a dedup fingerprint from alert fields.

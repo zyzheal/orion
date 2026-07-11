@@ -1304,25 +1304,17 @@ func resolveTenantID(c *gin.Context) *int64 {
 }
 
 func getTenantID(c *gin.Context) string {
-	// Check header first, then query param
-	val := c.GetHeader("X-Tenant-ID")
-	if val == "" {
-		val = c.Query("tenant_id")
-	}
-	return val
+	// Tenant identity set by auth middleware in gin context
+	return c.GetString("tenant_id")
 }
 
 func getUserID(c *gin.Context) string {
-	// User identity comes from headers (set by gateway)
-	val := c.GetHeader("X-User-ID")
-	if val == "" {
-		val = c.GetHeader("X-Forwarded-User-ID")
-	}
-	return val
+	// User identity set by auth middleware in gin context
+	return c.GetString("user_id")
 }
 
 func getUserEmail(c *gin.Context) string {
-	return c.GetHeader("X-User-Email")
+	return c.GetString("user_email")
 }
 
 func getCurrentUserID(c *gin.Context) string {

@@ -424,3 +424,34 @@ type MetricRegistrationResponse struct {
 	Total int64               `json:"total"`
 	Data  []MetricRegistration `json:"data"`
 }
+
+// EvaluateRuleResult is the typed result of a manual rule evaluation.
+type EvaluateRuleResult struct {
+	RuleID     string  `json:"rule_id"`
+	MetricName string  `json:"metric_name"`
+	Operator   string  `json:"operator"`
+	Threshold  float64 `json:"threshold"`
+	Triggered  bool    `json:"triggered"`
+	Message    string  `json:"message"`
+}
+
+// GetServiceHealthResult is the health response for a service.
+type GetServiceHealthResult struct {
+	Name        string    `json:"name"`
+	Status      string    `json:"status"`
+	Running     bool      `json:"running"`
+	Health      string    `json:"health"`
+	UptimeMs    int64     `json:"uptime_ms"`
+	LastCheckMs *float64  `json:"last_check_ms"`
+}
+
+// ServiceInstance represents a managed service for monitoring.
+type ServiceInstance struct {
+	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
+	Name      string    `json:"name"`
+	Status    string    `json:"status"` // running, stopped, starting, stopping
+	Running   bool      `json:"running"`
+	UptimeMs  int64     `json:"uptime_ms"`
+	CreatedAt time.Time `json:"created_at"`
+}

@@ -38,10 +38,7 @@ func (h *Handler) err(c *gin.Context, code int, message string) {
 }
 
 func (h *Handler) tenantID(c *gin.Context) string {
-	tenantID := c.GetString("tenant_id")
-	if header := c.GetHeader("X-Tenant-ID"); header != "" {
-		tenantID = header
-	}
+	tenantID := auth.GetTenantID(c)
 	if tenantID == "" {
 		tenantID = "00000000-0000-0000-0000-000000000000"
 	}

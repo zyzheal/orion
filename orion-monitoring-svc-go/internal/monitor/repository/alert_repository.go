@@ -235,3 +235,122 @@ func (r *AlertRepository) Count(ctx context.Context, tenantID string) (int, erro
 func (r *AlertRepository) Pool() *pgxpool.Pool {
 	return r.db.Pool()
 }
+
+// EscalateAlert raises the severity of an alert.
+func (r *AlertRepository) EscalateAlert(ctx context.Context, tenantID, id uuid.UUID, toLevel string) (*models.Alert, error) {
+	now := time.Now()
+	query := `UPDATE alerts SET severity = $1, updated_at = $2 WHERE tenant_id = $3 AND id = $4 RETURNING id, tenant_id, rule_name, severity, status, description, triggered_at, resolved_at, created_at`
+	var a models.Alert
+	err := r.db.Pool().QueryRow(ctx, query, toLevel, now, tenantID, id).Scan(
+		&a.ID, &a.TenantID, &a.RuleName, &a.Severity, &a.Status, &a.Description, &a.TriggeredAt, &a.ResolvedAt, &a.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("escalate alert: %w", err)
+	}
+	return &a, nil
+}
+
+// SuppressRule disables an alert rule.
+func (r *AlertRepository) SuppressRule(ctx context.Context, tenantID, id uuid.UUID, _, _ string) (*models.AlertRule, error) {
+	now := time.Now()
+	_, err := r.db.Pool().Exec(ctx, `UPDATE alert_rules SET is_enabled = false, updated_at = $1 WHERE tenant_id = $2 AND id = $3`, now, tenantID, id)
+	if err != nil {
+		return nil, fmt.Errorf("suppress rule: %w", err)
+	}
+	var rule models.AlertRule
+	err = r.db.Pool().QueryRow(ctx, `SELECT id, tenant_id, name, metric_name, operator, threshold, evaluation_interval_sec, is_enabled, created_at, updated_at FROM alert_rules WHERE tenant_id = $1 AND id = $2`, tenantID, id).Scan(
+		&rule.ID, &rule.TenantID, &rule.Name, &rule.MetricName, &rule.Operator, &rule.Threshold, &rule.EvaluationIntervalSec, &rule.IsEnabled, &rule.CreatedAt, &rule.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get suppressed rule: %w", err)
+	}
+	return &rule, nil
+}
+
+// UnsuppressRule re-enables a suppressed alert rule.
+func (r *AlertRepository) UnsuppressRule(ctx context.Context, tenantID, id uuid.UUID) (*models.AlertRule, error) {
+	now := time.Now()
+	_, err := r.db.Pool().Exec(ctx, `UPDATE alert_rules SET is_enabled = true, updated_at = $1 WHERE tenant_id = $2 AND id = $3`, now, tenantID, id)
+	if err != nil {
+		return nil, fmt.Errorf("unsuppress rule: %w", err)
+	}
+	var rule models.AlertRule
+	err = r.db.Pool().QueryRow(ctx, `SELECT id, tenant_id, name, metric_name, operator, threshold, evaluation_interval_sec, is_enabled, created_at, updated_at FROM alert_rules WHERE tenant_id = $1 AND id = $2`, tenantID, id).Scan(
+		&rule.ID, &rule.TenantID, &rule.Name, &rule.MetricName, &rule.Operator, &rule.Threshold, &rule.EvaluationIntervalSec, &rule.IsEnabled, &rule.CreatedAt, &rule.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get unsuppressed rule: %w", err)
+	}
+	return &rule, nil
+}
+
+// EvaluateRule performs a manual rule evaluation.
+func (r *AlertRepository) EvaluateRule(ctx context.Context, tenantID, id uuid.UUID) (*models.EvaluateRuleResult, error) {
+	var metricName, operator string
+	var threshold float64
+	err := r.db.Pool().QueryRow(ctx, `SELECT metric_name, operator, threshold FROM alert_rules WHERE tenant_id = $1 AND id = $2`, tenantID, id).Scan(&metricName, &operator, &threshold)
+	if err != nil {
+		return nil, fmt.Errorf("get rule for evaluation: %w", err)
+	}
+	// TODO: Query current metric value and evaluate against threshold in production
+	return &models.EvaluateRuleResult{
+		RuleID:     id.String(),
+		MetricName: metricName,
+		Operator:   operator,
+		Threshold:  threshold,
+		Message:    "Manual evaluation completed (metric query stub)",
+	}, nil
+}
+
+// StartService marks a service as running.
+func (r *AlertRepository) StartService(ctx context.Context, tenantID uuid.UUID, name string) (*models.ServiceInstance, error) {
+	now := time.Now()
+	_, err := r.db.Pool().Exec(ctx,
+		`INSERT INTO service_instances (id, tenant_id, name, status, created_at)
+		 VALUES ($1, $2, $3, 'running', $4)
+		 ON CONFLICT (tenant_id, name) DO UPDATE SET status='running'`,
+		uuid.New(), tenantID, name, now,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("start service: %w", err)
+	}
+	var inst models.ServiceInstance
+	inst.Running = true
+	inst.Name = name
+	inst.Status = "running"
+	inst.UptimeMs = 0
+	return &inst, nil
+}
+
+// StopService marks a service as stopped.
+func (r *AlertRepository) StopService(ctx context.Context, tenantID uuid.UUID, name string) (*models.ServiceInstance, error) {
+	_, err := r.db.Pool().Exec(ctx, `UPDATE service_instances SET status='stopped' WHERE tenant_id = $1 AND name = $2`, tenantID, name)
+	if err != nil {
+		return nil, fmt.Errorf("stop service: %w", err)
+	}
+	inst := &models.ServiceInstance{Name: name, Status: "stopped", Running: false}
+	return inst, nil
+}
+
+// GetServiceHealth returns the health status of a service.
+func (r *AlertRepository) GetServiceHealth(ctx context.Context, tenantID uuid.UUID, name string) (*models.GetServiceHealthResult, error) {
+	var status string
+	var uptimeMs int64
+	err := r.db.Pool().QueryRow(ctx, `SELECT status, uptime_ms FROM service_instances WHERE tenant_id = $1 AND name = $2`, tenantID, name).Scan(&status, &uptimeMs)
+	if err != nil {
+		// Service may not exist yet
+		return &models.GetServiceHealthResult{
+			Name:    name,
+			Status:  "unknown",
+			Running: false,
+			Health:  "unknown",
+		}, nil
+	}
+	return &models.GetServiceHealthResult{
+		Name:     name,
+		Status:   status,
+		Running:  status == "running",
+		Health:   "healthy",
+		UptimeMs: uptimeMs,
+	}, nil
+}

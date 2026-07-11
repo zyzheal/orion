@@ -73,27 +73,18 @@ func (h *CmdbHandler) RegisterRoutes(r *gin.RouterGroup) {
 	cmdb.GET("/health", h.Health)
 }
 
-// getTenantID extracts tenant_id from context (set by auth middleware).
-// Falls back to "1" for backward compatibility.
+// getTenantID extracts tenant_id from gin context (set by auth middleware).
 func getTenantID(c *gin.Context) string {
 	tenantID := c.GetString("tenant_id")
-	if tenantID == "" {
-		tenantID = c.GetHeader("X-Tenant-ID")
-	}
 	if tenantID == "" {
 		tenantID = "1"
 	}
 	return tenantID
 }
 
-// getActor extracts the actor (user ID) from context.
+// getActor extracts the actor (user ID) from gin context (set by auth middleware).
 func getActor(c *gin.Context) string {
-	if uid, ok := c.Get("user_id"); ok {
-		if s, ok := uid.(string); ok && s != "" {
-			return s
-		}
-	}
-	return c.GetHeader("X-User-ID")
+	return c.GetString("user_id")
 }
 
 // response wraps a successful response to match the Node.js shape.
