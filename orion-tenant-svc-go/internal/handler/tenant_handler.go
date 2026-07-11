@@ -9,17 +9,17 @@ import (
 	"orion/tenant-svc-go/internal/repository"
 	"orion/tenant-svc-go/internal/service"
 
-	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
-	tenantSvc     *service.TenantService
-	quotaSvc      *service.QuotaService
-	isolationSvc  *service.TenantIsolationService
-	repo          *repository.TenantRepository
-	log           *zap.Logger
+	tenantSvc    *service.TenantService
+	quotaSvc     *service.QuotaService
+	isolationSvc *service.TenantIsolationService
+	repo         *repository.TenantRepository
+	log          *zap.Logger
 }
 
 func New(
@@ -30,11 +30,11 @@ func New(
 	log *zap.Logger,
 ) *Handler {
 	return &Handler{
-		tenantSvc:     tenantSvc,
-		quotaSvc:      quotaSvc,
-		isolationSvc:  isolationSvc,
-		repo:          repo,
-		log:           log,
+		tenantSvc:    tenantSvc,
+		quotaSvc:     quotaSvc,
+		isolationSvc: isolationSvc,
+		repo:         repo,
+		log:          log,
 	}
 }
 
@@ -136,16 +136,16 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-// GetQuota handles GET /api/v1/tenant/:id/quota
+// GetQuota handles GET /api/v1/tenant/:id/quota and GET /api/v1/tenant/quota
 func (h *Handler) GetQuota(c *gin.Context) {
-	id := c.Param("id")
-	tenantID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+	tenantID := resolveTenantID(c)
+	if tenantID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
 		return
 	}
+	uid := *tenantID
 
-	quota, err := h.quotaSvc.GetQuota(c.Request.Context(), tenantID)
+	quota, err := h.quotaSvc.GetQuota(c.Request.Context(), uid)
 	if err != nil {
 		h.log.Error("get quota failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -153,22 +153,24 @@ func (h *Handler) GetQuota(c *gin.Context) {
 	}
 
 	// Include usage report
-	usage, _ := h.quotaSvc.GetUsageReport(c.Request.Context(), tenantID)
+	usage, _ := h.quotaSvc.GetUsageReport(c.Request.Context(), uid)
 
 	c.JSON(http.StatusOK, gin.H{
-		"quota": quota,
-		"usage": usage,
+		"data": gin.H{
+			"quota": quota,
+			"usage": usage,
+		},
 	})
 }
 
-// UpdateQuota handles PUT /api/v1/tenant/:id/quota
+// UpdateQuota handles PUT /api/v1/tenant/:id/quota and PUT /api/v1/tenant/quota
 func (h *Handler) UpdateQuota(c *gin.Context) {
-	id := c.Param("id")
-	tenantID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+	tenantID := resolveTenantID(c)
+	if tenantID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
 		return
 	}
+	uid := *tenantID
 
 	var req struct {
 		MaxPipelines              *int64 `json:"max_pipelines"`
@@ -189,9 +191,9 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 	}
 
 	// Load existing quota and merge
-	quota, _ := h.quotaSvc.GetQuota(c.Request.Context(), tenantID)
+	quota, _ := h.quotaSvc.GetQuota(c.Request.Context(), uid)
 	if quota == nil {
-		quota = &service.TenantQuota{TenantID: tenantID}
+		quota = &service.TenantQuota{TenantID: uid}
 	}
 
 	if req.MaxPipelines != nil {
@@ -234,7 +236,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, quota)
+	c.JSON(http.StatusOK, gin.H{"data": quota})
 }
 
 // GetNamespaces handles GET /api/v1/tenant/:id/namespaces
@@ -470,9 +472,9 @@ func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
 // UpdateMiddlewareConfig handles PUT /api/v1/tenant/middleware/config
 func (h *Handler) UpdateMiddlewareConfig(c *gin.Context) {
 	var req struct {
-		Enabled        *bool   `json:"enabled"`
-		HeaderName     string  `json:"headerName"`
-		JwtTenantClaim string  `json:"jwtTenantClaim"`
+		Enabled        *bool  `json:"enabled"`
+		HeaderName     string `json:"headerName"`
+		JwtTenantClaim string `json:"jwtTenantClaim"`
 	}
 	_ = c.ShouldBindJSON(&req)
 
@@ -505,12 +507,12 @@ func (h *Handler) SplitTenant(c *gin.Context) {
 	id := c.Param("id")
 
 	var req struct {
-		NewTenantName          string   `json:"new_tenant_name" binding:"required"`
-		NewTenantDisplayName   string   `json:"new_tenant_display_name"`
-		MigrateUsers           []string `json:"migrate_users"`
-		MigrateNamespaces      []string `json:"migrate_namespaces"`
+		NewTenantName           string   `json:"new_tenant_name" binding:"required"`
+		NewTenantDisplayName    string   `json:"new_tenant_display_name"`
+		MigrateUsers            []string `json:"migrate_users"`
+		MigrateNamespaces       []string `json:"migrate_namespaces"`
 		SplitResourcesPipelines []string `json:"split_resources_pipelines"`
-		KeepOriginalUsers      bool     `json:"keep_original_users"`
+		KeepOriginalUsers       bool     `json:"keep_original_users"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
@@ -626,31 +628,32 @@ func (h *Handler) GetTenantCount(c *gin.Context) {
 
 // ==================== Tenant Usage ====================
 
-// GetUsage handles GET /api/v1/tenant/usage
+// GetUsage handles GET /api/v1/tenant/usage and GET /api/v1/tenant/:id/usage
 func (h *Handler) GetUsage(c *gin.Context) {
-	tenantID, err := strconv.ParseInt(getTenantID(c), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+	tenantID := resolveTenantID(c)
+	if tenantID == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
 		return
 	}
+	uid := *tenantID
 
 	ctx := c.Request.Context()
-	quota, err := h.quotaSvc.GetQuota(ctx, tenantID)
+	quota, err := h.quotaSvc.GetQuota(ctx, uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
-	nsCount, _ := h.repo.CountNamespacesForTenant(ctx, tenantID)
+	nsCount, _ := h.repo.CountNamespacesForTenant(ctx, uid)
 
 	usage := gin.H{
-		"pipelines":       gin.H{"used": 0, "limit": quota.MaxPipelines},
-		"runners":         gin.H{"used": 0, "limit": quota.MaxRunners},
-		"namespaces":      gin.H{"used": nsCount, "limit": quota.MaxNamespaces},
-		"concurrent_runs": gin.H{"used": 0, "limit": quota.MaxConcurrentRuns},
-		"cpu_cores":       gin.H{"used": 0, "limit": quota.MaxCpuCores},
-		"memory_gb":       gin.H{"used": 0, "limit": quota.MaxMemoryGb},
-		"storage_gb":      gin.H{"used": 0, "limit": quota.MaxStorageGb},
+		"pipelines":             gin.H{"used": 0, "limit": quota.MaxPipelines},
+		"runners":               gin.H{"used": 0, "limit": quota.MaxRunners},
+		"namespaces":            gin.H{"used": nsCount, "limit": quota.MaxNamespaces},
+		"concurrent_runs":       gin.H{"used": 0, "limit": quota.MaxConcurrentRuns},
+		"cpu_cores":             gin.H{"used": 0, "limit": quota.MaxCpuCores},
+		"memory_gb":             gin.H{"used": 0, "limit": quota.MaxMemoryGb},
+		"storage_gb":            gin.H{"used": 0, "limit": quota.MaxStorageGb},
 		"pipeline_runs_per_day": gin.H{"used": 0, "limit": quota.MaxPipelineRunsPerDay},
 	}
 
@@ -721,10 +724,10 @@ func (h *Handler) GetNamespaceUsage(c *gin.Context) {
 		"namespaces": details,
 		"total":      len(details),
 		"totals": gin.H{
-			"total_namespaces": len(details),
-			"total_pipelines":  totalPipelines,
+			"total_namespaces":  len(details),
+			"total_pipelines":   totalPipelines,
 			"total_active_runs": totalActiveRuns,
-			"total_runners":    totalRunners,
+			"total_runners":     totalRunners,
 		},
 	})
 }
@@ -856,10 +859,10 @@ func (h *Handler) InviteUser(c *gin.Context) {
 	tenantID := c.Param("id")
 
 	var req struct {
-		Email        string `json:"email" binding:"required"`
-		Role         string `json:"role"`
-		Message      string `json:"message"`
-		ExpiresInDays int   `json:"expires_in_days"`
+		Email         string `json:"email" binding:"required"`
+		Role          string `json:"role"`
+		Message       string `json:"message"`
+		ExpiresInDays int    `json:"expires_in_days"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
@@ -933,15 +936,15 @@ func (h *Handler) InviteUser(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"invite": gin.H{
-			"id":           invite.ID,
-			"invite_code":  invite.InviteCode,
-			"email":        invite.Email,
-			"role":         invite.Role,
-			"status":       invite.Status,
-			"expires_at":   invite.ExpiresAt,
-			"created_at":   invite.CreatedAt,
-			"tenant_name":  tenantName,
-			"message":      req.Message,
+			"id":          invite.ID,
+			"invite_code": invite.InviteCode,
+			"email":       invite.Email,
+			"role":        invite.Role,
+			"status":      invite.Status,
+			"expires_at":  invite.ExpiresAt,
+			"created_at":  invite.CreatedAt,
+			"tenant_name": tenantName,
+			"message":     req.Message,
 		},
 		"hint": "In production, the invite code will be sent via email",
 	})
@@ -998,9 +1001,9 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "You are already a member of this tenant",
 			"tenant": gin.H{
-				"id":             invite.TenantID,
-				"name":           invite.TenantName,
-				"display_name":   invite.TenantDisplayName,
+				"id":           invite.TenantID,
+				"name":         invite.TenantName,
+				"display_name": invite.TenantDisplayName,
 			},
 		})
 		return
@@ -1017,10 +1020,10 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Invitation accepted successfully",
 		"tenant": gin.H{
-			"id":             invite.TenantID,
-			"name":           invite.TenantName,
-			"display_name":   invite.TenantDisplayName,
-			"role":           invite.Role,
+			"id":           invite.TenantID,
+			"name":         invite.TenantName,
+			"display_name": invite.TenantDisplayName,
+			"role":         invite.Role,
 		},
 	})
 }
@@ -1047,13 +1050,13 @@ func (h *Handler) GetInviteInfo(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"invite": gin.H{
-			"id":           invite.ID,
-			"email":        invite.Email,
-			"role":         invite.Role,
-			"status":       invite.Status,
-			"is_valid":     isValid,
-			"expires_at":   invite.ExpiresAt,
-			"created_at":   invite.CreatedAt,
+			"id":         invite.ID,
+			"email":      invite.Email,
+			"role":       invite.Role,
+			"status":     invite.Status,
+			"is_valid":   isValid,
+			"expires_at": invite.ExpiresAt,
+			"created_at": invite.CreatedAt,
 			"tenant": gin.H{
 				"id":           invite.TenantID,
 				"name":         invite.TenantName,
@@ -1106,10 +1109,10 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":   alerts,
-		"total":  total,
-		"page":   page,
-		"limit":  limit,
+		"data":       alerts,
+		"total":      total,
+		"page":       page,
+		"limit":      limit,
 		"totalPages": calcTotalPages(total, limit),
 	})
 }
@@ -1265,17 +1268,40 @@ func (h *Handler) GetTenantContext(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"context": gin.H{
-			"tenant_id":       tenantID,
-			"tenant_name":     tenant.Name,
-			"tenant_display":  tenant.DisplayName,
-			"tenant_status":   tenant.Status,
-			"user_id":         c.GetString("user_id"),
+			"tenant_id":        tenantID,
+			"tenant_name":      tenant.Name,
+			"tenant_display":   tenant.DisplayName,
+			"tenant_status":    tenant.Status,
+			"user_id":          c.GetString("user_id"),
 			"jwt_tenant_claim": tenantID,
 		},
 	})
 }
 
 // --- Helper Functions ---
+
+// resolveTenantID extracts the tenant ID from path params, headers, or query.
+// Returns nil if no tenant ID can be resolved.
+func resolveTenantID(c *gin.Context) *int64 {
+	// 1. Path param (:id or :tenantId)
+	if id := c.Param("id"); id != "" {
+		if n, err := strconv.ParseInt(id, 10, 64); err == nil {
+			return &n
+		}
+	}
+	if id := c.Param("tenantId"); id != "" {
+		if n, err := strconv.ParseInt(id, 10, 64); err == nil {
+			return &n
+		}
+	}
+	// 2. Header
+	if id := getTenantID(c); id != "" {
+		if n, err := strconv.ParseInt(id, 10, 64); err == nil {
+			return &n
+		}
+	}
+	return nil
+}
 
 func getTenantID(c *gin.Context) string {
 	// Check header first, then query param

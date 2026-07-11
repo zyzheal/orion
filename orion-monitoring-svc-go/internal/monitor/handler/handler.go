@@ -30,7 +30,7 @@ func New(metricSvc *service.MetricService, alertSvc *service.AlertService, notif
 }
 
 func (h *Handler) GetTenantID(c *gin.Context) uuid.UUID {
-	tenantID, _ := uuid.Parse(c.GetString("tenantId"))
+	tenantID, _ := uuid.Parse(c.GetString("tenant_id"))
 	return tenantID
 }
 

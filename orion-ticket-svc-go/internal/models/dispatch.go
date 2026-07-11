@@ -163,6 +163,16 @@ type AssignmentSuccessMetrics struct {
 	SuccessRate        float64 `json:"success_rate"`
 }
 
+// LoadBalanceSuggestion is a rebalancing suggestion
+type LoadBalanceSuggestion struct {
+	EngineerID   string  `json:"engineer_id"`
+	EngineerName string  `json:"engineer_name"`
+	CurrentLoad  int     `json:"current_load"`
+	MaxCapacity  int     `json:"max_capacity"`
+	Utilization  float64 `json:"utilization"`
+	Action       string  `json:"action"`
+}
+
 // TimeToAssignmentStats summarizes time-to-assignment
 type TimeToAssignmentStats struct {
 	AvgMs    float64 `json:"avg_ms"`

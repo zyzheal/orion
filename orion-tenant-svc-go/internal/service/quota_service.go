@@ -26,11 +26,11 @@ type QuotaUsage struct {
 }
 
 type QuotaCheckResult struct {
-	Allowed       bool    `json:"allowed"`
-	CurrentUsage  float64 `json:"current_usage"`
-	QuotaLimit    float64 `json:"quota_limit"`
-	Remaining     float64 `json:"remaining"`
-	Message       string  `json:"message"`
+	Allowed      bool    `json:"allowed"`
+	CurrentUsage float64 `json:"current_usage"`
+	QuotaLimit   float64 `json:"quota_limit"`
+	Remaining    float64 `json:"remaining"`
+	Message      string  `json:"message"`
 }
 
 type QuotaAlert struct {
@@ -59,11 +59,11 @@ type TenantQuota struct {
 }
 
 type QuotaService struct {
-	repo             *repository.TenantRepository
-	log              *zap.Logger
-	mu               sync.RWMutex
-	usage            map[string]*QuotaUsage
-	alertThreshold   float64
+	repo              *repository.TenantRepository
+	log               *zap.Logger
+	mu                sync.RWMutex
+	usage             map[string]*QuotaUsage
+	alertThreshold    float64
 	usageLoadedFromDB bool
 }
 

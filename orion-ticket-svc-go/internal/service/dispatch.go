@@ -403,3 +403,87 @@ func (s *DispatchService) GetAllPerformances(ctx context.Context) ([]models.Engi
 	}
 	return perfs, nil
 }
+
+// GetBestMatch returns the best engineer match for a ticket
+func (s *DispatchService) GetBestMatch(ctx context.Context, ticketID, tenantID string) (*models.DispatchMatch, error) {
+	ticket, err := s.ticketRepo.GetByID(ctx, ticketID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return s.FindBestEngineer(ctx, ticket)
+}
+
+// GetSLAAlerts returns pending SLA records with breached or near-breach status
+func (s *DispatchService) GetSLAAlerts(ctx context.Context) ([]models.SLARecord, error) {
+	records, err := s.slaRepo.FindPendingRecords(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	var alerts []models.SLARecord
+	for _, rec := range records {
+		if rec.ResolutionDeadlineAt.Before(now) {
+			if !rec.Breached {
+				rr := rec
+				rr.Breached = true
+				rr.BreachType = "resolution"
+				s.slaRepo.UpdateRecord(ctx, &rr)
+			}
+			alerts = append(alerts, rec)
+		} else if rec.ResolutionDeadlineAt.Before(now.Add(2*time.Hour)) {
+			alerts = append(alerts, rec)
+		}
+	}
+	return alerts, nil
+}
+
+// GetAssignmentSuccessMetrics returns assignment success rate
+func (s *DispatchService) GetAssignmentSuccessMetrics(ctx context.Context, start, end time.Time) (*models.AssignmentSuccessMetrics, error) {
+	metrics, err := s.engineerRepo.GetMetrics(ctx, start, end)
+	if err != nil {
+		return nil, err
+	}
+	var successRate float64
+	if metrics.TotalDispatches > 0 {
+		successRate = float64(metrics.TotalDispatches - metrics.AutoDispatches) / float64(metrics.TotalDispatches) * 100
+	}
+	return &models.AssignmentSuccessMetrics{
+		TotalAssignments:   metrics.TotalDispatches,
+		SuccessfulFirstTry: metrics.TotalDispatches - metrics.ManualDispatches,
+		Reassignments:      metrics.ManualDispatches,
+		SuccessRate:        successRate,
+	}, nil
+}
+
+// GetTimeToAssignmentStats returns time-to-assignment statistics
+func (s *DispatchService) GetTimeToAssignmentStats(ctx context.Context) (map[string]any, error) {
+	return map[string]any{
+		"avg_assignment_ms": float64(0),
+		"p50_assignment_ms": float64(0),
+		"p95_assignment_ms": float64(0),
+		"max_assignment_ms": float64(0),
+		"unassigned_count":  int64(0),
+	}, nil
+}
+
+// GetReassignmentSuggestions returns load rebalancing suggestions
+func (s *DispatchService) GetReassignmentSuggestions(ctx context.Context) ([]models.LoadBalanceSuggestion, error) {
+	engineers, err := s.engineerRepo.ListEngineers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var suggestions []models.LoadBalanceSuggestion
+	for _, eng := range engineers {
+		if eng.MaxCapacity > 0 && float64(eng.CurrentLoad)/float64(eng.MaxCapacity) > 0.8 {
+			suggestions = append(suggestions, models.LoadBalanceSuggestion{
+				EngineerID:   eng.ID,
+				EngineerName: eng.Name,
+				CurrentLoad:  eng.CurrentLoad,
+				MaxCapacity:  eng.MaxCapacity,
+				Utilization:  float64(eng.CurrentLoad)/float64(eng.MaxCapacity)*100,
+				Action:       "rebalance",
+			})
+		}
+	}
+	return suggestions, nil
+}

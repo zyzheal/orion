@@ -199,6 +199,8 @@ func main() {
 
 
 	cmdbH.RegisterRoutes(rg)
+	cmdbFullHandler := handler.NewCmdbHandler(ciSvc)
+	cmdbFullHandler.RegisterRoutes(rg)
 	servicetopologyH.RegisterRoutes(rg)
 	servicecatalogH.RegisterRoutes(rg)
 	datalineageH.RegisterRoutes(rg)

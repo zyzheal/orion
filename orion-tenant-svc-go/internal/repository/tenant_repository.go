@@ -246,21 +246,21 @@ func (r *TenantRepository) CreateQuota(ctx context.Context, q *models.QuotaConfi
 		INSERT INTO tenant_quotas (id, tenant_id, max_pipelines, max_pipeline_runs_per_day, max_concurrent_builds, max_tasks_per_pipeline, max_runners, max_cpu_cores, max_memory_gb, max_storage_mb, max_projects, max_users, api_rate_limit, api_rate_limit_window_seconds, usage, created_at, updated_at)
 		VALUES (:id, :tenant_id, :max_pipelines, :max_pipeline_runs_per_day, :max_concurrent_builds, :max_tasks_per_pipeline, :max_runners, :max_cpu_cores, :max_memory_gb, :max_storage_mb, :max_projects, :max_users, :api_rate_limit, :api_rate_limit_window_seconds, :usage, now(), now())`,
 		map[string]any{
-			"id":                        q.ID,
-			"tenant_id":                 q.TenantID,
-			"max_pipelines":             q.MaxPipelines,
-			"max_pipeline_runs_per_day": q.MaxPipelineRunsPerDay,
-			"max_concurrent_builds":     q.MaxConcurrentBuilds,
-			"max_tasks_per_pipeline":    q.MaxTasksPerPipeline,
-			"max_runners":               q.MaxRunners,
-			"max_cpu_cores":             q.MaxCpuCores,
-			"max_memory_gb":             q.MaxMemoryGb,
-			"max_storage_mb":            q.MaxStorageMb,
-			"max_projects":              q.MaxProjects,
-			"max_users":                 q.MaxUsers,
-			"api_rate_limit":            q.ApiRateLimit,
+			"id":                            q.ID,
+			"tenant_id":                     q.TenantID,
+			"max_pipelines":                 q.MaxPipelines,
+			"max_pipeline_runs_per_day":     q.MaxPipelineRunsPerDay,
+			"max_concurrent_builds":         q.MaxConcurrentBuilds,
+			"max_tasks_per_pipeline":        q.MaxTasksPerPipeline,
+			"max_runners":                   q.MaxRunners,
+			"max_cpu_cores":                 q.MaxCpuCores,
+			"max_memory_gb":                 q.MaxMemoryGb,
+			"max_storage_mb":                q.MaxStorageMb,
+			"max_projects":                  q.MaxProjects,
+			"max_users":                     q.MaxUsers,
+			"api_rate_limit":                q.ApiRateLimit,
 			"api_rate_limit_window_seconds": q.ApiRateLimitWindowSeconds,
-			"usage":                     string(bytes),
+			"usage":                         string(bytes),
 		})
 	return err
 }
@@ -271,18 +271,18 @@ func (r *TenantRepository) UpdateQuota(ctx context.Context, id string, updates m
 	idx := 2
 
 	for field, col := range map[string]string{
-		"max_pipelines":                "max_pipelines",
-		"max_pipeline_runs_per_day":    "max_pipeline_runs_per_day",
-		"max_concurrent_builds":        "max_concurrent_builds",
-		"max_tasks_per_pipeline":       "max_tasks_per_pipeline",
-		"max_runners":                  "max_runners",
-		"max_cpu_cores":                "max_cpu_cores",
-		"max_memory_gb":                "max_memory_gb",
-		"max_storage_mb":               "max_storage_mb",
-		"max_projects":                 "max_projects",
-		"max_users":                    "max_users",
-		"api_rate_limit":               "api_rate_limit",
-		"api_rate_limit_window_seconds":"api_rate_limit_window_seconds",
+		"max_pipelines":                 "max_pipelines",
+		"max_pipeline_runs_per_day":     "max_pipeline_runs_per_day",
+		"max_concurrent_builds":         "max_concurrent_builds",
+		"max_tasks_per_pipeline":        "max_tasks_per_pipeline",
+		"max_runners":                   "max_runners",
+		"max_cpu_cores":                 "max_cpu_cores",
+		"max_memory_gb":                 "max_memory_gb",
+		"max_storage_mb":                "max_storage_mb",
+		"max_projects":                  "max_projects",
+		"max_users":                     "max_users",
+		"api_rate_limit":                "api_rate_limit",
+		"api_rate_limit_window_seconds": "api_rate_limit_window_seconds",
 	} {
 		if val, ok := updates[field]; ok {
 			args = append(args, val)

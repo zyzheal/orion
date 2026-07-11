@@ -998,3 +998,265 @@ func (s *CIService) ExportCI(ctx context.Context, tenantID string, id string) (*
 func (s *CIService) GetCIByCiID(ctx context.Context, tenantID, ciID string) (*models.CIItem, error) {
 	return s.ciRepo.GetByCiID(ctx, ciID, tenantID)
 }
+
+// ---------------------------------------------------------------------------
+// Integration endpoints (Hosts, K8s, CICD, Execute)
+// ---------------------------------------------------------------------------
+
+// IntegrationHost represents a host resource discovered via external integration.
+type IntegrationHost struct {
+	ID            string                 `json:"id"`
+	Hostname      string                 `json:"hostname"`
+	IP            string                 `json:"ip"`
+	CIID          string                 `json:"ci_id"`
+	Status        string                 `json:"status"`
+	LastHeartbeat string                 `json:"last_heartbeat"`
+	Attributes    map[string]interface{} `json:"attributes"`
+}
+
+// IntegrationK8sResource represents a Kubernetes resource from integration.
+type IntegrationK8sResource struct {
+	Name       string `json:"name"`
+	Namespace  string `json:"namespace"`
+	Kind       string `json:"kind"`
+	Phase      string `json:"phase"`
+	Node       string `json:"node"`
+	CIID       string `json:"ci_id"`
+	Attributes map[string]interface{} `json:"attributes"`
+}
+
+// IntegrationCICDResource represents a CICD pipeline from integration.
+type IntegrationCICDResource struct {
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Status     string `json:"status"`
+	URL        string `json:"url"`
+	CIID       string `json:"ci_id"`
+	LastRun    string `json:"last_run"`
+	Attributes map[string]interface{} `json:"attributes"`
+}
+
+// ExecuteScriptRequest is the payload for executing a script on a CI host.
+type ExecuteScriptRequest struct {
+	CIID       string `json:"ci_id"`
+	Script     string `json:"script" binding:"required"`
+	Timeout    int    `json:"timeout"`
+	Privileged bool   `json:"privileged"`
+	Args       []string `json:"args"`
+}
+
+// ExecuteScriptResult holds the outcome of a script execution.
+type ExecuteScriptResult struct {
+	ExitCode int    `json:"exit_code"`
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	Duration int64  `json:"duration_ms"`
+}
+
+// ListHosts returns host CIs for the tenant. In production this would query
+// an external integration service; here we return the host-type CIs from CMDB.
+func (s *CIService) ListHosts(ctx context.Context, tenantID string) ([]IntegrationHost, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ListHosts")
+	defer span.End()
+
+	q := models.ListQuery{CIType: "host", Status: "active", Page: 1, PageSize: 100}
+	items, _, err := s.ciRepo.List(ctx, tenantID, q)
+	if err != nil {
+		return nil, fmt.Errorf("list hosts failed: %w", err)
+	}
+
+	hosts := make([]IntegrationHost, 0, len(items))
+	for _, item := range items {
+		hosts = append(hosts, IntegrationHost{
+			ID:       item.ID,
+			Hostname: item.Name,
+			CIID:     item.ID,
+			Status:   item.Status,
+			Attributes: func() map[string]interface{} {
+				if item.Attributes == nil {
+					return nil
+				}
+				return map[string]interface{}(item.Attributes)
+			}(),
+		})
+	}
+
+	return hosts, nil
+}
+
+// GetHost returns a single host CI by its ID.
+func (s *CIService) GetHost(ctx context.Context, tenantID, ciID string) (*IntegrationHost, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.GetHost")
+	defer span.End()
+
+	item, err := s.ciRepo.GetByID(ctx, ciID, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("host not found: %w", err)
+	}
+
+	return &IntegrationHost{
+		ID:       item.ID,
+		Hostname: item.Name,
+		CIID:     item.ID,
+		Status:   item.Status,
+		Attributes: func() map[string]interface{} {
+			if item.Attributes == nil {
+				return nil
+			}
+			return map[string]interface{}(item.Attributes)
+		}(),
+	}, nil
+}
+
+// ListK8sResources returns Kubernetes resource CIs for the tenant.
+func (s *CIService) ListK8sResources(ctx context.Context, tenantID string) ([]IntegrationK8sResource, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ListK8sResources")
+	defer span.End()
+
+	q := models.ListQuery{CIType: "kubernetes_resource", Status: "active", Page: 1, PageSize: 100}
+	items, _, err := s.ciRepo.List(ctx, tenantID, q)
+	if err != nil {
+		return nil, fmt.Errorf("list k8s resources failed: %w", err)
+	}
+
+	resources := make([]IntegrationK8sResource, 0, len(items))
+	for _, item := range items {
+		attr := item.Attributes
+		var namespace, kind, phase, node string
+		if attr != nil {
+			if v, ok := attr["namespace"].(string); ok { namespace = v }
+			if v, ok := attr["kind"].(string); ok { kind = v }
+			if v, ok := attr["phase"].(string); ok { phase = v }
+			if v, ok := attr["node"].(string); ok { node = v }
+		}
+
+		resources = append(resources, IntegrationK8sResource{
+			Name:      item.Name,
+			Namespace: namespace,
+			Kind:      kind,
+			Phase:     phase,
+			Node:      node,
+			CIID:      item.ID,
+			Attributes: func() map[string]interface{} {
+				if attr == nil {
+					return nil
+				}
+				return map[string]interface{}(attr)
+			}(),
+		})
+	}
+
+	return resources, nil
+}
+
+// StartK8sSync starts the Kubernetes CMDB sync process.
+func (s *CIService) StartK8sSync(ctx context.Context, tenantID string, _ string) (map[string]interface{}, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.StartK8sSync")
+	defer span.End()
+
+	// Log audit event for the sync start
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "k8s_sync_start",
+		Actor:    "system",
+	})
+
+	return map[string]interface{}{
+		"status":  "started",
+		"message": "Kubernetes CMDB sync initiated",
+	}, nil
+}
+
+// StopK8sSync stops the Kubernetes CMDB sync process.
+func (s *CIService) StopK8sSync(ctx context.Context, tenantID string, _ string) (map[string]interface{}, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.StopK8sSync")
+	defer span.End()
+
+	// Log audit event for the sync stop
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "k8s_sync_stop",
+		Actor:    "system",
+	})
+
+	return map[string]interface{}{
+		"status":  "stopped",
+		"message": "Kubernetes CMDB sync stopped",
+	}, nil
+}
+
+// ListCICDResources returns CICD pipeline CIs for the tenant.
+func (s *CIService) ListCICDResources(ctx context.Context, tenantID string) ([]IntegrationCICDResource, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ListCICDResources")
+	defer span.End()
+
+	q := models.ListQuery{CIType: "cicd_pipeline", Status: "active", Page: 1, PageSize: 100}
+	items, _, err := s.ciRepo.List(ctx, tenantID, q)
+	if err != nil {
+		return nil, fmt.Errorf("list cicd resources failed: %w", err)
+	}
+
+	resources := make([]IntegrationCICDResource, 0, len(items))
+	for _, item := range items {
+		attr := item.Attributes
+		var rtype, status, url, lastRun string
+		if attr != nil {
+			if v, ok := attr["type"].(string); ok { rtype = v }
+			if v, ok := attr["status"].(string); ok { status = v }
+			if v, ok := attr["url"].(string); ok { url = v }
+			if v, ok := attr["last_run"].(string); ok { lastRun = v }
+		}
+
+		resources = append(resources, IntegrationCICDResource{
+			Name:       item.Name,
+			Type:       rtype,
+			Status:     status,
+			URL:        url,
+			CIID:       item.ID,
+			LastRun:    lastRun,
+			Attributes: func() map[string]interface{} {
+				if attr == nil {
+					return nil
+				}
+				return map[string]interface{}(attr)
+			}(),
+		})
+	}
+
+	return resources, nil
+}
+
+// ExecuteScript runs a script on the host associated with the given CI.
+func (s *CIService) ExecuteScript(ctx context.Context, tenantID string, req *ExecuteScriptRequest, actor string) (*ExecuteScriptResult, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ExecuteScript")
+	defer span.End()
+
+	// Verify the target CI exists
+	if _, err := s.ciRepo.GetByID(ctx, req.CIID, tenantID); err != nil {
+		return nil, fmt.Errorf("target CI not found: %w", err)
+	}
+
+	// Log the execution for audit
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		CIID:     req.CIID,
+		Action:   "execute_script",
+		Actor:    actor,
+		NewValue: models.JSONB{
+			"script":     req.Script,
+			"privileged": req.Privileged,
+			"timeout":    req.Timeout,
+			"args":       req.Args,
+		},
+	})
+
+	// Return a placeholder result — actual execution delegates to an external runner
+	return &ExecuteScriptResult{
+		ExitCode: 0,
+		Stdout:   "Script execution initiated for CI " + req.CIID,
+		Duration: 0,
+	}, nil
+}

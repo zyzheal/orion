@@ -240,3 +240,59 @@ func (h *DispatchHandler) GetAllEngineerPerformances(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": perfs})
 }
+
+// GetBestMatch GET /api/v1/tickets/dispatch/best-match/:ticketId
+func (h *DispatchHandler) GetBestMatch(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ticketID := c.Param("ticketId")
+
+	match, err := h.svc.GetBestMatch(c.Request.Context(), ticketID, tenantID)
+	if err != nil {
+		respondError(c, http.StatusNotFound, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": match})
+}
+
+// GetSLAAlerts GET /api/v1/tickets/dispatch/sla-alerts
+func (h *DispatchHandler) GetSLAAlerts(c *gin.Context) {
+	alerts, err := h.svc.GetSLAAlerts(c.Request.Context())
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": alerts, "count": len(alerts)})
+}
+
+// GetAssignmentSuccessMetrics GET /api/v1/tickets/dispatch/reports/assignment-success
+func (h *DispatchHandler) GetAssignmentSuccessMetrics(c *gin.Context) {
+	start := parseTime(c.Query("periodStart"))
+	end := parseTime(c.Query("periodEnd"))
+
+	metrics, err := h.svc.GetAssignmentSuccessMetrics(c.Request.Context(), start, end)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": metrics})
+}
+
+// GetTimeToAssignmentStats GET /api/v1/tickets/dispatch/reports/time-to-assignment
+func (h *DispatchHandler) GetTimeToAssignmentStats(c *gin.Context) {
+	stats, err := h.svc.GetTimeToAssignmentStats(c.Request.Context())
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
+// GetReassignmentSuggestions GET /api/v1/tickets/dispatch/load-balance/suggestions
+func (h *DispatchHandler) GetReassignmentSuggestions(c *gin.Context) {
+	suggestions, err := h.svc.GetReassignmentSuggestions(c.Request.Context())
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": suggestions, "count": len(suggestions)})
+}

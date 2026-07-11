@@ -59,6 +59,18 @@ func (h *CmdbHandler) RegisterRoutes(r *gin.RouterGroup) {
 	cmdb.GET("/topology", h.GetTopology)
 	cmdb.GET("/topology/:ciId/dependencies", h.GetServiceDependencies)
 	cmdb.GET("/topology/:ciId/impact", h.GetImpactAnalysis)
+
+	// Integration (Hosts, K8s, CICD, Execute)
+	cmdb.GET("/hosts", h.ListHosts)
+	cmdb.GET("/hosts/:ciId", h.GetHost)
+	cmdb.GET("/k8s", h.ListK8sResources)
+	cmdb.POST("/k8s/sync/start", h.StartK8sSync)
+	cmdb.POST("/k8s/sync/stop", h.StopK8sSync)
+	cmdb.GET("/cicd", h.ListCICDResources)
+	cmdb.POST("/execute", h.ExecuteScript)
+
+	// Health
+	cmdb.GET("/health", h.Health)
 }
 
 // getTenantID extracts tenant_id from context (set by auth middleware).
@@ -664,6 +676,144 @@ func (h *CmdbHandler) GetImpactAnalysis(c *gin.Context) {
 // Health GET /api/v1/cmdb/health
 func (h *CmdbHandler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"status": "ok"}})
+}
+
+// ==================== Integration: Hosts ====================
+
+// ListHosts GET /api/v1/cmdb/hosts
+func (h *CmdbHandler) ListHosts(c *gin.Context) {
+	tenantID := getTenantID(c)
+
+	if qTenant := c.Query("tenantId"); qTenant != "" {
+		tenantID = qTenant
+	}
+
+	hosts, err := h.svc.ListHosts(c.Request.Context(), tenantID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "FETCH_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, hosts)
+}
+
+// GetHost GET /api/v1/cmdb/hosts/:ciId
+func (h *CmdbHandler) GetHost(c *gin.Context) {
+	tenantID := getTenantID(c)
+	ciID := c.Param("ciId")
+
+	host, err := h.svc.GetHost(c.Request.Context(), tenantID, ciID)
+	if err != nil {
+		errorResponse(c, http.StatusNotFound, "NOT_FOUND", err.Error())
+		return
+	}
+
+	successResponse(c, host)
+}
+
+// ==================== Integration: K8s ====================
+
+// ListK8sResources GET /api/v1/cmdb/k8s
+func (h *CmdbHandler) ListK8sResources(c *gin.Context) {
+	tenantID := getTenantID(c)
+
+	if qTenant := c.Query("tenantId"); qTenant != "" {
+		tenantID = qTenant
+	}
+
+	resources, err := h.svc.ListK8sResources(c.Request.Context(), tenantID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "FETCH_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, resources)
+}
+
+// StartK8sSync POST /api/v1/cmdb/k8s/sync/start
+func (h *CmdbHandler) StartK8sSync(c *gin.Context) {
+	tenantID := getTenantID(c)
+	actor := getActor(c)
+
+	result, err := h.svc.StartK8sSync(c.Request.Context(), tenantID, actor)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "SYNC_START_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, result)
+}
+
+// StopK8sSync POST /api/v1/cmdb/k8s/sync/stop
+func (h *CmdbHandler) StopK8sSync(c *gin.Context) {
+	tenantID := getTenantID(c)
+	actor := getActor(c)
+
+	_ = actor // acknowledged
+	result, err := h.svc.StopK8sSync(c.Request.Context(), tenantID, actor)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "SYNC_STOP_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, result)
+}
+
+// ==================== Integration: CICD ====================
+
+// ListCICDResources GET /api/v1/cmdb/cicd
+func (h *CmdbHandler) ListCICDResources(c *gin.Context) {
+	tenantID := getTenantID(c)
+
+	if qTenant := c.Query("tenantId"); qTenant != "" {
+		tenantID = qTenant
+	}
+
+	resources, err := h.svc.ListCICDResources(c.Request.Context(), tenantID)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "FETCH_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, resources)
+}
+
+// ExecuteScript POST /api/v1/cmdb/execute
+func (h *CmdbHandler) ExecuteScript(c *gin.Context) {
+	tenantID := getTenantID(c)
+	actor := getActor(c)
+
+	var req struct {
+		CIID       string   `json:"ci_id"`
+		Script     string   `json:"script"`
+		Timeout    int      `json:"timeout"`
+		Privileged bool     `json:"privileged"`
+		Args       []string `json:"args"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, http.StatusBadRequest, "EXECUTE_ERROR", err.Error())
+		return
+	}
+	if req.Script == "" {
+		errorResponse(c, http.StatusBadRequest, "EXECUTE_ERROR", "script is required")
+		return
+	}
+
+	scriptReq := &service.ExecuteScriptRequest{
+		CIID:       req.CIID,
+		Script:     req.Script,
+		Timeout:    req.Timeout,
+		Privileged: req.Privileged,
+		Args:       req.Args,
+	}
+
+	result, err := h.svc.ExecuteScript(c.Request.Context(), tenantID, scriptReq, actor)
+	if err != nil {
+		errorResponse(c, http.StatusInternalServerError, "EXECUTE_ERROR", err.Error())
+		return
+	}
+
+	successResponse(c, result)
 }
 
 // itemsToAny converts []CIItem to []any for JSON serialization.
