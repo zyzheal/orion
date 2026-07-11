@@ -21,6 +21,21 @@ import (
 	"orion/knowledge-svc-go/internal/repository"
 	"orion/knowledge-svc-go/internal/service"
 
+	knowledge_handler "orion/knowledge-svc-go/internal/knowledge/handler"
+	knowledge_repo "orion/knowledge-svc-go/internal/knowledge/repository"
+	knowledge_service "orion/knowledge-svc-go/internal/knowledge/service"
+	mcp_handler "orion/knowledge-svc-go/internal/mcp/handler"
+	mcp_repo "orion/knowledge-svc-go/internal/mcp/repository"
+	mcp_service "orion/knowledge-svc-go/internal/mcp/service"
+	vectorstore_handler "orion/knowledge-svc-go/internal/vector-store/handler"
+	vectorstore_repo "orion/knowledge-svc-go/internal/vector-store/repository"
+	vectorstore_service "orion/knowledge-svc-go/internal/vector-store/service"
+	vectorizerules_handler "orion/knowledge-svc-go/internal/vectorize-rules/handler"
+	vectorizerules_repo "orion/knowledge-svc-go/internal/vectorize-rules/repository"
+	vectorizerules_service "orion/knowledge-svc-go/internal/vectorize-rules/service"
+	vector_handler "orion/knowledge-svc-go/internal/vector/handler"
+	vector_repo "orion/knowledge-svc-go/internal/vector/repository"
+	vector_service "orion/knowledge-svc-go/internal/vector/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -77,14 +92,57 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+
+
 	r := gin.New()
 	r.Use(middleware.RequestID())
 	r.Use(middleware.Recovery(zapLogger))
 	r.Use(middleware.StructuredLogger(zapLogger))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+	r.Use(gin.Logger())
+
+	r.GET("/healthz", middleware.HealthCheck("orion-knowledge-svc"))
+	r.GET("/readyz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	})
+
+	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	// knowledge services
+	knowledgeModRepo := knowledge_repo.NewRepository(db.DB)
+	knowledgeModSvc := knowledge_service.NewService(knowledgeModRepo)
+	knowledgeModH := knowledge_handler.NewHandler(knowledgeModSvc)
+
+	// mcp services
+	mcpModRepo := mcp_repo.NewRepository(db.DB)
+	mcpModSvc := mcp_service.NewService(mcpModRepo)
+	mcpModH := mcp_handler.NewHandler(mcpModSvc)
+
+	// vector-store services
+	vstoreModRepo := vectorstore_repo.NewRepository(db.DB)
+	vstoreModSvc := vectorstore_service.NewService(vstoreModRepo)
+	vstoreModH := vectorstore_handler.NewHandler(vstoreModSvc)
+
+	// vectorize-rules services
+	vrulesModRepo := vectorizerules_repo.NewRepository(db.DB)
+	vrulesModSvc := vectorizerules_service.NewService(vrulesModRepo)
+	vrulesModH := vectorizerules_handler.NewHandler(vrulesModSvc)
+
+	// vector services
+	vectorModRepo := vector_repo.NewRepository(db.DB)
+	vectorModSvc := vector_service.NewService(vectorModRepo)
+	vectorModH := vector_handler.NewHandler(vectorModSvc)
+
 
 	r.GET("/metrics", middleware.MetricsHandler())
-	r.GET("/healthz", middleware.HealthCheck("orion-knowledge-svc-go"))
+
+	knowledgeModH.RegisterRoutes(rg)
+	mcpModH.RegisterRoutes(rg)
+	vstoreModH.RegisterRoutes(rg)
+	vrulesModH.RegisterRoutes(rg)
+	vectorModH.RegisterRoutes(rg)
+
 	r.GET("/health", func(c *gin.Context) {
 		status := gin.H{"status": "healthy", "service": "orion-knowledge-svc-go", "timestamp": time.Now().UTC().Format(time.RFC3339)}
 		if err := db.Health(c.Request.Context()); err != nil {

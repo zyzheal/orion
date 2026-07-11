@@ -230,3 +230,192 @@ func (r *CIRepository) ListAllByTenant(ctx context.Context, tenantID string) ([]
 		 ORDER BY created_at DESC`, tenantID)
 	return items, err
 }
+
+// ---------------------------------------------------------------------------
+// Batch operations
+// ---------------------------------------------------------------------------
+
+// CreateMany inserts multiple CI items. Returns (succeeded, failed) counts
+// and a list of created items.
+func (r *CIRepository) CreateMany(ctx context.Context, items []models.CIItem) (int, int, []models.CIItem, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var succeeded int
+	var failed int
+	var created []models.CIItem
+	query := `INSERT INTO ci_items
+		(id, tenant_id, name, ci_type, description, status, environment, tags, owner, attributes, version)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+
+	for i := range items {
+		_, err := tx.ExecContext(ctx, query,
+			items[i].ID, items[i].TenantID, items[i].Name, items[i].CIType,
+			items[i].Description, items[i].Status, items[i].Environment,
+			items[i].Tags, items[i].Owner, items[i].Attributes, items[i].Version,
+		)
+		if err != nil {
+			failed++
+			continue
+		}
+		succeeded++
+		created = append(created, items[i])
+	}
+
+	if err := tx.Commit(); err != nil {
+		return succeeded, failed, created, err
+	}
+
+	return succeeded, failed, created, nil
+}
+
+// UpdateMany updates multiple CIs by ID in a single transaction.
+func (r *CIRepository) UpdateMany(ctx context.Context, items []models.CIItem) (int, int, error) {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var succeeded, failed int
+	query := `UPDATE ci_items
+		SET name=$1, ci_type=$2, description=$3, status=$4, environment=$5,
+		    tags=$6, owner=$7, attributes=$8, version=$9, updated_at=NOW()
+		WHERE id=$10 AND tenant_id=$11 AND deleted_at IS NULL`
+
+	// Build WHERE clause for checking existence first
+	existsQuery := `SELECT id FROM ci_items WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`
+
+	for i := range items {
+		// Verify CI exists before updating
+		var existingID string
+		err := tx.GetContext(ctx, &existingID, existsQuery, items[i].ID, items[i].TenantID)
+		if err != nil {
+			failed++
+			continue
+		}
+
+		_, err = tx.ExecContext(ctx, query,
+			items[i].Name, items[i].CIType, items[i].Description,
+			items[i].Status, items[i].Environment, items[i].Tags,
+			items[i].Owner, items[i].Attributes, items[i].Version,
+			items[i].ID, items[i].TenantID,
+		)
+		if err != nil {
+			failed++
+			continue
+		}
+		succeeded++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return succeeded, failed, err
+	}
+
+	return succeeded, failed, nil
+}
+
+// DeleteMany soft-deletes multiple CIs by ID.
+func (r *CIRepository) DeleteMany(ctx context.Context, ids []string, tenantID string) (int, int, error) {
+	if len(ids) == 0 {
+		return 0, 0, nil
+	}
+
+	deleteIDs := make([]any, len(ids))
+	for i, id := range ids {
+		deleteIDs[i] = id
+	}
+
+	// Build the SQL with proper placeholders
+	parts := make([]string, len(ids))
+	for i := range ids {
+		parts[i] = fmt.Sprintf("$%d", i+2) // $1 is tenant_id
+	}
+	whereClause := "id IN (" + strings.Join(parts, ",") + ")"
+
+	query := `UPDATE ci_items
+		SET deleted_at = NOW(), status = 'decommissioned', updated_at = NOW()
+		WHERE tenant_id = $1 AND ` + whereClause + ` AND deleted_at IS NULL`
+
+	result, err := r.db.ExecContext(ctx, query, append([]any{tenantID}, deleteIDs...)...)
+	if err != nil {
+		return 0, len(ids), err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return 0, len(ids), err
+	}
+
+	deleted := int(affected)
+	return deleted, len(ids) - deleted, nil
+}
+
+// GetByCiID returns a CI by its business CI ID (name-based lookup within a type).
+// This maps to Node.js getCIByCiId endpoint.
+func (r *CIRepository) GetByCiID(ctx context.Context, ciID, tenantID string) (*models.CIItem, error) {
+	var item models.CIItem
+	// Search by name (ciID in Node.js maps to the name field)
+	err := r.db.GetContext(ctx, &item,
+		`SELECT * FROM ci_items
+		 WHERE name = $1 AND tenant_id = $2 AND deleted_at IS NULL`, ciID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// ---------------------------------------------------------------------------
+// Export / Import helpers
+// ---------------------------------------------------------------------------
+
+// ListForExport returns all CIs (including archived if requested) for a tenant
+// filtered by the given criteria, for bulk export.
+func (r *CIRepository) ListForExport(ctx context.Context, tenantID string, q models.ExportQuery) ([]models.CIItem, error) {
+	var items []models.CIItem
+
+	var conditions []string
+	args := []any{tenantID}
+	argIdx := 2
+
+	if !q.IncludeArchived {
+		conditions = append(conditions, "deleted_at IS NULL")
+	}
+
+	if q.CIType != "" {
+		conditions = append(conditions, fmt.Sprintf("ci_type = $%d", argIdx))
+		args = append(args, q.CIType)
+		argIdx++
+	}
+	if q.Status != "" {
+		conditions = append(conditions, fmt.Sprintf("status = $%d", argIdx))
+		args = append(args, q.Status)
+		argIdx++
+	}
+	if q.Environment != "" {
+		conditions = append(conditions, fmt.Sprintf("environment = $%d", argIdx))
+		args = append(args, q.Environment)
+		argIdx++
+	}
+	if q.Search != "" {
+		conditions = append(conditions, fmt.Sprintf(
+			"(name ILIKE $%d OR description ILIKE $%d)", argIdx, argIdx))
+		args = append(args, "%"+q.Search+"%")
+	}
+
+	where := "WHERE tenant_id = $1 AND " + strings.Join(conditions, " AND ")
+
+	query := "SELECT * FROM ci_items " + where + " ORDER BY created_at DESC"
+	if err := r.db.SelectContext(ctx, &items, query, args...); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}

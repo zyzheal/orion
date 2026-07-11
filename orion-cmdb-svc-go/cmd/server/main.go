@@ -19,6 +19,21 @@ import (
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
 "orion/go-common/pkg/redis"
+	cmdb_handler "orion-cmdb-svc-go/internal/cmdb/handler"
+	cmdb_repo "orion-cmdb-svc-go/internal/cmdb/repository"
+	cmdb_service "orion-cmdb-svc-go/internal/cmdb/service"
+	servicetopology_handler "orion-cmdb-svc-go/internal/service-topology/handler"
+	servicetopology_repo "orion-cmdb-svc-go/internal/service-topology/repository"
+	servicetopology_service "orion-cmdb-svc-go/internal/service-topology/service"
+	servicecatalog_handler "orion-cmdb-svc-go/internal/service-catalog/handler"
+	servicecatalog_repo "orion-cmdb-svc-go/internal/service-catalog/repository"
+	servicecatalog_service "orion-cmdb-svc-go/internal/service-catalog/service"
+	datalineage_handler "orion-cmdb-svc-go/internal/data-lineage/handler"
+	datalineage_repo "orion-cmdb-svc-go/internal/data-lineage/repository"
+	datalineage_service "orion-cmdb-svc-go/internal/data-lineage/service"
+	dataquality_handler "orion-cmdb-svc-go/internal/data-quality/handler"
+	dataquality_repo "orion-cmdb-svc-go/internal/data-quality/repository"
+	dataquality_service "orion-cmdb-svc-go/internal/data-quality/service"
 	orionredis "orion/go-common/pkg/redis"
 
 	"orion-cmdb-svc-go/internal/config"
@@ -109,6 +124,33 @@ func main() {
 	logger.Info("migrations completed")
 
 	gin.SetMode(cfg.Server.Mode)
+
+
+	// cmdb services
+	cmdbRepo := cmdb_repo.NewRepository(db.DB)
+	cmdbSvc := cmdb_service.NewService(cmdbRepo)
+	cmdbH := cmdb_handler.NewHandler(cmdbSvc)
+
+	// service-topology services
+	servicetopologyRepo := servicetopology_repo.NewRepository(db.DB)
+	servicetopologySvc := servicetopology_service.NewService(servicetopologyRepo)
+	servicetopologyH := servicetopology_handler.NewHandler(servicetopologySvc)
+
+	// service-catalog services
+	servicecatalogRepo := servicecatalog_repo.NewRepository(db.DB)
+	servicecatalogSvc := servicecatalog_service.NewService(servicecatalogRepo)
+	servicecatalogH := servicecatalog_handler.NewHandler(servicecatalogSvc)
+
+	// data-lineage services
+	datalineageRepo := datalineage_repo.NewRepository(db.DB)
+	datalineageSvc := datalineage_service.NewService(datalineageRepo)
+	datalineageH := datalineage_handler.NewHandler(datalineageSvc)
+
+	// data-quality services
+	dataqualityRepo := dataquality_repo.NewRepository(db.DB)
+	dataqualitySvc := dataquality_service.NewService(dataqualityRepo)
+	dataqualityH := dataquality_handler.NewHandler(dataqualitySvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -137,7 +179,10 @@ func main() {
 	ciSvc := service.NewCIService(ciRepo, relRepo, auditRepo)
 	ciHandler := handler.NewCIHandler(ciSvc)
 
-	v1 := r.Group("/api/v1")
+	rg := r.Group("/api/v1")
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+
+	v1 := rg
 	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	{
 		v1.GET("/ci-items", ciHandler.ListCIItems)
@@ -151,6 +196,13 @@ func main() {
 		v1.DELETE("/ci-relations/:id", auth.RequirePermission("cmdb", "delete"), ciHandler.DeleteRelation)
 		v1.GET("/ci-items/count", ciHandler.Count)
 	}
+
+
+	cmdbH.RegisterRoutes(rg)
+	servicetopologyH.RegisterRoutes(rg)
+	servicecatalogH.RegisterRoutes(rg)
+	datalineageH.RegisterRoutes(rg)
+	dataqualityH.RegisterRoutes(rg)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		if err := db.Health(c.Request.Context()); err != nil {

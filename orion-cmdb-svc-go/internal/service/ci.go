@@ -759,3 +759,242 @@ func (s *CIService) ListCIRelations(ctx context.Context, tenantID, ciID string) 
 
 	return s.relRepo.ListByCI(ctx, tenantID, ciID)
 }
+
+// ---------------------------------------------------------------------------
+// Batch operations (Task 4.15)
+// ---------------------------------------------------------------------------
+
+// BatchCreate creates multiple CIs in one transaction.
+func (s *CIService) BatchCreate(ctx context.Context, tenantID string, items []models.CreateCIRequest, actor string) (int, int, []models.CIItem, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.BatchCreate")
+	defer span.End()
+
+	createdItems := make([]models.CIItem, 0, len(items))
+	for _, item := range items {
+		if item.Name == "" || item.CIType == "" {
+			continue // skip invalid items
+		}
+		if item.Status == "" {
+			item.Status = "active"
+		}
+		createdItems = append(createdItems, models.CIItem{
+			ID:          uuid.New().String(),
+			TenantID:    tenantID,
+			Name:        item.Name,
+			CIType:      item.CIType,
+			Description: item.Description,
+			Status:      item.Status,
+			Environment: item.Environment,
+			Tags:        item.Tags,
+			Owner:       item.Owner,
+			Attributes:  item.Attributes,
+			Version:     1,
+		})
+	}
+
+	if len(createdItems) == 0 {
+		return 0, 0, nil, nil
+	}
+
+	succeeded, failed, created, err := s.ciRepo.CreateMany(ctx, createdItems)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("batch create failed: %w", err)
+	}
+
+	// Write audit log
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "batch_create",
+		Actor:    actor,
+		NewValue: models.JSONB{"count": succeeded},
+	})
+
+	return succeeded, failed, created, nil
+}
+
+// BatchUpdate updates multiple CIs by ID.
+func (s *CIService) BatchUpdate(ctx context.Context, tenantID string, items []models.CIItem, actor string) (int, int, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.BatchUpdate")
+	defer span.End()
+
+	if len(items) == 0 {
+		return 0, 0, nil
+	}
+
+	succeeded, failed, err := s.ciRepo.UpdateMany(ctx, items)
+	if err != nil {
+		return 0, 0, fmt.Errorf("batch update failed: %w", err)
+	}
+
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "batch_update",
+		Actor:    actor,
+		NewValue: models.JSONB{"count": succeeded},
+	})
+
+	return succeeded, failed, nil
+}
+
+// BatchDelete soft-deletes multiple CIs by ID.
+func (s *CIService) BatchDelete(ctx context.Context, tenantID string, ids []string) (int, int, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.BatchDelete")
+	defer span.End()
+
+	deleted, failed, err := s.ciRepo.DeleteMany(ctx, ids, tenantID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("batch delete failed: %w", err)
+	}
+
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "batch_delete",
+		Actor:    "system",
+		NewValue: models.JSONB{"count": deleted},
+	})
+
+	return deleted, failed, nil
+}
+
+// ---------------------------------------------------------------------------
+// Batch query (complex filter)
+// ---------------------------------------------------------------------------
+
+// BatchQuery returns CIs with complex filter criteria.
+func (s *CIService) BatchQuery(ctx context.Context, tenantID string, req models.ListRequest) ([]models.CIItem, int, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.BatchQuery")
+	defer span.End()
+
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = 20
+	}
+
+	q := models.ListQuery{
+		Page:        req.Page,
+		PageSize:    req.PageSize,
+		CIType:      req.CIType,
+		Status:      req.Status,
+		Environment: req.Environment,
+		Tags:        req.Tags,
+		Search:      req.Search,
+		OrderBy:     req.OrderBy,
+		Order:       req.Order,
+	}
+
+	items, total, err := s.ciRepo.List(ctx, tenantID, q)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query failed: %w", err)
+	}
+
+	return items, total, nil
+}
+
+// ---------------------------------------------------------------------------
+// Import / Export
+// ---------------------------------------------------------------------------
+
+// ImportCIs imports a list of CI raw data, creating new ones or skipping duplicates.
+func (s *CIService) ImportCIs(ctx context.Context, tenantID string, raw []models.ImportCIRaw, skipDuplicates bool, actor string) (*models.ImportResult, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ImportCIs")
+	defer span.End()
+
+	result := &models.ImportResult{}
+
+	for _, item := range raw {
+		if item.Name == "" || item.CIType == "" {
+			result.Failed++
+			continue
+		}
+
+		// Check for duplicates
+		exists, err := s.ciRepo.Exists(ctx, tenantID, item.Name, item.CIType)
+		if err != nil {
+			result.Failed++
+			continue
+		}
+		if exists {
+			if skipDuplicates {
+				result.Skipped++
+			} else {
+				result.Failed++
+			}
+			continue
+		}
+
+		status := item.Status
+		if status == "" {
+			status = "active"
+		}
+
+		ci := &models.CIItem{
+			ID:          uuid.New().String(),
+			TenantID:    tenantID,
+			Name:        item.Name,
+			CIType:      item.CIType,
+			Description: item.Description,
+			Status:      status,
+			Environment: item.Environment,
+			Tags:        item.Tags,
+			Owner:       item.Owner,
+			Attributes:  item.Attributes,
+			Version:     1,
+		}
+
+		if err := s.ciRepo.Create(ctx, ci); err != nil {
+			result.Failed++
+			continue
+		}
+		result.Created++
+	}
+
+	_ = s.auditRepo.Create(ctx, &models.CIAuditLog{
+		ID:       uuid.New().String(),
+		TenantID: tenantID,
+		Action:   "import",
+		Actor:    actor,
+		NewValue: models.JSONB{"created": result.Created, "skipped": result.Skipped, "failed": result.Failed},
+	})
+
+	return result, nil
+}
+
+// ExportCIs returns all CIs matching the export criteria.
+func (s *CIService) ExportCIs(ctx context.Context, tenantID string, q models.ExportQuery) ([]models.CIItem, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ExportCIs")
+	defer span.End()
+
+	items, err := s.ciRepo.ListForExport(ctx, tenantID, q)
+	if err != nil {
+		return nil, fmt.Errorf("export failed: %w", err)
+	}
+
+	return items, nil
+}
+
+// ExportCI exports a single CI by ID (UUID or business name).
+func (s *CIService) ExportCI(ctx context.Context, tenantID string, id string) (*models.CIItem, error) {
+	_, span := otel.Tracer("orion-cmdb-svc").Start(ctx, "CIService.ExportCI")
+	defer span.End()
+
+	// First try as UUID
+	item, err := s.ciRepo.GetByID(ctx, id, tenantID)
+	if err != nil {
+		// Fallback: try as business CI ID (name)
+		item, err = s.ciRepo.GetByCiID(ctx, id, tenantID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return item, nil
+}
+
+// GetCIByCiID returns a CI by its business key (name-based lookup).
+func (s *CIService) GetCIByCiID(ctx context.Context, tenantID, ciID string) (*models.CIItem, error) {
+	return s.ciRepo.GetByCiID(ctx, ciID, tenantID)
+}

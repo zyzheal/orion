@@ -19,6 +19,21 @@ import (
 	"orion/go-common/pkg/middleware"
 	"orion/go-common/pkg/otel"
 	"orion-ticket-svc-go/internal/config"
+	ticketing_handler "orion-ticket-svc-go/internal/ticketing/handler"
+	ticketing_repo "orion-ticket-svc-go/internal/ticketing/repository"
+	ticketing_service "orion-ticket-svc-go/internal/ticketing/service"
+	ticketknowledge_handler "orion-ticket-svc-go/internal/ticket-knowledge/handler"
+	ticketknowledge_repo "orion-ticket-svc-go/internal/ticket-knowledge/repository"
+	ticketknowledge_service "orion-ticket-svc-go/internal/ticket-knowledge/service"
+	problem_handler "orion-ticket-svc-go/internal/problem/handler"
+	problem_repo "orion-ticket-svc-go/internal/problem/repository"
+	problem_service "orion-ticket-svc-go/internal/problem/service"
+	runbook_handler "orion-ticket-svc-go/internal/runbook/handler"
+	runbook_repo "orion-ticket-svc-go/internal/runbook/repository"
+	runbook_service "orion-ticket-svc-go/internal/runbook/service"
+	queue_handler "orion-ticket-svc-go/internal/queue/handler"
+	queue_repo "orion-ticket-svc-go/internal/queue/repository"
+	queue_service "orion-ticket-svc-go/internal/queue/service"
 	"orion-ticket-svc-go/internal/handler"
 	"orion-ticket-svc-go/internal/repository"
 	"orion-ticket-svc-go/internal/service"
@@ -244,19 +259,47 @@ func main() {
 	}
 	zapLogger.Info("migrations completed")
 
-	gin.SetMode(cfg.Server.Mode)
-	r := gin.New()
-	r.Use(middleware.RequestID())
-	r.Use(middleware.Recovery(zapLogger))
-	r.Use(middleware.StructuredLogger(zapLogger))
-	r.Use(middleware.CORS(middleware.CORSConfig{
-		AllowOrigins: cfg.CORS.Origins,
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Origin", "Content-Type", "Authorization", "X-Tenant-ID", "X-User-ID"},
-	}))
-
 	rdb := orionredis.NewClient(orionredis.Config{Addr: cfg.Redis.Addr, DB: cfg.Redis.DB})
 	defer rdb.Close()
+
+	gin.SetMode(cfg.Server.Mode)
+
+
+	// ticketing services
+	ticketingRepo := ticketing_repo.NewRepository(db.DB)
+	ticketingSvc := ticketing_service.NewService(ticketingRepo)
+	ticketingH := ticketing_handler.NewHandler(ticketingSvc)
+
+	// ticket-knowledge services
+	ticketknowledgeRepo := ticketknowledge_repo.NewRepository(db.DB)
+	ticketknowledgeSvc := ticketknowledge_service.NewService(ticketknowledgeRepo)
+	ticketknowledgeH := ticketknowledge_handler.NewHandler(ticketknowledgeSvc)
+
+	// problem services
+	problemRepo := problem_repo.NewRepository(db.DB)
+	problemSvc := problem_service.NewService(problemRepo)
+	problemH := problem_handler.NewHandler(problemSvc)
+
+	// runbook services
+	runbookRepo := runbook_repo.NewRepository(db.DB)
+	runbookSvc := runbook_service.NewService(runbookRepo)
+	runbookH := runbook_handler.NewHandler(runbookSvc)
+
+	// queue services
+	queueRepo := queue_repo.NewRepository(db.DB)
+	queueSvc := queue_service.NewService(queueRepo)
+	queueH := queue_handler.NewHandler(queueSvc)
+
+	r := gin.New()
+
+	r.Use(middleware.Recovery(zapLogger))
+	r.Use(middleware.RequestID())
+	r.Use(middleware.StructuredLogger(zapLogger))
+	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+
+	r.GET("/healthz", middleware.HealthCheck("orion-ticket-svc"))
+
+	rg := r.Group("/api/v1")
 
 	ticketRepo := repository.NewTicketRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
@@ -293,7 +336,7 @@ func main() {
 	loadBalancerHandler := handler.NewLoadBalancerHandler(loadBalancer)
 	analyticsEnhancedHandler := handler.NewAnalyticsEnhancedHandler(analyticsEnhanced)
 
-	v1 := r.Group("/api/v1")
+	v1 := rg
 	v1.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWT.Secret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	{
 		v1.GET("/tickets", ticketHandler.ListTickets)
@@ -377,6 +420,13 @@ func main() {
 		v1.GET("/tickets/bi/dashboard/manager-enhanced", analyticsEnhancedHandler.GetManagerDashboardEnhanced)
 		v1.GET("/tickets/bi/dashboard/engineer-enhanced/:engineerId", analyticsEnhancedHandler.GetEngineerDashboardEnhanced)
 	}
+
+
+	ticketingH.RegisterRoutes(rg)
+	ticketknowledgeH.RegisterRoutes(rg)
+	problemH.RegisterRoutes(rg)
+	runbookH.RegisterRoutes(rg)
+	queueH.RegisterRoutes(rg)
 
 	r.GET("/healthz", func(c *gin.Context) {
 		if err := db.Health(c.Request.Context()); err != nil {

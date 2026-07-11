@@ -325,3 +325,129 @@ func (p *PaginatedRequest) Limit() int {
 	}
 	return p.PageSize
 }
+
+// ========== Approval Flow Config ==========
+
+// FlowNodeType represents the type of a flow node.
+type FlowNodeType string
+
+const (
+	FlowNodeTypeHuman          FlowNodeType = "human"
+	FlowNodeTypeCondition      FlowNodeType = "condition"
+	FlowNodeTypeAgent          FlowNodeType = "agent"
+	FlowNodeTypeParallelGroup  FlowNodeType = "parallel-group"
+	FlowNodeTypeFallbackChain  FlowNodeType = "fallback-chain"
+)
+
+// FlowNode represents a node in the approval flow.
+type FlowNode struct {
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	NodeType        FlowNodeType `json:"node_type"`
+	ApproverType    string     `json:"approver_type"`    // "role", "user", "oncall", "department", "reporting-line"
+	ApproverValue   string     `json:"approver_value"`
+	BackupApprovers []string   `json:"backup_approvers"`
+	TimeoutMinutes  int        `json:"timeout_minutes"`
+	TimeoutAction   string     `json:"timeout_action"` // "remind", "escalate", "reject", "approve"
+	OnApprove       string     `json:"on_approve"`      // "next", "complete"
+	OnReject        string     `json:"on_reject"`       // "reject"
+}
+
+// FlowConfig represents an approval flow configuration.
+type FlowConfig struct {
+	ID              string      `db:"id" json:"id"`
+	TenantID        string      `db:"tenant_id" json:"tenant_id"`
+	FlowID          string      `db:"flow_id" json:"flow_id"`
+	Name            string      `db:"name" json:"name"`
+	Description     *string     `db:"description" json:"description"`
+	Enabled         bool        `db:"enabled" json:"enabled"`
+	CapabilityIDs   JSONBArray  `db:"capability_ids" json:"capability_ids"`
+	Environments    JSONBArray  `db:"environments" json:"environments"`
+	MinRiskLevel    int         `db:"min_risk_level" json:"min_risk_level"`
+	MaxRiskLevel    int         `db:"max_risk_level" json:"max_risk_level"`
+	Priority        int         `db:"priority" json:"priority"`
+	Nodes           FlowNodes   `db:"nodes" json:"nodes"`
+	Version         int         `db:"version" json:"version"`
+	CreatedAt       time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time   `db:"updated_at" json:"updated_at"`
+}
+
+// FlowNodes is a slice of FlowNode that implements sql.Scanner and driver.Valuer.
+type FlowNodes []FlowNode
+
+// Scan implements sql.Scanner for FlowNodes.
+func (fn *FlowNodes) Scan(src interface{}) error {
+	if src == nil {
+		*fn = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("FlowNodes.Scan: unsupported type %T", src)
+	}
+	return json.Unmarshal(data, fn)
+}
+
+// Value implements driver.Valuer for FlowNodes.
+func (fn FlowNodes) Value() (driver.Value, error) {
+	if fn == nil {
+		return nil, nil
+	}
+	return json.Marshal(fn)
+}
+
+// JSONBArray is a string slice that implements sql.Scanner and driver.Valuer for JSONB.
+type JSONBArray []string
+
+// Scan implements sql.Scanner for JSONBArray.
+func (a *JSONBArray) Scan(src interface{}) error {
+	if src == nil {
+		*a = nil
+		return nil
+	}
+	var data []byte
+	switch v := src.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("JSONBArray.Scan: unsupported type %T", src)
+	}
+	return json.Unmarshal(data, a)
+}
+
+// Value implements driver.Valuer for JSONBArray.
+func (a JSONBArray) Value() (driver.Value, error) {
+	if a == nil {
+		return nil, nil
+	}
+	return json.Marshal(a)
+}
+
+// ========== Agent Analysis Models ==========
+
+// AgentEvaluationRequest represents a request for AI agent evaluation.
+type AgentEvaluationRequest struct {
+	Operation       string                 `json:"operation"`
+	Resource        string                 `json:"resource"`
+	Requester       string                 `json:"requester"`
+	Environment     string                 `json:"environment"`
+	RiskLevel       int                    `json:"risk_level"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// AgentEvaluationResult represents the result of AI agent evaluation.
+type AgentEvaluationResult struct {
+	Action           string   `json:"action"`
+	Confidence       float64  `json:"confidence"`
+	Reason           string   `json:"reason"`
+	RiskScore        int      `json:"risk_score"`
+	RiskFactors      []string `json:"risk_factors"`
+	SuggestedApprover string  `json:"suggested_approver,omitempty"`
+}

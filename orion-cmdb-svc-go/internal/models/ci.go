@@ -167,3 +167,63 @@ type ImpactAnalysisResult struct {
 	AffectedEdges []TopologyEdge `json:"affected_edges"`
 	ImpactLevel   string         `json:"impact_level"` // critical, high, medium, low
 }
+
+// ExportQuery carries filter parameters for CI export.
+type ExportQuery struct {
+	CIType          string `form:"ci_type"`
+	Status          string `form:"status"`
+	Environment     string `form:"environment"`
+	Search          string `form:"search"`
+	IncludeArchived bool   `form:"include_archived"`
+}
+
+// ImportCIRaw is the raw JSON shape from import payload.
+type ImportCIRaw struct {
+	Name        string   `json:"name"`
+	CIType      string   `json:"ci_type"`
+	Description string   `json:"description"`
+	Status      string   `json:"status"`
+	Environment string   `json:"environment"`
+	Tags        []string `json:"tags"`
+	Owner       string   `json:"owner"`
+	Attributes  JSONB    `json:"attributes"`
+}
+
+// BatchCreateResult holds the outcome of a batch operation.
+type BatchCreateResult struct {
+	Success int        `json:"success"`
+	Failed  int        `json:"failed"`
+	Items   []CIItem   `json:"items"`
+}
+
+// BatchUpdateResult holds the outcome of a batch update.
+type BatchUpdateResult struct {
+	Success int `json:"success"`
+	Failed  int `json:"failed"`
+}
+
+// BatchDeleteResult holds the outcome of a batch delete.
+type BatchDeleteResult struct {
+	Deleted int `json:"deleted"`
+	Failed  int `json:"failed"`
+}
+
+// ImportResult holds the outcome of an import operation.
+type ImportResult struct {
+	Created int `json:"created"`
+	Skipped int `json:"skipped"`
+	Failed  int `json:"failed"`
+}
+
+// ListRequest is the payload for batch query CIs.
+type ListRequest struct {
+	Page        int    `json:"page"`
+	PageSize    int    `json:"page_size"`
+	CIType      string `json:"ci_type"`
+	Status      string `json:"status"`
+	Environment string `json:"environment"`
+	Tags        string `json:"tags"`
+	Search      string `json:"search"`
+	OrderBy     string `json:"order_by"`
+	Order       string `json:"order"`
+}
