@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/google/uuid"
 	"orion/security-svc-go/internal/ai-security/models"
 	"time"
@@ -81,7 +80,7 @@ func (r *Repository) ListScans(ctx context.Context, tenantID, userID string, sta
 	var results []models.ScanResult
 	for rows.Next() {
 		var r models.ScanResult
-		var violationsRaw pgconn.RawBytes
+		var violationsRaw []byte
 		err := rows.Scan(&r.ID, &r.UserID, &r.SessionID, &r.RiskScore,
 			&r.Sanitized, &r.HasViolation, &violationsRaw, &r.Recommendation, &r.ScannedAt)
 		if err != nil {
@@ -111,7 +110,7 @@ func (r *Repository) GetScanBySessionID(ctx context.Context, tenantID, sessionID
 	var results []models.ScanResult
 	for rows.Next() {
 		var r models.ScanResult
-		var violationsRaw pgconn.RawBytes
+		var violationsRaw []byte
 		err := rows.Scan(&r.ID, &r.UserID, &r.SessionID, &r.RiskScore,
 			&r.Sanitized, &r.HasViolation, &violationsRaw, &r.Recommendation, &r.ScannedAt)
 		if err != nil {
@@ -167,7 +166,7 @@ func (r *Repository) ListAlerts(ctx context.Context, tenantID, userID string, st
 	var alerts []models.SecurityAlert
 	for rows.Next() {
 		var a models.SecurityAlert
-		var violationsRaw pgconn.RawBytes
+		var violationsRaw []byte
 		err := rows.Scan(&a.ID, &a.UserID, &a.SessionID, &a.RiskScore, &violationsRaw, &a.ScannedAt)
 		if err != nil {
 			return nil, err
@@ -183,7 +182,7 @@ func (r *Repository) ListAlerts(ctx context.Context, tenantID, userID string, st
 // GetAlertByID gets a specific alert by ID.
 func (r *Repository) GetAlertByID(ctx context.Context, tenantID, id string) (*models.SecurityAlert, error) {
 	var a models.SecurityAlert
-	var violationsRaw pgconn.RawBytes
+	var violationsRaw []byte
 	err := r.db.QueryRow(ctx, `
 		SELECT id, user_id, session_id, risk_score, violations, scanned_at
 		FROM ai_security_logs WHERE id = $1 AND tenant_id = $2 AND has_violation = $3
@@ -239,7 +238,7 @@ func (r *Repository) ListAuditLogs(ctx context.Context, tenantID, userID, action
 	var results []models.ScanResult
 	for rows.Next() {
 		var r models.ScanResult
-		var violationsRaw pgconn.RawBytes
+		var violationsRaw []byte
 		err := rows.Scan(&r.ID, &r.UserID, &r.SessionID, &r.RiskScore,
 			&r.Sanitized, &r.HasViolation, &violationsRaw, &r.Recommendation, &r.ScannedAt)
 		if err != nil {
@@ -296,7 +295,7 @@ func (r *Repository) GetAuditLogsByFilter(ctx context.Context, tenantID, userID 
 	var results []models.ScanResult
 	for rows.Next() {
 		var r models.ScanResult
-		var violationsRaw pgconn.RawBytes
+		var violationsRaw []byte
 		err := rows.Scan(&r.ID, &r.UserID, &r.SessionID, &r.RiskScore,
 			&r.Sanitized, &r.HasViolation, &violationsRaw, &r.Recommendation, &r.ScannedAt)
 		if err != nil {

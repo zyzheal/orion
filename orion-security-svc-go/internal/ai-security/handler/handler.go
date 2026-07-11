@@ -79,8 +79,7 @@ func (h *Handler) GetScan(c *gin.Context) {
 
 // RunScan — POST /api/v1/ai/security/scans
 func (h *Handler) RunScan(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	userID := c.GetString("user_id", "unknown")
+	userID := c.GetString("user_id")
 
 	var req models.ScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

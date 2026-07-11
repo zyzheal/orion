@@ -64,8 +64,9 @@ type ScanRequest struct {
 
 // ScanResult is the output of a security scan.
 type ScanResult struct {
-	Input           string    `json:"input"`
-	UserID          string    `json:"user_id"`
+	ID            string    `json:"id"`
+	Input         string    `json:"input"`
+	UserID        string    `json:"user_id"`
 	TenantID        string    `json:"tenant_id"`
 	SessionID       string    `json:"session_id"`
 	RiskScore       float64   `json:"risk_score"`

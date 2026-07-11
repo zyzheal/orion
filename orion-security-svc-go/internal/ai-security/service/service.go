@@ -7,7 +7,6 @@ import (
 	"orion/security-svc-go/internal/ai-security/models"
 	"orion/security-svc-go/internal/ai-security/repository"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -181,7 +180,6 @@ func (s *Service) GetConfig() AISecurityConfig {
 
 func (s *Service) validateInput(input string) []string {
 	var violations []string
-	inputUpper := strings.ToUpper(input)
 
 	// Check length
 	if len(input) > s.config.MaxInputLength {
