@@ -20,6 +20,18 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 
+	workflowdependency_handler "orion/workflow-svc-go/internal/workflow-dependency/handler"
+	workflowdependency_repo "orion/workflow-svc-go/internal/workflow-dependency/repository"
+	workflowdependency_service "orion/workflow-svc-go/internal/workflow-dependency/service"
+	workflowtask_handler "orion/workflow-svc-go/internal/workflow-task/handler"
+	workflowtask_repo "orion/workflow-svc-go/internal/workflow-task/repository"
+	workflowtask_service "orion/workflow-svc-go/internal/workflow-task/service"
+	workflowtrigger_handler "orion/workflow-svc-go/internal/workflow-trigger/handler"
+	workflowtrigger_repo "orion/workflow-svc-go/internal/workflow-trigger/repository"
+	workflowtrigger_service "orion/workflow-svc-go/internal/workflow-trigger/service"
+	workflowwebhook_handler "orion/workflow-svc-go/internal/workflow-webhook/handler"
+	workflowwebhook_repo "orion/workflow-svc-go/internal/workflow-webhook/repository"
+	workflowwebhook_service "orion/workflow-svc-go/internal/workflow-webhook/service"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -56,6 +68,28 @@ func main() {
 	svc := service.NewService(repo)
 	h := handler.NewHandler(svc)
 
+
+
+	// workflow-dependency services
+	workflowdependencyRepo := workflowdependency_repo.NewRepository(db.DB)
+	workflowdependencySvc := workflowdependency_service.NewService(workflowdependencyRepo)
+	workflowdependencyH := workflowdependency_handler.NewHandler(workflowdependencySvc)
+
+	// workflow-task services
+	workflowtaskRepo := workflowtask_repo.NewRepository(db.DB)
+	workflowtaskSvc := workflowtask_service.NewService(workflowtaskRepo)
+	workflowtaskH := workflowtask_handler.NewHandler(workflowtaskSvc)
+
+	// workflow-trigger services
+	workflowtriggerRepo := workflowtrigger_repo.NewRepository(db.DB)
+	workflowtriggerSvc := workflowtrigger_service.NewService(workflowtriggerRepo)
+	workflowtriggerH := workflowtrigger_handler.NewHandler(workflowtriggerSvc)
+
+	// workflow-webhook services
+	workflowwebhookRepo := workflowwebhook_repo.NewRepository(db.DB)
+	workflowwebhookSvc := workflowwebhook_service.NewService(workflowwebhookRepo)
+	workflowwebhookH := workflowwebhook_handler.NewHandler(workflowwebhookSvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -64,6 +98,12 @@ func main() {
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
+
+
+	workflowdependencyH.RegisterRoutes(rg)
+	workflowtaskH.RegisterRoutes(rg)
+	workflowtriggerH.RegisterRoutes(rg)
+	workflowwebhookH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-workflow-svc"))
 

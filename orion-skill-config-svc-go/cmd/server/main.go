@@ -53,6 +53,7 @@ func main() {
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
 	h := handler.NewHandler(svc)
+	skillHandler := handler.NewSkillHandler(svc)
 
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
@@ -62,6 +63,7 @@ func main() {
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
 	h.RegisterRoutes(rg)
+	skillHandler.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-skill-config-svc"))
 

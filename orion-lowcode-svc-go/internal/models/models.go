@@ -609,6 +609,85 @@ type UpdateTriggerRequest struct {
 }
 
 // ============================================================
+// Workflow Version (snapshot)
+// ============================================================
+
+// WorkflowVersion is a point-in-time snapshot of a workflow definition.
+type WorkflowVersion struct {
+	ID          string         `db:"id" json:"id"`
+	WorkflowID  string         `db:"workflow_id" json:"workflow_id"`
+	TenantID    string         `db:"tenant_id" json:"tenant_id"`
+	Version     string         `db:"version" json:"version"`
+	Nodes       WorkflowNodeList `db:"nodes" json:"nodes"`
+	Edges       WorkflowEdgeList `db:"edges" json:"edges"`
+	CommitMsg   string         `db:"commit_message" json:"commit_message,omitempty"`
+	CreatedBy   string         `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time      `db:"created_at" json:"created_at"`
+}
+
+// CreateWorkflowVersionRequest is the body for creating a version snapshot.
+type CreateWorkflowVersionRequest struct {
+	CommitMsg  string `json:"commit_message"`
+	Snapshot   struct {
+		Nodes []json.RawMessage `json:"nodes"`
+		Edges []json.RawMessage `json:"edges"`
+	} `json:"snapshot,omitempty"`
+}
+
+// ============================================================
+// Workflow Template
+// ============================================================
+
+// WorkflowTemplate is a reusable workflow definition template.
+type WorkflowTemplate struct {
+	ID          string            `db:"id" json:"id"`
+	TenantID    string            `db:"tenant_id" json:"tenant_id"`
+	Name        string            `db:"name" json:"name"`
+	Description *string           `db:"description" json:"description,omitempty"`
+	Category    *string           `db:"category" json:"category,omitempty"`
+	Thumbnail   *string           `db:"thumbnail" json:"thumbnail,omitempty"`
+	Definition  map[string]any    `db:"definition" json:"definition"`
+	Tags        StringList        `db:"tags" json:"tags,omitempty"`
+	UsageCount  int               `db:"usage_count" json:"usage_count"`
+	CreatedBy   string            `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time         `db:"created_at" json:"created_at"`
+}
+
+// CreateTemplateRequest is the body for creating a workflow template.
+type CreateTemplateRequest struct {
+	Name        string            `json:"name" binding:"required"`
+	Description string            `json:"description"`
+	Category    string            `json:"category"`
+	Thumbnail   string            `json:"thumbnail"`
+	Definition  map[string]any    `json:"definition" binding:"required"`
+	Tags        []string          `json:"tags"`
+	CreatedBy   string            `json:"created_by"`
+}
+
+// ApplyTemplateRequest is the body for applying a template to create a workflow.
+type ApplyTemplateRequest struct {
+	WorkflowName string `json:"workflow_name" binding:"required"`
+	Description  string `json:"description"`
+	CreatedBy    string `json:"created_by"`
+}
+
+// ImportWorkflowRequest is the body for importing a workflow from another source.
+type ImportWorkflowRequest struct {
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	CreatedBy   string `json:"created_by"`
+	Nodes       WorkflowNodeList `json:"nodes" binding:"required"`
+	Edges       WorkflowEdgeList `json:"edges"`
+}
+
+// ExportResponse is the payload returned when exporting a workflow.
+type ExportResponse struct {
+	Workflow  map[string]any `json:"workflow"`
+	ExportedAt string       `json:"exported_at"`
+	Versions  []map[string]any `json:"versions"`
+}
+
+// ============================================================
 // Sentinel errors
 // ============================================================
 

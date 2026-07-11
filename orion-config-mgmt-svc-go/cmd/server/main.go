@@ -20,6 +20,24 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 
+	configmgmtenhanced_handler "orion/config-mgmt-svc-go/internal/config-mgmt-enhanced/handler"
+	configmgmtenhanced_repo "orion/config-mgmt-svc-go/internal/config-mgmt-enhanced/repository"
+	configmgmtenhanced_service "orion/config-mgmt-svc-go/internal/config-mgmt-enhanced/service"
+	globalparam_handler "orion/config-mgmt-svc-go/internal/global-param/handler"
+	globalparam_repo "orion/config-mgmt-svc-go/internal/global-param/repository"
+	globalparam_service "orion/config-mgmt-svc-go/internal/global-param/service"
+	cache_handler "orion/config-mgmt-svc-go/internal/cache/handler"
+	cache_repo "orion/config-mgmt-svc-go/internal/cache/repository"
+	cache_service "orion/config-mgmt-svc-go/internal/cache/service"
+	cachecleanup_handler "orion/config-mgmt-svc-go/internal/cache-cleanup/handler"
+	cachecleanup_repo "orion/config-mgmt-svc-go/internal/cache-cleanup/repository"
+	cachecleanup_service "orion/config-mgmt-svc-go/internal/cache-cleanup/service"
+	envprofile_handler "orion/config-mgmt-svc-go/internal/env-profile/handler"
+	envprofile_repo "orion/config-mgmt-svc-go/internal/env-profile/repository"
+	envprofile_service "orion/config-mgmt-svc-go/internal/env-profile/service"
+	unifiedconfig_handler "orion/config-mgmt-svc-go/internal/unified-config/handler"
+	unifiedconfig_repo "orion/config-mgmt-svc-go/internal/unified-config/repository"
+	unifiedconfig_service "orion/config-mgmt-svc-go/internal/unified-config/service"
 	orionredis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -91,6 +109,38 @@ webhookSvc := service.NewWebhookService(repo)
 	canaryH := configHandler.NewCanaryHandler(canarySvc)
 		templateH := configHandler.NewTemplateHandler(templateSvc)
 		webhookH := configHandler.NewWebhookHandler(webhookSvc)
+
+
+	// config-mgmt-enhanced services
+	configmgmtenhancedRepo := configmgmtenhanced_repo.NewRepository(db.DB)
+	configmgmtenhancedSvc := configmgmtenhanced_service.NewService(configmgmtenhancedRepo)
+	configmgmtenhancedH := configmgmtenhanced_handler.NewHandler(configmgmtenhancedSvc)
+
+	// global-param services
+	globalparamRepo := globalparam_repo.NewRepository(db.DB)
+	globalparamSvc := globalparam_service.NewService(globalparamRepo)
+	globalparamH := globalparam_handler.NewHandler(globalparamSvc)
+
+	// cache services
+	cacheRepo := cache_repo.NewRepository(db.DB)
+	cacheSvc := cache_service.NewService(cacheRepo)
+	cacheH := cache_handler.NewHandler(cacheSvc)
+
+	// cache-cleanup services
+	cachecleanupRepo := cachecleanup_repo.NewRepository(db.DB)
+	cachecleanupSvc := cachecleanup_service.NewService(cachecleanupRepo)
+	cachecleanupH := cachecleanup_handler.NewHandler(cachecleanupSvc)
+
+	// env-profile services
+	envprofileRepo := envprofile_repo.NewRepository(db.DB)
+	envprofileSvc := envprofile_service.NewService(envprofileRepo)
+	envprofileH := envprofile_handler.NewHandler(envprofileSvc)
+
+	// unified-config services
+	unifiedconfigRepo := unifiedconfig_repo.NewRepository(db.DB)
+	unifiedconfigSvc := unifiedconfig_service.NewService(unifiedconfigRepo)
+	unifiedconfigH := unifiedconfig_handler.NewHandler(unifiedconfigSvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -111,6 +161,14 @@ webhookSvc := service.NewWebhookService(repo)
 	canaryH.RegisterRoutes(rg)
 		templateH.RegisterRoutes(rg)
 		webhookH.RegisterRoutes(rg)
+
+	configmgmtenhancedH.RegisterRoutes(rg)
+	globalparamH.RegisterRoutes(rg)
+	cacheH.RegisterRoutes(rg)
+	cachecleanupH.RegisterRoutes(rg)
+	envprofileH.RegisterRoutes(rg)
+	unifiedconfigH.RegisterRoutes(rg)
+
 	r.GET("/healthz", middleware.HealthCheck("orion-config-mgmt-svc"))
 
 	addr := fmt.Sprintf(":%d", cfg.Port)

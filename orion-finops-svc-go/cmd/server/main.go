@@ -31,6 +31,18 @@ import (
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	orionredis "orion/go-common/pkg/redis"
+	finopsv2_handler "orion/finops-svc-go/internal/finops-v2/handler"
+	finopsv2_repo "orion/finops-svc-go/internal/finops-v2/repository"
+	finopsv2_service "orion/finops-svc-go/internal/finops-v2/service"
+	costallocation_handler "orion/finops-svc-go/internal/cost-allocation/handler"
+	costallocation_repo "orion/finops-svc-go/internal/cost-allocation/repository"
+	costallocation_service "orion/finops-svc-go/internal/cost-allocation/service"
+	billing_handler "orion/finops-svc-go/internal/billing/handler"
+	billing_repo "orion/finops-svc-go/internal/billing/repository"
+	billing_service "orion/finops-svc-go/internal/billing/service"
+	bidashboard_handler "orion/finops-svc-go/internal/bi-dashboard/handler"
+	bidashboard_repo "orion/finops-svc-go/internal/bi-dashboard/repository"
+	bidashboard_service "orion/finops-svc-go/internal/bi-dashboard/service"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -107,6 +119,28 @@ func main() {
 	rdHandler := rd_handler.NewHandler(rdSvc)
 
 	// ── Router ──
+
+
+	// finops-v2 services
+	finopsv2Repo := finopsv2_repo.NewRepository(db.DB)
+	finopsv2Svc := finopsv2_service.NewService(finopsv2Repo)
+	finopsv2H := finopsv2_handler.NewHandler(finopsv2Svc)
+
+	// cost-allocation services
+	costallocationRepo := costallocation_repo.NewRepository(db.DB)
+	costallocationSvc := costallocation_service.NewService(costallocationRepo)
+	costallocationH := costallocation_handler.NewHandler(costallocationSvc)
+
+	// billing services
+	billingRepo := billing_repo.NewRepository(db.DB)
+	billingSvc := billing_service.NewService(billingRepo)
+	billingH := billing_handler.NewHandler(billingSvc)
+
+	// bi-dashboard services
+	bidashboardRepo := bidashboard_repo.NewRepository(db.DB)
+	bidashboardSvc := bidashboard_service.NewService(bidashboardRepo)
+	bidashboardH := bidashboard_handler.NewHandler(bidashboardSvc)
+
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
@@ -124,6 +158,12 @@ func main() {
 	costHandler.RegisterRoutes(rg)
 	effHandler.RegisterRoutes(rg)
 	rdHandler.RegisterRoutes(rg)
+
+
+	finopsv2H.RegisterRoutes(rg)
+	costallocationH.RegisterRoutes(rg)
+	billingH.RegisterRoutes(rg)
+	bidashboardH.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-finops-svc"))
 

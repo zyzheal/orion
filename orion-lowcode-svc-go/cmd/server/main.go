@@ -52,7 +52,8 @@ func main() {
 
 	repo := repository.NewRepository(db.DB)
 	svc := service.NewService(repo)
-	h := handler.NewHandler(svc)
+	appHandler := handler.NewHandler(svc)
+	wfHandler := handler.NewWorkflowHandler(svc)
 
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
@@ -61,7 +62,8 @@ func main() {
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: cfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
-	h.RegisterRoutes(rg)
+	appHandler.RegisterRoutes(rg)
+	wfHandler.RegisterRoutes(rg)
 
 	r.GET("/healthz", middleware.HealthCheck("orion-lowcode-svc"))
 

@@ -102,3 +102,26 @@ type RLSPolicy struct {
 	SessionVariable string `db:"session_variable" json:"session_variable"`
 	Enabled         bool   `db:"enabled" json:"enabled"`
 }
+
+// NamespaceUsage holds per-namespace usage statistics for a tenant.
+type NamespaceUsage struct {
+	ID            string     `db:"id" json:"id"`
+	NamespaceName string     `db:"namespace_name" json:"namespace_name"`
+	Status        string     `db:"status" json:"status"`
+	TenantID      int64      `db:"tenant_id" json:"tenant_id"`
+	AllocatedAt   *time.Time `db:"allocated_at" json:"allocated_at,omitempty"`
+	Purpose       *string    `db:"purpose" json:"purpose"`
+	RunnerCount   int        `db:"runner_count" json:"runner_count"`
+	PipelineCount int        `json:"pipeline_count"`
+	ActiveRuns    int        `json:"active_runs"`
+}
+
+// TenantMembership represents a user's membership in a tenant.
+type TenantMembership struct {
+	ID          string    `db:"id" json:"id"`
+	Name        string    `db:"name" json:"name"`
+	DisplayName *string   `db:"display_name" json:"display_name"`
+	Status      string    `db:"status" json:"status"`
+	Role        string    `db:"role" json:"role"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}

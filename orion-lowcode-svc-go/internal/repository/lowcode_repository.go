@@ -551,3 +551,95 @@ func (r *Repository) DeleteTrigger(ctx context.Context, id string) error {
 		`DELETE FROM workflow_triggers WHERE id = $1`, id)
 	return err
 }
+
+// ============================================================
+// Workflow Version
+// ============================================================
+
+// CreateVersion inserts a new version snapshot.
+func (r *Repository) CreateVersion(ctx context.Context, v *models.WorkflowVersion) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO lowcode_workflow_version (id, workflow_id, tenant_id, version, nodes, edges, commit_message, created_by, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())`,
+		v.ID, v.WorkflowID, v.TenantID, v.Version, v.Nodes, v.Edges, v.CommitMsg, v.CreatedBy)
+	return err
+}
+
+// FindVersionsByWorkflowID returns version snapshots for a workflow.
+func (r *Repository) FindVersionsByWorkflowID(ctx context.Context, tenantID, workflowID string, offset, limit int) ([]models.WorkflowVersion, int, error) {
+	var (
+		versions []models.WorkflowVersion
+		total    int
+	)
+	if err := r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM lowcode_workflow_version WHERE workflow_id = $1 AND tenant_id = $2`,
+		workflowID, tenantID); err != nil {
+		return nil, 0, err
+	}
+	err := r.db.SelectContext(ctx, &versions,
+		`SELECT id, workflow_id, tenant_id, version, nodes, edges, commit_message, created_by, created_at
+		 FROM lowcode_workflow_version
+		 WHERE workflow_id = $1 AND tenant_id = $2
+		 ORDER BY created_at DESC
+		 OFFSET $3 LIMIT $4`,
+		workflowID, tenantID, offset, limit)
+	return versions, total, err
+}
+
+// ============================================================
+// Workflow Template
+// ============================================================
+
+// CreateTemplate inserts a new workflow template.
+func (r *Repository) CreateTemplate(ctx context.Context, t *models.WorkflowTemplate) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO lowcode_workflow_template (id, tenant_id, name, description, category, thumbnail, definition, tags, usage_count, created_by)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,0,$9)`,
+		t.ID, t.TenantID, t.Name, t.Description, t.Category, t.Thumbnail, t.Definition, t.Tags, t.CreatedBy)
+	return err
+}
+
+// FindTemplateByID returns a template by id and tenant.
+func (r *Repository) FindTemplateByID(ctx context.Context, tenantID, id string) (*models.WorkflowTemplate, error) {
+	var t models.WorkflowTemplate
+	err := r.db.GetContext(ctx, &t,
+		`SELECT id, tenant_id, name, description, category, thumbnail, definition, tags, usage_count, created_by, created_at
+		 FROM lowcode_workflow_template
+		 WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &t, nil
+}
+
+// ListTemplates returns a page of templates for a tenant.
+func (r *Repository) ListTemplates(ctx context.Context, tenantID string, offset, limit int) ([]models.WorkflowTemplate, int, error) {
+	var (
+		templates []models.WorkflowTemplate
+		total     int
+	)
+	if err := r.db.GetContext(ctx, &total,
+		`SELECT COUNT(*) FROM lowcode_workflow_template WHERE tenant_id = $1`, tenantID); err != nil {
+		return nil, 0, err
+	}
+	err := r.db.SelectContext(ctx, &templates,
+		`SELECT id, tenant_id, name, description, category, thumbnail, definition, tags, usage_count, created_by, created_at
+		 FROM lowcode_workflow_template
+		 WHERE tenant_id = $1
+		 ORDER BY created_at DESC
+		 OFFSET $2 LIMIT $3`,
+		tenantID, offset, limit)
+	return templates, total, err
+}
+
+// IncrementTemplateUsage bumps usage_count for a template.
+func (r *Repository) IncrementTemplateUsage(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE lowcode_workflow_template SET usage_count = usage_count + 1 WHERE id = $1`,
+		id)
+	return err
+}
