@@ -651,11 +651,17 @@ go tool cover -func=coverage.out | tail -1
 
 | 编号 | 发现 | 对方案影响 |
 |------|------|-----------|
-| TS-01 | 175+ 路由文件，Go 仅覆盖 ~23% | 迁移工作量确认 |
-| TS-02 | 核心模块 pipeline/workflow/notification/AI 全缺 | 核心域迁移优先 |
-| TS-03 | TS 与 Go 共享同一 PostgreSQL 实例 | Schema 对齐可行 |
-| TS-04 | TS 有完善的 SSE 日志流 + Saga 编排 | pipeline 迁移参考 |
-| TS-05 | TS 有结构化日志 + tracing + metrics | 可观测性基线 |
+| 编号 | 发现 | 对方案影响 |
+|------|------|-----------|
+| TS-01 | 175 路由文件，约 **120 个独立模块**（pipeline 体系拆成 12 个文件） | 模块计数修正 |
+| TS-02 | TS-only 约 **70 个模块**，其中真正有业务逻辑的约 **30 个** | Phase 5 工作量下调 |
+| TS-03 | TS 与 Go **共享同一 PostgreSQL**，728 个迁移文件共用 | Schema 对齐可行 |
+| TS-04 | TS 用原生 `pg` + 自研 `BaseRepository`，非 ORM | Go 的 sqlx 可兼容 |
+| TS-05 | TS 日志（pino+traceId）已完善，**OTel/Prometheus 均未实现** | 可观测性基线 |
+| TS-06 | TS 引擎：**PipelineEngine(405r)+ContainerExecutor(272r)+CheckpointManager(474r)+MultiTargetExecutor(167r)=1318r** | pipeline 迁移复杂度 |
+| TS-07 | TS Saga：**SagaCoordinator(432r)+DeploySaga(532r)+IdempotencyChecker(260r)=1281r** | Saga 迁移参考 |
+| TS-08 | TS 事件系统：19 个文件，含 JetStream 消费者 + 6 种事件发布器 | NATS 事件迁移 |
+| TS-09 | **Go Platform agent 声称"23 个模块为空壳"为错误**（只匹配 `rg.` 前缀，实际所有模块路由 > 0） | 模块计数确认 |
 
 ---
 
