@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/project/models"
@@ -32,35 +31,35 @@ func (h *Handler) Create(c *gin.Context) {
 	createdBy := c.GetString("user_id")
 	var req models.CreateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": p})
+	respondCreated(c, p)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items, "total": len(items)})
+	respondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	p, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": p})
+	respondSuccess(c, p)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -68,22 +67,22 @@ func (h *Handler) Update(c *gin.Context) {
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": p})
+	respondSuccess(c, p)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }

@@ -3,85 +3,184 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
+
+	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 
 	"orion/platform-svc-go/internal/service-registry/models"
+	"orion/platform-svc-go/internal/service-registry/repository"
 	"orion/platform-svc-go/internal/service-registry/service"
 
 	"github.com/gin-gonic/gin"
 )
 
+const resource = "service-registry"
+
+// Handler provides HTTP handlers for the service registry.
 type Handler struct {
 	svc *service.Service
 }
 
+// NewHandler creates a new Handler backed by the given Service.
 func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// RegisterRoutes mounts all service-registry routes under the given router group
+// (expected base: /api/v1/service-registry).
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	// Routes will be registered here
+	// GET /services — list all registered services (tenant-scoped, paginated)
+	rg.GET("/services",
+		auth.RequirePermission(resource, "read"),
+		h.List)
+
+	// POST /register — register a new service
+	rg.POST("/register",
+		auth.RequirePermission(resource, "write"),
+		h.Register)
+
+	// DELETE /services/:id — deregister a service by internal id
+	rg.DELETE("/services/:id",
+		auth.RequirePermission(resource, "write"),
+		h.Deregister)
+
+	// GET /services/:id/health — get service health status
+	rg.GET("/services/:id/health",
+		auth.RequirePermission(resource, "read"),
+		h.Health)
+
+	// POST /services/:id/heartbeat — record service heartbeat
+	rg.POST("/services/:id/heartbeat",
+		auth.RequirePermission(resource, "write"),
+		h.Heartbeat)
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	var req models.CreateServiceRegistryRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
-		return
-	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": m})
-}
-
-func (h *Handler) Get(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "error": "not found"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
-}
-
+// List handles GET /services.
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * limit
+
+	f := &repository.ListFilters{
+		ServiceName: c.Query("serviceName"),
+		Health:      c.Query("health"),
+		Limit:       limit,
+		Offset:      offset,
+	}
+
+	items, err := h.svc.List(c.Request.Context(), tenantID, f)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, "failed to list services: "+err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, models.ListResponse{
+		Data:  items,
+		Total: len(items),
+		Page:  page,
+		Limit: limit,
+	})
 }
 
-func (h *Handler) Update(c *gin.Context) {
+// Register handles POST /register.
+func (h *Handler) Register(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	var req models.UpdateServiceRegistryRequest
+	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	if req.ServiceID == "" || req.ServiceName == "" || req.ServiceURL == "" {
+		respondBadRequest(c, "serviceId, serviceName, and serviceUrl are required")
+		return
+	}
+
+	// Check for duplicate serviceId within tenant
+	existing, err := h.svc.GetByServiceID(c.Request.Context(), tenantID, req.ServiceID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, "failed to check existing service: "+err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	if existing != nil {
+		errors.WriteErrorWithDetails(c, errors.ErrConflict,
+			"Service already registered: "+req.ServiceID, http.StatusConflict,
+			map[string]any{"serviceId": req.ServiceID})
+		return
+	}
+
+	m, err := h.svc.Register(c.Request.Context(), tenantID, req)
+	if err != nil {
+		errors.WriteErrorWithDetails(c, errors.ErrConflict,
+			"Failed to register service: "+err.Error(), http.StatusConflict,
+			map[string]any{"serviceId": req.ServiceID})
+		return
+	}
+	respondCreated(c, m)
 }
 
-func (h *Handler) Delete(c *gin.Context) {
+// Deregister handles DELETE /services/:id.
+func (h *Handler) Deregister(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+
+	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	if err != nil {
+		respondNotFound(c, "Service not found: "+id)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+
+	if err := h.svc.Deregister(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
+		respondInternalError(c, "failed to deregister service: "+err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "Service " + entity.ServiceID + " deregistered"})
+}
+
+// Health handles GET /services/:id/health.
+func (h *Handler) Health(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	if err != nil {
+		respondNotFound(c, "Service not found: "+id)
+		return
+	}
+
+	now := time.Now().UTC()
+	lastHeartbeat := ""
+	if entity.LastHeartbeatAt != nil {
+		lastHeartbeat = entity.LastHeartbeatAt.Format("2006-01-02T15:04:05Z")
+	}
+
+	respondSuccess(c, models.HealthResponse{
+		ServiceID:     entity.ServiceID,
+		Status:        entity.HealthStatus,
+		LatencyMs:     0,
+		LastChecked:   now.Format("2006-01-02T15:04:05Z"),
+		ErrorRate:     0,
+		LastHeartbeat: &lastHeartbeat,
+	})
+}
+
+// Heartbeat handles POST /services/:id/heartbeat.
+func (h *Handler) Heartbeat(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+
+	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	if err != nil {
+		respondNotFound(c, "Service not found: "+id)
+		return
+	}
+
+	if err := h.svc.RecordHeartbeat(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
+		respondInternalError(c, "failed to record heartbeat: "+err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "Heartbeat recorded"})
 }

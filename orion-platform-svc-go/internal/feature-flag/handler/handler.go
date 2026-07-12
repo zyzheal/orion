@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/platform-svc-go/internal/feature-flag/models"
@@ -48,20 +47,20 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
 	if err != nil {
 		if err == service.ErrDuplicateKey {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			respondConflict(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, flag)
+	respondCreated(c, flag)
 }
 
 // List retrieves feature flags with optional status/environment filters and pagination.
@@ -87,10 +86,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "page": page, "page_size": pageSize})
+	respondSuccess(c, gin.H{"data": items, "page": page, "page_size": pageSize})
 }
 
 // Search performs a text search across flag name, key, and description.
@@ -98,7 +97,7 @@ func (h *Handler) Search(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter 'q' is required"})
+		respondBadRequest(c, "query parameter 'q' is required")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -106,10 +105,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 	items, err := h.svc.Search(c.Request.Context(), tenantID, query, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // Get retrieves a single feature flag by id.
@@ -117,10 +116,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	flag, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, flag)
+	respondSuccess(c, flag)
 }
 
 // Update modifies an existing feature flag.
@@ -130,30 +129,30 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
 		if err == service.ErrFlagNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, flag)
+	respondSuccess(c, flag)
 }
 
 // Delete removes a feature flag by id.
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // Count returns the total number of feature flags for the tenant.
@@ -161,10 +160,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // SetRollout sets the rollout percentage for a flag.
@@ -174,24 +173,24 @@ func (h *Handler) SetRollout(c *gin.Context) {
 
 	var req models.SetRolloutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.SetRolloutPercentage(c.Request.Context(), tenantID, c.Param("id"), updatedBy, req.Percentage)
 	if err != nil {
 		if err == service.ErrInvalidRollout {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
 		if err == service.ErrFlagNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, flag)
+	respondSuccess(c, flag)
 }
 
 // RecordToggle records a toggle event for a flag.
@@ -201,22 +200,22 @@ func (h *Handler) RecordToggle(c *gin.Context) {
 
 	var req models.RecordToggleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	// Verify the flag exists and belongs to this tenant.
 	_, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordToggle(c.Request.Context(), c.Param("id"), req.OldValue, req.NewValue, changedBy, req.Reason); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "toggle recorded"})
+	respondSuccess(c, gin.H{"message": "toggle recorded"})
 }
 
 // Evaluate evaluates a single feature flag.
@@ -225,16 +224,16 @@ func (h *Handler) Evaluate(c *gin.Context) {
 
 	var req models.EvaluateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.EvaluateFlag(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // EvaluateBatch evaluates multiple feature flags in a single request.
@@ -243,16 +242,16 @@ func (h *Handler) EvaluateBatch(c *gin.Context) {
 
 	var reqs []models.EvaluateFlagRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.EvaluateFlags(c.Request.Context(), tenantID, reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"results": results})
+	respondSuccess(c, gin.H{"results": results})
 }
 
 // ToggleHistory retrieves the toggle history for a flag.
@@ -263,15 +262,15 @@ func (h *Handler) ToggleHistory(c *gin.Context) {
 	// Verify the flag exists and belongs to this tenant.
 	_, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	records, err := h.svc.ListToggleHistory(c.Request.Context(), id, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": records})
+	respondSuccess(c, records)
 }

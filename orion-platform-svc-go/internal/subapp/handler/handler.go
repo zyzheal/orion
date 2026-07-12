@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"net/http"
-	"strconv"
-
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/subapp/models"
 	"orion/platform-svc-go/internal/subapp/service"
 
@@ -18,70 +16,189 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// RegisterRoutes mounts all sub-app endpoints on the given router group.
+// Routes mirror the TypeScript subapp-routes.ts:
+//
+//	GET    /subapps           — list all
+//	GET    /subapps/enabled   — list enabled only
+//	GET    /subapps/:key      — get single
+//	GET    /subapps/:key/history — get config history
+//	POST   /subapps           — create new
+//	PUT    /subapps/:key      — update
+//	PUT    /subapps/:key/status — toggle status
+//	DELETE /subapps/:key      — delete
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	// Routes will be registered here
+	f := rg.Group("/subapps")
+
+	// GET /subapps — list all sub-app configurations (read)
+	f.GET("", auth.RequirePermission("subapp", "read"), h.List)
+
+	// GET /subapps/enabled — list enabled sub-apps only (read)
+	f.GET("/enabled", auth.RequirePermission("subapp", "read"), h.ListEnabled)
+
+	// GET /subapps/:key — get single sub-app config (read)
+	f.GET("/:key", auth.RequirePermission("subapp", "read"), h.Get)
+
+	// GET /subapps/:key/history — get configuration history (read)
+	f.GET("/:key/history", auth.RequirePermission("subapp", "read"), h.History)
+
+	// POST /subapps — create new sub-app (write)
+	f.POST("", auth.RequirePermission("subapp", "write"), h.Create)
+
+	// PUT /subapps/:key — update sub-app config (write)
+	f.PUT("/:key", auth.RequirePermission("subapp", "write"), h.Update)
+
+	// PUT /subapps/:key/status — toggle sub-app status (write)
+	f.PUT("/:key/status", auth.RequirePermission("subapp", "write"), h.ToggleStatus)
+
+	// DELETE /subapps/:key — delete sub-app (delete)
+	f.DELETE("/:key", auth.RequirePermission("subapp", "delete"), h.Delete)
 }
 
-func (h *Handler) Create(c *gin.Context) {
+// --- Handlers ---
+
+func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var req models.CreateSubAppRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
-		return
-	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	items, err := h.svc.GetAll(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": m})
+	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+}
+
+func (h *Handler) ListEnabled(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	items, err := h.svc.GetEnabled(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"data": items})
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetByKey(c.Request.Context(), tenantID, c.Param("key"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "error": "not found"})
+		respondNotFound(c, "sub-app not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
-func (h *Handler) List(c *gin.Context) {
+func (h *Handler) History(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.GetHistory(c.Request.Context(), tenantID, c.Param("key"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	createdBy := c.GetString("user_id")
+	var req models.CreateSubAppRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	// Convert optional string pointers
+	createdByPtr := &createdBy
+	var m *models.SubApp
+	var err error
+	if createdBy != "" {
+		m, err = h.svc.Create(c.Request.Context(), tenantID, createdByPtr, req)
+	} else {
+		m, err = h.svc.Create(c.Request.Context(), tenantID, nil, req)
+	}
+	if err != nil {
+		if err == service.ErrSubAppKeyExists {
+			respondConflict(c, "sub-app with key already exists")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, m)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
+	updatedBy := c.GetString("user_id")
 	var req models.UpdateSubAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	updatedByPtr := &updatedBy
+	var m *models.SubApp
+	var err error
+	if updatedBy != "" {
+		m, err = h.svc.Update(c.Request.Context(), tenantID, c.Param("key"), updatedByPtr, req)
+	} else {
+		m, err = h.svc.Update(c.Request.Context(), tenantID, c.Param("key"), nil, req)
+	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		if err == service.ErrSubAppNotFound {
+			respondNotFound(c, "sub-app not found")
+			return
+		}
+		if err == service.ErrSubAppKeyImmutable {
+			respondBadRequest(c, "cannot change sub-app key")
+			return
+		}
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
+}
+
+func (h *Handler) ToggleStatus(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	changedBy := c.GetString("user_id")
+	changedByPtr := &changedBy
+	var m *models.SubApp
+	var err error
+	if changedBy != "" {
+		m, err = h.svc.ToggleStatus(c.Request.Context(), tenantID, c.Param("key"), changedByPtr)
+	} else {
+		m, err = h.svc.ToggleStatus(c.Request.Context(), tenantID, c.Param("key"), nil)
+	}
+	if err != nil {
+		if err == service.ErrSubAppNotFound {
+			respondNotFound(c, "sub-app not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	message := "sub-app disabled successfully"
+	if m.Status == models.SubAppStatusEnabled {
+		message = "sub-app enabled successfully"
+	}
+	respondSuccess(c, gin.H{"data": m, "message": message})
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+	changedBy := c.GetString("user_id")
+	changedByPtr := &changedBy
+	var err error
+	if changedBy != "" {
+		err = h.svc.Delete(c.Request.Context(), tenantID, c.Param("key"), changedByPtr)
+	} else {
+		err = h.svc.Delete(c.Request.Context(), tenantID, c.Param("key"), nil)
+	}
+	if err != nil {
+		if err == service.ErrSubAppNotFound {
+			respondNotFound(c, "sub-app not found")
+			return
+		}
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, gin.H{"message": "sub-app deleted successfully"})
 }

@@ -2,49 +2,56 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"orion/platform-svc-go/internal/service-registry/models"
 	"orion/platform-svc-go/internal/service-registry/repository"
 )
 
+// Service orchestrates business logic for the service registry.
 type Service struct {
 	repo *repository.Repository
 }
 
+// NewService creates a Service backed by the given Repository.
 func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateServiceRegistryRequest) (*models.ServiceRegistry, error) {
-	m := &models.ServiceRegistry{
-		TenantID: tenantID,
-		Name:     req.Name,
+// Register registers a new service and returns the created entity.
+func (s *Service) Register(ctx context.Context, tenantID string, req models.RegisterRequest) (*models.ServiceRegistry, error) {
+	metadata, err := models.MarshalFrom(req.Metadata)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
 	}
-	if err := s.repo.Create(ctx, m); err != nil {
+	m, err := s.repo.Register(ctx, tenantID, req.ServiceID, req.ServiceName, req.ServiceURL, req.Protocol, req.Version, metadata)
+	if err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.ServiceRegistry, error) {
-	return s.repo.GetByID(ctx, tenantID, id)
+// List retrieves tenant-scoped services with optional filters and pagination.
+func (s *Service) List(ctx context.Context, tenantID string, f *repository.ListFilters) ([]models.ServiceRegistry, error) {
+	return s.repo.List(ctx, tenantID, f)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) ([]models.ServiceRegistry, error) {
-	return s.repo.List(ctx, tenantID, limit, offset)
+// GetByInternalID retrieves a service by its internal database id.
+func (s *Service) GetByInternalID(ctx context.Context, tenantID, id string) (*models.ServiceRegistry, error) {
+	return s.repo.GetByInternalID(ctx, tenantID, id)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, req models.UpdateServiceRegistryRequest) (*models.ServiceRegistry, error) {
-	updates := make(map[string]interface{})
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
-		return nil, err
-	}
-	return s.repo.GetByID(ctx, tenantID, id)
+// GetByServiceID retrieves a service by its service_id.
+func (s *Service) GetByServiceID(ctx context.Context, tenantID, serviceID string) (*models.ServiceRegistry, error) {
+	return s.repo.FindByServiceID(ctx, tenantID, serviceID)
 }
 
-func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	return s.repo.Delete(ctx, tenantID, id)
+// Deregister marks a service as deregistered.
+func (s *Service) Deregister(ctx context.Context, tenantID, serviceID string) error {
+	return s.repo.Deregister(ctx, tenantID, serviceID)
+}
+
+// RecordHeartbeat records a heartbeat for a service.
+func (s *Service) RecordHeartbeat(ctx context.Context, tenantID, serviceID string) error {
+	return s.repo.RecordHeartbeat(ctx, tenantID, serviceID)
 }

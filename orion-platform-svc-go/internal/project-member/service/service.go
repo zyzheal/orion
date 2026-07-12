@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"orion/platform-svc-go/internal/project-member/models"
 	"orion/platform-svc-go/internal/project-member/repository"
@@ -15,36 +16,24 @@ func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateProjectMemberRequest) (*models.ProjectMember, error) {
-	m := &models.ProjectMember{
-		TenantID: tenantID,
-		Name:     req.Name,
-	}
-	if err := s.repo.Create(ctx, m); err != nil {
-		return nil, err
-	}
-	return m, nil
+// GetProjectMembers retrieves all members for a project.
+func (s *Service) GetProjectMembers(ctx context.Context, tenantID, projectID string) ([]models.ProjectMember, error) {
+	return s.repo.GetProjectMembers(ctx, tenantID, projectID)
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.ProjectMember, error) {
-	return s.repo.GetByID(ctx, tenantID, id)
+// AddProjectMember adds a user to a project with the given role.
+// Returns (created bool, err) — created indicates whether a new row was inserted.
+func (s *Service) AddProjectMember(ctx context.Context, tenantID, projectID, userID, role string) (bool, error) {
+	role = strings.TrimSpace(role)
+	return s.repo.AddProjectMember(ctx, tenantID, projectID, userID, role)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) ([]models.ProjectMember, error) {
-	return s.repo.List(ctx, tenantID, limit, offset)
+// IsProjectMember checks whether a user is a member of a project.
+func (s *Service) IsProjectMember(ctx context.Context, tenantID, projectID, userID string) (bool, error) {
+	return s.repo.IsProjectMember(ctx, tenantID, projectID, userID)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, req models.UpdateProjectMemberRequest) (*models.ProjectMember, error) {
-	updates := make(map[string]interface{})
-	if req.Name != nil {
-		updates["name"] = *req.Name
-	}
-	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
-		return nil, err
-	}
-	return s.repo.GetByID(ctx, tenantID, id)
-}
-
-func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	return s.repo.Delete(ctx, tenantID, id)
+// RemoveProjectMember removes a user from a project.
+func (s *Service) RemoveProjectMember(ctx context.Context, tenantID, projectID, userID string) error {
+	return s.repo.RemoveProjectMember(ctx, tenantID, projectID, userID)
 }

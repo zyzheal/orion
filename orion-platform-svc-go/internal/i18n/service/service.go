@@ -15,36 +15,62 @@ func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateI18nEntryRequest) (*models.I18nEntry, error) {
-	m := &models.I18nEntry{
-		TenantID: tenantID,
-		Name:     req.Name,
+// CreateLocale creates a new locale for the tenant.
+func (s *Service) CreateLocale(ctx context.Context, tenantID string, req models.CreateLocaleRequest) (*models.Locale, error) {
+	locale := &models.Locale{
+		TenantID:   tenantID,
+		LocaleCode: req.LocaleCode,
+		LocaleName: req.LocaleName,
+		IsDefault:  req.IsDefault,
 	}
-	if err := s.repo.Create(ctx, m); err != nil {
+	if err := s.repo.CreateLocale(ctx, locale); err != nil {
 		return nil, err
 	}
-	return m, nil
+	return locale, nil
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.I18nEntry, error) {
-	return s.repo.GetByID(ctx, tenantID, id)
+// ListLocales returns all locales for the tenant.
+func (s *Service) ListLocales(ctx context.Context, tenantID string) ([]models.Locale, error) {
+	return s.repo.ListLocales(ctx, tenantID)
 }
 
-func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) ([]models.I18nEntry, error) {
-	return s.repo.List(ctx, tenantID, limit, offset)
-}
-
-func (s *Service) Update(ctx context.Context, tenantID, id string, req models.UpdateI18nEntryRequest) (*models.I18nEntry, error) {
-	updates := make(map[string]interface{})
-	if req.Name != nil {
-		updates["name"] = *req.Name
+// SetTranslation creates or updates a single translation.
+func (s *Service) SetTranslation(ctx context.Context, tenantID, localeCode, namespace, key, value string) (*models.Translation, error) {
+	t := &models.Translation{
+		TenantID:   tenantID,
+		LocaleCode: localeCode,
+		Namespace:  namespace,
+		Key:        key,
+		Value:      value,
 	}
-	if err := s.repo.Update(ctx, tenantID, id, updates); err != nil {
+	if err := s.repo.SetTranslation(ctx, t); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByID(ctx, tenantID, id)
+	// Read back to return the persisted record
+	byKey, err := s.repo.GetTranslationsByNamespace(ctx, tenantID, localeCode, namespace)
+	if err != nil {
+		return t, nil
+	}
+	t.Value = byKey[key]
+	return t, nil
 }
 
-func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
-	return s.repo.Delete(ctx, tenantID, id)
+// SetBulkTranslations creates or updates many translations at once.
+func (s *Service) SetBulkTranslations(ctx context.Context, tenantID, localeCode, namespace string, kv map[string]string) (int, error) {
+	return s.repo.SetBulkTranslations(ctx, tenantID, localeCode, namespace, kv)
+}
+
+// GetTranslationsByNamespace returns translations for a given locale and namespace.
+func (s *Service) GetTranslationsByNamespace(ctx context.Context, tenantID, localeCode, namespace string) (map[string]string, error) {
+	return s.repo.GetTranslationsByNamespace(ctx, tenantID, localeCode, namespace)
+}
+
+// GetAllTranslations returns all translations grouped by namespace for a locale.
+func (s *Service) GetAllTranslations(ctx context.Context, tenantID, localeCode string) (map[string]map[string]string, error) {
+	return s.repo.GetAllTranslations(ctx, tenantID, localeCode)
+}
+
+// DeleteTranslation deletes a translation and reports whether it existed.
+func (s *Service) DeleteTranslation(ctx context.Context, tenantID, localeCode, namespace, key string) (bool, error) {
+	return s.repo.DeleteTranslation(ctx, tenantID, localeCode, namespace, key)
 }

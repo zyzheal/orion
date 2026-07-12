@@ -1,9 +1,9 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/cron/models"
 	"orion/platform-svc-go/internal/cron/service"
 
@@ -18,23 +18,39 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
+// RegisterRoutes mounts all 14 cron endpoints onto the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	// Routes will be registered here
+	jobs := rg.Group("/cron/jobs")
+	jobs.POST("", auth.RequirePermission("cron", "write"), h.Create)
+	jobs.GET("", auth.RequirePermission("cron", "read"), h.List)
+	jobs.GET("/:id", auth.RequirePermission("cron", "read"), h.Get)
+	jobs.PUT("/:id", auth.RequirePermission("cron", "write"), h.Update)
+	jobs.DELETE("/:id", auth.RequirePermission("cron", "delete"), h.Delete)
+	jobs.POST("/:id/enable", auth.RequirePermission("cron", "write"), h.EnableJob)
+	jobs.POST("/:id/disable", auth.RequirePermission("cron", "write"), h.DisableJob)
+	jobs.POST("/:id/execute", auth.RequirePermission("cron", "write"), h.ExecuteJob)
+
+	rg.GET("/cron/executions", auth.RequirePermission("cron", "read"), h.ListExecutions)
+	rg.GET("/cron/executions/:executionId", auth.RequirePermission("cron", "read"), h.GetExecution)
+	rg.GET("/cron/running", auth.RequirePermission("cron", "read"), h.RunningJobs)
+	rg.GET("/cron/status", auth.RequirePermission("cron", "read"), h.Status)
+	rg.POST("/cron/start", auth.RequirePermission("cron", "write"), h.StartScheduler)
+	rg.POST("/cron/stop", auth.RequirePermission("cron", "write"), h.StopScheduler)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": m})
+	respondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -42,22 +58,22 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	off, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	items, err := h.svc.List(c.Request.Context(), tenantID, limit, off)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -65,23 +81,126 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	updates := make(map[string]interface{})
+	if req.Name != nil {
+		updates["name"] = *req.Name
+	}
+	if req.Schedule != nil {
+		updates["schedule"] = *req.Schedule
+	}
+	if req.Task != nil {
+		updates["task"] = *req.Task
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Enabled != nil {
+		updates["enabled"] = *req.Enabled
+		if *req.Enabled {
+			updates["status"] = "active"
+		} else {
+			updates["status"] = "disabled"
+		}
+	}
+	if len(updates) == 0 {
+		respondBadRequest(c, "no fields to update")
+		return
+	}
+	m, err := h.svc.UpdatePartial(c.Request.Context(), tenantID, id, updates)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) EnableJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	if err := h.svc.EnableJob(c.Request.Context(), tenantID, id); err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "cron job enabled"})
+}
+
+func (h *Handler) DisableJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	if err := h.svc.DisableJob(c.Request.Context(), tenantID, id); err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "cron job disabled"})
+}
+
+func (h *Handler) ExecuteJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	execution, err := h.svc.ExecuteJob(c.Request.Context(), tenantID, id)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, execution)
+}
+
+func (h *Handler) ListExecutions(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	jobID := c.Query("jobId")
+	history, err := h.svc.GetExecutionHistory(c.Request.Context(), tenantID, jobID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, history)
+}
+
+func (h *Handler) GetExecution(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	executionID := c.Param("executionId")
+	evt, err := h.svc.GetExecutionByID(c.Request.Context(), tenantID, executionID)
+	if err != nil {
+		respondNotFound(c, "execution not found")
+		return
+	}
+	respondSuccess(c, evt)
+}
+
+func (h *Handler) RunningJobs(c *gin.Context) {
+	running := h.svc.GetRunningJobs()
+	respondSuccess(c, running)
+}
+
+func (h *Handler) Status(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, status)
+}
+
+func (h *Handler) StartScheduler(c *gin.Context) {
+	h.svc.Start()
+	respondSuccess(c, gin.H{"message": "cron scheduler started"})
+}
+
+func (h *Handler) StopScheduler(c *gin.Context) {
+	h.svc.Stop()
+	respondSuccess(c, gin.H{"message": "cron scheduler stopped"})
 }
