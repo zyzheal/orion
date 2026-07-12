@@ -1,5 +1,12 @@
 /**
- * Deploy Enhanced API Routes
+ * [ARCHIVED] Deploy Enhanced API Routes
+ *
+ * This module has been migrated to Go:
+ *   orion-platform-svc-go/internal/deploy-enhanced/
+ *
+ * See cmd/server/main.go for route registration and
+ * migrations/001_create_deploy_enhanced_tables.sql for schema.
+ */
  *
  * Provides REST API for:
  * - Deploy Windows (environment lock) management: CRUD + check
