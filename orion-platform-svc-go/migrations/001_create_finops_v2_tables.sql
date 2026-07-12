@@ -1,7 +1,7 @@
 -- Finops-v2 module tables
 
 CREATE TABLE IF NOT EXISTS cost_entries (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     entity_id VARCHAR(255) NOT NULL,
     entity_type VARCHAR(100) NOT NULL,
@@ -19,7 +19,7 @@ CREATE INDEX IF NOT EXISTS idx_cost_entries_entity_id ON cost_entries(entity_id)
 CREATE INDEX IF NOT EXISTS idx_cost_entries_period_start ON cost_entries(period_start);
 
 CREATE TABLE IF NOT EXISTS chargeback_entries (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     entity_id VARCHAR(255) NOT NULL,
     entity_type VARCHAR(100) NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS chargeback_entries (
 CREATE INDEX IF NOT EXISTS idx_chargeback_entries_tenant_id ON chargeback_entries(tenant_id);
 
 CREATE TABLE IF NOT EXISTS budgets (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     entity_id VARCHAR(255) NOT NULL,
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_budgets_tenant_id ON budgets(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_budgets_status ON budgets(status);
 
 CREATE TABLE IF NOT EXISTS recommendations (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     type VARCHAR(50) NOT NULL,
     title VARCHAR(255) NOT NULL,
@@ -69,7 +69,7 @@ CREATE INDEX IF NOT EXISTS idx_recommendations_tenant_id ON recommendations(tena
 CREATE INDEX IF NOT EXISTS idx_recommendations_status ON recommendations(status);
 
 CREATE TABLE IF NOT EXISTS finops_reports (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     type VARCHAR(50),
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS finops_reports (
 );
 
 CREATE TABLE IF NOT EXISTS roi_entries (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     period VARCHAR(50) NOT NULL,
     total_spend DOUBLE PRECISION DEFAULT 0,

@@ -160,7 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_ticket_sla_policies_active ON ticket_sla_policies
 CREATE TABLE IF NOT EXISTS ticket_sla_breaches (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ticket_id VARCHAR(255) NOT NULL,
-    policy_id INTEGER NOT NULL,
+    policy_id UUID NOT NULL,
     type VARCHAR(50) NOT NULL,
     breached_at TIMESTAMP WITH TIME ZONE NOT NULL
 );

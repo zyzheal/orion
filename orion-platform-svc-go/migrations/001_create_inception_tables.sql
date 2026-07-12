@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Stores audit results from Inception engine
 CREATE TABLE IF NOT EXISTS sql_audit_history (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id       VARCHAR(100) NOT NULL,
+  tenant_id       UUID NOT NULL,
   db_name         VARCHAR(100) NOT NULL,
   sql_statement   TEXT NOT NULL,
   operation_type  VARCHAR(20) NOT NULL DEFAULT 'audit',
@@ -31,7 +31,7 @@ CREATE INDEX idx_sql_audit_history_created ON sql_audit_history(created_at DESC)
 -- Tracks dangerous SQL patterns that should be blocked
 CREATE TABLE IF NOT EXISTS sql_blacklist (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id       VARCHAR(100),
+  tenant_id       UUID,
   pattern         VARCHAR(500) NOT NULL,
   description     VARCHAR(500),
   severity        VARCHAR(20) NOT NULL DEFAULT 'high',
@@ -49,7 +49,7 @@ CREATE INDEX idx_sql_blacklist_enabled ON sql_blacklist(enabled);
 -- Stores Inception server configurations per tenant
 CREATE TABLE IF NOT EXISTS inception_configs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id       VARCHAR(100) NOT NULL UNIQUE,
+  tenant_id       UUID NOT NULL UNIQUE,
   host            VARCHAR(255) NOT NULL,
   port            INTEGER NOT NULL DEFAULT 6669,
   user            VARCHAR(100) NOT NULL,
@@ -67,7 +67,7 @@ CREATE INDEX idx_inception_configs_tenant ON inception_configs(tenant_id);
 -- Stores exported audit reports
 CREATE TABLE IF NOT EXISTS audit_reports (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id       VARCHAR(100) NOT NULL,
+  tenant_id       UUID NOT NULL,
   report_name     VARCHAR(255) NOT NULL,
   format          VARCHAR(20) NOT NULL DEFAULT 'json',
   filters         JSONB DEFAULT '{}',

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS build_images (
 CREATE INDEX IF NOT EXISTS idx_build_images_tenant_id ON build_images(tenant_id);
 
 CREATE TABLE IF NOT EXISTS build_cache_configs (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     level VARCHAR(50) NOT NULL DEFAULT 'local',
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS build_cache_configs (
 CREATE INDEX IF NOT EXISTS idx_build_cache_configs_tenant_id ON build_cache_configs(tenant_id);
 
 CREATE TABLE IF NOT EXISTS build_cache_entries (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     config_id BIGINT NOT NULL,
     key VARCHAR(255) NOT NULL,
     value JSONB,
@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_build_cache_entries_config_id ON build_cache_entr
 CREATE INDEX IF NOT EXISTS idx_build_cache_entries_key ON build_cache_entries(key);
 
 CREATE TABLE IF NOT EXISTS build_logs (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     build_id VARCHAR(255) NOT NULL,
     log_data TEXT,

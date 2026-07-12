@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_rollbacks_tenant_id ON rollbacks(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_rollbacks_deployment_id ON rollbacks(deployment_id);
 
 CREATE TABLE IF NOT EXISTS deploy_audit_entries (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     deployment_id VARCHAR(255) NOT NULL,
     action VARCHAR(50) NOT NULL,

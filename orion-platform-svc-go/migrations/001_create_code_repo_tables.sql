@@ -75,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_tenant_id ON comments(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_comments_pr_id ON comments(pr_id);
 
 CREATE TABLE IF NOT EXISTS webhooks_secrets (
-    id BIGINT PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL,
     repo_id VARCHAR(255) NOT NULL,
     secret VARCHAR(255),
