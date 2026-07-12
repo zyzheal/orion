@@ -82,6 +82,23 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// --- Health ---
 	// GET /cmdb/health - Health check
 	f.GET("/health", h.Health)
+
+	// --- Integration (Hosts, K8s, CICD, Execute) ---
+
+	// GET /cmdb/hosts - List hosts
+	f.GET("/hosts", auth.RequirePermission("cmdb", "read"), h.ListHosts)
+	// GET /cmdb/hosts/:ciId - Get host by CI ID
+	f.GET("/hosts/:ciId", auth.RequirePermission("cmdb", "read"), h.GetHost)
+	// GET /cmdb/k8s - List K8s resources
+	f.GET("/k8s", auth.RequirePermission("cmdb", "read"), h.ListK8sResources)
+	// POST /cmdb/k8s/sync/start - Start K8s sync
+	f.POST("/k8s/sync/start", auth.RequirePermission("cmdb", "write"), h.StartK8sSync)
+	// POST /cmdb/k8s/sync/stop - Stop K8s sync
+	f.POST("/k8s/sync/stop", auth.RequirePermission("cmdb", "write"), h.StopK8sSync)
+	// GET /cmdb/cicd - List CI/CD resources
+	f.GET("/cicd", auth.RequirePermission("cmdb", "read"), h.ListCICDResources)
+	// POST /cmdb/execute - Execute script
+	f.POST("/execute", auth.RequirePermission("cmdb", "write"), h.ExecuteScript)
 }
 
 // --- CI CRUD handlers ---
@@ -434,6 +451,110 @@ func (h *Handler) Health(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, status)
+}
+
+// --- Integration (Hosts, K8s, CICD, Execute) handlers ---
+
+func (h *Handler) ListHosts(c *gin.Context) {
+	status := ptrIf(c.Query("status"))
+	tags := ptrIf(c.Query("tags"))
+	limit := h.getQueryInt(c.Query("limit"), 20)
+	offset := h.getQueryInt(c.Query("offset"), 0)
+	items, total, err := h.svc.ListHosts(c.Request.Context(), status, tags, limit, offset)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     items,
+		Total:    total,
+		Page:     offset/limit + 1,
+		PageSize: limit,
+	})
+}
+
+func (h *Handler) GetHost(c *gin.Context) {
+	ciID := c.Param("ciId")
+	host, err := h.svc.GetHost(c.Request.Context(), ciID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "Host not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, host)
+}
+
+func (h *Handler) ListK8sResources(c *gin.Context) {
+	kind := ptrIf(c.Query("kind"))
+	namespace := ptrIf(c.Query("namespace"))
+	limit := h.getQueryInt(c.Query("limit"), 20)
+	offset := h.getQueryInt(c.Query("offset"), 0)
+	items, total, err := h.svc.ListK8sResources(c.Request.Context(), kind, namespace, limit, offset)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     items,
+		Total:    total,
+		Page:     offset/limit + 1,
+		PageSize: limit,
+	})
+}
+
+func (h *Handler) StartK8sSync(c *gin.Context) {
+	var req models.StartK8sSyncRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	if err := h.svc.StartK8sSync(c.Request.Context(), &req); err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "K8s sync started"})
+}
+
+func (h *Handler) StopK8sSync(c *gin.Context) {
+	if err := h.svc.StopK8sSync(c.Request.Context()); err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"message": "K8s sync stopped"})
+}
+
+func (h *Handler) ListCICDResources(c *gin.Context) {
+	status := ptrIf(c.Query("status"))
+	limit := h.getQueryInt(c.Query("limit"), 20)
+	offset := h.getQueryInt(c.Query("offset"), 0)
+	items, total, err := h.svc.ListCICDResources(c.Request.Context(), status, limit, offset)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     items,
+		Total:    total,
+		Page:     offset/limit + 1,
+		PageSize: limit,
+	})
+}
+
+func (h *Handler) ExecuteScript(c *gin.Context) {
+	var req models.ScriptExecRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.ExecuteScript(c.Request.Context(), &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }
 
 // --- Helpers ---

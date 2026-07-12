@@ -305,6 +305,142 @@ func (s *Service) Health(ctx context.Context) (*models.HealthStatus, error) {
 	return &models.HealthStatus{Status: "ok"}, nil
 }
 
+// --- Integration (Hosts, K8s, CICD, Execute) ---
+
+func (s *Service) ListHosts(ctx context.Context, status *string, tags *string, limit, offset int) ([]models.CI, int, error) {
+	ciType := "Host"
+	tenantID := "00000000-0000-0000-0000-000000000000"
+	items, total, err := s.repo.ListCIs(ctx, &ciType, status, tenantID, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	if tags != nil && *tags != "" {
+		filtered := items[:0]
+		for _, ci := range items {
+			if ci.Tags != nil && *ci.Tags == *tags {
+				filtered = append(filtered, ci)
+			}
+		}
+		items = filtered
+		total = len(filtered)
+	}
+	if items == nil {
+		items = []models.CI{}
+	}
+	return items, total, nil
+}
+
+func (s *Service) GetHost(ctx context.Context, ciID string) (*models.CI, error) {
+	tenantID := "00000000-0000-0000-0000-000000000000"
+	return s.repo.GetCIByCiId(ctx, ciID, &tenantID)
+}
+
+func (s *Service) ListK8sResources(ctx context.Context, kind *string, namespace *string, limit, offset int) ([]models.K8sResource, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	// Mock/scaffold data for K8s resources.
+	resources := []models.K8sResource{
+		{ID: "k8s-1", Kind: "Deployment", Name: "web-api", Namespace: "production", Status: "Running", Cluster: "prod-cluster", CIID: "ci-web-api", CreatedAt: "2026-07-01T00:00:00Z"},
+		{ID: "k8s-2", Kind: "Service", Name: "web-api-svc", Namespace: "production", Status: "Running", Cluster: "prod-cluster", CIID: "ci-web-api-svc", CreatedAt: "2026-07-01T00:00:00Z"},
+		{ID: "k8s-3", Kind: "ConfigMap", Name: "app-config", Namespace: "default", Status: "Active", Cluster: "dev-cluster", CIID: "ci-app-config", CreatedAt: "2026-07-02T00:00:00Z"},
+	}
+	filtered := resources[:0]
+	for _, r := range resources {
+		match := true
+		if kind != nil && *kind != "" && r.Kind != *kind {
+			match = false
+		}
+		if namespace != nil && *namespace != "" && r.Namespace != *namespace {
+			match = false
+		}
+		if match {
+			filtered = append(filtered, r)
+		}
+	}
+	total := len(filtered)
+	if offset > len(filtered) {
+		filtered = filtered[:0]
+	} else {
+		filtered = filtered[offset:]
+	}
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	if filtered == nil {
+		filtered = []models.K8sResource{}
+	}
+	return filtered, total, nil
+}
+
+func (s *Service) StartK8sSync(ctx context.Context, config *models.StartK8sSyncRequest) error {
+	// Scaffold: record sync start config.
+	_ = config
+	return nil
+}
+
+func (s *Service) StopK8sSync(ctx context.Context) error {
+	// Scaffold: stop K8s sync.
+	return nil
+}
+
+func (s *Service) ListCICDResources(ctx context.Context, status *string, limit, offset int) ([]models.CICDResource, int, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	resources := []models.CICDResource{
+		{ID: "cicd-1", Name: "build-pipeline", Type: "Pipeline", Status: "success", Project: "orion-platform", LastRunAt: "2026-07-12T10:00:00Z", CreatedAt: "2026-06-01T00:00:00Z"},
+		{ID: "cicd-2", Name: "deploy-runner", Type: "Runner", Status: "running", Project: "orion-platform", CreatedAt: "2026-06-15T00:00:00Z"},
+		{ID: "cicd-3", Name: "test-pipeline", Type: "Pipeline", Status: "failed", Project: "orion-frontend", LastRunAt: "2026-07-12T09:00:00Z", CreatedAt: "2026-06-20T00:00:00Z"},
+	}
+	filtered := resources[:0]
+	for _, r := range resources {
+		if status != nil && *status != "" && r.Status != *status {
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+	total := len(filtered)
+	if offset > len(filtered) {
+		filtered = filtered[:0]
+	} else {
+		filtered = filtered[offset:]
+	}
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	if filtered == nil {
+		filtered = []models.CICDResource{}
+	}
+	return filtered, total, nil
+}
+
+func (s *Service) ExecuteScript(ctx context.Context, req *models.ScriptExecRequest) (*models.ScriptExecResult, error) {
+	scriptType := req.ScriptType
+	if scriptType == "" {
+		scriptType = "bash"
+	}
+	results := []models.ScriptExecTargetResult{}
+	for _, ciID := range req.TargetCiIds {
+		results = append(results, models.ScriptExecTargetResult{
+			CIID:   ciID,
+			Status: "success",
+			Output: fmt.Sprintf("[scaffold] executed %q script on %s", scriptType, ciID),
+		})
+	}
+	return &models.ScriptExecResult{
+		ExecutionID: "exec-0001",
+		Status:      "completed",
+		Results:     results,
+	}, nil
+}
+
 // --- Errors ---
 
 var (

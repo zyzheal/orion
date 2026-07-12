@@ -199,3 +199,59 @@ type TopologyEdge struct {
 type HealthStatus struct {
 	Status string `json:"status"`
 }
+
+// --- Integration (Hosts, K8s, CICD, Execute) ---
+
+// K8sResource represents a Kubernetes resource synced from a cluster.
+type K8sResource struct {
+	ID           string                 `json:"id"`
+	Kind         string                 `json:"kind"`
+	Name         string                 `json:"name"`
+	Namespace    string                 `json:"namespace"`
+	Status       string                 `json:"status"`
+	Cluster      string                 `json:"cluster"`
+	CIID         string                 `json:"ciId"`
+	CreatedAt    string                 `json:"createdAt"`
+}
+
+// CICDResource represents a CI/CD resource (pipeline, runner, etc.).
+type CICDResource struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Status      string `json:"status"`
+	Project     string `json:"project"`
+	LastRunAt   string `json:"lastRunAt,omitempty"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+// StartK8sSyncRequest is the body for starting K8s sync.
+type StartK8sSyncRequest struct {
+	ApiServerUrl        *string `json:"apiServerUrl"`
+	Token               *string `json:"token"`
+	CACert              *string `json:"caCert"`
+	WatchEnabled        *bool   `json:"watchEnabled"`
+	ReconciliationIntervalMs *int   `json:"reconciliationIntervalMs"`
+}
+
+// ScriptExecRequest is the body for executing a script.
+type ScriptExecRequest struct {
+	TargetCiIds []string `json:"targetCiIds" binding:"required"`
+	Script      string   `json:"script" binding:"required"`
+	ScriptType  string   `json:"scriptType"`
+}
+
+// ScriptExecResult is the result of script execution.
+type ScriptExecResult struct {
+	ExecutionID string                    `json:"executionId"`
+	Status      string                    `json:"status"`
+	Results     []ScriptExecTargetResult  `json:"results"`
+}
+
+// ScriptExecTargetResult is the result for a single target.
+type ScriptExecTargetResult struct {
+	CIID    string `json:"ciId"`
+	Status  string `json:"status"`
+	Output  string `json:"output,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
