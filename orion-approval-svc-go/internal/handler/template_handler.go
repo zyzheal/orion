@@ -3,10 +3,10 @@ package handler
 import (
 	"context"
 	"errors"
-	"net/http"
 
 	"orion/approval-svc-go/internal/models"
 	"orion/approval-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,10 +32,10 @@ func NewTemplateHandler(svc TemplateService) *TemplateHandler {
 func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	templates := rg.Group("/approvals/templates")
 	{
-		templates.POST("", h.CreateTemplate)
-		templates.GET("", h.ListTemplates)
-		templates.GET("/default/:resourceType", h.GetDefaultTemplate)
-		templates.DELETE("/:id", h.DeleteTemplate)
+		templates.POST("", auth.RequirePermission("approval", "write"), h.CreateTemplate)
+		templates.GET("", auth.RequirePermission("approval", "read"), h.ListTemplates)
+		templates.GET("/default/:resourceType", auth.RequirePermission("approval", "read"), h.GetDefaultTemplate)
+		templates.DELETE("/:id", auth.RequirePermission("approval", "delete"), h.DeleteTemplate)
 	}
 }
 
@@ -43,66 +43,66 @@ func (h *TemplateHandler) CreateTemplate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := validateTemplateRequest(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	template, err := h.svc.CreateTemplate(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, template)
+	respondCreated(c, template)
 }
 
 func (h *TemplateHandler) ListTemplates(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	templates, err := h.svc.GetTemplates(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": templates, "total": len(templates)})
+	respondSuccess(c, map[string]any{"data": templates, "total": len(templates)})
 }
 
 func (h *TemplateHandler) GetDefaultTemplate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	resourceType := c.Param("resourceType")
 	if resourceType == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "resource_type is required"})
+		respondBadRequest(c, "resource_type is required")
 		return
 	}
 	template, err := h.svc.GetDefaultTemplate(c.Request.Context(), tenantID, resourceType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if template == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no default template found for resource type"})
+		respondNotFound(c, "no default template found for resource type")
 		return
 	}
-	c.JSON(http.StatusOK, template)
+	respondSuccess(c, template)
 }
 
 func (h *TemplateHandler) DeleteTemplate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "template id is required"})
+		respondBadRequest(c, "template id is required")
 		return
 	}
 	if err := h.svc.DeleteTemplate(c.Request.Context(), tenantID, id); err != nil {
 		if errors.Is(err, service.ErrApprovalNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "template deleted"})
+	respondSuccess(c, gin.H{"message": "template deleted"})
 }
 
 // validateTemplateRequest validates a CreateTemplateRequest.

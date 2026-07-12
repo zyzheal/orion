@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
@@ -37,7 +36,7 @@ func (h *AuditLogHandler) RecordAudit(c *gin.Context) {
 
 	var req models.RecordAuditRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -48,11 +47,11 @@ func (h *AuditLogHandler) RecordAudit(c *gin.Context) {
 
 	log, err := h.svc.Record(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, log)
+	respondCreated(c, log)
 }
 
 // BatchRecordAudit records multiple audit log entries.
@@ -61,12 +60,12 @@ func (h *AuditLogHandler) BatchRecordAudit(c *gin.Context) {
 
 	var reqs []models.RecordAuditRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if len(reqs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one record is required"})
+		respondBadRequest(c, "at least one record is required")
 		return
 	}
 
@@ -78,11 +77,11 @@ func (h *AuditLogHandler) BatchRecordAudit(c *gin.Context) {
 
 	count, err := h.svc.BatchRecord(c.Request.Context(), tenantID, reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"recorded": count})
+	respondCreated(c, gin.H{"recorded": count})
 }
 
 // QueryAudit queries audit logs with optional filters.
@@ -112,14 +111,11 @@ func (h *AuditLogHandler) QueryAudit(c *gin.Context) {
 
 	logs, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  logs,
-		"total": total,
-	})
+	respondSuccess(c, gin.H{"logs": logs, "total": total})
 }
 
 // AuditTrail returns audit trail with enriched context.
@@ -141,14 +137,11 @@ func (h *AuditLogHandler) AuditTrail(c *gin.Context) {
 
 	entries, total, err := h.svc.GetTrail(c.Request.Context(), tenantID, pipelineID, runID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  entries,
-		"total": total,
-	})
+	respondSuccess(c, gin.H{"entries": entries, "total": total})
 }
 
 // CleanupAudit deletes audit logs older than the specified timestamp.
@@ -156,18 +149,16 @@ func (h *AuditLogHandler) CleanupAudit(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	before := c.Query("before")
 	if before == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "before (ISO 8601 timestamp) is required"})
+		respondBadRequest(c, "before (ISO 8601 timestamp) is required")
 		return
 	}
 
 	count, err := h.svc.Cleanup(c.Request.Context(), tenantID, before)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "audit logs cleaned up",
-		"deleted": count,
-	})
+	respondSuccess(c, gin.H{"message": "audit logs cleaned up",
+		"deleted": count,})
 }

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"orion/go-common/pkg/errors"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
@@ -56,13 +58,13 @@ func Auth(cfg AuthConfig) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "missing authorization header"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "missing authorization header", nil))
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "invalid authorization format, expected Bearer token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "invalid authorization format, expected Bearer token", nil))
 			return
 		}
 
@@ -70,7 +72,7 @@ func Auth(cfg AuthConfig) gin.HandlerFunc {
 		if cfg.RedisClient != nil {
 			blocked, err := cfg.RedisClient.Exists(c.Request.Context(), "token:blacklist:"+tokenString).Result()
 			if err == nil && blocked > 0 {
-				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "token has been revoked"})
+				c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "token has been revoked", nil))
 				return
 			}
 		}
@@ -118,26 +120,26 @@ func Auth(cfg AuthConfig) gin.HandlerFunc {
 			jwt.WithExpirationRequired(),
 		)
 		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "invalid or expired token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "invalid or expired token", nil))
 			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "invalid token claims"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "invalid token claims", nil))
 			return
 		}
 
 		// Extract and validate required claims
 		userID, _ := claims["sub"].(string)
 		if userID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "token missing user ID"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "token missing user ID", nil))
 			return
 		}
 
 		tenantID, _ := claims["tenant_id"].(string)
 		if tenantID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"code": 401, "message": "token missing tenant ID"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, errors.NewErrorEnvelope(c, errors.ErrUnauthorized, "token missing tenant ID", nil))
 			return
 		}
 
@@ -238,7 +240,7 @@ func RequireRole(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := GetRole(c)
 		if role != requiredRole {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": 403, "message": "insufficient permissions"})
+			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 			return
 		}
 		c.Next()
@@ -254,7 +256,7 @@ func RequireAnyRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := GetRole(c)
 		if !roleSet[role] {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"code": 403, "message": "insufficient permissions"})
+			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 			return
 		}
 		c.Next()

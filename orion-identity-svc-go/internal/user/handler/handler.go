@@ -53,11 +53,11 @@ type Response struct {
 }
 
 func (h *Handler) success(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: data})
+	respondSuccess(c, data)
 }
 
 func (h *Handler) err(c *gin.Context, code int, message string) {
-	c.JSON(code, Response{Code: code, Message: message})
+	respondInternalError(c, message)
 }
 
 // === User CRUD ===

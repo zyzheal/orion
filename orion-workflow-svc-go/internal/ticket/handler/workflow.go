@@ -23,7 +23,7 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 
 	var req models.TransitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -33,7 +33,7 @@ func (h *WorkflowHandler) TransitionStatus(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"ticket": ticket, "history": history}})
+	respondSuccess(c, gin.H{"ticket": ticket, "history": history})
 }
 
 // GetWorkflowHistory GET /api/v1/tickets/:id/history
@@ -46,7 +46,7 @@ func (h *WorkflowHandler) GetWorkflowHistory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": history})
+	respondSuccess(c, history)
 }
 
 // EscalateTicket POST /api/v1/tickets/:id/escalate
@@ -59,7 +59,7 @@ func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
 		Reason      string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *WorkflowHandler) EscalateTicket(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": ticket})
+	respondSuccess(c, ticket)
 }
 
 // CloseTicket POST /api/v1/tickets/:id/close
@@ -82,7 +82,7 @@ func (h *WorkflowHandler) CloseTicket(c *gin.Context) {
 		Reason      string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -92,5 +92,5 @@ func (h *WorkflowHandler) CloseTicket(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": ticket})
+	respondSuccess(c, ticket)
 }

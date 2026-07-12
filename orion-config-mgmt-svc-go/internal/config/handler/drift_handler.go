@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/config-mgmt-svc-go/internal/config/service"
 
 	"github.com/gin-gonic/gin"
@@ -24,10 +22,10 @@ func (h *DriftHandler) Scan(c *gin.Context) {
 	}
 	result, err := h.svc.ScanForDrift(c.Request.Context(), tenantID, env)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *DriftHandler) List(c *gin.Context) {
@@ -36,10 +34,10 @@ func (h *DriftHandler) List(c *gin.Context) {
 	unresolved := c.Query("unresolved") == "true"
 	drifts, err := h.svc.ListDrifts(c.Request.Context(), tenantID, env, unresolved)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": drifts, "count": len(drifts)})
+	respondSuccess(c, gin.H{"data": drifts, "count": len(drifts)})
 }
 
 func (h *DriftHandler) Resolve(c *gin.Context) {
@@ -49,14 +47,14 @@ func (h *DriftHandler) Resolve(c *gin.Context) {
 		ResolvedBy string `json:"resolved_by"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.ResolveDrift(c.Request.Context(), tenantID, c.Param("id"), req.ResolvedBy, req.Resolution); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "resolved"})
+	respondSuccess(c, gin.H{"message": "resolved"})
 }
 
 func (h *DriftHandler) RegisterRoutes(rg *gin.RouterGroup) {

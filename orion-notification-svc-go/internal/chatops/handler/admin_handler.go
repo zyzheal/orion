@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/chatops/models"
 	"orion/notification-svc-go/internal/chatops/service"
 	"orion/go-common/pkg/auth"
@@ -26,49 +24,49 @@ func (h *AdminHandler) CreateCapabilityMapping(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateCapabilityMapping(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, m)
+	respondCreated(c, m)
 }
 
 func (h *AdminHandler) ListCapabilityMappings(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListCapabilityMappings(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *AdminHandler) UpdateCapabilityMapping(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.UpdateCapabilityMapping(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, m)
+	respondSuccess(c, m)
 }
 
 func (h *AdminHandler) DeleteCapabilityMapping(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteCapabilityMapping(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ==================== Approval Configs ====================
@@ -77,50 +75,50 @@ func (h *AdminHandler) GetApprovalConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	configs, err := h.svc.GetApprovalConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": configs})
+	respondSuccess(c, configs)
 }
 
 func (h *AdminHandler) BulkUpdateApprovalConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var reqs []models.UpdateApprovalConfigRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	configs, err := h.svc.BulkUpdateApprovalConfigs(c.Request.Context(), tenantID, reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": configs})
+	respondSuccess(c, configs)
 }
 
 func (h *AdminHandler) GetApprovalConfigByCapability(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	cfg, err := h.svc.GetApprovalConfigByCapability(c.Request.Context(), tenantID, c.Param("capability"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 func (h *AdminHandler) UpdateApprovalConfigByCapability(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateApprovalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.UpdateApprovalConfigByCapability(c.Request.Context(), tenantID, c.Param("capability"), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 // ==================== Approvers ====================
@@ -129,35 +127,35 @@ func (h *AdminHandler) ListApprovers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	approvers, err := h.svc.ListApprovers(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": approvers})
+	respondSuccess(c, approvers)
 }
 
 func (h *AdminHandler) GetApproverSchedule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	schedule, err := h.svc.GetApproverSchedule(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": schedule})
+	respondSuccess(c, schedule)
 }
 
 func (h *AdminHandler) UpdateApproverSchedule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var reqs []models.UpdateApproverScheduleRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	schedule, err := h.svc.UpdateApproverSchedule(c.Request.Context(), tenantID, reqs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": schedule})
+	respondSuccess(c, schedule)
 }
 
 // ==================== Approval Global Config ====================
@@ -166,25 +164,25 @@ func (h *AdminHandler) GetApprovalGlobalConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	cfg, err := h.svc.GetApprovalGlobalConfig(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 func (h *AdminHandler) UpdateApprovalGlobalConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateApprovalGlobalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.UpdateApprovalGlobalConfig(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 // ==================== Roles ====================
@@ -193,49 +191,49 @@ func (h *AdminHandler) CreateRole(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAdminRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	role, err := h.svc.CreateRole(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, role)
+	respondCreated(c, role)
 }
 
 func (h *AdminHandler) ListRoles(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	roles, err := h.svc.ListRoles(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": roles})
+	respondSuccess(c, roles)
 }
 
 func (h *AdminHandler) UpdateRole(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateAdminRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	role, err := h.svc.UpdateRole(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, role)
+	respondSuccess(c, role)
 }
 
 func (h *AdminHandler) DeleteRole(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteRole(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ==================== Command Permissions ====================
@@ -244,49 +242,49 @@ func (h *AdminHandler) CreateCommandPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.CreateCommandPermission(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, p)
+	respondCreated(c, p)
 }
 
 func (h *AdminHandler) ListCommandPermissions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	perms, err := h.svc.ListCommandPermissions(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": perms})
+	respondSuccess(c, perms)
 }
 
 func (h *AdminHandler) UpdateCommandPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.UpdateCommandPermission(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	respondSuccess(c, p)
 }
 
 func (h *AdminHandler) DeleteCommandPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteCommandPermission(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ==================== Environment Permissions ====================
@@ -295,49 +293,49 @@ func (h *AdminHandler) CreateEnvironmentPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.CreateEnvironmentPermission(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, p)
+	respondCreated(c, p)
 }
 
 func (h *AdminHandler) ListEnvironmentPermissions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	perms, err := h.svc.ListEnvironmentPermissions(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": perms})
+	respondSuccess(c, perms)
 }
 
 func (h *AdminHandler) UpdateEnvironmentPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.UpdateEnvironmentPermission(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	respondSuccess(c, p)
 }
 
 func (h *AdminHandler) DeleteEnvironmentPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteEnvironmentPermission(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ==================== Command Versions ====================
@@ -346,78 +344,78 @@ func (h *AdminHandler) ListCommandVersions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	versions, err := h.svc.ListCommandVersions(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *AdminHandler) ListCommandVersionsByCommand(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	versions, err := h.svc.ListCommandVersionsByCommand(c.Request.Context(), tenantID, c.Param("commandId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *AdminHandler) CreateCommandVersion(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	ver, err := h.svc.CreateCommandVersion(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, ver)
+	respondCreated(c, ver)
 }
 
 func (h *AdminHandler) RollbackCommandVersion(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ver, err := h.svc.RollbackCommandVersion(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, ver)
+	respondSuccess(c, ver)
 }
 
 func (h *AdminHandler) AddCommandVersionTag(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AddCommandVersionTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	ver, err := h.svc.AddCommandVersionTag(c.Request.Context(), tenantID, c.Param("id"), req.Tag)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, ver)
+	respondSuccess(c, ver)
 }
 
 func (h *AdminHandler) DeleteCommandVersionTag(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteCommandVersionTag(c.Request.Context(), tenantID, c.Param("id"), c.Param("tag")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "tag deleted"})
+	respondSuccess(c, gin.H{"message": "tag deleted"})
 }
 
 func (h *AdminHandler) DeleteCommandVersion(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteCommandVersion(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // RegisterRoutes registers all admin routes with the gin router group.

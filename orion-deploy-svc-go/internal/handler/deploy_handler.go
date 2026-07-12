@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 
 	"orion-deploy-svc-go/internal/models"
 	"orion-deploy-svc-go/internal/service"
+
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,46 +26,46 @@ func NewDeployHandler(svc *service.DeployService, rns *service.ReleaseNotesServi
 func (h *DeployHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	d := rg.Group("/deploy")
 	{
-		d.POST("/", h.Deploy)
-		d.GET("/", h.GetHistory)
-		d.GET("/latest/:appName/:env", h.GetLatest)
-		d.GET("/metrics", h.GetMetrics)
+		d.POST("/", auth.RequirePermission("deploy", "write"), h.Deploy)
+		d.GET("/", auth.RequirePermission("deploy", "read"), h.GetHistory)
+		d.GET("/latest/:appName/:env", auth.RequirePermission("deploy", "read"), h.GetLatest)
+		d.GET("/metrics", auth.RequirePermission("deploy", "read"), h.GetMetrics)
 
-		d.GET("/:id", h.GetStatus)
-		d.PUT("/:id", h.UpdateStatus)
-		d.DELETE("/:id", h.Cancel)
+		d.GET("/:id", auth.RequirePermission("deploy", "read"), h.GetStatus)
+		d.PUT("/:id", auth.RequirePermission("deploy", "write"), h.UpdateStatus)
+		d.DELETE("/:id", auth.RequirePermission("deploy", "delete"), h.Cancel)
 
-		d.POST("/:id/rollback", h.Rollback)
-		d.GET("/:id/rollback", h.GetRollbackHistory)
-		d.GET("/:id/audit", h.GetAuditTrail)
+		d.POST("/:id/rollback", auth.RequirePermission("deploy", "write"), h.Rollback)
+		d.GET("/:id/rollback", auth.RequirePermission("deploy", "read"), h.GetRollbackHistory)
+		d.GET("/:id/audit", auth.RequirePermission("deploy", "read"), h.GetAuditTrail)
 
 		// Release notes
-		d.GET("/release-notes", h.ListReleaseNotes)
-		d.POST("/release-notes", h.CreateReleaseNote)
-		d.GET("/release-notes/:id", h.GetReleaseNote)
-		d.PUT("/release-notes/:id", h.UpdateReleaseNote)
-		d.DELETE("/release-notes/:id", h.DeleteReleaseNote)
+		d.GET("/release-notes", auth.RequirePermission("deploy", "read"), h.ListReleaseNotes)
+		d.POST("/release-notes", auth.RequirePermission("deploy", "write"), h.CreateReleaseNote)
+		d.GET("/release-notes/:id", auth.RequirePermission("deploy", "read"), h.GetReleaseNote)
+		d.PUT("/release-notes/:id", auth.RequirePermission("deploy", "write"), h.UpdateReleaseNote)
+		d.DELETE("/release-notes/:id", auth.RequirePermission("deploy", "delete"), h.DeleteReleaseNote)
 	}
 }
 
 func (h *DeployHandler) Deploy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var req models.DeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 	actor := c.GetString("user_id")
 	d, err := h.svc.Deploy(c.Request.Context(), tenantID, &req, actor)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": d})
+	respondCreated(c, d)
 }
 
 func (h *DeployHandler) GetStatus(c *gin.Context) {
@@ -72,16 +73,16 @@ func (h *DeployHandler) GetStatus(c *gin.Context) {
 	id := c.Param("id")
 	d, err := h.svc.GetStatus(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": d})
+	respondSuccess(c, d)
 }
 
 func (h *DeployHandler) GetHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -103,10 +104,10 @@ func (h *DeployHandler) GetHistory(c *gin.Context) {
 	}
 	items, total, err := h.svc.GetHistory(c.Request.Context(), tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
+	respondSuccess(c, map[string]any{"items": items, "total": total})
 }
 
 func (h *DeployHandler) GetLatest(c *gin.Context) {
@@ -115,20 +116,20 @@ func (h *DeployHandler) GetLatest(c *gin.Context) {
 	env := c.Param("env")
 	d, err := h.svc.GetLatest(c.Request.Context(), tenantID, appName, env)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": d})
+	respondSuccess(c, d)
 }
 
 func (h *DeployHandler) GetMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	m, err := h.svc.GetMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": m})
+	respondSuccess(c, m)
 }
 
 func (h *DeployHandler) UpdateStatus(c *gin.Context) {
@@ -136,21 +137,21 @@ func (h *DeployHandler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDeployStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 	// Validate allowed status transitions
 	allowed := map[string]bool{"running": true, "success": true, "failed": true, "cancelled": true}
 	if !allowed[req.Status] {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid status"})
+		respondBadRequest(c, "invalid status")
 		return
 	}
 	d, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status, "")
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": d})
+	respondSuccess(c, d)
 }
 
 func (h *DeployHandler) Cancel(c *gin.Context) {
@@ -158,10 +159,10 @@ func (h *DeployHandler) Cancel(c *gin.Context) {
 	id := c.Param("id")
 	actor := c.GetString("user_id")
 	if err := h.svc.Cancel(c.Request.Context(), tenantID, id, actor); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deployment cancelled"})
+	respondSuccess(c, map[string]any{"message": "deployment cancelled"})
 }
 
 func (h *DeployHandler) Rollback(c *gin.Context) {
@@ -170,15 +171,15 @@ func (h *DeployHandler) Rollback(c *gin.Context) {
 	actor := c.GetString("user_id")
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 	d, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.Reason, actor)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": d})
+	respondCreated(c, d)
 }
 
 func (h *DeployHandler) GetRollbackHistory(c *gin.Context) {
@@ -186,10 +187,10 @@ func (h *DeployHandler) GetRollbackHistory(c *gin.Context) {
 	id := c.Param("id")
 	records, err := h.svc.GetRollbackHistory(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": records})
+	respondSuccess(c, records)
 }
 
 func (h *DeployHandler) GetAuditTrail(c *gin.Context) {
@@ -197,17 +198,17 @@ func (h *DeployHandler) GetAuditTrail(c *gin.Context) {
 	id := c.Param("id")
 	events, err := h.svc.GetAuditTrail(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": events})
+	respondSuccess(c, events)
 }
 
 // Release notes handlers
 func (h *DeployHandler) ListReleaseNotes(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -215,29 +216,29 @@ func (h *DeployHandler) ListReleaseNotes(c *gin.Context) {
 	tag := c.Query("tag")
 	notes, total, err := h.rns.List(c.Request.Context(), tenantID, page, pageSize, tag)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": notes, "total": total})
+	respondSuccess(c, map[string]any{"notes": notes, "total": total})
 }
 
 func (h *DeployHandler) CreateReleaseNote(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var req models.CreateReleaseNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 	note, err := h.rns.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": note})
+	respondCreated(c, note)
 }
 
 func (h *DeployHandler) GetReleaseNote(c *gin.Context) {
@@ -245,10 +246,10 @@ func (h *DeployHandler) GetReleaseNote(c *gin.Context) {
 	id := c.Param("id")
 	note, err := h.rns.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "release note not found"})
+		respondNotFound(c, "release note not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": note})
+	respondSuccess(c, note)
 }
 
 func (h *DeployHandler) UpdateReleaseNote(c *gin.Context) {
@@ -256,7 +257,7 @@ func (h *DeployHandler) UpdateReleaseNote(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateReleaseNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 	updates := make(map[string]interface{})
@@ -265,20 +266,20 @@ func (h *DeployHandler) UpdateReleaseNote(c *gin.Context) {
 	}
 	note, err := h.rns.Update(c.Request.Context(), tenantID, id, updates)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "release note not found"})
+		respondNotFound(c, "release note not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": note})
+	respondSuccess(c, note)
 }
 
 func (h *DeployHandler) DeleteReleaseNote(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.rns.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "release note not found"})
+		respondNotFound(c, "release note not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "release note deleted"})
+	respondSuccess(c, map[string]any{"message": "release note deleted"})
 }
 
 // resolveAppName extracts app name from query or path

@@ -59,19 +59,19 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	artifact, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if models.IsNotFound(err) || models.IsInvalidInput(err) || models.IsAlreadyExists(err) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, artifact)
+	respondCreated(c, artifact)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -95,44 +95,44 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	items, total, err := h.svc.List(c.Request.Context(), tenantID, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total})
+	respondSuccess(c, items, "total": total)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	artifact, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, artifact)
+	respondSuccess(c, artifact)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	artifact, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, artifact)
+	respondSuccess(c, artifact)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ------------------------------------------------------------
@@ -143,38 +143,38 @@ func (h *Handler) AddTags(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req struct{ Tags []string `json:"tags" binding:"required"` }
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.AddTags(c.Request.Context(), tenantID, c.Param("id"), req.Tags); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "tags added"})
+	respondSuccess(c, map[string]any{"message": "tags added"})
 }
 
 func (h *Handler) RemoveTags(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req struct{ Tags []string `json:"tags" binding:"required"` }
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.RemoveTags(c.Request.Context(), tenantID, c.Param("id"), req.Tags); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "tags removed"})
+	respondSuccess(c, map[string]any{"message": "tags removed"})
 }
 
 func (h *Handler) GetTags(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	tags, err := h.svc.GetTags(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"tags": tags})
+	respondSuccess(c, map[string]any{"tags": tags})
 }
 
 // ------------------------------------------------------------
@@ -194,30 +194,30 @@ func (h *Handler) Download(c *gin.Context) {
 		}
 	} else {
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
 	}
 	artifact, err := h.svc.Download(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if models.IsNotFound(err) || models.IsNotAvailable(err) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"artifact": artifact, "download_url": artifact.StoragePath})
+	respondSuccess(c, map[string]any{"artifact": artifact, "download_url": artifact.StoragePath})
 }
 
 func (h *Handler) GetDownloadHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	history, err := h.svc.GetDownloadHistory(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"downloads": history})
+	respondSuccess(c, map[string]any{"downloads": history})
 }
 
 // ------------------------------------------------------------
@@ -228,45 +228,45 @@ func (h *Handler) Search(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	query := c.Query("query")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter required"})
+		respondBadRequest(c, "query parameter required")
 		return
 	}
 	results, err := h.svc.Search(c.Request.Context(), tenantID, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": results})
+	respondSuccess(c, results)
 }
 
 func (h *Handler) Stats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 func (h *Handler) TypeStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetTypeStats(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 func (h *Handler) Namespaces(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	namespaces, err := h.svc.GetNamespaces(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": namespaces})
+	respondSuccess(c, namespaces)
 }
 
 // ------------------------------------------------------------
@@ -281,7 +281,7 @@ func (h *Handler) Promote(c *gin.Context) {
 		Reason     string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	var (
@@ -294,30 +294,30 @@ func (h *Handler) Promote(c *gin.Context) {
 		rec, err = h.svc.Promote(c.Request.Context(), tenantID, c.Param("id"), req.PromotedBy, req.Reason)
 	}
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, rec)
+	respondSuccess(c, rec)
 }
 
 func (h *Handler) GetStage(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stage, err := h.svc.GetCurrentStage(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"stage": string(stage)})
+	respondSuccess(c, map[string]any{"stage": string(stage)})
 }
 
 func (h *Handler) GetHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	history, err := h.svc.GetPromotionHistory(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"history": history})
+	respondSuccess(c, map[string]any{"history": history})
 }
 
 // ------------------------------------------------------------
@@ -328,25 +328,25 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	artifact, err := h.svc.Deprecate(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, artifact)
+	respondSuccess(c, artifact)
 }
 
 func (h *Handler) Quarantine(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req struct{ Reason string `json:"reason"` }
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	artifact, err := h.svc.Quarantine(c.Request.Context(), tenantID, c.Param("id"), req.Reason)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, artifact)
+	respondSuccess(c, artifact)
 }
 
 // isUserError returns true for known domain errors (maps to 4xx).

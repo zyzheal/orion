@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"net/http"
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"orion-ticket-svc-go/internal/models"
@@ -17,11 +17,11 @@ func NewAutomationRuleHandler(svc *service.AutomationRuleService) *AutomationRul
 }
 
 func (h *AutomationRuleHandler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/ticketing/automation/rules", h.CreateRule)
-	rg.GET("/ticketing/automation/rules", h.ListRules)
-	rg.PUT("/ticketing/automation/rules/:ruleId", h.UpdateRule)
-	rg.DELETE("/ticketing/automation/rules/:ruleId", h.DeleteRule)
-	rg.POST("/ticketing/automation/rules/:ruleId/execute", h.ExecuteRule)
+	rg.POST("/ticketing/automation/rules", auth.RequirePermission("ticket", "write"), h.CreateRule)
+	rg.GET("/ticketing/automation/rules", auth.RequirePermission("ticket", "read"), h.ListRules)
+	rg.PUT("/ticketing/automation/rules/:ruleId", auth.RequirePermission("ticket", "write"), h.UpdateRule)
+	rg.DELETE("/ticketing/automation/rules/:ruleId", auth.RequirePermission("ticket", "delete"), h.DeleteRule)
+	rg.POST("/ticketing/automation/rules/:ruleId/execute", auth.RequirePermission("ticket", "write"), h.ExecuteRule)
 }
 
 func (h *AutomationRuleHandler) CreateRule(c *gin.Context) {
@@ -30,15 +30,15 @@ func (h *AutomationRuleHandler) CreateRule(c *gin.Context) {
 
 	var req models.CreateAutomationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": rule})
+	respondCreated(c, rule)
 }
 
 func (h *AutomationRuleHandler) ListRules(c *gin.Context) {
@@ -51,10 +51,10 @@ func (h *AutomationRuleHandler) ListRules(c *gin.Context) {
 	}
 	rules, err := h.svc.List(c.Request.Context(), tenantID, enabledFilter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rules})
+	respondSuccess(c, rules)
 }
 
 func (h *AutomationRuleHandler) GetRule(c *gin.Context) {
@@ -62,10 +62,10 @@ func (h *AutomationRuleHandler) GetRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	rule, err := h.svc.Get(c.Request.Context(), tenantID, ruleID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rule})
+	respondSuccess(c, rule)
 }
 
 func (h *AutomationRuleHandler) UpdateRule(c *gin.Context) {
@@ -73,25 +73,25 @@ func (h *AutomationRuleHandler) UpdateRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	var req models.UpdateAutomationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.Update(c.Request.Context(), tenantID, ruleID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rule})
+	respondSuccess(c, rule)
 }
 
 func (h *AutomationRuleHandler) DeleteRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, ruleID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
@@ -99,7 +99,7 @@ func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	var req models.ExecuteRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	triggeredBy := "manual"
@@ -108,8 +108,8 @@ func (h *AutomationRuleHandler) ExecuteRule(c *gin.Context) {
 	}
 	execution, err := h.svc.Execute(c.Request.Context(), tenantID, ruleID, req.TicketID, triggeredBy, req.TicketData)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": execution})
+	respondSuccess(c, execution)
 }

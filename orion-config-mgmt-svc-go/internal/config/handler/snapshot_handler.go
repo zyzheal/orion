@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/config-mgmt-svc-go/internal/config/models"
@@ -25,16 +24,16 @@ func (h *SnapshotHandler) Create(c *gin.Context) {
 
 	var req models.CreateSnapshotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	snapshot, err := h.svc.Create(c.Request.Context(), tenantID, configID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, snapshot)
+	respondCreated(c, snapshot)
 }
 
 func (h *SnapshotHandler) List(c *gin.Context) {
@@ -45,10 +44,10 @@ func (h *SnapshotHandler) List(c *gin.Context) {
 
 	snapshots, err := h.svc.List(c.Request.Context(), tenantID, configID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": snapshots})
+	respondSuccess(c, gin.H{"data": snapshots})
 }
 
 func (h *SnapshotHandler) GetByID(c *gin.Context) {
@@ -56,10 +55,10 @@ func (h *SnapshotHandler) GetByID(c *gin.Context) {
 
 	snapshot, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("snapshotId"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot not found"})
+		respondNotFound(c, "snapshot not found")
 		return
 	}
-	c.JSON(http.StatusOK, snapshot)
+	respondSuccess(c, snapshot)
 }
 
 func (h *SnapshotHandler) Restore(c *gin.Context) {
@@ -68,26 +67,26 @@ func (h *SnapshotHandler) Restore(c *gin.Context) {
 
 	var req models.RestoreSnapshotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.Restore(c.Request.Context(), tenantID, configID, c.Param("snapshotId"), req.RestoredBy)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *SnapshotHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("snapshotId")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "snapshot deleted"})
+	respondSuccess(c, gin.H{"message": "snapshot deleted"})
 }
 
 func (h *SnapshotHandler) RegisterRoutes(rg *gin.RouterGroup) {

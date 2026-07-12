@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"time"
 
 	"orion/identity-svc-go/internal/auth/loginattempt"
@@ -45,7 +44,7 @@ func (h *LoginAttemptHandler) List(c *gin.Context) {
 		}
 		if err != nil {
 			h.log.Error("failed to list login attempts", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			h.respondInternalError(c, "internal error")
 			return
 		}
 	}
@@ -70,10 +69,8 @@ func (h *LoginAttemptHandler) List(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"attempts": attempts,
-		"total":    len(attempts),
-	})
+	h.respondSuccess(c, gin.H{"attempts": attempts,
+		"total":    len(attempts),})
 }
 
 // Unlock handles POST /login-attempts/unlock/:username.
@@ -81,7 +78,7 @@ func (h *LoginAttemptHandler) List(c *gin.Context) {
 func (h *LoginAttemptHandler) Unlock(c *gin.Context) {
 	username := c.Param("username")
 	if username == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username is required"})
+		h.respondBadRequest(c, "username is required")
 		return
 	}
 
@@ -91,10 +88,8 @@ func (h *LoginAttemptHandler) Unlock(c *gin.Context) {
 	_, _ = h.repo.DB().ExecContext(c.Request.Context(),
 		"UPDATE users SET locked_until = NULL WHERE username = $1", username)
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "account unlocked",
-		"username": username,
-	})
+	h.respondSuccess(c, gin.H{"message": "account unlocked",
+		"username": username,})
 }
 
 // Record handles POST /login-attempts (for external callers to record attempts).
@@ -107,7 +102,7 @@ func (h *LoginAttemptHandler) Record(c *gin.Context) {
 		UserAgent string `json:"user_agent"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -116,19 +111,17 @@ func (h *LoginAttemptHandler) Record(c *gin.Context) {
 	} else {
 		isLocked, remaining, lockoutRemaining := h.tracker.RecordFailure(req.Username)
 		if isLocked {
-			c.JSON(http.StatusTooManyRequests, gin.H{
+			h.respondTooManyRequests(c, gin.H{
 				"error":     loginattempt.ErrLockout.Error(),
 				"retryAfter": int(lockoutRemaining.Seconds()),
 			})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+		h.respondSuccess(c, gin.H{
 			"remaining_attempts": remaining,
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "attempt recorded",
-	})
+	h.respondSuccess(c, gin.H{"message": "attempt recorded",})
 }

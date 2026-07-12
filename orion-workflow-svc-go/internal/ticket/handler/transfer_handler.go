@@ -24,7 +24,7 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 
 	var req models.TransferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -34,7 +34,7 @@ func (h *TransferHandler) ManualTransfer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // CheckAutoTransfer POST /api/v1/tickets/transfer/auto-check
@@ -47,7 +47,7 @@ func (h *TransferHandler) CheckAutoTransfer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": transfers, "count": len(transfers)})
+	respondSuccess(c, transfers, "count": len(transfers))
 }
 
 // TransferDueToSuspend POST /api/v1/tickets/transfer/suspend/:suspendId
@@ -58,7 +58,7 @@ func (h *TransferHandler) TransferDueToSuspend(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": transfers, "count": len(transfers)})
+	respondSuccess(c, transfers, "count": len(transfers))
 }
 
 // GetTransferHistory GET /api/v1/tickets/transfer/:ticketId/history
@@ -68,7 +68,7 @@ func (h *TransferHandler) GetTransferHistory(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": history, "count": len(history)})
+	respondSuccess(c, history, "count": len(history))
 }
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats
@@ -81,21 +81,21 @@ func (h *TransferHandler) GetTransferStats(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 // GetTransferConfig GET /api/v1/tickets/transfer/config
 func (h *TransferHandler) GetTransferConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": h.svc.GetConfig()})
+	respondSuccess(c, h.svc.GetConfig())
 }
 
 // UpdateTransferConfig PUT /api/v1/tickets/transfer/config
 func (h *TransferHandler) UpdateTransferConfig(c *gin.Context) {
 	var config models.AutoTransferConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	h.svc.UpdateConfig(config)
-	c.JSON(http.StatusOK, gin.H{"data": h.svc.GetConfig()})
+	respondSuccess(c, h.svc.GetConfig())
 }

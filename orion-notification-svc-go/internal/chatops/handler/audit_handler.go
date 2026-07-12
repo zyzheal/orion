@@ -22,15 +22,15 @@ func (h *AuditHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	log, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, log)
+	respondCreated(c, log)
 }
 
 func (h *AuditHandler) List(c *gin.Context) {
@@ -45,20 +45,20 @@ func (h *AuditHandler) List(c *gin.Context) {
 	}
 	logs, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	respondSuccess(c, logs)
 }
 
 func (h *AuditHandler) ListByTraceID(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	logs, err := h.svc.ListByTraceID(c.Request.Context(), tenantID, c.Param("traceId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	respondSuccess(c, logs)
 }
 
 func (h *AuditHandler) RegisterRoutes(rg *gin.RouterGroup) {

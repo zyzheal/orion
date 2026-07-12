@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/runner/models"
@@ -86,15 +85,15 @@ func (h *Handler) CreateRunner(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRunnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	runner, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, runner)
+	respondCreated(c, runner)
 }
 
 func (h *Handler) ListRunners(c *gin.Context) {
@@ -107,63 +106,63 @@ func (h *Handler) ListRunners(c *gin.Context) {
 	}
 	items, err := h.svc.List(c.Request.Context(), tenantID, offset, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) CountRunners(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 func (h *Handler) GetRunner(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	runner, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "runner not found"})
+		respondNotFound(c, "runner not found")
 		return
 	}
-	c.JSON(http.StatusOK, runner)
+	respondSuccess(c, runner)
 }
 
 func (h *Handler) UpdateRunner(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateRunnerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	runner, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, runner)
+	respondSuccess(c, runner)
 }
 
 func (h *Handler) DeleteRunner(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Heartbeat(c *gin.Context) {
 	runner, err := h.svc.Heartbeat(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "runner not found"})
+		respondNotFound(c, "runner not found")
 		return
 	}
-	c.JSON(http.StatusOK, runner)
+	respondSuccess(c, runner)
 }
 
 func (h *Handler) SelectRunner(c *gin.Context) {
@@ -172,44 +171,44 @@ func (h *Handler) SelectRunner(c *gin.Context) {
 		Labels []string `json:"labels" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	runner, err := h.svc.SelectRunner(c.Request.Context(), tenantID, req.Labels)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, runner)
+	respondSuccess(c, runner)
 }
 
 func (h *Handler) GetStaleRunners(c *gin.Context) {
 	timeout, _ := strconv.Atoi(c.DefaultQuery("timeout_minutes", "5"))
 	stale, err := h.svc.GetStaleRunners(c.Request.Context(), timeout)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stale, "count": len(stale)})
+	respondSuccess(c, gin.H{"runners": stale, "count": len(stale)})
 }
 
 func (h *Handler) MarkStaleRunnersOffline(c *gin.Context) {
 	timeout, _ := strconv.Atoi(c.DefaultQuery("timeout_minutes", "5"))
 	count, err := h.svc.MarkStaleRunnersOffline(c.Request.Context(), timeout)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"marked_offline": count})
+	respondSuccess(c, gin.H{"marked_offline": count})
 }
 
 func (h *Handler) ListRunnerJobs(c *gin.Context) {
 	jobs, err := h.svc.ListRunnerJobs(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": jobs})
+	respondSuccess(c, jobs)
 }
 
 // ==================== Pipeline Run Endpoints ====================
@@ -218,15 +217,15 @@ func (h *Handler) CreateRun(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePipelineRunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	run, err := h.svc.CreateRun(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, run)
+	respondCreated(c, run)
 }
 
 func (h *Handler) ListRuns(c *gin.Context) {
@@ -248,28 +247,28 @@ func (h *Handler) ListRuns(c *gin.Context) {
 
 	runs, err := h.svc.ListRuns(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 func (h *Handler) GetRun(c *gin.Context) {
 	run, err := h.svc.GetRun(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+		respondNotFound(c, "run not found")
 		return
 	}
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) GetRunDetail(c *gin.Context) {
 	run, stages, tasks, err := h.svc.GetRunDetail(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+		respondNotFound(c, "run not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"run":    run,
 		"stages": stages,
 		"tasks":  tasks,
@@ -279,10 +278,10 @@ func (h *Handler) GetRunDetail(c *gin.Context) {
 func (h *Handler) StartRun(c *gin.Context) {
 	run, err := h.svc.StartRun(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) CompleteRun(c *gin.Context) {
@@ -291,45 +290,45 @@ func (h *Handler) CompleteRun(c *gin.Context) {
 		ErrorMessage *string `json:"error_message"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.Status != "success" && req.Status != "failed" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'success' or 'failed'"})
+		respondBadRequest(c, "status must be 'success' or 'failed'")
 		return
 	}
 	run, err := h.svc.CompleteRun(c.Request.Context(), c.Param("id"), req.Status, req.ErrorMessage)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) CancelRun(c *gin.Context) {
 	run, err := h.svc.CancelRun(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) DeleteRun(c *gin.Context) {
 	if err := h.svc.DeleteRun(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) CheckRunCompletion(c *gin.Context) {
 	result, err := h.svc.CheckRunCompletion(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // ==================== Stage Endpoints ====================
@@ -341,24 +340,24 @@ func (h *Handler) AddStage(c *gin.Context) {
 		StageID   *string `json:"stage_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	stage, err := h.svc.AddStage(c.Request.Context(), runID, req.StageName, req.StageID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, stage)
+	respondCreated(c, stage)
 }
 
 func (h *Handler) GetStages(c *gin.Context) {
 	stages, err := h.svc.GetStages(c.Request.Context(), c.Param("runId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stages})
+	respondSuccess(c, stages)
 }
 
 // ==================== Task Endpoints ====================
@@ -366,10 +365,10 @@ func (h *Handler) GetStages(c *gin.Context) {
 func (h *Handler) GetTasks(c *gin.Context) {
 	tasks, err := h.svc.GetTasks(c.Request.Context(), c.Param("stageId"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tasks})
+	respondSuccess(c, tasks)
 }
 
 func (h *Handler) AddTask(c *gin.Context) {
@@ -380,33 +379,33 @@ func (h *Handler) AddTask(c *gin.Context) {
 		Input    map[string]interface{} `json:"input"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	task, err := h.svc.AddTask(c.Request.Context(), stageID, req.TaskName, req.TaskType, req.Input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, task)
+	respondCreated(c, task)
 }
 
 func (h *Handler) GetTask(c *gin.Context) {
 	task, err := h.svc.GetTask(c.Request.Context(), c.Param("taskId"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		respondNotFound(c, "task not found")
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	respondSuccess(c, task)
 }
 
 func (h *Handler) StartTask(c *gin.Context) {
 	task, err := h.svc.StartTask(c.Request.Context(), c.Param("taskId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	respondSuccess(c, task)
 }
 
 func (h *Handler) CompleteTask(c *gin.Context) {
@@ -414,15 +413,15 @@ func (h *Handler) CompleteTask(c *gin.Context) {
 		Output map[string]interface{} `json:"output"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	task, err := h.svc.CompleteTask(c.Request.Context(), c.Param("taskId"), req.Output)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	respondSuccess(c, task)
 }
 
 func (h *Handler) FailTask(c *gin.Context) {
@@ -430,15 +429,15 @@ func (h *Handler) FailTask(c *gin.Context) {
 		ErrorMessage string `json:"error_message" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	task, err := h.svc.FailTask(c.Request.Context(), c.Param("taskId"), req.ErrorMessage)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, task)
+	respondSuccess(c, task)
 }
 
 func (h *Handler) AppendTaskLogs(c *gin.Context) {
@@ -446,14 +445,14 @@ func (h *Handler) AppendTaskLogs(c *gin.Context) {
 		Logs string `json:"logs" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.AppendTaskLogs(c.Request.Context(), c.Param("taskId"), req.Logs); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "logs appended"})
+	respondSuccess(c, gin.H{"message": "logs appended"})
 }
 
 // ==================== Runner Job Endpoints ====================
@@ -462,33 +461,33 @@ func (h *Handler) CreateRunnerJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRunnerJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	job, err := h.svc.CreateRunnerJob(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, job)
+	respondCreated(c, job)
 }
 
 func (h *Handler) GetRunnerJob(c *gin.Context) {
 	job, err := h.svc.GetRunnerJob(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		respondNotFound(c, "job not found")
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	respondSuccess(c, job)
 }
 
 func (h *Handler) MarkJobStarted(c *gin.Context) {
 	job, err := h.svc.MarkJobStarted(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	respondSuccess(c, job)
 }
 
 func (h *Handler) MarkJobComplete(c *gin.Context) {
@@ -496,15 +495,15 @@ func (h *Handler) MarkJobComplete(c *gin.Context) {
 		Result map[string]interface{} `json:"result"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	job, err := h.svc.MarkJobComplete(c.Request.Context(), c.Param("id"), req.Result)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	respondSuccess(c, job)
 }
 
 func (h *Handler) MarkJobFailed(c *gin.Context) {
@@ -512,15 +511,15 @@ func (h *Handler) MarkJobFailed(c *gin.Context) {
 		Error string `json:"error" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	job, err := h.svc.MarkJobFailed(c.Request.Context(), c.Param("id"), req.Error)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	respondSuccess(c, job)
 }
 
 // ReportJobResult is the Runner agent callback endpoint — Node.js compatible.
@@ -533,7 +532,7 @@ func (h *Handler) ReportJobResult(c *gin.Context) {
 		Error  string                 `json:"error"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing status field"})
+		respondBadRequest(c, "Missing status field")
 		return
 	}
 
@@ -547,22 +546,22 @@ func (h *Handler) ReportJobResult(c *gin.Context) {
 		}
 		job, err := h.svc.MarkJobComplete(ctx, jobID, req.Result)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "jobId": job.ID})
+		respondSuccess(c, gin.H{"status": "ok", "jobId": job.ID})
 	} else if req.Status == "failed" {
 		errMsg := req.Error
 		if errMsg == "" {
 			errMsg = "Unknown error"
 		}
 		if _, err := h.svc.MarkJobFailed(ctx, jobID, errMsg); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "jobId": jobID})
+		respondSuccess(c, gin.H{"status": "ok", "jobId": jobID})
 	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "status must be 'completed' or 'failed'"})
+		respondBadRequest(c, "status must be 'completed' or 'failed'")
 		return
 	}
 

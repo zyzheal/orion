@@ -58,15 +58,15 @@ func (h *Handler) CreateWorkspace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.CreateWorkspace(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": w})
+	respondCreated(c, w)
 }
 
 func (h *Handler) ListWorkspaces(c *gin.Context) {
@@ -79,35 +79,35 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 	}
 	items, err := h.svc.ListWorkspaces(c.Request.Context(), tenantID, offset, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetWorkspace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	w, err := h.svc.GetWorkspace(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": w})
+	respondSuccess(c, w)
 }
 
 func (h *Handler) UpdateWorkspace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.UpdateWorkspace(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": w})
+	respondSuccess(c, w)
 }
 
 // ─── Plan & Apply Handlers ─────────────────────────────────────────────────────
@@ -116,30 +116,30 @@ func (h *Handler) GeneratePlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	plan, err := h.svc.GeneratePlan(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": plan})
+	respondCreated(c, plan)
 }
 
 func (h *Handler) ApplyPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	plan, err := h.svc.ApplyPlan(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": plan})
+	respondCreated(c, plan)
 }
 
 func (h *Handler) ListPlansByWorkspace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListPlansByWorkspace(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetPlanByID(c *gin.Context) {
@@ -148,10 +148,10 @@ func (h *Handler) GetPlanByID(c *gin.Context) {
 	planID := c.Param("planId")
 	plan, err := h.svc.GetPlanByID(c.Request.Context(), tenantID, workspaceID, planID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": plan})
+	respondSuccess(c, plan)
 }
 
 // ─── State & Resource Handlers ─────────────────────────────────────────────────
@@ -160,20 +160,20 @@ func (h *Handler) GetCurrentState(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	state, err := h.svc.GetCurrentState(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": state})
+	respondSuccess(c, state)
 }
 
 func (h *Handler) ListResources(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListResources(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) ImportResource(c *gin.Context) {
@@ -183,15 +183,15 @@ func (h *Handler) ImportResource(c *gin.Context) {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	resource, err := h.svc.ImportResource(c.Request.Context(), tenantID, c.Param("id"), body.Type, body.Name)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": resource})
+	respondSuccess(c, resource)
 }
 
 // ─── State Version Handlers ────────────────────────────────────────────────────
@@ -199,25 +199,25 @@ func (h *Handler) ImportResource(c *gin.Context) {
 func (h *Handler) ListStateVersions(c *gin.Context) {
 	versions, err := h.svc.ListStateVersions(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *Handler) GetStateDiff(c *gin.Context) {
 	versionA := c.Query("versionA")
 	versionB := c.Query("versionB")
 	if versionA == "" || versionB == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "versionA and versionB query parameters are required"})
+		respondBadRequest(c, "versionA and versionB query parameters are required")
 		return
 	}
 	diff, err := h.svc.GetStateDiff(c.Request.Context(), c.Param("id"), versionA, versionB)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": diff})
+	respondSuccess(c, diff)
 }
 
 // ─── Module Handlers ───────────────────────────────────────────────────────────
@@ -225,15 +225,15 @@ func (h *Handler) GetStateDiff(c *gin.Context) {
 func (h *Handler) CreateModule(c *gin.Context) {
 	var req models.CreateModuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateModule(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": m})
+	respondCreated(c, m)
 }
 
 func (h *Handler) ListModules(c *gin.Context) {
@@ -245,25 +245,25 @@ func (h *Handler) ListModules(c *gin.Context) {
 	}
 	items, err := h.svc.ListModules(c.Request.Context(), offset, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetModuleByID(c *gin.Context) {
 	m, err := h.svc.GetModuleByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) DeleteModule(c *gin.Context) {
 	if err := h.svc.DeleteModule(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }

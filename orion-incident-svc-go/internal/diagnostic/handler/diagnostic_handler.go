@@ -38,15 +38,15 @@ func (h *Handler) CreateDiagnostic(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDiagnosticRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	report, err := h.agent.TriggerDiagnostic(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": report})
+	respondCreated(c, report)
 }
 
 func (h *Handler) ListDiagnostics(c *gin.Context) {
@@ -57,20 +57,20 @@ func (h *Handler) ListDiagnostics(c *gin.Context) {
 	triggerType := c.Query("trigger_type")
 	items, err := h.svc.ListSessions(c.Request.Context(), tenantID, status, triggerType, req.Offset(), req.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetDiagnostic(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	session, err := h.svc.GetSession(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": session})
+	respondSuccess(c, session)
 }
 
 func (h *Handler) RunDiagnosticStep(c *gin.Context) {
@@ -78,39 +78,39 @@ func (h *Handler) RunDiagnosticStep(c *gin.Context) {
 	sessionID := c.Param("id")
 	var req models.RunDiagnosticStepRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.agent.RunDiagnosticStep(c.Request.Context(), tenantID, sessionID, req.StepType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"result": result}})
+	respondSuccess(c, gin.H{"result": result})
 }
 
 func (h *Handler) GenerateReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDiagnosticRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	report, err := h.agent.TriggerDiagnostic(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": report})
+	respondCreated(c, report)
 }
 
 func (h *Handler) GetDiagnosticReport(c *gin.Context) {
 	report, err := h.agent.GetReport(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	respondSuccess(c, report)
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
@@ -119,25 +119,25 @@ func (h *Handler) ListReports(c *gin.Context) {
 	c.ShouldBindQuery(req)
 	items, err := h.agent.ListReports(c.Request.Context(), tenantID, req.Offset(), req.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) AddKnowledge(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateKnowledgeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.agent.KB().CreatePattern(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": entry})
+	respondCreated(c, entry)
 }
 
 func (h *Handler) ListKnowledge(c *gin.Context) {
@@ -149,32 +149,32 @@ func (h *Handler) ListKnowledge(c *gin.Context) {
 	minFreq, _ := strconv.Atoi(c.DefaultQuery("min_frequency", "0"))
 	items, err := h.agent.KB().ListPatterns(c.Request.Context(), tenantID, category, keyword, minFreq, req.Offset(), req.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) SearchKnowledge(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	keyword := c.Query("keyword")
 	if keyword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "keyword is required"})
+		respondBadRequest(c, "keyword is required")
 		return
 	}
 	items, err := h.agent.KB().SearchKnowledge(c.Request.Context(), tenantID, keyword)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) DeleteKnowledge(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.agent.KB().DeletePattern(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }

@@ -1,11 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/inspection-svc-go/internal/models"
 	"orion/inspection-svc-go/internal/service"
+
+	"orion/go-common/pkg/auth"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,29 +26,29 @@ func (h *InspectionHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	insp := rg.Group("/inspection")
 	{
 		// Rules
-		insp.POST("/rules", h.CreateRule)
-		insp.GET("/rules", h.ListRules)
-		insp.GET("/rules/:id", h.GetRule)
-		insp.PUT("/rules/:id", h.UpdateRule)
-		insp.DELETE("/rules/:id", h.DeleteRule)
+		insp.POST("/rules", auth.RequirePermission("inspection", "write"), h.CreateRule)
+		insp.GET("/rules", auth.RequirePermission("inspection", "read"), h.ListRules)
+		insp.GET("/rules/:id", auth.RequirePermission("inspection", "read"), h.GetRule)
+		insp.PUT("/rules/:id", auth.RequirePermission("inspection", "write"), h.UpdateRule)
+		insp.DELETE("/rules/:id", auth.RequirePermission("inspection", "delete"), h.DeleteRule)
 
 		// Tasks
-		insp.POST("/tasks", h.CreateTask)
-		insp.GET("/tasks", h.ListTasks)
-		insp.GET("/tasks/:id", h.GetTask)
+		insp.POST("/tasks", auth.RequirePermission("inspection", "write"), h.CreateTask)
+		insp.GET("/tasks", auth.RequirePermission("inspection", "read"), h.ListTasks)
+		insp.GET("/tasks/:id", auth.RequirePermission("inspection", "read"), h.GetTask)
 
 		// Reports
-		insp.POST("/reports", h.CreateReport)
-		insp.GET("/reports", h.ListReports)
-		insp.GET("/reports/:id", h.GetReport)
+		insp.POST("/reports", auth.RequirePermission("inspection", "write"), h.CreateReport)
+		insp.GET("/reports", auth.RequirePermission("inspection", "read"), h.ListReports)
+		insp.GET("/reports/:id", auth.RequirePermission("inspection", "read"), h.GetReport)
 
 		// Results
-		insp.GET("/results", h.ListResults)
-		insp.GET("/results/:id", h.GetResult)
-		insp.POST("/results", h.CreateResult)
+		insp.GET("/results", auth.RequirePermission("inspection", "read"), h.ListResults)
+		insp.GET("/results/:id", auth.RequirePermission("inspection", "read"), h.GetResult)
+		insp.POST("/results", auth.RequirePermission("inspection", "write"), h.CreateResult)
 
 		// Health Score
-		insp.GET("/health-score", h.GetHealthScore)
+		insp.GET("/health-score", auth.RequirePermission("inspection", "read"), h.GetHealthScore)
 	}
 }
 
@@ -55,7 +57,7 @@ func (h *InspectionHandler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *InspectionHandler) ListRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	target := c.Query("target")
@@ -68,16 +70,16 @@ func (h *InspectionHandler) ListRules(c *gin.Context) {
 
 	rules, err := h.svc.ListRules(c.Request.Context(), tenantID, target, enabled)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rules})
+	respondSuccess(c, rules)
 }
 
 func (h *InspectionHandler) CreateRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var payload struct {
@@ -90,7 +92,7 @@ func (h *InspectionHandler) CreateRule(c *gin.Context) {
 		Description string                 `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 
@@ -103,63 +105,63 @@ func (h *InspectionHandler) CreateRule(c *gin.Context) {
 	}
 	r, err := h.svc.CreateRule(c.Request.Context(), tenantID, rule)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": r})
+	respondCreated(c, r)
 }
 
 func (h *InspectionHandler) GetRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	ruleID := c.Param("id")
 
 	r, err := h.svc.GetRule(c.Request.Context(), tenantID, ruleID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Rule not found"})
+		respondNotFound(c, "Rule not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": r})
+	respondSuccess(c, r)
 }
 
 func (h *InspectionHandler) UpdateRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	ruleID := c.Param("id")
 
 	var data map[string]interface{}
 	if err := c.ShouldBindJSON(&data); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 
 	r, err := h.svc.UpdateRule(c.Request.Context(), tenantID, ruleID, data)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Rule not found"})
+		respondNotFound(c, "Rule not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": r})
+	respondSuccess(c, r)
 }
 
 func (h *InspectionHandler) DeleteRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	ruleID := c.Param("id")
 
 	if err := h.svc.DeleteRule(c.Request.Context(), tenantID, ruleID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Rule not found"})
+		respondNotFound(c, "Rule not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Rule deleted"})
+	respondSuccess(c, map[string]any{"message": "Rule deleted"})
 }
 
 // --- Tasks ---------------------------------------------------------------
@@ -167,7 +169,7 @@ func (h *InspectionHandler) DeleteRule(c *gin.Context) {
 func (h *InspectionHandler) ListTasks(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	ruleID := c.Query("ruleId")
@@ -175,48 +177,48 @@ func (h *InspectionHandler) ListTasks(c *gin.Context) {
 
 	tasks, err := h.svc.ListTasks(c.Request.Context(), tenantID, ruleID, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tasks})
+	respondSuccess(c, tasks)
 }
 
 func (h *InspectionHandler) CreateTask(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var payload struct {
 		RuleID string `json:"ruleId"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ruleId is required"})
+		respondBadRequest(c, "ruleId is required")
 		return
 	}
 
 	task, err := h.svc.CreateTask(c.Request.Context(), tenantID, payload.RuleID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": task})
+	respondCreated(c, task)
 }
 
 func (h *InspectionHandler) GetTask(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	taskID := c.Param("id")
 
 	t, err := h.svc.GetTask(c.Request.Context(), tenantID, taskID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		respondNotFound(c, "Task not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
+	respondSuccess(c, t)
 }
 
 // --- Reports -------------------------------------------------------------
@@ -224,22 +226,22 @@ func (h *InspectionHandler) GetTask(c *gin.Context) {
 func (h *InspectionHandler) ListReports(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 
 	reports, err := h.svc.ListReports(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": reports})
+	respondSuccess(c, reports)
 }
 
 func (h *InspectionHandler) CreateReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var payload struct {
@@ -247,7 +249,7 @@ func (h *InspectionHandler) CreateReport(c *gin.Context) {
 		RuleIDs []string `json:"ruleIds"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 
@@ -261,26 +263,26 @@ func (h *InspectionHandler) CreateReport(c *gin.Context) {
 
 	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, title, ruleIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": report})
+	respondCreated(c, report)
 }
 
 func (h *InspectionHandler) GetReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	reportID := c.Param("id")
 
 	rpt, err := h.svc.GetReport(c.Request.Context(), tenantID, reportID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Report not found"})
+		respondNotFound(c, "Report not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rpt})
+	respondSuccess(c, rpt)
 }
 
 // --- Results -------------------------------------------------------------
@@ -288,39 +290,39 @@ func (h *InspectionHandler) GetReport(c *gin.Context) {
 func (h *InspectionHandler) ListResults(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	ruleID := c.Query("ruleId")
 
 	results, err := h.svc.ListResults(c.Request.Context(), tenantID, ruleID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": results})
+	respondSuccess(c, results)
 }
 
 func (h *InspectionHandler) GetResult(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	resultID := c.Param("id")
 
 	result, err := h.svc.GetResult(c.Request.Context(), tenantID, resultID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Result not found"})
+		respondNotFound(c, "Result not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 func (h *InspectionHandler) CreateResult(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var payload struct {
@@ -331,7 +333,7 @@ func (h *InspectionHandler) CreateResult(c *gin.Context) {
 		Data    map[string]interface{} `json:"data"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		respondBadRequest(c, "invalid request body")
 		return
 	}
 
@@ -343,22 +345,22 @@ func (h *InspectionHandler) CreateResult(c *gin.Context) {
 	}
 	r, err := h.svc.CreateResult(c.Request.Context(), tenantID, result)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": r})
+	respondCreated(c, r)
 }
 func (h *InspectionHandler) GetHealthScore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 
 	score, err := h.svc.GetHealthScore(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": score})
+	respondSuccess(c, score)
 }

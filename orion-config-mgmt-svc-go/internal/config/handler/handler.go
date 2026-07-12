@@ -64,15 +64,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -81,20 +81,20 @@ func (h *Handler) List(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, gin.H{"data": items})
 }
 
 func (h *Handler) GetByID(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		respondNotFound(c, "config not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+		respondSuccess(c, item)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -103,34 +103,34 @@ func (h *Handler) Update(c *gin.Context) {
 		Value string `json:"value" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), body.Value)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+		respondSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // ==================== Key-based Operations ====================
@@ -143,10 +143,10 @@ func (h *Handler) GetByKey(c *gin.Context) {
 
 	item, err := h.svc.GetByKey(c.Request.Context(), tenantID, key, env)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		respondNotFound(c, "config not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+		respondSuccess(c, item)
 }
 
 // SetConfig creates or updates a config by key (upsert).
@@ -154,15 +154,15 @@ func (h *Handler) SetConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SetConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.SetConfig(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+		respondSuccess(c, item)
 }
 
 // ==================== Version History ====================
@@ -174,10 +174,10 @@ func (h *Handler) GetConfigHistory(c *gin.Context) {
 
 	versions, err := h.svc.GetConfigHistory(c.Request.Context(), tenantID, c.Param("id"), limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, gin.H{"data": versions})
 }
 
 // GetConfigHistoryByKey returns version history for a config by key.
@@ -189,10 +189,10 @@ func (h *Handler) GetConfigHistoryByKey(c *gin.Context) {
 
 	versions, err := h.svc.GetConfigHistoryByKey(c.Request.Context(), tenantID, key, env, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, gin.H{"data": versions})
 }
 
 // ==================== Rollback ====================
@@ -202,7 +202,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.RollbackConfig(c.Request.Context(), tenantID, c.Param("id"), &req)
@@ -213,10 +213,10 @@ func (h *Handler) Rollback(c *gin.Context) {
 		} else if err == service.ErrInvalidVersion {
 			status = http.StatusBadRequest
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, status, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // ==================== Diff ====================
@@ -226,15 +226,15 @@ func (h *Handler) DiffEnvironments(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	report, err := h.svc.DiffEnvironments(c.Request.Context(), tenantID, req.SourceEnv, req.TargetEnv)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, report)
+	respondSuccess(c, report)
 }
 
 // DiffVersions compares two specific versions of a config.
@@ -245,10 +245,10 @@ func (h *Handler) DiffVersions(c *gin.Context) {
 
 	report, err := h.svc.DiffVersions(c.Request.Context(), tenantID, c.Param("id"), fromVer, toVer)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, report)
+	respondSuccess(c, report)
 }
 
 // ==================== Export / Import ====================
@@ -260,10 +260,10 @@ func (h *Handler) Export(c *gin.Context) {
 
 	data, err := h.svc.ExportConfigs(c.Request.Context(), tenantID, env)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, data)
+		respondSuccess(c, data)
 }
 
 // Import bulk-imports config items.
@@ -271,11 +271,11 @@ func (h *Handler) Import(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ImportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	created, skipped, errs := h.svc.ImportConfigs(c.Request.Context(), tenantID, req.Items, req.ChangedBy)
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"created": created,
 		"skipped": skipped,
 		"errors":  errs,
@@ -292,11 +292,11 @@ func (h *Handler) Validate(c *gin.Context) {
 		Environment string `json:"environment"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result := h.svc.ValidateConfig(c.Request.Context(), body.Key, body.Value, body.Environment)
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // ==================== Clone ====================
@@ -309,7 +309,7 @@ func (h *Handler) Clone(c *gin.Context) {
 		ChangedBy string `json:"changed_by"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.CloneConfig(c.Request.Context(), tenantID, c.Param("id"), body.TargetEnv, body.ChangedBy)
@@ -320,8 +320,8 @@ func (h *Handler) Clone(c *gin.Context) {
 		} else if err == service.ErrAlreadyExists {
 			status = http.StatusConflict
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, status, err)
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }

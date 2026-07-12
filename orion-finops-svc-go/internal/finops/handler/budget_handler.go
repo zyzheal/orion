@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/finops-svc-go/internal/finops/models"
@@ -23,17 +22,17 @@ func (h *BudgetHandler) Create(c *gin.Context) {
 
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	budget, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, budget)
+	respondCreated(c, budget)
 }
 
 func (h *BudgetHandler) Get(c *gin.Context) {
@@ -41,11 +40,11 @@ func (h *BudgetHandler) Get(c *gin.Context) {
 
 	budget, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "budget not found"})
+		respondNotFound(c, "budget not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, budget)
+	respondSuccess(c, budget)
 }
 
 func (h *BudgetHandler) List(c *gin.Context) {
@@ -61,11 +60,11 @@ func (h *BudgetHandler) List(c *gin.Context) {
 
 	budgets, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": budgets})
+	respondSuccess(c, budgets)
 }
 
 func (h *BudgetHandler) Update(c *gin.Context) {
@@ -73,28 +72,28 @@ func (h *BudgetHandler) Update(c *gin.Context) {
 
 	var req models.UpdateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	budget, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, budget)
+	respondSuccess(c, budget)
 }
 
 func (h *BudgetHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *BudgetHandler) RecordSpend(c *gin.Context) {
@@ -103,16 +102,16 @@ func (h *BudgetHandler) RecordSpend(c *gin.Context) {
 
 	var req models.RecordSpendRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordSpend(c.Request.Context(), tenantID, budgetID, req.AmountCents); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "spend recorded"})
+	respondSuccess(c, gin.H{"message": "spend recorded"})
 }
 
 func (h *BudgetHandler) GetStatus(c *gin.Context) {
@@ -120,11 +119,11 @@ func (h *BudgetHandler) GetStatus(c *gin.Context) {
 
 	status, err := h.svc.GetStatus(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, status)
+	respondSuccess(c, status)
 }
 
 func (h *BudgetHandler) GetForecast(c *gin.Context) {
@@ -132,21 +131,21 @@ func (h *BudgetHandler) GetForecast(c *gin.Context) {
 
 	forecast, err := h.svc.GetForecast(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, forecast)
+	respondSuccess(c, forecast)
 }
 
 func (h *BudgetHandler) GetAlertTriggers(c *gin.Context) {
 	triggers, err := h.svc.GetAlertTriggers(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": triggers})
+	respondSuccess(c, triggers)
 }
 
 func (h *BudgetHandler) CheckThresholds(c *gin.Context) {
@@ -154,11 +153,11 @@ func (h *BudgetHandler) CheckThresholds(c *gin.Context) {
 
 	triggers, err := h.svc.CheckThresholds(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": triggers, "triggered": len(triggers)})
+	respondSuccess(c, gin.H{"triggers": triggers, "triggered": len(triggers)})
 }
 
 func (h *BudgetHandler) RegisterRoutes(rg *gin.RouterGroup) {

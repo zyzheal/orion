@@ -42,34 +42,34 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func mapError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrApprovalNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 	case errors.Is(err, service.ErrStepNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 	case errors.Is(err, service.ErrInvalidStatus):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		respondConflict(c, err.Error())
 	case errors.Is(err, service.ErrAlreadyActed):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		respondConflict(c, err.Error())
 	case errors.Is(err, service.ErrNotAuthorized):
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		respondForbidden(c, err.Error())
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 	}
 }
 
 func (h *Handler) CreateApproval(c *gin.Context) {
 	var approval models.Approval
 	if err := c.ShouldBindJSON(&approval); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	approval.TenantID = c.GetString("tenant_id")
 	if err := h.svc.Create(c.Request.Context(), &approval); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, approval)
+	respondCreated(c, approval)
 }
 
 func (h *Handler) GetApproval(c *gin.Context) {
@@ -82,7 +82,7 @@ func (h *Handler) GetApproval(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, approval)
+	respondSuccess(c, approval)
 }
 
 func (h *Handler) ListApprovals(c *gin.Context) {
@@ -100,11 +100,11 @@ func (h *Handler) ListApprovals(c *gin.Context) {
 
 	approvals, err := h.svc.List(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": approvals})
+	respondSuccess(c, approvals)
 }
 
 func (h *Handler) Approve(c *gin.Context) {
@@ -116,7 +116,7 @@ func (h *Handler) Approve(c *gin.Context) {
 		Comment    *string `json:"comment"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) Approve(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *Handler) Reject(c *gin.Context) {
@@ -138,7 +138,7 @@ func (h *Handler) Reject(c *gin.Context) {
 		Comment    *string `json:"comment" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -148,7 +148,7 @@ func (h *Handler) Reject(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *Handler) Cancel(c *gin.Context) {
@@ -160,7 +160,7 @@ func (h *Handler) Cancel(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "canceled"})
+	respondSuccess(c, gin.H{"message": "canceled"})
 }
 
 func (h *Handler) GetSteps(c *gin.Context) {
@@ -168,11 +168,11 @@ func (h *Handler) GetSteps(c *gin.Context) {
 
 	steps, err := h.svc.GetSteps(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": steps})
+	respondSuccess(c, steps)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -181,15 +181,15 @@ func (h *Handler) Delete(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }

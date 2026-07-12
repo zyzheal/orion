@@ -57,18 +57,18 @@ func (h *Handler) CreateReport(c *gin.Context) {
 		ScheduleID  string `json:"schedule_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tenantID := c.GetString("tenant_id")
 	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, req.Name, req.Description, req.Framework, req.TriggeredBy, req.ScheduleID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "message": "OK", "data": report})
+	respondCreated(c, report)
 }
 
 // GetReport handles GET /reports/:id.
@@ -78,14 +78,14 @@ func (h *Handler) GetReport(c *gin.Context) {
 	report, err := h.svc.GetReport(c.Request.Context(), id)
 	if err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": report})
+	respondSuccess(c, report)
 }
 
 // ListReports handles GET /reports.
@@ -105,11 +105,11 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 	reports, err := h.svc.ListReports(c.Request.Context(), tenantID, framework, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": reports})
+	respondSuccess(c, reports)
 }
 
 // UpdateReport handles PUT /reports/:id.
@@ -118,21 +118,21 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 
 	var input models.UpdateReportInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	report, err := h.svc.UpdateReport(c.Request.Context(), id, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": report})
+	respondSuccess(c, report)
 }
 
 // DeleteReport handles DELETE /reports/:id.
@@ -141,14 +141,14 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 
 	if err := h.svc.DeleteReport(c.Request.Context(), id); err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 // ==================== Schedule Handlers ====================
@@ -162,7 +162,7 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 		Enabled       *bool  `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -174,11 +174,11 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 
 	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, req.Name, req.Framework, req.CronExpression, enabled, "")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "message": "OK", "data": schedule})
+	respondCreated(c, schedule)
 }
 
 // ListSchedules handles GET /schedules.
@@ -197,11 +197,11 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 
 	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": schedules})
+	respondSuccess(c, schedules)
 }
 
 // DeleteSchedule handles DELETE /schedules/:id.
@@ -210,14 +210,14 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 
 	if err := h.svc.DeleteSchedule(c.Request.Context(), id); err != nil {
 		if err == service.ErrScheduleNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 	// ==================== Policy Handlers ====================
@@ -226,16 +226,16 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 	func (h *Handler) CreatePolicy(c *gin.Context) {
 		var input models.CreatePolicyInput
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
 		tenantID := c.GetString("tenant_id")
 		policy, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, &input)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "message": "OK", "data": policy})
+		respondCreated(c, policy)
 	}
 
 	// ListPolicies handles GET /policies.
@@ -250,10 +250,10 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 		offset := (page - 1) * pageSize
 		policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, framework, category, offset, pageSize)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policies})
+		respondSuccess(c, policies)
 	}
 
 	// GetPolicy handles GET /policies/:id.
@@ -262,13 +262,13 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 		policy, err := h.svc.GetPolicy(c.Request.Context(), id)
 		if err != nil {
 			if err == service.ErrPolicyNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				respondNotFound(c, err.Error())
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policy})
+		respondSuccess(c, policy)
 	}
 
 	// UpdatePolicy handles PUT /policies/:id.
@@ -276,19 +276,19 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 		id := c.Param("id")
 		var input models.UpdatePolicyInput
 		if err := c.ShouldBindJSON(&input); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
 		policy, err := h.svc.UpdatePolicy(c.Request.Context(), id, &input)
 		if err != nil {
 			if err == service.ErrPolicyNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				respondNotFound(c, err.Error())
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": policy})
+		respondSuccess(c, policy)
 	}
 
 	// DeletePolicy handles DELETE /policies/:id.
@@ -296,11 +296,11 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 		id := c.Param("id")
 		if err := h.svc.DeletePolicy(c.Request.Context(), id); err != nil {
 			if err == service.ErrPolicyNotFound {
-				c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
+				respondNotFound(c, err.Error())
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "OK", "data": gin.H{"deleted": true}})
+		respondSuccess(c, gin.H{"deleted": true})
 	}

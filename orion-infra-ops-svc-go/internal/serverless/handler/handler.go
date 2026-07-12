@@ -59,15 +59,15 @@ func (h *Handler) CreateFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFunctionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	fn, err := h.svc.CreateFunction(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": fn})
+	respondCreated(c, fn)
 }
 
 func (h *Handler) ListFunctions(c *gin.Context) {
@@ -81,44 +81,44 @@ func (h *Handler) ListFunctions(c *gin.Context) {
 
 	items, err := h.svc.ListFunctions(c.Request.Context(), tenantID, offset, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	fn, err := h.svc.GetFunction(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": fn})
+	respondSuccess(c, fn)
 }
 
 func (h *Handler) UpdateFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFunctionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	fn, err := h.svc.UpdateFunction(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": fn})
+	respondSuccess(c, fn)
 }
 
 func (h *Handler) DeleteFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteFunction(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Function deleted"})
+	respondSuccess(c, gin.H{"message": "Function deleted"})
 }
 
 // ─── Deployment Handlers ───────────────────────────────────────────────────────
@@ -127,20 +127,20 @@ func (h *Handler) DeployFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.DeployFunction(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) ListDeployments(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListDeployments(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 // ─── Invocation Handler ────────────────────────────────────────────────────────
@@ -153,13 +153,13 @@ func (h *Handler) InvokeFunction(c *gin.Context) {
 	result, err := h.svc.InvokeFunction(c.Request.Context(), tenantID, c.Param("id"), payload)
 	if err != nil {
 		if err.Error() == "FUNCTION_NOT_DEPLOYED" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "FUNCTION_NOT_DEPLOYED"})
+			respondBadRequest(c, "FUNCTION_NOT_DEPLOYED")
 			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	respondSuccess(c, result)
 }
 
 // ─── Logs & Metrics Handlers ───────────────────────────────────────────────────
@@ -170,30 +170,30 @@ func (h *Handler) GetFunctionLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	logs, err := h.svc.GetFunctionLogs(c.Request.Context(), tenantID, c.Param("id"), level, limit)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": logs})
+	respondSuccess(c, logs)
 }
 
 func (h *Handler) GetFunctionMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.GetFunctionMetrics(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": metrics})
+	respondSuccess(c, metrics)
 }
 
 func (h *Handler) GetAggregateMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	agg, err := h.svc.GetAggregateMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": agg})
+	respondSuccess(c, agg)
 }
 
 // ─── Trigger Handlers ──────────────────────────────────────────────────────────
@@ -202,15 +202,15 @@ func (h *Handler) CreateTrigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.CreateTrigger(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": t})
+	respondCreated(c, t)
 }
 
 func (h *Handler) ListTriggers(c *gin.Context) {
@@ -221,29 +221,29 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 	}
 	items, err := h.svc.ListTriggers(c.Request.Context(), tenantID, functionID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetTrigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	t, err := h.svc.GetTrigger(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": t})
+	respondSuccess(c, t)
 }
 
 func (h *Handler) DeleteTrigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteTrigger(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Trigger deleted"})
+	respondSuccess(c, gin.H{"message": "Trigger deleted"})
 }
 
 // ─── Auto-scaling Handler ──────────────────────────────────────────────────────
@@ -252,8 +252,8 @@ func (h *Handler) EvaluateAutoScaling(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	recs, err := h.svc.EvaluateAutoScaling(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": recs})
+	respondSuccess(c, recs)
 }

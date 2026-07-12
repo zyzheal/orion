@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"orion/monitor-svc-go/internal/models"
 	"orion/monitor-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 	"go.uber.org/zap"
 )
 
@@ -34,10 +34,82 @@ func (h *Handler) GetTenantID(c *gin.Context) uuid.UUID {
 	return tenantID
 }
 
+// RegisterRoutes registers all monitor API routes under the given router group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	// Health
+	rg.GET("/health", h.HealthCheck)
+
+	// Metrics
+	rg.POST("/metrics/report", auth.RequirePermission("monitor", "write"), h.ReportMetric)
+	rg.GET("/metrics/query", auth.RequirePermission("monitor", "read"), h.QueryMetrics)
+	rg.GET("/metrics/series/:name", auth.RequirePermission("monitor", "read"), h.GetMetricSeries)
+	rg.GET("/metrics/summary/:name", auth.RequirePermission("monitor", "read"), h.GetMetricSummary)
+	rg.POST("/metrics/collect", auth.RequirePermission("monitor", "write"), h.CollectSystemMetrics)
+	rg.GET("/metrics/registered", auth.RequirePermission("monitor", "read"), h.GetRegisteredMetrics)
+	rg.POST("/metrics/register", auth.RequirePermission("monitor", "write"), h.RegisterMetric)
+	rg.GET("/metrics/aggregation", auth.RequirePermission("monitor", "read"), h.GetMetricAggregation)
+
+	// Traces
+	rg.GET("/traces", auth.RequirePermission("monitor", "read"), h.QueryTraces)
+	rg.GET("/traces/:trace_id", auth.RequirePermission("monitor", "read"), h.GetTraceDetail)
+
+	// Services
+	rg.GET("/services", auth.RequirePermission("monitor", "read"), h.GetServices)
+	rg.GET("/services/:service_name/overview", auth.RequirePermission("monitor", "read"), h.GetServiceOverview)
+
+	// Alerts
+	rg.GET("/alerts", auth.RequirePermission("monitor", "read"), h.QueryAlerts)
+	rg.GET("/alerts/:id", auth.RequirePermission("monitor", "read"), h.GetAlertByID)
+	rg.GET("/alerts/active", auth.RequirePermission("monitor", "read"), h.GetActiveAlerts)
+	rg.POST("/alerts/:id/acknowledge", auth.RequirePermission("monitor", "execute"), h.AcknowledgeAlert)
+	rg.POST("/alerts/:id/silence", auth.RequirePermission("monitor", "execute"), h.SilenceAlert)
+	rg.POST("/alerts/:id/resolve", auth.RequirePermission("monitor", "execute"), h.ResolveAlert)
+
+	// Alert Rules
+	rg.GET("/alert-rules", auth.RequirePermission("monitor", "read"), h.QueryAlertRules)
+	rg.POST("/alert-rules", auth.RequirePermission("monitor", "write"), h.CreateAlertRule)
+	rg.GET("/alert-rules/:id", auth.RequirePermission("monitor", "read"), h.GetAlertRule)
+	rg.PUT("/alert-rules/:id", auth.RequirePermission("monitor", "write"), h.UpdateAlertRule)
+	rg.DELETE("/alert-rules/:id", auth.RequirePermission("monitor", "delete"), h.DeleteAlertRule)
+	rg.PATCH("/alert-rules/:id/toggle", auth.RequirePermission("monitor", "write"), h.ToggleAlertRule)
+	rg.GET("/alert-rules/count", auth.RequirePermission("monitor", "read"), h.Count)
+
+	// Notification Channels
+	rg.POST("/channels", auth.RequirePermission("monitor", "write"), h.CreateChannel)
+	rg.GET("/channels", auth.RequirePermission("monitor", "read"), h.ListChannels)
+	rg.GET("/channels/:id", auth.RequirePermission("monitor", "read"), h.GetChannel)
+	rg.PATCH("/channels/:id/toggle", auth.RequirePermission("monitor", "write"), h.ToggleChannel)
+	rg.DELETE("/channels/:id", auth.RequirePermission("monitor", "delete"), h.DeleteChannel)
+
+	// Escalation Policies
+	rg.POST("/escalation-policies", auth.RequirePermission("monitor", "write"), h.CreateEscalationPolicy)
+	rg.GET("/escalation-policies", auth.RequirePermission("monitor", "read"), h.ListEscalationPolicies)
+	rg.GET("/escalation-policies/:id", auth.RequirePermission("monitor", "read"), h.GetEscalationPolicy)
+
+	// Notification History
+	rg.GET("/notification-history", auth.RequirePermission("monitor", "read"), h.ListNotificationHistory)
+
+	// Dashboard
+	rg.GET("/dashboard", auth.RequirePermission("monitor", "read"), h.GetDashboard)
+	rg.POST("/widgets", auth.RequirePermission("monitor", "write"), h.CreateWidgetConfig)
+	rg.GET("/widgets", auth.RequirePermission("monitor", "read"), h.ListWidgetConfigs)
+	rg.DELETE("/widgets/:id", auth.RequirePermission("monitor", "delete"), h.DeleteWidgetConfig)
+
+	// Aggregated Metrics
+	rg.GET("/metrics/aggregated", auth.RequirePermission("monitor", "read"), h.GetAggregatedMetrics)
+
+	// Anomalies
+	rg.GET("/anomalies/detect", auth.RequirePermission("monitor", "read"), h.DetectAnomalies)
+	rg.GET("/anomalies/summary", auth.RequirePermission("monitor", "read"), h.GetAnomalySummary)
+
+	// Alert Stats
+	rg.GET("/alerts/stats", auth.RequirePermission("monitor", "read"), h.GetAlertStats)
+}
+
 // ==================== Health Check ====================
 
 func (h *Handler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"status":  "healthy",
 		"service": "orion-monitor-svc-go",
 	})
@@ -50,18 +122,18 @@ func (h *Handler) ReportMetric(c *gin.Context) {
 
 	var req models.MetricQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	m, err := h.metricSvc.ReportMetric(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to report metric", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to report metric"})
+		respondInternalError(c, "Failed to report metric")
 		return
 	}
 
-	c.JSON(http.StatusCreated, m)
+	respondCreated(c, m)
 }
 
 func (h *Handler) QueryMetrics(c *gin.Context) {
@@ -69,18 +141,18 @@ func (h *Handler) QueryMetrics(c *gin.Context) {
 
 	var req models.MetricQueryRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.metricSvc.QueryMetrics(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query metrics", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to query metrics"})
+		respondInternalError(c, "Failed to query metrics")
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	respondSuccess(c, resp)
 }
 
 func (h *Handler) GetMetricSeries(c *gin.Context) {
@@ -91,11 +163,11 @@ func (h *Handler) GetMetricSeries(c *gin.Context) {
 	series, err := h.metricSvc.GetSeries(ctx, tenantID, metricName)
 	if err != nil {
 		h.logger.Error("failed to get metric series", zap.String("metric", metricName), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get metric series"})
+		respondInternalError(c, "Failed to get metric series")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": series, "count": len(series)})
+	respondSuccess(c, gin.H{"data": series, "count": len(series)})
 }
 
 func (h *Handler) GetMetricSummary(c *gin.Context) {
@@ -110,11 +182,11 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 	agg, err := h.metricSvc.GetAggregation(c.Request.Context(), tenantID, metricName, windowMs)
 	if err != nil {
 		h.logger.Error("failed to get metric summary", zap.String("metric", metricName), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get metric summary"})
+		respondInternalError(c, "Failed to get metric summary")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"summary": agg}})
+	respondSuccess(c, gin.H{"data": gin.H{"summary": agg}})
 }
 
 // CollectSystemMetrics accepts a batch of system-level metrics (CPU, memory, disk, network)
@@ -124,7 +196,7 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 
 	var req models.CollectSystemMetricsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -134,11 +206,11 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 			zap.String("hostname", req.Hostname),
 			zap.Error(err),
 		)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to collect system metrics"})
+		respondInternalError(c, "Failed to collect system metrics")
 		return
 	}
 
-	c.JSON(http.StatusCreated, resp)
+	respondCreated(c, resp)
 }
 
 func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
@@ -147,11 +219,11 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	resp, err := h.notifSvc.ListRegisteredMetrics(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to list registered metrics", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to list registered metrics"})
+		respondInternalError(c, "Failed to list registered metrics")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"metrics": resp.Data}})
+	respondSuccess(c, gin.H{"metrics": resp.Data})
 }
 
 func (h *Handler) RegisterMetric(c *gin.Context) {
@@ -159,18 +231,18 @@ func (h *Handler) RegisterMetric(c *gin.Context) {
 
 	var req models.RegisterMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	reg, err := h.notifSvc.RegisterMetric(c.Request.Context(), tenantID, req.Name, req.Unit, req.DefaultTags, &req.Description)
 	if err != nil {
 		h.logger.Error("failed to register metric", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to register metric"})
+		respondInternalError(c, "Failed to register metric")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"metric": reg}})
+	respondCreated(c, gin.H{"success": true, "data": gin.H{"metric": reg}})
 }
 
 func (h *Handler) GetMetricAggregation(c *gin.Context) {
@@ -178,7 +250,7 @@ func (h *Handler) GetMetricAggregation(c *gin.Context) {
 
 	var req models.GetMetricAggregationRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -190,11 +262,11 @@ func (h *Handler) GetMetricAggregation(c *gin.Context) {
 	agg, err := h.metricSvc.GetAggregation(c.Request.Context(), tenantID, req.MetricName, windowMs)
 	if err != nil {
 		h.logger.Error("failed to get metric aggregation", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get metric aggregation"})
+		respondInternalError(c, "Failed to get metric aggregation")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": agg})
+	respondSuccess(c, agg)
 }
 
 // ==================== Traces ====================
@@ -204,18 +276,18 @@ func (h *Handler) QueryTraces(c *gin.Context) {
 
 	var req models.TraceQueryRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.metricSvc.GetTraces(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query traces", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to query traces"})
+		respondInternalError(c, "Failed to query traces")
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	respondSuccess(c, resp)
 }
 
 func (h *Handler) GetTraceDetail(c *gin.Context) {
@@ -225,16 +297,16 @@ func (h *Handler) GetTraceDetail(c *gin.Context) {
 	traces, err := h.metricSvc.GetTraceDetail(c.Request.Context(), tenantID, TRACE_ID)
 	if err != nil {
 		h.logger.Error("failed to get trace detail", zap.String("traceId", TRACE_ID), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Trace not found"})
+		respondNotFound(c, "Trace not found")
 		return
 	}
 
 	if len(traces) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Trace not found"})
+		respondNotFound(c, "Trace not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"total": len(traces), "data": traces})
+	respondSuccess(c, gin.H{"total": len(traces), "data": traces})
 }
 
 // ==================== Services ====================
@@ -245,7 +317,7 @@ func (h *Handler) GetServices(c *gin.Context) {
 	services, err := h.metricSvc.GetServices(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to get services", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get services"})
+		respondInternalError(c, "Failed to get services")
 		return
 	}
 
@@ -253,7 +325,7 @@ func (h *Handler) GetServices(c *gin.Context) {
 		services = []string{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"total": len(services), "data": services})
+	respondSuccess(c, gin.H{"total": len(services), "data": services})
 }
 
 func (h *Handler) GetServiceOverview(c *gin.Context) {
@@ -263,11 +335,11 @@ func (h *Handler) GetServiceOverview(c *gin.Context) {
 	overview, err := h.metricSvc.GetServiceOverview(c.Request.Context(), tenantID, serviceName)
 	if err != nil {
 		h.logger.Error("failed to get service overview", zap.String("serviceName", serviceName), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get service overview"})
+		respondInternalError(c, "Failed to get service overview")
 		return
 	}
 
-	c.JSON(http.StatusOK, overview)
+	respondSuccess(c, overview)
 }
 
 // ==================== Alerts ====================
@@ -277,36 +349,36 @@ func (h *Handler) QueryAlerts(c *gin.Context) {
 
 	var req models.AlertQueryRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to query alerts", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to query alerts"})
+		respondInternalError(c, "Failed to query alerts")
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	respondSuccess(c, resp)
 }
 
 func (h *Handler) GetAlertByID(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert ID"})
+		respondBadRequest(c, "Invalid alert ID")
 		return
 	}
 
 	alert, err := h.alertSvc.GetAlertByID(c.Request.Context(), tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to get alert", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Alert not found"})
+		respondNotFound(c, "Alert not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, alert)
+	respondSuccess(c, alert)
 }
 
 func (h *Handler) GetActiveAlerts(c *gin.Context) {
@@ -315,62 +387,62 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	resp, err := h.notifSvc.GetActiveAlerts(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to get active alerts", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get active alerts"})
+		respondInternalError(c, "Failed to get active alerts")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"alerts": resp.Data, "count": len(resp.Data)}})
+	respondSuccess(c, gin.H{"alerts": resp.Data, "count": len(resp.Data)})
 }
 
 func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert ID"})
+		respondBadRequest(c, "Invalid alert ID")
 		return
 	}
 
 	if err := h.notifSvc.AcknowledgeAlert(c.Request.Context(), tenantID, id); err != nil {
 		h.logger.Error("failed to acknowledge alert", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Alert acknowledged", "alert_id": id.String()})
+	respondSuccess(c, gin.H{"message": "Alert acknowledged", "alert_id": id.String()})
 }
 
 func (h *Handler) SilenceAlert(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert ID"})
+		respondBadRequest(c, "Invalid alert ID")
 		return
 	}
 
 	if err := h.alertSvc.SilenceAlert(c.Request.Context(), tenantID, id); err != nil {
 		h.logger.Error("failed to silence alert", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Alert silenced", "alert_id": id.String()})
+	respondSuccess(c, gin.H{"message": "Alert silenced", "alert_id": id.String()})
 }
 
 func (h *Handler) ResolveAlert(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert ID"})
+		respondBadRequest(c, "Invalid alert ID")
 		return
 	}
 
 	if err := h.alertSvc.ResolveAlert(c.Request.Context(), tenantID, id); err != nil {
 		h.logger.Error("failed to resolve alert", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Alert resolved", "alert_id": id.String()})
+	respondSuccess(c, gin.H{"message": "Alert resolved", "alert_id": id.String()})
 }
 
 // ==================== Alert Rules ====================
@@ -381,11 +453,11 @@ func (h *Handler) QueryAlertRules(c *gin.Context) {
 	resp, err := h.alertSvc.QueryAlertRules(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to query alert rules", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to query alert rules"})
+		respondInternalError(c, "Failed to query alert rules")
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	respondSuccess(c, resp)
 }
 
 func (h *Handler) CreateAlertRule(c *gin.Context) {
@@ -393,110 +465,110 @@ func (h *Handler) CreateAlertRule(c *gin.Context) {
 
 	var req models.CreateAlertRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.alertSvc.CreateAlertRule(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create alert rule", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to create alert rule"})
+		respondInternalError(c, "Failed to create alert rule")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"rule": rule}})
+	respondCreated(c, gin.H{"success": true, "data": gin.H{"rule": rule}})
 }
 
 func (h *Handler) GetAlertRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert rule ID"})
+		respondBadRequest(c, "Invalid alert rule ID")
 		return
 	}
 
 	rule, err := h.alertSvc.GetAlertRule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		h.logger.Error("failed to get alert rule", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Alert rule not found"})
+		respondNotFound(c, "Alert rule not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"rule": rule}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"rule": rule}})
 }
 
 func (h *Handler) UpdateAlertRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert rule ID"})
+		respondBadRequest(c, "Invalid alert rule ID")
 		return
 	}
 
 	var req models.UpdateAlertRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.alertSvc.UpdateAlertRule(c.Request.Context(), tenantID, id, req); err != nil {
 		h.logger.Error("failed to update alert rule", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Alert rule updated", "id": id.String()})
+	respondSuccess(c, gin.H{"success": true, "message": "Alert rule updated", "id": id.String()})
 }
 
 func (h *Handler) DeleteAlertRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert rule ID"})
+		respondBadRequest(c, "Invalid alert rule ID")
 		return
 	}
 
 	if err := h.alertSvc.DeleteAlertRule(c.Request.Context(), tenantID, id); err != nil {
 		h.logger.Error("failed to delete alert rule", zap.String("id", id.String()), zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Alert rule deleted", "id": id.String()})
+	respondSuccess(c, gin.H{"success": true, "message": "Alert rule deleted", "id": id.String()})
 }
 
 func (h *Handler) ToggleAlertRule(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid alert rule ID"})
+		respondBadRequest(c, "Invalid alert rule ID")
 		return
 	}
 
 	enabled, _ := strconv.ParseBool(c.Query("enabled"))
 	rule, err := h.alertSvc.GetAlertRule(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Alert rule not found"})
+		respondNotFound(c, "Alert rule not found")
 		return
 	}
 
 	rule.IsEnabled = enabled
 	if err := h.alertSvc.UpdateAlertRule(c.Request.Context(), tenantID, id, models.UpdateAlertRuleRequest{IsEnabled: &enabled}); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to toggle rule"})
+		respondInternalError(c, "Failed to toggle rule")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"rule": rule}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"rule": rule}})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.alertSvc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // ==================== Notification Channels ====================
@@ -506,18 +578,18 @@ func (h *Handler) CreateChannel(c *gin.Context) {
 
 	var req models.CreateNotificationChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	channel, err := h.notifSvc.CreateChannel(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create channel", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to create channel"})
+		respondInternalError(c, "Failed to create channel")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"channel": channel}})
+	respondCreated(c, gin.H{"success": true, "data": gin.H{"channel": channel}})
 }
 
 func (h *Handler) ListChannels(c *gin.Context) {
@@ -526,41 +598,41 @@ func (h *Handler) ListChannels(c *gin.Context) {
 	resp, err := h.notifSvc.ListChannels(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to list channels", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to list channels"})
+		respondInternalError(c, "Failed to list channels")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"channels": resp.Data}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"channels": resp.Data}})
 }
 
 func (h *Handler) GetChannel(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid channel ID"})
+		respondBadRequest(c, "Invalid channel ID")
 		return
 	}
 
 	channel, err := h.notifSvc.GetChannel(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Channel not found"})
+		respondNotFound(c, "Channel not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"channel": channel}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"channel": channel}})
 }
 
 func (h *Handler) ToggleChannel(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid channel ID"})
+		respondBadRequest(c, "Invalid channel ID")
 		return
 	}
 
 	var body gin.H
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	enabled := true
@@ -572,27 +644,27 @@ func (h *Handler) ToggleChannel(c *gin.Context) {
 
 	channel, err := h.notifSvc.ToggleChannel(c.Request.Context(), tenantID, id, enabled)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"channel": channel}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"channel": channel}})
 }
 
 func (h *Handler) DeleteChannel(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid channel ID"})
+		respondBadRequest(c, "Invalid channel ID")
 		return
 	}
 
 	if err := h.notifSvc.DeleteChannel(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Channel deleted"})
+	respondSuccess(c, gin.H{"success": true, "message": "Channel deleted"})
 }
 
 // ==================== Escalation Policies ====================
@@ -602,18 +674,18 @@ func (h *Handler) CreateEscalationPolicy(c *gin.Context) {
 
 	var req models.CreateEscalationPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	policy, err := h.notifSvc.CreateEscalationPolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to create escalation policy", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to create escalation policy"})
+		respondInternalError(c, "Failed to create escalation policy")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"policy": policy}})
+	respondCreated(c, gin.H{"success": true, "data": gin.H{"policy": policy}})
 }
 
 func (h *Handler) ListEscalationPolicies(c *gin.Context) {
@@ -622,28 +694,28 @@ func (h *Handler) ListEscalationPolicies(c *gin.Context) {
 	resp, err := h.notifSvc.ListEscalationPolicies(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to list escalation policies", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to list escalation policies"})
+		respondInternalError(c, "Failed to list escalation policies")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"policies": resp.Data}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"policies": resp.Data}})
 }
 
 func (h *Handler) GetEscalationPolicy(c *gin.Context) {
 	tenantID := h.GetTenantID(c)
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_ID", "message": "Invalid policy ID"})
+		respondBadRequest(c, "Invalid policy ID")
 		return
 	}
 
 	policy, err := h.notifSvc.GetEscalationPolicy(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "NOT_FOUND", "message": "Escalation policy not found"})
+		respondNotFound(c, "Escalation policy not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"policy": policy}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"policy": policy}})
 }
 
 // ==================== Notification History ====================
@@ -653,18 +725,18 @@ func (h *Handler) ListNotificationHistory(c *gin.Context) {
 
 	var req models.NotificationHistoryQueryRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.notifSvc.ListNotificationHistory(c.Request.Context(), tenantID, req)
 	if err != nil {
 		h.logger.Error("failed to list notification history", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to list notification history"})
+		respondInternalError(c, "Failed to list notification history")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"history": resp.Data}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"history": resp.Data}})
 }
 
 // ==================== Dashboard ====================
@@ -680,11 +752,11 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 	data, err := h.notifSvc.GetDashboardData(c.Request.Context(), tenantID, timeWindow)
 	if err != nil {
 		h.logger.Error("failed to get dashboard data", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get dashboard data"})
+		respondInternalError(c, "Failed to get dashboard data")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"dashboard": data}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"dashboard": data}})
 }
 
 func (h *Handler) CreateWidgetConfig(c *gin.Context) {
@@ -692,19 +764,19 @@ func (h *Handler) CreateWidgetConfig(c *gin.Context) {
 
 	var body gin.H
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "INVALID_REQUEST", "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	title, ok := body["title"].(string)
 	if !ok || title == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Missing required field: title"})
+		respondBadRequest(c, "Missing required field: title")
 		return
 	}
 
 	metricsRaw, ok := body["metrics"].([]interface{})
 	if !ok || len(metricsRaw) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Missing required field: metrics (array)"})
+		respondBadRequest(c, "Missing required field: metrics (array)")
 		return
 	}
 	var metrics []string
@@ -714,7 +786,7 @@ func (h *Handler) CreateWidgetConfig(c *gin.Context) {
 		}
 	}
 	if len(metrics) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "metrics must contain at least one valid string"})
+		respondBadRequest(c, "metrics must contain at least one valid string")
 		return
 	}
 
@@ -725,11 +797,11 @@ func (h *Handler) CreateWidgetConfig(c *gin.Context) {
 
 	cfg, err := h.notifSvc.CreateWidgetConfig(c.Request.Context(), tenantID, title, metrics, timeWindow.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to create widget config"})
+		respondInternalError(c, "Failed to create widget config")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"widget": cfg}})
+	respondCreated(c, gin.H{"success": true, "data": gin.H{"widget": cfg}})
 }
 
 func (h *Handler) ListWidgetConfigs(c *gin.Context) {
@@ -737,11 +809,11 @@ func (h *Handler) ListWidgetConfigs(c *gin.Context) {
 
 	widgets, err := h.notifSvc.ListWidgetConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to list widget configs"})
+		respondInternalError(c, "Failed to list widget configs")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"widgets": widgets}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"widgets": widgets}})
 }
 
 func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
@@ -750,16 +822,16 @@ func (h *Handler) DeleteWidgetConfig(c *gin.Context) {
 	widgetIDStr := c.Param("id")
 	widgetID, err := uuid.Parse(widgetIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Invalid widget ID"})
+		respondBadRequest(c, "Invalid widget ID")
 		return
 	}
 
 	if err := h.notifSvc.DeleteWidgetConfig(c.Request.Context(), tenantID, widgetID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to delete widget config"})
+		respondInternalError(c, "Failed to delete widget config")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Widget config deleted"})
+	respondSuccess(c, gin.H{"success": true, "message": "Widget config deleted"})
 }
 
 func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
@@ -767,7 +839,7 @@ func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 
 	metricsParam := c.Query("metrics")
 	if metricsParam == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Missing required query param: metrics (comma-separated)"})
+		respondBadRequest(c, "Missing required query param: metrics (comma-separated)")
 		return
 	}
 
@@ -786,11 +858,11 @@ func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 
 	aggregated, err := h.notifSvc.GetAggregatedMetrics(c.Request.Context(), tenantID, metrics, timeWindow)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to get aggregated metrics"})
+		respondInternalError(c, "Failed to get aggregated metrics")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"aggregated": aggregated}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"aggregated": aggregated}})
 }
 
 // ==================== Anomalies ====================
@@ -800,7 +872,7 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 
 	metricName := c.Query("metric")
 	if metricName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "VALIDATION_ERROR", "message": "Missing required query param: metric"})
+		respondBadRequest(c, "Missing required query param: metric")
 		return
 	}
 
@@ -818,16 +890,16 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 
 	anomalies, err := h.notifSvc.DetectAnomalies(c.Request.Context(), tenantID, metricName, timeWindow, threshold)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "INTERNAL_ERROR", "message": "Failed to detect anomalies"})
+		respondInternalError(c, "Failed to detect anomalies")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"anomalies": anomalies, "count": len(anomalies)}})
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"anomalies": anomalies, "count": len(anomalies)}})
 }
 
 func (h *Handler) GetAnomalySummary(c *gin.Context) {
 	// Return an empty summary for now
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"summary": gin.H{
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"summary": gin.H{
 		"anomaly_count": 0,
 		"total_metrics": 0,
 		"last_updated":  time.Now(),
@@ -842,10 +914,10 @@ func (h *Handler) GetAlertStats(c *gin.Context) {
 	ackResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "acknowledged"})
 	silencedResp, _ := h.alertSvc.QueryAlerts(c.Request.Context(), tenantID, models.AlertQueryRequest{Status: "silenced"})
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"stats": gin.H{
-		"firing":      len(firingResp.Data),
+	respondSuccess(c, gin.H{"success": true, "data": gin.H{"stats": gin.H{
+		"firing":       len(firingResp.Data),
 		"acknowledged": len(ackResp.Data),
-		"silenced":    len(silencedResp.Data),
-		"total":       len(firingResp.Data) + len(ackResp.Data) + len(silencedResp.Data),
+		"silenced":     len(silencedResp.Data),
+		"total":        len(firingResp.Data) + len(ackResp.Data) + len(silencedResp.Data),
 	}}})
 }

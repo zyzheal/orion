@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/pipeline-template/models"
@@ -45,19 +44,19 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePipelineTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidYAML {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -83,10 +82,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	result, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // ---------------------------------------------------------------------------
@@ -97,10 +96,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -111,19 +110,19 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdatePipelineTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -134,13 +133,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ---------------------------------------------------------------------------
@@ -151,10 +150,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +166,7 @@ func (h *Handler) Instantiate(c *gin.Context) {
 
 	var req models.InstantiateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -175,15 +174,15 @@ func (h *Handler) Instantiate(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 		case service.ErrMissingParam:
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, err.Error())
 		}
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	respondCreated(c, result)
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +195,7 @@ func (h *Handler) SaveAsTemplate(c *gin.Context) {
 
 	var req models.CreatePipelineTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -204,13 +203,13 @@ func (h *Handler) SaveAsTemplate(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrPipelineNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 		case service.ErrInvalidYAML:
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, err.Error())
 		}
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/ai-svc-go/internal/aicost/models"
 	"orion/ai-svc-go/internal/aicost/service"
 	"orion/go-common/pkg/auth"
@@ -40,16 +38,14 @@ func (h *Handler) Optimize(c *gin.Context) {
 	analysis := h.svc.AnalyzeCostSavings(tenantID)
 	recommendations, err := h.svc.RecommendOptimization(tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"data": models.OptimizeResponse{
+	respondCreated(c, models.OptimizeResponse{
 			Analysis:        analysis,
 			Recommendations: recommendations,
-		},
-	})
+		},)
 }
 
 // GetHistory handles GET /ai/cost/history
@@ -58,14 +54,12 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 	history, err := h.svc.GetSavingsHistory(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": history,
-		"meta": gin.H{"total": len(history)},
-	})
+	respondSuccess(c, history,
+		"meta": gin.H{"total": len(history)},)
 }
 
 // GetSummary handles GET /ai/cost/summary
@@ -75,18 +69,16 @@ func (h *Handler) GetSummary(c *gin.Context) {
 	analysis := h.svc.AnalyzeCostSavings(tenantID)
 	totalSavings, err := h.svc.GetTotalSavings(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": models.CostSummary{
+	respondSuccess(c, models.CostSummary{
 			TotalSpend:        analysis.TotalSpend,
 			TotalSavingsToDate: totalSavings,
 			OpportunityCount:  len(analysis.Opportunities),
 			Currency:          analysis.Currency,
-		},
-	})
+		},)
 }
 
 // GetAlerts handles GET /ai/cost/alerts
@@ -94,8 +86,6 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alerts := h.svc.GenerateAlerts(tenantID)
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": alerts,
-		"meta": gin.H{"total": len(alerts)},
-	})
+	respondSuccess(c, alerts,
+		"meta": gin.H{"total": len(alerts)},)
 }

@@ -25,7 +25,7 @@ func (h *AnalyticsHandler) GetStatistics(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 // GetResolutionStats GET /api/v1/tickets/reports/resolution
@@ -36,7 +36,7 @@ func (h *AnalyticsHandler) GetResolutionStats(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 // GetBacklogAnalysis GET /api/v1/tickets/reports/backlog
@@ -47,7 +47,7 @@ func (h *AnalyticsHandler) GetBacklogAnalysis(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": analysis})
+	respondSuccess(c, analysis)
 }
 
 // GetTrendReport GET /api/v1/tickets/reports/trend
@@ -61,7 +61,7 @@ func (h *AnalyticsHandler) GetTrendReport(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	respondSuccess(c, report)
 }
 
 // GetExecutiveDashboard GET /api/v1/tickets/bi/dashboard/executive
@@ -75,7 +75,7 @@ func (h *AnalyticsHandler) GetExecutiveDashboard(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dash})
+	respondSuccess(c, dash)
 }
 
 // GetManagerDashboard GET /api/v1/tickets/bi/dashboard/manager
@@ -89,7 +89,7 @@ func (h *AnalyticsHandler) GetManagerDashboard(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dash})
+	respondSuccess(c, dash)
 }
 
 // GetEngineerDashboard GET /api/v1/tickets/bi/dashboard/engineer/:engineerId
@@ -102,7 +102,7 @@ func (h *AnalyticsHandler) GetEngineerDashboard(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dash})
+	respondSuccess(c, dash)
 }
 
 // GetEfficiencyScore GET /api/v1/tickets/bi/score/:engineerId
@@ -115,7 +115,7 @@ func (h *AnalyticsHandler) GetEfficiencyScore(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": score})
+	respondSuccess(c, score)
 }
 
 // ComparePeriods GET /api/v1/tickets/bi/compare
@@ -131,7 +131,7 @@ func (h *AnalyticsHandler) ComparePeriods(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": comparison})
+	respondSuccess(c, comparison)
 }
 
 // ExportBIData POST /api/v1/tickets/bi/export
@@ -145,13 +145,13 @@ func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
 		PeriodEnd   string `json:"period_end"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	validDatasets := map[string]bool{"tickets": true, "sla": true, "dispatch": true, "efficiency": true}
 	if !validDatasets[req.Dataset] {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid dataset"})
+		respondBadRequest(c, "invalid dataset")
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *AnalyticsHandler) ExportBIData(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": data})
+	respondSuccess(c, data)
 }
 
 // GetTimeTrend GET /api/v1/tickets/bi/trend
@@ -183,7 +183,7 @@ func (h *AnalyticsHandler) GetTimeTrend(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": trend})
+	respondSuccess(c, trend)
 }
 
 // TransferTicket POST /api/v1/tickets/transfer/:ticketId
@@ -197,7 +197,7 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 		Reason       string `json:"reason" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -207,7 +207,7 @@ func (h *AnalyticsHandler) TransferTicket(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"transfer": record, "hold_duration_ms": holdMs}})
+	respondSuccess(c, gin.H{"transfer": record, "hold_duration_ms": holdMs})
 }
 
 // GetTransferHistory GET /api/v1/tickets/transfer/:ticketId/history
@@ -217,7 +217,7 @@ func (h *AnalyticsHandler) GetTransferHistory(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": history, "count": len(history)})
+	respondSuccess(c, gin.H{"history": history, "count": len(history)})
 }
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats
@@ -230,7 +230,7 @@ func (h *AnalyticsHandler) GetTransferStats(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 // Assignment rule handlers

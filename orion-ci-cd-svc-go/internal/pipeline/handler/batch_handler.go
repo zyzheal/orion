@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
@@ -56,17 +55,17 @@ func (h *BatchHandler) CreatePhaseGroup(c *gin.Context) {
 
 	var req models.CreatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	pg, err := h.svc.CreatePhaseGroup(c.Request.Context(), tenantID, req, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, pg)
+	respondCreated(c, pg)
 }
 
 // ListPhaseGroups lists phase groups for the tenant.
@@ -85,11 +84,11 @@ func (h *BatchHandler) ListPhaseGroups(c *gin.Context) {
 
 	groups, err := h.svc.ListPhaseGroups(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": groups})
+	respondSuccess(c, groups)
 }
 
 // GetPhaseGroup returns a phase group by ID.
@@ -99,11 +98,11 @@ func (h *BatchHandler) GetPhaseGroup(c *gin.Context) {
 
 	pg, err := h.svc.GetPhaseGroup(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "phase group not found"})
+		respondNotFound(c, "phase group not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, pg)
+	respondSuccess(c, pg)
 }
 
 // UpdatePhaseGroup updates a phase group.
@@ -113,17 +112,17 @@ func (h *BatchHandler) UpdatePhaseGroup(c *gin.Context) {
 
 	var req models.UpdatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	pg, err := h.svc.UpdatePhaseGroup(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, pg)
+	respondSuccess(c, pg)
 }
 
 // DeletePhaseGroup deletes a phase group.
@@ -132,11 +131,11 @@ func (h *BatchHandler) DeletePhaseGroup(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeletePhaseGroup(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // StartPhaseGroup starts a phase group execution.
@@ -146,11 +145,11 @@ func (h *BatchHandler) StartPhaseGroup(c *gin.Context) {
 
 	run, err := h.svc.StartPhaseGroup(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, run)
+	respondCreated(c, run)
 }
 
 // StopPhaseGroup stops a running phase group execution.
@@ -160,11 +159,11 @@ func (h *BatchHandler) StopPhaseGroup(c *gin.Context) {
 
 	run, err := h.svc.StopPhaseGroup(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // GetPhaseGroupStatus returns the latest run status for a phase group.
@@ -174,11 +173,11 @@ func (h *BatchHandler) GetPhaseGroupStatus(c *gin.Context) {
 
 	run, err := h.svc.GetPhaseGroupStatus(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no status found"})
+		respondNotFound(c, "no status found")
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // ListPhaseGroupRuns lists execution records for a phase group.
@@ -199,11 +198,11 @@ func (h *BatchHandler) ListPhaseGroupRuns(c *gin.Context) {
 
 	runs, err := h.svc.ListPhaseGroupRuns(c.Request.Context(), tenantID, groupID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 // ==================== Batch Run Handlers ====================
@@ -214,17 +213,17 @@ func (h *BatchHandler) CreateBatchRun(c *gin.Context) {
 
 	var req models.CreateBatchRunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.CreateBatchRun(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, run)
+	respondCreated(c, run)
 }
 
 // ListBatchRuns lists batch runs for the tenant.
@@ -243,11 +242,11 @@ func (h *BatchHandler) ListBatchRuns(c *gin.Context) {
 
 	runs, err := h.svc.ListBatchRuns(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 // StartBatchRun starts a batch run execution.
@@ -257,11 +256,11 @@ func (h *BatchHandler) StartBatchRun(c *gin.Context) {
 
 	run, err := h.svc.StartBatchRun(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // StopBatchRun stops a running batch run.
@@ -271,9 +270,9 @@ func (h *BatchHandler) StopBatchRun(c *gin.Context) {
 
 	run, err := h.svc.StopBatchRun(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }

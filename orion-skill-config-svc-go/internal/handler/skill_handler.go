@@ -76,10 +76,10 @@ func (h *SkillHandler) ListSkills(c *gin.Context) {
 
 	data, err := h.svc.ListSkills(c.Request.Context(), status, category, nil, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, data)
+	respondSuccess(c, data)
 }
 
 // GetSkill returns a skill package by ID.
@@ -87,29 +87,29 @@ func (h *SkillHandler) GetSkill(c *gin.Context) {
 	id := c.Param("id")
 	sp, err := h.svc.GetSkill(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // CreateSkill creates a new skill package.
 func (h *SkillHandler) CreateSkill(c *gin.Context) {
 	var req models.CreateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	sp, err := h.svc.CreateSkill(c.Request.Context(), &req)
 	if err != nil {
 		if err.Error() == service.ErrDuplicateName.Error() {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			respondConflict(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": sp})
+	respondCreated(c, sp)
 }
 
 // UpdateSkill modifies a skill package.
@@ -117,51 +117,51 @@ func (h *SkillHandler) UpdateSkill(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	sp, err := h.svc.UpdateSkill(c.Request.Context(), id, &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // DeleteSkill soft-deletes a skill.
 func (h *SkillHandler) DeleteSkill(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.UninstallSkill(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // SearchSkills searches published skills by query string.
 func (h *SkillHandler) SearchSkills(c *gin.Context) {
 	query := c.Query("q")
 	if query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter 'q' is required"})
+		respondBadRequest(c, "query parameter 'q' is required")
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	items, err := h.svc.SearchSkills(c.Request.Context(), query, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // GetCategories returns published skill categories with counts.
 func (h *SkillHandler) GetCategories(c *gin.Context) {
 	cats, err := h.svc.GetCategories(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": cats})
+	respondSuccess(c, cats)
 }
 
 // GetFeaturedSkills returns top published skills.
@@ -169,10 +169,10 @@ func (h *SkillHandler) GetFeaturedSkills(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	items, err := h.svc.GetFeaturedSkills(c.Request.Context(), limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // ListVersions returns all versions for a skill.
@@ -180,10 +180,10 @@ func (h *SkillHandler) ListVersions(c *gin.Context) {
 	skillID := c.Param("id")
 	versions, err := h.svc.GetVersions(c.Request.Context(), skillID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 // AddVersion adds a new version for a skill.
@@ -191,35 +191,35 @@ func (h *SkillHandler) AddVersion(c *gin.Context) {
 	skillID := c.Param("id")
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	sv, err := h.svc.CreateVersion(c.Request.Context(), skillID, &req)
 	if err != nil {
 		if err.Error() == service.ErrVersionLocked.Error() {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			respondConflict(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": sv})
+	respondCreated(c, sv)
 }
 
 // InstallSkill increments the install count for a published skill.
 func (h *SkillHandler) InstallSkill(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.InstallSkill(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "installed"})
+	respondSuccess(c, map[string]any{"message": "installed"})
 }
 
 // UninstallSkill decrements the install count.
 func (h *SkillHandler) UninstallSkill(c *gin.Context) {
 	_ = c.Param("id")
-	c.JSON(http.StatusOK, gin.H{"message": "uninstalled"})
+	respondSuccess(c, map[string]any{"message": "uninstalled"})
 }
 
 // RateSkill adds a rating for a skill.
@@ -227,15 +227,15 @@ func (h *SkillHandler) RateSkill(c *gin.Context) {
 	skillID := c.Param("id")
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rev, err := h.svc.AddReview(c.Request.Context(), skillID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rev})
+	respondSuccess(c, rev)
 }
 
 // ListInstances returns all instances for a skill within a tenant.
@@ -244,10 +244,10 @@ func (h *SkillHandler) ListInstances(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	instances, err := h.svc.ListInstances(c.Request.Context(), skillID, tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": instances})
+	respondSuccess(c, instances)
 }
 
 // CreateInstance creates a new skill instance.
@@ -255,15 +255,15 @@ func (h *SkillHandler) CreateInstance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": inst})
+	respondCreated(c, inst)
 }
 
 // UpdateInstance modifies a skill instance.
@@ -272,15 +272,15 @@ func (h *SkillHandler) UpdateInstance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	inst, err := h.svc.UpdateInstance(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "instance not found"})
+		respondNotFound(c, "instance not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": inst})
+	respondSuccess(c, inst)
 }
 
 // DeleteInstance removes a skill instance.
@@ -288,10 +288,10 @@ func (h *SkillHandler) DeleteInstance(c *gin.Context) {
 	id := c.Param("instanceId")
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteInstance(c.Request.Context(), id, tenantID); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "instance not found"})
+		respondNotFound(c, "instance not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ExecuteSkill triggers direct execution of a skill.
@@ -300,15 +300,15 @@ func (h *SkillHandler) ExecuteSkill(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	exec, err := h.svc.ExecuteSkill(c.Request.Context(), skillID, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": exec})
+	respondSuccess(c, exec)
 }
 
 // ListExecutions returns execution history for a skill.
@@ -320,10 +320,10 @@ func (h *SkillHandler) ListExecutions(c *gin.Context) {
 
 	items, total, totalPages, err := h.svc.GetExecutions(c.Request.Context(), skillID, tenantID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "skill not found"})
+		respondNotFound(c, "skill not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
+	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
 }
 
 // ListAllExecutions returns all executions (admin).
@@ -340,10 +340,10 @@ func (h *SkillHandler) ListAllExecutions(c *gin.Context) {
 		return nil
 	}())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
+	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
 }
 
 // SubmitForReview submits a skill for review.
@@ -355,10 +355,10 @@ func (h *SkillHandler) SubmitForReview(c *gin.Context) {
 	}
 	sp, err := h.svc.SubmitForReview(c.Request.Context(), id, userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // ApproveSkill approves a skill for publication.
@@ -371,10 +371,10 @@ func (h *SkillHandler) ApproveSkill(c *gin.Context) {
 	}
 	sp, err := h.svc.ApproveSkill(c.Request.Context(), id, userID, reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // RejectSkill rejects a skill under review.
@@ -387,10 +387,10 @@ func (h *SkillHandler) RejectSkill(c *gin.Context) {
 	}
 	sp, err := h.svc.RejectSkill(c.Request.Context(), id, userID, reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // ArchiveSkill archives a skill.
@@ -404,10 +404,10 @@ func (h *SkillHandler) ArchiveSkill(c *gin.Context) {
 	}
 	sp, err := h.svc.ArchiveSkill(c.Request.Context(), id, userID, reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sp})
+	respondSuccess(c, sp)
 }
 
 // PendingReview returns skills pending review.
@@ -418,10 +418,10 @@ func (h *SkillHandler) PendingReview(c *gin.Context) {
 
 	items, total, totalPages, err := h.svc.GetPendingReview(c.Request.Context(), category, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
+	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
 }
 
 // GetAuditLog returns audit log for a skill.
@@ -432,10 +432,10 @@ func (h *SkillHandler) GetAuditLog(c *gin.Context) {
 
 	items, total, totalPages, err := h.svc.GetAuditLog(c.Request.Context(), skillID, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
+	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
 }
 
 // GetAllAuditLogs returns global audit log (admin).
@@ -450,8 +450,8 @@ func (h *SkillHandler) GetAllAuditLogs(c *gin.Context) {
 	}
 	items, total, totalPages, err := h.svc.GetAllAuditLogs(c.Request.Context(), page, limit, actionPtr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
+	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
 }

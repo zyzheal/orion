@@ -21,7 +21,7 @@ func NewSLAHandler(svc *service.SLAService) *SLAHandler {
 func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 	var req models.CreateSLATargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -31,7 +31,7 @@ func (h *SLAHandler) AddSLATarget(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": target})
+	respondCreated(c, target)
 }
 
 // GetTicketSLA GET /api/v1/tickets/:id/sla
@@ -41,7 +41,7 @@ func (h *SLAHandler) GetTicketSLA(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": sla})
+	respondSuccess(c, sla)
 }
 
 // GetSLACompliance GET /api/v1/tickets/sla/compliance
@@ -51,7 +51,7 @@ func (h *SLAHandler) GetSLACompliance(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	respondSuccess(c, report)
 }
 
 // CheckSLABreaches GET /api/v1/tickets/sla/breaches
@@ -61,5 +61,5 @@ func (h *SLAHandler) CheckSLABreaches(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": breaches, "count": len(breaches)})
+	respondSuccess(c, breaches, "count": len(breaches))
 }

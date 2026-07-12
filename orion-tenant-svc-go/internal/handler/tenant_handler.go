@@ -1,13 +1,13 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"time"
 
 	"orion/tenant-svc-go/internal/models"
 	"orion/tenant-svc-go/internal/repository"
 	"orion/tenant-svc-go/internal/service"
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -38,6 +38,63 @@ func New(
 	}
 }
 
+// RegisterRoutes wires all tenant routes under the given router group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	// Tenant CRUD
+	rg.POST("", auth.RequirePermission("tenant", "write"), h.CreateTenant)
+	rg.GET("", auth.RequirePermission("tenant", "read"), h.ListTenants)
+	rg.GET("/count", auth.RequirePermission("tenant", "read"), h.GetTenantCount)
+	rg.GET("/:id", auth.RequirePermission("tenant", "read"), h.GetTenant)
+	rg.PUT("/:id", auth.RequirePermission("tenant", "write"), h.UpdateTenant)
+	rg.DELETE("/:id", auth.RequirePermission("tenant", "delete"), h.DeleteTenant)
+	rg.POST("/:id/split", auth.RequirePermission("tenant", "admin"), h.SplitTenant)
+
+	// Quota
+	rg.GET("/quota", auth.RequirePermission("tenant", "read"), h.GetQuota)
+	rg.PUT("/quota", auth.RequirePermission("tenant", "admin"), h.UpdateQuota)
+	rg.GET("/:id/quota", auth.RequirePermission("tenant", "read"), h.GetQuota)
+	rg.PUT("/:id/quota", auth.RequirePermission("tenant", "admin"), h.UpdateQuota)
+	rg.POST("/quota/check", auth.RequirePermission("tenant", "read"), h.CheckQuota)
+
+	// Namespaces
+	rg.GET("/:id/namespaces", auth.RequirePermission("tenant", "read"), h.GetNamespaces)
+	rg.POST("/:id/namespaces/allocate", auth.RequirePermission("tenant", "write"), h.AllocateNamespace)
+	rg.DELETE("/:id/namespaces/:namespace_name", auth.RequirePermission("tenant", "write"), h.ReleaseNamespace)
+	rg.GET("/pool/status", auth.RequirePermission("tenant", "read"), h.GetPoolStatus)
+	rg.GET("/namespaces", auth.RequirePermission("tenant", "read"), h.GetTenantNamespacesList)
+
+	// RLS
+	rg.GET("/rls/status/:table", auth.RequirePermission("tenant", "read"), h.GetRLSStatus)
+	rg.POST("/session/variable", auth.RequirePermission("tenant", "write"), h.SetTenantSessionVariable)
+
+	// Middleware config
+	rg.GET("/middleware/config", auth.RequirePermission("tenant", "read"), h.GetMiddlewareConfig)
+	rg.PUT("/middleware/config", auth.RequirePermission("tenant", "admin"), h.UpdateMiddlewareConfig)
+
+	// Usage & Current
+	rg.GET("/current", auth.RequirePermission("tenant", "read"), h.GetCurrentTenant)
+	rg.GET("/my-tenants", auth.RequirePermission("tenant", "read"), h.GetMyTenants)
+	rg.GET("/context", auth.RequirePermission("tenant", "read"), h.GetTenantContext)
+	rg.GET("/usage", auth.RequirePermission("tenant", "read"), h.GetUsage)
+	rg.GET("/:id/usage", auth.RequirePermission("tenant", "read"), h.GetUsage)
+	rg.GET("/namespace/:tenant_id/usage", auth.RequirePermission("tenant", "read"), h.GetNamespaceUsage)
+
+	// Alerts
+	rg.GET("/alerts", auth.RequirePermission("tenant", "read"), h.GetAlerts)
+	rg.GET("/alerts/stats", auth.RequirePermission("tenant", "read"), h.GetAlertStats)
+
+	// Users
+	rg.GET("/:id/users", auth.RequirePermission("tenant", "read"), h.GetTenantUsers)
+	rg.POST("/:id/users", auth.RequirePermission("tenant", "write"), h.AddTenantUser)
+	rg.PUT("/:id/users/:user_id", auth.RequirePermission("tenant", "write"), h.UpdateTenantUserRole)
+	rg.DELETE("/:id/users/:user_id", auth.RequirePermission("tenant", "write"), h.DeleteTenantUser)
+
+	// Invitations
+	rg.POST("/:id/invite", auth.RequirePermission("tenant", "write"), h.InviteUser)
+	rg.GET("/invite/:code", auth.RequirePermission("tenant", "read"), h.GetInviteInfo)
+	rg.POST("/invite/:code/accept", auth.RequirePermission("tenant", "write"), h.AcceptInvite)
+}
+
 // CreateTenant handles POST /api/v1/tenant
 func (h *Handler) CreateTenant(c *gin.Context) {
 	var req struct {
@@ -45,17 +102,17 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 		DisplayName string `json:"display_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
 	t, err := h.tenantSvc.CreateTenant(c.Request.Context(), req.Name, req.DisplayName)
 	if err != nil {
 		h.log.Error("create tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, t)
+	respondCreated(c, t)
 }
 
 // ListTenants handles GET /api/v1/tenant
@@ -67,11 +124,11 @@ func (h *Handler) ListTenants(c *gin.Context) {
 	tenants, total, err := h.tenantSvc.ListTenants(c.Request.Context(), page, limit, status)
 	if err != nil {
 		h.log.Error("list tenants failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data":  tenants,
 		"total": total,
 		"page":  page,
@@ -85,10 +142,10 @@ func (h *Handler) GetTenant(c *gin.Context) {
 	t, err := h.tenantSvc.GetTenant(c.Request.Context(), id)
 	if err != nil {
 		h.log.Error("get tenant failed", zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // UpdateTenant handles PUT /api/v1/tenant/:id
@@ -101,7 +158,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 		Status      *string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -119,10 +176,10 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 	t, err := h.tenantSvc.UpdateTenant(c.Request.Context(), id, updates)
 	if err != nil {
 		h.log.Error("update tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // DeleteTenant handles DELETE /api/v1/tenant/:id
@@ -130,17 +187,17 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.tenantSvc.DeleteTenant(c.Request.Context(), id); err != nil {
 		h.log.Error("delete tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.Status(http.StatusOK)
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // GetQuota handles GET /api/v1/tenant/:id/quota and GET /api/v1/tenant/quota
 func (h *Handler) GetQuota(c *gin.Context) {
 	tenantID := resolveTenantID(c)
 	if tenantID == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
+		respondBadRequest(c, "X-Tenant-ID header or :id param is required")
 		return
 	}
 	uid := *tenantID
@@ -148,18 +205,16 @@ func (h *Handler) GetQuota(c *gin.Context) {
 	quota, err := h.quotaSvc.GetQuota(c.Request.Context(), uid)
 	if err != nil {
 		h.log.Error("get quota failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
 	// Include usage report
 	usage, _ := h.quotaSvc.GetUsageReport(c.Request.Context(), uid)
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"quota": quota,
-			"usage": usage,
-		},
+	respondSuccess(c, gin.H{
+		"quota": quota,
+		"usage": usage,
 	})
 }
 
@@ -167,7 +222,7 @@ func (h *Handler) GetQuota(c *gin.Context) {
 func (h *Handler) UpdateQuota(c *gin.Context) {
 	tenantID := resolveTenantID(c)
 	if tenantID == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
+		respondBadRequest(c, "X-Tenant-ID header or :id param is required")
 		return
 	}
 	uid := *tenantID
@@ -186,7 +241,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		ApiRateLimitWindowSeconds *int64 `json:"api_rate_limit_window_seconds"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -232,11 +287,11 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 
 	if err := h.quotaSvc.SetQuota(c.Request.Context(), quota); err != nil {
 		h.log.Error("update quota failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": quota})
+	respondSuccess(c, quota)
 }
 
 // GetNamespaces handles GET /api/v1/tenant/:id/namespaces
@@ -244,18 +299,18 @@ func (h *Handler) GetNamespaces(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
 	namespaces, err := h.repo.ListNamespacesByTenant(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("list namespaces failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, namespaces)
+	respondSuccess(c, namespaces)
 }
 
 // AllocateNamespace handles POST /api/v1/tenant/:id/namespaces/allocate
@@ -263,7 +318,7 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
@@ -280,7 +335,7 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 
 	// Validate tenant access
 	if !h.isolationSvc.ValidateResourceAccess(tenantID, tenantID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "tenant access denied"})
+		respondForbidden(c, "tenant access denied")
 		return
 	}
 
@@ -288,38 +343,34 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 	currentCount, err := h.repo.CountNamespacesByTenant(ctx, tenantID)
 	if err != nil {
 		h.log.Error("count namespaces failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	maxPerTenant := 10
 	if currentCount >= maxPerTenant {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "tenant has reached maximum namespace allocation",
-			"current": currentCount,
-			"max":     maxPerTenant,
-		})
+		respondBadRequest(c, "tenant has reached maximum namespace allocation")
 		return
 	}
 
 	available, err := h.repo.FindAvailableNamespace(ctx)
 	if err != nil {
 		h.log.Error("find available namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if available == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no available namespaces in pool"})
+		respondBadRequest(c, "no available namespaces in pool")
 		return
 	}
 
 	allocated, err := h.repo.AllocateNamespace(ctx, available.ID, tenantID, req.Purpose, req.Labels)
 	if err != nil {
 		h.log.Error("allocate namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, allocated)
+	respondSuccess(c, allocated)
 }
 
 // ReleaseNamespace handles DELETE /api/v1/tenant/:id/namespaces/:namespace_name
@@ -329,31 +380,31 @@ func (h *Handler) ReleaseNamespace(c *gin.Context) {
 	ns, err := h.repo.FindNamespaceByName(c.Request.Context(), namespaceName)
 	if err != nil {
 		h.log.Error("find namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if ns == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "namespace not found"})
+		respondNotFound(c, "namespace not found")
 		return
 	}
 
 	if ns.Status == "reserved" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot release reserved namespace"})
+		respondBadRequest(c, "cannot release reserved namespace")
 		return
 	}
 	if ns.Status == "available" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace is already available"})
+		respondBadRequest(c, "namespace is already available")
 		return
 	}
 
 	released, err := h.repo.ReleaseNamespace(c.Request.Context(), ns.ID)
 	if err != nil {
 		h.log.Error("release namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, released)
+	respondSuccess(c, released)
 }
 
 // GetPoolStatus handles GET /api/v1/tenant/pool/status
@@ -364,7 +415,7 @@ func (h *Handler) GetPoolStatus(c *gin.Context) {
 	allocated, _ := h.repo.CountNamespacesByStatus(ctx, "allocated")
 	reserved, _ := h.repo.CountNamespacesByStatus(ctx, "reserved")
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"total":     100,
 		"available": available,
 		"allocated": allocated,
@@ -386,17 +437,17 @@ func (h *Handler) GetTenantNamespacesList(c *gin.Context) {
 		err = h.repo.DB().SelectContext(ctx, &namespaces, "SELECT * FROM namespace_allocations")
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, namespaces)
+	respondSuccess(c, namespaces)
 }
 
 // GetRLSStatus handles GET /api/v1/tenant/rls/status/:table
 func (h *Handler) GetRLSStatus(c *gin.Context) {
 	table := c.Param("table")
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"table_name":    table,
 		"rls_supported": true,
 		"session_var":   "app.current_tenant_id",
@@ -409,18 +460,18 @@ func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
 		TenantID int64 `json:"tenant_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 
 	db := h.repo.DB().DB.DB
 	if err := h.repo.SetTenantSessionVariable(c.Request.Context(), db, req.TenantID); err != nil {
 		h.log.Error("set session variable failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"variable_name": "app.current_tenant_id",
 		"value":         req.TenantID,
 		"success":       true,
@@ -433,7 +484,7 @@ func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
 func (h *Handler) CheckQuota(c *gin.Context) {
 	tenantID, err := strconv.ParseInt(getTenantID(c), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+		respondBadRequest(c, "X-Tenant-ID header is required")
 		return
 	}
 
@@ -442,25 +493,25 @@ func (h *Handler) CheckQuota(c *gin.Context) {
 		Amount       float64 `json:"amount"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
 	result, err := h.quotaSvc.CheckQuota(c.Request.Context(), tenantID, req.ResourceType, req.Amount)
 	if err != nil {
 		h.log.Error("check quota failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"result": result})
+	respondSuccess(c, gin.H{"result": result})
 }
 
 // ==================== Middleware Config ====================
 
 // GetMiddlewareConfig handles GET /api/v1/tenant/middleware/config
 func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"config": gin.H{
 			"enabled":        true,
 			"headerName":     "x-tenant-id",
@@ -491,7 +542,7 @@ func (h *Handler) UpdateMiddlewareConfig(c *gin.Context) {
 		jwtClaim = req.JwtTenantClaim
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"config": gin.H{
 			"enabled":        enabled,
 			"headerName":     headerName,
@@ -515,7 +566,7 @@ func (h *Handler) SplitTenant(c *gin.Context) {
 		KeepOriginalUsers       bool     `json:"keep_original_users"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -524,7 +575,7 @@ func (h *Handler) SplitTenant(c *gin.Context) {
 	// 1. Verify original tenant exists
 	orig, err := h.tenantSvc.GetTenant(ctx, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "original tenant not found"})
+		respondNotFound(c, "original tenant not found")
 		return
 	}
 
@@ -543,7 +594,7 @@ func (h *Handler) SplitTenant(c *gin.Context) {
 	}
 	newTenant, err := h.tenantSvc.CreateTenant(ctx, req.NewTenantName, *dn)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -593,7 +644,7 @@ func (h *Handler) SplitTenant(c *gin.Context) {
 
 	message := "Tenant split completed: " + strconv.Itoa(len(migratedUsers)) + " users, " + strconv.Itoa(len(migratedNamespaces)) + " namespaces, " + strconv.Itoa(len(migratedPipelines)) + " pipelines"
 
-	c.JSON(http.StatusCreated, gin.H{
+	respondCreated(c, gin.H{
 		"originalTenant": gin.H{
 			"id":           orig.ID,
 			"name":         orig.Name,
@@ -620,10 +671,10 @@ func (h *Handler) GetTenantCount(c *gin.Context) {
 	status := c.Query("status")
 	_, total, err := h.tenantSvc.ListTenants(c.Request.Context(), 1, 1, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"total": total})
+	respondSuccess(c, gin.H{"total": total})
 }
 
 // ==================== Tenant Usage ====================
@@ -632,7 +683,7 @@ func (h *Handler) GetTenantCount(c *gin.Context) {
 func (h *Handler) GetUsage(c *gin.Context) {
 	tenantID := resolveTenantID(c)
 	if tenantID == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header or :id param is required"})
+		respondBadRequest(c, "X-Tenant-ID header or :id param is required")
 		return
 	}
 	uid := *tenantID
@@ -640,7 +691,7 @@ func (h *Handler) GetUsage(c *gin.Context) {
 	ctx := c.Request.Context()
 	quota, err := h.quotaSvc.GetQuota(ctx, uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
@@ -657,7 +708,7 @@ func (h *Handler) GetUsage(c *gin.Context) {
 		"pipeline_runs_per_day": gin.H{"used": 0, "limit": quota.MaxPipelineRunsPerDay},
 	}
 
-	c.JSON(http.StatusOK, gin.H{"usage": usage, "quota": quota})
+	respondSuccess(c, gin.H{"usage": usage, "quota": quota})
 }
 
 // ==================== Namespace Usage Detail ====================
@@ -666,7 +717,7 @@ func (h *Handler) GetUsage(c *gin.Context) {
 func (h *Handler) GetNamespaceUsage(c *gin.Context) {
 	tenantID, err := strconv.ParseInt(c.Param("tenant_id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
@@ -688,7 +739,7 @@ func (h *Handler) GetNamespaceUsage(c *gin.Context) {
 				"memory_used":    0,
 			}
 		}
-		c.JSON(http.StatusOK, gin.H{
+		respondSuccess(c, gin.H{
 			"namespaces": fallback,
 			"total":      len(fallback),
 			"totals": gin.H{
@@ -720,7 +771,7 @@ func (h *Handler) GetNamespaceUsage(c *gin.Context) {
 		totalRunners += nu.RunnerCount
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"namespaces": details,
 		"total":      len(details),
 		"totals": gin.H{
@@ -742,11 +793,11 @@ func (h *Handler) GetTenantUsers(c *gin.Context) {
 	users, err := h.repo.ListTenantUsers(ctx, tenantID)
 	if err != nil {
 		h.log.Error("list tenant users failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data":  users,
 		"total": len(users),
 	})
@@ -761,7 +812,7 @@ func (h *Handler) AddTenantUser(c *gin.Context) {
 		Role   string `json:"role"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	role := "member"
@@ -772,11 +823,11 @@ func (h *Handler) AddTenantUser(c *gin.Context) {
 	ctx := c.Request.Context()
 	if err := h.repo.InsertTenantUser(ctx, tenantID, req.UserID, role); err != nil {
 		h.log.Error("add tenant user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	respondCreated(c, gin.H{
 		"tenant_id": tenantID,
 		"user_id":   req.UserID,
 		"role":      role,
@@ -793,7 +844,7 @@ func (h *Handler) UpdateTenantUserRole(c *gin.Context) {
 		Role string `json:"role" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 
@@ -801,11 +852,11 @@ func (h *Handler) UpdateTenantUserRole(c *gin.Context) {
 	// Update role via insert (ON CONFLICT updates)
 	if err := h.repo.InsertTenantUser(ctx, tenantID, userID, req.Role); err != nil {
 		h.log.Error("update tenant user role failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"tenant_id": tenantID,
 		"user_id":   userID,
 		"role":      req.Role,
@@ -820,7 +871,7 @@ func (h *Handler) DeleteTenantUser(c *gin.Context) {
 	// Prevent removing yourself
 	currentUserID := getCurrentUserID(c)
 	if userID == currentUserID {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove yourself from the tenant"})
+		respondBadRequest(c, "cannot remove yourself from the tenant")
 		return
 	}
 
@@ -829,7 +880,7 @@ func (h *Handler) DeleteTenantUser(c *gin.Context) {
 	// Check if user is a member
 	exists, err := h.repo.TenantUserExists(ctx, tenantID, userID)
 	if err != nil || !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user is not a member of this tenant"})
+		respondNotFound(c, "user is not a member of this tenant")
 		return
 	}
 
@@ -838,18 +889,18 @@ func (h *Handler) DeleteTenantUser(c *gin.Context) {
 	if role != nil && (*role == "owner" || *role == "admin") {
 		adminCount, _ := h.repo.CountAdminsInTenant(ctx, tenantID)
 		if adminCount <= 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot remove the last administrator from the tenant"})
+			respondBadRequest(c, "cannot remove the last administrator from the tenant")
 			return
 		}
 	}
 
 	if err := h.repo.DeleteTenantUser(ctx, tenantID, userID); err != nil {
 		h.log.Error("delete tenant user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User removed from tenant successfully"})
+	respondSuccess(c, gin.H{"message": "User removed from tenant successfully"})
 }
 
 // ==================== Tenant Invitation ====================
@@ -865,7 +916,7 @@ func (h *Handler) InviteUser(c *gin.Context) {
 		ExpiresInDays int    `json:"expires_in_days"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	role := "member"
@@ -882,25 +933,25 @@ func (h *Handler) InviteUser(c *gin.Context) {
 	// Check tenant exists
 	exists, _ := h.repo.TenantExists(ctx, tenantID)
 	if !exists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "tenant not found"})
+		respondNotFound(c, "tenant not found")
 		return
 	}
 
 	// Check for pending invite
 	existing, err := h.repo.FindPendingInvite(ctx, tenantID, req.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "a pending invitation already exists for this email"})
+		respondConflict(c, "a pending invitation already exists for this email")
 		return
 	}
 
 	// Check if user is already a member
 	member, _ := h.repo.UserIsTenantMember(ctx, tenantID, req.Email)
 	if member {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user is already a member of this tenant"})
+		respondBadRequest(c, "user is already a member of this tenant")
 		return
 	}
 
@@ -921,7 +972,7 @@ func (h *Handler) InviteUser(c *gin.Context) {
 
 	if err := h.repo.CreateInvite(ctx, invite); err != nil {
 		h.log.Error("create invite failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
@@ -934,7 +985,7 @@ func (h *Handler) InviteUser(c *gin.Context) {
 		tenantName = tenant.Name
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	respondCreated(c, gin.H{
 		"invite": gin.H{
 			"id":          invite.ID,
 			"invite_code": invite.InviteCode,
@@ -961,36 +1012,36 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 	currentUserEmail := getUserEmail(c)
 
 	if currentUserID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		respondForbidden(c, "user not authenticated")
 		return
 	}
 
 	invite, err := h.repo.FindInviteByCode(ctx, code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if invite == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "invalid invitation code"})
+		respondNotFound(c, "invalid invitation code")
 		return
 	}
 
 	// Check status
 	if invite.Status != "pending" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "this invitation has already been " + invite.Status})
+		respondBadRequest(c, "this invitation has already been "+invite.Status)
 		return
 	}
 
 	// Check expiry
 	if time.Now().After(invite.ExpiresAt) {
 		_ = h.repo.UpdateInviteStatus(ctx, invite.ID, "expired", nil)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "this invitation has expired"})
+		respondBadRequest(c, "this invitation has expired")
 		return
 	}
 
 	// Check email match
 	if currentUserEmail != "" && currentUserEmail != invite.Email {
-		c.JSON(http.StatusForbidden, gin.H{"error": "the current user email does not match the invitation email"})
+		respondForbidden(c, "the current user email does not match the invitation email")
 		return
 	}
 
@@ -998,7 +1049,7 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 	member, _ := h.repo.TenantUserExists(ctx, invite.TenantID, currentUserID)
 	if member {
 		_ = h.repo.UpdateInviteStatus(ctx, invite.ID, "accepted", &currentUserIdForUpdate)
-		c.JSON(http.StatusOK, gin.H{
+		respondSuccess(c, gin.H{
 			"message": "You are already a member of this tenant",
 			"tenant": gin.H{
 				"id":           invite.TenantID,
@@ -1011,13 +1062,13 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 
 	// Add user to tenant
 	if err := h.repo.InsertTenantUser(ctx, invite.TenantID, currentUserID, invite.Role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
 	_ = h.repo.UpdateInviteStatus(ctx, invite.ID, "accepted", &currentUserIdForUpdate)
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"message": "Invitation accepted successfully",
 		"tenant": gin.H{
 			"id":           invite.TenantID,
@@ -1037,18 +1088,18 @@ func (h *Handler) GetInviteInfo(c *gin.Context) {
 
 	invite, err := h.repo.FindInviteByCode(ctx, code)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if invite == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "invalid invitation code"})
+		respondNotFound(c, "invalid invitation code")
 		return
 	}
 
 	isExpired := time.Now().After(invite.ExpiresAt)
 	isValid := invite.Status == "pending" && !isExpired
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"invite": gin.H{
 			"id":         invite.ID,
 			"email":      invite.Email,
@@ -1072,7 +1123,7 @@ func (h *Handler) GetInviteInfo(c *gin.Context) {
 func (h *Handler) GetAlerts(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+		respondBadRequest(c, "X-Tenant-ID header is required")
 		return
 	}
 
@@ -1096,7 +1147,7 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 		total, err = h.repo.CountQuotaAlerts(ctx, tenantID, nil, nil)
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
@@ -1104,11 +1155,11 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 
 	alerts, err := h.repo.ListQuotaAlerts(ctx, tenantID, getPtr(resourceType), getPtr(notifyStatus), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data":       alerts,
 		"total":      total,
 		"page":       page,
@@ -1121,7 +1172,7 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 func (h *Handler) GetAlertStats(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+		respondBadRequest(c, "X-Tenant-ID header is required")
 		return
 	}
 
@@ -1129,23 +1180,23 @@ func (h *Handler) GetAlertStats(c *gin.Context) {
 
 	statusCounts, err := h.repo.AlertStatsByStatus(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
 	resourceCounts, err := h.repo.AlertStatsByResourceType(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
 	activeAlerts, err := h.repo.ActiveAlerts(ctx, tenantID, 10)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"byStatus":       statusCounts,
 		"byResourceType": resourceCounts,
 		"activeAlerts":   activeAlerts,
@@ -1159,7 +1210,7 @@ func (h *Handler) GetAlertStats(c *gin.Context) {
 func (h *Handler) GetCurrentTenant(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+		respondBadRequest(c, "X-Tenant-ID header is required")
 		return
 	}
 
@@ -1167,7 +1218,7 @@ func (h *Handler) GetCurrentTenant(c *gin.Context) {
 
 	tenant, err := h.tenantSvc.GetTenant(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "tenant not found"})
+		respondNotFound(c, "tenant not found")
 		return
 	}
 
@@ -1175,7 +1226,7 @@ func (h *Handler) GetCurrentTenant(c *gin.Context) {
 	nsCount, _ := h.repo.CountNamespacesForTenant(ctx, parseTenantID(tenantID))
 	activeAlerts, _ := h.repo.ActiveAlertCount(ctx, tenantID)
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"tenant": gin.H{
 			"id":           tenant.ID,
 			"name":         tenant.Name,
@@ -1207,14 +1258,14 @@ func (h *Handler) GetCurrentTenant(c *gin.Context) {
 func (h *Handler) GetMyTenants(c *gin.Context) {
 	userID := getUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
+		respondForbidden(c, "user not authenticated")
 		return
 	}
 
 	ctx := c.Request.Context()
 	memberships, err := h.repo.TenantUserByUserID(ctx, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
@@ -1242,7 +1293,7 @@ func (h *Handler) GetMyTenants(c *gin.Context) {
 		currentTenant = result[0]
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data":          result,
 		"total":         len(result),
 		"currentTenant": currentTenant,
@@ -1255,18 +1306,18 @@ func (h *Handler) GetMyTenants(c *gin.Context) {
 func (h *Handler) GetTenantContext(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
+		respondBadRequest(c, "X-Tenant-ID header is required")
 		return
 	}
 
 	ctx := c.Request.Context()
 	tenant, err := h.tenantSvc.GetTenant(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "tenant not found"})
+		respondNotFound(c, "tenant not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"context": gin.H{
 			"tenant_id":        tenantID,
 			"tenant_name":      tenant.Name,

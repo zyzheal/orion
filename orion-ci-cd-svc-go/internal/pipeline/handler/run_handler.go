@@ -63,14 +63,14 @@ func (h *RunHandler) GetRunDetail(c *gin.Context) {
 	detail, err := h.runSvc.GetRunDetail(c.Request.Context(), runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+			respondNotFound(c, "run not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"run":    detail.Run,
 		"stages": detail.Stages,
 		"tasks":  detail.Tasks,
@@ -95,11 +95,11 @@ func (h *RunHandler) GetRunHistory(c *gin.Context) {
 
 	history, err := h.runSvc.GetRunHistory(c.Request.Context(), pipelineID, period)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": history})
+	respondSuccess(c, history)
 }
 
 // ============================================
@@ -113,14 +113,14 @@ func (h *RunHandler) CheckRunCompletion(c *gin.Context) {
 	result, err := h.runSvc.CheckRunCompletion(c.Request.Context(), runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+			respondNotFound(c, "run not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"is_complete": result.IsComplete,
 		"all_success": result.AllSuccess,
 	})
@@ -136,11 +136,11 @@ func (h *RunHandler) GetRunsByStatus(c *gin.Context) {
 
 	runs, err := h.runSvc.GetRunsByStatus(c.Request.Context(), status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 // ============================================
@@ -156,7 +156,7 @@ func (h *RunHandler) GetRecentRuns(c *gin.Context) {
 
 	runs := h.metricsSvc.GetRecentRuns(limit)
 
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 // ============================================
@@ -171,7 +171,7 @@ func (h *RunHandler) GetMetrics(c *gin.Context) {
 		metrics = h.metricsSvc.GetMetrics()
 	}
 
-	c.JSON(http.StatusOK, metrics)
+	respondSuccess(c, metrics)
 }
 
 // GetMetricsByPipeline returns metrics for a specific pipeline.
@@ -180,7 +180,7 @@ func (h *RunHandler) GetMetricsByPipeline(c *gin.Context) {
 
 	summary := h.metricsSvc.GetMetricsByPipeline(pipelineID)
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"total":         summary.Total,
 		"success":       summary.Success,
 		"avgDurationMs": summary.AvgDurationMs,

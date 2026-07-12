@@ -52,21 +52,21 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 	if req.Title == "" || req.ChangeType == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "title and change_type are required"})
+		respondBadRequest(c, "title and change_type are required")
 		return
 	}
 
 	d, err := h.svc.CreateRequest(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		h.logger.Error("failed to create change request", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": d})
+	respondCreated(c, d)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -83,10 +83,10 @@ func (h *Handler) List(c *gin.Context) {
 	items, err := h.svc.ListRequests(c.Request.Context(), tenantID, offset, limit, filters)
 	if err != nil {
 		h.logger.Error("failed to list change requests", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -95,10 +95,10 @@ func (h *Handler) Get(c *gin.Context) {
 
 	d, err := h.svc.GetRequest(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -107,7 +107,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
@@ -115,16 +115,16 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to update change request", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -134,16 +134,16 @@ func (h *Handler) Delete(c *gin.Context) {
 	if err := h.svc.DeleteRequest(c.Request.Context(), tenantID, id); err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to delete change request", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 // ── Approval Chain ────────────────────────────────────────────────────────
@@ -156,16 +156,16 @@ func (h *Handler) SubmitForApproval(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to submit for approval", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) GetApprovalChain(c *gin.Context) {
@@ -174,10 +174,10 @@ func (h *Handler) GetApprovalChain(c *gin.Context) {
 
 	approvals, err := h.svc.GetApprovalChain(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": approvals})
+	respondSuccess(c, approvals)
 }
 
 func (h *Handler) Approve(c *gin.Context) {
@@ -187,7 +187,7 @@ func (h *Handler) Approve(c *gin.Context) {
 
 	var req models.ApproveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
@@ -195,16 +195,16 @@ func (h *Handler) Approve(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound, service.ErrApprovalNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			respondNotFound(c, err.Error())
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to approve", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": approval})
+	respondSuccess(c, approval)
 }
 
 func (h *Handler) Reject(c *gin.Context) {
@@ -214,7 +214,7 @@ func (h *Handler) Reject(c *gin.Context) {
 
 	var req models.RejectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
@@ -222,16 +222,16 @@ func (h *Handler) Reject(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound, service.ErrApprovalNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			respondNotFound(c, err.Error())
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to reject", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": approval})
+	respondSuccess(c, approval)
 }
 
 // ── Execution ──────────────────────────────────────────────────────────────
@@ -244,11 +244,11 @@ func (h *Handler) StartExecution(c *gin.Context) {
 		Steps []models.CreateExecutionStepRequest `json:"steps" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 	if len(req.Steps) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "steps array is required and must not be empty"})
+		respondBadRequest(c, "steps array is required and must not be empty")
 		return
 	}
 
@@ -256,16 +256,16 @@ func (h *Handler) StartExecution(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrChangeRequestNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 		case service.ErrStateConflict:
-			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			respondBadRequest(c, err.Error())
 		default:
 			h.logger.Error("failed to start execution", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": steps})
+	respondCreated(c, steps)
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
@@ -274,10 +274,10 @@ func (h *Handler) GetExecution(c *gin.Context) {
 
 	progress, err := h.svc.GetExecutionProgress(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": progress})
+	respondSuccess(c, progress)
 }
 
 func (h *Handler) UpdateExecutionStep(c *gin.Context) {
@@ -285,7 +285,7 @@ func (h *Handler) UpdateExecutionStep(c *gin.Context) {
 
 	var req models.UpdateExecutionStepRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
@@ -293,12 +293,12 @@ func (h *Handler) UpdateExecutionStep(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrStepNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 		default:
 			h.logger.Error("failed to update execution step", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+			respondInternalError(c, "internal error")
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": step})
+	respondSuccess(c, step)
 }

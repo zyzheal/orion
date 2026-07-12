@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -27,7 +26,7 @@ func (h *ApprovalGateHandler) Create(c *gin.Context) {
 		RequiredApprovals int      `json:"required_approvals"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -37,21 +36,21 @@ func (h *ApprovalGateHandler) Create(c *gin.Context) {
 
 	gate, err := h.svc.CreateGate(c.Request.Context(), req.RunID, req.StageID, pipelineID, req.Approvers, req.RequiredApprovals)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gate)
+	respondCreated(c, gate)
 }
 
 func (h *ApprovalGateHandler) GetByID(c *gin.Context) {
 	gate, err := h.svc.GetGate(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "gate not found"})
+		respondNotFound(c, "gate not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gate)
+	respondSuccess(c, gate)
 }
 
 func (h *ApprovalGateHandler) GetByRun(c *gin.Context) {
@@ -59,11 +58,11 @@ func (h *ApprovalGateHandler) GetByRun(c *gin.Context) {
 
 	gates, err := h.svc.GetGatesByRun(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gates})
+	respondSuccess(c, gates)
 }
 
 func (h *ApprovalGateHandler) Approve(c *gin.Context) {
@@ -78,11 +77,11 @@ func (h *ApprovalGateHandler) Approve(c *gin.Context) {
 
 	gate, err := h.svc.Approve(c.Request.Context(), gateID, userID, req.Comments)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gate)
+	respondSuccess(c, gate)
 }
 
 func (h *ApprovalGateHandler) Reject(c *gin.Context) {
@@ -96,11 +95,11 @@ func (h *ApprovalGateHandler) Reject(c *gin.Context) {
 
 	gate, err := h.svc.Reject(c.Request.Context(), gateID, userID, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gate)
+	respondSuccess(c, gate)
 }
 
 func (h *ApprovalGateHandler) RegisterRoutes(rg *gin.RouterGroup) {

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -36,7 +34,7 @@ func (h *ScheduledNotificationHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	}
 
 	// Cron validation endpoint (no write permission required)
-	scheduled.GET("/validate-cron", h.ValidateCron)
+	scheduled.GET("/validate-cron", auth.RequirePermission("notification", "read"), h.ValidateCron)
 }
 
 // Create handles POST /scheduled-notifications - create a new scheduled notification.
@@ -44,16 +42,16 @@ func (h *ScheduledNotificationHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	n, err := h.scheduledSvc.CreateScheduledNotification(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": n})
+	respondCreated(c, n)
 }
 
 // Get handles GET /scheduled-notifications/:id - get a single scheduled notification.
@@ -61,10 +59,10 @@ func (h *ScheduledNotificationHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	n, err := h.scheduledSvc.GetScheduledNotification(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "scheduled notification not found"})
+		respondNotFound(c, "scheduled notification not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": n})
+	respondSuccess(c, n)
 }
 
 // List handles GET /scheduled-notifications - list scheduled notifications.
@@ -72,16 +70,16 @@ func (h *ScheduledNotificationHandler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var opts models.ListNotificationsQuery
 	if err := c.ShouldBindQuery(&opts); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	items, total, err := h.scheduledSvc.ListScheduledNotifications(c.Request.Context(), tenantID, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": opts.Page})
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": opts.Page})
 }
 
 // Update handles PUT /scheduled-notifications/:id - update a scheduled notification.
@@ -89,20 +87,20 @@ func (h *ScheduledNotificationHandler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	n, err := h.scheduledSvc.UpdateScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": n})
+	respondSuccess(c, n)
 }
 
 // Toggle handles PUT /scheduled-notifications/:id/toggle - toggle enabled/disabled status.
@@ -110,20 +108,20 @@ func (h *ScheduledNotificationHandler) Toggle(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ToggleScheduledNotificationInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	n, err := h.scheduledSvc.ToggleScheduledNotification(c.Request.Context(), tenantID, c.Param("id"), *req.Enabled)
 	if err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": n})
+	respondSuccess(c, n)
 }
 
 // Cancel handles POST /scheduled-notifications/:id/cancel - cancel a pending scheduled notification.
@@ -131,13 +129,13 @@ func (h *ScheduledNotificationHandler) Cancel(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.scheduledSvc.CancelScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "cancelled"})
+	respondSuccess(c, gin.H{"message": "cancelled"})
 }
 
 // Delete handles DELETE /scheduled-notifications/:id - delete a scheduled notification.
@@ -145,23 +143,23 @@ func (h *ScheduledNotificationHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.scheduledSvc.DeleteScheduledNotification(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrScheduledNotificationNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ValidateCron handles GET /scheduled-notifications/validate-cron - validate a cron expression.
 func (h *ScheduledNotificationHandler) ValidateCron(c *gin.Context) {
 	cronExpr := c.Query("expression")
 	if cronExpr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "expression query parameter is required"})
+		respondBadRequest(c, "expression query parameter is required")
 		return
 	}
 
 	result := h.scheduledSvc.ValidateCronExpression(cronExpr)
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }

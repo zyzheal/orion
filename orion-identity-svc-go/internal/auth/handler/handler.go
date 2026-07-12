@@ -47,49 +47,49 @@ func (h *Handler) GetUser(c *gin.Context) {
 	u, err := h.svc.GetUser(c.Request.Context(), userID)
 	if err != nil {
 		h.log.Error("get user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if u == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		h.respondNotFound(c, "user not found")
 		return
 	}
-	c.JSON(http.StatusOK, u)
+	h.respondSuccess(c, u)
 }
 
 // ListUsers returns a list of users (not implemented).
 func (h *Handler) ListUsers(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+	h.respondInternalError(c, "not implemented")
 }
 
 // CreateUser creates a new user.
 func (h *Handler) CreateUser(c *gin.Context) {
 	var u model.User
 	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.CreateUser(c.Request.Context(), &u); err != nil {
 		h.log.Error("create user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, u)
+	h.respondCreated(c, u)
 }
 
 // UpdateUser updates a user.
 func (h *Handler) UpdateUser(c *gin.Context) {
 	var u model.User
 	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateUser(c.Request.Context(), &u); err != nil {
 		h.log.Error("update user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, u)
+	h.respondSuccess(c, u)
 }
 
 // ---- /api/auth endpoints ----
@@ -102,18 +102,18 @@ func (h *Handler) Login(c *gin.Context) {
 		Password string `json:"password" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	user, err := h.svc.GetUserByUsername(c.Request.Context(), req.Username)
 	if err != nil {
 		h.log.Error("login lookup failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if user == nil || user.PasswordHash == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		h.respondForbidden(c, "invalid credentials")
 		return
 	}
 
@@ -126,7 +126,7 @@ func (h *Handler) Login(c *gin.Context) {
 			IPAddress: c.ClientIP(),
 			UserAgent: c.Request.UserAgent(),
 		})
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		h.respondForbidden(c, "invalid credentials")
 		return
 	}
 
@@ -146,14 +146,14 @@ func (h *Handler) Login(c *gin.Context) {
 	tokenString, err := accessToken.SignedString([]byte(h.jwtSecret))
 	if err != nil {
 		h.log.Error("failed to sign access token", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
 	refreshBytes := make([]byte, 32)
 	if _, err := rand.Read(refreshBytes); err != nil {
 		h.log.Error("failed to generate refresh token", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	refreshToken := hex.EncodeToString(refreshBytes)
@@ -176,7 +176,7 @@ func (h *Handler) Login(c *gin.Context) {
 		UserAgent: c.Request.UserAgent(),
 	})
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"access_token":  tokenString,
 		"refresh_token": refreshToken,
 		"expires_at":    now.Add(5 * time.Minute).Unix(),
@@ -196,13 +196,13 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	refreshToken := strings.TrimSpace(req.RefreshToken)
 	if refreshToken == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "refresh_token is required"})
+		h.respondForbidden(c, "refresh_token is required")
 		return
 	}
 
@@ -213,22 +213,22 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	valid, err := h.svc.FindValidRefreshTokenByHash(c.Request.Context(), hashHex)
 	if err != nil {
 		h.log.Error("refresh token lookup failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if valid == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired refresh token"})
+		h.respondForbidden(c, "invalid or expired refresh token")
 		return
 	}
 
 	user, err := h.svc.GetUser(c.Request.Context(), valid.UserID)
 	if err != nil {
 		h.log.Error("get user for refresh failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if user == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "user not found"})
+		h.respondForbidden(c, "user not found")
 		return
 	}
 
@@ -246,7 +246,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	tokenString, err := accessToken.SignedString([]byte(h.jwtSecret))
 	if err != nil {
 		h.log.Error("failed to sign access token on refresh", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -256,7 +256,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// Issue a new refresh token
 	newRefreshBytes := make([]byte, 32)
 	if _, err := rand.Read(newRefreshBytes); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	newRefreshToken := hex.EncodeToString(newRefreshBytes)
@@ -271,7 +271,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	})
 
 	h.log.Info("token refreshed", zap.String("user_id", user.ID))
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"access_token":  tokenString,
 		"refresh_token": newRefreshToken,
 		"expires_at":    now.Add(5 * time.Minute).Unix(),
@@ -302,7 +302,7 @@ func (h *Handler) Logout(c *gin.Context) {
 			c.Status(http.StatusOK)
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "access_token or Authorization header required"})
+		h.respondBadRequest(c, "access_token or Authorization header required")
 		return
 	}
 
@@ -314,13 +314,13 @@ func (h *Handler) Logout(c *gin.Context) {
 		return []byte(h.jwtSecret), nil
 	})
 	if err != nil || !token.Valid {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid access_token"})
+		h.respondBadRequest(c, "invalid access_token")
 		return
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid token claims"})
+		h.respondBadRequest(c, "invalid token claims")
 		return
 	}
 
@@ -357,31 +357,29 @@ func (h *Handler) Logout(c *gin.Context) {
 func (h *Handler) Me(c *gin.Context) {
 	userID := auth.GetUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
 	user, err := h.svc.GetUser(c.Request.Context(), userID)
 	if err != nil {
 		h.log.Error("get current user failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if user == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		h.respondNotFound(c, "user not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":         user.ID,
+	h.respondSuccess(c, gin.H{"id": user.ID,
 		"username":   user.Username,
 		"email":      user.Email,
 		"tenant_id":  user.TenantID,
 		"roles":      auth.GetRoles(c),
 		"status":     user.Status,
 		"last_login": user.LastLoginAt,
-		"created_at": user.CreatedAt,
-	})
+		"created_at": user.CreatedAt,})
 }
 
 // Permissions handles GET /api/auth/permissions.
@@ -409,11 +407,9 @@ func (h *Handler) Permissions(c *gin.Context) {
 		dbPerms = nil
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"roles":          roles,
+	h.respondSuccess(c, gin.H{"roles": roles,
 		"permissions":    effectivePerms,
-		"db_permissions": dbPerms,
-	})
+		"db_permissions": dbPerms,})
 }
 
 // rolePermissions returns the permission list for a known role.

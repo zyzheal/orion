@@ -66,10 +66,10 @@ func (h *WorkflowHandler) ListWorkflows(c *gin.Context) {
 
 	defs, total, err := h.svc.ListWorkflows(c.Request.Context(), tenantID, enabled, offset, limit, search)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": defs, "total": total, "limit": limit, "offset": offset})
+	respondSuccess(c, defs, "total": total, "limit": limit, "offset": offset)
 }
 
 // GetWorkflow returns a single workflow definition.
@@ -77,14 +77,14 @@ func (h *WorkflowHandler) GetWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	def, err := h.svc.GetWorkflowByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if def == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, def)
+	respondSuccess(c, def)
 }
 
 // CreateWorkflow creates a new workflow definition.
@@ -93,16 +93,16 @@ func (h *WorkflowHandler) CreateWorkflow(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateWorkflowDefinitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.CreatedBy = userID
 	def, err := h.svc.CreateWorkflow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, def)
+	respondCreated(c, def)
 }
 
 // UpdateWorkflow updates an existing workflow definition.
@@ -110,29 +110,29 @@ func (h *WorkflowHandler) UpdateWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateWorkflowDefinitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	def, err := h.svc.UpdateWorkflow(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if def == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, def)
+	respondSuccess(c, def)
 }
 
 // DeleteWorkflow deletes a workflow definition.
 func (h *WorkflowHandler) DeleteWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteWorkflow(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // PublishWorkflow publishes (enables) a workflow and bumps its version.
@@ -140,10 +140,10 @@ func (h *WorkflowHandler) PublishWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	def, err := h.svc.PublishWorkflow(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": def, "message": "published"})
+	respondSuccess(c, def, "message": "published")
 }
 
 // ExecuteWorkflow creates a new instance and starts execution.
@@ -152,16 +152,16 @@ func (h *WorkflowHandler) ExecuteWorkflow(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var body map[string]any
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	input, _ := body["input"].(map[string]any)
 	inst, err := h.svc.ExecuteWorkflow(c.Request.Context(), tenantID, c.Param("id"), userID, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": inst, "message": "execution started"})
+	respondCreated(c, inst, "message": "execution started")
 }
 
 // =====================================================================
@@ -176,15 +176,15 @@ func (h *WorkflowHandler) CreateVersion(c *gin.Context) {
 		CommitMsg string `json:"commit_message"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.CreateVersion(c.Request.Context(), tenantID, c.Param("id"), userID, body.CommitMsg)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, v)
+	respondCreated(c, v)
 }
 
 // ListVersions lists version snapshots for a workflow.
@@ -194,10 +194,10 @@ func (h *WorkflowHandler) ListVersions(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	versions, total, err := h.svc.ListVersions(c.Request.Context(), tenantID, c.Param("id"), offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions, "total": total, "limit": limit, "offset": offset})
+	respondSuccess(c, versions, "total": total, "limit": limit, "offset": offset)
 }
 
 // =====================================================================
@@ -210,16 +210,16 @@ func (h *WorkflowHandler) ImportWorkflow(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ImportWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.CreatedBy = userID
 	def, err := h.svc.ImportWorkflow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": def, "message": "imported"})
+	respondCreated(c, def, "message": "imported")
 }
 
 // ExportWorkflow exports a workflow definition.
@@ -227,10 +227,10 @@ func (h *WorkflowHandler) ExportWorkflow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	resp, err := h.svc.ExportWorkflow(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": resp})
+	respondSuccess(c, resp)
 }
 
 // =====================================================================
@@ -244,10 +244,10 @@ func (h *WorkflowHandler) ListTemplates(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	templates, total, err := h.svc.ListTemplates(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": templates, "total": total})
+	respondSuccess(c, templates, "total": total)
 }
 
 // CreateTemplate creates a new workflow template.
@@ -256,16 +256,16 @@ func (h *WorkflowHandler) CreateTemplate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.CreatedBy = userID
 	tpl, err := h.svc.CreateTemplate(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, tpl)
+	respondCreated(c, tpl)
 }
 
 // ApplyTemplate creates a workflow from a template.
@@ -274,13 +274,13 @@ func (h *WorkflowHandler) ApplyTemplate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ApplyTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	def, err := h.svc.ApplyTemplate(c.Request.Context(), tenantID, c.Param("id"), userID, req.WorkflowName, req.Description)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": def, "message": "template applied"})
+	respondCreated(c, def, "message": "template applied")
 }

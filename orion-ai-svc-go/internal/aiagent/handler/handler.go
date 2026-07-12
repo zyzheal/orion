@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ai-svc-go/internal/aiagent/models"
@@ -31,17 +30,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 func (h *Handler) ListAgents(c *gin.Context) {
 	agents := h.svc.ListAgents()
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": agents})
+	respondSuccess(c, agents)
 }
 
 func (h *Handler) GetAgent(c *gin.Context) {
 	id := c.Param("id")
 	agent, err := h.svc.GetAgent(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Agent not found"})
+		respondNotFound(c, "Agent not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": agent})
+	respondSuccess(c, agent)
 }
 
 func (h *Handler) GetAuditLogs(c *gin.Context) {
@@ -51,16 +50,16 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 
 	// Verify agent exists
 	if _, err := h.svc.GetAgent(id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Agent not found"})
+		respondNotFound(c, "Agent not found")
 		return
 	}
 
 	logs, err := h.svc.GetAuditLogs(c.Request.Context(), id, tenantID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": logs})
+	respondSuccess(c, logs)
 }
 
 func (h *Handler) ExecuteAgent(c *gin.Context) {
@@ -69,18 +68,18 @@ func (h *Handler) ExecuteAgent(c *gin.Context) {
 
 	var req models.ExecuteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.ExecuteAgent(c.Request.Context(), tenantID, id, req.Input)
 	if err != nil {
 		if err == service.ErrAgentNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "Agent not found"})
+			respondNotFound(c, "Agent not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	respondSuccess(c, result)
 }

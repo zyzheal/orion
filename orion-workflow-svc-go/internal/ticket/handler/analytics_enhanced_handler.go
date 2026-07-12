@@ -27,7 +27,7 @@ func (h *AnalyticsEnhancedHandler) GetHeatmapData(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": data})
+	respondSuccess(c, data)
 }
 
 // GetBottleneckAnalysis GET /api/v1/tickets/bi/bottlenecks
@@ -39,7 +39,7 @@ func (h *AnalyticsEnhancedHandler) GetBottleneckAnalysis(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": analysis})
+	respondSuccess(c, analysis)
 }
 
 // GetCategoryBreakdown GET /api/v1/tickets/bi/engineer/:engineerId/categories
@@ -49,7 +49,7 @@ func (h *AnalyticsEnhancedHandler) GetCategoryBreakdown(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": breakdown})
+	respondSuccess(c, breakdown)
 }
 
 // GetManagerDashboardEnhanced GET /api/v1/tickets/bi/dashboard/manager-enhanced
@@ -63,7 +63,7 @@ func (h *AnalyticsEnhancedHandler) GetManagerDashboardEnhanced(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dash})
+	respondSuccess(c, dash)
 }
 
 // GetEngineerDashboardEnhanced GET /api/v1/tickets/bi/dashboard/engineer-enhanced/:engineerId
@@ -76,5 +76,5 @@ func (h *AnalyticsEnhancedHandler) GetEngineerDashboardEnhanced(c *gin.Context) 
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dash})
+	respondSuccess(c, dash)
 }

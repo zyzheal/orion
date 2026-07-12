@@ -23,7 +23,7 @@ func (h *LoadBalancerHandler) GetBalancingReport(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	respondSuccess(c, report)
 }
 
 // GetReassignmentSuggestions GET /api/v1/tickets/dispatch/balancing/suggestions
@@ -33,7 +33,7 @@ func (h *LoadBalancerHandler) GetReassignmentSuggestions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": suggestions, "count": len(suggestions)})
+	respondSuccess(c, gin.H{"suggestions": suggestions, "count": len(suggestions)})
 }
 
 // GetTeamCapacity GET /api/v1/tickets/dispatch/balancing/team/:team/capacity
@@ -43,7 +43,7 @@ func (h *LoadBalancerHandler) GetTeamCapacity(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": capacity})
+	respondSuccess(c, capacity)
 }
 
 // CheckEngineerCapacity GET /api/v1/tickets/dispatch/balancing/engineer/:id/capacity
@@ -53,7 +53,7 @@ func (h *LoadBalancerHandler) CheckEngineerCapacity(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": check})
+	respondSuccess(c, check)
 }
 
 // GetAvailableEngineers GET /api/v1/tickets/dispatch/balancing/available
@@ -63,5 +63,5 @@ func (h *LoadBalancerHandler) GetAvailableEngineers(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": engineers, "count": len(engineers)})
+	respondSuccess(c, gin.H{"engineers": engineers, "count": len(engineers)})
 }

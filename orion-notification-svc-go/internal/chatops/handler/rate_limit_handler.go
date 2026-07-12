@@ -21,59 +21,59 @@ func (h *RateLimitHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRateLimitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rl, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, rl)
+	respondCreated(c, rl)
 }
 
 func (h *RateLimitHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rl, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "rate limit not found"})
+		respondNotFound(c, "rate limit not found")
 		return
 	}
-	c.JSON(http.StatusOK, rl)
+	respondSuccess(c, rl)
 }
 
 func (h *RateLimitHandler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *RateLimitHandler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateRateLimitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rl, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, rl)
+	respondSuccess(c, rl)
 }
 
 func (h *RateLimitHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *RateLimitHandler) RegisterRoutes(rg *gin.RouterGroup) {

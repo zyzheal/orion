@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -36,8 +34,8 @@ func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Public read-only endpoints (no write permission required)
 	tr := rg.Group("/templates")
 	{
-		tr.POST("/:id/preview", h.Preview)
-		tr.GET("/:id/variables", h.RenderVariables)
+		tr.POST("/:id/preview", auth.RequirePermission("notification", "read"), h.Preview)
+		tr.GET("/:id/variables", auth.RequirePermission("notification", "read"), h.RenderVariables)
 	}
 }
 
@@ -46,14 +44,14 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var t models.NotificationTemplate
 	if err := c.ShouldBindJSON(&t); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.templateSvc.CreateTemplate(c.Request.Context(), tenantID, &t); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": t})
+	respondCreated(c, t)
 }
 
 // List handles GET /templates - list all templates for a tenant.
@@ -61,10 +59,10 @@ func (h *TemplateHandler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.templateSvc.ListTemplates(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // Get handles GET /templates/:id - get a single template.
@@ -72,10 +70,10 @@ func (h *TemplateHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	t, err := h.templateSvc.GetTemplate(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		respondNotFound(c, "template not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
+	respondSuccess(c, t)
 }
 
 // Update handles PUT /templates/:id - update an existing template.
@@ -85,25 +83,25 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 
 	var t models.NotificationTemplate
 	if err := c.ShouldBindJSON(&t); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.templateSvc.UpdateTemplate(c.Request.Context(), tenantID, id, &t); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": t})
+	respondSuccess(c, t)
 }
 
 // Delete handles DELETE /templates/:id - remove a template.
 func (h *TemplateHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.templateSvc.DeleteTemplate(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		respondNotFound(c, "template not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // Preview handles POST /templates/:id/preview - render a template with sample variables.
@@ -111,16 +109,16 @@ func (h *TemplateHandler) Preview(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var input models.TemplatePreviewInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.templateSvc.Preview(c.Request.Context(), tenantID, c.Param("id"), &input)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 // RenderVariables handles GET /templates/:id/variables - extract variable placeholders.
@@ -128,8 +126,8 @@ func (h *TemplateHandler) RenderVariables(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	vars, err := h.templateSvc.RenderVariables(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": vars})
+	respondSuccess(c, vars)
 }

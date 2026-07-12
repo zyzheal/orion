@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/canary/models"
@@ -75,17 +74,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateCanary(c *gin.Context) {
 	var canary models.Canary
 	if err := c.ShouldBindJSON(&canary); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	canary.TenantID = c.GetString("tenant_id")
 	if err := h.svc.Create(c.Request.Context(), &canary); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, canary)
+	respondCreated(c, canary)
 }
 
 func (h *Handler) GetCanary(c *gin.Context) {
@@ -94,11 +93,11 @@ func (h *Handler) GetCanary(c *gin.Context) {
 
 	canary, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "canary not found"})
+		respondNotFound(c, "canary not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, canary)
+	respondSuccess(c, canary)
 }
 
 func (h *Handler) ListCanaries(c *gin.Context) {
@@ -116,11 +115,11 @@ func (h *Handler) ListCanaries(c *gin.Context) {
 
 	canaries, err := h.svc.List(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": canaries})
+	respondSuccess(c, canaries)
 }
 
 func (h *Handler) Promote(c *gin.Context) {
@@ -128,11 +127,11 @@ func (h *Handler) Promote(c *gin.Context) {
 	id := c.Param("id")
 
 	if _, err := h.svc.Promote(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "promoted"})
+	respondSuccess(c, gin.H{"message": "promoted"})
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
@@ -140,27 +139,27 @@ func (h *Handler) Rollback(c *gin.Context) {
 	id := c.Param("id")
 
 	if _, err := h.svc.Rollback(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "rolled back"})
+	respondSuccess(c, gin.H{"message": "rolled back"})
 }
 
 func (h *Handler) AddMetric(c *gin.Context) {
 	var metric models.CanaryMetric
 	if err := c.ShouldBindJSON(&metric); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	metric.CanaryID = c.Param("id")
 	if err := h.svc.AddMetric(c.Request.Context(), &metric); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, metric)
+	respondCreated(c, metric)
 }
 
 func (h *Handler) GetMetrics(c *gin.Context) {
@@ -168,11 +167,11 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 
 	metrics, err := h.svc.GetMetrics(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": metrics})
+	respondSuccess(c, metrics)
 }
 
 // UpdateCanary updates a canary deployment's version, weight, and target weight.
@@ -182,7 +181,7 @@ func (h *Handler) UpdateCanary(c *gin.Context) {
 
 	var req models.CreateCanaryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -190,18 +189,18 @@ func (h *Handler) UpdateCanary(c *gin.Context) {
 	if req.Weight > 0 {
 		err := h.svc.UpdateWeight(c.Request.Context(), tenantID, id, req.Weight)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			respondInternalError(c, err.Error())
 			return
 		}
 	}
 
 	canary, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "canary not found"})
+		respondNotFound(c, "canary not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, canary)
+	respondSuccess(c, canary)
 }
 
 // ConfigureTraffic configures traffic split for a canary (Istio VirtualService or NGINX upstream).
@@ -214,18 +213,18 @@ func (h *Handler) ConfigureTraffic(c *gin.Context) {
 		Upstream       string `json:"upstream"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.Strategy = req.Strategy // "istio" or "nginx"
 
 	result, err := h.svc.ConfigureTraffic(c.Request.Context(), id, req.Strategy, req.Host, req.Upstream, req.CanaryPercent)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // GetTrafficConfig retrieves the current traffic split configuration for a canary.
@@ -234,30 +233,30 @@ func (h *Handler) GetTrafficConfig(c *gin.Context) {
 
 	config, err := h.svc.GetTrafficConfig(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "traffic config not found"})
+		respondNotFound(c, "traffic config not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // ==================== Analysis Run Handlers ====================
@@ -268,22 +267,22 @@ func (h *Handler) ListAnalysisRuns(c *gin.Context) {
 
 	runs, err := h.svc.ListRuns(c.Request.Context(), deploymentID, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": runs})
+	respondSuccess(c, runs)
 }
 
 func (h *Handler) CreateAnalysisRun(c *gin.Context) {
 	var req models.CanaryAnalysisRunCreateInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if req.DeploymentID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "deployment_id is required"})
+		respondBadRequest(c, "deployment_id is required")
 		return
 	}
 
@@ -296,11 +295,11 @@ func (h *Handler) CreateAnalysisRun(c *gin.Context) {
 
 	result, err := h.svc.CreateAnalysisRun(c.Request.Context(), req.DeploymentID, req.RunNumber, req.TrafficSplit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
+	respondCreated(c, gin.H{
 		"run":         result.Run,
 		"metrics":     result.Metrics,
 		"ml_results":  result.MLResults,
@@ -312,11 +311,11 @@ func (h *Handler) GetAnalysisRun(c *gin.Context) {
 
 	run, err := h.svc.GetRunByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "analysis run not found"})
+		respondNotFound(c, "analysis run not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) GetRunMetrics(c *gin.Context) {
@@ -324,11 +323,11 @@ func (h *Handler) GetRunMetrics(c *gin.Context) {
 
 	metrics, err := h.svc.GetMetricsForRun(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": metrics})
+	respondSuccess(c, metrics)
 }
 
 func (h *Handler) GetRunMLResults(c *gin.Context) {
@@ -336,11 +335,11 @@ func (h *Handler) GetRunMLResults(c *gin.Context) {
 
 	results, err := h.svc.GetMLResults(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": results})
+	respondSuccess(c, results)
 }
 
 // ==================== Config Handlers ====================
@@ -348,32 +347,32 @@ func (h *Handler) GetRunMLResults(c *gin.Context) {
 func (h *Handler) ListConfigs(c *gin.Context) {
 	configs, err := h.svc.ListConfigs(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": configs})
+	respondSuccess(c, configs)
 }
 
 func (h *Handler) CreateConfig(c *gin.Context) {
 	var input models.CanaryAnalysisConfigCreateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if input.ServiceName == "" || input.Environment == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "service_name and environment are required"})
+		respondBadRequest(c, "service_name and environment are required")
 		return
 	}
 
 	config, err := h.svc.CreateConfig(c.Request.Context(), &input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, config)
+	respondCreated(c, config)
 }
 
 func (h *Handler) GetConfigByServiceEnv(c *gin.Context) {
@@ -382,11 +381,11 @@ func (h *Handler) GetConfigByServiceEnv(c *gin.Context) {
 
 	config, err := h.svc.GetConfigByServiceEnv(c.Request.Context(), serviceName, environment)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		respondNotFound(c, "config not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *Handler) UpdateConfig(c *gin.Context) {
@@ -394,28 +393,28 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 
 	var input models.CanaryAnalysisConfigUpdateInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	config, err := h.svc.UpdateConfig(c.Request.Context(), id, &input)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
+		respondNotFound(c, "config not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *Handler) DeleteConfig(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteConfig(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "config deleted"})
+	respondSuccess(c, gin.H{"message": "config deleted"})
 }
 
 // ==================== Force Action Handlers ====================
@@ -426,7 +425,7 @@ func (h *Handler) ForcePromote(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.Reason == "" {
@@ -435,11 +434,11 @@ func (h *Handler) ForcePromote(c *gin.Context) {
 
 	run, err := h.svc.ForcePromote(c.Request.Context(), req.RunID, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *Handler) ForceRollback(c *gin.Context) {
@@ -448,7 +447,7 @@ func (h *Handler) ForceRollback(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.Reason == "" {
@@ -457,18 +456,18 @@ func (h *Handler) ForceRollback(c *gin.Context) {
 
 	run, err := h.svc.ForceRollback(c.Request.Context(), req.RunID, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // ==================== Metric Discovery Handler ====================
 
 func (h *Handler) DiscoverMetrics(c *gin.Context) {
 	metrics := h.svc.DiscoverMetrics()
-	c.JSON(http.StatusOK, gin.H{"data": metrics})
+	respondSuccess(c, metrics)
 }
 
 // ==================== Model Retrain Handler ====================
@@ -478,7 +477,7 @@ func (h *Handler) RetrainModel(c *gin.Context) {
 		ModelName string `json:"model_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.ModelName == "" {
@@ -487,11 +486,11 @@ func (h *Handler) RetrainModel(c *gin.Context) {
 
 	job, err := h.svc.TriggerModelRetraining(c.Request.Context(), req.ModelName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"job_id": job.ID,
 		"status": job.Status,
 	})

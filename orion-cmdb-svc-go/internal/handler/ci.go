@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"orion-cmdb-svc-go/internal/models"
 	"orion-cmdb-svc-go/internal/service"
@@ -31,18 +29,18 @@ func (h *CIHandler) ListCIItems(c *gin.Context) {
 
 	var q models.ListQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	items, total, err := h.svc.List(c.Request.Context(), tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list CI items"})
+		respondInternalError(c, "failed to list CI items")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data":  items,
+	respondSuccess(c, gin.H{
+		"items": items,
 		"total": total,
 		"page":  q.Page,
 	})
@@ -55,11 +53,11 @@ func (h *CIHandler) GetCIItem(c *gin.Context) {
 
 	item, err := h.svc.GetByID(c.Request.Context(), id, tenantID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "CI item not found"})
+		respondNotFound(c, "CI item not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": item})
+	respondSuccess(c, item)
 }
 
 // CreateCIItem POST /api/v1/ci-items
@@ -69,17 +67,17 @@ func (h *CIHandler) CreateCIItem(c *gin.Context) {
 
 	var req models.CreateCIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	item, err := h.svc.Create(c.Request.Context(), tenantID, &req, actor)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create CI item"})
+		respondInternalError(c, "failed to create CI item")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": item})
+	respondCreated(c, item)
 }
 
 // UpdateCIItem PUT /api/v1/ci-items/:id
@@ -90,17 +88,17 @@ func (h *CIHandler) UpdateCIItem(c *gin.Context) {
 
 	var req models.UpdateCIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	item, err := h.svc.Update(c.Request.Context(), tenantID, id, &req, actor)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "CI item not found"})
+		respondNotFound(c, "CI item not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": item})
+	respondSuccess(c, item)
 }
 
 // DeleteCIItem DELETE /api/v1/ci-items/:id
@@ -110,11 +108,11 @@ func (h *CIHandler) DeleteCIItem(c *gin.Context) {
 	actor := GetActorID(c)
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id, actor); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete CI item"})
+		respondInternalError(c, "failed to delete CI item")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "CI item deleted"})
+	respondSuccess(c, gin.H{"message": "CI item deleted"})
 }
 
 // GetTopology GET /api/v1/ci-items/:id/topology
@@ -124,11 +122,11 @@ func (h *CIHandler) GetTopology(c *gin.Context) {
 
 	topology, err := h.svc.GetTopology(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "CI item not found"})
+		respondNotFound(c, "CI item not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": topology})
+	respondSuccess(c, topology)
 }
 
 // ListCIRelations GET /api/v1/ci-relations
@@ -138,17 +136,17 @@ func (h *CIHandler) ListCIRelations(c *gin.Context) {
 
 	if ciID == "" {
 		// Return all relations for the tenant
-		c.JSON(http.StatusOK, gin.H{"data": []any{}})
+		respondSuccess(c, []any{})
 		return
 	}
 
 	rels, err := h.svc.GetTopology(c.Request.Context(), tenantID, ciID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "CI item not found"})
+		respondNotFound(c, "CI item not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": rels.Relations})
+	respondSuccess(c, rels.Relations)
 }
 
 // CreateRelation POST /api/v1/ci-relations
@@ -158,17 +156,17 @@ func (h *CIHandler) CreateRelation(c *gin.Context) {
 
 	var req models.CreateRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	rel, err := h.svc.CreateRelation(c.Request.Context(), tenantID, &req, actor)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create relation"})
+		respondInternalError(c, "failed to create relation")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": rel})
+	respondCreated(c, rel)
 }
 
 // DeleteRelation DELETE /api/v1/ci-relations/:id
@@ -178,19 +176,19 @@ func (h *CIHandler) DeleteRelation(c *gin.Context) {
 	actor := GetActorID(c)
 
 	if err := h.svc.DeleteRelation(c.Request.Context(), tenantID, id, actor); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete relation"})
+		respondInternalError(c, "failed to delete relation")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "relation deleted"})
+	respondSuccess(c, gin.H{"message": "relation deleted"})
 }
 
 func (h *CIHandler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }

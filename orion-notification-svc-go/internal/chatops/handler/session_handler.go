@@ -21,25 +21,25 @@ func (h *SessionHandler) GetOrCreate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	session, err := h.svc.GetOrCreate(c.Request.Context(), tenantID, req.SessionKey, req.UserID, req.ChannelID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, session)
+	respondSuccess(c, session)
 }
 
 func (h *SessionHandler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	session, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("key"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		respondNotFound(c, "session not found")
 		return
 	}
-	c.JSON(http.StatusOK, session)
+	respondSuccess(c, session)
 }
 
 func (h *SessionHandler) UpdateState(c *gin.Context) {
@@ -49,23 +49,23 @@ func (h *SessionHandler) UpdateState(c *gin.Context) {
 		History models.JSONB `json:"history"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateState(c.Request.Context(), tenantID, c.Param("key"), req.State, req.History); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 func (h *SessionHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("key")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *SessionHandler) RegisterRoutes(rg *gin.RouterGroup) {

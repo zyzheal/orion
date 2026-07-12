@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/finops-svc-go/internal/finops/service"
 
 	"github.com/gin-gonic/gin"
@@ -23,11 +21,11 @@ func (h *CostTrendHandler) GetTrend(c *gin.Context) {
 
 	trend, err := h.svc.GetCostTrend(c.Request.Context(), tenantID, periodStart, periodEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, trend)
+	respondSuccess(c, trend)
 }
 
 func (h *CostTrendHandler) GetByService(c *gin.Context) {
@@ -37,11 +35,11 @@ func (h *CostTrendHandler) GetByService(c *gin.Context) {
 
 	data, err := h.svc.GetCostByService(c.Request.Context(), tenantID, periodStart, periodEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": data})
+	respondSuccess(c, data)
 }
 
 func (h *CostTrendHandler) GetK8sByNamespace(c *gin.Context) {
@@ -51,11 +49,11 @@ func (h *CostTrendHandler) GetK8sByNamespace(c *gin.Context) {
 
 	data, err := h.svc.GetK8sCostByNamespace(c.Request.Context(), tenantID, periodStart, periodEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": data})
+	respondSuccess(c, data)
 }
 
 func (h *CostTrendHandler) DetectAnomalies(c *gin.Context) {
@@ -65,11 +63,11 @@ func (h *CostTrendHandler) DetectAnomalies(c *gin.Context) {
 
 	anomalies, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, periodStart, periodEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": anomalies, "count": len(anomalies)})
+	respondSuccess(c, gin.H{"anomalies": anomalies, "count": len(anomalies)})
 }
 
 func (h *CostTrendHandler) GetROI(c *gin.Context) {
@@ -77,11 +75,11 @@ func (h *CostTrendHandler) GetROI(c *gin.Context) {
 
 	roi, err := h.svc.CalculateROI(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, roi)
+	respondSuccess(c, roi)
 }
 
 func (h *CostTrendHandler) RegisterRoutes(rg *gin.RouterGroup) {

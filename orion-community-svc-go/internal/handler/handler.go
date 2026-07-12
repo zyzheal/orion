@@ -73,22 +73,22 @@ func (h *Handler) CreateContribution(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateContributionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.CreateContribution(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) ListContributions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var paginated models.PaginatedRequest
 	if err := c.ShouldBindQuery(&paginated); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	filters := &models.ContributionFilters{
@@ -101,10 +101,10 @@ func (h *Handler) ListContributions(c *gin.Context) {
 	}
 	items, total, err := h.svc.ListContributions(c.Request.Context(), tenantID, filters, paginated.Offset(), paginated.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, models.PaginatedResponse{
+	respondSuccess(c, models.PaginatedResponse{
 		Data:  items,
 		Total: total,
 		Page:  paginated.Page,
@@ -116,19 +116,19 @@ func (h *Handler) GetContribution(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.svc.GetContribution(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "contribution not found"})
+		respondNotFound(c, "contribution not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 func (h *Handler) DeleteContribution(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteContribution(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ============================================================
@@ -139,22 +139,22 @@ func (h *Handler) CreateBestPractice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBestPracticeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.CreateBestPractice(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) ListBestPractices(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var paginated models.PaginatedRequest
 	if err := c.ShouldBindQuery(&paginated); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	filters := &models.BestPracticeFilters{
@@ -168,10 +168,10 @@ func (h *Handler) ListBestPractices(c *gin.Context) {
 	}
 	items, total, err := h.svc.ListBestPractices(c.Request.Context(), tenantID, filters, paginated.Offset(), paginated.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, models.PaginatedResponse{
+	respondSuccess(c, models.PaginatedResponse{
 		Data:  items,
 		Total: total,
 		Page:  paginated.Page,
@@ -183,10 +183,10 @@ func (h *Handler) GetBestPractice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.svc.GetBestPractice(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "best practice not found"})
+		respondNotFound(c, "best practice not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 func (h *Handler) VoteBestPractice(c *gin.Context) {
@@ -195,28 +195,28 @@ func (h *Handler) VoteBestPractice(c *gin.Context) {
 		Direction string `json:"direction" binding:"required"` // "up" or "down"
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.VoteBestPractice(c.Request.Context(), tenantID, c.Param("id"), body.Direction)
 	if err != nil {
 		if err == service.ErrBestPracticeNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 func (h *Handler) DeleteBestPractice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteBestPractice(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ============================================================
@@ -228,20 +228,20 @@ func (h *Handler) ListContributors(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	items, err := h.svc.ListContributors(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetContributor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	item, err := h.svc.GetContributor(c.Request.Context(), tenantID, c.Param("userId"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "contributor not found"})
+		respondNotFound(c, "contributor not found")
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 // ============================================================
@@ -252,22 +252,22 @@ func (h *Handler) SubmitPlugin(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.SubmitPlugin(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) ListPlugins(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var paginated models.PaginatedRequest
 	if err := c.ShouldBindQuery(&paginated); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	filters := &models.PluginFilters{
@@ -277,10 +277,10 @@ func (h *Handler) ListPlugins(c *gin.Context) {
 	}
 	items, total, err := h.svc.ListPlugins(c.Request.Context(), tenantID, filters, paginated.Offset(), paginated.Limit())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, models.PaginatedResponse{
+	respondSuccess(c, models.PaginatedResponse{
 		Data:  items,
 		Total: total,
 		Page:  paginated.Page,
@@ -292,23 +292,23 @@ func (h *Handler) ReviewPlugin(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ReviewPluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.ReviewPlugin(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrPluginNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
 		if err == service.ErrInvalidAction {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 // ============================================================
@@ -322,30 +322,30 @@ func (h *Handler) AwardBadge(c *gin.Context) {
 		BadgeType string `json:"badge_type" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	badge, err := h.svc.AwardBadge(c.Request.Context(), tenantID, body.UserID, body.BadgeType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, badge)
+	respondCreated(c, badge)
 }
 
 func (h *Handler) ListUserBadges(c *gin.Context) {
 	userID := c.Param("userId")
 	items, err := h.svc.ListUserBadges(c.Request.Context(), userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetBadgeDefinitions(c *gin.Context) {
 	defs := h.svc.GetBadgeDefinitions()
-	c.JSON(http.StatusOK, gin.H{"data": defs})
+	respondSuccess(c, defs)
 }
 
 // ============================================================
@@ -356,25 +356,25 @@ func (h *Handler) SetupIncentiveProgram(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateIncentiveProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.SetupIncentiveProgram(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) GetIncentivePrograms(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetIncentivePrograms(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) UpdateIncentiveProgramStatus(c *gin.Context) {
@@ -383,15 +383,15 @@ func (h *Handler) UpdateIncentiveProgramStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.UpdateIncentiveProgramStatus(c.Request.Context(), tenantID, c.Param("id"), body.Status)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }
 
 // ============================================================
@@ -402,25 +402,25 @@ func (h *Handler) AssignMentor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AssignMentorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.AssignMentor(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, item)
+	respondCreated(c, item)
 }
 
 func (h *Handler) GetMentorshipPairs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetMentorshipPairs(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) UpdateMentorshipPairStatus(c *gin.Context) {
@@ -429,13 +429,13 @@ func (h *Handler) UpdateMentorshipPairStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.UpdateMentorshipPairStatus(c.Request.Context(), tenantID, c.Param("id"), body.Status)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, item)
+	respondSuccess(c, item)
 }

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
@@ -61,17 +60,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreatePipeline(c *gin.Context) {
 	var pipeline models.Pipeline
 	if err := c.ShouldBindJSON(&pipeline); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	pipeline.TenantID = c.GetString("tenant_id")
 	if err := h.svc.Create(c.Request.Context(), &pipeline); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, pipeline)
+	respondCreated(c, pipeline)
 }
 
 func (h *Handler) GetPipeline(c *gin.Context) {
@@ -80,11 +79,11 @@ func (h *Handler) GetPipeline(c *gin.Context) {
 
 	pipeline, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "pipeline not found"})
+		respondNotFound(c, "pipeline not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, pipeline)
+	respondSuccess(c, pipeline)
 }
 
 func (h *Handler) ListPipelines(c *gin.Context) {
@@ -102,11 +101,11 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 
 	pipelines, err := h.svc.List(c.Request.Context(), tenantID, offset, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": pipelines})
+	respondSuccess(c, pipelines)
 }
 
 func (h *Handler) UpdatePipeline(c *gin.Context) {
@@ -115,37 +114,37 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 
 	var pipeline models.Pipeline
 	if err := c.ShouldBindJSON(&pipeline); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	pipeline.ID = id
 	pipeline.TenantID = tenantID
 	if err := h.svc.Update(c.Request.Context(), &pipeline); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }
 
 // ==================== Pipeline Run Handlers ====================
@@ -167,14 +166,14 @@ func (h *Handler) RunPipeline(c *gin.Context) {
 	run, err := h.svc.RunPipeline(c.Request.Context(), tenantID, pipelineID, req)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, run)
+	respondCreated(c, run)
 }
 
 // TriggerRun is the legacy trigger endpoint.
@@ -196,14 +195,14 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 	run, err := h.svc.TriggerRun(c.Request.Context(), tenantID, pipelineID, req.TriggerType, triggeredBy)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, run)
+	respondCreated(c, run)
 }
 
 // GetRun returns a pipeline run by ID.
@@ -212,11 +211,11 @@ func (h *Handler) GetRun(c *gin.Context) {
 
 	run, err := h.svc.GetRunByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+		respondNotFound(c, "run not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // GetRunStatus returns the current status of a pipeline run.
@@ -225,20 +224,18 @@ func (h *Handler) GetRunStatus(c *gin.Context) {
 
 	run, err := h.svc.GetRunStatus(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "run not found"})
+		respondNotFound(c, "run not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"id":           run.ID,
+	respondSuccess(c, gin.H{"id": run.ID,
 		"pipeline_id":  run.PipelineID,
 		"status":       run.Status,
 		"started_at":   run.StartedAt,
 		"completed_at": run.CompletedAt,
 		"duration_ms":  run.DurationMs,
 		"trigger_type": run.TriggerType,
-		"trigger_by":   run.TriggerBy,
-	})
+		"trigger_by":   run.TriggerBy,})
 }
 
 // GetRunStages returns all stages for a run.
@@ -247,11 +244,11 @@ func (h *Handler) GetRunStages(c *gin.Context) {
 
 	stages, err := h.svc.GetStages(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": stages})
+	respondSuccess(c, stages)
 }
 
 // GetRunLogs returns execution logs for all stages in a run.
@@ -261,14 +258,14 @@ func (h *Handler) GetRunLogs(c *gin.Context) {
 	logs, err := h.svc.GetRunLogs(c.Request.Context(), runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	respondSuccess(c, logs)
 }
 
 // CancelRun cancels a running pipeline run.
@@ -278,18 +275,18 @@ func (h *Handler) CancelRun(c *gin.Context) {
 	run, err := h.svc.CancelRun(c.Request.Context(), runID)
 	if err != nil {
 		if err == service.ErrRunNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
 		if err == service.ErrRunNotCancellable {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			respondConflict(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 // ListRuns lists pipeline runs with optional filtering.
@@ -312,11 +309,11 @@ func (h *Handler) ListRuns(c *gin.Context) {
 
 	result, err := h.svc.ListRuns(c.Request.Context(), filter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // GetPipelineStats returns aggregate statistics for a pipeline.
@@ -327,12 +324,12 @@ func (h *Handler) GetPipelineStats(c *gin.Context) {
 	stats, err := h.svc.GetPipelineStats(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
 		if err == service.ErrPipelineNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, stats)
+	respondSuccess(c, stats)
 }

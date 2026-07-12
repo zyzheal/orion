@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/pandawiki-svc-go/internal/models"
@@ -24,35 +23,35 @@ func NewHandler(svc *service.Service) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Spaces
 	r := rg.Group("/spaces")
-	r.POST("", auth.RequirePermission("knowledge", "write"), h.CreateSpace)
-	r.GET("", h.ListSpaces)
-	r.GET("/:id", h.GetSpace)
-	r.PUT("/:id", auth.RequirePermission("knowledge", "write"), h.UpdateSpace)
-	r.DELETE("/:id", auth.RequirePermission("knowledge", "delete"), h.DeleteSpace)
+	r.POST("", auth.RequirePermission("pandawiki", "write"), h.CreateSpace)
+	r.GET("", auth.RequirePermission("pandawiki", "read"), h.ListSpaces)
+	r.GET("/:id", auth.RequirePermission("pandawiki", "read"), h.GetSpace)
+	r.PUT("/:id", auth.RequirePermission("pandawiki", "write"), h.UpdateSpace)
+	r.DELETE("/:id", auth.RequirePermission("pandawiki", "delete"), h.DeleteSpace)
 
 	// Documents
 	d := rg.Group("/docs")
-	d.GET("", h.ListDocs)
-	d.POST("", auth.RequirePermission("knowledge", "write"), h.CreateDoc)
-	d.GET("/:id", h.GetDoc)
-	d.PUT("/:id", auth.RequirePermission("knowledge", "write"), h.UpdateDoc)
-	d.DELETE("/:id", auth.RequirePermission("knowledge", "delete"), h.DeleteDoc)
-	d.GET("/:id/versions", h.GetDocVersions)
+	d.GET("", auth.RequirePermission("pandawiki", "read"), h.ListDocs)
+	d.POST("", auth.RequirePermission("pandawiki", "write"), h.CreateDoc)
+	d.GET("/:id", auth.RequirePermission("pandawiki", "read"), h.GetDoc)
+	d.PUT("/:id", auth.RequirePermission("pandawiki", "write"), h.UpdateDoc)
+	d.DELETE("/:id", auth.RequirePermission("pandawiki", "delete"), h.DeleteDoc)
+	d.GET("/:id/versions", auth.RequirePermission("pandawiki", "read"), h.GetDocVersions)
 
 	// Document Center
-	d.GET("/docs/tags", h.GetDocTags)
-	d.GET("/docs/toc", h.GetDocToc)
+	d.GET("/docs/tags", auth.RequirePermission("pandawiki", "read"), h.GetDocTags)
+	d.GET("/docs/toc", auth.RequirePermission("pandawiki", "read"), h.GetDocToc)
 
 	// Sync
-	d.POST("/sync", auth.RequirePermission("knowledge", "write"), h.TriggerSync)
-	d.GET("/sync/logs", h.GetSyncLogs)
+	d.POST("/sync", auth.RequirePermission("pandawiki", "write"), h.TriggerSync)
+	d.GET("/sync/logs", auth.RequirePermission("pandawiki", "read"), h.GetSyncLogs)
 
 	// RAG
-	d.POST("/rag/retrieve", h.RAGRetrieve)
-	d.POST("/rag/query", h.RAGQuery)
+	d.POST("/rag/retrieve", auth.RequirePermission("pandawiki", "read"), h.RAGRetrieve)
+	d.POST("/rag/query", auth.RequirePermission("pandawiki", "read"), h.RAGQuery)
 
 	// Knowledge Graph
-	d.GET("/graph", h.GetGraph)
+	d.GET("/graph", auth.RequirePermission("pandawiki", "read"), h.GetGraph)
 }
 
 // ================== Space Handlers ==================
@@ -61,19 +60,19 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	space, err := h.svc.CreateSpace(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidInput {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "INVALID_INPUT"})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": space})
+	respondCreated(c, space)
 }
 
 func (h *Handler) ListSpaces(c *gin.Context) {
@@ -87,10 +86,10 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 	offset := (page - 1) * pp
 	spaces, total, err := h.svc.ListSpaces(c.Request.Context(), tenantID, offset, pp, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data": spaces,
 		"meta": gin.H{"total": total, "page": page, "perPage": pp},
 	})
@@ -101,32 +100,32 @@ func (h *Handler) GetSpace(c *gin.Context) {
 	space, err := h.svc.GetSpace(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "space not found", "code": "NOT_FOUND"})
+			respondNotFound(c, "space not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": space})
+	respondSuccess(c, space)
 }
 
 func (h *Handler) UpdateSpace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var input models.UpdateSpaceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	space, err := h.svc.UpdateSpace(c.Request.Context(), tenantID, c.Param("id"), &input)
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": space})
+	respondSuccess(c, space)
 }
 
 func (h *Handler) DeleteSpace(c *gin.Context) {
@@ -134,13 +133,13 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 	err := h.svc.DeleteSpace(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ================== Document Handlers ==================
@@ -149,27 +148,27 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var input models.CreateDocInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if input.Title == "" || input.Content == "" || input.SpaceID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "title, content, and space_id are required", "code": "INVALID_INPUT"})
+		respondBadRequest(c, "title, content, and space_id are required")
 		return
 	}
 	doc, err := h.svc.CreateDoc(c.Request.Context(), tenantID, &input)
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
 		if err == service.ErrInvalidInput {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "INVALID_INPUT"})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": doc})
+	respondCreated(c, doc)
 }
 
 func (h *Handler) ListDocs(c *gin.Context) {
@@ -183,10 +182,10 @@ func (h *Handler) ListDocs(c *gin.Context) {
 	offset := (page - 1) * pp
 	docs, total, err := h.svc.ListDocs(c.Request.Context(), tenantID, offset, pp, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data": docs,
 		"meta": gin.H{"total": total, "page": page, "perPage": pp},
 	})
@@ -197,32 +196,32 @@ func (h *Handler) GetDoc(c *gin.Context) {
 	doc, err := h.svc.GetDoc(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "document not found", "code": "NOT_FOUND"})
+			respondNotFound(c, "document not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": doc})
+	respondSuccess(c, doc)
 }
 
 func (h *Handler) UpdateDoc(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var input models.UpdateDocInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	doc, err := h.svc.UpdateDoc(c.Request.Context(), tenantID, c.Param("id"), &input)
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": doc})
+	respondSuccess(c, doc)
 }
 
 func (h *Handler) DeleteDoc(c *gin.Context) {
@@ -230,13 +229,13 @@ func (h *Handler) DeleteDoc(c *gin.Context) {
 	err := h.svc.DeleteDoc(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) GetDocVersions(c *gin.Context) {
@@ -244,13 +243,13 @@ func (h *Handler) GetDocVersions(c *gin.Context) {
 	versions, err := h.svc.GetDocVersions(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "document not found", "code": "NOT_FOUND"})
+			respondNotFound(c, "document not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 // ================== Document Center Handlers ==================
@@ -259,20 +258,20 @@ func (h *Handler) GetDocTags(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	tags, err := h.svc.GetDocTags(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tags})
+	respondSuccess(c, tags)
 }
 
 func (h *Handler) GetDocToc(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	toc, err := h.svc.GetDocToc(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": toc})
+	respondSuccess(c, toc)
 }
 
 // ================== Sync Handlers ==================
@@ -283,15 +282,15 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 		Source *string `json:"source"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	log, err := h.svc.TriggerSync(c.Request.Context(), tenantID, body.Source)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": log})
+	respondSuccess(c, log)
 }
 
 func (h *Handler) GetSyncLogs(c *gin.Context) {
@@ -299,10 +298,10 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	logs, err := h.svc.GetSyncLogs(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	respondSuccess(c, logs)
 }
 
 // ================== RAG Handlers ==================
@@ -315,16 +314,16 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 		TopK    int     `json:"topK"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if body.Query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "code": "INVALID_INPUT"})
+		respondBadRequest(c, "query is required")
 		return
 	}
 	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, body.Query, body.SpaceID, body.TopK)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	snippets := make([]gin.H, len(results))
@@ -334,17 +333,15 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 			snippet = snippet[:500]
 		}
 		snippets[i] = gin.H{
-			"docId":    r.ID,
-			"title":    r.Title,
-			"snippet":  snippet,
-			"score":    r.Similarity,
+			"docId":   r.ID,
+			"title":   r.Title,
+			"snippet": snippet,
+			"score":   r.Similarity,
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"results": snippets,
-			"total":   len(results),
-		},
+	respondSuccess(c, gin.H{
+		"results": snippets,
+		"total":   len(results),
 	})
 }
 
@@ -356,16 +353,16 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		TopK    int     `json:"topK"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "VALIDATION_ERROR"})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if body.Query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query is required", "code": "INVALID_INPUT"})
+		respondBadRequest(c, "query is required")
 		return
 	}
 	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, body.Query, body.SpaceID, body.TopK)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
@@ -414,12 +411,10 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		answer = "No relevant knowledge sources found for the query."
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"answer":     answer,
-			"sources":    sources,
-			"confidence": confidence,
-		},
+	respondSuccess(c, gin.H{
+		"answer":     answer,
+		"sources":    sources,
+		"confidence": confidence,
 	})
 }
 
@@ -431,13 +426,13 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	graph, err := h.svc.GetGraph(c.Request.Context(), &tenantID, &spaceID)
 	if err != nil {
 		if err == service.ErrNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error(), "code": "NOT_FOUND"})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": graph})
+	respondSuccess(c, graph)
 }
 
 // ================== Helpers ==================

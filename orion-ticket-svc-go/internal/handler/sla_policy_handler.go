@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"net/http"
+	"orion/go-common/pkg/auth"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,28 +18,28 @@ func NewSLAPolicyHandler(svc *service.SLAPolicyService) *SLAPolicyHandler {
 }
 
 func (h *SLAPolicyHandler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/ticketing/sla/policies", h.CreatePolicy)
-	rg.GET("/ticketing/sla/policies", h.ListPolicies)
-	rg.GET("/ticketing/sla/policies/:policyId", h.GetPolicy)
-	rg.PUT("/ticketing/sla/policies/:policyId", h.UpdatePolicy)
-	rg.DELETE("/ticketing/sla/policies/:policyId", h.DeletePolicy)
-	rg.GET("/ticketing/sla/compliance/:policyId", h.GetPolicyCompliance)
-	rg.GET("/ticketing/sla/tickets/:ticketId/status", h.GetTicketSLAStatus)
+	rg.POST("/ticketing/sla/policies", auth.RequirePermission("ticket", "write"), h.CreatePolicy)
+	rg.GET("/ticketing/sla/policies", auth.RequirePermission("ticket", "read"), h.ListPolicies)
+	rg.GET("/ticketing/sla/policies/:policyId", auth.RequirePermission("ticket", "read"), h.GetPolicy)
+	rg.PUT("/ticketing/sla/policies/:policyId", auth.RequirePermission("ticket", "write"), h.UpdatePolicy)
+	rg.DELETE("/ticketing/sla/policies/:policyId", auth.RequirePermission("ticket", "delete"), h.DeletePolicy)
+	rg.GET("/ticketing/sla/compliance/:policyId", auth.RequirePermission("ticket", "read"), h.GetPolicyCompliance)
+	rg.GET("/ticketing/sla/tickets/:ticketId/status", auth.RequirePermission("ticket", "read"), h.GetTicketSLAStatus)
 }
 
 func (h *SLAPolicyHandler) CreatePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": policy})
+	respondCreated(c, policy)
 }
 
 func (h *SLAPolicyHandler) ListPolicies(c *gin.Context) {
@@ -52,10 +52,10 @@ func (h *SLAPolicyHandler) ListPolicies(c *gin.Context) {
 	}
 	policies, err := h.svc.List(c.Request.Context(), tenantID, enabledFilter)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policies})
+	respondSuccess(c, policies)
 }
 
 func (h *SLAPolicyHandler) GetPolicy(c *gin.Context) {
@@ -63,10 +63,10 @@ func (h *SLAPolicyHandler) GetPolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	policy, err := h.svc.Get(c.Request.Context(), tenantID, policyID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policy})
+	respondSuccess(c, policy)
 }
 
 func (h *SLAPolicyHandler) UpdatePolicy(c *gin.Context) {
@@ -74,25 +74,25 @@ func (h *SLAPolicyHandler) UpdatePolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	var req models.UpdateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.Update(c.Request.Context(), tenantID, policyID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policy})
+	respondSuccess(c, policy)
 }
 
 func (h *SLAPolicyHandler) DeletePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, policyID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *SLAPolicyHandler) GetPolicyCompliance(c *gin.Context) {
@@ -110,10 +110,10 @@ func (h *SLAPolicyHandler) GetPolicyCompliance(c *gin.Context) {
 	}
 	compliance, err := h.svc.GetCompliance(c.Request.Context(), tenantID, policyID, start, end)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": compliance})
+	respondSuccess(c, compliance)
 }
 
 func (h *SLAPolicyHandler) GetTicketSLAStatus(c *gin.Context) {
@@ -121,8 +121,8 @@ func (h *SLAPolicyHandler) GetTicketSLAStatus(c *gin.Context) {
 	ticketID := c.Param("ticketId")
 	status, err := h.svc.GetTicketStatus(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": status})
+	respondSuccess(c, status)
 }

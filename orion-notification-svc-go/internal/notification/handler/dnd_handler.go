@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -24,13 +22,13 @@ func NewDNDHandler(dndSvc *service.DNDService) *DNDHandler {
 // RegisterRoutes mounts all DND endpoints onto the given router group.
 func (h *DNDHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	dnd := rg.Group("/dnd")
-	dnd.Use(auth.Auth(auth.AuthConfig{}))
+	dnd.Use(auth.RequirePermission("notification", "write"))
 	{
-		dnd.PUT("/:user_id", auth.RequirePermission("notification", "write"), h.Set)
-		dnd.DELETE("/:user_id", auth.RequirePermission("notification", "write"), h.Clear)
-		dnd.GET("/:user_id", auth.RequirePermission("notification", "read"), h.Get)
-		dnd.GET("/:user_id/active", auth.RequirePermission("notification", "read"), h.IsActive)
-		dnd.GET("/active/users", auth.RequirePermission("notification", "admin"), h.GetActiveUsers)
+		dnd.PUT("/:user_id", h.Set)
+		dnd.DELETE("/:user_id", h.Clear)
+		dnd.GET("/:user_id", h.Get)
+		dnd.GET("/:user_id/active", h.IsActive)
+		dnd.GET("/active/users", h.GetActiveUsers)
 	}
 }
 
@@ -40,17 +38,17 @@ func (h *DNDHandler) Set(c *gin.Context) {
 	userID := c.Param("user_id")
 	var req models.CreateDoNotDisturbInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.UserID = userID
 
 	dnd, err := h.dndSvc.SetDND(c.Request.Context(), tenantID, req.UserID, req.StartTime, req.EndTime, req.Reason)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dnd})
+	respondSuccess(c, dnd)
 }
 
 // Clear handles DELETE /dnd/:user_id - clear DND for a user.
@@ -59,13 +57,13 @@ func (h *DNDHandler) Clear(c *gin.Context) {
 	userID := c.Param("user_id")
 	if err := h.dndSvc.ClearDND(c.Request.Context(), tenantID, userID); err != nil {
 		if err == service.ErrDNDNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "DND cleared"})
+	respondSuccess(c, gin.H{"message": "DND cleared"})
 }
 
 // Get handles GET /dnd/:user_id - get DND settings for a user.
@@ -74,10 +72,10 @@ func (h *DNDHandler) Get(c *gin.Context) {
 	userID := c.Param("user_id")
 	dnd, err := h.dndSvc.GetDndSettings(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dnd})
+	respondSuccess(c, dnd)
 }
 
 // IsActive handles GET /dnd/:user_id/active - check if DND is active.
@@ -86,10 +84,10 @@ func (h *DNDHandler) IsActive(c *gin.Context) {
 	userID := c.Param("user_id")
 	active, err := h.dndSvc.IsDndActive(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"isActive": active, "userId": userID}})
+	respondSuccess(c, gin.H{"isActive": active, "userId": userID})
 }
 
 // GetActiveUsers handles GET /dnd/active/users - get all users with active DND.
@@ -97,8 +95,8 @@ func (h *DNDHandler) GetActiveUsers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	users, err := h.dndSvc.GetActiveUsers(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": users})
+	respondSuccess(c, users)
 }

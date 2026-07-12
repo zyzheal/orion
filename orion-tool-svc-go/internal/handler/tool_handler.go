@@ -24,23 +24,23 @@ func NewToolHandler(svc *service.ToolService) *ToolHandler {
 func (h *ToolHandler) CreateTool(c *gin.Context) {
 	var req models.CreateToolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tenantID := auth.GetTenantID(c)
 	userID := auth.GetUserID(c)
 	if tenantID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "tenant_id and user_id required"})
+		respondBadRequest(c, "tenant_id and user_id required")
 		return
 	}
 
 	tool, err := h.svc.Create(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": tool})
+	respondCreated(c, tool)
 }
 
 func (h *ToolHandler) GetTool(c *gin.Context) {
@@ -50,13 +50,13 @@ func (h *ToolHandler) GetTool(c *gin.Context) {
 	tool, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": tool})
+	respondSuccess(c, tool)
 }
 
 func (h *ToolHandler) ListTools(c *gin.Context) {
@@ -64,16 +64,16 @@ func (h *ToolHandler) ListTools(c *gin.Context) {
 
 	var params models.ToolListParams
 	if err := c.ShouldBindQuery(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tools, total, err := h.svc.List(c.Request.Context(), tenantID, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": tools, "total": total})
+	respondSuccess(c, tools, "total": total)
 }
 
 func (h *ToolHandler) UpdateTool(c *gin.Context) {
@@ -82,20 +82,20 @@ func (h *ToolHandler) UpdateTool(c *gin.Context) {
 
 	var req models.UpdateToolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tool, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": tool})
+	respondSuccess(c, tool)
 }
 
 func (h *ToolHandler) DeleteTool(c *gin.Context) {
@@ -103,10 +103,10 @@ func (h *ToolHandler) DeleteTool(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 func (h *ToolHandler) GetCategories(c *gin.Context) {
@@ -114,26 +114,26 @@ func (h *ToolHandler) GetCategories(c *gin.Context) {
 
 	cats, err := h.svc.GetCategories(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": cats})
+	respondSuccess(c, cats)
 }
 
 func (h *ToolHandler) SearchTools(c *gin.Context) {
 	tenantID := auth.GetTenantID(c)
 	query := c.Query("q")
 	if len(query) < 2 {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "search query must be at least 2 characters"})
+		respondBadRequest(c, "search query must be at least 2 characters")
 		return
 	}
 
 	tools, err := h.svc.Search(c.Request.Context(), tenantID, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": tools})
+	respondSuccess(c, tools)
 }
 
 func (h *ToolHandler) GetVersions(c *gin.Context) {
@@ -143,13 +143,13 @@ func (h *ToolHandler) GetVersions(c *gin.Context) {
 	versions, err := h.svc.GetVersions(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *ToolHandler) GetInvocations(c *gin.Context) {
@@ -167,10 +167,10 @@ func (h *ToolHandler) GetInvocations(c *gin.Context) {
 
 	invs, err := h.svc.GetInvocations(c.Request.Context(), tenantID, id, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": invs})
+	respondSuccess(c, invs)
 }
 
 // CreateVersion creates a new version record for a tool.
@@ -180,26 +180,26 @@ func (h *ToolHandler) CreateVersion(c *gin.Context) {
 	toolID := c.Param("id")
 
 	if tenantID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "X-Tenant-ID and X-User-ID headers required"})
+		respondBadRequest(c, "X-Tenant-ID and X-User-ID headers required")
 		return
 	}
 
 	var req models.CreateToolVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	version, err := h.svc.CreateVersion(c.Request.Context(), tenantID, userID, toolID, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": version})
+	respondCreated(c, version)
 }
 
 // GetInvocationDetail retrieves a single invocation record.
@@ -209,10 +209,10 @@ func (h *ToolHandler) GetInvocationDetail(c *gin.Context) {
 
 	inv, err := h.svc.GetInvocationDetail(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "invocation not found"})
+		respondNotFound(c, "invocation not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": inv})
+	respondSuccess(c, inv)
 }
 
 // InvokeTool executes a tool and records the invocation.
@@ -223,26 +223,26 @@ func (h *ToolHandler) InvokeTool(c *gin.Context) {
 	version := c.Query("version")
 
 	if tenantID == "" || userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "X-Tenant-ID and X-User-ID headers required"})
+		respondBadRequest(c, "X-Tenant-ID and X-User-ID headers required")
 		return
 	}
 
 	var req models.InvokeToolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	inv, err := h.svc.InvokeTool(c.Request.Context(), tenantID, userID, toolID, version, req)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": inv})
+	respondSuccess(c, inv)
 }
 
 // GetStats returns overall tenant usage statistics.
@@ -252,10 +252,10 @@ func (h *ToolHandler) GetStats(c *gin.Context) {
 
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID, models.StatsPeriod(period))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": stats})
+	respondSuccess(c, stats)
 }
 
 // GetToolStats returns usage statistics for a specific tool.
@@ -266,13 +266,13 @@ func (h *ToolHandler) GetToolStats(c *gin.Context) {
 	stats, err := h.svc.GetToolStats(c.Request.Context(), tenantID, toolID)
 	if err != nil {
 		if errors.Is(err, models.ErrToolNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "tool not found"})
+			respondNotFound(c, "tool not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": stats})
+	respondSuccess(c, stats)
 }
 
 // GetTopTools returns the most-used tools for a tenant.
@@ -285,10 +285,10 @@ func (h *ToolHandler) GetTopTools(c *gin.Context) {
 
 	ranks, err := h.svc.GetTopTools(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ranks})
+	respondSuccess(c, ranks)
 }
 
 // MarketSearch searches active tools with filters.
@@ -297,16 +297,16 @@ func (h *ToolHandler) MarketSearch(c *gin.Context) {
 
 	var params models.MarketSearchParams
 	if err := c.ShouldBindQuery(&params); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tools, total, err := h.svc.MarketSearch(c.Request.Context(), tenantID, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": tools, "total": total})
+	respondSuccess(c, tools, "total": total)
 }
 
 // RegisterRoutes registers all tool routes on the given gin group.

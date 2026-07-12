@@ -57,15 +57,15 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateOrderInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	order, err := h.svc.CreateOrder(c.Request.Context(), &req, userID, tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": order})
+	respondCreated(c, order)
 }
 
 func (h *Handler) ListOrders(c *gin.Context) {
@@ -75,47 +75,47 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	result, err := h.svc.ListOrders(c.Request.Context(), tenantID, status, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) GetOrder(c *gin.Context) {
 	order, err := h.svc.GetOrder(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": order})
+	respondSuccess(c, order)
 }
 
 func (h *Handler) ApproveOrder(c *gin.Context) {
 	userID := c.GetString("user_id")
 	order, err := h.svc.ApproveOrder(c.Request.Context(), c.Param("id"), userID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": order})
+	respondSuccess(c, order)
 }
 
 func (h *Handler) RejectOrder(c *gin.Context) {
 	order, err := h.svc.RejectOrder(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": order})
+	respondSuccess(c, order)
 }
 
 func (h *Handler) ExecuteOrder(c *gin.Context) {
 	order, err := h.svc.ExecuteOrder(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": order})
+	respondSuccess(c, order)
 }
 
 // ─── Data Source Handlers ──────────────────────────────────────────────────────
@@ -124,70 +124,70 @@ func (h *Handler) CreateDataSource(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDataSourceInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	ds, err := h.svc.CreateDataSource(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": ds})
+	respondCreated(c, ds)
 }
 
 func (h *Handler) ListDataSources(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListDataSources(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetDataSource(c *gin.Context) {
 	ds, err := h.svc.GetDataSource(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ds})
+	respondSuccess(c, ds)
 }
 
 func (h *Handler) UpdateDataSource(c *gin.Context) {
 	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	ds, err := h.svc.UpdateDataSource(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": ds})
+	respondSuccess(c, ds)
 }
 
 func (h *Handler) DeleteDataSource(c *gin.Context) {
 	deleted, err := h.svc.DeleteDataSource(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 	if !deleted {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "Data source deleted"})
+	respondSuccess(c, gin.H{"message": "Data source deleted"})
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
 	result, err := h.svc.TestConnection(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	respondSuccess(c, result)
 }
 
 // ─── Audit Rule Handlers ───────────────────────────────────────────────────────
@@ -196,39 +196,39 @@ func (h *Handler) CreateAuditRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRuleInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.CreateAuditRule(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": rule})
+	respondCreated(c, rule)
 }
 
 func (h *Handler) ListAuditRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListAuditRules(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) UpdateAuditRule(c *gin.Context) {
 	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.UpdateAuditRule(c.Request.Context(), c.Param("id"), req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": rule})
+	respondSuccess(c, rule)
 }
 
 // ─── Direct Query Handlers ─────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 		Database     string `json:"database"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -253,19 +253,14 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 		Params:     nil,
 	}, map[string]string{"userId": userID, "tenantId": tenantID})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if !result.Success {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "QUERY_ERROR",
-			"message": result.Error,
-			"executionRecord": result.ExecutionRecord,
-		})
+		respondBadRequest(c, result.Error)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result.Data, "executionRecord": result.ExecutionRecord})
+	respondSuccess(c, gin.H{"data": result.Data, "executionRecord": result.ExecutionRecord})
 }
 
 func (h *Handler) ListQueryLogs(c *gin.Context) {
@@ -277,8 +272,8 @@ func (h *Handler) ListQueryLogs(c *gin.Context) {
 
 	result, err := h.svc.ListQueryLogs(c.Request.Context(), tenantID, nil, page, limit, dataSourceID, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
+	respondSuccess(c, result)
 }

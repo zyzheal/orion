@@ -26,15 +26,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSbomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": m})
+	respondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -42,10 +42,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -54,10 +54,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -65,23 +65,23 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSbomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }

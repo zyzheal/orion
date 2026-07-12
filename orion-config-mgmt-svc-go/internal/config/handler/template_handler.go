@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/config-mgmt-svc-go/internal/config/models"
@@ -25,15 +24,15 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, t)
+	respondCreated(c, t)
 }
 
 // List handles GET /templates.
@@ -43,10 +42,10 @@ func (h *TemplateHandler) List(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	templates, err := h.svc.List(c.Request.Context(), tenantID, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": templates})
+	respondSuccess(c, gin.H{"data": templates})
 }
 
 // GetByID handles GET /templates/:id.
@@ -54,10 +53,10 @@ func (h *TemplateHandler) GetByID(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	t, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // Update handles PUT /templates/:id.
@@ -65,25 +64,25 @@ func (h *TemplateHandler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // Delete handles DELETE /templates/:id.
 func (h *TemplateHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // CreateVersion handles POST /templates/:id/versions.
@@ -91,15 +90,15 @@ func (h *TemplateHandler) CreateVersion(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.CreateVersion(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, v)
+	respondCreated(c, v)
 }
 
 // ListVersions handles GET /templates/:id/versions.
@@ -107,10 +106,10 @@ func (h *TemplateHandler) ListVersions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, gin.H{"data": versions})
 }
 
 // RegisterRoutes registers all template endpoints.

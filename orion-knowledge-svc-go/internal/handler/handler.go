@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"orion/go-common/pkg/errors"
+	"net/http"
 	"fmt"
 	"net/http"
 
@@ -36,15 +38,15 @@ type Response struct {
 }
 
 func (h *Handler) ok(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: data})
+	respondSuccess(c, data)
 }
 
 func (h *Handler) created(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusCreated, Response{Code: 0, Message: "success", Data: data})
+	respondCreated(c, data)
 }
 
 func (h *Handler) err(c *gin.Context, status int, msg string) {
-	c.JSON(status, Response{Code: 1, Message: msg})
+	errors.WriteError(c, errors.ErrInternal, msg, status)
 }
 
 // ============================================================================

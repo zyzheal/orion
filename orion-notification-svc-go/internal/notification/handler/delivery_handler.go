@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -50,10 +48,10 @@ func (h *DeliveryHandler) List(c *gin.Context) {
 	}
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // Get handles GET /deliveries/:id - get a single delivery record.
@@ -63,10 +61,10 @@ func (h *DeliveryHandler) Get(c *gin.Context) {
 
 	delivery, err := h.deliverySvc.GetDeliveryByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "delivery not found"})
+		respondNotFound(c, "delivery not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": delivery})
+	respondSuccess(c, delivery)
 }
 
 // Retry handles POST /deliveries/:id/retry - retry a failed delivery.
@@ -77,11 +75,11 @@ func (h *DeliveryHandler) Retry(c *gin.Context) {
 	delivery, err := h.deliverySvc.RetryDelivery(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrDeliveryNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			respondNotFound(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": delivery})
+	respondSuccess(c, delivery)
 }

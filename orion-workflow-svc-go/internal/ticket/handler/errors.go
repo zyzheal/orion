@@ -14,16 +14,16 @@ func respondError(c *gin.Context, status int, err error) {
 	msg := err.Error()
 	// Only leak validation/binding errors (client input issues)
 	if status == http.StatusBadRequest {
-		c.JSON(status, gin.H{"error": msg})
+		errors.WriteError(c, errors.ErrInternal, msg, status)
 		return
 	}
 	// For known business errors, return them
 	if isBusinessError(msg) {
-		c.JSON(status, gin.H{"error": msg})
+		errors.WriteError(c, errors.ErrInternal, msg, status)
 		return
 	}
 	// For internal errors, return generic message
-	c.JSON(status, gin.H{"error": "internal server error"})
+	errors.WriteError(c, errors.ErrInternal, "internal server error", http.StatusInternalServerError)
 }
 
 // isBusinessError checks if the error is a known business/domain error safe to expose

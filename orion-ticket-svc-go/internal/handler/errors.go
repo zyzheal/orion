@@ -1,29 +1,28 @@
 package handler
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// respondError returns a safe error response without leaking internal details.
-// For validation errors (from ShouldBindJSON), the raw error is acceptable.
-// For internal errors, a generic message is returned.
+// respondError maps legacy error responses to canonical error envelopes.
+// For known business errors or bad-request errors the original message is
+// preserved; internal errors are masked to avoid leaking details.
 func respondError(c *gin.Context, status int, err error) {
 	msg := err.Error()
 	// Only leak validation/binding errors (client input issues)
-	if status == http.StatusBadRequest {
-		c.JSON(status, gin.H{"error": msg})
+	if status == 400 {
+		respondBadRequest(c, msg)
 		return
 	}
 	// For known business errors, return them
 	if isBusinessError(msg) {
-		c.JSON(status, gin.H{"error": msg})
+		respondBadRequest(c, msg)
 		return
 	}
 	// For internal errors, return generic message
-	c.JSON(status, gin.H{"error": "internal server error"})
+	respondInternalError(c, "internal server error")
 }
 
 // isBusinessError checks if the error is a known business/domain error safe to expose

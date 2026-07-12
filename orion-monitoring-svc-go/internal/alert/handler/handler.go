@@ -35,7 +35,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateAlert(c *gin.Context) {
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
@@ -44,20 +44,20 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 	}
 	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, alert)
+	respondCreated(c, alert)
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "alert not found"})
+		respondNotFound(c, "alert not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": alert})
+	respondSuccess(c, alert)
 }
 
 func (h *Handler) ListAlerts(c *gin.Context) {
@@ -70,10 +70,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	}
 	resp, err := h.svc.ListAlerts(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": resp.Data, "total": resp.Total})
+	respondSuccess(c, gin.H{"data": resp.Data, "total": resp.Total})
 }
 
 func (h *Handler) UpdateAlertStatus(c *gin.Context) {
@@ -82,29 +82,29 @@ func (h *Handler) UpdateAlertStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, c.Param("id"), req.Status); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+	respondSuccess(c, gin.H{"message": "status updated"})
 }
 
 func (h *Handler) ResolveAlert(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Resolve(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "alert resolved"})
+	respondSuccess(c, gin.H{"message": "alert resolved"})
 }
 
 func (h *Handler) DeleteAlert(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteAlert(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -113,26 +113,26 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 func (h *Handler) CreateSilence(c *gin.Context) {
 	var req models.CreateSilenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 	silence, err := h.svc.CreateSilence(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": silence})
+	respondCreated(c, silence)
 }
 
 func (h *Handler) ListSilences(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	resp, err := h.svc.ListSilences(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": resp.Data, "total": resp.Total})
+	respondSuccess(c, gin.H{"data": resp.Data, "total": resp.Total})
 }
 
 func (h *Handler) RunRCA(c *gin.Context) {
@@ -141,23 +141,23 @@ func (h *Handler) RunRCA(c *gin.Context) {
 		AlertID string `json:"alert_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.RunRCA(c.Request.Context(), tenantID, req.AlertID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }

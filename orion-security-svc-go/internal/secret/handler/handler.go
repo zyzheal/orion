@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/security-svc-go/internal/secret/models"
@@ -44,26 +43,26 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if req.Name == "" || req.Value == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name and value are required"})
+		respondBadRequest(c, "name and value are required")
 		return
 	}
 
 	s, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if err == service.ErrInvalidName || err == service.ErrNameTooLong {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondBadRequest(c, err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, toResponse(s, false))
+	respondCreated(c, toResponse(s, false))
 }
 
 // List returns secrets for a tenant (values masked).
@@ -84,7 +83,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, offset, ps, scope)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
@@ -94,7 +93,7 @@ func (h *Handler) List(c *gin.Context) {
 		result[i] = toMap(&item, false)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 // Get returns a secret by ID (value masked).
@@ -105,11 +104,11 @@ func (h *Handler) Get(c *gin.Context) {
 
 	s, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "secret not found"})
+		respondNotFound(c, "secret not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, toResponse(s, false))
+	respondSuccess(c, toResponse(s, false))
 }
 
 // Update updates a secret's value and/or description.
@@ -120,26 +119,26 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if req.Value == nil && req.Description == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "value or description is required"})
+		respondBadRequest(c, "value or description is required")
 		return
 	}
 
 	s, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if err == service.ErrSecretNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "secret not found"})
+			respondNotFound(c, "secret not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, toResponse(s, false))
+	respondSuccess(c, toResponse(s, false))
 }
 
 // Delete removes a secret by ID.
@@ -149,11 +148,11 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "secret not found"})
+		respondNotFound(c, "secret not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // Resolve resolves ${secrets.XXX} references in the provided parameters.
@@ -163,22 +162,22 @@ func (h *Handler) Resolve(c *gin.Context) {
 
 	var req models.ResolveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if len(req.Parameters) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "parameters is required"})
+		respondBadRequest(c, "parameters is required")
 		return
 	}
 
 	result, err := h.svc.ResolveSecrets(c.Request.Context(), tenantID, req.Parameters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // GetReferences returns information about where a secret is referenced.
@@ -189,19 +188,17 @@ func (h *Handler) GetReferences(c *gin.Context) {
 
 	s, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "secret not found"})
+		respondNotFound(c, "secret not found")
 		return
 	}
 
 	refPattern := "${secrets." + s.Name + "}"
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
+	respondSuccess(c, gin.H{
 			"secretName":      s.Name,
 			"referencePattern": refPattern,
 			"pipelines":       []string{},
 			"hint":            "search for \"" + refPattern + "\" in Pipeline YAML",
-		},
-	})
+		},)
 }
 
 // Count returns the total number of secrets for a tenant.
@@ -211,11 +208,11 @@ func (h *Handler) Count(c *gin.Context) {
 
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }
 
 // ==================== Response Helpers ====================

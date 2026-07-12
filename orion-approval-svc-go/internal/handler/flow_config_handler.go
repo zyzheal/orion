@@ -2,9 +2,9 @@ package handler
 
 import (
 	"context"
-	"net/http"
 
 	"orion/approval-svc-go/internal/models"
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,28 +32,28 @@ func NewFlowConfigHandler(svc FlowConfigService) *FlowConfigHandler {
 func (h *FlowConfigHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	flows := rg.Group("/approvals/flow-configs")
 	{
-		flows.POST("", h.CreateFlowConfig)
-		flows.GET("", h.ListFlowConfigs)
-		flows.GET("/:id", h.GetFlowConfig)
-		flows.PUT("/:id", h.UpdateFlowConfig)
-		flows.DELETE("/:id", h.DeleteFlowConfig)
+		flows.POST("", auth.RequirePermission("approval", "write"), h.CreateFlowConfig)
+		flows.GET("", auth.RequirePermission("approval", "read"), h.ListFlowConfigs)
+		flows.GET("/:id", auth.RequirePermission("approval", "read"), h.GetFlowConfig)
+		flows.PUT("/:id", auth.RequirePermission("approval", "write"), h.UpdateFlowConfig)
+		flows.DELETE("/:id", auth.RequirePermission("approval", "delete"), h.DeleteFlowConfig)
 	}
-	rg.POST("/approvals/flow-configs/match", h.MatchFlow)
+	rg.POST("/approvals/flow-configs/match", auth.RequirePermission("approval", "write"), h.MatchFlow)
 }
 
 func (h *FlowConfigHandler) CreateFlowConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFlowConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		respondBadRequest(c, "name is required")
 		return
 	}
 	if len(req.Nodes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "nodes must not be empty"})
+		respondBadRequest(c, "nodes must not be empty")
 		return
 	}
 
@@ -62,20 +62,20 @@ func (h *FlowConfigHandler) CreateFlowConfig(c *gin.Context) {
 
 	err := h.svc.CreateFlowConfig(c.Request.Context(), tenantID, req.Name, nodes, req.Enabled)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "flow config created"})
+	respondCreated(c, gin.H{"message": "flow config created"})
 }
 
 func (h *FlowConfigHandler) ListFlowConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	configs, err := h.svc.ListFlowConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": configs, "total": len(configs)})
+	respondSuccess(c, map[string]any{"data": configs, "total": len(configs)})
 }
 
 func (h *FlowConfigHandler) GetFlowConfig(c *gin.Context) {
@@ -83,14 +83,14 @@ func (h *FlowConfigHandler) GetFlowConfig(c *gin.Context) {
 	id := c.Param("id")
 	config, err := h.svc.GetFlowConfig(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if config == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "flow config not found"})
+		respondNotFound(c, "flow config not found")
 		return
 	}
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *FlowConfigHandler) UpdateFlowConfig(c *gin.Context) {
@@ -98,58 +98,58 @@ func (h *FlowConfigHandler) UpdateFlowConfig(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateFlowConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.UpdateFlowConfig(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if config == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "flow config not found"})
+		respondNotFound(c, "flow config not found")
 		return
 	}
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *FlowConfigHandler) DeleteFlowConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteFlowConfig(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "flow config deleted"})
+	respondSuccess(c, gin.H{"message": "flow config deleted"})
 }
 
 func (h *FlowConfigHandler) MatchFlow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.FlowMatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.CapabilityID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "capability_id is required"})
+		respondBadRequest(c, "capability_id is required")
 		return
 	}
 	if req.Environment == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "environment is required"})
+		respondBadRequest(c, "environment is required")
 		return
 	}
 	if req.RiskLevel < 1 || req.RiskLevel > 4 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "risk_level must be between 1 and 4"})
+		respondBadRequest(c, "risk_level must be between 1 and 4")
 		return
 	}
 	config, err := h.svc.MatchFlow(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if config == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no matching flow config found"})
+		respondNotFound(c, "no matching flow config found")
 		return
 	}
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }

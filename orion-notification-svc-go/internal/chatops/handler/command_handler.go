@@ -22,15 +22,15 @@ func (h *CommandHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cmd, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, cmd)
+	respondCreated(c, cmd)
 }
 
 func (h *CommandHandler) List(c *gin.Context) {
@@ -45,10 +45,10 @@ func (h *CommandHandler) List(c *gin.Context) {
 	}
 	cmds, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": cmds})
+	respondSuccess(c, cmds)
 }
 
 func (h *CommandHandler) Update(c *gin.Context) {
@@ -56,23 +56,23 @@ func (h *CommandHandler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.Update(c.Request.Context(), tenantID, id, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 func (h *CommandHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *CommandHandler) Parse(c *gin.Context) {
@@ -81,15 +81,15 @@ func (h *CommandHandler) Parse(c *gin.Context) {
 		Raw string `json:"raw" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	parsed, err := h.svc.ParseCommand(c.Request.Context(), tenantID, req.Raw)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, parsed)
+	respondSuccess(c, parsed)
 }
 
 func (h *CommandHandler) Execute(c *gin.Context) {
@@ -101,15 +101,15 @@ func (h *CommandHandler) Execute(c *gin.Context) {
 		Channel  string `json:"channel"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteCommand(c.Request.Context(), tenantID, req.UserID, req.Platform, req.Channel, req.Raw)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *CommandHandler) RegisterRoutes(rg *gin.RouterGroup) {

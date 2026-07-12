@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/finops-svc-go/internal/cost/models"
@@ -68,15 +67,15 @@ func (h *CostOperationsHandler) CreateBudgetGuard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	budget, err := h.budgetSvc.CreateBudget(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": budget})
+	respondCreated(c, budget)
 }
 
 // GetBudgetGuards lists budget guards (maps to budgets).
@@ -86,16 +85,16 @@ func (h *CostOperationsHandler) GetBudgetGuards(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	budgets, err := h.budgetSvc.ListBudgets(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": budgets})
+	respondSuccess(c, budgets)
 }
 
 // DeleteBudgetGuard soft-deletes a budget guard.
 func (h *CostOperationsHandler) DeleteBudgetGuard(c *gin.Context) {
 	// BudgetService has no Delete method; respond with informational message.
-	c.JSON(http.StatusOK, gin.H{"message": "budget guard deleted", "id": c.Param("id")})
+	respondSuccess(c, gin.H{"message": "budget guard deleted", "id": c.Param("id")})
 }
 
 // ---------- Cost Evaluation ----------
@@ -105,15 +104,15 @@ func (h *CostOperationsHandler) EvaluateCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.costSvc.EvaluateCost(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 // ---------- Anomalies ----------
@@ -122,7 +121,7 @@ func (h *CostOperationsHandler) EvaluateCost(c *gin.Context) {
 func (h *CostOperationsHandler) GetAnomalies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result := h.anomalySvc.DetectAnomalies(c.Request.Context(), tenantID, "", "")
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 // ---------- Cost Trend ----------
@@ -134,10 +133,10 @@ func (h *CostOperationsHandler) GetCostTrend(c *gin.Context) {
 	endDate := c.Query("end_date")
 	trend, err := h.costSvc.GetCostTrend(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": trend})
+	respondSuccess(c, trend)
 }
 
 // ---------- Overview ----------
@@ -147,10 +146,10 @@ func (h *CostOperationsHandler) GetCostOverview(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	overview, err := h.costSvc.GetCostOverview(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": overview})
+	respondSuccess(c, overview)
 }
 
 // ---------- Optimizations ----------
@@ -164,20 +163,20 @@ func (h *CostOperationsHandler) GetOptimizationSuggestions(c *gin.Context) {
 	}
 	suggestions, err := h.optSvc.ListSuggestions(c.Request.Context(), tenantID, params)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": suggestions})
+	respondSuccess(c, suggestions)
 }
 
 // ApplyOptimization marks an optimization as applied.
 func (h *CostOperationsHandler) ApplyOptimization(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "optimization applied", "id": c.Param("id")})
+	respondSuccess(c, gin.H{"message": "optimization applied", "id": c.Param("id")})
 }
 
 // RejectOptimization marks an optimization as rejected.
 func (h *CostOperationsHandler) RejectOptimization(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"message": "optimization rejected", "id": c.Param("id")})
+	respondSuccess(c, gin.H{"message": "optimization rejected", "id": c.Param("id")})
 }
 
 // ---------- Compare ----------
@@ -187,15 +186,15 @@ func (h *CostOperationsHandler) CompareCosts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CompareCostsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.costSvc.CompareCosts(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 // ---------- Service Trend ----------
@@ -208,10 +207,10 @@ func (h *CostOperationsHandler) GetServiceCostTrend(c *gin.Context) {
 	category := c.Query("category")
 	trend, err := h.costSvc.GetServiceCostTrend(c.Request.Context(), tenantID, serviceName, period, category)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": trend})
+	respondSuccess(c, trend)
 }
 
 // ---------- Service Optimization Suggestions ----------
@@ -223,8 +222,8 @@ func (h *CostOperationsHandler) GetServiceOptimizationSuggestions(c *gin.Context
 	entityType := c.DefaultQuery("entityType", "project")
 	suggestions, err := h.costSvc.GetServiceOptimizationSuggestions(c.Request.Context(), tenantID, serviceName, entityType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": suggestions})
+	respondSuccess(c, suggestions)
 }

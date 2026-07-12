@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion-build-env-svc-go/internal/build_logs/service"
+
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,8 +19,8 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.GET("/build-logs", h.ListLogs)
-	rg.GET("/build-logs/:id", h.GetLog)
+	rg.GET("/build-logs", auth.RequirePermission("build_logs", "read"), h.ListLogs)
+	rg.GET("/build-logs/:id", auth.RequirePermission("build_logs", "read"), h.GetLog)
 }
 
 func (h *Handler) GetLog(c *gin.Context) {
@@ -27,10 +28,10 @@ func (h *Handler) GetLog(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.GetLog(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "error": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": m})
+	respondSuccess(c, m)
 }
 
 func (h *Handler) ListLogs(c *gin.Context) {
@@ -39,8 +40,8 @@ func (h *Handler) ListLogs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListLogs(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }

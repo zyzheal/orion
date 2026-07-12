@@ -7,6 +7,7 @@ import (
 
 	"orion/infra-ops-svc-go/internal/backup/models"
 	"orion/infra-ops-svc-go/internal/backup/service"
+	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -14,9 +15,9 @@ import (
 
 // Handler provides HTTP handlers for backup and recovery operations.
 type Handler struct {
-	backupSvc *service.BackupService
+	backupSvc   *service.BackupService
 	recoverySvc *service.RecoveryService
-	log        *zap.Logger
+	log         *zap.Logger
 }
 
 // New creates a new backup handler instance.
@@ -31,22 +32,22 @@ func New(backupSvc *service.BackupService, recoverySvc *service.RecoveryService,
 // RegisterRoutes mounts all backup routes under the given group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	bg := rg.Group("/backup")
-	bg.POST("/plans", h.CreatePlan)
-	bg.GET("/plans", h.ListPlans)
-	bg.GET("/plans/:id", h.GetPlan)
-	bg.PUT("/plans/:id", h.UpdatePlan)
-	bg.DELETE("/plans/:id", h.DeletePlan)
-	bg.POST("/plans/:id/execute", h.ExecuteBackup)
-	bg.GET("/plans/:id/records", h.ListBackupRecords)
-	bg.GET("/plans/:id/records/:record_id", h.GetBackupRecord)
-	bg.DELETE("/plans/:id/records/:record_id", h.DeleteBackupRecord)
+	bg.POST("/plans", auth.RequirePermission("backup", "write"), h.CreatePlan)
+	bg.GET("/plans", auth.RequirePermission("backup", "read"), h.ListPlans)
+	bg.GET("/plans/:id", auth.RequirePermission("backup", "read"), h.GetPlan)
+	bg.PUT("/plans/:id", auth.RequirePermission("backup", "write"), h.UpdatePlan)
+	bg.DELETE("/plans/:id", auth.RequirePermission("backup", "delete"), h.DeletePlan)
+	bg.POST("/plans/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteBackup)
+	bg.GET("/plans/:id/records", auth.RequirePermission("backup", "read"), h.ListBackupRecords)
+	bg.GET("/plans/:id/records/:record_id", auth.RequirePermission("backup", "read"), h.GetBackupRecord)
+	bg.DELETE("/plans/:id/records/:record_id", auth.RequirePermission("backup", "delete"), h.DeleteBackupRecord)
 
-	bg.POST("/recovery", h.CreateRecovery)
-	bg.GET("/recovery", h.ListRecoveries)
-	bg.GET("/recovery/:id", h.GetRecovery)
-	bg.POST("/recovery/:id/execute", h.ExecuteRecovery)
-	bg.DELETE("/recovery/:id", h.RollbackRecovery)
-	bg.GET("/status", h.GetBackupStats)
+	bg.POST("/recovery", auth.RequirePermission("backup", "write"), h.CreateRecovery)
+	bg.GET("/recovery", auth.RequirePermission("backup", "read"), h.ListRecoveries)
+	bg.GET("/recovery/:id", auth.RequirePermission("backup", "read"), h.GetRecovery)
+	bg.POST("/recovery/:id/execute", auth.RequirePermission("backup", "execute"), h.ExecuteRecovery)
+	bg.DELETE("/recovery/:id", auth.RequirePermission("backup", "delete"), h.RollbackRecovery)
+	bg.GET("/status", auth.RequirePermission("backup", "read"), h.GetBackupStats)
 }
 
 // ==================== Backup Plans ====================
@@ -54,28 +55,28 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreatePlan(c *gin.Context) {
 	var input models.CreateBackupPlanInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	input.TenantID = tenantID
 	plan, err := h.backupSvc.CreatePlan(c.Request.Context(), input)
 	if err != nil {
 		h.log.Error("failed to create backup plan", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, plan)
+	respondCreated(c, plan)
 }
 
 func (h *Handler) ListPlans(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -83,53 +84,53 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	plans, err := h.backupSvc.ListPlans(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list plans", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": plans})
+	respondSuccess(c, plans)
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	plan, err := h.backupSvc.GetPlan(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": plan})
+	respondSuccess(c, plan)
 }
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	var input models.UpdateBackupPlanInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	plan, err := h.backupSvc.UpdatePlan(c.Request.Context(), tenantID, c.Param("id"), input)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": plan})
+	respondSuccess(c, plan)
 }
 
 func (h *Handler) DeletePlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	if err := h.backupSvc.DeletePlan(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 	c.Status(http.StatusOK)
@@ -140,28 +141,28 @@ func (h *Handler) DeletePlan(c *gin.Context) {
 func (h *Handler) ExecuteBackup(c *gin.Context) {
 	var input models.CreateBackupInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	input.TenantID = tenantID
 	input.PlanID = c.Param("id")
 	record, err := h.backupSvc.TriggerBackup(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusAccepted, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 func (h *Handler) ListBackupRecords(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	filter := models.BackupFilter{
@@ -174,34 +175,34 @@ func (h *Handler) ListBackupRecords(c *gin.Context) {
 	backups, err := h.backupSvc.ListBackups(c.Request.Context(), tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list backups", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": backups})
+	respondSuccess(c, backups)
 }
 
 func (h *Handler) GetBackupRecord(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	record, err := h.backupSvc.GetBackup(c.Request.Context(), tenantID, c.Param("record_id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 func (h *Handler) DeleteBackupRecord(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	if err := h.backupSvc.DeleteBackup(c.Request.Context(), tenantID, c.Param("record_id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 	c.Status(http.StatusOK)
@@ -212,28 +213,28 @@ func (h *Handler) DeleteBackupRecord(c *gin.Context) {
 func (h *Handler) CreateRecovery(c *gin.Context) {
 	var input models.CreateRecoveryInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: "+err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	input.TenantID = tenantID
 	record, err := h.recoverySvc.CreateRecovery(c.Request.Context(), input)
 	if err != nil {
 		h.log.Error("failed to create recovery", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": record})
+	respondCreated(c, record)
 }
 
 func (h *Handler) ListRecoveries(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -241,52 +242,52 @@ func (h *Handler) ListRecoveries(c *gin.Context) {
 	recoveries, err := h.recoverySvc.ListRecoveries(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list recoveries", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": recoveries})
+	respondSuccess(c, recoveries)
 }
 
 func (h *Handler) GetRecovery(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	record, err := h.recoverySvc.GetRecovery(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 func (h *Handler) ExecuteRecovery(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	record, err := h.recoverySvc.ExecuteRecovery(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 func (h *Handler) RollbackRecovery(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	record, err := h.recoverySvc.RollbackRecovery(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // ==================== Stats ====================
@@ -294,16 +295,16 @@ func (h *Handler) RollbackRecovery(c *gin.Context) {
 func (h *Handler) GetBackupStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 	stats, err := h.backupSvc.GetBackupStats(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("failed to get backup stats", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": stats})
+	respondSuccess(c, stats)
 }
 
 // Helper for converting time

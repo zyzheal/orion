@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -23,17 +22,17 @@ func (h *VersionHandler) Create(c *gin.Context) {
 
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	version, err := h.svc.Create(c.Request.Context(), tenantID, pipelineID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, version)
+	respondCreated(c, version)
 }
 
 func (h *VersionHandler) List(c *gin.Context) {
@@ -41,21 +40,21 @@ func (h *VersionHandler) List(c *gin.Context) {
 
 	versions, err := h.svc.List(c.Request.Context(), pipelineID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *VersionHandler) GetByID(c *gin.Context) {
 	version, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+		respondNotFound(c, "version not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, version)
+	respondSuccess(c, version)
 }
 
 func (h *VersionHandler) GetActive(c *gin.Context) {
@@ -63,11 +62,11 @@ func (h *VersionHandler) GetActive(c *gin.Context) {
 
 	version, err := h.svc.GetActive(c.Request.Context(), pipelineID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "no active version"})
+		respondNotFound(c, "no active version")
 		return
 	}
 
-	c.JSON(http.StatusOK, version)
+	respondSuccess(c, version)
 }
 
 func (h *VersionHandler) Rollback(c *gin.Context) {
@@ -75,11 +74,11 @@ func (h *VersionHandler) Rollback(c *gin.Context) {
 	versionID := c.Param("id")
 
 	if err := h.svc.Rollback(c.Request.Context(), pipelineID, versionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "rolled back"})
+	respondSuccess(c, gin.H{"message": "rolled back"})
 }
 
 func (h *VersionHandler) RegisterRoutes(rg *gin.RouterGroup) {

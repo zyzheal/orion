@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -39,14 +37,14 @@ func (h *AnomalyHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var a models.Anomaly
 	if err := c.ShouldBindJSON(&a); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.anomalySvc.CreateAnomaly(c.Request.Context(), tenantID, &a); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": a})
+	respondCreated(c, a)
 }
 
 // List handles GET /anomalies - list anomalies with optional filters.
@@ -54,15 +52,15 @@ func (h *AnomalyHandler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var opts models.ListAnomaliesQuery
 	if err := c.ShouldBindQuery(&opts); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	items, total, err := h.anomalySvc.ListAnomalies(c.Request.Context(), tenantID, opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items, "total": total, "page": opts.Page})
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": opts.Page})
 }
 
 // CountByType handles GET /anomalies/by-type - anomaly counts grouped by type.
@@ -70,10 +68,10 @@ func (h *AnomalyHandler) CountByType(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	counts, err := h.anomalySvc.CountByType(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": counts})
+	respondSuccess(c, counts)
 }
 
 // Get handles GET /anomalies/:id - get a single anomaly.
@@ -82,13 +80,13 @@ func (h *AnomalyHandler) Get(c *gin.Context) {
 	a, err := h.anomalySvc.GetAnomaly(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrAnomalyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "anomaly not found"})
+			respondNotFound(c, "anomaly not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": a})
+	respondSuccess(c, a)
 }
 
 // UpdateStatus handles PUT /anomalies/:id/status - update anomaly status.
@@ -98,16 +96,16 @@ func (h *AnomalyHandler) UpdateStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.anomalySvc.UpdateStatus(c.Request.Context(), tenantID, c.Param("id"), req.Status); err != nil {
 		if err == service.ErrAnomalyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "anomaly not found"})
+			respondNotFound(c, "anomaly not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+	respondSuccess(c, gin.H{"message": "status updated"})
 }

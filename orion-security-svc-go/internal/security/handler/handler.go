@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"orion/security-svc-go/internal/security/models"
 	"orion/security-svc-go/internal/security/service"
@@ -92,15 +91,15 @@ func (h *Handler) CreateScan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListScans(c *gin.Context) {
@@ -109,39 +108,39 @@ func (h *Handler) ListScans(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetScan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) DeleteScan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 func (h *Handler) ScanCount(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }
 
 // ---- Security Findings ----
@@ -150,14 +149,14 @@ func (h *Handler) CreateFinding(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SecurityFinding
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.CreateFinding(c.Request.Context(), tenantID, &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"message": "finding created"})
+	respondCreated(c, gin.H{"message": "finding created"})
 }
 
 func (h *Handler) ListFindings(c *gin.Context) {
@@ -167,54 +166,54 @@ func (h *Handler) ListFindings(c *gin.Context) {
 	severity := c.Query("severity")
 	items, err := h.svc.ListFindings(c.Request.Context(), tenantID, (page-1)*ps, ps, severity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetFinding(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetFinding(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) UpdateFinding(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.UpdateFinding(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) FindingsByScanID(c *gin.Context) {
 	items, err := h.svc.FindingsByScanID(c.Request.Context(), c.Param("scan_id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) FindingCount(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.CountFindings(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }
 
 // ---- Audit Plans ----
@@ -223,59 +222,59 @@ func (h *Handler) CreateAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateAuditPlan(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListAuditPlans(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListAuditPlans(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetAuditPlan(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) UpdateAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.UpdateAuditPlan(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) DeleteAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteAuditPlan(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ---- Audit Executions ----
@@ -284,28 +283,28 @@ func (h *Handler) ExecuteAudit(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.ExecuteAudit(c.Request.Context(), tenantID, c.Param("plan_id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
 	items, err := h.svc.ListExecutions(c.Request.Context(), c.Param("plan_id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
 	d, err := h.svc.GetExecution(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 // ---- Compliance Policies ----
@@ -314,15 +313,15 @@ func (h *Handler) CreateCompliancePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCompliancePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateCompliancePolicy(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListCompliancePolicies(c *gin.Context) {
@@ -330,27 +329,27 @@ func (h *Handler) ListCompliancePolicies(c *gin.Context) {
 	ft := c.Query("framework_type")
 	items, err := h.svc.ListCompliancePolicies(c.Request.Context(), tenantID, ft)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetCompliancePolicy(c *gin.Context) {
 	d, err := h.svc.GetCompliancePolicy(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) DeleteCompliancePolicy(c *gin.Context) {
 	if err := h.svc.DeleteCompliancePolicy(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // ---- Compliance Evaluations ----
@@ -359,44 +358,44 @@ func (h *Handler) EvaluateCompliance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.EvaluateCompliance(c.Request.Context(), tenantID, c.Param("policy_id"))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) GetLatestEvaluation(c *gin.Context) {
 	d, err := h.svc.GetLatestEvaluation(c.Request.Context(), c.Param("policy_id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) GetComplianceEvaluation(c *gin.Context) {
 	_, err := h.svc.GetComplianceEvaluation(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 	// Fallback to latest evaluation for simplicity
 	d, err := h.svc.GetLatestEvaluation(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) GetComplianceScore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	s, err := h.svc.GetComplianceScore(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, s)
+	respondSuccess(c, s)
 }
 
 // ---- SBOM ----
@@ -405,15 +404,15 @@ func (h *Handler) CreateSBOM(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateSBOM(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListSBOMs(c *gin.Context) {
@@ -422,29 +421,29 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetSBOM(c *gin.Context) {
 	d, err := h.svc.GetSBOM(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) SBOMCount(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.CountSBOMs(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }
 
 // ---- Dependency Analysis ----
@@ -453,25 +452,25 @@ func (h *Handler) AnalyzeDependency(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AnalyzeDependencyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.AnalyzeDependency(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) GetDependencyGraph(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetDependencyGraph(c.Request.Context(), tenantID, c.Param("package_name"), c.Param("package_version"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, d)
+	respondSuccess(c, d)
 }
 
 func (h *Handler) ListDependencyGraphs(c *gin.Context) {
@@ -480,10 +479,10 @@ func (h *Handler) ListDependencyGraphs(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListDependencyGraphs(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 // ---- Dependency Poisoning ----
@@ -492,15 +491,15 @@ func (h *Handler) ScanPoisoning(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ScanDependencyPoisoningRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.ScanDependencyPoisoning(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, d)
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListPoisoningScans(c *gin.Context) {
@@ -509,18 +508,18 @@ func (h *Handler) ListPoisoningScans(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListDependencyPoisoningScans(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) PoisoningCount(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.CountDependencyPoisoningScans(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }

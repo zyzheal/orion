@@ -24,7 +24,7 @@ func (h *CanaryHandler) Create(c *gin.Context) {
 
 	var req models.CreateCanaryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -34,10 +34,10 @@ func (h *CanaryHandler) Create(c *gin.Context) {
 		if err.Error() == "an active canary already exists for this config" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, status, err)
 		return
 	}
-	c.JSON(http.StatusCreated, canary)
+	respondCreated(c, canary)
 }
 
 func (h *CanaryHandler) Promote(c *gin.Context) {
@@ -50,10 +50,10 @@ func (h *CanaryHandler) Promote(c *gin.Context) {
 		if err.Error() == "canary is not in active state" {
 			status = http.StatusBadRequest
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, status, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *CanaryHandler) Rollback(c *gin.Context) {
@@ -66,10 +66,10 @@ func (h *CanaryHandler) Rollback(c *gin.Context) {
 		if err.Error() == "canary is not in active state" {
 			status = http.StatusBadRequest
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		respondError(c, status, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *CanaryHandler) RegisterRoutes(rg *gin.RouterGroup) {

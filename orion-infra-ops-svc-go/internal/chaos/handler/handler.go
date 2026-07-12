@@ -26,8 +26,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	experiments := rg.Group("/experiments")
 	{
 		experiments.POST("", auth.RequirePermission("chaos", "write"), h.CreateExperiment)
-		experiments.GET("", h.ListExperiments)
-		experiments.GET("/:id", h.GetExperiment)
+		experiments.GET("", auth.RequirePermission("chaos", "read"), h.ListExperiments)
+		experiments.GET("/:id", auth.RequirePermission("chaos", "read"), h.GetExperiment)
 		experiments.POST("/:id/status", auth.RequirePermission("chaos", "execute"), h.UpdateStatus)
 		experiments.DELETE("/:id", auth.RequirePermission("chaos", "delete"), h.DeleteExperiment)
 	}
@@ -37,11 +37,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func mapError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrExperimentNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 	case errors.Is(err, service.ErrInvalidStatus):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		respondConflict(c, err.Error())
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 	}
 }
 
@@ -49,17 +49,17 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var input models.CreateExperimentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	exp, err := h.svc.CreateExperiment(c.Request.Context(), tenantID, &input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, exp)
+	respondCreated(c, exp)
 }
 
 func (h *Handler) GetExperiment(c *gin.Context) {
@@ -72,7 +72,7 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, exp)
+	respondSuccess(c, exp)
 }
 
 func (h *Handler) ListExperiments(c *gin.Context) {
@@ -82,11 +82,11 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 
 	exps, err := h.svc.ListExperiments(c.Request.Context(), tenantID, page, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": exps})
+	respondSuccess(c, exps)
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
@@ -97,7 +97,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+	respondSuccess(c, gin.H{"message": "status updated"})
 }
 
 func (h *Handler) DeleteExperiment(c *gin.Context) {
@@ -119,5 +119,5 @@ func (h *Handler) DeleteExperiment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }

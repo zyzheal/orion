@@ -20,7 +20,7 @@ func NewSuspendHandler(svc *service.SuspendService) *SuspendHandler {
 func (h *SuspendHandler) CreateSuspend(c *gin.Context) {
 	var req models.CreateSuspendRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -30,7 +30,7 @@ func (h *SuspendHandler) CreateSuspend(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": record})
+	respondCreated(c, record)
 }
 
 // ActivateSuspend POST /api/v1/tickets/suspend/:id/activate
@@ -40,7 +40,7 @@ func (h *SuspendHandler) ActivateSuspend(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // EndSuspend POST /api/v1/tickets/suspend/:id/end
@@ -50,7 +50,7 @@ func (h *SuspendHandler) EndSuspend(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // CancelSuspend POST /api/v1/tickets/suspend/:id/cancel
@@ -60,7 +60,7 @@ func (h *SuspendHandler) CancelSuspend(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // ListSuspensions GET /api/v1/tickets/suspend
@@ -71,7 +71,7 @@ func (h *SuspendHandler) ListSuspensions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": records, "count": len(records)})
+	respondSuccess(c, records, "count": len(records))
 }
 
 // GetSuspend GET /api/v1/tickets/suspend/:id
@@ -81,7 +81,7 @@ func (h *SuspendHandler) GetSuspend(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // GetEngineerSuspensions GET /api/v1/tickets/suspend/engineer/:engineerId
@@ -91,7 +91,7 @@ func (h *SuspendHandler) GetEngineerSuspensions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": records, "count": len(records)})
+	respondSuccess(c, records, "count": len(records))
 }
 
 // GetEngineerSuspendImpact GET /api/v1/tickets/suspend/engineer/:engineerId/impact
@@ -101,5 +101,5 @@ func (h *SuspendHandler) GetEngineerSuspendImpact(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": impact})
+	respondSuccess(c, impact)
 }

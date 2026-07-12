@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -37,17 +36,17 @@ func (h *BudgetHandler) SetBudget(c *gin.Context) {
 
 	var req models.SetBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	budget, err := h.svc.Set(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, budget)
+	respondCreated(c, budget)
 }
 
 // GetBudget retrieves the effective budget.
@@ -57,11 +56,11 @@ func (h *BudgetHandler) GetBudget(c *gin.Context) {
 
 	budget, err := h.svc.Get(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "budget not found"})
+		respondNotFound(c, "budget not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, budget)
+	respondSuccess(c, budget)
 }
 
 // UpdateBudget updates an existing budget.
@@ -70,17 +69,17 @@ func (h *BudgetHandler) UpdateBudget(c *gin.Context) {
 
 	var budget models.PipelineBudget
 	if err := c.ShouldBindJSON(&budget); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	budget.TenantID = tenantID
 	if err := h.svc.Update(c.Request.Context(), tenantID, &budget); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "budget updated"})
+	respondSuccess(c, gin.H{"message": "budget updated"})
 }
 
 // DeleteBudget deletes a budget.
@@ -88,16 +87,16 @@ func (h *BudgetHandler) DeleteBudget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Query("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "id is required"})
+		respondBadRequest(c, "id is required")
 		return
 	}
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "budget deleted"})
+	respondSuccess(c, gin.H{"message": "budget deleted"})
 }
 
 // CheckBudget checks if the spend is within budget.
@@ -107,9 +106,9 @@ func (h *BudgetHandler) CheckBudget(c *gin.Context) {
 
 	result, err := h.svc.Check(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }

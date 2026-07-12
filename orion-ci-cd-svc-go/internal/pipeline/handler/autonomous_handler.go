@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -49,17 +48,17 @@ func (h *AutonomousHandler) CreateErrorClassification(c *gin.Context) {
 
 	var req models.ErrorClassificationRule
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	rule, err := h.svc.CreateErrorClassificationRule(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, rule)
+	respondCreated(c, rule)
 }
 
 func (h *AutonomousHandler) ListErrorClassification(c *gin.Context) {
@@ -68,11 +67,11 @@ func (h *AutonomousHandler) ListErrorClassification(c *gin.Context) {
 
 	rules, err := h.svc.ListErrorClassificationRules(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": rules})
+	respondSuccess(c, rules)
 }
 
 // ==================== Adaptive Timeout ====================
@@ -83,17 +82,17 @@ func (h *AutonomousHandler) SetAdaptiveTimeout(c *gin.Context) {
 
 	var req models.AdaptiveTimeoutConfig
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	config, err := h.svc.SetAdaptiveTimeout(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 func (h *AutonomousHandler) GetAdaptiveTimeout(c *gin.Context) {
@@ -101,17 +100,17 @@ func (h *AutonomousHandler) GetAdaptiveTimeout(c *gin.Context) {
 	pipelineID := c.Query("pipeline_id")
 
 	if pipelineID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pipeline_id is required"})
+		respondBadRequest(c, "pipeline_id is required")
 		return
 	}
 
 	config, err := h.svc.GetAdaptiveTimeout(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, config)
+	respondSuccess(c, config)
 }
 
 // ==================== Auto Retry ====================
@@ -122,17 +121,17 @@ func (h *AutonomousHandler) SetAutoRetry(c *gin.Context) {
 
 	var req models.AutoRetryStrategy
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	strategy, err := h.svc.SetAutoRetryStrategy(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, strategy)
+	respondSuccess(c, strategy)
 }
 
 func (h *AutonomousHandler) GetAutoRetry(c *gin.Context) {
@@ -140,17 +139,17 @@ func (h *AutonomousHandler) GetAutoRetry(c *gin.Context) {
 	pipelineID := c.Query("pipeline_id")
 
 	if pipelineID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pipeline_id is required"})
+		respondBadRequest(c, "pipeline_id is required")
 		return
 	}
 
 	strategy, err := h.svc.GetAutoRetryStrategy(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, strategy)
+	respondSuccess(c, strategy)
 }
 
 // ==================== Self Healing ====================
@@ -161,17 +160,17 @@ func (h *AutonomousHandler) ExecuteSelfHealing(c *gin.Context) {
 
 	var req models.SelfHealingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	status, err := h.svc.ExecuteSelfHealing(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, status)
+	respondSuccess(c, status)
 }
 
 func (h *AutonomousHandler) GetSelfHealingStatus(c *gin.Context) {
@@ -179,15 +178,15 @@ func (h *AutonomousHandler) GetSelfHealingStatus(c *gin.Context) {
 	runID := c.Query("run_id")
 
 	if runID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "run_id is required"})
+		respondBadRequest(c, "run_id is required")
 		return
 	}
 
 	statuses, err := h.svc.GetSelfHealingStatus(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": statuses})
+	respondSuccess(c, statuses)
 }

@@ -33,7 +33,7 @@ type oidcStatePayload struct {
 func (h *Handler) OIDCAuthorize(c *gin.Context) {
 	providerName := c.Query("provider")
 	if providerName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider query parameter required"})
+		h.respondBadRequest(c, "provider query parameter required")
 		return
 	}
 
@@ -45,21 +45,21 @@ func (h *Handler) OIDCAuthorize(c *gin.Context) {
 	cfg, err := h.oidcSVC.ProviderConfig(c.Request.Context(), tenantID, providerName)
 	if err != nil {
 		h.log.Error("OIDC provider config failed", zap.Error(err), zap.String("provider", providerName))
-		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found or disabled"})
+		h.respondNotFound(c, "provider not found or disabled")
 		return
 	}
 
 	disc, err := h.oidcSVC.Discover(c.Request.Context(), *cfg)
 	if err != nil {
 		h.log.Error("OIDC discovery failed", zap.Error(err), zap.String("provider", providerName))
-		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to discover OIDC provider"})
+		h.respondInternalError(c, "failed to discover OIDC provider")
 		return
 	}
 
 	authorizeURL, state, codeVerifier, err := h.oidcSVC.BuildAuthorizeURL(*cfg, disc)
 	if err != nil {
 		h.log.Error("OIDC authorize URL build failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to build authorization URL"})
+		h.respondInternalError(c, "failed to build authorization URL")
 		return
 	}
 
@@ -76,11 +76,11 @@ func (h *Handler) OIDCAuthorize(c *gin.Context) {
 	})
 	if err != nil {
 		h.log.Error("failed to store SSO state", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to initialize SSO session"})
+		h.respondInternalError(c, "failed to initialize SSO session")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"authorize_url": authorizeURL,
 		"state":         state,
 		"provider":      providerName,
@@ -96,7 +96,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	tenantID := c.Query("tenant_id")
 
 	if code == "" || state == "" || providerName == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code, state, and provider parameters required"})
+		h.respondBadRequest(c, "code, state, and provider parameters required")
 		return
 	}
 	if tenantID == "" {
@@ -107,7 +107,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	ssoState, err := h.oidcRepo.GetSSOState(c.Request.Context(), tenantID, state)
 	if ssoState == nil || err != nil {
 		h.log.Error("SSO state lookup failed", zap.Error(err), zap.String("state", state))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or expired SSO state"})
+		h.respondBadRequest(c, "invalid or expired SSO state")
 		return
 	}
 
@@ -117,14 +117,14 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	var payload oidcStatePayload
 	if err := json.Unmarshal([]byte(ssoState.Data), &payload); err != nil {
 		h.log.Error("invalid SSO state payload", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid SSO state payload"})
+		h.respondBadRequest(c, "invalid SSO state payload")
 		return
 	}
 
 	// Get provider config
 	cfg, err := h.oidcSVC.ProviderConfig(c.Request.Context(), tenantID, providerName)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
+		h.respondNotFound(c, "provider not found")
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	disc, err := h.oidcSVC.Discover(c.Request.Context(), *cfg)
 	if err != nil {
 		h.log.Error("OIDC discovery failed", zap.Error(err))
-		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to discover OIDC provider"})
+		h.respondInternalError(c, "failed to discover OIDC provider")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	tokens, err := h.oidcSVC.ExchangeToken(c.Request.Context(), *cfg, disc, code, payload.CodeVerifier)
 	if err != nil {
 		h.log.Error("OIDC token exchange failed", zap.Error(err))
-		c.JSON(http.StatusBadGateway, gin.H{"error": "token exchange failed"})
+		h.respondInternalError(c, "token exchange failed")
 		return
 	}
 
@@ -159,12 +159,12 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		}
 	}
 	if userInfo == nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to retrieve user identity"})
+		h.respondInternalError(c, "failed to retrieve user identity")
 		return
 	}
 
 	if userInfo.Subject == "" {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "missing subject in OIDC response"})
+		h.respondInternalError(c, "missing subject in OIDC response")
 		return
 	}
 
@@ -172,14 +172,14 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	_, existingUser, err := h.oidcSVC.ResolveOrLinkUser(c.Request.Context(), tenantID, providerName, userInfo)
 	if err != nil {
 		h.log.Error("OIDC user resolution failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve user identity"})
+		h.respondInternalError(c, "failed to resolve user identity")
 		return
 	}
 
 	if existingUser == nil {
 		// No existing account linked — return OIDC profile for the caller to decide
 		// (e.g., auto-create or show account creation form)
-		c.JSON(http.StatusOK, gin.H{
+		h.respondSuccess(c, gin.H{
 			"needs_registration": true,
 			"oidc_profile": gin.H{
 				"subject": userInfo.Subject,
@@ -213,7 +213,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 	tokenString, err := accessToken.SignedString([]byte(h.jwtSecret))
 	if err != nil {
 		h.log.Error("failed to sign access token on OIDC callback", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -227,7 +227,7 @@ func (h *Handler) OIDCCallback(c *gin.Context) {
 		CreatedAt: now,
 	})
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"access_token":  tokenString,
 		"expires_at":    now.Add(5 * time.Minute).Unix(),
 		"needs_registration": false,
@@ -254,7 +254,7 @@ func (h *Handler) OIDCListProviders(c *gin.Context) {
 	providers, err := h.oidcSVC.ListProviders(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("failed to list providers", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -275,7 +275,7 @@ func (h *Handler) OIDCListProviders(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, gin.H{"providers": safe})
+	h.respondSuccess(c, gin.H{"providers": safe})
 }
 
 // OIDCCreateProvider handles POST /sso/oidc/providers.
@@ -293,13 +293,13 @@ type createProviderRequest struct {
 func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 	var req createProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	// Validate issuer URL
 	if _, err := url.Parse(req.IssuerURL); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid issuer_url"})
+		h.respondBadRequest(c, "invalid issuer_url")
 		return
 	}
 
@@ -312,7 +312,7 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 	encSecret, err := fieldencryption.EncryptWithGlobalEncrypt(req.ClientSecret)
 	if err != nil {
 		h.log.Error("failed to encrypt client secret", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -338,7 +338,7 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 	err = h.oidcRepo.CreateProvider(c.Request.Context(), &p)
 	if err != nil {
 		h.log.Error("failed to create provider", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "provider already exists or internal error"})
+		h.respondInternalError(c, "provider already exists or internal error")
 		return
 	}
 
@@ -355,7 +355,7 @@ func (h *Handler) OIDCCreateProvider(c *gin.Context) {
 		"updated_at":    p.UpdatedAt,
 	}
 
-	c.JSON(http.StatusCreated, safe)
+	h.respondCreated(c, safe)
 }
 
 // OIDCUpdateProvider handles PUT /sso/oidc/providers/:id.
@@ -372,24 +372,24 @@ type updateProviderRequest struct {
 func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider id required"})
+		h.respondBadRequest(c, "provider id required")
 		return
 	}
 
 	var req updateProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
 	if err != nil {
 		h.log.Error("failed to get provider", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if p == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
+		h.respondNotFound(c, "provider not found")
 		return
 	}
 
@@ -399,7 +399,7 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 	}
 	if req.IssuerURL != "" {
 		if _, err := url.Parse(req.IssuerURL); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid issuer_url"})
+			h.respondBadRequest(c, "invalid issuer_url")
 			return
 		}
 		p.IssuerURL = strings.TrimRight(req.IssuerURL, "/")
@@ -411,7 +411,7 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 		encSecret, err := fieldencryption.Encrypt(req.ClientSecret)
 		if err != nil {
 			h.log.Error("failed to encrypt client secret", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			h.respondInternalError(c, "internal error")
 			return
 		}
 		p.ClientSecretEncrypted = encSecret
@@ -430,7 +430,7 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 
 	if err := h.oidcRepo.UpdateProvider(c.Request.Context(), p); err != nil {
 		h.log.Error("failed to update provider", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -447,24 +447,24 @@ func (h *Handler) OIDCUpdateProvider(c *gin.Context) {
 		"updated_at":    p.UpdatedAt,
 	}
 
-	c.JSON(http.StatusOK, safe)
+	h.respondSuccess(c, safe)
 }
 
 // OIDCDeleteProvider handles DELETE /sso/oidc/providers/:id.
 func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider id required"})
+		h.respondBadRequest(c, "provider id required")
 		return
 	}
 
 	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if p == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
+		h.respondNotFound(c, "provider not found")
 		return
 	}
 
@@ -476,7 +476,7 @@ func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 
 	if err := h.oidcRepo.DeleteProvider(c.Request.Context(), id); err != nil {
 		h.log.Error("failed to delete provider", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -487,17 +487,17 @@ func (h *Handler) OIDCDeleteProvider(c *gin.Context) {
 func (h *Handler) OIDCGetProvider(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider id required"})
+		h.respondBadRequest(c, "provider id required")
 		return
 	}
 
 	p, err := h.oidcRepo.GetProviderByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if p == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
+		h.respondNotFound(c, "provider not found")
 		return
 	}
 
@@ -514,14 +514,14 @@ func (h *Handler) OIDCGetProvider(c *gin.Context) {
 		"updated_at":    p.UpdatedAt,
 	}
 
-	c.JSON(http.StatusOK, safe)
+	h.respondSuccess(c, safe)
 }
 
 // OIDCListLinks handles GET /sso/oidc/links?user_id=<id>.
 func (h *Handler) OIDCListLinks(c *gin.Context) {
 	userID := c.Query("user_id")
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id query parameter required"})
+		h.respondBadRequest(c, "user_id query parameter required")
 		return
 	}
 
@@ -533,24 +533,24 @@ func (h *Handler) OIDCListLinks(c *gin.Context) {
 	links, err := h.oidcRepo.GetLinkByUserID(c.Request.Context(), tenantID, userID)
 	if err != nil {
 		h.log.Error("failed to list OIDC links", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"links": links})
+	h.respondSuccess(c, gin.H{"links": links})
 }
 
 // OIDCDeleteLink handles DELETE /sso/oidc/links/:id.
 func (h *Handler) OIDCDeleteLink(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "link id required"})
+		h.respondBadRequest(c, "link id required")
 		return
 	}
 
 	if err := h.oidcRepo.DeleteLink(c.Request.Context(), id); err != nil {
 		h.log.Error("failed to delete OIDC link", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 

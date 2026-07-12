@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"orion/go-common/pkg/errors"
 	"net/http"
 
 	"orion/governance-svc-go/internal/audit/models"
@@ -40,7 +41,7 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -52,11 +53,11 @@ func (h *Handler) Create(c *gin.Context) {
 				status = http.StatusBadRequest
 			}
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusCreated, entry)
+	respondCreated(c, entry)
 }
 
 // List handles GET /audit-logs — returns paginated, filtered audit logs.
@@ -65,7 +66,7 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var page models.PaginatedRequest
 	if err := c.ShouldBindQuery(&page); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -81,11 +82,11 @@ func (h *Handler) List(c *gin.Context) {
 
 	result, err := h.svc.ListAuditLogs(c.Request.Context(), filters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // Update handles PUT /audit-logs/:id — updates non-hash-chain fields.
@@ -95,7 +96,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateAuditRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -109,11 +110,11 @@ func (h *Handler) Update(c *gin.Context) {
 				status = http.StatusBadRequest
 			}
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, entry)
+	respondSuccess(c, entry)
 }
 
 // Get handles GET /audit-logs/:id — returns a single audit log by ID.
@@ -122,13 +123,13 @@ func (h *Handler) Get(c *gin.Context) {
 	entry, err := h.svc.GetAuditLog(c.Request.Context(), id)
 	if err != nil {
 		if se, ok := err.(*service.ServiceError); ok && se.Code == service.ErrCodeNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": se.Message})
+			respondNotFound(c, se.Message)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, entry)
+	respondSuccess(c, entry)
 }
 
 // Delete handles DELETE /audit-logs/:id — removes an audit log entry.
@@ -136,10 +137,10 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 // Count handles GET /audit-logs/count — returns total count for the tenant.
@@ -148,10 +149,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }
 
 // VerifyChain handles GET /audit-logs/verify — verifies hash chain integrity.
@@ -159,10 +160,10 @@ func (h *Handler) VerifyChain(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.VerifyChain(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // GetActions handles GET /audit-logs/actions — returns distinct action values.
@@ -170,10 +171,10 @@ func (h *Handler) GetActions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	actions, err := h.svc.GetActions(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"actions": actions})
+	respondSuccess(c, gin.H{"actions": actions})
 }
 
 // GetResourceTypes handles GET /audit-logs/resource-types — returns distinct resource_type values.
@@ -181,9 +182,9 @@ func (h *Handler) GetResourceTypes(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	types, err := h.svc.GetResourceTypes(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"resource_types": types})
+	respondSuccess(c, gin.H{"resource_types": types})
 }
 

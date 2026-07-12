@@ -20,10 +20,10 @@ func (h *RecommendationHandler) GetRecommendations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	recs, err := h.svc.GetRecommendations(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": recs, "count": len(recs)})
+	respondSuccess(c, recs, "count": len(recs))
 }
 
 func (h *RecommendationHandler) RegisterRoutes(rg *gin.RouterGroup) {

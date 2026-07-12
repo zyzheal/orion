@@ -24,10 +24,10 @@ func (h *ConfigHandler) GetQuestionConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	configs, err := h.svc.GetQuestionConfigs(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": configs})
+	respondSuccess(c, configs)
 }
 
 func (h *ConfigHandler) UpsertQuestionConfig(c *gin.Context) {
@@ -35,25 +35,25 @@ func (h *ConfigHandler) UpsertQuestionConfig(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var input models.QuestionConfigInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.UpsertQuestionConfig(c.Request.Context(), tenantID, userID, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 func (h *ConfigHandler) DeleteQuestionConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if err := h.svc.DeleteQuestionConfig(c.Request.Context(), tenantID, userID, c.Param("key")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // Command Config
@@ -63,10 +63,10 @@ func (h *ConfigHandler) GetCommandConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	configs, err := h.svc.GetCommandConfigs(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": configs})
+	respondSuccess(c, configs)
 }
 
 func (h *ConfigHandler) UpsertCommandConfig(c *gin.Context) {
@@ -74,25 +74,25 @@ func (h *ConfigHandler) UpsertCommandConfig(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var input models.CommandConfigInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.UpsertCommandConfig(c.Request.Context(), tenantID, userID, input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, cfg)
+	respondSuccess(c, cfg)
 }
 
 func (h *ConfigHandler) DeleteCommandConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if err := h.svc.DeleteCommandConfig(c.Request.Context(), tenantID, userID, c.Param("key")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *ConfigHandler) RegisterRoutes(rg *gin.RouterGroup) {

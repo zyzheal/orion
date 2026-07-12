@@ -85,7 +85,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateSkill(c *gin.Context) {
 	var req models.CreateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.CreateSkill(c.Request.Context(), &req)
@@ -93,7 +93,7 @@ func (h *Handler) CreateSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, skill)
+	respondCreated(c, skill)
 }
 
 func (h *Handler) ListSkills(c *gin.Context) {
@@ -111,7 +111,7 @@ func (h *Handler) ListSkills(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *Handler) GetSkill(c *gin.Context) {
@@ -120,13 +120,13 @@ func (h *Handler) GetSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) UpdateSkill(c *gin.Context) {
 	var req models.UpdateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.UpdateSkill(c.Request.Context(), c.Param("id"), &req)
@@ -134,7 +134,7 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) DeleteSkill(c *gin.Context) {
@@ -142,7 +142,7 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) PublishSkill(c *gin.Context) {
@@ -151,7 +151,7 @@ func (h *Handler) PublishSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) InstallSkill(c *gin.Context) {
@@ -159,7 +159,7 @@ func (h *Handler) InstallSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "installed"})
+	respondSuccess(c, gin.H{"message": "installed"})
 }
 
 // UninstallSkill decrements the install counter (POST /:id/uninstall).
@@ -169,7 +169,7 @@ func (h *Handler) UninstallSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "uninstalled"})
+	respondSuccess(c, gin.H{"message": "uninstalled"})
 }
 
 // RateSkill is a POST /:id/rate endpoint that extracts user_id from the JWT claim.
@@ -180,7 +180,7 @@ func (h *Handler) RateSkill(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	review := &models.CreateReviewRequest{
@@ -193,7 +193,7 @@ func (h *Handler) RateSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, r)
+	respondCreated(c, r)
 }
 
 // UnpublishSkill toggles a published skill back to draft (disable).
@@ -204,7 +204,7 @@ func (h *Handler) UnpublishSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) SearchSkills(c *gin.Context) {
@@ -215,7 +215,7 @@ func (h *Handler) SearchSkills(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": skills})
+	respondSuccess(c, skills)
 }
 
 func (h *Handler) GetCategories(c *gin.Context) {
@@ -224,7 +224,7 @@ func (h *Handler) GetCategories(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": cats})
+	respondSuccess(c, cats)
 }
 
 func (h *Handler) GetPendingReview(c *gin.Context) {
@@ -238,7 +238,7 @@ func (h *Handler) GetPendingReview(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": skills, "total": total, "total_pages": totalPages})
+	respondSuccess(c, gin.H{"data": skills, "total": total, "total_pages": totalPages})
 }
 
 func (h *Handler) GetFeaturedSkills(c *gin.Context) {
@@ -247,7 +247,7 @@ func (h *Handler) GetFeaturedSkills(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": skills})
+	respondSuccess(c, skills)
 }
 
 func (h *Handler) GetMarketplace(c *gin.Context) {
@@ -260,7 +260,7 @@ func (h *Handler) GetMarketplace(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 // =====================================================================
@@ -274,7 +274,7 @@ func (h *Handler) SubmitForReview(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) ApproveSkill(c *gin.Context) {
@@ -288,7 +288,7 @@ func (h *Handler) ApproveSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) RejectSkill(c *gin.Context) {
@@ -297,7 +297,7 @@ func (h *Handler) RejectSkill(c *gin.Context) {
 		Reason string `json:"reason" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.RejectSkill(c.Request.Context(), c.Param("id"), userID, body.Reason)
@@ -305,7 +305,7 @@ func (h *Handler) RejectSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 func (h *Handler) ArchiveSkill(c *gin.Context) {
@@ -319,7 +319,7 @@ func (h *Handler) ArchiveSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, skill)
+	respondSuccess(c, skill)
 }
 
 // =====================================================================
@@ -332,7 +332,7 @@ func (h *Handler) GetVersions(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": versions})
+	respondSuccess(c, versions)
 }
 
 func (h *Handler) GetLatestVersion(c *gin.Context) {
@@ -341,13 +341,13 @@ func (h *Handler) GetLatestVersion(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, v)
+	respondSuccess(c, v)
 }
 
 func (h *Handler) CreateVersion(c *gin.Context) {
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.CreateVersion(c.Request.Context(), c.Param("id"), &req)
@@ -355,7 +355,7 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, v)
+	respondCreated(c, v)
 }
 
 func (h *Handler) RecordVersion(c *gin.Context) {
@@ -364,7 +364,7 @@ func (h *Handler) RecordVersion(c *gin.Context) {
 		Changelog string `json:"changelog"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.RecordVersion(c.Request.Context(), c.Param("id"), body.Version, body.Changelog)
@@ -372,7 +372,7 @@ func (h *Handler) RecordVersion(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, v)
+	respondCreated(c, v)
 }
 
 func (h *Handler) LockVersion(c *gin.Context) {
@@ -381,7 +381,7 @@ func (h *Handler) LockVersion(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, v)
+	respondSuccess(c, v)
 }
 
 func (h *Handler) UnlockVersion(c *gin.Context) {
@@ -390,7 +390,7 @@ func (h *Handler) UnlockVersion(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, v)
+	respondSuccess(c, v)
 }
 
 // =====================================================================
@@ -403,13 +403,13 @@ func (h *Handler) GetReviews(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": reviews})
+	respondSuccess(c, reviews)
 }
 
 func (h *Handler) AddReview(c *gin.Context) {
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	review, err := h.svc.AddReview(c.Request.Context(), c.Param("id"), &req)
@@ -417,7 +417,7 @@ func (h *Handler) AddReview(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, review)
+	respondCreated(c, review)
 }
 
 // =====================================================================
@@ -427,7 +427,7 @@ func (h *Handler) AddReview(c *gin.Context) {
 func (h *Handler) CreateInstance(c *gin.Context) {
 	var req models.CreateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	// Skill ID comes from the URL param
@@ -440,7 +440,7 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, inst)
+	respondCreated(c, inst)
 }
 
 func (h *Handler) ListInstances(c *gin.Context) {
@@ -450,7 +450,7 @@ func (h *Handler) ListInstances(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": instances})
+	respondSuccess(c, instances)
 }
 
 func (h *Handler) GetInstance(c *gin.Context) {
@@ -460,14 +460,14 @@ func (h *Handler) GetInstance(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, inst)
+	respondSuccess(c, inst)
 }
 
 func (h *Handler) UpdateInstance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	inst, err := h.svc.UpdateInstance(c.Request.Context(), c.Param("iid"), tenantID, &req)
@@ -475,7 +475,7 @@ func (h *Handler) UpdateInstance(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, inst)
+	respondSuccess(c, inst)
 }
 
 func (h *Handler) DeleteInstance(c *gin.Context) {
@@ -484,7 +484,7 @@ func (h *Handler) DeleteInstance(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) ListInstancesByTenant(c *gin.Context) {
@@ -498,7 +498,7 @@ func (h *Handler) ListInstancesByTenant(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": instances, "total": total})
+	respondSuccess(c, gin.H{"data": instances, "total": total})
 }
 
 // =====================================================================
@@ -508,7 +508,7 @@ func (h *Handler) ListInstancesByTenant(c *gin.Context) {
 func (h *Handler) ExecuteSkill(c *gin.Context) {
 	var req models.CreateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	req.SkillID = c.Param("id")
@@ -520,7 +520,7 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusCreated, exec)
+	respondCreated(c, exec)
 }
 
 func (h *Handler) GetExecutions(c *gin.Context) {
@@ -534,7 +534,7 @@ func (h *Handler) GetExecutions(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": execs, "total": total, "total_pages": totalPages})
+	respondSuccess(c, gin.H{"data": execs, "total": total, "total_pages": totalPages})
 }
 
 func (h *Handler) GetAllExecutions(c *gin.Context) {
@@ -549,14 +549,14 @@ func (h *Handler) GetAllExecutions(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": execs, "total": total, "total_pages": totalPages})
+	respondSuccess(c, gin.H{"data": execs, "total": total, "total_pages": totalPages})
 }
 
 func (h *Handler) UpdateExecution(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	exec, err := h.svc.UpdateExecution(c.Request.Context(), tenantID, c.Param("eid"), &req)
@@ -564,7 +564,7 @@ func (h *Handler) UpdateExecution(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, exec)
+	respondSuccess(c, exec)
 }
 
 // =====================================================================
@@ -581,7 +581,7 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": logs, "total": total, "total_pages": totalPages})
+	respondSuccess(c, gin.H{"data": logs, "total": total, "total_pages": totalPages})
 }
 
 func (h *Handler) GetAllAuditLogs(c *gin.Context) {
@@ -595,7 +595,7 @@ func (h *Handler) GetAllAuditLogs(c *gin.Context) {
 		mapError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": logs, "total": total, "total_pages": totalPages})
+	respondSuccess(c, gin.H{"data": logs, "total": total, "total_pages": totalPages})
 }
 
 // =====================================================================
@@ -614,16 +614,16 @@ func mapError(c *gin.Context, err error) {
 	switch err {
 	case service.ErrSkillNotFound, service.ErrInstanceNotFound,
 		service.ErrExecutionNotFound, service.ErrVersionNotFound:
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 	case service.ErrDuplicateName:
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		respondConflict(c, err.Error())
 	case service.ErrInvalidInput, service.ErrInvalidRating, service.ErrRejectionReasonReq:
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 	case service.ErrInvalidState, service.ErrVersionLocked:
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 	case service.ErrTenantMismatch:
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		respondForbidden(c, err.Error())
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 	}
 }

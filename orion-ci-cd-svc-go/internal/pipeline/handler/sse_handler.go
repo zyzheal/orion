@@ -2,7 +2,6 @@ package handler
 
 import (
 	"io"
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/service"
 
@@ -58,7 +57,7 @@ func (h *SSEHandler) StreamLogs(c *gin.Context) {
 func (h *SSEHandler) GetSubscribers(c *gin.Context) {
 	runID := c.Param("runId")
 	count := h.svc.GetSubscriberCount(runID)
-	c.JSON(http.StatusOK, gin.H{"run_id": runID, "subscribers": count})
+	respondSuccess(c, gin.H{"run_id": runID, "subscribers": count})
 }
 
 func (h *SSEHandler) RegisterRoutes(rg *gin.RouterGroup) {

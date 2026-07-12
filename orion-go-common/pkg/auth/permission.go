@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"strings"
 
+	"orion/go-common/pkg/errors"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -206,17 +208,11 @@ func RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := GetRole(c)
 		if role == "" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code": 403, "message": "no role assigned",
-			})
+			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "no role assigned", nil))
 			return
 		}
 		if !HasPermission(role, resource, action) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "insufficient permissions",
-				"detail":  resource + ":" + action,
-			})
+			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 			return
 		}
 		c.Next()
@@ -237,9 +233,7 @@ func RequireAnyPermission(perms ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role := GetRole(c)
 		if role == "" {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code": 403, "message": "no role assigned",
-			})
+			c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "no role assigned", nil))
 			return
 		}
 		for _, pa := range parsed {
@@ -248,8 +242,6 @@ func RequireAnyPermission(perms ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-			"code": 403, "message": "insufficient permissions",
-		})
+		c.AbortWithStatusJSON(http.StatusForbidden, errors.NewErrorEnvelope(c, errors.ErrForbidden, "insufficient permissions", nil))
 	}
 }

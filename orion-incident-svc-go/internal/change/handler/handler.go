@@ -62,21 +62,21 @@ func (h *Handler) CreateChangeRequest(c *gin.Context) {
 
 	var req models.CreateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 	if req.Title == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "title is required"})
+		respondBadRequest(c, "title is required")
 		return
 	}
 
 	d, err := h.svc.CreateChangeRequest(c.Request.Context(), tenantID, actorID, &req)
 	if err != nil {
 		h.logger.Error("failed to create change request", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": d})
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListChangeRequests(c *gin.Context) {
@@ -97,10 +97,10 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 	items, err := h.svc.ListChangeRequests(c.Request.Context(), tenantID, offset, pageSize, filters)
 	if err != nil {
 		h.logger.Error("failed to list change requests", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetChangeRequest(c *gin.Context) {
@@ -109,10 +109,10 @@ func (h *Handler) GetChangeRequest(c *gin.Context) {
 
 	d, err := h.svc.GetChangeRequest(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) UpdateChangeRequest(c *gin.Context) {
@@ -121,21 +121,21 @@ func (h *Handler) UpdateChangeRequest(c *gin.Context) {
 
 	var req models.UpdateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.UpdateChangeRequest(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if err == service.ErrChangeRequestNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 			return
 		}
 		h.logger.Error("failed to update change request", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) DeleteChangeRequest(c *gin.Context) {
@@ -144,10 +144,10 @@ func (h *Handler) DeleteChangeRequest(c *gin.Context) {
 
 	if err := h.svc.DeleteChangeRequest(c.Request.Context(), tenantID, id); err != nil {
 		h.logger.Error("failed to delete change request", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
@@ -160,21 +160,21 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		Reason string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status, actorID, req.Reason)
 	if err != nil {
 		if err == service.ErrChangeRequestNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 			return
 		}
 		h.logger.Error("failed to update status", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 // ── Timeline ────────────────────────────────────────────────────────────
@@ -186,17 +186,17 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 
 	var req models.AddTimelineEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	e, err := h.svc.AddTimelineEvent(c.Request.Context(), tenantID, changeRequestID, req.EventType, req.Description, actorID)
 	if err != nil {
 		h.logger.Error("failed to add timeline event", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": e})
+	respondCreated(c, e)
 }
 
 func (h *Handler) GetTimeline(c *gin.Context) {
@@ -208,10 +208,10 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 	events, err := h.svc.GetTimeline(c.Request.Context(), tenantID, changeRequestID, offset, limit)
 	if err != nil {
 		h.logger.Error("failed to get timeline", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": events})
+	respondSuccess(c, events)
 }
 
 // ── RFCs ─────────────────────────────────────────────────────────────────
@@ -222,17 +222,17 @@ func (h *Handler) CreateRFC(c *gin.Context) {
 
 	var req models.CreateRFCRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.CreateRFC(c.Request.Context(), tenantID, actorID, &req)
 	if err != nil {
 		h.logger.Error("failed to create RFC", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": d})
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListRFCs(c *gin.Context) {
@@ -243,10 +243,10 @@ func (h *Handler) ListRFCs(c *gin.Context) {
 	items, err := h.svc.ListRFCs(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
 		h.logger.Error("failed to list RFCs", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetRFC(c *gin.Context) {
@@ -255,10 +255,10 @@ func (h *Handler) GetRFC(c *gin.Context) {
 
 	d, err := h.svc.GetRFC(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) UpdateRFC(c *gin.Context) {
@@ -267,21 +267,21 @@ func (h *Handler) UpdateRFC(c *gin.Context) {
 
 	var req models.UpdateRFCRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.UpdateRFC(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if err == service.ErrRFCNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 			return
 		}
 		h.logger.Error("failed to update RFC", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 // ── CAB Meetings ──────────────────────────────────────────────────────────
@@ -292,17 +292,17 @@ func (h *Handler) CreateCABMeeting(c *gin.Context) {
 
 	var req models.CreateCABMeetingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.CreateCABMeeting(c.Request.Context(), tenantID, actorID, &req)
 	if err != nil {
 		h.logger.Error("failed to create CAB meeting", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": d})
+	respondCreated(c, d)
 }
 
 func (h *Handler) ListCABMeetings(c *gin.Context) {
@@ -314,10 +314,10 @@ func (h *Handler) ListCABMeetings(c *gin.Context) {
 	items, err := h.svc.ListCABMeetings(c.Request.Context(), tenantID, offset, limit, status)
 	if err != nil {
 		h.logger.Error("failed to list CAB meetings", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": items})
+	respondSuccess(c, items)
 }
 
 func (h *Handler) GetCABMeeting(c *gin.Context) {
@@ -326,10 +326,10 @@ func (h *Handler) GetCABMeeting(c *gin.Context) {
 
 	d, err := h.svc.GetCABMeeting(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+		respondNotFound(c, "not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) UpdateCABMeeting(c *gin.Context) {
@@ -338,21 +338,21 @@ func (h *Handler) UpdateCABMeeting(c *gin.Context) {
 
 	var req models.UpdateCABMeetingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.UpdateCABMeeting(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if err == service.ErrCABMeetingNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "not found"})
+			respondNotFound(c, "not found")
 			return
 		}
 		h.logger.Error("failed to update CAB meeting", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": d})
+	respondSuccess(c, d)
 }
 
 func (h *Handler) AddCABDecision(c *gin.Context) {
@@ -361,17 +361,17 @@ func (h *Handler) AddCABDecision(c *gin.Context) {
 
 	var req models.AddCABDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid request: " + err.Error()})
+		respondBadRequest(c, "invalid request: " + err.Error())
 		return
 	}
 
 	d, err := h.svc.AddCABDecision(c.Request.Context(), tenantID, cabMeetingID, &req)
 	if err != nil {
 		h.logger.Error("failed to add CAB decision", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"code": 0, "data": d})
+	respondCreated(c, d)
 }
 
 // ── Stats ────────────────────────────────────────────────────────────────
@@ -382,8 +382,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
 		h.logger.Error("failed to get stats", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"code": 0, "data": stats})
+	respondSuccess(c, stats)
 }

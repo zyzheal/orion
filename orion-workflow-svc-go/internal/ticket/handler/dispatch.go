@@ -22,7 +22,7 @@ func NewDispatchHandler(svc *service.DispatchService) *DispatchHandler {
 func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
 	var req models.RegisterEngineerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -32,7 +32,7 @@ func (h *DispatchHandler) RegisterEngineer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": engineer})
+	respondCreated(c, engineer)
 }
 
 // ListEngineers GET /api/v1/tickets/dispatch/engineers
@@ -42,7 +42,7 @@ func (h *DispatchHandler) ListEngineers(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": engineers, "count": len(engineers)})
+	respondSuccess(c, engineers, "count": len(engineers))
 }
 
 // GetEngineer GET /api/v1/tickets/dispatch/engineers/:id
@@ -52,7 +52,7 @@ func (h *DispatchHandler) GetEngineer(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": engineer})
+	respondSuccess(c, engineer)
 }
 
 // AutoDispatch POST /api/v1/tickets/:id/dispatch/auto
@@ -74,7 +74,7 @@ func (h *DispatchHandler) AutoDispatch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // ManualDispatch POST /api/v1/tickets/:id/dispatch/manual
@@ -87,7 +87,7 @@ func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 		Reason     string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -97,7 +97,7 @@ func (h *DispatchHandler) ManualDispatch(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": record})
+	respondSuccess(c, record)
 }
 
 // CalculateDispatchScore POST /api/v1/tickets/dispatch/score
@@ -109,7 +109,7 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 		EngineerID string `json:"engineer_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *DispatchHandler) CalculateDispatchScore(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": match})
+	respondSuccess(c, match)
 }
 
 // GetDispatchQueueStatus GET /api/v1/tickets/dispatch/queue/status
@@ -129,7 +129,7 @@ func (h *DispatchHandler) GetDispatchQueueStatus(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": status})
+	respondSuccess(c, status)
 }
 
 // GetDispatchQueueEntries GET /api/v1/tickets/dispatch/queue/entries
@@ -139,14 +139,14 @@ func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": entries, "count": len(entries)})
+	respondSuccess(c, entries, "count": len(entries))
 }
 
 // AddDispatchRule POST /api/v1/tickets/dispatch/rules
 func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 	var req models.CreateDispatchRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -163,7 +163,7 @@ func (h *DispatchHandler) AddDispatchRule(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": rule})
+	respondCreated(c, rule)
 }
 
 // GetDispatchRules GET /api/v1/tickets/dispatch/rules
@@ -173,7 +173,7 @@ func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rules, "count": len(rules)})
+	respondSuccess(c, rules, "count": len(rules))
 }
 
 // RemoveDispatchRule DELETE /api/v1/tickets/dispatch/rules/:ruleId
@@ -182,7 +182,7 @@ func (h *DispatchHandler) RemoveDispatchRule(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "rule removed"})
+	respondSuccess(c, gin.H{"message": "rule removed"})
 }
 
 // GetLoadBalanceReport GET /api/v1/tickets/dispatch/load-balance
@@ -192,23 +192,23 @@ func (h *DispatchHandler) GetLoadBalanceReport(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": report})
+	respondSuccess(c, report)
 }
 
 // UpdateDispatchWeights PUT /api/v1/tickets/dispatch/weights
 func (h *DispatchHandler) UpdateDispatchWeights(c *gin.Context) {
 	var w models.DispatchWeights
 	if err := c.ShouldBindJSON(&w); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	h.svc.UpdateWeights(w)
-	c.JSON(http.StatusOK, gin.H{"data": h.svc.GetWeights()})
+	respondSuccess(c, h.svc.GetWeights())
 }
 
 // GetDispatchWeights GET /api/v1/tickets/dispatch/weights
 func (h *DispatchHandler) GetDispatchWeights(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": h.svc.GetWeights()})
+	respondSuccess(c, h.svc.GetWeights())
 }
 
 // GetDispatchMetrics GET /api/v1/tickets/dispatch/metrics
@@ -218,7 +218,7 @@ func (h *DispatchHandler) GetDispatchMetrics(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": metrics})
+	respondSuccess(c, metrics)
 }
 
 // GetEngineerPerformance GET /api/v1/tickets/dispatch/performance/:engineerId
@@ -228,7 +228,7 @@ func (h *DispatchHandler) GetEngineerPerformance(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": perf})
+	respondSuccess(c, perf)
 }
 
 // GetAllEngineerPerformances GET /api/v1/tickets/dispatch/performance
@@ -238,5 +238,5 @@ func (h *DispatchHandler) GetAllEngineerPerformances(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": perfs})
+	respondSuccess(c, perfs)
 }

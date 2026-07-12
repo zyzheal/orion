@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -23,16 +22,16 @@ func (h *RBACHandler) Grant(c *gin.Context) {
 
 	var req models.GrantAccessRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.Grant(c.Request.Context(), tenantID, pipelineID, req.UserID, req.Role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "granted"})
+	respondSuccess(c, gin.H{"message": "granted"})
 }
 
 func (h *RBACHandler) Revoke(c *gin.Context) {
@@ -40,11 +39,11 @@ func (h *RBACHandler) Revoke(c *gin.Context) {
 	userID := c.Param("userId")
 
 	if err := h.svc.Revoke(c.Request.Context(), pipelineID, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "revoked"})
+	respondSuccess(c, gin.H{"message": "revoked"})
 }
 
 func (h *RBACHandler) List(c *gin.Context) {
@@ -52,11 +51,11 @@ func (h *RBACHandler) List(c *gin.Context) {
 
 	entries, err := h.svc.List(c.Request.Context(), pipelineID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": entries})
+	respondSuccess(c, entries)
 }
 
 func (h *RBACHandler) Check(c *gin.Context) {
@@ -65,17 +64,17 @@ func (h *RBACHandler) Check(c *gin.Context) {
 	role := c.Query("role")
 
 	if userID == "" || role == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id and role are required"})
+		respondBadRequest(c, "user_id and role are required")
 		return
 	}
 
 	hasAccess, err := h.svc.Check(c.Request.Context(), pipelineID, userID, role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"has_access": hasAccess})
+	respondSuccess(c, gin.H{"has_access": hasAccess})
 }
 
 func (h *RBACHandler) GetUserRole(c *gin.Context) {
@@ -84,11 +83,11 @@ func (h *RBACHandler) GetUserRole(c *gin.Context) {
 
 	role, err := h.svc.GetUserRole(c.Request.Context(), pipelineID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"role": role})
+	respondSuccess(c, gin.H{"role": role})
 }
 
 func (h *RBACHandler) RegisterRoutes(rg *gin.RouterGroup) {

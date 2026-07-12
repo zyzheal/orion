@@ -2,7 +2,6 @@ package handler
 
 import (
 	"io"
-	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -24,17 +23,17 @@ func (h *TriggerHandler) Create(c *gin.Context) {
 
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	trigger, err := h.svc.Create(c.Request.Context(), tenantID, pipelineID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, trigger)
+	respondCreated(c, trigger)
 }
 
 func (h *TriggerHandler) List(c *gin.Context) {
@@ -42,30 +41,30 @@ func (h *TriggerHandler) List(c *gin.Context) {
 
 	triggers, err := h.svc.List(c.Request.Context(), pipelineID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": triggers})
+	respondSuccess(c, triggers)
 }
 
 func (h *TriggerHandler) GetByID(c *gin.Context) {
 	trigger, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "trigger not found"})
+		respondNotFound(c, "trigger not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, trigger)
+	respondSuccess(c, trigger)
 }
 
 func (h *TriggerHandler) Delete(c *gin.Context) {
 	if err := h.svc.Delete(c.Request.Context(), c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *TriggerHandler) Toggle(c *gin.Context) {
@@ -73,16 +72,16 @@ func (h *TriggerHandler) Toggle(c *gin.Context) {
 		Enabled bool `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.Toggle(c.Request.Context(), c.Param("id"), req.Enabled); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "toggled"})
+	respondSuccess(c, gin.H{"message": "toggled"})
 }
 
 func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
@@ -90,7 +89,7 @@ func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
 
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
+		respondBadRequest(c, "failed to read body")
 		return
 	}
 
@@ -101,27 +100,27 @@ func (h *TriggerHandler) ProcessWebhook(c *gin.Context) {
 
 	run, err := h.svc.ProcessWebhook(c.Request.Context(), triggerID, body, headers)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, run)
+	respondSuccess(c, run)
 }
 
 func (h *TriggerHandler) ProcessSCMEvent(c *gin.Context) {
 	var event models.SCMTriggerEvent
 	if err := c.ShouldBindJSON(&event); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	runs, err := h.svc.ProcessSCMEvent(c.Request.Context(), event)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": runs, "triggered": len(runs)})
+	respondSuccess(c, gin.H{"runs": runs, "triggered": len(runs)})
 }
 
 func (h *TriggerHandler) RegisterRoutes(rg *gin.RouterGroup) {

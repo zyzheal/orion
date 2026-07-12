@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/finops-svc-go/internal/report-designer/models"
@@ -11,13 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-// Response is the standard API response envelope.
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
 
 // Handler provides HTTP handlers for report designer operations.
 type Handler struct {
@@ -92,17 +84,13 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 	reports, total, err := h.svc.ListReports(c.Request.Context(), tenantID, filters)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{
-		Code:    200,
-		Message: "OK",
-		Data: gin.H{
-			"reports": reports,
-			"total":   total,
-		},
+	respondSuccess(c, gin.H{
+		"reports": reports,
+		"total":   total,
 	})
 }
 
@@ -113,11 +101,11 @@ func (h *Handler) GetReport(c *gin.Context) {
 
 	report, err := h.svc.GetReport(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+		respondNotFound(c, "report not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: report})
+	respondSuccess(c, report)
 }
 
 // CreateReport handles POST /reports.
@@ -127,23 +115,23 @@ func (h *Handler) CreateReport(c *gin.Context) {
 
 	var input models.CreateReportInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if input.Name == "" {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: "name is required"})
+		respondBadRequest(c, "name is required")
 		return
 	}
 
 	input.CreatedBy = &userID
 	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, &input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 201, Message: "OK", Data: report})
+	respondCreated(c, report)
 }
 
 // UpdateReport handles PUT /reports/:id.
@@ -153,21 +141,21 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 
 	var input models.UpdateReportInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	report, err := h.svc.UpdateReport(c.Request.Context(), tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+			respondNotFound(c, "report not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: report})
+	respondSuccess(c, report)
 }
 
 // DeleteReport handles DELETE /reports/:id.
@@ -178,14 +166,14 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 	err := h.svc.DeleteReport(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+			respondNotFound(c, "report not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 // PreviewReport handles POST /reports/:id/preview.
@@ -201,11 +189,11 @@ func (h *Handler) PreviewReport(c *gin.Context) {
 
 	result, err := h.svc.PreviewReport(c.Request.Context(), tenantID, id, params)
 	if err != nil {
-		c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+		respondNotFound(c, "report not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: result})
+	respondSuccess(c, result)
 }
 
 // ExecuteReport handles POST /reports/:id/execute.
@@ -228,11 +216,11 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 
 	execution, err := h.svc.ExecuteReport(c.Request.Context(), tenantID, id, exportFormat, triggeredBy)
 	if err != nil {
-		c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+		respondNotFound(c, "report not found")
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 201, Message: "OK", Data: execution})
+	respondCreated(c, execution)
 }
 
 // GetExecutionHistory handles GET /reports/:id/executions.
@@ -247,11 +235,11 @@ func (h *Handler) GetExecutionHistory(c *gin.Context) {
 
 	executions, err := h.svc.GetExecutionHistory(c.Request.Context(), tenantID, id, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: executions})
+	respondSuccess(c, executions)
 }
 
 // ==================== Datasource Handlers ====================
@@ -262,11 +250,11 @@ func (h *Handler) ListDatasources(c *gin.Context) {
 
 	datasources, err := h.svc.ListDatasources(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: datasources})
+	respondSuccess(c, datasources)
 }
 
 // CreateDatasource handles POST /reports/datasources.
@@ -275,22 +263,22 @@ func (h *Handler) CreateDatasource(c *gin.Context) {
 
 	var input models.CreateDatasourceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if input.Name == "" || input.DatasourceType == "" || input.Config == nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: "name, datasourceType, and config are required"})
+		respondBadRequest(c, "name, datasourceType, and config are required")
 		return
 	}
 
 	ds, err := h.svc.CreateDatasource(c.Request.Context(), tenantID, &input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 201, Message: "OK", Data: ds})
+	respondCreated(c, ds)
 }
 
 // UpdateDatasource handles PUT /reports/datasources/:id.
@@ -300,21 +288,21 @@ func (h *Handler) UpdateDatasource(c *gin.Context) {
 
 	var input models.UpdateDatasourceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	ds, err := h.svc.UpdateDatasource(c.Request.Context(), tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrDatasourceNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "datasource not found"})
+			respondNotFound(c, "datasource not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: ds})
+	respondSuccess(c, ds)
 }
 
 // DeleteDatasource handles DELETE /reports/datasources/:id.
@@ -325,14 +313,14 @@ func (h *Handler) DeleteDatasource(c *gin.Context) {
 	err := h.svc.DeleteDatasource(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrDatasourceNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "datasource not found"})
+			respondNotFound(c, "datasource not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }
 
 // ==================== Schedule Handlers ====================
@@ -344,11 +332,11 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 
 	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID, reportID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: schedules})
+	respondSuccess(c, schedules)
 }
 
 // CreateSchedule handles POST /reports/:id/schedules.
@@ -358,7 +346,7 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 
 	var input models.CreateScheduleInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -367,14 +355,14 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, &input)
 	if err != nil {
 		if err == service.ErrReportNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "report not found"})
+			respondNotFound(c, "report not found")
 			return
 		}
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 201, Message: "OK", Data: schedule})
+	respondCreated(c, schedule)
 }
 
 // UpdateSchedule handles PUT /reports/schedules/:id.
@@ -384,21 +372,21 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 
 	var input models.UpdateScheduleInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, Response{Code: 400, Message: err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	schedule, err := h.svc.UpdateSchedule(c.Request.Context(), tenantID, id, &input)
 	if err != nil {
 		if err == service.ErrScheduleNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "schedule not found"})
+			respondNotFound(c, "schedule not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: schedule})
+	respondSuccess(c, schedule)
 }
 
 // DeleteSchedule handles DELETE /reports/schedules/:id.
@@ -409,12 +397,12 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 	err := h.svc.DeleteSchedule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrScheduleNotFound {
-			c.JSON(http.StatusNotFound, Response{Code: 404, Message: "schedule not found"})
+			respondNotFound(c, "schedule not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, Response{Code: 500, Message: err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 200, Message: "OK", Data: gin.H{"deleted": true}})
+	respondSuccess(c, gin.H{"deleted": true})
 }

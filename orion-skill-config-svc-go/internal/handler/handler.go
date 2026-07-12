@@ -23,42 +23,42 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSkillConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusCreated, d)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondCreated(c, d)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, d)
+	if err != nil { respondNotFound(c, err.Error()); return }
+	respondSuccess(c, d)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, map[string]any{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, map[string]any{"count": count})
 }

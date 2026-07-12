@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"sync"
 	"time"
 
@@ -29,7 +28,7 @@ func (h *ServiceControlHandler) StartTicketingService(c *gin.Context) {
 	mu.Lock()
 	if serviceRunning {
 		mu.Unlock()
-		c.JSON(http.StatusOK, gin.H{
+		respondSuccess(c, gin.H{
 			"success": true,
 			"message": "Ticketing service already running",
 		})
@@ -40,7 +39,7 @@ func (h *ServiceControlHandler) StartTicketingService(c *gin.Context) {
 	lastStartedAt = startedAt
 	mu.Unlock()
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"success":     true,
 		"message":     "Ticketing service started",
 		"started_at":  startedAt,
@@ -52,7 +51,7 @@ func (h *ServiceControlHandler) StopTicketingService(c *gin.Context) {
 	mu.Lock()
 	if !serviceRunning {
 		mu.Unlock()
-		c.JSON(http.StatusOK, gin.H{
+		respondSuccess(c, gin.H{
 			"success": true,
 			"message": "Ticketing service already stopped",
 		})
@@ -63,7 +62,7 @@ func (h *ServiceControlHandler) StopTicketingService(c *gin.Context) {
 	lastStoppedAt = stoppedAt
 	mu.Unlock()
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"success":    true,
 		"message":    "Ticketing service stopped",
 		"stopped_at": stoppedAt,
@@ -77,9 +76,7 @@ func (h *ServiceControlHandler) TicketingHealthCheck(c *gin.Context) {
 	sinceStart := time.Since(lastStartedAt)
 	mu.RUnlock()
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":    true,
-		"data": gin.H{
+	respondSuccess(c, gin.H{
 			"health": map[string]any{
 				"status":        map[string]bool{"running": running},
 				"uptime":        sinceStart.String(),
@@ -87,6 +84,5 @@ func (h *ServiceControlHandler) TicketingHealthCheck(c *gin.Context) {
 				"last_stopped":  lastStoppedAt,
 				"service_name":  "orion-ticket-svc",
 			},
-		},
-	})
+		},)
 }

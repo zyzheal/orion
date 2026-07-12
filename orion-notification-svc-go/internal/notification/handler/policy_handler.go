@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strings"
 
 	"orion/notification-svc-go/internal/notification/models"
@@ -55,23 +54,23 @@ func (h *PolicyHandler) CreatePolicy(c *gin.Context) {
 
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	// Sanitize: trim whitespace from name
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		respondBadRequest(c, "name is required")
 		return
 	}
 
 	policy, err := h.policySvc.CreatePolicy(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": policy})
+	respondCreated(c, policy)
 }
 
 // GetPolicy handles GET /policies/:id - get a single policy.
@@ -79,10 +78,10 @@ func (h *PolicyHandler) GetPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policy, err := h.policySvc.GetPolicy(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "policy not found"})
+		respondNotFound(c, "policy not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policy})
+	respondSuccess(c, policy)
 }
 
 // ListPolicies handles GET /policies - list all policies for a tenant.
@@ -90,10 +89,10 @@ func (h *PolicyHandler) ListPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policies, err := h.policySvc.ListPolicies(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policies})
+	respondSuccess(c, policies)
 }
 
 // UpdatePolicy handles PUT /policies/:id - update a policy.
@@ -102,20 +101,20 @@ func (h *PolicyHandler) UpdatePolicy(c *gin.Context) {
 
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	policy, err := h.policySvc.UpdatePolicy(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "policy not found"})
+			respondNotFound(c, "policy not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policy})
+	respondSuccess(c, policy)
 }
 
 // DeletePolicy handles DELETE /policies/:id - delete a policy.
@@ -123,13 +122,13 @@ func (h *PolicyHandler) DeletePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.policySvc.DeletePolicy(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrPolicyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "policy not found"})
+			respondNotFound(c, "policy not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // EvaluatePolicies handles POST /notification-policies/evaluate - evaluate an event against policies.
@@ -140,16 +139,16 @@ func (h *PolicyHandler) EvaluatePolicies(c *gin.Context) {
 		Event map[string]interface{} `json:"event" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	matched, err := h.policySvc.EvaluatePolicies(c.Request.Context(), tenantID, req.Event)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, matched)
+	respondSuccess(c, matched)
 }
 
 // ==================== Workflow Handlers ====================
@@ -161,20 +160,20 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	// Sanitize: trim whitespace from name
 	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		respondBadRequest(c, "name is required")
 		return
 	}
 
 	// Validate steps
 	if len(req.Steps) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one step is required"})
+		respondBadRequest(c, "at least one step is required")
 		return
 	}
 
@@ -191,23 +190,23 @@ func (h *PolicyHandler) CreateWorkflow(c *gin.Context) {
 	workflow, err := h.policySvc.CreateWorkflow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
 		if err == service.ErrPolicyNotFound {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "policy not found: " + req.PolicyID})
+			respondBadRequest(c, "policy not found: "+req.PolicyID)
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": workflow})
+	respondCreated(c, workflow)
 }
 
 // GetWorkflow handles GET /workflows/:id - get a single workflow.
 func (h *PolicyHandler) GetWorkflow(c *gin.Context) {
 	workflow, err := h.policySvc.GetWorkflow(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
+		respondNotFound(c, "workflow not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": workflow})
+	respondSuccess(c, workflow)
 }
 
 // ListWorkflows handles GET /workflows - list workflows, optionally filtered by policyId.
@@ -217,43 +216,43 @@ func (h *PolicyHandler) ListWorkflows(c *gin.Context) {
 
 	workflows, err := h.policySvc.ListWorkflows(c.Request.Context(), tenantID, policyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": workflows})
+	respondSuccess(c, workflows)
 }
 
 // UpdateWorkflow handles PUT /workflows/:id - update a workflow.
 func (h *PolicyHandler) UpdateWorkflow(c *gin.Context) {
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	workflow, err := h.policySvc.UpdateWorkflow(c.Request.Context(), c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrWorkflowNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
+			respondNotFound(c, "workflow not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": workflow})
+	respondSuccess(c, workflow)
 }
 
 // DeleteWorkflow handles DELETE /workflows/:id - delete a workflow.
 func (h *PolicyHandler) DeleteWorkflow(c *gin.Context) {
 	if err := h.policySvc.DeleteWorkflow(c.Request.Context(), c.Param("id")); err != nil {
 		if err == service.ErrWorkflowNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
+			respondNotFound(c, "workflow not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ==================== Helpers ====================

@@ -43,17 +43,17 @@ func (h *Handler) CreateTenant(c *gin.Context) {
 		DisplayName string `json:"display_name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 
 	t, err := h.tenantSvc.CreateTenant(c.Request.Context(), req.Name, req.DisplayName)
 	if err != nil {
 		h.log.Error("create tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, t)
+	respondCreated(c, t)
 }
 
 // ListTenants handles GET /api/v1/tenant
@@ -65,11 +65,11 @@ func (h *Handler) ListTenants(c *gin.Context) {
 	tenants, total, err := h.tenantSvc.ListTenants(c.Request.Context(), page, limit, status)
 	if err != nil {
 		h.log.Error("list tenants failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"data":  tenants,
 		"total": total,
 		"page":  page,
@@ -83,10 +83,10 @@ func (h *Handler) GetTenant(c *gin.Context) {
 	t, err := h.tenantSvc.GetTenant(c.Request.Context(), id)
 	if err != nil {
 		h.log.Error("get tenant failed", zap.Error(err))
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // UpdateTenant handles PUT /api/v1/tenant/:id
@@ -99,7 +99,7 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 		Status      *string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 
@@ -117,10 +117,10 @@ func (h *Handler) UpdateTenant(c *gin.Context) {
 	t, err := h.tenantSvc.UpdateTenant(c.Request.Context(), id, updates)
 	if err != nil {
 		h.log.Error("update tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, t)
+	respondSuccess(c, t)
 }
 
 // DeleteTenant handles DELETE /api/v1/tenant/:id
@@ -128,7 +128,7 @@ func (h *Handler) DeleteTenant(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.tenantSvc.DeleteTenant(c.Request.Context(), id); err != nil {
 		h.log.Error("delete tenant failed", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	c.Status(http.StatusOK)
@@ -139,21 +139,21 @@ func (h *Handler) GetQuota(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
 	quota, err := h.quotaSvc.GetQuota(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("get quota failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
 	// Include usage report
 	usage, _ := h.quotaSvc.GetUsageReport(c.Request.Context(), tenantID)
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"quota": quota,
 		"usage": usage,
 	})
@@ -164,7 +164,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		ApiRateLimitWindowSeconds *int64 `json:"api_rate_limit_window_seconds"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 
@@ -228,11 +228,11 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 
 	if err := h.quotaSvc.SetQuota(c.Request.Context(), quota); err != nil {
 		h.log.Error("update quota failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, quota)
+	respondSuccess(c, quota)
 }
 
 // GetNamespaces handles GET /api/v1/tenant/:id/namespaces
@@ -240,18 +240,18 @@ func (h *Handler) GetNamespaces(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
 	namespaces, err := h.repo.ListNamespacesByTenant(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("list namespaces failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, namespaces)
+	respondSuccess(c, namespaces)
 }
 
 // AllocateNamespace handles POST /api/v1/tenant/:id/namespaces/allocate
@@ -259,7 +259,7 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 	id := c.Param("id")
 	tenantID, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid tenant ID"})
+		respondBadRequest(c, "invalid tenant ID")
 		return
 	}
 
@@ -276,7 +276,7 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 
 	// Validate tenant access
 	if !h.isolationSvc.ValidateResourceAccess(tenantID, tenantID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "tenant access denied"})
+		respondForbidden(c, "tenant access denied")
 		return
 	}
 
@@ -284,38 +284,34 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 	currentCount, err := h.repo.CountNamespacesByTenant(ctx, tenantID)
 	if err != nil {
 		h.log.Error("count namespaces failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	maxPerTenant := 10
 	if currentCount >= maxPerTenant {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "tenant has reached maximum namespace allocation",
-			"current": currentCount,
-			"max":     maxPerTenant,
-		})
+		respondBadRequest(c, "tenant has reached maximum namespace allocation")
 		return
 	}
 
 	available, err := h.repo.FindAvailableNamespace(ctx)
 	if err != nil {
 		h.log.Error("find available namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if available == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no available namespaces in pool"})
+		respondBadRequest(c, "no available namespaces in pool")
 		return
 	}
 
 	allocated, err := h.repo.AllocateNamespace(ctx, available.ID, tenantID, req.Purpose, req.Labels)
 	if err != nil {
 		h.log.Error("allocate namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, allocated)
+	respondSuccess(c, allocated)
 }
 
 // ReleaseNamespace handles DELETE /api/v1/tenant/:id/namespaces/:namespace_name
@@ -325,31 +321,31 @@ func (h *Handler) ReleaseNamespace(c *gin.Context) {
 	ns, err := h.repo.FindNamespaceByName(c.Request.Context(), namespaceName)
 	if err != nil {
 		h.log.Error("find namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	if ns == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "namespace not found"})
+		respondNotFound(c, "namespace not found")
 		return
 	}
 
 	if ns.Status == "reserved" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot release reserved namespace"})
+		respondBadRequest(c, "cannot release reserved namespace")
 		return
 	}
 	if ns.Status == "available" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "namespace is already available"})
+		respondBadRequest(c, "namespace is already available")
 		return
 	}
 
 	released, err := h.repo.ReleaseNamespace(c.Request.Context(), ns.ID)
 	if err != nil {
 		h.log.Error("release namespace failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, released)
+	respondSuccess(c, released)
 }
 
 // GetPoolStatus handles GET /api/v1/tenant/pool/status
@@ -360,7 +356,7 @@ func (h *Handler) GetPoolStatus(c *gin.Context) {
 	allocated, _ := h.repo.CountNamespacesByStatus(ctx, "allocated")
 	reserved, _ := h.repo.CountNamespacesByStatus(ctx, "reserved")
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"total":     100,
 		"available": available,
 		"allocated": allocated,
@@ -382,21 +378,21 @@ func (h *Handler) GetTenantNamespacesList(c *gin.Context) {
 		err = h.repo.DB().SelectContext(ctx, &namespaces, "SELECT * FROM namespace_allocations")
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, namespaces)
+	respondSuccess(c, namespaces)
 }
 
 // GetRLSStatus handles GET /api/v1/tenant/rls/status/:table
 func (h *Handler) GetRLSStatus(c *gin.Context) {
 	table := c.Param("table")
-	c.JSON(http.StatusOK, gin.H{
-		"table_name":    table,
-		"rls_supported": true,
-		"session_var":   "app.current_tenant_id",
-	})
+	respondSuccess(c, gin.H{
+			"table_name":    table,
+			"rls_supported": true,
+			"session_var":   "app.current_tenant_id",
+		})
 }
 
 // SetTenantSessionVariable handles POST /api/v1/tenant/session/variable
@@ -405,18 +401,18 @@ func (h *Handler) SetTenantSessionVariable(c *gin.Context) {
 		TenantID int64 `json:"tenant_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		respondBadRequest(c, "tenant_id is required")
 		return
 	}
 
 	db := h.repo.DB().DB.DB
 	if err := h.repo.SetTenantSessionVariable(c.Request.Context(), db, req.TenantID); err != nil {
 		h.log.Error("set session variable failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	respondSuccess(c, gin.H{
 		"variable_name": "app.current_tenant_id",
 		"value":         req.TenantID,
 		"success":       true,

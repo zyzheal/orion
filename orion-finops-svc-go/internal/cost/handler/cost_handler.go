@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/finops-svc-go/internal/cost/models"
@@ -71,7 +70,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) RecordCost(c *gin.Context) {
 	var req models.RecordCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 	if req.Currency == "" {
@@ -82,10 +81,10 @@ func (h *Handler) RecordCost(c *gin.Context) {
 	}
 	if err := h.costSvc.RecordCost(c.Request.Context(), &req); err != nil {
 		h.log.Error("failed to record cost", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true})
+	respondCreated(c, gin.H{"success": true})
 }
 
 func (h *Handler) ListCosts(c *gin.Context) {
@@ -94,7 +93,7 @@ func (h *Handler) ListCosts(c *gin.Context) {
 		tenantID = c.Query("tenant_id")
 	}
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id required"})
+		respondBadRequest(c, "tenant_id required")
 		return
 	}
 
@@ -112,10 +111,10 @@ func (h *Handler) ListCosts(c *gin.Context) {
 	costs, err := h.costSvc.ListCosts(c.Request.Context(), tenantID, filter, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list costs", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": costs})
+	respondSuccess(c, costs)
 }
 
 func (h *Handler) GetTotalCost(c *gin.Context) {
@@ -128,10 +127,10 @@ func (h *Handler) GetTotalCost(c *gin.Context) {
 	total, err := h.costSvc.GetTotalCost(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get total cost", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"total_cost": total})
+	respondSuccess(c, gin.H{"total_cost": total})
 }
 
 func (h *Handler) GetCostByService(c *gin.Context) {
@@ -146,10 +145,10 @@ func (h *Handler) GetCostByService(c *gin.Context) {
 	aggs, err := h.costSvc.GetCostByService(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost by service", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"service": serviceName, "data": aggs})
+	respondSuccess(c, gin.H{"service": serviceName, "data": aggs})
 }
 
 func (h *Handler) GetCostByResource(c *gin.Context) {
@@ -162,10 +161,10 @@ func (h *Handler) GetCostByResource(c *gin.Context) {
 	aggs, err := h.costSvc.GetCostByResource(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost by resource", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": aggs})
+	respondSuccess(c, aggs)
 }
 
 func (h *Handler) GetCostTrend(c *gin.Context) {
@@ -178,10 +177,10 @@ func (h *Handler) GetCostTrend(c *gin.Context) {
 	trend, err := h.costSvc.GetCostTrend(c.Request.Context(), tenantID, startDate, endDate)
 	if err != nil {
 		h.log.Error("failed to get cost trend", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": trend})
+	respondSuccess(c, trend)
 }
 
 func (h *Handler) DeleteCostRecord(c *gin.Context) {
@@ -191,11 +190,11 @@ func (h *Handler) DeleteCostRecord(c *gin.Context) {
 	}
 	_, err := h.costSvc.ListCosts(c.Request.Context(), tenantID, &models.ListCostsRequest{}, 0, 1)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
 	// Note: CostService doesn't have a Delete method; skip implementation
-	c.JSON(http.StatusOK, gin.H{"message": "delete not supported for cost records"})
+	respondSuccess(c, gin.H{"message": "delete not supported for cost records"})
 }
 
 // ==================== Budgets ====================
@@ -207,16 +206,16 @@ func (h *Handler) CreateBudget(c *gin.Context) {
 	}
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 	budget, err := h.budgetSvc.CreateBudget(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		h.log.Error("failed to create budget", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusCreated, budget)
+	respondCreated(c, budget)
 }
 
 func (h *Handler) ListBudgets(c *gin.Context) {
@@ -229,10 +228,10 @@ func (h *Handler) ListBudgets(c *gin.Context) {
 	budgets, err := h.budgetSvc.ListBudgets(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
 		h.log.Error("failed to list budgets", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": budgets})
+	respondSuccess(c, budgets)
 }
 
 func (h *Handler) GetBudget(c *gin.Context) {
@@ -242,10 +241,10 @@ func (h *Handler) GetBudget(c *gin.Context) {
 	}
 	budget, err := h.budgetSvc.GetBudget(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "budget not found"})
+		respondNotFound(c, "budget not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": budget})
+	respondSuccess(c, budget)
 }
 
 func (h *Handler) UpdateBudget(c *gin.Context) {
@@ -255,15 +254,15 @@ func (h *Handler) UpdateBudget(c *gin.Context) {
 	}
 	var req models.UpdateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 	budget, err := h.budgetSvc.UpdateBudget(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "budget not found"})
+		respondNotFound(c, "budget not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": budget})
+	respondSuccess(c, budget)
 }
 
 func (h *Handler) DeleteBudget(c *gin.Context) {
@@ -273,7 +272,7 @@ func (h *Handler) DeleteBudget(c *gin.Context) {
 		tenantID = c.Query("tenant_id")
 	}
 	// Note: UpdateBudgetRequest doesn't have a Status field; use a workaround
-	c.JSON(http.StatusOK, gin.H{"message": "budget deleted"})
+	respondSuccess(c, gin.H{"message": "budget deleted"})
 }
 
 func (h *Handler) GetBudgetHealth(c *gin.Context) {
@@ -283,10 +282,10 @@ func (h *Handler) GetBudgetHealth(c *gin.Context) {
 	}
 	health, err := h.budgetSvc.CheckBudgetHealth(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "budget not found"})
+		respondNotFound(c, "budget not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": health})
+	respondSuccess(c, health)
 }
 
 func (h *Handler) GetBudgetAlerts(c *gin.Context) {
@@ -297,10 +296,10 @@ func (h *Handler) GetBudgetAlerts(c *gin.Context) {
 	alerts, err := h.budgetSvc.GetBudgetAlerts(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("failed to get budget alerts", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": alerts})
+	respondSuccess(c, alerts)
 }
 
 // ==================== Optimization ====================
@@ -320,10 +319,10 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 	suggestions, err := h.optSvc.ListSuggestions(c.Request.Context(), tenantID, params)
 	if err != nil {
 		h.log.Error("failed to list optimizations", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": suggestions})
+	respondSuccess(c, suggestions)
 }
 
 // ==================== Anomalies ====================
@@ -335,11 +334,11 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	}
 	var req models.DetectAnomaliesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body: " + err.Error()})
+		respondBadRequest(c, "invalid request body: " + err.Error())
 		return
 	}
 	result := h.anomalySvc.DetectAnomalies(c.Request.Context(), tenantID, req.StartDate, req.EndDate)
-	c.JSON(http.StatusOK, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) GetAnomalies(c *gin.Context) {
@@ -353,10 +352,10 @@ func (h *Handler) GetAnomalies(c *gin.Context) {
 	anomalies, err := h.anomalySvc.GetAnomalies(c.Request.Context(), tenantID, severity, offset, limit)
 	if err != nil {
 		h.log.Error("failed to get anomalies", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": anomalies})
+	respondSuccess(c, anomalies)
 }
 
 func (h *Handler) GetRecentAnomalies(c *gin.Context) {
@@ -367,8 +366,8 @@ func (h *Handler) GetRecentAnomalies(c *gin.Context) {
 	anomalies, err := h.anomalySvc.GetRecentAnomalies(c.Request.Context(), tenantID)
 	if err != nil {
 		h.log.Error("failed to get recent anomalies", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondInternalError(c, "internal error")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": anomalies})
+	respondSuccess(c, anomalies)
 }

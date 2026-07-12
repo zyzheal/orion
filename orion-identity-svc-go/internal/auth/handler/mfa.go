@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -32,7 +31,7 @@ func (h *MFAHandler) Setup(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := auth.GetUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
@@ -40,18 +39,18 @@ func (h *MFAHandler) Setup(c *gin.Context) {
 	existing, err := h.repo.FindMfaByUserID(ctx, userID)
 	if err != nil {
 		h.log.Error("mfa setup lookup failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if existing != nil && existing.Enabled {
-		c.JSON(http.StatusBadRequest, gin.H{"error": mfa.ErrMfaAlreadyEnabled.Error()})
+		h.respondBadRequest(c, mfa.ErrMfaAlreadyEnabled.Error())
 		return
 	}
 
 	secret, err := mfa.GenerateTotpSecret()
 	if err != nil {
 		h.log.Error("failed to generate TOTP secret", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -79,7 +78,7 @@ func (h *MFAHandler) Setup(c *gin.Context) {
 
 	if err := h.repo.UpsertMfaConfig(ctx, mfaConfig); err != nil {
 		h.log.Error("failed to upsert MFA config", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
@@ -89,7 +88,7 @@ func (h *MFAHandler) Setup(c *gin.Context) {
 		BackupCodes: backupCodes,
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"setup": result,
 		"note":  "Verify with a TOTP code before MFA is activated",
 	})
@@ -100,7 +99,7 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := auth.GetUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
@@ -108,18 +107,18 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 		Code string `json:"code" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	mfaConfig, err := h.repo.FindMfaByUserID(ctx, userID)
 	if err != nil {
 		h.log.Error("mfa verify lookup failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 	if mfaConfig == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": mfa.ErrMfaNotEnabled.Error()})
+		h.respondBadRequest(c, mfa.ErrMfaNotEnabled.Error())
 		return
 	}
 
@@ -136,11 +135,11 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 		mfaConfig.UpdatedAt = now
 		if err := h.repo.UpsertMfaConfig(ctx, mfaConfig); err != nil {
 			h.log.Error("failed to enable MFA", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			h.respondInternalError(c, "internal error")
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		h.respondSuccess(c, gin.H{
             "success":         true,
             "message":         "MFA verified and enabled",
             "remaining_codes": 10,
@@ -148,7 +147,7 @@ func (h *MFAHandler) Verify(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusUnauthorized, gin.H{"error": mfa.ErrInvalidCredentials.Error()})
+	h.respondForbidden(c, mfa.ErrInvalidCredentials.Error())
 }
 
 // Disable handles DELETE /mfa.
@@ -156,7 +155,7 @@ func (h *MFAHandler) Disable(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := auth.GetUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
@@ -167,22 +166,22 @@ func (h *MFAHandler) Disable(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err == nil && req.Code != "" {
 		mfaConfig, err := h.repo.FindMfaByUserID(ctx, userID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			h.respondInternalError(c, "internal error")
 			return
 		}
 		if mfaConfig == nil || !mfa.VerifyTOTPCode(mfaConfig.Secret, req.Code, mfa.TotpWindow) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid MFA code"})
+			h.respondForbidden(c, "invalid MFA code")
 			return
 		}
 	}
 
 	if err := h.repo.DisableMfa(ctx, userID); err != nil {
 		h.log.Error("failed to disable MFA", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "MFA disabled"})
+	h.respondSuccess(c, gin.H{"message": "MFA disabled"})
 }
 
 // Status handles GET /mfa/status.
@@ -190,26 +189,26 @@ func (h *MFAHandler) Status(c *gin.Context) {
 	ctx := c.Request.Context()
 	userID := auth.GetUserID(c)
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		h.respondForbidden(c, "not authenticated")
 		return
 	}
 
 	mfaConfig, err := h.repo.FindMfaByUserID(ctx, userID)
 	if err != nil {
 		h.log.Error("mfa status lookup failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
 	if mfaConfig == nil || !mfaConfig.Enabled {
-		c.JSON(http.StatusOK, gin.H{
+		h.respondSuccess(c, gin.H{
             "enabled": false,
             "type":    nil,
         })
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"enabled": mfaConfig.Enabled,
 		"type":    mfaConfig.Type,
 	})

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/finops-svc-go/internal/finops/models"
@@ -45,48 +44,48 @@ func (h *Handler) RecordCloudCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordCloudCost(c.Request.Context(), tenantID, &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "cost recorded"})
+	respondCreated(c, gin.H{"message": "cost recorded"})
 }
 
 func (h *Handler) RecordK8sCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var cost models.K8sCost
 	if err := c.ShouldBindJSON(&cost); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordK8sCost(c.Request.Context(), tenantID, &cost); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "k8s cost recorded"})
+	respondCreated(c, gin.H{"message": "k8s cost recorded"})
 }
 
 func (h *Handler) RecordSaaSCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var cost models.SaaSCost
 	if err := c.ShouldBindJSON(&cost); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordSaaSCost(c.Request.Context(), tenantID, &cost); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "saas cost recorded"})
+	respondCreated(c, gin.H{"message": "saas cost recorded"})
 }
 
 func (h *Handler) GetCostSummary(c *gin.Context) {
@@ -96,28 +95,28 @@ func (h *Handler) GetCostSummary(c *gin.Context) {
 
 	summary, err := h.svc.GetCostSummary(c.Request.Context(), tenantID, periodStart, periodEnd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, summary)
+	respondSuccess(c, summary)
 }
 
 func (h *Handler) CreateBudgetAlert(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	alert, err := h.svc.CreateBudgetAlert(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, alert)
+	respondCreated(c, alert)
 }
 
 func (h *Handler) ListBudgetAlerts(c *gin.Context) {
@@ -133,11 +132,11 @@ func (h *Handler) ListBudgetAlerts(c *gin.Context) {
 
 	alerts, err := h.svc.ListBudgetAlerts(c.Request.Context(), tenantID, (page-1)*pageSize, pageSize)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": alerts})
+	respondSuccess(c, alerts)
 }
 
 func (h *Handler) UpdateBudgetAlert(c *gin.Context) {
@@ -146,34 +145,34 @@ func (h *Handler) UpdateBudgetAlert(c *gin.Context) {
 
 	var req models.CreateBudgetAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	alert, err := h.svc.UpdateBudgetAlert(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, alert)
+	respondSuccess(c, alert)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -38,7 +37,7 @@ func (h *AnalysisHandler) RecordCost(c *gin.Context) {
 		Timestamp   string            `json:"timestamp"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -61,11 +60,11 @@ func (h *AnalysisHandler) RecordCost(c *gin.Context) {
 		req.Environment, tagsStr, req.Currency, ts,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": id})
+	respondCreated(c, gin.H{"id": id})
 }
 
 // GetCostByEntity returns cost summary for an entity.
@@ -80,11 +79,11 @@ func (h *AnalysisHandler) GetCostByEntity(c *gin.Context) {
 
 	summary, err := h.svc.GetEntityCostSummary(c.Request.Context(), entityType, entityID, ps, pe)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, summary)
+	respondSuccess(c, summary)
 }
 
 // GetCostTrendForEntity returns cost trend for an entity.
@@ -99,11 +98,11 @@ func (h *AnalysisHandler) GetCostTrendForEntity(c *gin.Context) {
 
 	trend, err := h.svc.GetCostTrendForEntity(c.Request.Context(), entityType, entityID, ps, pe)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, trend)
+	respondSuccess(c, trend)
 }
 
 // ListCostRecords returns all cost records.
@@ -119,11 +118,11 @@ func (h *AnalysisHandler) ListCostRecords(c *gin.Context) {
 
 	records, err := h.svc.GetAllCostRecords(c.Request.Context(), entityType, entityID, category, ps, pe)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": records})
+	respondSuccess(c, records)
 }
 
 // ==================== Reports ====================
@@ -138,17 +137,17 @@ func (h *AnalysisHandler) GenerateReport(c *gin.Context) {
 		Breakdown map[string]float64 `json:"breakdown"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, req.Period, req.TotalCost, req.Breakdown)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, report)
+	respondCreated(c, report)
 }
 
 // ListReports returns report history.
@@ -158,11 +157,11 @@ func (h *AnalysisHandler) ListReports(c *gin.Context) {
 
 	reports, err := h.svc.GetReports(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": reports})
+	respondSuccess(c, reports)
 }
 
 // ==================== ROI ====================
@@ -177,7 +176,7 @@ func (h *AnalysisHandler) CreateROI(c *gin.Context) {
 		Description    string  `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -200,11 +199,11 @@ func (h *AnalysisHandler) CreateROI(c *gin.Context) {
 		Description:    req.Description,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, analysis)
+	respondCreated(c, analysis)
 }
 
 // ListROI returns ROI analysis history.
@@ -214,22 +213,22 @@ func (h *AnalysisHandler) ListROI(c *gin.Context) {
 
 	history, err := h.svc.GetROIHistory(c.Request.Context(), investmentType, minROI)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": history})
+	respondSuccess(c, history)
 }
 
 // GetROISummary returns ROI summary statistics.
 func (h *AnalysisHandler) GetROISummary(c *gin.Context) {
 	summary, err := h.svc.GetROISummary(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, summary)
+	respondSuccess(c, summary)
 }
 
 // ==================== Cost Comparisons ====================
@@ -244,7 +243,7 @@ func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
 		Period         string  `json:"period"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -263,22 +262,22 @@ func (h *AnalysisHandler) CreateCostComparison(c *gin.Context) {
 		Period:         req.Period,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, comparison)
+	respondCreated(c, comparison)
 }
 
 // ListCostComparisons returns all cost comparisons.
 func (h *AnalysisHandler) ListCostComparisons(c *gin.Context) {
 	comparisons, err := h.svc.GetCostComparisons(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": comparisons})
+	respondSuccess(c, comparisons)
 }
 
 // ==================== Chargeback ====================
@@ -294,11 +293,11 @@ func (h *AnalysisHandler) GenerateChargebackReport(c *gin.Context) {
 
 	report, err := h.svc.GenerateChargebackReport(c.Request.Context(), tenantID, ps, pe)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, report)
+	respondSuccess(c, report)
 }
 
 // ==================== Cost Breakdown ====================
@@ -315,11 +314,11 @@ func (h *AnalysisHandler) GetCostBreakdown(c *gin.Context) {
 
 	breakdown, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, dimension, ps, pe)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": breakdown})
+	respondSuccess(c, breakdown)
 }
 
 // ==================== Legacy Budget Alerts ====================
@@ -336,7 +335,7 @@ func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
 		Period           string  `json:"period"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if req.ThresholdPercent == 0 {
@@ -351,11 +350,11 @@ func (h *AnalysisHandler) CreateLegacyBudgetAlert(c *gin.Context) {
 		Period:           req.Period,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "budget alert created"})
+	respondCreated(c, gin.H{"message": "budget alert created"})
 }
 
 // ListLegacyBudgetAlerts returns legacy budget alerts.
@@ -365,11 +364,11 @@ func (h *AnalysisHandler) ListLegacyBudgetAlerts(c *gin.Context) {
 
 	alerts, err := h.svc.GetLegacyBudgetAlerts(c.Request.Context(), tenantID, environment)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": alerts})
+	respondSuccess(c, alerts)
 }
 
 // DeleteLegacyBudgetAlert deletes a legacy budget alert.
@@ -377,11 +376,11 @@ func (h *AnalysisHandler) DeleteLegacyBudgetAlert(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.DeleteLegacyBudgetAlert(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "alert not found"})
+		respondNotFound(c, "alert not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // RegisterRoutes registers analysis routes on the given router group.

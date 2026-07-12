@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/ci-cd-svc-go/internal/pipeline/models"
@@ -23,27 +22,27 @@ func (h *TemplateHandler) Create(c *gin.Context) {
 
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	tmpl, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, tmpl)
+	respondCreated(c, tmpl)
 }
 
 func (h *TemplateHandler) GetByID(c *gin.Context) {
 	tmpl, err := h.svc.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "template not found"})
+		respondNotFound(c, "template not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, tmpl)
+	respondSuccess(c, tmpl)
 }
 
 func (h *TemplateHandler) List(c *gin.Context) {
@@ -61,22 +60,22 @@ func (h *TemplateHandler) List(c *gin.Context) {
 
 	templates, total, err := h.svc.List(c.Request.Context(), tenantID, category, offset, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": templates, "total": total})
+	respondSuccess(c, gin.H{"data": templates, "total": total})
 }
 
 func (h *TemplateHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *TemplateHandler) RegisterRoutes(rg *gin.RouterGroup) {

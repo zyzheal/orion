@@ -23,7 +23,7 @@ func (h *RelationHandler) AddRelation(c *gin.Context) {
 
 	var req models.CreateRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -35,7 +35,7 @@ func (h *RelationHandler) AddRelation(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": rel})
+	respondCreated(c, rel)
 }
 
 // GetRelations GET /api/v1/tickets/:id/relations
@@ -45,7 +45,7 @@ func (h *RelationHandler) GetRelations(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": relations, "count": len(relations)})
+	respondSuccess(c, gin.H{"relations": relations, "count": len(relations)})
 }
 
 // FindRelatedTickets GET /api/v1/tickets/:id/related
@@ -58,7 +58,7 @@ func (h *RelationHandler) FindRelatedTickets(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": related, "count": len(related)})
+	respondSuccess(c, gin.H{"related": related, "count": len(related)})
 }
 
 // DetectDuplicates GET /api/v1/tickets/:id/duplicates
@@ -70,7 +70,7 @@ func (h *RelationHandler) DetectDuplicates(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": duplicates, "count": len(duplicates)})
+	respondSuccess(c, gin.H{"duplicates": duplicates, "count": len(duplicates)})
 }
 
 // CorrelateRootCause POST /api/v1/tickets/correlate
@@ -79,7 +79,7 @@ func (h *RelationHandler) CorrelateRootCause(c *gin.Context) {
 		TicketIDs []string `json:"ticket_ids" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
@@ -88,5 +88,5 @@ func (h *RelationHandler) CorrelateRootCause(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": correlation})
+	respondSuccess(c, correlation)
 }

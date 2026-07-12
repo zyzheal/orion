@@ -24,55 +24,55 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWorkflowRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
+	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
 	w, err := h.svc.CreateWorkflow(c.Request.Context(), tenantID, &req)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusCreated, w)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondCreated(c, w)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListWorkflows(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	w, err := h.svc.GetWorkflowByID(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, w)
+	if err != nil { respondNotFound(c, err.Error()); return }
+	respondSuccess(c, w)
 }
 
 func (h *Handler) StartRun(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	run, err := h.svc.StartRun(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusCreated, run)
+	if err != nil { respondNotFound(c, err.Error()); return }
+	respondCreated(c, run)
 }
 
 func (h *Handler) GetRun(c *gin.Context) {
 	run, err := h.svc.GetRun(c.Request.Context(), c.Param("id"))
-	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, run)
+	if err != nil { respondNotFound(c, err.Error()); return }
+	respondSuccess(c, run)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.DeleteWorkflow(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.CountWorkflows(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
+	respondSuccess(c, gin.H{"count": count})
 }

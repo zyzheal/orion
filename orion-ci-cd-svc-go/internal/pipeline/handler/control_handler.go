@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"orion/go-common/pkg/errors"
 	"net/http"
 
 	"orion/ci-cd-svc-go/internal/pipeline/service"
@@ -46,11 +47,11 @@ func (h *ControlHandler) PauseRun(c *gin.Context) {
 		if err.Error() == "run is not in a pauseable state" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "paused"})
+	respondSuccess(c, gin.H{"message": "paused"})
 }
 
 func (h *ControlHandler) ResumeRun(c *gin.Context) {
@@ -64,11 +65,11 @@ func (h *ControlHandler) ResumeRun(c *gin.Context) {
 		if err.Error() == "run is not in a resumable state" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "resumed"})
+	respondSuccess(c, gin.H{"message": "resumed"})
 }
 
 func (h *ControlHandler) AbortRun(c *gin.Context) {
@@ -82,11 +83,11 @@ func (h *ControlHandler) AbortRun(c *gin.Context) {
 		if err.Error() == "run is not in an aborteable state" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "aborted"})
+	respondSuccess(c, gin.H{"message": "aborted"})
 }
 
 func (h *ControlHandler) RetryRun(c *gin.Context) {
@@ -101,11 +102,11 @@ func (h *ControlHandler) RetryRun(c *gin.Context) {
 		if err == service.ErrRunNotFound || err == service.ErrPipelineNotFound {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "retry initiated", "run": run})
+	respondSuccess(c, gin.H{"message": "retry initiated", "run": run})
 }
 
 func (h *ControlHandler) RestartRun(c *gin.Context) {
@@ -120,11 +121,11 @@ func (h *ControlHandler) RestartRun(c *gin.Context) {
 		if err == service.ErrRunNotFound || err == service.ErrPipelineNotFound {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), status)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "restart initiated", "run": run})
+	respondSuccess(c, gin.H{"message": "restart initiated", "run": run})
 }
 
 func (h *ControlHandler) ListCheckpoints(c *gin.Context) {
@@ -132,11 +133,11 @@ func (h *ControlHandler) ListCheckpoints(c *gin.Context) {
 
 	checkpoints, err := h.svc.ListCheckpoints(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": checkpoints})
+	respondSuccess(c, checkpoints)
 }
 
 func (h *ControlHandler) ListControlLogs(c *gin.Context) {
@@ -144,9 +145,9 @@ func (h *ControlHandler) ListControlLogs(c *gin.Context) {
 
 	logs, err := h.svc.ListControlLogs(c.Request.Context(), runID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": logs})
+	respondSuccess(c, logs)
 }

@@ -54,11 +54,11 @@ type Response struct {
 }
 
 func (h *Handler) success(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: data})
+	respondSuccess(c, data)
 }
 
 func (h *Handler) err(c *gin.Context, code int, message string) {
-	c.JSON(code, Response{Code: code, Message: message})
+	respondInternalError(c, message)
 }
 
 // ── Incident CRUD ───────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ func (h *Handler) CreateIncident(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 0, Message: "success", Data: incident})
+	respondCreated(c, incident)
 }
 
 // ListIncidents handles GET /api/v1/incidents
@@ -108,7 +108,7 @@ func (h *Handler) ListIncidents(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, Response{Code: 0, Message: "success", Data: incidents})
+	respondSuccess(c, incidents)
 }
 
 // GetIncident handles GET /api/v1/incidents/:id
@@ -356,7 +356,7 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 0, Message: "success", Data: event})
+	respondCreated(c, event)
 }
 
 // GetTimeline handles GET /api/v1/incidents/:id/timeline
@@ -405,7 +405,7 @@ func (h *Handler) CreatePostmortem(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, Response{Code: 0, Message: "success", Data: record})
+	respondCreated(c, record)
 }
 
 // GetPostmortem handles GET /api/v1/incidents/:id/postmortem

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/config-mgmt-svc-go/internal/config/models"
 	"orion/config-mgmt-svc-go/internal/config/service"
 
@@ -21,15 +19,15 @@ func (h *FeatureFlagHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFeatureFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	flag, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, flag)
+	respondCreated(c, flag)
 }
 
 func (h *FeatureFlagHandler) Get(c *gin.Context) {
@@ -37,10 +35,10 @@ func (h *FeatureFlagHandler) Get(c *gin.Context) {
 	env := c.Query("environment")
 	flag, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("key"), env)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "feature flag not found"})
+		respondNotFound(c, "feature flag not found")
 		return
 	}
-	c.JSON(http.StatusOK, flag)
+	respondSuccess(c, flag)
 }
 
 func (h *FeatureFlagHandler) List(c *gin.Context) {
@@ -48,10 +46,10 @@ func (h *FeatureFlagHandler) List(c *gin.Context) {
 	env := c.Query("environment")
 	flags, err := h.svc.List(c.Request.Context(), tenantID, env)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": flags})
+	respondSuccess(c, gin.H{"data": flags})
 }
 
 func (h *FeatureFlagHandler) Update(c *gin.Context) {
@@ -59,40 +57,40 @@ func (h *FeatureFlagHandler) Update(c *gin.Context) {
 	env := c.Query("environment")
 	var req models.UpdateFeatureFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	flag, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("key"), env, req)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, flag)
+	respondSuccess(c, flag)
 }
 
 func (h *FeatureFlagHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	env := c.Query("environment")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("key"), env); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *FeatureFlagHandler) Evaluate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluateFlag(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	respondSuccess(c, result)
 }
 
 func (h *FeatureFlagHandler) RegisterRoutes(rg *gin.RouterGroup) {

@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/finops-svc-go/internal/finops/models"
 	"orion/finops-svc-go/internal/finops/service"
 
@@ -22,17 +20,17 @@ func (h *OptimizationHandler) Analyze(c *gin.Context) {
 
 	var req models.AnalyzeOptimizationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	opts, err := h.svc.AnalyzeUtilization(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": opts, "count": len(opts)})
+	respondSuccess(c, gin.H{"opts": opts, "count": len(opts)})
 }
 
 func (h *OptimizationHandler) List(c *gin.Context) {
@@ -42,11 +40,11 @@ func (h *OptimizationHandler) List(c *gin.Context) {
 
 	opts, err := h.svc.ListOptimizations(c.Request.Context(), tenantID, category, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": opts})
+	respondSuccess(c, opts)
 }
 
 func (h *OptimizationHandler) UpdateStatus(c *gin.Context) {
@@ -57,27 +55,27 @@ func (h *OptimizationHandler) UpdateStatus(c *gin.Context) {
 		Status models.OptimizationStatus `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	if err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 func (h *OptimizationHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *OptimizationHandler) GetSavings(c *gin.Context) {
@@ -87,11 +85,11 @@ func (h *OptimizationHandler) GetSavings(c *gin.Context) {
 
 	savings, err := h.svc.GetSavingsEstimate(c.Request.Context(), tenantID, category, status)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, savings)
+	respondSuccess(c, savings)
 }
 
 func (h *OptimizationHandler) GetRightSizing(c *gin.Context) {
@@ -99,11 +97,11 @@ func (h *OptimizationHandler) GetRightSizing(c *gin.Context) {
 
 	recs, err := h.svc.GenerateRightSizingRecommendations(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": recs, "count": len(recs)})
+	respondSuccess(c, gin.H{"recommendations": recs, "count": len(recs)})
 }
 
 func (h *OptimizationHandler) GetUnusedResources(c *gin.Context) {
@@ -111,11 +109,11 @@ func (h *OptimizationHandler) GetUnusedResources(c *gin.Context) {
 
 	resources, err := h.svc.GetUnusedResources(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": resources, "count": len(resources)})
+	respondSuccess(c, gin.H{"resources": resources, "count": len(resources)})
 }
 
 func (h *OptimizationHandler) RegisterRoutes(rg *gin.RouterGroup) {

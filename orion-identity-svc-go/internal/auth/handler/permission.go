@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/identity-svc-go/internal/auth/permission"
 
 	"github.com/gin-gonic/gin"
@@ -25,21 +23,19 @@ func (h *PermissionHandler) ListPermissions(c *gin.Context) {
 	resource := c.DefaultQuery("resource", "")
 
 	if tenantID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tenant_id is required"})
+		h.respondBadRequest(c, "tenant_id is required")
 		return
 	}
 
 	perms, err := h.svc.List(c.Request.Context(), tenantID, resource)
 	if err != nil {
 		h.log.Error("failed to list permissions", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"permissions": perms,
-		"total": len(perms),
-	})
+	h.respondSuccess(c, gin.H{"permissions": perms,
+		"total": len(perms),})
 }
 
 // GetPermission handles GET /permissions/:id.
@@ -47,15 +43,15 @@ func (h *PermissionHandler) GetPermission(c *gin.Context) {
 	id := c.Param("id")
 	p, err := h.svc.Get(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		h.respondNotFound(c, err.Error())
 		return
 	}
 	if p == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "permission not found"})
+		h.respondNotFound(c, "permission not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, p)
+	h.respondSuccess(c, p)
 }
 
 // CreatePermission handles POST /permissions.
@@ -67,22 +63,22 @@ func (h *PermissionHandler) CreatePermission(c *gin.Context) {
 		Description string `json:"description"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	p, err := h.svc.Create(c.Request.Context(), req.TenantID, req.Resource, req.Action, req.Description)
 	if err != nil {
 		if pe, ok := err.(*permission.PermissionError); ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": pe.Error()})
+			h.respondBadRequest(c, pe.Error())
 			return
 		}
 		h.log.Error("failed to create permission", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusCreated, p)
+	h.respondCreated(c, p)
 }
 
 // UpdatePermission handles PUT /permissions/:id.
@@ -93,28 +89,28 @@ func (h *PermissionHandler) UpdatePermission(c *gin.Context) {
 		Enabled     *bool  `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	p, err := h.svc.Update(c.Request.Context(), id, req.Description, req.Enabled)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		h.respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, p)
+	h.respondSuccess(c, p)
 }
 
 // DeletePermission handles DELETE /permissions/:id.
 func (h *PermissionHandler) DeletePermission(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), id); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		h.respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "permission deleted"})
+	h.respondSuccess(c, gin.H{"message": "permission deleted"})
 }
 
 // AssignPermissionToUser handles POST /users/:userId/permissions.
@@ -127,7 +123,7 @@ func (h *PermissionHandler) AssignPermissionToUser(c *gin.Context) {
 		GrantedBy    string `json:"granted_by"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 	if req.GrantedBy == "" {
@@ -136,15 +132,13 @@ func (h *PermissionHandler) AssignPermissionToUser(c *gin.Context) {
 
 	if err := h.svc.AssignPermission(c.Request.Context(), req.TenantID, userID, req.RoleID, req.PermissionID, req.GrantedBy); err != nil {
 		h.log.Error("failed to assign permission", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":   "permission assigned",
+	h.respondSuccess(c, gin.H{"message": "permission assigned",
 		"user_id":   userID,
-		"permission_id": req.PermissionID,
-	})
+		"permission_id": req.PermissionID,})
 }
 
 // CheckPermission handles POST /permissions/check.
@@ -156,18 +150,18 @@ func (h *PermissionHandler) CheckPermission(c *gin.Context) {
 		Action   string `json:"action" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		h.respondBadRequest(c, err.Error())
 		return
 	}
 
 	granted, err := h.svc.CheckPermission(c.Request.Context(), req.TenantID, req.UserID, req.Resource, req.Action)
 	if err != nil {
 		h.log.Error("failed to check permission", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		h.respondInternalError(c, "internal error")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	h.respondSuccess(c, gin.H{
 		"granted":  granted,
 		"resource": req.Resource,
 		"action":   req.Action,

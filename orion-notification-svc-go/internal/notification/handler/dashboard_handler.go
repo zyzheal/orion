@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"orion/notification-svc-go/internal/notification/models"
 	"orion/notification-svc-go/internal/notification/service"
 
@@ -50,10 +48,10 @@ func (h *DashboardHandler) Overview(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	overview, err := h.dashboardSvc.GetOverview(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": overview})
+	respondSuccess(c, overview)
 }
 
 // List handles GET /dashboard - list all dashboards for a tenant.
@@ -61,10 +59,10 @@ func (h *DashboardHandler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dashboards, err := h.dashboardSvc.ListDashboards(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": dashboards})
+	respondSuccess(c, dashboards)
 }
 
 // Create handles POST /dashboard - create a new dashboard.
@@ -72,14 +70,14 @@ func (h *DashboardHandler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var d models.Dashboard
 	if err := c.ShouldBindJSON(&d); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.dashboardSvc.CreateDashboard(c.Request.Context(), tenantID, &d); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": d})
+	respondCreated(c, d)
 }
 
 // Get handles GET /dashboard/:id - get a single dashboard.
@@ -88,13 +86,13 @@ func (h *DashboardHandler) Get(c *gin.Context) {
 	d, err := h.dashboardSvc.GetDashboard(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "dashboard not found"})
+			respondNotFound(c, "dashboard not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": d})
+	respondSuccess(c, d)
 }
 
 // Update handles PUT /dashboard/:id - update a dashboard.
@@ -102,18 +100,18 @@ func (h *DashboardHandler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var d models.Dashboard
 	if err := c.ShouldBindJSON(&d); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.dashboardSvc.UpdateDashboard(c.Request.Context(), tenantID, c.Param("id"), &d); err != nil {
 		if err == service.ErrDashboardNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "dashboard not found"})
+			respondNotFound(c, "dashboard not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 // Delete handles DELETE /dashboard/:id - delete a dashboard.
@@ -121,13 +119,13 @@ func (h *DashboardHandler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.dashboardSvc.DeleteDashboard(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrDashboardNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "dashboard not found"})
+			respondNotFound(c, "dashboard not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // ListWidgets handles GET /dashboard/:dashboard_id/widgets - list widgets.
@@ -136,13 +134,13 @@ func (h *DashboardHandler) ListWidgets(c *gin.Context) {
 	widgets, err := h.dashboardSvc.ListWidgets(c.Request.Context(), tenantID, c.Param("dashboard_id"))
 	if err != nil {
 		if err == service.ErrDashboardNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "dashboard not found"})
+			respondNotFound(c, "dashboard not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": widgets})
+	respondSuccess(c, widgets)
 }
 
 // CreateWidget handles POST /dashboard/:dashboard_id/widgets - create a widget.
@@ -150,18 +148,18 @@ func (h *DashboardHandler) CreateWidget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var w models.DashboardWidget
 	if err := c.ShouldBindJSON(&w); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.dashboardSvc.CreateWidget(c.Request.Context(), tenantID, c.Param("dashboard_id"), &w); err != nil {
 		if err == service.ErrDashboardNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "dashboard not found"})
+			respondNotFound(c, "dashboard not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": w})
+	respondCreated(c, w)
 }
 
 // GetWidget handles GET /dashboard/:dashboard_id/widgets/:id - get a widget.
@@ -170,13 +168,13 @@ func (h *DashboardHandler) GetWidget(c *gin.Context) {
 	w, err := h.dashboardSvc.GetWidget(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrWidgetNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "widget not found"})
+			respondNotFound(c, "widget not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": w})
+	respondSuccess(c, w)
 }
 
 // UpdateWidget handles PUT /dashboard/:dashboard_id/widgets/:id - update a widget.
@@ -184,18 +182,18 @@ func (h *DashboardHandler) UpdateWidget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var w models.DashboardWidget
 	if err := c.ShouldBindJSON(&w); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.dashboardSvc.UpdateWidget(c.Request.Context(), tenantID, c.Param("id"), &w); err != nil {
 		if err == service.ErrWidgetNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "widget not found"})
+			respondNotFound(c, "widget not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	respondSuccess(c, gin.H{"message": "updated"})
 }
 
 // DeleteWidget handles DELETE /dashboard/:dashboard_id/widgets/:id - delete a widget.
@@ -203,11 +201,11 @@ func (h *DashboardHandler) DeleteWidget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.dashboardSvc.DeleteWidget(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrWidgetNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "widget not found"})
+			respondNotFound(c, "widget not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }

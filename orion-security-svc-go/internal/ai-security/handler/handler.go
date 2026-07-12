@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"time"
 
@@ -51,13 +50,10 @@ func (h *Handler) ListScans(c *gin.Context) {
 
 	scanResult, err := h.svc.ListScans(c.Request.Context(), tenantID, userID, startTime, endTime, page, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": scanResult,
-		"meta": gin.H{"total": len(scanResult)},
-	})
+	respondSuccess(c, gin.H{"data": scanResult, "meta": gin.H{"total": len(scanResult)}})
 }
 
 // GetScan — GET /api/v1/ai/security/scans/:id
@@ -67,14 +63,14 @@ func (h *Handler) GetScan(c *gin.Context) {
 
 	scanResult, err := h.svc.GetScan(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if len(scanResult) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "scan not found"})
+		respondNotFound(c, "scan not found")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": scanResult})
+	respondSuccess(c, scanResult)
 }
 
 // RunScan — POST /api/v1/ai/security/scans
@@ -83,43 +79,28 @@ func (h *Handler) RunScan(c *gin.Context) {
 
 	var req models.ScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":  "BAD_REQUEST",
-			"code":   "VALIDATION_ERROR",
-			"message": "input is required",
-		})
+		respondBadRequest(c, "input is required")
 		return
 	}
 
 	result, err := h.svc.Scan(c.Request.Context(), req.Input, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 
 	if result.HasViolation {
-		c.JSON(http.StatusForbidden, gin.H{
-			"error":  "SECURITY_VIOLATION",
-			"code":   "FORBIDDEN",
-			"message": "Security scan failed",
-			"data": gin.H{
-				"violations": result.Violations,
-				"risk_score": result.RiskScore,
-				"sanitized":  result.Sanitized,
-			},
-		})
+		respondForbidden(c, "Security scan failed")
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"data": gin.H{
-			"input":        req.Input,
-			"user_id":      userID,
-			"risk_score":   result.RiskScore,
-			"sanitized":    result.Sanitized,
-			"has_violation": result.HasViolation,
-			"scanned_at":   result.ScannedAt,
-		},
+	respondCreated(c, gin.H{
+		"input":        req.Input,
+		"user_id":      userID,
+		"risk_score":   result.RiskScore,
+		"sanitized":    result.Sanitized,
+		"has_violation": result.HasViolation,
+		"scanned_at":   result.ScannedAt,
 	})
 }
 
@@ -127,10 +108,10 @@ func (h *Handler) RunScan(c *gin.Context) {
 func (h *Handler) ListPolicies(c *gin.Context) {
 	policies, err := h.svc.ListPolicies(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": policies})
+	respondSuccess(c, policies)
 }
 
 // GetPolicy — GET /api/v1/ai/security/policies/:id
@@ -138,17 +119,15 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	id := c.Param("id")
 	policy, err := h.svc.GetPolicy(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"id":          policy.ID,
-			"name":        policy.Name,
-			"enabled":     policy.Enabled,
-			"description": policy.Description,
-			"settings":    policy.Settings,
-		},
+	respondSuccess(c, gin.H{
+		"id":          policy.ID,
+		"name":        policy.Name,
+		"enabled":     policy.Enabled,
+		"description": policy.Description,
+		"settings":    policy.Settings,
 	})
 }
 
@@ -158,23 +137,17 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 
 	var req models.PolicyInput
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 
 	err := h.svc.UpdatePolicy(id, req.Enabled)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error":  "NOT_FOUND",
-			"code":   "VALIDATION_ERROR",
-			"message": err.Error(),
-		})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{"id": id, "updated": true},
-	})
+	respondSuccess(c, gin.H{"id": id, "updated": true})
 }
 
 // DeletePolicy — DELETE /api/v1/ai/security/policies/:id
@@ -183,17 +156,11 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 
 	err := h.svc.DisablePolicy(id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error":  "NOT_FOUND",
-			"code":   "VALIDATION_ERROR",
-			"message": err.Error(),
-		})
+		respondNotFound(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{"id": id, "disabled": true},
-	})
+	respondSuccess(c, gin.H{"id": id, "disabled": true})
 }
 
 // ListAlerts — GET /api/v1/ai/security/alerts
@@ -207,13 +174,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 
 	alerts, err := h.svc.GetAlerts(c.Request.Context(), tenantID, userID, startTime, endTime, page, ps)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": alerts,
-		"meta": gin.H{"total": len(alerts)},
-	})
+	respondSuccess(c, gin.H{"data": alerts, "meta": gin.H{"total": len(alerts)}})
 }
 
 // GetAlert — GET /api/v1/ai/security/alerts/:id
@@ -223,18 +187,16 @@ func (h *Handler) GetAlert(c *gin.Context) {
 
 	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"id":          alert.ID,
-			"timestamp":   alert.ScannedAt,
-			"user_id":     alert.UserID,
-			"session_id":  alert.SessionID,
-			"risk_score":  alert.RiskScore,
-			"violations":  alert.Violations,
-		},
+	respondSuccess(c, gin.H{
+		"id":          alert.ID,
+		"timestamp":   alert.ScannedAt,
+		"user_id":     alert.UserID,
+		"session_id":  alert.SessionID,
+		"risk_score":  alert.RiskScore,
+		"violations":  alert.Violations,
 	})
 }
 
