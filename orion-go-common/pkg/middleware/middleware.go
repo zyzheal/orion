@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	"context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -163,6 +165,35 @@ func HealthCheck(serviceName string) gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"status":  "ok",
 			"service": serviceName,
+		})
+	}
+}
+
+// HealthConfig holds configuration for the dependency-aware health check.
+type HealthCheckFn func(ctx context.Context) error
+
+// DepHealthCheck returns a gin handler that checks multiple dependencies.
+func DepHealthCheck(serviceName string, checks map[string]HealthCheckFn) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		deps := make(map[string]string)
+		healthy := true
+		for name, fn := range checks {
+			if err := fn(ctx); err != nil {
+				deps[name] = "unhealthy"
+				healthy = false
+			} else {
+				deps[name] = "healthy"
+			}
+		}
+		status := "ok"
+		if !healthy {
+			status = "degraded"
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":  status,
+			"service": serviceName,
+			"deps":    deps,
 		})
 	}
 }

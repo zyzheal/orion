@@ -1,7 +1,7 @@
 -- Feature flags table with full targeting, rollout, and environment support.
 CREATE TABLE IF NOT EXISTS feature_flags (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL,
     name VARCHAR(256) NOT NULL,
     key VARCHAR(128) NOT NULL,
     description TEXT NOT NULL DEFAULT '',

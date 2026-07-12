@@ -1,7 +1,7 @@
 -- Plugins table
 CREATE TABLE IF NOT EXISTS plugins (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL,
     name VARCHAR(256) NOT NULL,
     description TEXT,
     version VARCHAR(64) NOT NULL DEFAULT '0.1.0',
@@ -18,7 +18,7 @@ CREATE INDEX IF NOT EXISTS idx_plugins_tenant ON plugins(tenant_id, created_at);
 CREATE TABLE IF NOT EXISTS plugin_executions (
     id UUID PRIMARY KEY,
     plugin_id UUID NOT NULL REFERENCES plugins(id) ON DELETE CASCADE,
-    tenant_id VARCHAR(64) NOT NULL,
+    tenant_id UUID NOT NULL,
     task_id VARCHAR(128) NOT NULL,
     pipeline_run_id VARCHAR(128),
     stage_id VARCHAR(128),
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_plugin_executions_task ON plugin_executions(task_
 -- Plugin audit entries table
 CREATE TABLE IF NOT EXISTS plugin_audit_entries (
     id UUID PRIMARY KEY,
-    tenant_id VARCHAR(64),
+    tenant_id UUID,
     plugin_id UUID,
     task_id VARCHAR(128),
     level VARCHAR(16) NOT NULL DEFAULT 'INFO',
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS plugin_security_events (
     severity VARCHAR(16) NOT NULL DEFAULT 'MEDIUM',
     task_id VARCHAR(128),
     plugin_id UUID,
-    tenant_id VARCHAR(64),
+    tenant_id UUID,
     message TEXT,
     details JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_security_events_severity ON plugin_security_event
 CREATE TABLE IF NOT EXISTS plugin_resource_quotas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     plugin_id UUID NOT NULL,
-    tenant_id VARCHAR(64),
+    tenant_id UUID,
     cpu_cores INTEGER NOT NULL DEFAULT 2,
     memory_bytes BIGINT NOT NULL DEFAULT 2147483648,
     timeout_ms INTEGER NOT NULL DEFAULT 60000,
@@ -93,7 +93,7 @@ CREATE INDEX IF NOT EXISTS idx_resource_quotas_plugin ON plugin_resource_quotas(
 -- Plugin tenant quotas table
 CREATE TABLE IF NOT EXISTS plugin_tenant_quotas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(64) NOT NULL UNIQUE,
+    tenant_id UUID NOT NULL UNIQUE,
     cpu_cores INTEGER NOT NULL DEFAULT 2,
     memory_bytes BIGINT NOT NULL DEFAULT 4294967296,
     timeout_ms INTEGER NOT NULL DEFAULT 120000,

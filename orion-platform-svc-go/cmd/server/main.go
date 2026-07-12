@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+
 	ff_config "orion/platform-svc-go/internal/feature-flag/config"
 	ff_handler "orion/platform-svc-go/internal/feature-flag/handler"
 	ff_repo "orion/platform-svc-go/internal/feature-flag/repository"
@@ -96,6 +97,9 @@ import (
 	multicloud_handler "orion/platform-svc-go/internal/multi-cloud/handler"
 	multicloud_repo "orion/platform-svc-go/internal/multi-cloud/repository"
 	multicloud_service "orion/platform-svc-go/internal/multi-cloud/service"
+	serverless_handler "orion/platform-svc-go/internal/serverless/handler"
+	serverless_repo "orion/platform-svc-go/internal/serverless/repository"
+	serverless_service "orion/platform-svc-go/internal/serverless/service"
 
 	cmdb_handler "orion/platform-svc-go/internal/cmdb/handler"
 	cmdb_repo "orion/platform-svc-go/internal/cmdb/repository"
@@ -106,6 +110,7 @@ import (
 	alert_handler "orion/platform-svc-go/internal/alert/handler"
 	alert_repo "orion/platform-svc-go/internal/alert/repository"
 	alert_service "orion/platform-svc-go/internal/alert/service"
+
 
 	artifactops_handler "orion/platform-svc-go/internal/artifact-ops/handler"
 	artifactops_repo "orion/platform-svc-go/internal/artifact-ops/repository"
@@ -136,12 +141,59 @@ import (
 	audit_repo "orion/platform-svc-go/internal/audit/repository"
 	audit_service "orion/platform-svc-go/internal/audit/service"
 
+	build_env_handler "orion/platform-svc-go/internal/build-env/handler"
+	build_env_repo "orion/platform-svc-go/internal/build-env/repository"
+	build_env_service "orion/platform-svc-go/internal/build-env/service"
+
+	dba_handler "orion/platform-svc-go/internal/dba/handler"
+	dba_repo "orion/platform-svc-go/internal/dba/repository"
+	dba_service "orion/platform-svc-go/internal/dba/service"
+
+	deploy_handler "orion/platform-svc-go/internal/deploy/handler"
+	deploy_repo "orion/platform-svc-go/internal/deploy/repository"
+	deploy_service "orion/platform-svc-go/internal/deploy/service"
+
+	digital_twin_handler "orion/platform-svc-go/internal/digital-twin/handler"
+	digital_twin_repo "orion/platform-svc-go/internal/digital-twin/repository"
+	digital_twin_service "orion/platform-svc-go/internal/digital-twin/service"
+
+	finops_v2_handler "orion/platform-svc-go/internal/finops-v2/handler"
+	finops_v2_repo "orion/platform-svc-go/internal/finops-v2/repository"
+	finops_v2_service "orion/platform-svc-go/internal/finops-v2/service"
+
+	knowledge_handler "orion/platform-svc-go/internal/knowledge/handler"
+	knowledge_repo "orion/platform-svc-go/internal/knowledge/repository"
+	knowledge_service "orion/platform-svc-go/internal/knowledge/service"
+
+	security_compliance_handler "orion/platform-svc-go/internal/security-compliance/handler"
+	security_compliance_repo "orion/platform-svc-go/internal/security-compliance/repository"
+	security_compliance_service "orion/platform-svc-go/internal/security-compliance/service"
+
+	tenant_handler "orion/platform-svc-go/internal/tenant/handler"
+	tenant_repo "orion/platform-svc-go/internal/tenant/repository"
+	tenant_service "orion/platform-svc-go/internal/tenant/service"
+	change_handler "orion/platform-svc-go/internal/change/handler"
+	change_repo "orion/platform-svc-go/internal/change/repository"
+	change_service "orion/platform-svc-go/internal/change/service"
+	skill_handler "orion/platform-svc-go/internal/skill/handler"
+	skill_service "orion/platform-svc-go/internal/skill/service"
+	sla_handler "orion/platform-svc-go/internal/sla/handler"
+	sla_repo "orion/platform-svc-go/internal/sla/repository"
+	sla_service "orion/platform-svc-go/internal/sla/service"
+	visor_handler "orion/platform-svc-go/internal/visor-exec/handler"
+	visor_repo "orion/platform-svc-go/internal/visor-exec/repository"
+	visor_service "orion/platform-svc-go/internal/visor-exec/service"
+
+
+	ticketing_handler "orion/platform-svc-go/internal/ticketing/handler"
+	ticketing_repo "orion/platform-svc-go/internal/ticketing/repository"
+	ticketing_service "orion/platform-svc-go/internal/ticketing/service"
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
-
-	orionredis "orion/go-common/pkg/redis"
+	"orion/go-common/pkg/otel"
+	redis "orion/go-common/pkg/redis"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -151,6 +203,17 @@ func main() {
 	defer logger.Sync()
 
 	ffCfg := ff_config.Load()
+
+	// OpenTelemetry tracing (0.1)
+	if otelShutdown, err := otel.Init(otel.Config{
+		ServiceName: "orion-platform-svc",
+		Endpoint:    ffCfg.OTELExporterEndpoint,
+		Insecure:    ffCfg.OTELInsecure,
+	}); err != nil {
+		logger.Warn("OpenTelemetry init failed (tracing disabled)", zap.Error(err))
+	} else if otelShutdown != nil {
+		defer otelShutdown(context.Background())
+	}
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		ffCfg.DBHost, ffCfg.DBPort, ffCfg.DBUser, ffCfg.DBPassword, ffCfg.DBName, ffCfg.DBSSLMode)
@@ -169,7 +232,7 @@ func main() {
 		}
 	}
 
-	rdb := orionredis.NewClient(orionredis.Config{Addr: ffCfg.RedisAddr})
+	rdb := redis.NewClient(redis.Config{Addr: ffCfg.RedisAddr})
 	defer rdb.Close()
 
 	// Feature-flag services
@@ -298,6 +361,11 @@ func main() {
 	i18nH := i18n_handler.NewHandler(i18nSvc)
 
 	// multi-cloud services
+
+	// serverless services
+	serverlessRepo := serverless_repo.NewRepository(db.DB)
+	serverlessSvc := serverless_service.NewService(serverlessRepo)
+	serverlessH := serverless_handler.NewHandler(serverlessSvc)
 	multicloudRepo := multicloud_repo.NewRepository(db.DB)
 	multicloudSvc := multicloud_service.NewService(multicloudRepo)
 	multicloudH := multicloud_handler.NewHandler(multicloudSvc)
@@ -351,6 +419,70 @@ func main() {
 	incidentRepo := incident_repo.NewRepository(db.DB)
 	incidentSvc := incident_service.NewService(incidentRepo)
 	incidentH := incident_handler.NewHandler(incidentSvc)
+	// build-env services
+	build_envRepo := build_env_repo.NewRepository(db.DB)
+	build_envSvc := build_env_service.NewService(build_envRepo, db.DB.DB)
+	build_envH := build_env_handler.NewHandler(build_envSvc)
+
+	// dba services
+	dbaRepo := dba_repo.NewRepository(db.DB)
+	dbaSvc := dba_service.NewService(dbaRepo)
+	dbaH := dba_handler.NewHandler(dbaSvc)
+
+	// deploy services
+	deployRepo := deploy_repo.NewRepository(db.DB)
+	deploySvc := deploy_service.NewService(deployRepo)
+	deployH := deploy_handler.NewHandler(deploySvc)
+
+	// digital-twin services
+	digital_twinRepo := digital_twin_repo.NewRepository(db.DB)
+	digital_twinSvc := digital_twin_service.NewService(digital_twinRepo)
+	digital_twinH := digital_twin_handler.NewHandler(digital_twinSvc)
+
+	// finops-v2 services
+	finops_v2Repo := finops_v2_repo.NewRepository(db.DB)
+	finops_v2Svc := finops_v2_service.NewService(finops_v2Repo)
+	finops_v2H := finops_v2_handler.NewHandler(finops_v2Svc)
+
+	// knowledge services
+	knowledgeRepo := knowledge_repo.NewRepository(db.DB.DB)
+	knowledgeSvc := knowledge_service.NewService(knowledgeRepo)
+	knowledgeH := knowledge_handler.NewHandler(knowledgeSvc)
+
+	// security-compliance services
+	security_complianceRepo := security_compliance_repo.NewRepository(db.DB)
+	security_complianceSvc := security_compliance_service.NewService(security_complianceRepo)
+	security_complianceH := security_compliance_handler.NewHandler(security_complianceSvc)
+
+	// tenant services
+	tenantRepo := tenant_repo.NewRepository(db.DB.DB)
+	tenantSvc := tenant_service.NewService(tenantRepo)
+	tenantH := tenant_handler.NewHandler(tenantSvc)
+
+	// ticketing services
+	ticketingRepo := ticketing_repo.NewRepository(db.DB)
+	ticketingSvc := ticketing_service.NewService(ticketingRepo)
+	ticketingH := ticketing_handler.NewHandler(ticketingSvc)
+
+	// change services
+	changeRepo := change_repo.NewRepository(db.DB)
+	changeSvc := change_service.NewService(changeRepo)
+	changeH := change_handler.NewHandler(changeSvc)
+
+	// skill services
+	skillSvc := skill_service.NewService()
+	skillH := skill_handler.NewHandler(skillSvc)
+
+	// sla services
+	slaRepo := sla_repo.NewRepository(db.DB)
+	slaSvc := sla_service.NewService(slaRepo)
+	slaH := sla_handler.NewHandler(slaSvc)
+
+	// visor-exec services
+	visorRepo := visor_repo.NewRepository(db.DB)
+	visorSvc := visor_service.NewService(visorRepo)
+	visorH := visor_handler.NewHandler(visorSvc)
+
 
 	r := gin.New()
 	r.Use(middleware.Recovery(logger))
@@ -358,7 +490,7 @@ func main() {
 	r.Use(middleware.StructuredLogger(logger))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
-	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: ffCfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz"}}))
+	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: ffCfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz", "/metrics", "/health"}}))
 
 	// Register routes
 	ffH.RegisterRoutes(rg)
@@ -397,7 +529,30 @@ func main() {
 	incidentH.RegisterRoutes(rg)
 	code_repoH.RegisterRoutes(rg)
 	multicloudH.RegisterRoutes(rg)
+	serverlessH.RegisterRoutes(rg)
+	ticketingH.RegisterRoutes(rg)
+	build_envH.RegisterRoutes(rg)
+	dbaH.RegisterRoutes(rg)
+	deployH.RegisterRoutes(rg)
+	digital_twinH.RegisterRoutes(rg)
+	finops_v2H.RegisterRoutes(rg)
+	knowledgeH.RegisterRoutes(rg)
+	security_complianceH.RegisterRoutes(rg)
+	tenantH.RegisterRoutes(rg)
+	changeH.RegisterRoutes(rg)
+	skillH.RegisterRoutes(rg)
+	slaH.RegisterRoutes(rg)
+	visorH.RegisterRoutes(rg)
+
+	// === Public endpoints (no auth) ===
 	r.GET("/healthz", middleware.HealthCheck("orion-platform-svc"))
+	r.GET("/metrics", middleware.MetricsHandler())
+
+	// Dependency health check (0.4)
+	r.GET("/health", middleware.DepHealthCheck("orion-platform-svc", map[string]middleware.HealthCheckFn{
+		"database": db.Health,
+		"redis":    func(ctx context.Context) error { return redis.Health(ctx, rdb) },
+	}))
 
 	addr := fmt.Sprintf(":%d", ffCfg.Port)
 	logger.Info("platform-svc listening", zap.String("addr", addr))

@@ -1,8 +1,8 @@
 -- Alert module tables
 
 CREATE TABLE IF NOT EXISTS alerts (
-    id VARCHAR(255) PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     severity VARCHAR(50) NOT NULL DEFAULT 'warning',
     status VARCHAR(50) NOT NULL DEFAULT 'firing',
@@ -29,8 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
 CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS alert_topologies (
-    id VARCHAR(255) PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
     nodes JSONB,
     edges JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -41,7 +41,7 @@ CREATE INDEX IF NOT EXISTS idx_alert_topologies_tenant_id ON alert_topologies(te
 
 CREATE TABLE IF NOT EXISTS alert_node_health (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id VARCHAR(255) NOT NULL,
+    tenant_id UUID NOT NULL,
     node_id VARCHAR(255) NOT NULL,
     node_name VARCHAR(255),
     health VARCHAR(50) NOT NULL DEFAULT 'healthy',
@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS alert_node_health (
 CREATE INDEX IF NOT EXISTS idx_alert_node_health_tenant_id ON alert_node_health(tenant_id);
 
 CREATE TABLE IF NOT EXISTS alert_maintenance_windows (
-    id VARCHAR(255) PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -67,8 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_maintenance_windows_tenant_id ON alert_maintenanc
 CREATE INDEX IF NOT EXISTS idx_maintenance_windows_status ON alert_maintenance_windows(status);
 
 CREATE TABLE IF NOT EXISTS alert_known_issues (
-    id VARCHAR(255) PRIMARY KEY,
-    tenant_id VARCHAR(255) NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     fingerprint_pattern VARCHAR(255),

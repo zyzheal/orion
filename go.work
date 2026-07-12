@@ -4,37 +4,26 @@ use (
 	./orion-ai-svc-go
 	./orion-alert-breaker-svc-go
 	./orion-api-gateway-go
-	./orion-approval-svc-go
-	./orion-artifact-svc-go
-	./orion-audit-svc-go
 	./orion-auth-svc
-	./orion-build-env-svc-go
 	./orion-cache-cleanup-svc-go
 	./orion-ci-cd-svc-go
-	./orion-cmdb-svc-go
 	./orion-community-svc-go
 	./orion-config-mgmt-svc-go
-	./orion-deploy-svc-go
 	./orion-event-bus-svc-go
 	./orion-finops-svc-go
 	./orion-go-common
 	./orion-governance-svc-go
 	./orion-identity-svc-go
-	./orion-incident-svc-go
 	./orion-infra-ops-svc-go
-	./orion-infrastructure-svc-go
 	./orion-inspection-svc-go
-	./orion-knowledge-svc-go
 	./orion-lowcode-svc-go
 	./orion-mcp-svc-go
 	./orion-monitor-svc-go
-	./orion-monitoring-svc-go
 	./orion-notification-svc-go
 	./orion-pandawiki-svc-go
 	./orion-platform-svc-go
 	./orion-security-svc-go
 	./orion-skill-config-svc-go
-	./orion-tenant-svc-go
 	./orion-ticket-svc-go
 	./orion-tool-svc-go
 	./orion-user-svc

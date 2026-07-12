@@ -6,17 +6,19 @@ import (
 )
 
 type Config struct {
-	Port       int
-	DBHost     string
-	DBPort     int
-	DBUser     string
-	DBPassword string
-	DBName     string
-	DBSSLMode  string
-	JWTSecret  string
-	RedisAddr  string
-	NATSAddr   string
-	NATSStream string
+	Port                   int
+	DBHost                 string
+	DBPort                 int
+	DBUser                 string
+	DBPassword             string
+	DBName                 string
+	DBSSLMode              string
+	JWTSecret              string
+	RedisAddr              string
+	NATSAddr               string
+	NATSStream             string
+	OTELExporterEndpoint   string
+	OTELInsecure           bool
 }
 
 func Load() *Config {
@@ -27,17 +29,19 @@ func Load() *Config {
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 
 	return &Config{
-		Port:       port,
-		DBHost:     getEnv("DB_HOST", "localhost"),
-		DBPort:     dbPort,
-		DBUser:     requireEnv("DB_USER"),
-		DBPassword: requireEnv("DB_PASSWORD"),
-		DBName:     getEnv("DB_NAME", "orion_feature-flag"),
-		DBSSLMode:  getEnv("DB_SSLMODE", "disable"),
-		JWTSecret:  jwtSecret,
-		RedisAddr:  redisAddr,
-		NATSAddr:   getEnv("NATS_ADDR", "nats://localhost:4222"),
-		NATSStream: getEnv("NATS_STREAM", "EVENTS"),
+		Port:                   port,
+		DBHost:                 getEnv("DB_HOST", "localhost"),
+		DBPort:                 dbPort,
+		DBUser:                 requireEnv("DB_USER"),
+		DBPassword:             requireEnv("DB_PASSWORD"),
+		DBName:                 getEnv("DB_NAME", "orion_feature-flag"),
+		DBSSLMode:              getEnv("DB_SSLMODE", "disable"),
+		JWTSecret:              jwtSecret,
+		RedisAddr:              redisAddr,
+		NATSAddr:               getEnv("NATS_ADDR", "nats://localhost:4222"),
+		NATSStream:             getEnv("NATS_STREAM", "EVENTS"),
+		OTELExporterEndpoint:   getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		OTELInsecure:           getEnvBool("OTEL_EXPORTER_OTLP_INSECURE", true),
 	}
 }
 
@@ -53,4 +57,12 @@ func requireEnv(key string) string {
 		return v
 	}
 	panic("required environment variable not set: " + key)
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultValue
+	}
+	return v == "true" || v == "1"
 }
