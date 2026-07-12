@@ -42,7 +42,7 @@ func (r *Repository) GetCIByID(ctx context.Context, id string) (*models.CI, erro
 	return &ci, nil
 }
 
-func (r *Repository) GetCIByCiId(ctx context.Context, ciID string, tenantID *int64) (*models.CI, error) {
+func (r *Repository) GetCIByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
 	var ci models.CI
 	if tenantID != nil {
 		err := r.db.GetContext(ctx, &ci,
@@ -89,7 +89,7 @@ func (r *Repository) DeleteCI(ctx context.Context, id string) (bool, error) {
 	return n > 0, nil
 }
 
-func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string, tenantID int64, page, limit int) ([]models.CI, int, error) {
+func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -132,7 +132,7 @@ func (r *Repository) ListCIs(ctx context.Context, ciType *string, status *string
 	return items, total, nil
 }
 
-func (r *Repository) batchUpdateHelper(tx *sqlx.Tx, id string, tenantID int64, updates map[string]interface{}) (int64, error) {
+func (r *Repository) batchUpdateHelper(tx *sqlx.Tx, id string, tenantID string, updates map[string]interface{}) (int64, error) {
 	now := time.Now().UTC()
 	updates["updated_at"] = now
 	setClauses := []string{}
@@ -154,7 +154,7 @@ func (r *Repository) batchUpdateHelper(tx *sqlx.Tx, id string, tenantID int64, u
 }
 
 // BatchCreateCIs inserts multiple CIs in one transaction.
-func (r *Repository) BatchCreateCIs(ctx context.Context, items []models.BatchCreateItem, tenantID int64, createdBy string) (*models.BatchResult, error) {
+func (r *Repository) BatchCreateCIs(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error) {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (r *Repository) BatchCreateCIs(ctx context.Context, items []models.BatchCre
 }
 
 // BatchUpdateCIs updates multiple CIs in one transaction.
-func (r *Repository) BatchUpdateCIs(ctx context.Context, items []models.BatchUpdateItem, tenantID int64) (*models.BatchResult, error) {
+func (r *Repository) BatchUpdateCIs(ctx context.Context, items []models.BatchUpdateItem, tenantID string) (*models.BatchResult, error) {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (r *Repository) BatchUpdateCIs(ctx context.Context, items []models.BatchUpd
 }
 
 // BatchDeleteCIs deletes multiple CIs in one transaction.
-func (r *Repository) BatchDeleteCIs(ctx context.Context, ids []string, tenantID int64) (*models.BatchResult, error) {
+func (r *Repository) BatchDeleteCIs(ctx context.Context, ids []string, tenantID string) (*models.BatchResult, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -288,7 +288,7 @@ func (r *Repository) BatchDeleteCIs(ctx context.Context, ids []string, tenantID 
 }
 
 // BatchQueryCIs queries CIs with complex filters.
-func (r *Repository) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequest, tenantID int64) ([]models.CI, int, error) {
+func (r *Repository) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequest, tenantID string) ([]models.CI, int, error) {
 	var items []models.CI
 	var total int
 
@@ -358,12 +358,12 @@ func (r *Repository) BatchQueryCIs(ctx context.Context, q *models.BatchQueryRequ
 }
 
 // ExportCIByCiId returns a CI exportable snapshot by ciId.
-func (r *Repository) ExportCIByCiId(ctx context.Context, ciID string, tenantID int64) (*models.CI, error) {
+func (r *Repository) ExportCIByCiId(ctx context.Context, ciID string, tenantID string) (*models.CI, error) {
 	return r.GetCIByCiId(ctx, ciID, &tenantID)
 }
 
 // ExportCIs returns CIs matching the export criteria.
-func (r *Repository) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID int64, includeArchived bool) ([]models.CI, error) {
+func (r *Repository) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID string, includeArchived bool) ([]models.CI, error) {
 	where := "WHERE tenant_id = $1"
 	args := []interface{}{tenantID}
 	argIdx := 2
@@ -421,7 +421,7 @@ func (r *Repository) CreateRelation(ctx context.Context, rel *models.CIRelation)
 	return err
 }
 
-func (r *Repository) DeleteRelation(ctx context.Context, relationID string, tenantID int64) (bool, error) {
+func (r *Repository) DeleteRelation(ctx context.Context, relationID string, tenantID string) (bool, error) {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM cmdb_ci_relations WHERE id=$1 AND tenant_id=$2`, relationID, tenantID)
 	if err != nil {
@@ -450,7 +450,7 @@ func (r *Repository) GetCurrentVersion(ctx context.Context, ciID string) (*model
 	return &v, nil
 }
 
-func (r *Repository) CreateVersion(ctx context.Context, ciID string, version int, snapshot *string, createdBy string, tenantID int64) error {
+func (r *Repository) CreateVersion(ctx context.Context, ciID string, version int, snapshot *string, createdBy string, tenantID string) error {
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO cmdb_ci_versions (id, ci_id, version, snapshot, tenant_id, created_by, created_at)
 		 VALUES (:id, :ciId, :version, :snapshot, :tenantId, :createdBy, :createdAt)`,
@@ -478,7 +478,7 @@ func (r *Repository) GetVersionSnapshot(ctx context.Context, ciID string, versio
 
 // --- Topology ---
 
-func (r *Repository) GetTopologyNodes(ctx context.Context, ciType *string, tenantID int64, limit int) ([]models.TopologyNode, error) {
+func (r *Repository) GetTopologyNodes(ctx context.Context, ciType *string, tenantID string, limit int) ([]models.TopologyNode, error) {
 	var nodes []models.TopologyNode
 	if ciType != nil && *ciType != "" {
 		err := r.db.SelectContext(ctx, &nodes,
@@ -494,7 +494,7 @@ func (r *Repository) GetTopologyNodes(ctx context.Context, ciType *string, tenan
 	return nodes, err
 }
 
-func (r *Repository) GetTopologyEdges(ctx context.Context, tenantID int64, limit int) ([]models.TopologyEdge, error) {
+func (r *Repository) GetTopologyEdges(ctx context.Context, tenantID string, limit int) ([]models.TopologyEdge, error) {
 	var edges []models.TopologyEdge
 	err := r.db.SelectContext(ctx, &edges,
 		`SELECT from_ci_id AS "source", to_ci_id AS "target", relation_type AS "relationType"
@@ -503,7 +503,7 @@ func (r *Repository) GetTopologyEdges(ctx context.Context, tenantID int64, limit
 	return edges, err
 }
 
-func (r *Repository) GetServiceDependencies(ctx context.Context, tenantID int64, ciID string) ([]models.CIRelation, error) {
+func (r *Repository) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	var relations []models.CIRelation
 	err := r.db.SelectContext(ctx, &relations,
 		`SELECT r.* FROM cmdb_ci_relations r
@@ -511,7 +511,7 @@ func (r *Repository) GetServiceDependencies(ctx context.Context, tenantID int64,
 	return relations, err
 }
 
-func (r *Repository) GetImpactAnalysis(ctx context.Context, tenantID int64, ciID string) ([]models.CIRelation, error) {
+func (r *Repository) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	var relations []models.CIRelation
 	err := r.db.SelectContext(ctx, &relations,
 		`SELECT r.* FROM cmdb_ci_relations r

@@ -23,7 +23,7 @@ func NewService(repo *repository.Repository) *Service {
 // --- CI CRUD ---
 
 func (s *Service) Create(ctx context.Context, req *models.CreateCIRequest) (*models.CI, error) {
-	tenantID := int64(1)
+	tenantID := "00000000-0000-0000-0000-000000000000"
 	if req.TenantID != nil {
 		tenantID = *req.TenantID
 	}
@@ -53,7 +53,7 @@ func (s *Service) Get(ctx context.Context, id string) (*models.CI, error) {
 	return s.repo.GetCIByID(ctx, id)
 }
 
-func (s *Service) GetByCiId(ctx context.Context, ciID string, tenantID *int64) (*models.CI, error) {
+func (s *Service) GetByCiId(ctx context.Context, ciID string, tenantID *string) (*models.CI, error) {
 	return s.repo.GetCIByCiId(ctx, ciID, tenantID)
 }
 
@@ -91,7 +91,7 @@ func (s *Service) Delete(ctx context.Context, id string) (bool, error) {
 	return s.repo.DeleteCI(ctx, id)
 }
 
-func (s *Service) List(ctx context.Context, ciType *string, status *string, tenantID int64, page, limit int) ([]models.CI, int, error) {
+func (s *Service) List(ctx context.Context, ciType *string, status *string, tenantID string, page, limit int) ([]models.CI, int, error) {
 	if page <= 0 {
 		page = 1
 	}
@@ -103,28 +103,28 @@ func (s *Service) List(ctx context.Context, ciType *string, status *string, tena
 
 // --- Batch operations ---
 
-func (s *Service) BatchCreate(ctx context.Context, items []models.BatchCreateItem, tenantID int64, createdBy string) (*models.BatchResult, error) {
+func (s *Service) BatchCreate(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error) {
 	if createdBy == "" {
 		createdBy = "system"
 	}
 	return s.repo.BatchCreateCIs(ctx, items, tenantID, createdBy)
 }
 
-func (s *Service) BatchUpdate(ctx context.Context, items []models.BatchUpdateItem, tenantID int64) (*models.BatchResult, error) {
+func (s *Service) BatchUpdate(ctx context.Context, items []models.BatchUpdateItem, tenantID string) (*models.BatchResult, error) {
 	return s.repo.BatchUpdateCIs(ctx, items, tenantID)
 }
 
-func (s *Service) BatchDelete(ctx context.Context, ids []string, tenantID int64) (*models.BatchResult, error) {
+func (s *Service) BatchDelete(ctx context.Context, ids []string, tenantID string) (*models.BatchResult, error) {
 	return s.repo.BatchDeleteCIs(ctx, ids, tenantID)
 }
 
-func (s *Service) BatchQuery(ctx context.Context, q *models.BatchQueryRequest, tenantID int64) ([]models.CI, int, error) {
+func (s *Service) BatchQuery(ctx context.Context, q *models.BatchQueryRequest, tenantID string) ([]models.CI, int, error) {
 	return s.repo.BatchQueryCIs(ctx, q, tenantID)
 }
 
 // --- Export / Import ---
 
-func (s *Service) ExportCI(ctx context.Context, id string, tenantID int64) (*models.CI, error) {
+func (s *Service) ExportCI(ctx context.Context, id string, tenantID string) (*models.CI, error) {
 	ci, err := s.repo.GetCIByCiId(ctx, id, &tenantID)
 	if err != nil {
 		// If lookup by ciId fails, try as internal ID
@@ -136,7 +136,7 @@ func (s *Service) ExportCI(ctx context.Context, id string, tenantID int64) (*mod
 	return ci, nil
 }
 
-func (s *Service) ImportCIs(ctx context.Context, cis []any, tenantID int64, skipDuplicates bool, createdBy string) (*models.ExportResult, error) {
+func (s *Service) ImportCIs(ctx context.Context, cis []any, tenantID string, skipDuplicates bool, createdBy string) (*models.ExportResult, error) {
 	if createdBy == "" {
 		createdBy = "system"
 	}
@@ -182,7 +182,7 @@ func (s *Service) ImportCIs(ctx context.Context, cis []any, tenantID int64, skip
 	return &models.ExportResult{Count: len(results), CIs: results}, nil
 }
 
-func (s *Service) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID int64, includeArchived bool) (*models.ExportResult, error) {
+func (s *Service) ExportCIs(ctx context.Context, ciType, status, environment, search *string, tenantID string, includeArchived bool) (*models.ExportResult, error) {
 	items, err := s.repo.ExportCIs(ctx, ciType, status, environment, search, tenantID, includeArchived)
 	if err != nil {
 		return nil, err
@@ -205,7 +205,7 @@ func (s *Service) CreateRelation(ctx context.Context, req *models.CreateRelation
 	if req.User != nil {
 		user = *req.User
 	}
-	tenantID := int64(1)
+	tenantID := "00000000-0000-0000-0000-000000000000"
 	if req.TenantID != nil {
 		tenantID = *req.TenantID
 	}
@@ -223,7 +223,7 @@ func (s *Service) CreateRelation(ctx context.Context, req *models.CreateRelation
 	return rel, nil
 }
 
-func (s *Service) DeleteRelation(ctx context.Context, relationID string, tenantID int64) (bool, error) {
+func (s *Service) DeleteRelation(ctx context.Context, relationID string, tenantID string) (bool, error) {
 	return s.repo.DeleteRelation(ctx, relationID, tenantID)
 }
 
@@ -237,7 +237,7 @@ func (s *Service) GetCurrentVersion(ctx context.Context, ciID string) (*models.C
 	return s.repo.GetCurrentVersion(ctx, ciID)
 }
 
-func (s *Service) RestoreToVersion(ctx context.Context, ciID string, version int, user string, tenantID int64) (*models.CI, error) {
+func (s *Service) RestoreToVersion(ctx context.Context, ciID string, version int, user string, tenantID string) (*models.CI, error) {
 	if user == "" {
 		user = "system"
 	}
@@ -275,7 +275,7 @@ func (s *Service) RestoreToVersion(ctx context.Context, ciID string, version int
 
 // --- Topology ---
 
-func (s *Service) GetTopology(ctx context.Context, ciType *string, depth *int, tenantID int64) (*models.TopologyResult, error) {
+func (s *Service) GetTopology(ctx context.Context, ciType *string, depth *int, tenantID string) (*models.TopologyResult, error) {
 	limit := 200
 	if depth != nil && *depth > 0 {
 		limit = *depth * 20
@@ -291,11 +291,11 @@ func (s *Service) GetTopology(ctx context.Context, ciType *string, depth *int, t
 	return &models.TopologyResult{Nodes: nodes, Edges: edges}, nil
 }
 
-func (s *Service) GetServiceDependencies(ctx context.Context, tenantID int64, ciID string) ([]models.CIRelation, error) {
+func (s *Service) GetServiceDependencies(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	return s.repo.GetServiceDependencies(ctx, tenantID, ciID)
 }
 
-func (s *Service) GetImpactAnalysis(ctx context.Context, tenantID int64, ciID string) ([]models.CIRelation, error) {
+func (s *Service) GetImpactAnalysis(ctx context.Context, tenantID string, ciID string) ([]models.CIRelation, error) {
 	return s.repo.GetImpactAnalysis(ctx, tenantID, ciID)
 }
 

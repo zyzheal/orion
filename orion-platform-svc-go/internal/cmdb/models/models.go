@@ -10,7 +10,7 @@ type CI struct {
 	CIType      string                 `json:"ciType" db:"ci_type"`
 	Status      string                 `json:"status" db:"status"`
 	Description *string                `json:"description" db:"description"`
-	TenantID    int64                  `json:"tenantId" db:"tenant_id"`
+	TenantID    string                  `json:"tenantId" db:"tenant_id"`
 	CreatedBy   string                 `json:"createdBy" db:"created_by"`
 	Environment *string                `json:"environment" db:"environment"`
 	Tags        *string                `json:"tags" db:"tags"` // JSON array string
@@ -25,7 +25,7 @@ type CreateCIRequest struct {
 	CIType      string  `json:"ciType" binding:"required"`
 	Status      string  `json:"status"`
 	Description *string `json:"description"`
-	TenantID    *int64  `json:"tenantId"`
+	TenantID    *string  `json:"tenantId"`
 	CreatedBy   string  `json:"createdBy"`
 }
 
@@ -38,7 +38,7 @@ type UpdateCIRequest struct {
 	Environment *string `json:"environment"`
 	Tags        *string `json:"tags"`
 	User        *string `json:"user"`
-	TenantID    *int64  `json:"tenantId"`
+	TenantID    *string  `json:"tenantId"`
 }
 
 // BatchCreateItem is a single item in batch create.
@@ -55,7 +55,7 @@ type BatchCreateItem struct {
 // BatchCreateRequest is the body for batch creating CIs.
 type BatchCreateRequest struct {
 	Items     []BatchCreateItem `json:"items" binding:"required"`
-	TenantID  *int64            `json:"tenantId"`
+	TenantID  *string            `json:"tenantId"`
 	CreatedBy string            `json:"createdBy"`
 }
 
@@ -74,14 +74,14 @@ type BatchUpdateItem struct {
 // BatchUpdateRequest is the body for batch updating CIs.
 type BatchUpdateRequest struct {
 	Items    []BatchUpdateItem `json:"items" binding:"required"`
-	TenantID *int64            `json:"tenantId"`
+	TenantID *string            `json:"tenantId"`
 	User     *string           `json:"user"`
 }
 
 // BatchDeleteRequest is the body for batch deleting CIs.
 type BatchDeleteRequest struct {
 	Items    []string `json:"items" binding:"required"` // IDs to delete
-	TenantID *int64   `json:"tenantId"`
+	TenantID *string   `json:"tenantId"`
 }
 
 // BatchResult is the response for batch operations.
@@ -98,7 +98,7 @@ type BatchQueryRequest struct {
 	Environment *string `json:"environment"`
 	Tags        *string `json:"tags"`
 	Search      *string `json:"search"`
-	TenantID    *int64  `json:"tenantId"`
+	TenantID    *string  `json:"tenantId"`
 	Limit       *int    `json:"limit"`
 	Offset      *int    `json:"offset"`
 	OrderBy     *string `json:"orderBy"`
@@ -116,7 +116,7 @@ type PaginatedResponse struct {
 // ImportCIsRequest is the body for importing CIs.
 type ImportCIsRequest struct {
 	CIs          []any   `json:"cis" binding:"required"`
-	TenantID     *int64  `json:"tenantId"`
+	TenantID     *string  `json:"tenantId"`
 	SkipDuplicates bool  `json:"skipDuplicates"`
 	CreatedBy    string  `json:"createdBy"`
 }
@@ -134,7 +134,7 @@ type CIRelation struct {
 	ToCIID        string     `json:"toCiId" db:"to_ci_id"`
 	RelationType  string     `json:"relationType" db:"relation_type"`
 	Description   *string    `json:"description" db:"description"`
-	TenantID      *int64     `json:"tenantId" db:"tenant_id"`
+	TenantID      *string     `json:"tenantId" db:"tenant_id"`
 	CreatedBy     string     `json:"createdBy" db:"created_by"`
 	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
 	UpdatedAt     time.Time  `json:"updatedAt" db:"updated_at"`
@@ -146,7 +146,7 @@ type CreateRelationRequest struct {
 	ToCIID       string  `json:"toCiId" binding:"required"`
 	RelationType string  `json:"relationType" binding:"required"`
 	Description  *string `json:"description"`
-	TenantID     *int64  `json:"tenantId"`
+	TenantID     *string  `json:"tenantId"`
 	User         *string `json:"user"`
 }
 
@@ -156,7 +156,7 @@ type CIVersion struct {
 	CIID        string     `json:"ciId" db:"ci_id"`
 	Version     int        `json:"version" db:"version"`
 	Snapshot    *string    `json:"snapshot" db:"snapshot"` // JSON
-	TenantID    *int64     `json:"tenantId" db:"tenant_id"`
+	TenantID    *string     `json:"tenantId" db:"tenant_id"`
 	CreatedBy   string     `json:"createdBy" db:"created_by"`
 	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
 }
@@ -165,14 +165,14 @@ type CIVersion struct {
 type RestoreRequest struct {
 	Version int    `json:"version" binding:"required"`
 	User    string `json:"user"`
-	TenantID *int64 `json:"tenantId"`
+	TenantID *string `json:"tenantId"`
 }
 
 // TopologyRequest is the query/body for topology.
 type TopologyRequest struct {
 	CIType   *string `json:"ciType"`
 	Depth    *int    `json:"depth"`
-	TenantID *int64  `json:"tenantId"`
+	TenantID *string  `json:"tenantId"`
 }
 
 // TopologyResult is the result of topology queries.

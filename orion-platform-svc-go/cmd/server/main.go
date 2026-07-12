@@ -85,6 +85,10 @@ import (
 	infra_handler "orion/platform-svc-go/internal/infrastructure/handler"
 	infra_repo "orion/platform-svc-go/internal/infrastructure/repository"
 	infra_service "orion/platform-svc-go/internal/infrastructure/service"
+
+	iac_handler "orion/platform-svc-go/internal/iac/handler"
+	iac_repo "orion/platform-svc-go/internal/iac/repository"
+	iac_service "orion/platform-svc-go/internal/iac/service"
 	gatewaydynamic_handler "orion/platform-svc-go/internal/gateway-dynamic/handler"
 	gatewaydynamic_repo "orion/platform-svc-go/internal/gateway-dynamic/repository"
 	gatewaydynamic_service "orion/platform-svc-go/internal/gateway-dynamic/service"
@@ -340,6 +344,11 @@ func main() {
 	infraSvc := infra_service.NewService(infraRepo)
 	infraH := infra_handler.NewHandler(infraSvc)
 
+	// iac services
+	iacRepo := iac_repo.NewRepository(db.DB)
+	iacSvc := iac_service.NewService(iacRepo)
+	iacH := iac_handler.NewHandler(iacSvc)
+
 	// cron services
 	cronRepo := cron_repo.NewRepository(db.DB)
 	cronSvc := cron_service.NewService(cronRepo)
@@ -514,6 +523,7 @@ func main() {
 	capabilityH.RegisterRoutes(rg)
 	chaosH.RegisterRoutes(rg)
 	infraH.RegisterRoutes(rg)
+	iacH.RegisterRoutes(rg)
 	cronH.RegisterRoutes(rg)
 	gatewaydynamicH.RegisterRoutes(rg)
 	handlerregistryH.RegisterRoutes(rg)

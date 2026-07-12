@@ -117,12 +117,9 @@ func (h *Handler) GetCI(c *gin.Context) {
 func (h *Handler) GetCIByID(c *gin.Context) {
 	ciID := c.Param("ciId")
 	tenantIDStr := c.Query("tenantId")
-	var tenantID *int64
+	var tenantID *string
 	if tenantIDStr != "" {
-		v, err := strconv.ParseInt(tenantIDStr, 10, 64)
-		if err == nil {
-			tenantID = &v
-		}
+		tenantID = &tenantIDStr
 	}
 	ci, err := h.svc.GetByCiId(c.Request.Context(), ciID, tenantID)
 	if err != nil {
@@ -441,16 +438,12 @@ func (h *Handler) Health(c *gin.Context) {
 
 // --- Helpers ---
 
-// getDefaultTenantID returns the tenant ID from the context or defaults to 1.
-func (h *Handler) getDefaultTenantID(tenantID string) int64 {
+// getDefaultTenantID returns the tenant ID from the context or defaults to a zero UUID.
+func (h *Handler) getDefaultTenantID(tenantID string) string {
 	if tenantID == "" {
-		return 1
+		return "00000000-0000-0000-0000-000000000000"
 	}
-	v, err := strconv.ParseInt(tenantID, 10, 64)
-	if err != nil {
-		return 1
-	}
-	return v
+	return tenantID
 }
 
 // getQueryInt parses a query parameter as int with a default.

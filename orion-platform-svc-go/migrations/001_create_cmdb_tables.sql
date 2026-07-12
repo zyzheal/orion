@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS cis (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     ci_id VARCHAR(255) NOT NULL,
-    tenant_id BIGINT NOT NULL,
+    tenant_id UUID NOT NULL,
     name VARCHAR(255) NOT NULL,
     ci_type VARCHAR(100) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'active',
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS ci_relations (
     to_ci_id VARCHAR(255) NOT NULL,
     relation_type VARCHAR(100) NOT NULL,
     description TEXT,
-    tenant_id BIGINT,
+    tenant_id UUID,
     created_by VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS ci_versions (
     ci_id VARCHAR(255) NOT NULL,
     version BIGINT NOT NULL,
     snapshot JSONB,
-    tenant_id BIGINT,
+    tenant_id UUID,
     created_by VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
