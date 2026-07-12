@@ -325,3 +325,41 @@ func (s *Service) DeleteReport(ctx context.Context, tenantID, id string) error {
 func (s *Service) PurgeExpiredReports(ctx context.Context) (int64, error) {
 	return s.repo.PurgeExpiredReports(ctx)
 }
+
+// ---------------------------------------------------------------------------
+// Engine / Status helpers
+// ---------------------------------------------------------------------------
+
+// Health returns the engine health status.
+func (s *Service) Health(ctx context.Context) (string, error) {
+	return "ok", nil
+}
+
+// Status returns the inception engine configuration status for a tenant.
+func (s *Service) Status(ctx context.Context, tenantID string) (enabled bool, message string, err error) {
+	cfg, err := s.GetConfigByTenant(ctx, tenantID)
+	if err != nil {
+		return false, "Inception not configured", nil
+	}
+	if cfg.Enabled {
+		return true, "Inception configured and enabled", nil
+	}
+	return false, "Inception configured but disabled", nil
+}
+
+// ListDatabases returns distinct database names from the audit history for a tenant.
+func (s *Service) ListDatabases(ctx context.Context, tenantID string) ([]string, error) {
+	audits, err := s.repo.ListAudits(ctx, tenantID, 0, 10000)
+	if err != nil {
+		return nil, fmt.Errorf("list databases failed: %w", err)
+	}
+	seen := make(map[string]bool)
+	var dbs []string
+	for _, a := range audits {
+		if a.DBName != "" && !seen[a.DBName] {
+			seen[a.DBName] = true
+			dbs = append(dbs, a.DBName)
+		}
+	}
+	return dbs, nil
+}

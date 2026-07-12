@@ -188,6 +188,70 @@ type CreateReportRequest struct {
 }
 
 // ---------------------------------------------------------------------------
+// API Request payloads (TS-compatible: sql/database instead of db_name/sql_statement)
+// ---------------------------------------------------------------------------
+
+// AuditRequest is the /inception/audit payload.
+type AuditRequest struct {
+	SQL           string `json:"sql" binding:"required"`
+	Database      string `json:"database"`
+	OperationType string `json:"operation_type"`
+	DryRun        bool   `json:"dry_run"`
+	AuditedBy     string `json:"audited_by"`
+}
+
+func (r *AuditRequest) ToCreateAudit() *CreateAuditRequest {
+	db := r.Database
+	if db == "" {
+		db = "default"
+	}
+	opType := r.OperationType
+	if opType == "" {
+		opType = "audit"
+	}
+	return &CreateAuditRequest{
+		DBName:        db,
+		SQLStatement:  r.SQL,
+		OperationType: opType,
+		DryRun:        r.DryRun,
+		AuditedBy:     r.AuditedBy,
+	}
+}
+
+// ParseRequest is the /inception/parse payload.
+type ParseRequest struct {
+	SQL string `json:"sql" binding:"required"`
+}
+
+func (r *ParseRequest) ToCreateAudit() *CreateAuditRequest {
+	return &CreateAuditRequest{
+		DBName:        "default",
+		SQLStatement:  r.SQL,
+		OperationType: "parse",
+		DryRun:        true,
+	}
+}
+
+// ExecuteRequest is the /inception/execute payload.
+type ExecuteRequest struct {
+	SQL      string `json:"sql" binding:"required"`
+	Database string `json:"database"`
+}
+
+func (r *ExecuteRequest) ToCreateAudit() *CreateAuditRequest {
+	db := r.Database
+	if db == "" {
+		db = "default"
+	}
+	return &CreateAuditRequest{
+		DBName:        db,
+		SQLStatement:  r.SQL,
+		OperationType: "execute",
+		DryRun:        false,
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Pagination
 // ---------------------------------------------------------------------------
 

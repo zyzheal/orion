@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"orion/platform-svc-go/internal/inception/models"
 	"orion/platform-svc-go/internal/inception/service"
@@ -10,55 +9,114 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct { svc *service.Service }
+type Handler struct{ svc *service.Service }
 func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	r := rg.Group("/projects")
-	r.POST("", auth.RequirePermission("inception", "write"), h.Create); r.GET("", h.List); r.GET("/:id", h.Get)
-	r.DELETE("/:id", auth.RequirePermission("inception", "delete"), h.Delete)
-	r.GET("/count", h.Count)
+	// Health (no auth, matches TS: unauthenticated)
+	rg.GET("/health", h.Health)
+	// Status (no auth, matches TS: unauthenticated)
+	rg.GET("/status", h.Status)
+	// SQL Audit — requires write
+	rg.POST("/audit", auth.RequirePermission("inception", "write"), h.Audit)
+	// SQL Parse — requires write
+	rg.POST("/parse", auth.RequirePermission("inception", "write"), h.Parse)
+	// SQL Execute — requires write
+	rg.POST("/execute", auth.RequirePermission("inception", "write"), h.Execute)
+	// List Databases — requires read
+	rg.GET("/databases", auth.RequirePermission("inception", "read"), h.ListDatabases)
+	// Audit History — requires read
+	rg.GET("/history", auth.RequirePermission("inception", "read"), h.History)
 }
 
-func (h *Handler) Create(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	var req models.CreateAuditRequest
-	if err := c.ShouldBindJSON(&req); err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return }
-	d, err := h.svc.CreateAudit(c.Request.Context(), tenantID, &req)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusCreated, d)
+// ---------------------------------------------------------------------------
+// Health & Status
+// ---------------------------------------------------------------------------
+
+func (h *Handler) Health(c *gin.Context) {
+	status, err := h.svc.Health(c.Request.Context())
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, gin.H{"status": status})
 }
 
-func (h *Handler) List(c *gin.Context) {
+func (h *Handler) Status(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1")); ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	enabled, msg, err := h.svc.Status(c.Request.Context(), tenantID)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, gin.H{"enabled": enabled, "message": msg})
+}
+
+// ---------------------------------------------------------------------------
+// SQL Audit / Parse / Execute
+// ---------------------------------------------------------------------------
+
+func (h *Handler) Audit(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.AuditRequest
+	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	auditReq := req.ToCreateAudit()
+	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondCreated(c, gin.H{
+		"checked":  true,
+		"warnings": result.Warnings,
+		"errors":   result.Errors,
+		"audit_id": result.ID,
+	})
+}
+
+func (h *Handler) Parse(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.ParseRequest
+	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	auditReq := req.ToCreateAudit()
+	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, gin.H{
+		"parsed":   true,
+		"sql":      req.SQL,
+		"audit_id": result.ID,
+	})
+}
+
+func (h *Handler) Execute(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.ExecuteRequest
+	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	auditReq := req.ToCreateAudit()
+	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	respondSuccess(c, gin.H{
+		"executed": false,
+		"message":  "Inception not configured",
+		"audit_id": result.ID,
+	})
+}
+
+// ---------------------------------------------------------------------------
+// List Databases
+// ---------------------------------------------------------------------------
+
+func (h *Handler) ListDatabases(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	dbs, err := h.svc.ListDatabases(c.Request.Context(), tenantID)
+	if err != nil { respondInternalError(c, err.Error()); return }
+	if dbs == nil { dbs = []string{} }
+	respondSuccess(c, gin.H{"databases": dbs})
+}
+
+// ---------------------------------------------------------------------------
+// Audit History
+// ---------------------------------------------------------------------------
+
+func (h *Handler) History(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListAudits(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, gin.H{"data": items})
+	if err != nil { respondInternalError(c, err.Error()); return }
+	if items == nil { items = []models.SQLAuditHistory{} }
+	total, _ := h.svc.CountAudits(c.Request.Context(), tenantID)
+	respondSuccess(c, gin.H{"records": items, "total": total})
 }
 
-func (h *Handler) Get(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetAuditByID(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nil { c.JSON(http.StatusNotFound, gin.H{"error": err.Error()}); return }
-	c.JSON(http.StatusOK, d)
-}
-
-func (h *Handler) Delete(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	if err := h.svc.DeleteAudit(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
-}
-
-func (h *Handler) Count(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.CountAudits(c.Request.Context(), tenantID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"count": count})
-}
