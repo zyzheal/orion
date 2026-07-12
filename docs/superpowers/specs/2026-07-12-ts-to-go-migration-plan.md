@@ -1,24 +1,39 @@
-# TS→Go 统一技术栈迁移方案（v3 - 5 专家深度评审版）
+# TS→Go 统一技术栈迁移方案（v4 - 代码深度分析修正版）
 
 **日期**: 2026-07-12
-**状态**: 已深度评审（DDD架构师+软件架构师+算法专家+DevOps专家+AI专家）
+**状态**: 已深度评审 + 4 路代码分析修正
 **目标**: 将 Orion 平台从 TypeScript 技术栈统一迁移到 Go，消除多语言维护成本
 
 ---
 
 ## 1. 背景与目标
 
-### 1.1 当前架构状态
+### 1.1 当前架构状态（代码分析验证版）
 
-| 维度 | 数据 |
-|------|------|
-| TS 平台服务 | `orion-platform-service` — ~2,100 路由, 175 路由文件 |
-| Go 平台服务 | `orion-platform-svc-go` — 46 个 internal 模块, ~1,000 路由 |
-| Go 蓝图目录 | 31 个 `orion-*-svc-go` 目录, 17 个有业务路由代码 |
-| API Gateway | `orion-api-gateway` — 31,741 行, 12 个 routes.ts 内嵌业务逻辑 |
-| 部署形态 | 单体: Gateway(3000) → Platform(3001), 所有流量走 catch-all |
-| Docker/CI 状态 | platform-svc-go 无 Dockerfile、不在 CI 构建矩阵中 |
-| 可观测性 | Go 侧无 OpenTelemetry、无 Prometheus `/metrics`、日志格式未统一 |
+| 维度 | v3 声明 | 代码实际 | 差异 |
+|------|---------|---------|------|
+| TS 平台服务 | ~2,100 路由, 175 路由文件 | ✅ 确认 | — |
+| Go 平台服务 | 46 个 internal 模块, ~1,000 路由 | **51 个 internal 模块, ~850 路由** | +5 模块, -150 路由 |
+| Go 模块完整率 | 未评估 | **41/51 完整 (80%)**, 4 个缺 handler | — |
+| Go→TS 覆盖比 | 未明确 | **~23%**（核心模块 pipeline/workflow/notification/AI 全缺） | — |
+| Go 模块间耦合 | 未评估 | **零耦合**（所有模块独立，无跨模块 import） | 优秀 |
+| Go DB 模式 | 未明确 | **统一 sqlx + PostgreSQL，无 GORM，无内存存储** | 优秀 |
+| Go 迁移文件 | 未明确 | **仅 7 个模块有 migration 文件** | 严重不足 |
+| Go 可观测性 | 无 OTel/Prometheus | ✅ 确认无 | — |
+| Go Docker/CI | 无 Dockerfile、不在 CI | ✅ 确认 | — |
+| Go 蓝图目录 | 31 个，17 个有业务路由 | ✅ 确认 | — |
+| API Gateway | 31,741 行, 12 个 routes.ts 内嵌业务逻辑 | **13 个 routes.ts, 8,719 行, 0 SQL 查询** | 重大修正 |
+| Gateway 存储 | 声称有 SQL | **12/13 使用 Map() 内存, 仅 tenant 用 Redis** | mock/占位 |
+| 部署形态 | 单体: Gateway(3000) → Platform(3001) | ✅ 确认 | — |
+
+### 1.2 核心目标
+
+1. **统一技术栈**: 所有后端服务使用 Go，消除 TS 维护成本
+2. **消除代码重复**: 11 个模块同时在 platform-svc-go 和蓝图中存在
+3. **Gateway 瘦身**: 13 个 routes.ts 中的 mock/占位业务逻辑替换为 Go 后端
+4. **渐进式迁移**: 不中断现有功能，每 Phase 验证通过
+5. **数据一致性**: 迁移过程中保证 Schema 兼容、数据无损、幂等性
+6. **可观测性**: 迁移后统一日志/指标/追踪体系
 
 ### 1.2 核心目标
 
@@ -42,6 +57,25 @@
 7. **数据面先行**: 任何路由迁移前先完成 Schema 对齐和数据一致性验证（v3 新增）
 8. **可观测性配套**: 每个 Phase 迁移的模块必须同步完成日志/指标/追踪集成（v3 新增）
 
+### 1.4 代码深度分析关键发现（v4 新增）
+
+> 基于 Go Platform / Blueprint / Gateway / TS 四路代码分析
+
+| # | 发现 | 影响 |
+|---|------|------|
+| **CF-01** | Gateway 13 个 routes.ts 使用 **Map() 内存存储**（启动即丢失），仅 tenant 用 Redis | Phase 4 Gateway 迁移风险**从"数据一致性"降为"功能替换"** |
+| **CF-02** | Gateway 13 routes.ts **0 个 SQL 查询**（v3 声称有 SQL，错误） | v3 的 Schema 对齐策略对 Gateway 路由不适用 |
+| **CF-03** | Go 平台 51 模块中 **41 个完整**（80%），4 个缺 handler（change/skill/sla/visor-exec） | Phase 1 需先补全 4 个 handler 再谈注册 |
+| **CF-04** | Go 模块间**零耦合**——无跨模块 import | 依赖治理 DAG（3.2 节）可简化，无需 CI 检测 |
+| **CF-05** | Go 统一使用 **sqlx + PostgreSQL**，无 GORM、无内存存储 | 架构一致性极好，迁移目标明确 |
+| **CF-06** | Go 仅有 **7/51 模块有 migration 文件** | Phase 0 需补充剩余模块的 DB migration |
+| **CF-07** | 蓝图 **backup(8r) 不存在**（v3 Phase 2.7 声称存在） | Phase 2.7 任务描述需修正 |
+| **CF-08** | 蓝图 **security(37r) = RBAC/ACL 策略管理**，非通用安全 | Phase 2.12a 描述需精确化 |
+| **CF-09** | 蓝图声明路由数比实际多 **15-20%**（config/monitoring/billing 含 placeholder） | Phase 2 预估工作量需下调 |
+| **CF-10** | Go 与 TS 命名**完全一致**（digital-twin/digital-twin 等） | v3 的 3.3 通用语言统一大部分不需要 |
+| **CF-11** | Gateway auth 中间件完整但**无细粒度权限校验** | Phase 4 迁移需补 RBAC |
+| **CF-12** | Gateway proxy 已实现**熔断(5次失败)/重试(3次指数退避)/超时(30s)** | Phase 6 拆分可直接复用 |
+
 ---
 
 ## 2. 当前状态分析
@@ -50,51 +84,67 @@
 
 ```
 TS 路由总数:     ~2,100
-  ├─ 已在 Go 平台完整实现: 27 个模块 (~1,000 路由)
-  ├─ 部分在 Go 平台: 19 个模块 (~500 路由)  
-  ├─ 仅蓝图存在: 41 个子模块 (~500 路由)
+  ├─ 已在 Go 平台完整实现: 27 个模块 (~850 路由) ← 实际路由数修正
+  ├─ 部分在 Go 平台: 19 个模块 (~500 路由)
+  ├─ 仅蓝图存在: 41 个子模块 (~500 路由, 实际~400, 15-20% placeholder)
   ├─ 仅 TS 存在: 102 个模块 (~400 路由)
-  └─ 在 Gateway routes.ts 中: 12 个模块 (~200 路由)
+  └─ 在 Gateway routes.ts 中: 13 个模块 (8,719 行, 0 SQL, Map 内存)
 ```
 
-### 2.2 代码重复情况
+**代码分析验证**:
+- Go 平台实际覆盖 **51 个模块**（非 46 个），其中 **41 个完整**（handler/service/repository/models 全齐）
+- **4 个模块缺 handler**：change, skill, sla, visor-exec（service/repository 已有，仅缺 handler.go）
+- Go 模块间**零耦合**——无跨模块 import，垂直分层隔离
+- Go 覆盖 TS 平台 **~23%** 的路由文件（核心 pipeline/workflow/notification/AI 全缺）
+- 蓝图声明路由数比实际多 **15-20%**（config/monitoring/billing/security-compliance 含 placeholder）
 
-**11 个模块同时在 platform 和蓝图中存在**:
+### 2.2 代码重复情况（v4 修正——代码分析验证）
 
-| 模块 | 平台路由 | 蓝图状态 | 处理方式 |
-|------|---------|---------|---------|
-| approval | 23 | 空壳(0 路由) | 直接以平台为准 |
-| audit | 20 | 空壳(0 路由) | 直接以平台为准 |
-| deploy | 14 | 空壳(0 路由) | 从 ci-cd 吸收增强 |
-| infrastructure | 19 | 空壳(0 路由) | 注册到 main.go |
-| tenant | 28 | 空壳(0 路由) | 直接以平台为准 |
-| knowledge | 18 | 空壳(0 路由) | 直接以平台为准 |
-| artifact | 19 | 有增量(19+5) | 合并后以平台为准 |
-| build-env | 22 | 有增量(22+22) | 从蓝图+ci-cd 合并 |
-| cmdb | 30 | 有增量(5+20) | 合并后以平台为准 |
-| incident | 20 | 有增量(20+44) | 合并后以平台为准 |
-| monitoring | 36 | 有增量(36+10) | 合并后以平台为准 |
+**11 个模块同时在 platform 和蓝图中存在**（代码实际验证）:
 
-### 2.3 Gateway 业务逻辑情况
+| 模块 | Go 平台路由 | 蓝图实际 | 处理方式 |
+|------|-----------|---------|---------|
+| approval | 23 ✅完整 | 空壳(0) | 直接以平台为准 |
+| audit | 20 ✅完整 | 空壳(0) | 直接以平台为准 |
+| deploy | 14 ✅完整 | 空壳(0) | 从 ci-cd 吸收增强 |
+| infrastructure | 19 ✅完整 | 空壳(0) | 注册到 main.go |
+| tenant | 28 ✅完整 | 空壳(0) | 直接以平台为准 |
+| knowledge | 18 ✅完整 | 空壳(0) | 直接以平台为准 |
+| artifact | 19 ✅完整 | 蓝图有 artifact(5r)+code(5r)，**均为标准 CRUD，无增量价值** | 以平台为准 |
+| build-env | 22 ✅完整 | 蓝图有 build_env(10r)，**cache_monitor 是蓝图独有功能** | 吸收 cache_monitor |
+| cmdb | 23 ✅完整 | 蓝图 cmdb(5r)+4 子模块(20r)，**均为标准 CRUD** | 以平台为准 |
+| incident | 20 ✅完整 | 蓝图 44r（change/changerequest/oncall 等） | 蓝图有增量，合并 |
+| monitoring | 36 ✅完整 | 蓝图 alert(10r)，**RCA/关联分析/去重/静默/通知模板为蓝图独有** | 吸收高级告警引擎 |
 
-Gateway 12 个 routes.ts 包含直接 SQL 查询，非纯代理：
+### 2.3 Gateway 业务逻辑情况（v4 重大修正——代码分析验证）
 
-| 路由文件 | 行数 | 内容 |
-|---------|------|------|
-| ai-models.routes.ts | 711 | 模型 CRUD + 版本管理 |
-| ai-decisions.routes.ts | 790 | AI 决策管理 |
-| ai-degradation.routes.ts | 636 | AI 降级管理 |
-| chaos.routes.ts | 783 | 混沌工程管理 |
-| digital-twin.routes.ts | 864 | 数字孪生管理 |
-| governance.routes.ts | 863 | 治理策略管理 |
-| pipeline-versions.routes.ts | 471 | 流水线版本管理 |
-| pipeline-budget.routes.ts | 520 | 流水线预算管理 |
-| pipeline-templates.routes.ts | 709 | 流水线模板管理 |
-| resilience-score.routes.ts | 687 | 韧性评分管理 |
-| sbom.routes.ts | 885 | SBOM 管理 |
-| tenant.routes.ts | 629 | 租户管理（含 quota/suspend/activate 等 Go 中没有的运营端点） |
+**v3 错误**: 声称 Gateway 12 个 routes.ts 包含"直接 SQL 查询"
+**代码实际**: Gateway 13 个 routes.ts **0 个 SQL 查询**，12 个使用 **Map() 内存存储**（启动即丢失），仅 tenant 用 Redis
 
-**注意**: chaos 和 digital-twin 在 Gateway 中的实现与 Go 平台已有的实现是**两个独立的产品体系**，不是"补充路由"的关系，详见 Phase 3。
+| 路由文件 | 行数 | 存储方式 | SQL 查询 | 与 Go 平台重叠 |
+|-----------|------|---------|---------|--------------|
+| auth.routes.ts | 159 | 代理到 3001 | 0 | 否（纯代理） |
+| tenant.routes.ts | 630 | **Redis** (KV) | 0 | **是**（Go 已实现 PostgreSQL 版） |
+| pipeline-versions | 472 | Map() 内存 | 0 | 否 |
+| pipeline-budget | 521 | Map() 内存 | 0 | 否 |
+| pipeline-templates | 710 | Map() 内存 | 0 | 否 |
+| ai-models | 712 | Map() 内存 | 0 | 否 |
+| ai-decisions | 791 | Map() 内存 | 0 | 否 |
+| ai-degradation | 637 | Map() 内存 | 0 | 否 |
+| chaos | 784 | Map() 内存 | 0 | **是**（Go 已实现 PostgreSQL 版） |
+| resilience-score | 688 | Map() 内存 | 0 | 否 |
+| digital-twin | 865 | Map() 内存 | 0 | **是**（Go 已实现 PostgreSQL 版） |
+| governance | 864 | Map() 内存 | 0 | **是**（Go 已实现 PostgreSQL 版） |
+| sbom | 886 | Map() 内存 | 0 | 否 |
+| **合计** | **8,719** | — | **0** | **4 个重叠** |
+
+**重大修正**: Gateway 的业务 routes.ts 是 **mock/占位实现**，不是"权威实现"。迁移本质是**将 mock 替换为 Go 后端的真实实现**，而非"数据迁移"。这大幅降低了 Phase 4 的风险。
+
+**Gateway 4 个重叠模块处理**:
+- `chaos`: Gateway 版本（Map 内存）→ 被 Go 版本（PostgreSQL）替代
+- `digital-twin`: Gateway 版本（Map 内存）→ 被 Go 版本（PostgreSQL）替代
+- `governance`: Gateway 版本（Map 内存）→ 被 Go 版本替代
+- `tenant`: Gateway 版本（Redis KV）→ Go 版本已支持 PostgreSQL，补充 quota/suspend/activate
 
 ---
 
@@ -153,10 +203,11 @@ pkg/ (共享内核：错误码、日志、数据库、中间件)
   └── internal/config/
 ```
 
-**依赖规则**:
+**依赖规则**（v4 修正——代码分析验证零耦合）:
+- **当前 Go 平台实际状态**: 所有模块**零耦合**，无跨模块 import
 - 核心域模块可依赖 `pkg/` 和同一上下文内的其他模块
-- 不同上下文之间**禁止直接 import**，通过 interface + 事件通信
-- 违反规则的需要在 CI 中通过 `go vet` 或自定义 lint 检测
+- 不同上下文之间**禁止直接 import**，通过 interface + 事件通信（保持现状）
+- **无需 CI 检测**（当前代码已满足，保持即可）
 
 ### 3.3 通用语言统一（v3 新增）
 
@@ -186,10 +237,14 @@ pkg/ (共享内核：错误码、日志、数据库、中间件)
 | 0.3 | 创建多阶段 Dockerfile（scratch/alpine 构建） | 0.5d |
 | 0.4 | 实现健康检查（含 DB/Redis/NATS 依赖检查） | 0.5d |
 | 0.5 | 将 platform-svc-go 加入 CI 构建矩阵（go-test + docker-build） | 0.5d |
-| 0.6 | 定义模块间接口契约（interface 目录 + 依赖注入框架） | 1d |
-| 0.7 | 定义 CI 依赖检测（禁止跨上下文 import） | 0.5d |
-| 0.8 | 采集 TS 平台性能基线（P50/P95/P99 延迟、QPS、内存） | 0.5d |
-| 0.9 | `go build ./...` 验证 | 0.5d |
+| 0.6 | 补全 4 个缺 handler 模块：change/skill/sla/visor-exec（service/repo 已有，只需写 handler.go） | 2d |
+| 0.7 | 补充 DB migration 文件（仅 7/51 模块有，需补充剩余核心模块） | 1d |
+| 0.8 | 定义模块间接口契约（interface 目录 + 依赖注入框架） | 1d |
+| 0.9 | 定义 CI 依赖检测（禁止跨上下文 import，当前零耦合无需执行） | 0.5d |
+| 0.10 | 采集 TS 平台性能基线（P50/P95/P99 延迟、QPS、内存） | 0.5d |
+| 0.11 | `go build ./...` 验证 | 0.5d |
+
+**v4 新增**: 0.6（补全 4 个缺 handler 模块）和 0.7（补充 DB migration 文件），基于代码分析发现。
 
 **交付物**: 共享内核就绪、可观测性就绪、CI 就绪、Docker 就绪
 
@@ -229,7 +284,7 @@ pkg/ (共享内核：错误码、日志、数据库、中间件)
 | 1.9 | selfhealing(5r) 从 incident 蓝图合并到 platform | 0.5d |
 | 1.10 | sla(17r) 补全 handler 并注册（service/repo 已有） | 1d |
 | 1.11 | visor-exec(21r) 补全 handler 并注册（service/repo 已有） | 1d |
-| 1.12 | build-env 从 ci-cd 蓝图吸收增强 | 1d |
+| 1.12 | build-env 从 ci-cd 蓝图吸收增强（cache_monitor 独有功能） | 1d |
 | 1.13 | deploy 从 ci-cd 蓝图吸收状态机+OTel+NATS 增强 | 1d |
 | 1.14 | 构建验证: `go build ./...` | 0.5d |
 
@@ -243,7 +298,7 @@ pkg/ (共享内核：错误码、日志、数据库、中间件)
 - 2.5 governance 拆分：governance(5r) 和 risk(5r) 降级，蓝图为浅 CRUD+TS 端为 stub
 - 2.12 security 扩展：新增 security(37r) 模块
 - 2.11 report-designer 优先级提升
-- 2.7 infra-ops 扩展：新增 backup 模块
+- 2.7 infra-ops 扩展：（backup 不存在，代码验证）
 
 **AI 子系统特别说明**（AI 专家评审驱动）:
 - AI 模块不与其他业务模块平铺，而是作为独立子系统 `internal/ai/`，拥有自己的路由注册器和中间件链
@@ -261,12 +316,12 @@ pkg/ (共享内核：错误码、日志、数据库、中间件)
 | 2.5a | governance | compliance(10r), abac-policy(5r), api-governance(5r) | 20 | **拆分**：governance(5r) 和 risk(5r) 降级至 Phase 4 |
 | 2.5b | governance | permission-audit(5r), terminal-audit(5r) | 10 | 同意 |
 | 2.6 | identity | sso, session, apikey, confirmation | 12 | 同意 |
-| 2.7 | infra-ops | capacity(18r), dr(30r), middleware-ops(17r), **backup(8r)** | 73 | **新增 backup** |
+| 2.7 | infra-ops | capacity(18r), dr(30r), middleware-ops(17r) | 65 | **backup(8r) 不存在**（代码分析验证） |
 | 2.8 | event-bus | eventbus, webhook, message-queue | 15 | 同意 |
 | 2.9 | ticket | problem, queue, runbook, ticket-knowledge | 20 | 同意 |
 | 2.10 | workflow | workflow | 7 | 同意 |
 | 2.11 | finops | **report-designer(16r)**, efficiency(5r) | 21 | **优先级提升** |
-| 2.12a | security | **security(37r)** — 安全扫描/发现/审计计划/合规评估/SBOM/依赖分析 | 37 | **新增** |
+| 2.12a | security | **security(37r)** — RBAC/ACL 策略管理 + 安全基线 + UEBA（非通用安全） | 37 | **新增** |
 | 2.12b | security | secret(8r), vulnerability(4r), ai-security(9r) | 21 | 同意 |
 | 2.13 | orion-ai-svc-go | llm(14r), skill(39r), aiagent(4r), aicost(4r), aigateway(4r), aireview(4r), aisecurity(4r), intelligence(3r) | **72** | **AI 子系统独立**：合入 `internal/ai/` |
 | 2.14 | 删除对应蓝图重复代码 | — | — | — |
@@ -296,25 +351,41 @@ orion-platform-svc-go/internal/ai/
 
 **核心域模块**:
 
-| 模块 | TS 路由 | 蓝图可用 | 理由 |
-|------|---------|---------|------|
-| pipeline | 15+ | ci-cd 蓝图 15r | 流水线执行引擎，核心域 |
-| runner | 35 | ci-cd 蓝图 35r | CI runner 调度，核心域 |
-| canary | 26 | ci-cd 蓝图 26r | 灰度发布，核心域 |
-| sla | 17 | 无（platform 已有 service/repo 缺 handler） | 服务等级协议 |
-| visor-exec | 21 | 无（platform 已有 service/repo 缺 handler） | 可视化执行 |
-| change | 18 | 已在 Phase 1 合并 | 变更管理 |
-| mlops | 16 | 无蓝图 | ML 工作流 |
-| backup | 15 | 已在 Phase 2.7 合并 | 备份恢复 |
-| deploy-enhanced | 15 | 无蓝图 | 部署增强 |
-| lowcode | 15 | 空壳蓝图 | 低代码平台 |
-| sbom | 15 | 已在 Gateway routes.ts | SBOM 管理 |
-| api-market | 14 | 无蓝图 | API 市场 |
+| 模块 | TS 路由 | 蓝图可用 | TS 引擎复杂度 | 理由 |
+|------|---------|---------|-------------|------|
+| pipeline | 15+ | ci-cd 蓝图 15r（简化版） | **PipelineEngine(405r) + ContainerExecutor(272r) + CheckpointManager(474r) + MultiTargetExecutor(167r) = 1,318r** | 流水线执行引擎，核心域，**最复杂迁移** |
+| runner | 35 | ci-cd 蓝图 35r | 蓝图 runner 含执行引擎 | CI runner 调度，核心域 |
+| canary | 26 | ci-cd 蓝图 26r | 蓝图 canary 有集成测试 | 灰度发布，核心域 |
+| sla | 17 | 无（platform 已有 service/repo 缺 handler） | — | 服务等级协议 |
+| visor-exec | 21 | 无（platform 已有 service/repo 缺 handler） | — | 可视化执行 |
+| change | 18 | 已在 Phase 1 合并 | — | 变更管理 |
+| mlops | 16 | 无蓝图 | — | ML 工作流 |
+| deploy-enhanced | 15 | 无蓝图 | TS 有 **DeploySaga(532r) + SagaCoordinator(432r) + IdempotencyChecker(260r) = 1,281r** | 部署增强，需迁移 Saga 编排 |
+| lowcode | 15 | 空壳蓝图 | — | 低代码平台 |
+| sbom | 15 | 已在 Gateway routes.ts | — | SBOM 管理 |
+| api-market | 14 | 无蓝图 | — | API 市场 |
+
+**Pipeline 引擎迁移特别说明**（v4 代码分析驱动）:
+- TS pipeline 引擎远比蓝图完整：TS 有 **PipelineEngine**（阶段执行编排）、**ContainerExecutor**（容器执行）、**PipelineCheckpointManager**（断点续传）、**MultiTargetExecutor**（多目标部署）
+- 蓝图 pipeline 仅为简化版（15r），**不可作为迁移参考**
+- Go 迁移需从零实现上述 4 个核心组件，或使用 TS→Go 翻译策略
+- Go 已有 NATS 集成（`pkg/nats/subscriber.go`），可与 TS 的 JetStream 事件消费者对接
+
+**Saga 编排迁移**（v4 代码分析驱动）:
+- TS 有完整 Saga 系统（**SagaCoordinator 432r + DeploySaga 532r + IdempotencyChecker 260r**）
+- Go 平台尚无 Saga 实现
+- deploy-enhanced 迁移时必须同步迁移 Saga 编排
+
+**TS 事件系统**（v4 代码分析驱动）:
+- TS 有完整事件系统（19 个文件，含 JetStream 消费者、Pipeline/Config/Deployment/Incident/SelfHealing 事件发布器）
+- Go 已有 NATS 连接管理（`pkg/nats/subscriber.go`）
+- 迁移策略：复用 Go NATS，移植事件类型和消费者
 
 **幂等性设计**（算法专家评审驱动）:
 - pipeline/runner/canary 等有状态模块迁移时，采用**幂等性 Key 机制**
 - 请求头 `Idempotency-Key: <uuid>`，后端保证相同 Key 只处理一次
 - 执行器迁移在**无运行中流水线**时进行（维护窗口），或采用状态机冻结
+- TS 的 `IdempotencyChecker(260r)` 可直接作为 Go 实现的参考
 
 ### 4.5 Phase 4: 迁移 Gateway 业务逻辑 + P1 TS 模块
 
@@ -362,19 +433,22 @@ Step 5 - 清理期:
 - 使用 `ROUTE_<MODULE>_PROXY=true` 环境变量逐模块切换
 - 支持热重载：修改环境变量后重启 Gateway 完成切换
 
-**工作时间预估**:
+**工作时间预估**（v4 修正——pipeline/saga 复杂度）:
 
 | 模块 | 预估 | 备注 |
 |------|------|------|
 | ai-models/decisions/degradation | 3d | 合入 AI 子系统 |
 | governance | 2d | 策略 check 逻辑 |
-| pipeline 三路由 | 3d | 合入 CI/CD 上下文 |
+| pipeline 三路由 | 3d | 合入 CI/CD 上下文（Gateway 层） |
 | resilience-score | 1.5d | 含评估算法 |
 | sbom | 2d | 含扫描+许可证+证明+导出 |
-| chaos | 2d | 新建 chaos-gateway 模块 |
-| digital-twin | 2d | 新建 simulation 模块 |
+| chaos | 2d | 新建 chaos-gateway 模块（Map 替换） |
+| digital-twin | 2d | 新建 simulation 模块（Map 替换） |
 | tenant | 1d | 补充 quota/suspend/activate 端点 |
 | **合计** | **~16.5d** | |
+
+**注意**: Phase 4 的 pipeline-versions/budget/templates 为 Gateway Map 数据迁移（低风险），不是 pipeline 引擎迁移。
+Pipeline **引擎**迁移（PipelineEngine/ContainerExecutor/CheckpointManager/MultiTargetExecutor）在 **Phase 3** 处理，预估额外 5d。
 
 **P1 模块**（8-14 路由）:
 ~50 个模块（self-service, inspection, data-pipeline, pipeline-batch, user, test-selector 等）
@@ -530,7 +604,62 @@ go tool cover -func=coverage.out | tail -1
 
 ---
 
-## 附录 A: 5 专家深度评审发现清单
+## 附录 A: 4 路代码深度分析发现清单
+
+### A.1 Go Platform 分析（`orion-platform-svc-go/internal/`）
+
+| 编号 | 发现 | 对方案影响 |
+|------|------|-----------|
+| GO-01 | 51 个模块（非 46），41 个完整(80%) | 模块计数修正 |
+| GO-02 | 4 个缺 handler: change/skill/sla/visor-exec | Phase 0.6 新增补全任务 |
+| GO-03 | 模块间**零耦合**，无跨模块 import | 依赖治理 DAG 可简化 |
+| GO-04 | 统一 **sqlx + PostgreSQL**，无 GORM/内存 | 架构一致性极好 |
+| GO-05 | 仅 **7/51 模块有 migration 文件** | Phase 0.7 新增 migration 补充 |
+| GO-06 | 无 OpenTelemetry/Prometheus/metrics | Phase 0 保持 OTel 集成 |
+| GO-07 | Go 覆盖 TS ~23%，核心模块全缺 | 迁移工作量确认 |
+| GO-08 | 响应模式统一（response_writer.go） | 迁移时无需对齐 |
+| GO-09 | 认证统一（auth.RequirePermission, 4 粒度） | 迁移时无需对齐 |
+
+### A.2 Blueprint 分析（17 个 `orion-*-svc-go/`）
+
+| 编号 | 发现 | 对方案影响 |
+|------|------|-----------|
+| BP-01 | **backup(8r) 不存在**（infra-ops 13 模块中无 backup 目录） | Phase 2.7 修正 |
+| BP-02 | **security(37r) = RBAC/ACL 策略管理**，非通用安全 | Phase 2.12a 描述修正 |
+| BP-03 | 声明路由比实际多 15-20%（placeholder 问题） | 工作量下调 |
+| BP-04 | **skill(39r)+llm(14r) 完整可用**，有 service+repo+tests | Phase 2.13 执行难度低 |
+| BP-05 | ci-cd(142r) 完整但 platform 版更优（SSE 日志流/Saga） | 优先用 platform 版 |
+| BP-06 | artifact 蓝图均为标准 CRUD，无增量价值 | 以平台为准 |
+| BP-07 | build-env 蓝图的 cache_monitor 为独有功能 | 需吸收 |
+| BP-08 | monitoring 蓝图的 RCA/关联分析/去重 为独有功能 | 需吸收 |
+| BP-09 | notification(15) 和 ci-cd(13)/workflow(13) 测试最多 | 迁移优先选有测试的模块 |
+| BP-10 | build-env(0) 和 identity(0) 无任何测试 | 迁移时需补测试 |
+
+### A.3 Gateway 分析（`orion-api-gateway/src/`）
+
+| 编号 | 发现 | 对方案影响 |
+|------|------|-----------|
+| GW-01 | **0 个 SQL 查询**（v3 声称有 SQL，重大修正） | Schema 对齐不适用 |
+| GW-02 | **12/13 routes.ts 用 Map() 内存**，仅 tenant 用 Redis | 风险从"数据迁移"降为"功能替换" |
+| GW-03 | 4 个模块与 Go 重叠: chaos/digital-twin/governance/tenant | 直接替换 |
+| GW-04 | auth 中间件完整但**无细粒度权限**（所有用户可访问全部路由） | Phase 4 需补 RBAC |
+| GW-05 | proxy 已实现熔断(5次)/重试(3次指数退避)/超时(30s) | Phase 6 直接复用 |
+| GW-06 | 路由配置 75 条静态 + 13 本地 + 动态发现 | 灰度路由有基础 |
+| GW-07 | 业务路由用 `(request as any).user?.id || 'system'` 降级 | 认证需统一 |
+
+### A.4 TS Platform 分析（`orion-platform-service/src/`）
+
+| 编号 | 发现 | 对方案影响 |
+|------|------|-----------|
+| TS-01 | 175+ 路由文件，Go 仅覆盖 ~23% | 迁移工作量确认 |
+| TS-02 | 核心模块 pipeline/workflow/notification/AI 全缺 | 核心域迁移优先 |
+| TS-03 | TS 与 Go 共享同一 PostgreSQL 实例 | Schema 对齐可行 |
+| TS-04 | TS 有完善的 SSE 日志流 + Saga 编排 | pipeline 迁移参考 |
+| TS-05 | TS 有结构化日志 + tracing + metrics | 可观测性基线 |
+
+---
+
+## 附录 B: 5 专家深度评审发现清单
 
 ### A.1 DDD 架构师（评分：C）
 
@@ -594,7 +723,7 @@ go tool cover -func=coverage.out | tail -1
 
 ---
 
-## 附录 B: 模块状态总表
+## 附录 C: 模块状态总表
 
 ### B.1 已在 Go 平台完整实现（27 个）
 
@@ -622,7 +751,7 @@ ai-models, ai-decisions, ai-degradation, chaos, digital-twin, governance, pipeli
 
 ---
 
-## 附录 C: 蓝图目录清单
+## 附录 D: 蓝图目录清单（代码分析修正版）
 
 ### C.1 含业务路由的蓝图（17 个）
 
@@ -639,7 +768,7 @@ ai-models, ai-decisions, ai-degradation, chaos, digital-twin, governance, pipeli
 | orion-governance-svc-go | 57 | abac-policy, api-governance, audit, compliance, governance, permission-audit, policy, risk, terminal-audit |
 | orion-identity-svc-go | 12 | apikey, confirmation, session, sso |
 | orion-incident-svc-go | 44 | change, changeintelligence, changerequest, escalation, oncall, selfhealing |
-| orion-infra-ops-svc-go | 176 | capacity, chaos, dba, degradation, digital-twin, dr, ephemeral-env, iac, maintenance-window, middleware-ops, multicloud, oci-registry, serverless |
+| orion-infra-ops-svc-go | 176 | capacity, chaos, dba, degradation, digital-twin, dr, ephemeral-env, iac, middleware-ops, multicloud, oci-registry, serverless（**无 backup**）|
 | orion-monitoring-svc-go | 10 | alert |
 | orion-notification-svc-go | 21 | chatops, notification |
 | orion-security-svc-go | 58 | ai-security, secret, security, vulnerability |
@@ -676,7 +805,7 @@ Phase 2 (蓝图合并) ───────────────────
   ├── security (37r) - 新增
   ├── governance (20r) - 拆分
   ├── ticket/notification/identity 等
-  └── infra-ops (73r) - 含 backup 新增
+  └── infra-ops (65r) - backup 不存在（代码验证）
 
 Phase 3 (核心域 TS 迁移) ────────────────────────────── 5d
   ├── pipeline/runner/canary (76r)
