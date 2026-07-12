@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/dba/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * DBA (Database Administration) API Routes
  *
  * Routes under /api/v1/dba

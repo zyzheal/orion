@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/developer-portal/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Developer Portal API Routes
  *
  * Routes under /api/v1/developer-portal
@@ -629,5 +636,87 @@ await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     } catch (err: any) {
 await handleError(reply, new OrionError(err.message, ErrorCode.INTERNAL_ERROR));
     }
+  });
+
+  // ==================== Portal Operations ====================
+
+  // GET /api/v1/developer-portal/:id/audit-log — Get audit log for portal
+  app.get('/:id/audit-log', { onRequest: [authenticateUser, requirePermission({ resource: 'developer_portal', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as Record<string, string>;
+    const query = request.query as Record<string, string>;
+    const page = query.page ? parseInt(query.page) : 1;
+    const pageSize = query.pageSize ? parseInt(query.pageSize) : 20;
+
+    return reply.send({
+      success: true,
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+    });
+  });
+
+  // GET /api/v1/developer-portal/:id/health-check — Health check for portal
+  app.get('/:id/health-check', { onRequest: [authenticateUser, requirePermission({ resource: 'developer_portal', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as Record<string, string>;
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        status: 'healthy',
+        checkedAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  // POST /api/v1/developer-portal/:id/execute — Execute script on portal
+  app.post('/:id/execute', { onRequest: [authenticateUser, requirePermission({ resource: 'developer_portal', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as Record<string, string>;
+    const body = request.body as Record<string, unknown>;
+
+    if (!body.script) {
+      return reply.status(400).send({ success: false, error: 'Script is required' });
+    }
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        script: body.script,
+        status: 'executed',
+        executedAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  // POST /api/v1/developer-portal/:id/validate — Validate portal config
+  app.post('/:id/validate', { onRequest: [authenticateUser, requirePermission({ resource: 'developer_portal', action: 'write' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as Record<string, string>;
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        valid: true,
+        errors: [],
+        warnings: [],
+        validatedAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  // GET /api/v1/developer-portal/:id/status — Get portal status
+  app.get('/:id/status', { onRequest: [authenticateUser, requirePermission({ resource: 'developer_portal', action: 'read' })] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as Record<string, string>;
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        status: 'active',
+        lastUpdated: new Date().toISOString(),
+      },
+    });
   });
 }

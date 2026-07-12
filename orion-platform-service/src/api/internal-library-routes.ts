@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/internal-library/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Internal Library Routes - 二方库管理 API 路由
  *
  * 基于 M30 二方库管理设计
@@ -246,6 +253,25 @@ handleError(reply, new NotFoundError('Library not found'));
       return;
     }
     reply.send(library);
+  });
+
+  // ==================== 复制管理 ====================
+
+  /**
+   * 复制二方库
+   * POST /internal-libraries/:id/copy
+   */
+  app.post('/:id/copy', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'internal_library', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    try {
+      const newLibrary = await libraryService.copyLibrary(id, body);
+      reply.status(201).send(newLibrary);
+    } catch (error: any) {
+      handleError(reply, new ValidationError(error.message));
+    }
   });
 
   // ==================== 依赖追踪 ====================

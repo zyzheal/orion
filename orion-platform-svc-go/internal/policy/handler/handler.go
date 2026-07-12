@@ -39,6 +39,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// PATCH /policies/:id/toggle - 启用/禁用策略
 	f.PATCH("/:id/toggle", auth.RequirePermission("policy", "write"), h.Toggle)
 
+	// --- Evaluation (Root) ---
+	// Static paths must be registered before parameterized routes to avoid conflicts.
+	// POST /policies/evaluate-policy - Evaluate policy against a resource
+	f.POST("/evaluate-policy", auth.RequirePermission("policy", "execute"), h.EvaluatePolicyRoot)
+	// GET /policies/evaluations - Get evaluation history
+	f.GET("/evaluations", auth.RequirePermission("policy", "read"), h.ListRootEvaluations)
+	// POST /policies/evaluate - Evaluate policy for a specific run
+	f.POST("/evaluate", auth.RequirePermission("policy", "execute"), h.EvaluateRoot)
+	// GET /policies/evaluations/runs - List evaluations
+	f.GET("/evaluations/runs", auth.RequirePermission("policy", "read"), h.ListEvaluationsRuns)
+
 	// --- Policy evaluation ---
 	// POST /policies/:id/evaluate - 执行策略评估
 	f.POST("/:id/evaluate", auth.RequirePermission("policy", "read"), h.Evaluate)
@@ -201,6 +212,74 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	evaluations, err := h.svc.GetEvaluationHistory(c.Request.Context(), tenantID, id, limit, offset)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, evaluations)
+}
+
+// --- Root evaluation handlers ---
+
+// EvaluatePolicyRoot handles POST /policies/evaluate-policy.
+func (h *Handler) EvaluatePolicyRoot(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.EvaluatePolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "policy not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+// EvaluateRoot handles POST /policies/evaluate.
+func (h *Handler) EvaluateRoot(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.EvaluatePolicyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "policy not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+// ListRootEvaluations handles GET /policies/evaluations.
+func (h *Handler) ListRootEvaluations(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, evaluations)
+}
+
+// ListEvaluationsRuns handles GET /policies/evaluations/runs.
+func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return

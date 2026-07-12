@@ -66,7 +66,7 @@ func (r *Repository) ListTenants(ctx context.Context, status *string, limit, off
 		return nil, 0, err
 	}
 
-	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, name, display_name, status, settings, created_at, updated_at FROM tenants %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where),
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`SELECT id, name, display_name, status, settings, created_at, updated_at FROM tenants %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`, where, len(args), len(args)+1),
 		append(args, limit, offset)...)
 	if err != nil {
 		return nil, total, err

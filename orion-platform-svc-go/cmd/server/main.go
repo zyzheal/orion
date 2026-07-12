@@ -554,6 +554,24 @@ func main() {
 	slaH.RegisterRoutes(rg)
 	visorH.RegisterRoutes(rg)
 
+	// === Global error handlers (standard error envelope) ===
+	respondJSON := func(c *gin.Context, status int, code string, msg string) {
+		c.JSON(status, gin.H{
+			"error": gin.H{
+				"code":    status,
+				"type":    code,
+				"message": msg,
+			},
+		})
+	}
+
+	r.NoRoute(func(c *gin.Context) {
+		respondJSON(c, http.StatusNotFound, "NotFound", "api endpoint not found")
+	})
+	r.NoMethod(func(c *gin.Context) {
+		respondJSON(c, http.StatusMethodNotAllowed, "MethodNotAllowed", "method not allowed")
+	})
+
 	// === Public endpoints (no auth) ===
 	r.GET("/healthz", middleware.HealthCheck("orion-platform-svc"))
 	r.GET("/metrics", middleware.MetricsHandler())

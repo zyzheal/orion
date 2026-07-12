@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/federation/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Federation API Routes
  * 多集群联邦管理 API 路由
  */
@@ -256,5 +263,94 @@ export default async function federationRoutes(
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!advancedController) return dbUnavailable(request, reply);
     return advancedController.getResourcePoolStatus(request, reply);
+  });
+
+  // ==================== Federation Lifecycle ====================
+
+  // POST /federation/:id/sync - Sync federation config
+  app.post('/federation/:id/sync', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const body = (request as any).body;
+      const result = await federationService.syncFederationConfig(params.id, body);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  // POST /federation/:id/refresh - Refresh federation data
+  app.post('/federation/:id/refresh', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const body = (request as any).body;
+      const result = await federationService.refreshFederationData(params.id, body);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  // GET /federation/:id/audit - Federation audit log
+  app.get('/federation/:id/audit', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const result = await federationService.getFederationAudit(params.id);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  // GET /federation/:id/status - Federation status
+  app.get('/federation/:id/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const result = await federationService.getFederationStatus(params.id);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  // POST /federation/:id/health-check - Health check
+  app.post('/federation/:id/health-check', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const body = (request as any).body;
+      const result = await federationService.healthCheckFederation(params.id, body);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
+  });
+
+  // GET /federation/:id/progress - Sync progress
+  app.get('/federation/:id/progress', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'federation', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!federationService) return dbUnavailable(request, reply);
+    try {
+      const params = (request as any).params as { id: string };
+      const result = await federationService.getFederationSyncProgress(params.id);
+      return reply.send(result);
+    } catch (error) {
+      return handleError(reply, error);
+    }
   });
 }

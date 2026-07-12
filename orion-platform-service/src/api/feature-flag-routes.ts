@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/feature-flag/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Feature Flag API Routes
  *
  * Routes under /api/v1/feature-flags
@@ -181,6 +188,62 @@ export default async function featureFlagRoutes(
       return reply.status(200).send({ success: true, data: history });
     } catch (error: any) {
       logger.error({ error }, 'Failed to get toggle history');
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Search & Count ====================
+
+  // GET /api/v1/feature-flags/search - Search feature flags
+  app.get('/search', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'feature_flag', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const query = request.query as any;
+      const tenantId = (request as any).user?.tenantId;
+      const flags = await service.listFlags(tenantId, {
+        status: query.status,
+        environment: query.environment,
+        q: query.q,
+      });
+      return reply.status(200).send({ success: true, data: flags });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to search feature flags');
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // GET /api/v1/feature-flags/count - Count feature flags
+  app.get('/count', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'feature_flag', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const tenantId = (request as any).user?.tenantId;
+      const flags = await service.listFlags(tenantId);
+      return reply.status(200).send({ success: true, data: { count: flags.length } });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to count feature flags');
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
+
+  // ==================== Batch Evaluation ====================
+
+  // POST /api/v1/feature-flags/evaluate/batch - Batch evaluate flags
+  app.post('/evaluate/batch', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'feature_flag', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { tenantId, flagKeys, context } = request.body as any;
+      if (!tenantId || !flagKeys || !Array.isArray(flagKeys)) {
+        return handleError(reply, new ValidationError('VALIDATION_ERROR'));
+      }
+      const results = await Promise.all(
+        flagKeys.map((flagKey: string) => service.evaluateFlag(tenantId, flagKey, context))
+      );
+      return reply.status(200).send({ success: true, data: results });
+    } catch (error: any) {
+      logger.error({ error }, 'Failed to batch evaluate feature flags');
       return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
     }
   });

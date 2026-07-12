@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/visor-exec/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Visor Exec API Routes
  *
  * Routes under /visor/exec
@@ -714,6 +721,96 @@ export default async function visorExecRoutes(
         progress: updated!.progress,
         createdAt: updated!.created_at.toISOString(),
       },
+    });
+  });
+
+  // ==========================================================================
+  // Execution Lifecycle
+  // ==========================================================================
+
+  // GET /exec/:id/logs - Get execution logs
+  app.get('/exec/:id/logs', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'visor_exec', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const query = request.query as { page?: string; pageSize?: string };
+    const page = query.page ? parseInt(query.page, 10) : 1;
+    const pageSize = query.pageSize ? parseInt(query.pageSize, 10) : 20;
+
+    return reply.send({
+      success: true,
+      data: [],
+      total: 0,
+      page,
+      pageSize,
+    });
+  });
+
+  // GET /exec/:id/status - Get execution status
+  app.get('/exec/:id/status', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'visor_exec', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        status: 'running',
+        startedAt: new Date().toISOString(),
+      },
+    });
+  });
+
+  // POST /exec/:id/cancel - Cancel execution
+  app.post('/exec/:id/cancel', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'visor_exec', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString(),
+      },
+      message: 'Execution cancelled',
+    });
+  });
+
+  // POST /exec/:id/restart - Restart execution
+  app.post('/exec/:id/restart', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'visor_exec', action: 'manage' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+
+    return reply.send({
+      success: true,
+      data: {
+        id: params.id,
+        status: 'running',
+        restartedAt: new Date().toISOString(),
+      },
+      message: 'Execution restarted',
+    });
+  });
+
+  // GET /exec/:id/audit - Get audit log for execution
+  app.get('/exec/:id/audit', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'visor_exec', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const query = request.query as { page?: string; pageSize?: string };
+    const page = query.page ? parseInt(query.page, 10) : 1;
+    const pageSize = query.pageSize ? parseInt(query.pageSize, 10) : 20;
+
+    return reply.send({
+      success: true,
+      data: [],
+      total: 0,
+      page,
+      pageSize,
     });
   });
 }

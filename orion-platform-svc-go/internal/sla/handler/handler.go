@@ -36,6 +36,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.POST("/tracking", auth.RequirePermission("sla", "write"), h.StartTracking)
 	f.GET("/tracking", auth.RequirePermission("sla", "read"), h.ListTracking)
 	f.GET("/tracking/:id", auth.RequirePermission("sla", "read"), h.GetTracking)
+	// PATCH /tracking/:id - Update tracking
+	f.PATCH("/tracking/:id", auth.RequirePermission("sla", "manage"), h.UpdateTracking)
 	f.POST("/tracking/:id/met", auth.RequirePermission("sla", "manage"), h.MarkMet)
 	f.POST("/tracking/:id/breached", auth.RequirePermission("sla", "manage"), h.MarkBreached)
 	f.POST("/tracking/:id/pause", auth.RequirePermission("sla", "manage"), h.PauseTracking)
@@ -196,6 +198,22 @@ func (h *Handler) GetTracking(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, tracking)
+}
+
+func (h *Handler) UpdateTracking(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	var req models.UpdateTrackingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	result, err := h.svc.UpdateTracking(c.Request.Context(), tenantID, id, req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) MarkMet(c *gin.Context) {

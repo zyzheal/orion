@@ -99,6 +99,17 @@ type UpdateTrackingStatusRequest struct {
 	Status string `json:"status" binding:"required"` // met, breached, paused, tracking
 }
 
+// UpdateTrackingRequest is used for partial (PATCH) updates to an SLA tracking record.
+type UpdateTrackingRequest struct {
+	Status       *string    `json:"status"`
+	DefinitionID *string    `json:"sla_definition_id"`
+	EntityType   *string    `json:"entity_type"`
+	EntityID     *string    `json:"entity_id"`
+	TargetTime   *time.Time `json:"target_time"`
+	Notes        *string    `json:"notes"`
+	PauseReason  *string    `json:"pause_reason"`
+}
+
 // --- Query models ---
 
 type DefinitionListQuery struct {

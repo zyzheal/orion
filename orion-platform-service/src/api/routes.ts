@@ -78,6 +78,7 @@ import communityAdvancedRoutes from './community-advanced-routes';
 import moduleRoutes from './module-routes';
 import scriptRoutes from './script-routes';
 import scriptLibraryRoutes from './script-library-routes';
+// [ARCHIVED] approval — migrated to Go, TS route retained for backward compatibility
 import { registerApprovalRoutes } from './approval-routes';
 import artifactRoutes from './artifact-routes';
 import artifactVersionRoutes from './artifact-version-routes';
@@ -492,9 +493,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // Code Repo API (adapters, repos, branches, PRs, code-owners, webhooks)
+// [ARCHIVED] code-repo — migrated to Go, TS route retained for backward compatibility
   await app.register(codeRepoRoutes, { prefix: '/api/v1/code-repo' });
 
   // 注册 Configuration Management API 路由 (PostgreSQL backed)
+// [ARCHIVED] config — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, configRoutes, '/config', { database: options.database, redis: options.redis });
 
   // FinOps 成本管理路由已迁移到 orion-finops-svc (port 3009)
@@ -510,16 +513,21 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // Deploy routes migrated to orion-deploy-svc (port 3003)
 
   // 注册监控告警 API 路由 (TASK-703)
+// [ARCHIVED] monitoring — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, monitoringRoutes, '/monitoring', { database: options.database });
   // 注册智能工单 API 路由 (TASK-801)
+// [ARCHIVED] ticketing — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, ticketingRoutes, '/ticketing', { database: options.database });
   // 注册 CMDB API 路由
+// [ARCHIVED] cmdb — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, cmdbRoutes, '/cmdb', { database: options.database });
   // 注册 Visor Exec API 路由 (批量命令执行、脚本模板、定时任务、文件上传)
+// [ARCHIVED] visor-exec — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, visorExecRoutes, '/visor/exec');
   // 注册终端审计日志 API 路由 (连接日志 + 文件传输日志)
   await registerWithRoleGuard(app, terminalAuditRoutes, '/cmdb/terminal-audit', { database: options.database });
   // 注册 DBA API 路由 (Phase 4 - Database DevOps)
+// [ARCHIVED] dba — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, dbaRoutes, '/dba', { database: options.database });
   // 注册 Billing API 路由 (Phase 4 - Quota & Billing)
   await registerWithRoleGuard(app, billingRoutes, '/billing', { database: options.database });
@@ -532,19 +540,23 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 AI 网关 API 路由
   // 注册告警管理 API 路由
   // 注册审计 API 路由
+// [ARCHIVED] audit — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, auditRoutes, '/audit', { database: options.database });
 
   // 注册租户管理 API 路由 (PostgreSQL backed)
+// [ARCHIVED] tenant — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, tenantRoutes, '/tenant', { database: options.database });
 
   // 注册效能分析 API 路由 — P0-4 Fix: pass database for real DORA metrics// 注册 SBOM Attestation API 路由 (P0) - migrated to PostgreSQL// 注册 OPA Policy Engine API 路由 (P0) - PostgreSQL backed// 注册 Quality Gate Trend API 路由 (Phase 1) - PostgreSQL backed// 注册 AI Change Intelligence API 路由 (P0)
   // 注册 ML Canary Analysis API 路由 (P0) - PostgreSQL backed
   // 注册 Plugin Marketplace API 路由 (Phase 3) - PostgreSQL backed// 注册 Canary Traffic Management API 路由 (Phase 3) - PostgreSQL backed
   // 注册 Skill Management API 路由 (M12)
+// [ARCHIVED] skill — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, skillRoutes, '/skills', { database: options.database });
 
   // 注册 AI Cost Optimization API 路由 (M36)
   // 注册 IaC Management API 路由 (M20) - PostgreSQL backed
+// [ARCHIVED] iac — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, iacRoutes, '/iac', { eventBus: options.eventBus, database: options.database });
 
   // Register Ephemeral Dev Environments API routes (M31)
@@ -554,6 +566,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // 注册 ChatOps API 路由 (M35) - PostgreSQL backed
+// [ARCHIVED] chatops — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, chatopsRoutes, '/chatops', {
     eventBus: options.eventBus,
     database: options.database,
@@ -565,12 +578,14 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, confirmationRoutes, '/confirmations', { database: options.database, eventBus: options.eventBus });
 
   // 注册 Artifact Registry API 路由 (M29)
+// [ARCHIVED] artifact — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, artifactRoutes, '/artifacts', { database: options.database });
 
   // 注册 Artifact Version API 路由
   await registerWithRoleGuard(app, artifactVersionRoutes, '/artifact-versions', { database: options.database });
 
   // 注册 Artifact Ops API 路由 — 操作追踪、扫描、保留策略
+// [ARCHIVED] artifact-ops — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, artifactOpsRoutes, '/artifact-ops', { database: options.database });
 
   // 注册 Artifact Lifecycle API 路由 — 生命周期、复制、ACL
@@ -587,6 +602,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, abacPolicyRoutes, '/abac-policies', { database: options.database });
 
   // Project Member Routes (P2)
+// [ARCHIVED] project-member — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, projectMemberRoutes, '/project-members', { database: options.database });
 
   // UEBA Routes (P2)
@@ -603,6 +619,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   const serverlessRoutes = await import('./serverless-routes').then(m => m.default);
   const multiCloudRoutes = await import('./multi-cloud-routes').then(m => m.default);
   await registerWithRoleGuard(app, finOpsRoutes, '/cost-operations', { database: options.database });
+// [ARCHIVED] finops-v2 — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, finOpsV2Routes, '/finops', { database: options.database });
   await registerWithRoleGuard(app, mlopsRoutes, '/mlops', { database: options.database });
   await registerWithRoleGuard(app, metadataRoutes, '/metadata', { database: options.database });
@@ -613,7 +630,9 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, inspectionRoutes, '/inspection', { database: options.database });
   await registerWithRoleGuard(app, capacityRoutes, '/capacity', { database: options.database });
   await registerWithRoleGuard(app, middlewareOpsRoutes, '/middleware', { database: options.database });
+// [ARCHIVED] serverless — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, serverlessRoutes, '/serverless', { database: options.database });
+// [ARCHIVED] multi-cloud — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, multiCloudRoutes, '/v1/multi-cloud', { database: options.database });
 
   // 注册统一配置中心 API (使用 /v1/system-config 前缀)
@@ -643,9 +662,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, eventbusRoutes, '/eventbus', { database: options.database, eventBus: options.eventBus });
 
   // 注册 ProductLine 多分支产品线 API 路由 (M6) — P0-2 Fix: pass database
+// [ARCHIVED] product-line — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, productLineRoutes, '/product-lines', { database: options.database });
 
   // 注册 Internal Library 二方库管理 API 路由 (M30)
+// [ARCHIVED] internal-library — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, internalLibraryRoutes, '/internal-libraries', { database: options.database });
 
   // 注册 Notification API 路由 (M8/M33) — 传入 eventBus 用于多通道投递事件
@@ -661,9 +682,11 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, doNotDisturbRoutes, '/notifications/dnd', { database: options.database });
 
   // 注册 Workbench API 路由 — 个人聚合工作台后端 (auth guarded)
+// [ARCHIVED] workbench — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, workbenchRoutes, '/workbench', { database: options.database });
 
   // 注册 Inception SQL Audit 路由
+// [ARCHIVED] inception — migrated to Go, TS route retained for backward compatibility
   await app.register(inceptionRoutes, { prefix: '/api/v1/inception' });
 
   // 注册 BI Dashboard API 路由 — Executive/Manager/Engineer 仪表盘 (auth guarded)
@@ -679,19 +702,24 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, webhookRoutes, '/webhooks', { database: options.database });
 
   // 注册 Project Management API 路由 - PostgreSQL backed
+// [ARCHIVED] project — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, projectRoutes, '/projects', { database: options.database });
 
   // 注册 Environment Management API 路由 - PostgreSQL backed
+// [ARCHIVED] environment — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, environmentRoutes, '/environments', { database: options.database });
 
   // 注册 Queue Management API 路由 (M24) - PostgreSQL backed
   // 注册 Knowledge Base API 路由 (M28) - PostgreSQL backed
+// [ARCHIVED] knowledge — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, knowledgeRoutes, '/knowledge', { database: options.database });
 
   // 注册 SubApp Management API 路由 - Page-based sub-app configuration
+// [ARCHIVED] subapp — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, subappRoutes, '/subapps', { database: options.database });
 
   // 注册 Page Registry API 路由 - Frontend route configuration management (Phase 4)
+// [ARCHIVED] page-registry — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, pageRegistryRoutes, '/page-registry', { database: options.database });
 
   // 注册 LLM Trace API 路由 - PostgreSQL backed with cost tracking
@@ -797,6 +825,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await app.register(async (instance: FastifyInstance) => {
     instance.addHook('onRequest', authenticateUser);
     // Register compliance routes - the module handles /compliance/* paths
+// [ARCHIVED] security-compliance — migrated to Go, TS route retained for backward compatibility
     await instance.register(securityComplianceRoutes, {
       prefix: '/',
       database: options.database,
@@ -836,6 +865,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Artifact Operations ====================
 
   // ==================== Digital Twin ====================
+// [ARCHIVED] digital-twin — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, digitalTwinRoutes, '/digital-twins', { database: options.database });
 
   // ==================== API Governance ====================
@@ -960,6 +990,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // Cron Scheduler
+// [ARCHIVED] cron — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, cronRoutes, '/cron', {
     database: options.database,
   });
@@ -979,6 +1010,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // Developer Portal
+// [ARCHIVED] developer-portal — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, developerPortalRoutes, '/developer-portal', {
     database: options.database,
   });
@@ -1264,6 +1296,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   }
 
   // Plugin Management (enhanced plugin system)
+// [ARCHIVED] plugin — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, pluginRoutes, '/plugins', {
     database: options.database,
     pluginManager: (options as any).moduleManager,
@@ -1280,6 +1313,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   });
 
   // OPA Policy Engine - policy definitions, evaluations, violations, exemptions
+// [ARCHIVED] policy — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, policyRoutes, '/policies', {
     database: options.database,
   });
@@ -1291,6 +1325,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, testSelectorRoutes, '/test-selector', { database: options.database });
 
   // Smart Deploy - deployment execution, history, metrics
+// [ARCHIVED] deploy — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, deployRoutes, '/deploy', { database: options.database });
 
   // Health Check - real health check execution
@@ -1303,6 +1338,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, changeIntelligenceRoutes, '/change-intelligence', { database: options.database });
 
   // ==================== Capability Management ====================
+// [ARCHIVED] capability — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, capabilityRoutes, '/capabilities', { database: options.database });
 
   // ==================== API Marketplace ====================
@@ -1327,19 +1363,23 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, aiSecurityRoutes, '/ai/security', { database: options.database });
 
   // ==================== Service Registry (Phase 6) ====================
+// [ARCHIVED] service-registry — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, serviceRegistryRoutes, '/api/v1/service-registry', {
     database: options.database,
   });
 
   // ==================== Gateway Dynamic Routes (Phase 6) ====================
+// [ARCHIVED] gateway-dynamic — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, gatewayDynamicRoutes, '/api/v1/gateway', {
     database: options.database,
   });
 
   // ==================== Build Environment ====================
+// [ARCHIVED] build-env — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, buildEnvRoutes, '/build-env', { database: options.database });
 
   // ==================== Feature Flags ====================
+// [ARCHIVED] feature-flag — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, featureFlagRoutes, '/feature-flags', { database: options.database });
 
   // ==================== Observability ====================
@@ -1357,6 +1397,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // ==================== Phase 3: Alert Management ====================
   // Phase 3.5 Fix: Register alert routes — previously orphan
   // NOTE: Alert routes are in-memory only; no DB dependency
+// [ARCHIVED] alert — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, alertRoutes, '/alert', { database: options.database });
 
   // ==================== Degradation Management ====================
@@ -1364,6 +1405,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Incident Management (ITIL-aligned) ====================
   // Full lifecycle, timeline, post-mortem/RCA, priority matrix, MTTR stats
+// [ARCHIVED] incident — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, incidentRoutes, '/incidents', {
     database: options.database,
     knowledgeIntegration: options.database ? new KnowledgeIntegrationService(options.database) : undefined,
@@ -1399,6 +1441,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
 
   // ==================== Team Management ====================
   // Phase 3.5 Fix: Register team routes — previously orphan
+// [ARCHIVED] team — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, teamRoutes, '/teams', { database: options.database });
 
   // ==================== Integration ====================
@@ -1408,6 +1451,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, efficiencyRoutes, '/efficiency', { database: options.database });
 
   // ==================== Chaos Engineering ====================
+// [ARCHIVED] chaos — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, chaosRoutes, '/chaos', { database: options.database });
 
   // ==================== Dual Engine (AST + LLM) ====================
@@ -1426,12 +1470,15 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, selfServiceRoutes, '/self-service', { database: options.database });
 
   // ==================== SLA Management (ITSM Phase B) ====================
+// [ARCHIVED] sla — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, slaRoutes, '/sla', { database: options.database });
 
   // ==================== Change Management (ITSM Phase C) ====================
+// [ARCHIVED] change — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, changeRoutes, '/changes', { database: options.database });
 
   // ==================== Handler Registry SPI ====================
+// [ARCHIVED] handler-registry — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, handlerRegistryRoutes, '/handlers', { database: options.database });
 
   // ==================== Pipeline Batch Execution ====================
@@ -1456,6 +1503,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, ticketKnowledgeRoutes, '/ticket-knowledge', { database: options.database });
 
   // ==================== i18n Internationalization ====================
+// [ARCHIVED] i18n — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, i18nRoutes, '/i18n', { database: options.database });
 
   // ==================== Runbook Automation ====================
@@ -1486,6 +1534,7 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   await registerWithRoleGuard(app, costAllocationRoutes, '/cost-allocation', { database: options.database });
 
   // ==================== Sprint Board ====================
+// [ARCHIVED] sprint — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, sprintRoutes, '/sprints', { database: options.database });
 
   // ==================== CI Type Designer ====================

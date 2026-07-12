@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -157,7 +158,8 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(204, nil)
+	c.Writer.WriteHeader(http.StatusNoContent)
+	c.Writer.Flush()
 }
 
 // --- Build Image handlers ---
@@ -226,7 +228,8 @@ func (h *Handler) DeleteBuildImage(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(204, nil)
+	c.Writer.WriteHeader(http.StatusNoContent)
+	c.Writer.Flush()
 }
 
 // --- Build Cache handlers ---
@@ -317,7 +320,8 @@ func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(204, nil)
+	c.Writer.WriteHeader(http.StatusNoContent)
+	c.Writer.Flush()
 }
 
 // --- Build Log handlers ---

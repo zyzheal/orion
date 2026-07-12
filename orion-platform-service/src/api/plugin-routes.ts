@@ -1,3 +1,10 @@
+/**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/plugin/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
 // orion-platform-service/src/api/plugin-routes.ts
 // Plugin Management API Routes (enhanced plugin system)
 
@@ -42,6 +49,85 @@ export default async function pluginEnhancedRoutes(app: FastifyInstance, options
   const aiDiagnosis = new AIDiagnosisService();
   const auditLogRepo = options?.database ? new PostgresPluginAuditLogRepository(options.database) : undefined;
   const debugController = DebugController.getInstance();
+
+  // ==================== Plugin Quotas ====================
+
+  // PUT /api/v1/plugin/quotas/:pluginId - Upsert plugin quota
+  app.put('/quotas/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { pluginId } = request.params as { pluginId: string };
+    const body = request.body as any;
+    try {
+      const quota = await pluginManager.upsertPluginQuota(pluginId, body);
+      return { message: 'quota upserted', pluginId, quota };
+    } catch (error) {
+      return handleError(reply, new ValidationError('Unknown error'));
+    }
+  });
+
+  // GET /api/v1/plugin/quotas/:pluginId - Get plugin quota
+  app.get('/quotas/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { pluginId } = request.params as { pluginId: string };
+    try {
+      const quota = await pluginManager.getPluginQuota(pluginId);
+      return { pluginId, quota };
+    } catch (error) {
+      return handleError(reply, new NotFoundError('Unknown error'));
+    }
+  });
+
+  // DELETE /api/v1/plugin/quotas/:pluginId - Delete plugin quota
+  app.delete('/quotas/:pluginId', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'delete' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const { pluginId } = request.params as { pluginId: string };
+    try {
+      await pluginManager.deletePluginQuota(pluginId);
+      return { message: 'quota deleted', pluginId };
+    } catch (error) {
+      return handleError(reply, new ValidationError('Unknown error'));
+    }
+  });
+
+  // ==================== Security Events ====================
+
+  // POST /api/v1/plugin/security-events - Create security event
+  app.post('/security-events', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'write' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as any;
+    const tenantId = (request as any).tenantId;
+    try {
+      const event = await pluginManager.createSecurityEvent(tenantId, body);
+      return reply.status(201).send({ message: 'security event created', event });
+    } catch (error) {
+      return handleError(reply, new ValidationError('Unknown error'));
+    }
+  });
+
+  // GET /api/v1/plugin/security-events - List security events
+  app.get('/security-events', {
+    onRequest: [authenticateUser, requirePermission({ resource: 'plugin', action: 'read' })],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = request.query as any;
+    const tenantId = (request as any).tenantId;
+    const filter: any = {
+      tenantId,
+      pluginId: query?.pluginId,
+      severity: query?.severity,
+      limit: query?.limit || 50,
+      offset: query?.offset || 0,
+    };
+    try {
+      const events = await pluginManager.listSecurityEvents(filter);
+      return { events, ...filter };
+    } catch (error) {
+      return handleError(reply, new OrionError('INTERNAL_ERROR', ErrorCode.INTERNAL_ERROR));
+    }
+  });
 
   // GET /healthz - Health check for plugin subsystem
   app.get('/healthz', async (request: FastifyRequest, reply: FastifyReply) => {

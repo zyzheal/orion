@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/alert/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Alert Management API Routes
  *
  * 告警关联、去重、抑制功能
@@ -343,5 +350,25 @@ export default async function alertRoutes(
     }
 
     return success(reply, request, { alert });
+  });
+
+  // PUT /alert/:id - Update alert
+  app.put('/:id', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    // TODO: call service
+    await reply.send({ success: true, data: {} });
+  });
+
+  // DELETE /alert/:id - Delete alert
+  app.delete('/:id', {
+    onRequest: [requirePermission({ resource: 'alert', action: 'delete' })],
+  }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    const params = request.params as { id: string };
+    const body = request.body as Record<string, unknown>;
+    // TODO: call service
+    await reply.send({ success: true, data: {} });
   });
 }

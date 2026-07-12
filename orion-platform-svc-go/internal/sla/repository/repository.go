@@ -179,6 +179,43 @@ func (r *Repository) ListTracking(ctx context.Context, tenantID string, q models
 	return items, total, nil
 }
 
+
+func (r *Repository) UpdateTracking(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return nil
+	}
+	now := time.Now().UTC()
+	updates["updated_at"] = now
+
+	// Map request-field keys to DB column names; only update columns present.
+	columns := map[string]string{
+		"status":            "status",
+		"sla_definition_id": "sla_definition_id",
+		"entity_type":       "entity_type",
+		"entity_id":         "entity_id",
+		"target_time":       "target_time",
+		"notes":             "notes",
+		"pause_reason":      "pause_reason",
+		"updated_at":        "updated_at",
+	}
+
+	fields := []string{}
+	for key, col := range columns {
+		if _, ok := updates[key]; ok {
+			fields = append(fields, fmt.Sprintf("%s=:%s", col, col))
+		}
+	}
+	if len(fields) == 0 {
+		return nil
+	}
+	updates["id"] = id
+	updates["tenant_id"] = tenantID
+	query := fmt.Sprintf("UPDATE sla_tracking SET %s WHERE id=:id AND tenant_id=:tenant_id",
+		joinWhereParts(fields))
+	_, err := r.db.NamedExecContext(ctx, query, updates)
+	return err
+}
+
 func (r *Repository) UpdateTrackingStatus(ctx context.Context, tenantID, id, status string, reason string) error {
 	if reason != "" {
 		_, err := r.db.ExecContext(ctx,

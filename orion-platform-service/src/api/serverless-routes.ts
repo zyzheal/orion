@@ -1,4 +1,11 @@
 /**
+ * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
+ * Go service: internal/serverless/handler/handler.go
+ * DO NOT modify this file. All changes should be made to the Go implementation.
+ * Migration completed: 2026-07-13
+ */
+
+/**
  * Serverless API Routes (Phase 4 P0 - Serverless Module)
  * Function lifecycle, triggers, deployment, invocation, logs, metrics, auto-scaling
  */

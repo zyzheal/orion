@@ -287,3 +287,41 @@ func IsNotFound(err error) bool {
 func ErrNotFoundSlaEntity(id string) error {
 	return fmt.Errorf("sla entity %q not found: %w", id, repository.ErrNotFound)
 }
+
+func (s *Service) UpdateTracking(ctx context.Context, tenantID, id string, req models.UpdateTrackingRequest) (*models.SLATracking, error) {
+	// Verify the tracking exists
+	_, err := s.GetTracking(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	updates := make(map[string]interface{})
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if req.DefinitionID != nil {
+		updates["sla_definition_id"] = *req.DefinitionID
+	}
+	if req.EntityType != nil {
+		updates["entity_type"] = *req.EntityType
+	}
+	if req.EntityID != nil {
+		updates["entity_id"] = *req.EntityID
+	}
+	if req.TargetTime != nil {
+		updates["target_time"] = *req.TargetTime
+	}
+	if req.Notes != nil {
+		updates["notes"] = *req.Notes
+	}
+	if req.PauseReason != nil {
+		updates["pause_reason"] = *req.PauseReason
+	}
+	if len(updates) == 0 {
+		return s.GetTracking(ctx, tenantID, id)
+	}
+	if err := s.repo.UpdateTracking(ctx, tenantID, id, updates); err != nil {
+		return nil, err
+	}
+	return s.GetTracking(ctx, tenantID, id)
+}
