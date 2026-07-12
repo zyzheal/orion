@@ -60,8 +60,13 @@ const defaultConfig: AppConfig = {
     pass: process.env.NATS_PASS,
   },
   services: {
-    // Platform service (main backend)
+    // Go platform service (migrated from TS)
     platform: {
+      url: process.env.PLATFORM_GO_SERVICE_URL || 'http://localhost:8080',
+      timeout: parseInt(process.env.PLATFORM_TIMEOUT || '30000', 10),
+    },
+    // TS platform service (legacy, fallback)
+    'platform-ts': {
       url: process.env.PLATFORM_SERVICE_URL || 'http://localhost:3001',
       timeout: parseInt(process.env.PLATFORM_TIMEOUT || '30000', 10),
     },

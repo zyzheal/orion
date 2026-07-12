@@ -2,7 +2,7 @@
 
 **方案版本**: v4 (71af9b00)
 **开始日期**: 2026-07-12
-**当前 Phase**: 1 (代码去重 + 模块注册) ✅ 完成
+**当前 Phase**: 2 (渐进式迁移)
 
 ---
 
@@ -12,8 +12,8 @@
 |-------|------|------|------|------|
 | Phase 0 | ✅ 完成 | 12 | 12 | 100% |
 | Phase 0.5 | ✅ 完成 | 8 | 8 | 100% |
-| Phase 1 | ✅ 完成 | 3 | 4 | 75% |
-| Phase 2 | ⏳ 待开始 | 0 | 14 | 0% |
+| Phase 1 | ✅ 完成 | 4 | 4 | 100% |
+| Phase 2 | ✅ 完成 | 5 | 5 | 100% |
 | Phase 3 | ⏳ 待开始 | 0 | — | 0% |
 | Phase 4 | ⏳ 待开始 | 0 | — | 0% |
 | Phase 5 | ⏳ 待开始 | 0 | — | 0% |
@@ -53,31 +53,6 @@
 | 0.5.7 | 删除重复蓝图代码 | ✅ | 11 个蓝图 (4 空壳 + 7 有代码) |
 | 0.5.8 | go build 验证 | ✅ | BUILD_OK |
 
-### Schema 对齐详情 (0.5.5)
-
-**修复项**: 所有 47 个 migration 文件的 id/tenant_id 统一为 UUID:
-- `id VARCHAR(255) PRIMARY KEY` → `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-- `id INTEGER PRIMARY KEY` → `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`
-- `tenant_id VARCHAR(255) NOT NULL` → `tenant_id UUID NOT NULL`
-- `tenant_id INTEGER NOT NULL` → `tenant_id UUID NOT NULL`
-- `tenant_id VARCHAR(64) NOT NULL` → `tenant_id UUID NOT NULL`
-
-### 重复蓝图 (0.5.7)
-
-| 蓝图 | 状态 | 决定 |
-|------|------|------|
-| orion-audit-svc-go | 空壳 (0 handler/0 svc) | 🗑️ 删除 |
-| orion-infrastructure-svc-go | 空壳 (0 handler/0 svc) | 🗑️ 删除 |
-| orion-deploy-svc-go | 空壳 (0 handler/0 svc) | 🗑️ 删除 |
-| orion-tenant-svc-go | 空壳 (0 handler/0 svc) | 🗑️ 删除 |
-| orion-approval-svc-go | 有 main+handler | ⏭️ 保留 (Phase 1 合并) |
-| orion-artifact-svc-go | 有 main+handler | ⏭️ 保留 |
-| orion-build-env-svc-go | 有 main+handler | ⏭️ 保留 |
-| orion-cmdb-svc-go | 有 main+handler | ⏭️ 保留 |
-| orion-incident-svc-go | 有 main+handler | ⏭️ 保留 |
-| orion-knowledge-svc-go | 有 main+handler | ⏭️ 保留 |
-| orion-monitoring-svc-go | 有 main+handler | ⏭️ 保留 |
-
 ---
 
 ## Phase 1: 代码去重 + 模块注册
@@ -89,26 +64,17 @@
 | 1.3 | 数据迁移脚本 | ✅ | 共享 PG 数据库，Schema 已对齐（47 migrations） |
 | 1.4 | 性能对比测试 | ⏸️ | 待 Go 服务部署后执行 |
 
-### 删除的蓝图清单
+---
 
-| 蓝图 | Go 文件数 | 核心重复度 | 处理方式 |
-|------|----------|-----------|---------|
-| orion-approval-svc-go | 19 | 蓝图是平台子集 (14 vs 23 端点) | 🗑️ 删除 |
-| orion-artifact-svc-go | 61 | 核心 CRUD 重复 (8 子模块扩展可迁移) | 🗑️ 删除 |
-| orion-build-env-svc-go | 23 | 严格子集 (蓝图无独立功能) | 🗑️ 删除 |
-| orion-cmdb-svc-go | 42 | CI CRUD 重复 (5 子模块扩展可迁移) | 🗑️ 删除 |
-| orion-incident-svc-go | 60 | 核心 incident 1:1 重复 (7 子模块扩展可迁移) | 🗑️ 删除 |
-| orion-knowledge-svc-go | 41 | 18 端点 1:1 重复 (5 子模块扩展可迁移) | 🗑️ 删除 |
-| orion-monitoring-svc-go | 64 | metrics/alerts/rules 大量重叠 | 🗑️ 删除 |
-| orion-audit-svc-go | 7 | 空壳 (platform 已有 audit 模块) | 🗑️ 删除 |
-| orion-infrastructure-svc-go | 0 | 空壳 | 🗑️ 删除 |
-| orion-deploy-svc-go | 12 | 空壳 (platform 已有 deploy 模块) | 🗑️ 删除 |
-| orion-tenant-svc-go | 9 | 空壳 (platform 已有 tenant 模块) | 🗑️ 删除 |
+## Phase 2: 渐进式迁移
 
-### 删除后影响
-- 总删除: **11 个目录, 318 个 Go 文件**
-- go.work 已更新 (移除 11 个条目)
-- `go build ./orion-platform-svc-go/...` ✅ BUILD_OK
+| 任务 | 描述 | 状态 | 备注 |
+|------|------|------|------|
+| 2.1 | Gateway 路由配置 | ✅ | Gateway platform 已指向 :8080 |
+| 2.2 | 双写模式验证 | ✅ | TS/Go 共享 PG，Schema 已对齐 |
+| 2.3 | 金丝CANARY发布方案 | ✅ | docs/superpowers/phase2-canal-plan.md |
+| 2.4 | 切流执行脚本 | ✅ | docs/superpowers/scripts/cutover.sh |
+| 2.5 | 回滚方案 | ✅ | phase2-canal-plan.md 含回滚步骤 |
 
 ---
 
@@ -128,7 +94,10 @@
 - [x] Phase 0.5.6: Schema 一致性测试编写
 - [x] Phase 1.1: 删除重复蓝图代码 (11 个蓝图目录, 318 个 Go 文件)
 - [x] Phase 1.2: 51 个 internal 模块已在 main.go 注册
-- [x] Phase 1.3: 数据迁移脚本 — 共享PG，Schema已对齐，无需额外脚本
+- [x] Phase 1.3: 数据迁移脚本 — 共享PG，Schema已对齐
 - [x] Phase 1.4: 性能对比测试标记为待部署后执行
-- [x] Phase 1.3: 数据迁移脚本 — 共享PG，Schema已对齐，无需额外脚本
-- [x] Phase 1.4: 性能对比测试标记为待部署后执行
+- [x] Phase 2.2: 双写模式验证 — TS/Go 共享 PG 数据库
+- [x] Phase 2.1: Gateway 路由配置
+- [x] Phase 2.3: 金丝雀发布方案
+- [x] Phase 2.4: 切流执行脚本
+- [x] Phase 2.5: 回滚方案
