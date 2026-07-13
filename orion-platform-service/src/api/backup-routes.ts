@@ -1,5 +1,8 @@
 /**
- * Backup & Recovery API Routes
+ * [ARCHIVED] Backup & Recovery API Routes
+ *
+ * This module has been migrated to Go (orion-platform-svc-go/internal/backup/).
+ * Do not modify this file. The Go implementation is the source of truth.
  *
  * Routes under /api/v1/backup
  * Handles backup plans, recovery plans, verification, and restore operations.

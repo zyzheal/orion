@@ -1,4 +1,7 @@
 /**
+ * [ARCHIVED] - Migrated to Go service (orion-platform-svc-go/internal/oncall/)
+ * Date: 2026-07-12
+ *
  * OnCall Scheduling API Routes
  *
  * Routes under /api/v1/oncall

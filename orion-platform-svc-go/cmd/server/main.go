@@ -16,6 +16,10 @@ import (
 	ff_repo "orion/platform-svc-go/internal/feature-flag/repository"
 	ff_service "orion/platform-svc-go/internal/feature-flag/service"
 
+	ag_handler "orion/platform-svc-go/internal/api-governance/handler"
+	ag_repo "orion/platform-svc-go/internal/api-governance/repository"
+	ag_service "orion/platform-svc-go/internal/api-governance/service"
+
 	artifact_handler "orion/platform-svc-go/internal/artifact/handler"
 	artifact_repo "orion/platform-svc-go/internal/artifact/repository"
 	artifact_service "orion/platform-svc-go/internal/artifact/service"
@@ -156,11 +160,17 @@ import (
 	deploy_handler "orion/platform-svc-go/internal/deploy/handler"
 	deploy_repo "orion/platform-svc-go/internal/deploy/repository"
 	deploy_service "orion/platform-svc-go/internal/deploy/service"
+	deploy_enhanced_handler "orion/platform-svc-go/internal/deploy-enhanced/handler"
+	deploy_enhanced_repo "orion/platform-svc-go/internal/deploy-enhanced/repository"
+	deploy_enhanced_service "orion/platform-svc-go/internal/deploy-enhanced/service"
 
 	digital_twin_handler "orion/platform-svc-go/internal/digital-twin/handler"
 	digital_twin_repo "orion/platform-svc-go/internal/digital-twin/repository"
 	digital_twin_service "orion/platform-svc-go/internal/digital-twin/service"
 
+	finops_handler "orion/platform-svc-go/internal/finops/handler"
+	finops_repo "orion/platform-svc-go/internal/finops/repository"
+	finops_service "orion/platform-svc-go/internal/finops/service"
 	finops_v2_handler "orion/platform-svc-go/internal/finops-v2/handler"
 	finops_v2_repo "orion/platform-svc-go/internal/finops-v2/repository"
 	finops_v2_service "orion/platform-svc-go/internal/finops-v2/service"
@@ -187,6 +197,25 @@ import (
 	visor_handler "orion/platform-svc-go/internal/visor-exec/handler"
 	visor_repo "orion/platform-svc-go/internal/visor-exec/repository"
 	visor_service "orion/platform-svc-go/internal/visor-exec/service"
+
+	cr_handler "orion/platform-svc-go/internal/change-request/handler"
+	cr_repo "orion/platform-svc-go/internal/change-request/repository"
+	cr_service "orion/platform-svc-go/internal/change-request/service"
+	rd_handler "orion/platform-svc-go/internal/report-designer/handler"
+	rd_repo "orion/platform-svc-go/internal/report-designer/repository"
+	rd_service "orion/platform-svc-go/internal/report-designer/service"
+
+	diagnostic_handler "orion/platform-svc-go/internal/diagnostic/handler"
+	diagnostic_repo "orion/platform-svc-go/internal/diagnostic/repository"
+	diagnostic_service "orion/platform-svc-go/internal/diagnostic/service"
+
+	backup_handler "orion/platform-svc-go/internal/backup/handler"
+	backup_repo "orion/platform-svc-go/internal/backup/repository"
+	backup_service "orion/platform-svc-go/internal/backup/service"
+
+	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
+	oncall_repo "orion/platform-svc-go/internal/oncall/repository"
+	oncall_service "orion/platform-svc-go/internal/oncall/service"
 
 
 	ticketing_handler "orion/platform-svc-go/internal/ticketing/handler"
@@ -243,6 +272,11 @@ func main() {
 	ffRepo := ff_repo.NewRepository(db.DB)
 	ffSvc := ff_service.NewService(ffRepo)
 	ffH := ff_handler.NewHandler(ffSvc)
+
+	// API Governance services
+	agRepo := ag_repo.NewRepository(db.DB)
+	agSvc := ag_service.NewService(agRepo)
+	agH := ag_handler.NewHandler(agSvc)
 
 	// Federation services
 	fedRepo := fed_repo.NewRepository(db.DB)
@@ -443,10 +477,20 @@ func main() {
 	deploySvc := deploy_service.NewService(deployRepo)
 	deployH := deploy_handler.NewHandler(deploySvc)
 
+	// deploy-enhanced services
+	deploy_enhancedRepo := deploy_enhanced_repo.NewRepository(db.DB)
+	deploy_enhancedSvc := deploy_enhanced_service.NewService(deploy_enhancedRepo)
+	deploy_enhancedH := deploy_enhanced_handler.NewHandler(deploy_enhancedSvc)
+
 	// digital-twin services
 	digital_twinRepo := digital_twin_repo.NewRepository(db.DB)
 	digital_twinSvc := digital_twin_service.NewService(digital_twinRepo)
 	digital_twinH := digital_twin_handler.NewHandler(digital_twinSvc)
+
+	// finops services
+	finopsRepo := finops_repo.NewRepository(db.DB)
+	finopsSvc := finops_service.NewService(finopsRepo)
+	finopsH := finops_handler.NewHandler(finopsSvc)
 
 	// finops-v2 services
 	finops_v2Repo := finops_v2_repo.NewRepository(db.DB)
@@ -491,6 +535,31 @@ func main() {
 	visorRepo := visor_repo.NewRepository(db.DB)
 	visorSvc := visor_service.NewService(visorRepo)
 	visorH := visor_handler.NewHandler(visorSvc)
+
+	// change-request services
+	crRepo := cr_repo.NewRepository(db.DB)
+	crSvc := cr_service.NewService(crRepo)
+	crH := cr_handler.NewHandler(crSvc)
+
+	// report-designer services
+	rdRepo := rd_repo.NewRepository(db.DB)
+	rdSvc := rd_service.NewService(rdRepo)
+	rdH := rd_handler.NewHandler(rdSvc)
+
+	// oncall services
+	oncallRepo := oncall_repo.NewRepository(db.DB)
+	oncallSvc := oncall_service.NewService(oncallRepo)
+	oncallH := oncall_handler.NewHandler(oncallSvc)
+
+	// diagnostic services
+	diagnosticRepo := diagnostic_repo.NewRepository(db.DB)
+	diagnosticSvc := diagnostic_service.NewService(diagnosticRepo)
+	diagnosticH := diagnostic_handler.NewHandler(diagnosticSvc)
+
+	// backup services
+	backupRepo := backup_repo.NewRepository(db.DB)
+	backupSvc := backup_service.NewService(backupRepo)
+	backupH := backup_handler.NewHandler(backupSvc)
 
 
 	r := gin.New()
@@ -544,7 +613,9 @@ func main() {
 	build_envH.RegisterRoutes(rg)
 	dbaH.RegisterRoutes(rg)
 	deployH.RegisterRoutes(rg)
+	deploy_enhancedH.RegisterRoutes(rg)
 	digital_twinH.RegisterRoutes(rg)
+	finopsH.RegisterRoutes(rg)
 	finops_v2H.RegisterRoutes(rg)
 	knowledgeH.RegisterRoutes(rg)
 	security_complianceH.RegisterRoutes(rg)
@@ -553,6 +624,12 @@ func main() {
 	skillH.RegisterRoutes(rg)
 	slaH.RegisterRoutes(rg)
 	visorH.RegisterRoutes(rg)
+	crH.RegisterRoutes(rg)
+	agH.RegisterRoutes(rg)
+	rdH.RegisterRoutes(rg)
+	oncallH.RegisterRoutes(rg)
+	diagnosticH.RegisterRoutes(rg)
+	backupH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {
