@@ -213,6 +213,13 @@ import (
 	backup_repo "orion/platform-svc-go/internal/backup/repository"
 	backup_service "orion/platform-svc-go/internal/backup/service"
 
+	am_handler "orion/platform-svc-go/internal/api-market/handler"
+	am_repo "orion/platform-svc-go/internal/api-market/repository"
+	am_service "orion/platform-svc-go/internal/api-market/service"
+	cit_handler "orion/platform-svc-go/internal/ci-type/handler"
+	cit_repo "orion/platform-svc-go/internal/ci-type/repository"
+	cit_service "orion/platform-svc-go/internal/ci-type/service"
+
 	oncall_handler "orion/platform-svc-go/internal/oncall/handler"
 	oncall_repo "orion/platform-svc-go/internal/oncall/repository"
 	oncall_service "orion/platform-svc-go/internal/oncall/service"
@@ -556,6 +563,16 @@ func main() {
 	diagnosticSvc := diagnostic_service.NewService(diagnosticRepo)
 	diagnosticH := diagnostic_handler.NewHandler(diagnosticSvc)
 
+	// api-market services
+	amRepo := am_repo.NewRepository(db.DB)
+	amSvc := am_service.NewService(amRepo)
+	amH := am_handler.NewHandler(amSvc)
+
+	// ci-type services
+	citRepo := cit_repo.NewRepository(db.DB)
+	citSvc := cit_service.NewService(citRepo)
+	citH := cit_handler.NewHandler(citSvc)
+
 	// backup services
 	backupRepo := backup_repo.NewRepository(db.DB)
 	backupSvc := backup_service.NewService(backupRepo)
@@ -629,6 +646,8 @@ func main() {
 	rdH.RegisterRoutes(rg)
 	oncallH.RegisterRoutes(rg)
 	diagnosticH.RegisterRoutes(rg)
+	amH.RegisterRoutes(rg)
+	citH.RegisterRoutes(rg)
 	backupH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
