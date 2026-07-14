@@ -1,0 +1,321 @@
+package handler
+
+import (
+	"context"
+	"database/sql"
+	"net/http"
+	"strconv"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pipeline-templates/models"
+	"orion/platform-svc-go/internal/pipeline-templates/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Handler exposes HTTP endpoints for Pipeline Templates.
+type Handler struct {
+	svc *service.Service
+}
+
+// NewHandler creates a new Handler.
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes mounts all pipeline-templates routes.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	r := rg.Group("/pipeline-templates")
+
+	// Categories (no id, no pagination query required)
+	r.GET("/categories",
+		auth.RequirePermission("pipeline_templates", "read"),
+		h.Categories)
+
+	// Search (GET with query params)
+	r.GET("/search",
+		auth.RequirePermission("pipeline_templates", "read"),
+		h.Search)
+
+	// Collection: GET /pipeline-templates (list)
+	r.GET("",
+		auth.RequirePermission("pipeline_templates", "read"),
+		h.List)
+
+	// Collection: POST /pipeline-templates (create)
+	r.POST("",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Create)
+
+	// Item: GET /pipeline-templates/:id
+	r.GET("/:id",
+		auth.RequirePermission("pipeline_templates", "read"),
+		h.Get)
+
+	// Item: PUT /pipeline-templates/:id
+	r.PUT("/:id",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Update)
+
+	// Item: DELETE /pipeline-templates/:id
+	r.DELETE("/:id",
+		auth.RequirePermission("pipeline_templates", "delete"),
+		h.Delete)
+
+	// Actions on :id (specific endpoints, mount before :id variants with trailing paths)
+	r.POST("/:id/publish",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Publish)
+
+	r.POST("/:id/deprecate",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Deprecate)
+
+	// Versions: GET /pipeline-templates/:id/versions
+	r.GET("/:id/versions",
+		auth.RequirePermission("pipeline_templates", "read"),
+		h.Versions)
+
+	// Instantiate: POST /pipeline-templates/:id/instantiate
+	r.POST("/:id/instantiate",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Instantiate)
+
+	// Star: POST /pipeline-templates/:id/star
+	r.POST("/:id/star",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Star)
+
+	// Unstar: DELETE /pipeline-templates/:id/star
+	r.DELETE("/:id/star",
+		auth.RequirePermission("pipeline_templates", "write"),
+		h.Unstar)
+}
+
+// Categories returns the list of categories with counts.
+func (h *Handler) Categories(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	cats, err := h.svc.GetCategories(ctx, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"data": cats})
+}
+
+// Search returns a paginated search of templates.
+func (h *Handler) Search(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	q := models.ListQuery{}
+	if err := c.ShouldBindQuery(&q); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	// Handle comma-separated tags from query string
+	if q.Tags != "" {
+		// Already passed as a raw string from query param
+	}
+
+	items, total, err := h.svc.List(ctx, tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{
+		"data":  items,
+		"total": total,
+	})
+}
+
+// List returns a paginated list of templates.
+func (h *Handler) List(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	q := models.ListQuery{}
+	if err := c.ShouldBindQuery(&q); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	if q.Limit <= 0 || q.Limit > 100 {
+		q.Limit = 20
+	}
+
+	items, total, err := h.svc.List(ctx, tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{
+		"data":  items,
+		"total": total,
+	})
+}
+
+// Create creates a new template.
+func (h *Handler) Create(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	authorID := c.GetString("user_id")
+	if authorID == "" {
+		authorID = "system"
+	}
+	ctx := context.Background()
+
+	var req models.CreateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	tmpl, err := h.svc.Create(ctx, tenantID, req, authorID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, tmpl)
+}
+
+// Get retrieves a template by ID.
+func (h *Handler) Get(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// Update updates a template.
+func (h *Handler) Update(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	var req models.UpdateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	tmpl, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// Delete removes a template.
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
+		if err == sql.ErrNoRows {
+			respondNotFound(c, "template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondNoContent(c)
+}
+
+// Publish publishes a template.
+func (h *Handler) Publish(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// Deprecate deprecates a template.
+func (h *Handler) Deprecate(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// Versions returns paginated versions for a template.
+func (h *Handler) Versions(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	q := models.ListQuery{}
+	if err := c.ShouldBindQuery(&q); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	if q.Limit <= 0 || q.Limit > 100 {
+		q.Limit = 20
+	}
+
+	versions, total, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"), &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{
+		"data":  versions,
+		"total": total,
+	})
+}
+
+// Instantiate creates a pipeline from a template.
+func (h *Handler) Instantiate(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	var req models.InstantiateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	result, err := h.svc.Instantiate(ctx, tenantID, c.Param("id"), req)
+	if err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	respondCreated(c, result)
+}
+
+// Star stars a template.
+func (h *Handler) Star(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// Unstar removes a star from a template.
+func (h *Handler) Unstar(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		respondNotFound(c, "template not found")
+		return
+	}
+	respondSuccess(c, tmpl)
+}
+
+// unused import fix
+var _ = http.StatusOK
+var _ = strconv.Itoa
