@@ -182,6 +182,9 @@ import (
 	build_env_repo "orion/platform-svc-go/internal/build-env/repository"
 	build_env_service "orion/platform-svc-go/internal/build-env/service"
 
+	build_handler "orion/platform-svc-go/internal/build/handler"
+	build_repo "orion/platform-svc-go/internal/build/repository"
+	build_service "orion/platform-svc-go/internal/build/service"
 	dba_handler "orion/platform-svc-go/internal/dba/handler"
 	dba_repo "orion/platform-svc-go/internal/dba/repository"
 	dba_service "orion/platform-svc-go/internal/dba/service"
@@ -978,6 +981,10 @@ func main() {
 	build_envSvc := build_env_service.NewService(build_envRepo, db.DB.DB)
 	build_envH := build_env_handler.NewHandler(build_envSvc)
 
+	// Build service
+	buildRepo := build_repo.NewRepository(db.DB)
+	buildSvc := build_service.NewService(buildRepo)
+	buildH := build_handler.NewHandler(buildSvc)
 	// dba services
 	dbaRepo := dba_repo.NewRepository(db.DB)
 	dbaSvc := dba_service.NewService(dbaRepo)
@@ -1656,6 +1663,7 @@ func main() {
 	serverlessH.RegisterRoutes(rg)
 	ticketingH.RegisterRoutes(rg)
 	build_envH.RegisterRoutes(rg)
+	buildH.RegisterRoutes(rg)
 	dbaH.RegisterRoutes(rg)
 	deployH.RegisterRoutes(rg)
 	deploy_enhancedH.RegisterRoutes(rg)
