@@ -161,7 +161,7 @@ describe('SLADefinitionRepository', () => {
 
       const result = await repo.updateDefinition('sla-x', { name: 'x' });
 
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
   });
 
@@ -415,7 +415,7 @@ describe('SLATrackingRepository', () => {
 
       const result = await repo.updateStatus('track-x', 'met', 'tenant-1');
 
-      expect(result).toBeNull();
+      expect(result).toBeUndefined();
     });
   });
 

@@ -41,14 +41,6 @@ jest.mock('../../utils/logger', () => ({
   }),
 }));
 
-// Mock safeFetch to bypass SSRF validation in tests
-jest.mock('../safeFetch', () => ({
-  safeFetch: jest.fn().mockImplementation((url: string, options?: RequestInit) => {
-    return global.fetch(url, options);
-  }),
-  safeFetchWithDomains: jest.fn(),
-}));
-
 import { HealthCheckerService } from '../../services/health-check/HealthCheckerService';
 import type { ServiceHealthCheckEntity, CheckResult, AlertPayload } from '../../services/health-check/HealthCheckerService';
 

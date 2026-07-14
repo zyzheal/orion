@@ -7,7 +7,7 @@ import { getCurrentTenantId } from '../../../db/tenant-context-storage';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: jest.fn(() => 'test-tenant-001'),
-  getCurrentTraceId: jest.fn(() => 'test-trace-123'),
+  getCurrentTraceId: () => 'test-trace-id',
 }));
 
 // Mock DatabasePool

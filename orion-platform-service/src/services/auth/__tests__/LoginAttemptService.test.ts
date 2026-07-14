@@ -171,13 +171,10 @@ describe('LoginAttemptService', () => {
       mockRepository.findById = jest.fn(async (id: string) => users.get(id) ?? null);
 
       for (let i = 1; i < defaultConfig.maxAttempts; i++) {
-        mockRepository.update = jest.fn(async (id: string, input: Partial<User>) => {
-          const u = users.get(id);
-          if (!u) return null;
-          const updated = { ...u, ...input };
-          users.set(id, updated);
-          return updated;
-        });
+        mockRepository.incrementFailedAttempts = jest.fn(async () => ({
+          attempts: i,
+          lockedUntil: null,
+        }));
 
         const result = await service.recordFailure(user.id);
         expect(result.locked).toBe(false);

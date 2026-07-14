@@ -3,7 +3,6 @@
  */
 jest.mock('../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
-  getCurrentTraceId: () => 'test-trace-123',
 }));
 
 import { ServiceRegistryRepository } from '../ServiceRegistryRepository';

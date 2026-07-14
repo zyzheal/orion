@@ -5,7 +5,7 @@ import { NotificationPolicyService } from '../NotificationPolicyService';
 
 jest.mock('../../../db/tenant-context-storage', () => ({
   getCurrentTenantId: () => 'test-tenant',
-  getCurrentTraceId: () => 'test-trace-123',
+  getCurrentTraceId: () => 'test-trace-id',
 }));
 
 const mockPolicyRepo = {
