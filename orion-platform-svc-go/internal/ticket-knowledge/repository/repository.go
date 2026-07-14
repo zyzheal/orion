@@ -68,7 +68,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		"UPDATE ticket-knowledge SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
-	)
+)
 	if err != nil {
 		return nil, err
 	}

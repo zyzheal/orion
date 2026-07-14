@@ -30,7 +30,7 @@ func (r *Repository) Create(ctx context.Context, s *models.Session) error {
 		s.ID, s.UserID, s.Token, s.DeviceInfo, s.IP,
 		s.LastActiveAt, s.ExpiresAt,
 		s.TenantID, s.CreatedAt, s.UpdatedAt,
-	)
+)
 	return err
 }
 

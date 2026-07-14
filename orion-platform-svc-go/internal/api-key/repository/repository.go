@@ -32,7 +32,7 @@ func (r *Repository) Create(ctx context.Context, key *models.APIKey) error {
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 key.ID, key.Name, key.KeyHash, key.LastUsedAt, key.ExpiresAt, key.Scope,
 		key.TenantID, key.UserID, key.CreatedAt, key.UpdatedAt,
-	)
+)
 	return err
 }
 

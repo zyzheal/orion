@@ -336,6 +336,7 @@ jobs:
         service:
           - orion-ticket-svc-go
           - orion-api-gateway-go
+          - orion-platform-svc-go
     steps:
       - uses: actions/checkout@v4
 
@@ -364,7 +365,13 @@ jobs:
           path: ${{ matrix.service }}/coverage.out
           retention-days: 30
 
-      - name: Build
+      - name: Build (platform-svc-go)
+        if: ${{ matrix.service == 'orion-platform-svc-go' }}
+        run: go build -trimpath ./cmd/server
+        working-directory: ${{ matrix.service }}
+
+      - name: Build (other)
+        if: ${{ matrix.service != 'orion-platform-svc-go' }}
         run: go build -o /dev/null ./...
         working-directory: ${{ matrix.service }}
 
@@ -403,7 +410,7 @@ jobs:
 
       - name: Check Go service coverage
         run: |
-          for svc in orion-ticket-svc-go orion-api-gateway-go; do
+          for svc in orion-ticket-svc-go orion-api-gateway-go orion-platform-svc-go; do
             if [ ! -f "coverage/go-${svc}-coverage/coverage.out" ]; then
               echo "Warning: Go coverage for $svc not found"
             else
@@ -618,6 +625,7 @@ jobs:
           - orion-api-gateway
           - orion-frontend
           - orion-ticket-svc-go
+          - orion-platform-svc-go
         include:
           - service: orion-platform-service
             context: ./orion-platform-service
@@ -631,6 +639,9 @@ jobs:
           - service: orion-ticket-svc-go
             context: ./orion-ticket-svc-go
             file: ./orion-ticket-svc-go/Dockerfile
+          - service: orion-platform-svc-go
+            context: ./orion-platform-svc-go
+            file: ./orion-platform-svc-go/Dockerfile
     steps:
       - uses: actions/checkout@v4
 

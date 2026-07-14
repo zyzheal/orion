@@ -120,7 +120,7 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 }
 
 // Render renders a template with the given variable values.
-// Replaces {{varName}} patterns in title_template and body_template.
+// Replaces {{varName} patterns in title_template and body_template.
 func (s *Service) Render(ctx context.Context, tenantID string, req *models.RenderRequest) (*models.RenderResult, error) {
 	tpl, err := s.repo.GetByID(ctx, tenantID, req.TemplateID)
 	if err != nil {
@@ -143,7 +143,7 @@ func (s *Service) Preview(ctx context.Context, tenantID, id string) (*models.Ren
 		}
 		return nil, err
 	}
-	// Use placeholder values: "{{varName}}" -> "placeholder_varName"
+	// Use placeholder values: "{{varName}" -> "placeholder_varName"
 	placeholders := extractVariables(tpl.TitleTemplate + " " + tpl.BodyTemplate)
 	vars := make(map[string]string, len(placeholders))
 	for _, v := range placeholders {
@@ -182,16 +182,16 @@ func (s *Service) Duplicate(ctx context.Context, tenantID, userID, id string) (*
 
 // --- Template rendering helpers ---
 
-// renderTemplate replaces {{varName}} patterns with the corresponding values.
+// renderTemplate replaces {{varName} patterns with the corresponding values.
 func renderTemplate(tmpl string, vars map[string]string) string {
 	result := tmpl
 	for key, val := range vars {
-		result = strings.ReplaceAll(result, "{{"+key+"}}", val)
+		result = strings.ReplaceAll(result, "{{"+key+"}", val)
 	}
 	return result
 }
 
-// extractVariables extracts all {{varName}} variable names from a template string.
+// extractVariables extracts all {{varName} variable names from a template string.
 func extractVariables(tmpl string) []string {
 	var vars []string
 	seen := make(map[string]bool)
@@ -201,7 +201,7 @@ func extractVariables(tmpl string) []string {
 		if start == -1 {
 			break
 		}
-		end := strings.Index(remaining[start:], "}}")
+		end := strings.Index(remaining[start:], "}")
 		if end == -1 {
 			break
 		}

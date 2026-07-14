@@ -101,7 +101,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, typeFilter *stri
 	err := r.db.SelectContext(ctx, &items,
 		fmt.Sprintf("SELECT * FROM teams%s ORDER BY created_at DESC LIMIT $%d OFFSET $%d", where, argIdx, argIdx+1),
 		[]interface{}{tenantID, limit, offset}...,
-	)
+)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func (r *Repository) GetUserTeams(ctx context.Context, userID, tenantID string) 
 		WHERE tm.user_id = $1 AND t.tenant_id = $2
 		ORDER BY t.name`,
 		userID, tenantID,
-	)
+)
 	if err != nil {
 		return nil, err
 	}

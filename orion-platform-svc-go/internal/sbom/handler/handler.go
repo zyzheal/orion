@@ -1,0 +1,293 @@
+package handler
+
+import (
+	"strconv"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/sbom/models"
+	"orion/platform-svc-go/internal/sbom/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	svc *service.Service
+}
+
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes registers all SBOM endpoints under /sbom.
+// Mirrors 14 endpoints from the TS source (GET/POST listing, CRUD, components, vulnerabilities, scan, licenses, attestation, export, compare).
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	f := rg.Group("/sbom")
+
+	// GET /sbom - List SBOMs
+	f.GET("", h.ListSBOMs)
+	// POST /sbom - Generate SBOM
+	f.POST("", auth.RequirePermission("sbom", "write"), h.GenerateSBOM)
+	// POST /sbom/compare - Compare SBOMs
+	f.POST("/compare", h.CompareSBOMs)
+
+	// GET /sbom/:id - Get SBOM
+	f.GET("/:id", h.GetSBOM)
+	// DELETE /sbom/:id - Delete SBOM
+	f.DELETE("/:id", auth.RequirePermission("sbom", "delete"), h.DeleteSBOM)
+	// GET /sbom/:id/components - List components
+	f.GET("/:id/components", h.ListComponents)
+	// GET /sbom/:id/vulnerabilities - List vulnerabilities
+	f.GET("/:id/vulnerabilities", h.ListVulnerabilities)
+	// POST /sbom/:id/scan - Execute scan
+	f.POST("/:id/scan", auth.RequirePermission("sbom", "write"), h.ScanSBOM)
+	// GET /sbom/:id/licenses - Get licenses
+	f.GET("/:id/licenses", h.GetLicenses)
+	// GET /sbom/:id/attestation - List attestations
+	f.GET("/:id/attestation", h.ListAttestations)
+	// POST /sbom/:id/attestation - Create attestation
+	f.POST("/:id/attestation", auth.RequirePermission("sbom", "write"), h.CreateAttestation)
+	// GET /sbom/:id/export - Export SBOM
+	f.GET("/:id/export", h.ExportSBOM)
+}
+
+// getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
+func (h *Handler) getTenantID(c *gin.Context) string {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000000"
+	}
+	return tenantID
+}
+
+// parsePagination parses offset/limit query params.
+func parsePagination(c *gin.Context) (int, int) {
+	offset, _ := strconv.Atoi(c.Query("offset"))
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	return offset, limit
+}
+
+// --- SBOM handlers ---
+
+func (h *Handler) ListSBOMs(c *gin.Context) {
+	var q models.ListQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	docs, total, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, &models.PaginatedResponse{
+		Data:   docs,
+		Total:  total,
+		Offset: q.Offset,
+		Limit:  q.Limit,
+	})
+}
+
+func (h *Handler) GenerateSBOM(c *gin.Context) {
+	var req models.GenerateSBOMRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	sbom, err := h.svc.GenerateSBOM(c.Request.Context(), &req, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, sbom)
+}
+
+func (h *Handler) GetSBOM(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	sbom, err := h.svc.GetSBOM(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "sbom not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, sbom)
+}
+
+func (h *Handler) DeleteSBOM(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	deleted, err := h.svc.DeleteSBOM(c.Request.Context(), id, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	if !deleted {
+		respondNotFound(c, "sbom not found")
+		return
+	}
+	respondSuccess(c, gin.H{"message": "sbom deleted"})
+}
+
+// --- Component handlers ---
+
+func (h *Handler) ListComponents(c *gin.Context) {
+	id := c.Param("id")
+	offset, limit := parsePagination(c)
+	if limit == 20 {
+		limit = 50
+	}
+	tenantID := h.getTenantID(c)
+	comps, total, err := h.svc.ListComponents(c.Request.Context(), id, tenantID, offset, limit)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, &models.PaginatedResponse{
+		Data:   comps,
+		Total:  total,
+		Offset: offset,
+		Limit:  limit,
+	})
+}
+
+// --- Vulnerability handlers ---
+
+func (h *Handler) ListVulnerabilities(c *gin.Context) {
+	id := c.Param("id")
+	offset, limit := parsePagination(c)
+	if limit == 20 {
+		limit = 50
+	}
+	severity := c.Query("severity")
+	tenantID := h.getTenantID(c)
+	var severityPtr *string
+	if severity != "" {
+		severityPtr = &severity
+	}
+	vulns, total, err := h.svc.ListVulnerabilities(c.Request.Context(), id, tenantID, severityPtr, offset, limit)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, &models.PaginatedResponse{
+		Data:   vulns,
+		Total:  total,
+		Offset: offset,
+		Limit:  limit,
+	})
+}
+
+func (h *Handler) ScanSBOM(c *gin.Context) {
+	id := c.Param("id")
+	var req models.ScanRequest
+	_ = c.ShouldBindJSON(&req)
+	tenantID := h.getTenantID(c)
+	sbom, err := h.svc.ScanSBOM(c.Request.Context(), id, tenantID, &req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "sbom not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, sbom)
+}
+
+// --- License handlers ---
+
+func (h *Handler) GetLicenses(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	licenses, err := h.svc.GetLicenses(c.Request.Context(), id, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"data": licenses})
+}
+
+// --- Attestation handlers ---
+
+func (h *Handler) ListAttestations(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	atts, err := h.svc.ListAttestations(c.Request.Context(), id, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"data": atts})
+}
+
+func (h *Handler) CreateAttestation(c *gin.Context) {
+	id := c.Param("id")
+	var req models.CreateAttestationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	att, err := h.svc.CreateAttestation(c.Request.Context(), id, tenantID, &req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "sbom not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, att)
+}
+
+// --- Export handler ---
+
+func (h *Handler) ExportSBOM(c *gin.Context) {
+	id := c.Param("id")
+	format := c.Query("format")
+	tenantID := h.getTenantID(c)
+	resp, err := h.svc.ExportSBOM(c.Request.Context(), id, tenantID, format)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "sbom not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	c.Header("Content-Type", "application/json")
+	c.Header("Content-Disposition", `attachment; filename="sbom-`+id+`.json"`)
+	c.String(200, resp.Content)
+}
+
+// --- Compare handler ---
+
+func (h *Handler) CompareSBOMs(c *gin.Context) {
+	var req models.CompareSBOMRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	comparison, err := h.svc.CompareSBOMs(c.Request.Context(), req.FromSBOMID, req.ToSBOMID, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "sbom not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, comparison)
+}

@@ -32,7 +32,7 @@ func (r *Repository) Create(ctx context.Context, p *models.Permission) error {
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
 		p.ID, p.Name, p.Code, p.Resource, p.Action,
 		p.Desc, p.TenantID, p.UserID, p.CreatedAt, p.UpdatedAt,
-	)
+)
 	return err
 }
 
@@ -97,7 +97,7 @@ func (r *Repository) Update(ctx context.Context, p *models.Permission) error {
 		WHERE id=$6 AND tenant_id=$7`,
 		p.Name, p.Code, p.Resource, p.Action, p.Desc,
 		p.ID, p.TenantID,
-	)
+)
 	return err
 }
 

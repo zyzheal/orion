@@ -1,0 +1,309 @@
+package handler
+
+import (
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/digital-twin-simulation/models"
+	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Handler wires Gin routes to the Digital Twin simulation service.
+type Handler struct {
+	svc *dt_service.Service
+}
+
+// NewHandler constructs a handler.
+func NewHandler(svc *dt_service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes registers all digital-twin simulation endpoints.
+// Mirrors the 12 routes from the TS source (digital-twin.routes.ts).
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	dt := rg.Group("/digital-twin")
+
+	// GET  /api/v1/digital-twin                — list twins
+	dt.GET("", auth.RequirePermission("digital_twin", "read"), h.ListTwins)
+	// POST /api/v1/digital-twin                — create twin
+	dt.POST("", auth.RequirePermission("digital_twin", "write"), h.CreateTwin)
+	// GET  /api/v1/digital-twin/:id            — get twin detail
+	dt.GET("/:id", auth.RequirePermission("digital_twin", "read"), h.GetTwin)
+	// PUT  /api/v1/digital-twin/:id            — update twin config
+	dt.PUT("/:id", auth.RequirePermission("digital_twin", "write"), h.UpdateTwin)
+	// DELETE /api/v1/digital-twin/:id          — delete twin
+	dt.DELETE("/:id", auth.RequirePermission("digital_twin", "delete"), h.DeleteTwin)
+	// POST /api/v1/digital-twin/:id/sync       — sync real environment state
+	dt.POST("/:id/sync", auth.RequirePermission("digital_twin", "write"), h.SyncTwin)
+	// GET  /api/v1/digital-twin/:id/state      — get twin state
+	dt.GET("/:id/state", auth.RequirePermission("digital_twin", "read"), h.GetState)
+	// POST /api/v1/digital-twin/:id/simulate   — run simulation
+	dt.POST("/:id/simulate", auth.RequirePermission("digital_twin", "write"), h.Simulate)
+	// GET  /api/v1/digital-twin/:id/simulations — simulation history
+	dt.GET("/:id/simulations", auth.RequirePermission("digital_twin", "read"), h.ListSimulations)
+	// GET  /api/v1/digital-twin/:id/comparison — real vs twin comparison
+	dt.GET("/:id/comparison", auth.RequirePermission("digital_twin", "read"), h.GetComparison)
+	// POST /api/v1/digital-twin/:id/predict    — run prediction analysis
+	dt.POST("/:id/predict", auth.RequirePermission("digital_twin", "write"), h.Predict)
+}
+
+// --- CRUD ---
+
+func (h *Handler) CreateTwin(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateTwinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	twin, err := h.svc.CreateTwin(c.Request.Context(), tenantID, req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, twinToResponse(twin))
+}
+
+func (h *Handler) ListTwins(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	q := parseListQuery(c)
+	items, total, err := h.svc.ListTwins(c.Request.Context(), tenantID, q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	data := make([]gin.H, len(items))
+	for i, t := range items {
+		data[i] = twinToResponse(&t)
+	}
+	respondSuccess(c, gin.H{
+		"data":  data,
+		"total": total,
+		"offset": q.Offset,
+		"limit":  q.Limit,
+	})
+}
+
+func (h *Handler) GetTwin(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	twin, err := h.svc.GetTwin(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "digital twin not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, twinToResponse(twin))
+}
+
+func (h *Handler) UpdateTwin(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	var req models.UpdateTwinRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	twin, err := h.svc.UpdateTwin(c.Request.Context(), tenantID, id, req)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "digital twin not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, twinToResponse(twin))
+}
+
+func (h *Handler) DeleteTwin(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	err := h.svc.DeleteTwin(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "digital twin not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondNoContent(c)
+}
+
+// --- Sync ---
+
+func (h *Handler) SyncTwin(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	twin, err := h.svc.SyncTwin(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "digital twin not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, twinToResponse(twin))
+}
+
+// --- State ---
+
+func (h *Handler) GetState(c *gin.Context) {
+	id := c.Param("id")
+	state, err := h.svc.GetState(c.Request.Context(), id)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "twin state not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, state)
+}
+
+// --- Simulate ---
+
+func (h *Handler) Simulate(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	var req models.SimulateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	sim, err := h.svc.Simulate(c.Request.Context(), tenantID, id, req)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "digital twin not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, simulationToResponse(sim))
+}
+
+// --- Simulation History ---
+
+func (h *Handler) ListSimulations(c *gin.Context) {
+	id := c.Param("id")
+	q := parseListQuery(c)
+	sims, total, err := h.svc.ListSimulations(c.Request.Context(), id, q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	data := make([]gin.H, len(sims))
+	for i, s := range sims {
+		data[i] = simulationToResponse(&s)
+	}
+	respondSuccess(c, gin.H{
+		"data":  data,
+		"total": total,
+		"offset": q.Offset,
+		"limit":  q.Limit,
+	})
+}
+
+// --- Comparison ---
+
+func (h *Handler) GetComparison(c *gin.Context) {
+	id := c.Param("id")
+	comparison, err := h.svc.GetComparison(c.Request.Context(), id)
+	if err != nil {
+		if dt_service.IsNotFound(err) {
+			respondNotFound(c, "twin state not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, comparison)
+}
+
+// --- Predict ---
+
+func (h *Handler) Predict(c *gin.Context) {
+	id := c.Param("id")
+	var req models.PredictRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	prediction, err := h.svc.Predict(c.Request.Context(), id, req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, prediction)
+}
+
+// --- Helpers ---
+
+func parseListQuery(c *gin.Context) models.ListQuery {
+	var q models.ListQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		q.Limit = 20
+	}
+	if q.Limit <= 0 {
+		q.Limit = 20
+	}
+	if q.Offset < 0 {
+		q.Offset = 0
+	}
+	if q.Sort == "" {
+		q.Sort = "createdAt"
+	}
+	if q.Order == "" {
+		q.Order = "desc"
+	}
+	return q
+}
+
+func twinToResponse(t *models.DigitalTwin) gin.H {
+	return gin.H{
+		"id":           t.ID,
+		"name":         t.Name,
+		"description":  t.Description,
+		"entityType":   t.EntityType,
+		"sourceId":     t.SourceID,
+		"status":       t.Status,
+		"config":       t.Config,
+		"metadata":     t.Metadata,
+		"syncPolicy":   t.SyncPolicy,
+		"lastSyncTime": t.LastSyncTime,
+		"syncHealth":   t.SyncHealth,
+		"createdAt":    t.CreatedAt,
+		"updatedAt":    t.UpdatedAt,
+	}
+}
+
+func simulationToResponse(s *models.Simulation) gin.H {
+	resp := gin.H{
+		"id":          s.ID,
+		"twinId":      s.TwinID,
+		"type":        s.Type,
+		"name":        s.Name,
+		"description": s.Description,
+		"parameters":  s.Parameters,
+		"status":      s.Status,
+		"startTime":   s.StartTime,
+		"createdAt":   s.CreatedAt,
+	}
+	if s.EndTime != nil {
+		resp["endTime"] = *s.EndTime
+	}
+	if s.Duration != nil {
+		resp["duration"] = *s.Duration
+	}
+	if len(s.Results) > 0 {
+		resp["results"] = s.Results
+	}
+	return resp
+}

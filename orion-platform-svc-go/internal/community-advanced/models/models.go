@@ -9,7 +9,7 @@ type CommunityAdvanced struct {
 	Name      string    `db:"name" json:"name"`
 	CreatedAt time.Time `db:"created_at" json:"createdAt"`
 	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
-}}
+}
 
 // CreateRequest is the request body for creating a community-advanced entry.
 type CreateRequest struct {

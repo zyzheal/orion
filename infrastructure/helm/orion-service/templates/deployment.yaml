@@ -13,6 +13,11 @@ metadata:
     app.kubernetes.io/part-of: orion-platform
     app.kubernetes.io/version: {{ .Chart.AppVersion }}
 spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: {{ .Values.rollingUpdate.maxSurge | default 1 }}
+      maxUnavailable: {{ .Values.rollingUpdate.maxUnavailable | default 0 }}
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
@@ -82,13 +87,17 @@ spec:
           {{- toYaml .Values.resources | nindent 12 }}
         livenessProbe:
           httpGet:
-            path: {{ .Values.health.path }}
+            path: {{ .Values.liveness.path | default "/healthz" }}
             port: http
-          initialDelaySeconds: {{ .Values.health.livenessInitialDelaySeconds }}
-          periodSeconds: {{ .Values.health.livenessPeriodSeconds }}
+          initialDelaySeconds: {{ .Values.liveness.initialDelaySeconds | default 15 }}
+          periodSeconds: {{ .Values.liveness.periodSeconds | default 20 }}
+          timeoutSeconds: {{ .Values.liveness.timeoutSeconds | default 3 }}
+          failureThreshold: {{ .Values.liveness.failureThreshold | default 3 }}
         readinessProbe:
           httpGet:
-            path: {{ .Values.health.path }}
+            path: {{ .Values.readiness.path | default "/health" }}
             port: http
-          initialDelaySeconds: {{ .Values.health.readinessInitialDelaySeconds }}
-          periodSeconds: {{ .Values.health.readinessPeriodSeconds }}
+          initialDelaySeconds: {{ .Values.readiness.initialDelaySeconds | default 5 }}
+          periodSeconds: {{ .Values.readiness.periodSeconds | default 10 }}
+          timeoutSeconds: {{ .Values.readiness.timeoutSeconds | default 3 }}
+          failureThreshold: {{ .Values.readiness.failureThreshold | default 3 }}

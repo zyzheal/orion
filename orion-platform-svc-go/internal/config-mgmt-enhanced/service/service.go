@@ -20,11 +20,11 @@ func (s *Service) Create(ctx context.Context, req *models.CreateRequest, tenantI
 		return nil, err
 	}
 	return entity, nil
-}}
+}
 
 func (s *Service) Get(ctx context.Context, id, tenantID string) (*models.ConfigMgmt, error) {
 	return s.repo.GetByID(ctx, id, tenantID)
-}}
+}
 
 func (s *Service) List(ctx context.Context, tenantID string) ([]models.ConfigMgmt, error) {
 	entities, err := s.repo.List(ctx, tenantID)
@@ -35,7 +35,7 @@ func (s *Service) List(ctx context.Context, tenantID string) ([]models.ConfigMgm
 		entities = []models.ConfigMgmt{}
 	}
 	return entities, nil
-}}
+}
 
 func (s *Service) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) (*models.ConfigMgmt, error) {
 	attrs := make(map[string]interface{})
@@ -43,8 +43,8 @@ func (s *Service) Update(ctx context.Context, id, tenantID string, req *models.U
 		attrs["name"] = *req.Name
 	}
 	return s.repo.Update(ctx, id, tenantID, attrs)
-}}
+}
 
 func (s *Service) Delete(ctx context.Context, id, tenantID string) (bool, error) {
 	return s.repo.Delete(ctx, id, tenantID)
-}}
+}

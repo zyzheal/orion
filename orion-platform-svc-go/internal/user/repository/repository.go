@@ -33,7 +33,7 @@ func (r *Repository) Create(ctx context.Context, user *models.User) error {
 		user.ID, user.TenantID, user.Username, user.Email, user.FullName,
 		user.Role, user.Status, user.Password, user.AvatarURL,
 		user.Settings, user.CreatedAt, user.UpdatedAt,
-	)
+)
 	return err
 }
 

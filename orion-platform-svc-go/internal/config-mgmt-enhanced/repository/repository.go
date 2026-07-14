@@ -26,14 +26,14 @@ func NewRepository(db *sqlx.DB) *Repository {
 func (r *Repository) Create(ctx context.Context, entity *models.ConfigMgmt) error {
 	entity.ID = uuid.New().String()
 	now := time.Now().UTC()
-/entity.CreatedAt = now
+	entity.CreatedAt = now
 	entity.UpdatedAt = now
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO config_mgmt (id, tenant_id, name, created_at, updated_at)
 		 VALUES (:id, :tenantId, :name, :createdAt, :updatedAt)`,
 		entity)
 	return err
-}}
+}
 
 func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.ConfigMgmt, error) {
 	var entity models.ConfigMgmt
@@ -43,7 +43,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 		return nil, err
 	}
 	return &entity, nil
-}}
+}
 
 func (r *Repository) List(ctx context.Context, tenantID string) ([]models.ConfigMgmt, error) {
 	var entities []models.ConfigMgmt
@@ -53,7 +53,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Config
 		return nil, err
 	}
 	return entities, nil
-}}
+}
 
 func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigMgmt, error) {
 	if len(attrs) == 0 {
@@ -82,7 +82,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 		return nil, ErrNotFound
 	}
 	return r.GetByID(ctx, id, tenantID)
-}}
+}
 
 func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, error) {
 	result, err := r.db.ExecContext(ctx,
@@ -92,4 +92,4 @@ func (r *Repository) Delete(ctx context.Context, id, tenantID string) (bool, err
 	}
 	n, _ := result.RowsAffected()
 	return n > 0, nil
-}}
+}

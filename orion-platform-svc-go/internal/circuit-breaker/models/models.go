@@ -9,7 +9,7 @@ type CircuitBreaker struct {
 	Name      string    `db:"name" json:"name"`
 	CreatedAt time.Time `db:"created_at" json:"createdAt"`
 	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
-}}
+}
 
 // CreateRequest is the request body for creating a circuit-breaker entry.
 type CreateRequest struct {

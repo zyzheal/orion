@@ -137,7 +137,7 @@ func (r *Repository) ToggleStatus(ctx context.Context, tenantID, path string) (*
 
 	// Write history
 	if current.ID != "" {
-		_ = r.writeHistory(ctx, tenantID, current.ID, "toggle_status", "", fmt.Sprintf(`{"status":{"old":"%s","new":"%s"}}`, current.Status, newStatus), "")
+		_ = r.writeHistory(ctx, tenantID, current.ID, "toggle_status", "", fmt.Sprintf(`{"status":{"old":"%s","new":"%s"}`, current.Status, newStatus), "")
 	}
 
 	return r.GetByPath(ctx, tenantID, path)

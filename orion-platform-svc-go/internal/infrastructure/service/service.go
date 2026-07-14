@@ -196,7 +196,7 @@ func (s *Service) AllowTraffic(ctx context.Context, tenantID string, req models.
 			Namespace: req.FromEnv,
 			Labels:    string([]byte(`{"app":"` + req.FromEnv + `"}`)),
 			Annotations: string([]byte(`{"orion.io/traffic-allow":"to-` + req.ToEnv + `"}`)),
-			EgressRules: string([]byte(fmt.Sprintf(`[{"name":"allow-%s-to-%s","ports":%s,"allow":true,"namespaceSelector":{"namespace":"%s"}}]`, req.FromEnv, req.ToEnv, string(portsJSON), req.ToEnv))),
+			EgressRules: string([]byte(fmt.Sprintf(`[{"name":"allow-%s-to-%s","ports":%s,"allow":true,"namespaceSelector":{"namespace":"%s"}]`, req.FromEnv, req.ToEnv, string(portsJSON), req.ToEnv))),
 		}
 		if err := s.repo.CreateNetworkPolicy(ctx, tenantID, policy); err != nil {
 			return nil, err

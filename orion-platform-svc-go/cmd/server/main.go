@@ -677,6 +677,38 @@ import (
 	ticket_automation_handler "orion/platform-svc-go/internal/ticket-automation/handler"
 	ticket_automation_repo "orion/platform-svc-go/internal/ticket-automation/repository"
 	ticket_automation_service "orion/platform-svc-go/internal/ticket-automation/service"
+
+	// Phase 4: Gateway business logic migration
+	ai_decisions_handler "orion/platform-svc-go/internal/ai-decisions/handler"
+	ai_decisions_repo "orion/platform-svc-go/internal/ai-decisions/repository"
+	ai_decisions_service "orion/platform-svc-go/internal/ai-decisions/service"
+	ai_degradation_handler "orion/platform-svc-go/internal/ai-degradation/handler"
+	ai_degradation_repo "orion/platform-svc-go/internal/ai-degradation/repository"
+	ai_degradation_service "orion/platform-svc-go/internal/ai-degradation/service"
+	ai_models_handler "orion/platform-svc-go/internal/ai-models/handler"
+	ai_models_repo "orion/platform-svc-go/internal/ai-models/repository"
+	ai_models_service "orion/platform-svc-go/internal/ai-models/service"
+	chaos_gw_handler "orion/platform-svc-go/internal/chaos-gateway/handler"
+	chaos_gw_repo "orion/platform-svc-go/internal/chaos-gateway/repository"
+	chaos_gw_service "orion/platform-svc-go/internal/chaos-gateway/service"
+	dt_sim_handler "orion/platform-svc-go/internal/digital-twin-simulation/handler"
+	dt_sim_repo "orion/platform-svc-go/internal/digital-twin-simulation/repository"
+	dt_sim_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
+	gov_handler "orion/platform-svc-go/internal/governance/handler"
+	gov_repo "orion/platform-svc-go/internal/governance/repository"
+	gov_service "orion/platform-svc-go/internal/governance/service"
+	pv_handler "orion/platform-svc-go/internal/pipeline-versions/handler"
+	pv_repo "orion/platform-svc-go/internal/pipeline-versions/repository"
+	pv_service "orion/platform-svc-go/internal/pipeline-versions/service"
+	rs_handler "orion/platform-svc-go/internal/resilience-score/handler"
+	rs_repo "orion/platform-svc-go/internal/resilience-score/repository"
+	rs_service "orion/platform-svc-go/internal/resilience-score/service"
+	sbom_handler "orion/platform-svc-go/internal/sbom/handler"
+	sbom_repo "orion/platform-svc-go/internal/sbom/repository"
+	sbom_service "orion/platform-svc-go/internal/sbom/service"
+	tenant_gw_handler "orion/platform-svc-go/internal/tenant-gateway/handler"
+	tenant_gw_repo "orion/platform-svc-go/internal/tenant-gateway/repository"
+	tenant_gw_service "orion/platform-svc-go/internal/tenant-gateway/service"
 )
 
 
@@ -1773,6 +1805,50 @@ func main() {
 	peEngine := pe_service.NewPipelineEngine(peRepo)
 	peH := pe_handler.NewHandler(peEngine)
 	peH.RegisterRoutes(rg)
+
+	// Phase 4: Gateway business logic migration
+	ai_decisionsSvc := ai_decisions_service.NewService(ai_decisions_repo.NewRepository(db.DB))
+	ai_decisionsH := ai_decisions_handler.NewHandler(ai_decisionsSvc)
+	ai_decisionsH.RegisterRoutes(rg)
+
+	ai_degradationSvc := ai_degradation_service.NewDegradationService(ai_degradation_repo.NewRepository(db.DB))
+	ai_degradationH := ai_degradation_handler.NewHandler(ai_degradationSvc)
+	ai_degradationH.RegisterRoutes(rg)
+
+	ai_modelsSvc := ai_models_service.NewService(ai_models_repo.NewRepository(db.DB), logger)
+	ai_modelsH := ai_models_handler.NewHandler(ai_modelsSvc)
+	ai_modelsH.RegisterRoutes(rg)
+
+	chaos_gwSvc := chaos_gw_service.NewService(chaos_gw_repo.NewRepository(db.DB))
+	chaos_gwH := chaos_gw_handler.NewHandler(chaos_gwSvc)
+	chaos_gwH.RegisterRoutes(rg)
+
+	dt_simSvc := dt_sim_service.NewService(dt_sim_repo.NewRepository(db.DB))
+	dt_simH := dt_sim_handler.NewHandler(dt_simSvc)
+	dt_simH.RegisterRoutes(rg)
+
+	govSvc := gov_service.NewService(gov_repo.NewRepository(db.DB))
+	govH := gov_handler.NewHandler(govSvc)
+	govH.RegisterRoutes(rg)
+
+	// pipeline-budget already registered above (line 1714)
+
+	pvSvc := pv_service.NewService(pv_repo.NewRepository(db.DB))
+	pvH := pv_handler.NewHandler(pvSvc)
+	pvH.RegisterRoutes(rg)
+
+	rsRepo := rs_repo.NewRepository(db.DB)
+	rsSvc := rs_service.NewService(rsRepo, db.DB)
+	rsH := rs_handler.NewHandler(rsSvc)
+	rsH.RegisterRoutes(rg)
+
+	sbomSvc := sbom_service.NewService(sbom_repo.NewRepository(db.DB))
+	sbomH := sbom_handler.NewHandler(sbomSvc)
+	sbomH.RegisterRoutes(rg)
+
+	tenant_gwSvc := tenant_gw_service.NewService(tenant_gw_repo.NewRepository(db.DB))
+	tenant_gwH := tenant_gw_handler.NewHandler(tenant_gwSvc)
+	tenant_gwH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {

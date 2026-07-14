@@ -328,7 +328,7 @@ func (r *Repository) ListCABMeetings(ctx context.Context, tenantID string, q mod
 		fmt.Sprintf(`SELECT * FROM cab_meetings WHERE %s ORDER BY scheduled_at DESC LIMIT $%d OFFSET $%d`,
 			whereClause, argCount, argCount+1),
 		append(args, q.Limit, q.Offset)...,
-	)
+)
 	if err != nil {
 		return nil, err
 	}

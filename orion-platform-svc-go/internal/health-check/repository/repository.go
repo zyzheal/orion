@@ -45,7 +45,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 			"createdAt":   now,
 			"updatedAt":   now,
 		},
-	)
+)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +60,7 @@ func (r *Repository) Get(ctx context.Context, tenantID, id string) (*models.Heal
 		 FROM health_checks
 		 WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-	)
+)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +76,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Health
 		 WHERE tenant_id = $1
 		 ORDER BY created_at DESC`,
 		tenantID,
-	)
+)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 			"tenantID":    tenantID,
 			"updatedAt":   time.Now(),
 		},
-	)
+)
 	return err
 }
 
@@ -108,6 +108,6 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 		`UPDATE health_checks SET enabled = false, updated_at = NOW()
 		 WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-	)
+)
 	return err
 }

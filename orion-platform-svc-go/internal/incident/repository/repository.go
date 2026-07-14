@@ -45,14 +45,14 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Inci
 		tags, resolved_by, closed_at, closed_by, related_problem_id,
 		linked_problem_id, linked_change_id, sla_breach, sla_breach_at,
 		postmortem_required, created_at, updated_at
-	) VALUES (
+) VALUES (
 		:id, :tenant_id, :title, :description, :type, :severity, :priority, :status,
 		:impact, :urgency, :commander_id, :assigned_team, :affected_services,
 		:escalation_level, :environment, :service, :detected_by, :error_message,
 		:tags, :resolved_by, :closed_at, :closed_by, :related_problem_id,
 		:linked_problem_id, :linked_change_id, :sla_breach, :sla_breach_at,
 		:postmortem_required, :created_at, :updated_at
-	)`
+)`
 	_, err := r.db.NamedExecContext(ctx, query, m)
 	return err
 }

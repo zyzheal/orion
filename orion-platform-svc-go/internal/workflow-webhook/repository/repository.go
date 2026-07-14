@@ -29,7 +29,7 @@ func (r *Repository) FindByWebhookPath(ctx context.Context, webhookPath string) 
 		 FROM workflow_webhook_triggers
 		 WHERE webhook_path = $1`,
 		webhookPath,
-	)
+)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (r *Repository) Create(ctx context.Context, t *models.WebhookTrigger) error
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now(),now())`,
 		t.ID, t.TenantID, t.WorkflowID, t.Name, t.WebhookPath, t.WebhookSecret,
 		t.TriggerStrategy, t.Enabled,
-	)
+)
 	return err
 }
 
@@ -58,7 +58,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 		 FROM workflow_webhook_triggers
 		 WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-	)
+)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	err := r.db.GetContext(ctx, &count,
 		`SELECT COUNT(*) FROM workflow_webhook_triggers WHERE tenant_id = $1`,
 		tenantID,
-	)
+)
 	return count, err
 }
 
@@ -115,7 +115,7 @@ func (r *Repository) Update(ctx context.Context, t *models.WebhookTrigger) error
 		 WHERE id = $7 AND tenant_id = $8`,
 		t.Name, t.WorkflowID, t.WebhookPath, t.WebhookSecret,
 		t.TriggerStrategy, t.Enabled, t.ID, t.TenantID,
-	)
+)
 	return err
 }
 
@@ -124,7 +124,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM workflow_webhook_triggers WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-	)
+)
 	return err
 }
 
@@ -136,7 +136,7 @@ func (r *Repository) CreateLog(ctx context.Context, log *models.WebhookTriggerLo
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,now())`,
 		log.ID, log.TriggerID, log.EventType, log.EventPayload,
 		log.Status, log.ErrorMessage, log.DurationMs,
-	)
+)
 	return err
 }
 
@@ -147,7 +147,7 @@ func (r *Repository) UpdateLogStatus(ctx context.Context, id, status, errorMessa
 		 SET status = $1, error_message = $2, duration_ms = $3
 		 WHERE id = $4`,
 		status, errorMessage, durationMs, id,
-	)
+)
 	return err
 }
 
@@ -161,7 +161,7 @@ func (r *Repository) ListLogs(ctx context.Context, triggerID string, offset, lim
 		 WHERE trigger_id = $1
 		 ORDER BY created_at DESC OFFSET $2 LIMIT $3`,
 		triggerID, offset, limit,
-	)
+)
 	return items, err
 }
 

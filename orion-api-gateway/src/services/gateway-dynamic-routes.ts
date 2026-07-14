@@ -15,6 +15,7 @@ import { proxyMiddleware } from '../middleware/proxy';
 import { tokenExchangeMiddleware, registerTokenExchange } from '../middleware/token-exchange';
 import { serviceRegistry, ServiceInfo } from './service-registry';
 import { getConfig } from '../config';
+import { moduleRoutingService } from './module-routing';
 
 // ==================== 类型定义 ====================
 
@@ -659,7 +660,15 @@ export class GatewayDynamicRoutes {
         return;
       }
 
-      const target = config.target;
+      // 模块级灰度路由：基于 tenantId 一致哈希决定目标 URL（TS vs Go）
+      const resolved = moduleRoutingService.resolveTarget(config.target, request.raw.url || '', request);
+      const target = resolved.target;
+      if (resolved.source === 'go') {
+        console.log(
+          `[GatewayDynamicRoutes] Route ${config.prefix} -> ${target} (module routing: ${resolved.source})`
+        );
+      }
+
       let url = request.raw.url || '';
 
       if (config.stripPrefix && config.prefix !== '/') {

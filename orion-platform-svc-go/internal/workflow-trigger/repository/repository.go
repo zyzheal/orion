@@ -28,7 +28,7 @@ func (r *Repository) Create(ctx context.Context, t *models.WorkflowTrigger) erro
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
 		t.ID, t.TenantID, t.WorkflowID, t.Name, t.Type, t.Config,
 		t.WebhookSecret, t.TriggerStrategy, t.Enabled, t.CreatedAt, t.UpdatedAt,
-	)
+)
 	return err
 }
 
@@ -114,7 +114,7 @@ func (r *Repository) Update(ctx context.Context, t *models.WorkflowTrigger) erro
 		WHERE id=$8 AND tenant_id=$9`,
 		t.WorkflowID, t.Name, t.Type, t.Config,
 		t.WebhookSecret, t.TriggerStrategy, t.Enabled, t.ID, t.TenantID,
-	)
+)
 	return err
 }
 

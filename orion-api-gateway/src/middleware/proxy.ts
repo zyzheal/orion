@@ -21,6 +21,7 @@ import {
   CircuitState,
 } from '../services/service-client';
 import { ErrorCodes, ErrorFactory } from '../errors/error-codes';
+import { moduleRoutingService } from '../services/module-routing';
 
 export interface ProxyOptions {
   timeout?: number;
@@ -185,6 +186,15 @@ export class ProxyMiddleware {
     // 设置超时
     request.raw.setTimeout(timeout);
 
+    // 模块级灰度路由：在转发前解析目标 URL
+    // 基于 MODULE_ROUTING 环境变量和 tenantId 哈希，决定是否切换到 Go 服务
+    const requestPath = request.raw.url || '';
+    const routing = moduleRoutingService.resolveTarget(target, requestPath, request);
+    const resolvedTarget = routing.target;
+
+    // 将灰度路由信息写入响应头（用于调试/可观测性）
+    reply.header('X-Module-Routing-Source', routing.source);
+
     // 构建代理请求头，传播认证和追踪信息
     const proxyHeaders: Record<string, string> = {
       'X-Request-ID': request.requestId || `gw-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -212,7 +222,7 @@ export class ProxyMiddleware {
     }
 
     const proxyOptions: ServerOptions = {
-      target,
+      target: resolvedTarget,
       changeOrigin: options?.changeOrigin !== false,
       timeout,
       headers: proxyHeaders,

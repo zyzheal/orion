@@ -52,7 +52,7 @@ func (r *Repository) Create(ctx context.Context, m *models.ServiceRegistry) erro
 		`INSERT INTO service_registry (id, tenant_id, service_id, service_name, service_url, protocol, version, status, health_status, metadata, registered_at, updated_at)
 		 VALUES (:id, :tenant_id, :service_id, :service_name, :service_url, :protocol, :version, :status, :health_status, :metadata, :registered_at, :updated_at)`,
 		m,
-	)
+)
 	return err
 }
 
@@ -160,7 +160,7 @@ func (r *Repository) Deregister(ctx context.Context, tenantID, serviceID string)
 			"service_id": serviceID,
 			"tenant_id":  tenantID,
 		},
-	)
+)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (r *Repository) RecordHeartbeat(ctx context.Context, tenantID, serviceID st
 			"service_id": serviceID,
 			"tenant_id":  tenantID,
 		},
-	)
+)
 	return err
 }
 

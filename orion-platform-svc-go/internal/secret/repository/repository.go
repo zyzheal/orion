@@ -30,7 +30,7 @@ func (r *Repository) Create(ctx context.Context, s *models.Secret) error {
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 		s.ID, s.TenantID, s.Name, s.EncryptedValue, s.Scope, s.Description,
 		s.CreatedAt, s.UpdatedAt, s.CreatedBy,
-	)
+)
 	return err
 }
 
@@ -67,7 +67,7 @@ func (r *Repository) GetByTenantAndName(ctx context.Context, tenantID, name, sco
 		ORDER BY CASE scope WHEN 'project' THEN 1 WHEN 'environment' THEN 2 WHEN 'org' THEN 3 END
 		LIMIT 1`,
 		tenantID, name,
-	)
+)
 	if err == sql.ErrNoRows {
 		return nil, errNotFound
 	}
