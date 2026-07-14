@@ -12,7 +12,8 @@ type User struct {
 	Role         string    `json:"role" db:"role"`
 	Status       string    `json:"status" db:"status"`
 	AvatarURL    string    `json:"avatar_url" db:"avatar_url"`
-	Settings     string    `json:"settings" db:"settings"`
+	Settings     string `json:"settings" db:"settings"`
+	Password     string `json:"-" db:"password"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }

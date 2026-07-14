@@ -1,0 +1,224 @@
+package handler
+
+import (
+	"strconv"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/notification-template/models"
+	"orion/platform-svc-go/internal/notification-template/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	svc *service.Service
+}
+
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes registers all notification-template endpoints under the given group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	f := rg.Group("/notification-templates")
+
+	// GET /notification-templates - List notification templates
+	f.GET("", auth.RequirePermission("notification", "read"), h.List)
+	// POST /notification-templates - Create notification template
+	f.POST("", auth.RequirePermission("notification", "write"), h.Create)
+	// GET /notification-templates/count - Count notification templates
+	f.GET("/count", auth.RequirePermission("notification", "read"), h.Count)
+	// POST /notification-templates/render - Render a template
+	f.POST("/render", auth.RequirePermission("notification", "read"), h.Render)
+	// GET /notification-templates/:id - Get notification template by ID
+	f.GET("/:id", auth.RequirePermission("notification", "read"), h.Get)
+	// PUT /notification-templates/:id - Update notification template
+	f.PUT("/:id", auth.RequirePermission("notification", "write"), h.Update)
+	// DELETE /notification-templates/:id - Delete notification template
+	f.DELETE("/:id", auth.RequirePermission("notification", "delete"), h.Delete)
+	// POST /notification-templates/:id/preview - Preview a template
+	f.POST("/:id/preview", auth.RequirePermission("notification", "read"), h.Preview)
+	// POST /notification-templates/:id/duplicate - Duplicate a template
+	f.POST("/:id/duplicate", auth.RequirePermission("notification", "write"), h.Duplicate)
+}
+
+// getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
+func (h *Handler) getTenantID(c *gin.Context) string {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		return "00000000-0000-0000-0000-000000000000"
+	}
+	return tenantID
+}
+
+// getUserID extracts user_id from Gin context.
+func (h *Handler) getUserID(c *gin.Context) string {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		return "00000000-0000-0000-0000-000000000000"
+	}
+	return userID
+}
+
+// List handles GET /notification-templates
+func (h *Handler) List(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
+
+	filter := models.ListFilter{}
+	if ch := c.Query("channel"); ch != "" {
+		filter.Channel = &ch
+	}
+	if en := c.Query("enabled"); en != "" {
+		enabled := en == "true"
+		filter.Enabled = &enabled
+	}
+
+	templates, total, _, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     templates,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	})
+}
+
+// Create handles POST /notification-templates
+func (h *Handler) Create(c *gin.Context) {
+	var req models.CreateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	userID := h.getUserID(c)
+	tpl, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, tpl)
+}
+
+// Get handles GET /notification-templates/:id
+func (h *Handler) Get(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	tpl, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "notification template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, tpl)
+}
+
+// Update handles PUT /notification-templates/:id
+func (h *Handler) Update(c *gin.Context) {
+	id := c.Param("id")
+	var req models.UpdateTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	tpl, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "notification template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, tpl)
+}
+
+// Delete handles DELETE /notification-templates/:id
+func (h *Handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	if !deleted {
+		respondNotFound(c, "notification template not found")
+		return
+	}
+	respondSuccess(c, gin.H{"message": "notification template deleted"})
+}
+
+// Count handles GET /notification-templates/count
+func (h *Handler) Count(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"count": count})
+}
+
+// Render handles POST /notification-templates/render
+func (h *Handler) Render(c *gin.Context) {
+	var req models.RenderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.Render(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "notification template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+// Preview handles POST /notification-templates/:id/preview
+func (h *Handler) Preview(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.Preview(c.Request.Context(), tenantID, id)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "notification template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+// Duplicate handles POST /notification-templates/:id/duplicate
+func (h *Handler) Duplicate(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	userID := h.getUserID(c)
+	tpl, err := h.svc.Duplicate(c.Request.Context(), tenantID, userID, id)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "notification template not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, tpl)
+}

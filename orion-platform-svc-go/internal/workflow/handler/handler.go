@@ -1,0 +1,256 @@
+package handler
+
+import (
+	"strconv"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/workflow/models"
+	"orion/platform-svc-go/internal/workflow/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	svc *service.Service
+}
+
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes registers all workflow endpoints under the given group.
+// Matches /v1/workflows routes from the TS source.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	f := rg.Group("/workflows")
+
+	// GET /workflows - List workflows
+	f.GET("", auth.RequirePermission("workflow", "read"), h.List)
+	// GET /workflows/:id - Get workflow by ID
+	f.GET("/:id", auth.RequirePermission("workflow", "read"), h.Get)
+	// POST /workflows - Create workflow
+	f.POST("", auth.RequirePermission("workflow", "write"), h.Create)
+	// PUT /workflows/:id - Update workflow
+	f.PUT("/:id", auth.RequirePermission("workflow", "write"), h.Update)
+	// DELETE /workflows/:id - Delete workflow
+	f.DELETE("/:id", auth.RequirePermission("workflow", "delete"), h.Delete)
+	// POST /workflows/:id/pause - Pause workflow
+	f.POST("/:id/pause", auth.RequirePermission("workflow", "write"), h.Pause)
+	// POST /workflows/:id/resume - Resume workflow
+	f.POST("/:id/resume", auth.RequirePermission("workflow", "write"), h.Resume)
+	// POST /workflows/:id/execute - Execute workflow
+	f.POST("/:id/execute", auth.RequirePermission("workflow", "execute"), h.Execute)
+	// GET /workflows/:id/executions - List executions by workflow ID
+	f.GET("/:id/executions", auth.RequirePermission("workflow", "read"), h.ListExecutions)
+	// GET /workflows/executions/:executionId - Get execution detail
+	f.GET("/executions/:executionId", auth.RequirePermission("workflow", "read"), h.GetExecution)
+}
+
+// getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
+func (h *Handler) getTenantID(c *gin.Context) string {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		return "00000000-0000-0000-0000-000000000000"
+	}
+	return tenantID
+}
+
+// getPagination extracts page and pageSize from query params with defaults.
+func getPagination(c *gin.Context) (int, int) {
+	page := 1
+	pageSize := 20
+	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
+		page = p
+	}
+	if ps, err := strconv.Atoi(c.Query("pageSize")); err == nil && ps > 0 {
+		pageSize = ps
+		if pageSize > 100 {
+			pageSize = 100
+		}
+	}
+	return page, pageSize
+}
+
+// --- Workflow handlers ---
+
+func (h *Handler) List(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	status := c.Query("status")
+	var statusPtr *string
+	if status != "" {
+		statusPtr = &status
+	}
+	page, pageSize := getPagination(c)
+
+	wfs, total, err := h.svc.List(c.Request.Context(), tenantID, statusPtr, page, pageSize)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     wfs,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	})
+}
+
+func (h *Handler) Get(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	wf, err := h.svc.Get(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "workflow not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, wf)
+}
+
+func (h *Handler) Create(c *gin.Context) {
+	var req models.CreateWorkflowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	createdBy := auth.GetUserID(c)
+
+	wf, err := h.svc.Create(c.Request.Context(), &req, tenantID, createdBy)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, wf)
+}
+
+func (h *Handler) Update(c *gin.Context) {
+	id := c.Param("id")
+	var req models.UpdateWorkflowRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	wf, err := h.svc.Update(c.Request.Context(), id, &req, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "workflow not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, wf)
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	if !deleted {
+		respondNotFound(c, "workflow not found")
+		return
+	}
+	respondSuccess(c, gin.H{"message": "workflow deleted"})
+}
+
+func (h *Handler) Pause(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	wf, err := h.svc.Pause(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "workflow not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, wf)
+}
+
+func (h *Handler) Resume(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	wf, err := h.svc.Resume(c.Request.Context(), id, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "workflow not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, wf)
+}
+
+func (h *Handler) Execute(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := h.getTenantID(c)
+	triggeredBy := auth.GetUserID(c)
+
+	var body struct {
+		InitialInput *string `json:"initialInput"`
+	}
+	_ = c.ShouldBindJSON(&body)
+
+	initialInput := "{}"
+	if body.InitialInput != nil {
+		initialInput = *body.InitialInput
+	}
+
+	exec, err := h.svc.Execute(c.Request.Context(), id, tenantID, triggeredBy, initialInput)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, err.Error())
+			return
+		}
+		if err == service.ErrWorkflowDisabled {
+			respondBadRequest(c, err.Error())
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, exec)
+}
+
+func (h *Handler) ListExecutions(c *gin.Context) {
+	workflowID := c.Param("id")
+	tenantID := h.getTenantID(c)
+	page, pageSize := getPagination(c)
+
+	execs, total, err := h.svc.ListExecutions(c.Request.Context(), workflowID, tenantID, page, pageSize)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, models.PaginatedResponse{
+		Data:     execs,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	})
+}
+
+func (h *Handler) GetExecution(c *gin.Context) {
+	executionID := c.Param("executionId")
+	tenantID := h.getTenantID(c)
+	exec, err := h.svc.GetExecution(c.Request.Context(), executionID, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "workflow execution not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, exec)
+}

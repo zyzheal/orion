@@ -2,8 +2,79 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 )
+
+var ErrInvalidPercentage = errors.New("percentage must be between 0 and 100")
+
+// RouteTargetRef represents a target service for gray release routing.
+type RouteTargetRef struct {
+	ServiceName string `json:"service_name"`
+	InstanceIDs []string `json:"instance_ids"`
+	Port        int    `json:"port"`
+	Weight      int    `json:"weight"` // 0-100 for gray release percentage
+	Enabled     bool   `json:"enabled"`
+}
+
+// GrayReleaseConfig defines gray release routing configuration.
+type GrayReleaseConfig struct {
+	Enabled      bool `json:"enabled"`
+	Strategy     string `json:"strategy"` // header|cookie|percentage|header-regex
+	HeaderValue  string `json:"header_value"`
+	Percentage   int    `json:"percentage"` // 0-100
+	TargetRef    *RouteTargetRef `json:"target_ref"`
+	RollbackRef  *RouteTargetRef `json:"rollback_ref"`
+}
+
+// GrayReleaseRequest is the request body for creating/updating gray release config.
+type GrayReleaseRequest struct {
+	Strategy    string        `json:"strategy" binding:"required"`
+	HeaderValue string        `json:"header_value"`
+	Percentage  int           `json:"percentage"`
+	TargetRef   RouteTargetRef `json:"target_ref" binding:"required"`
+}
+
+// GrayReleaseUpdateRequest is the partial update for gray release config.
+type GrayReleaseUpdateRequest struct {
+	Enabled     *bool         `json:"enabled"`
+	Strategy    *string       `json:"strategy"`
+	HeaderValue *string       `json:"header_value"`
+	Percentage  *int          `json:"percentage"`
+	TargetRef   *RouteTargetRef `json:"target_ref"`
+	RollbackRef *RouteTargetRef `json:"rollback_ref"`
+}
+
+// GrayReleaseStatusResponse returns the current gray release status for a route.
+type GrayReleaseStatusResponse struct {
+	RouteID       string            `json:"route_id"`
+	Enabled       bool              `json:"enabled"`
+	Strategy      string            `json:"strategy"`
+	HeaderValue   string            `json:"header_value"`
+	Percentage    int               `json:"percentage"`
+	TargetRef     RouteTargetRef    `json:"target_ref"`
+	RollbackRef   RouteTargetRef    `json:"rollback_ref"`
+	ActiveSince   time.Time         `json:"active_since"`
+	LastRollback  *time.Time        `json:"last_rollback"`
+	RollbackCount int               `json:"rollback_count"`
+}
+
+// GrayReleaseStatsResponse returns aggregate gray release stats for a tenant.
+type GrayReleaseStatsResponse struct {
+	TotalRoutes    int `json:"total_routes"`
+	GrayEnabled    int `json:"gray_enabled"`
+	ActiveRollbacks int `json:"active_rollbacks"`
+}
+
+// RedisPubSubEvent is the event published via Redis Pub/Sub on gray release changes.
+type RedisPubSubEvent struct {
+	Event      string `json:"event"` // gray_enable, gray_disable, rollback
+	RouteID    string `json:"route_id"`
+	TenantID   string `json:"tenant_id"`
+	Strategy   string `json:"strategy"`
+	Percentage int    `json:"percentage"`
+	Timestamp  time.Time `json:"timestamp"`
+}
 
 // RateLimit defines rate limiting policy for a gateway route.
 type RateLimit struct {
