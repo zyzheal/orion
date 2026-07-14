@@ -445,6 +445,10 @@ import (
 	contract_repo "orion/platform-svc-go/internal/contract/repository"
 	contract_service "orion/platform-svc-go/internal/contract/service"
 
+	pe_handler "orion/platform-svc-go/internal/pipeline-engine/handler"
+	pe_repo "orion/platform-svc-go/internal/pipeline-engine/repository"
+	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
+
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -1763,6 +1767,12 @@ func main() {
 	vector_storeH.RegisterRoutes(rg)
 	vectorize_rulesH.RegisterRoutes(rg)
 	version_archiveH.RegisterRoutes(rg)
+
+	// Pipeline Engine (Phase 3.1)
+	peRepo := pe_repo.NewRepository(db.DB)
+	peEngine := pe_service.NewPipelineEngine(peRepo)
+	peH := pe_handler.NewHandler(peEngine)
+	peH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {
