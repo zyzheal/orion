@@ -185,6 +185,9 @@ import (
 	build_handler "orion/platform-svc-go/internal/build/handler"
 	build_repo "orion/platform-svc-go/internal/build/repository"
 	build_service "orion/platform-svc-go/internal/build/service"
+	pipeline_handler "orion/platform-svc-go/internal/pipeline/handler"
+	pipeline_repo "orion/platform-svc-go/internal/pipeline/repository"
+	pipeline_service "orion/platform-svc-go/internal/pipeline/service"
 	dba_handler "orion/platform-svc-go/internal/dba/handler"
 	dba_repo "orion/platform-svc-go/internal/dba/repository"
 	dba_service "orion/platform-svc-go/internal/dba/service"
@@ -985,6 +988,11 @@ func main() {
 	buildRepo := build_repo.NewRepository(db.DB)
 	buildSvc := build_service.NewService(buildRepo)
 	buildH := build_handler.NewHandler(buildSvc)
+	// Pipeline service
+	pipelineRepo := pipeline_repo.NewRepository(db.DB)
+	pipelineSvc := pipeline_service.NewService(pipelineRepo)
+	pipelineH := pipeline_handler.NewHandler(pipelineSvc)
+
 	// dba services
 	dbaRepo := dba_repo.NewRepository(db.DB)
 	dbaSvc := dba_service.NewService(dbaRepo)
@@ -1664,6 +1672,7 @@ func main() {
 	ticketingH.RegisterRoutes(rg)
 	build_envH.RegisterRoutes(rg)
 	buildH.RegisterRoutes(rg)
+	pipelineH.RegisterRoutes(rg)
 	dbaH.RegisterRoutes(rg)
 	deployH.RegisterRoutes(rg)
 	deploy_enhancedH.RegisterRoutes(rg)
