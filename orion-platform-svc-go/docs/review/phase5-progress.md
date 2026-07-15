@@ -121,7 +121,7 @@
 | ~~P0 CheckpointManager~~ | ✅ 已完成 |
 | ~~P0 TransactionLog~~ | ✅ 已完成 |
 | ~~P1 9 模块功能缺口修复 (37端点)~~ | ✅ 已完成 |
-| **P1** 创建 ADR 记录架构决策 | ⬜ 0.5 天 |
+| **P1** 创建 ADR 记录架构决策 | ✅ 已完成 (ADR-015) |
 | **P2** PipelineEngine 独立部署准备 | ⬜ 3-5 天 |
 | **P2** OTel 追踪集成 | ⬜ 需评估 |
 | **P2** Gateway 业务逻辑迁移 (12 routes.ts) | ⬜ 需评估 |
