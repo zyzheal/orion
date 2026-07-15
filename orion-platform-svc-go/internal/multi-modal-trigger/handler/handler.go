@@ -23,6 +23,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("multi_modal_trigger", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("multi_modal_trigger", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("multi_modal_trigger", "delete"), h.Delete)
+
+	// Business endpoints
+	r.POST("/:id/execute", auth.RequirePermission("multi_modal_trigger", "write"), h.ExecuteTrigger)
+	r.POST("/:id/evaluate", auth.RequirePermission("multi_modal_trigger", "write"), h.EvaluateTrigger)
+	r.POST("/webhook/process", auth.RequirePermission("multi_modal_trigger", "write"), h.ProcessWebhook)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -85,4 +90,51 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) ExecuteTrigger(c *gin.Context) {
+	id := c.Param("id")
+	var req models.TriggerExecuteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.ExecuteTrigger(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) EvaluateTrigger(c *gin.Context) {
+	id := c.Param("id")
+	var req models.TriggerEvaluateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.EvaluateTrigger(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) ProcessWebhook(c *gin.Context) {
+	var req models.WebhookProcessRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.ProcessWebhook(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }

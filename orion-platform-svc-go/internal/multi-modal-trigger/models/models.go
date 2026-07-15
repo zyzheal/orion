@@ -24,3 +24,40 @@ type UpdateMultiModalTriggerRequest struct {
 	Value   *string `json:"value"`
 	Enabled *bool   `json:"enabled"`
 }
+
+// TriggerExecuteRequest is the request body for executing a trigger.
+type TriggerExecuteRequest struct {
+	Payload map[string]interface{} `json:"payload"`
+}
+
+// TriggerEvaluateRequest is the request body for evaluating a trigger.
+type TriggerEvaluateRequest struct {
+	Context map[string]interface{} `json:"context"`
+}
+
+// TriggerExecution is the result of executing a trigger.
+type TriggerExecution struct {
+	TriggerID     string `json:"triggerId"`
+	Status        string `json:"status"`
+	PipelineRunID string `json:"pipelineRunId,omitempty"`
+}
+
+// TriggerEvaluation is the result of evaluating a trigger.
+type TriggerEvaluation struct {
+	TriggerID string `json:"triggerId"`
+	Matched   bool   `json:"matched"`
+	Reason    string `json:"reason"`
+}
+
+// WebhookProcessRequest is the request body for processing a webhook event.
+type WebhookProcessRequest struct {
+	Source  string                 `json:"source"`
+	Event   string                 `json:"event"`
+	Payload map[string]interface{} `json:"payload"`
+}
+
+// WebhookProcessResult is the result of processing a webhook event.
+type WebhookProcessResult struct {
+	Status            string   `json:"status"`
+	TriggeredTriggers []string `json:"triggeredTriggers"`
+}
