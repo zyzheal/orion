@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/apm/models"
 	"orion/platform-svc-go/internal/apm/service"
@@ -23,6 +24,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/:id", auth.RequirePermission("apm", "read"), h.Get)
 	f.PUT("/:id", auth.RequirePermission("apm", "write"), h.Update)
 	f.DELETE("/:id", auth.RequirePermission("apm", "delete"), h.Delete)
+
+	// Business endpoints
+	f.GET("/traces/slow", auth.RequirePermission("apm", "read"), h.GetSlowTraces)
+	f.GET("/services/topology", auth.RequirePermission("apm", "read"), h.GetServiceTopology)
+	f.GET("/slow-queries", auth.RequirePermission("apm", "read"), h.GetSlowQueries)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {
@@ -98,4 +104,58 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) GetSlowTraces(c *gin.Context) {
+	q := models.SlowTracesQuery{}
+	q.TraceDurationMs = c.Query("durationMs")
+	q.Service = c.Query("service")
+	q.Start = c.Query("start")
+	q.End = c.Query("end")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetSlowTraces(c.Request.Context(), tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) GetServiceTopology(c *gin.Context) {
+	q := models.TopologyQuery{}
+	if v := c.Query("includeDependencies"); v != "" {
+		q.IncludeDependencies = v == "true"
+	}
+	q.Service = c.Query("service")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetServiceTopology(c.Request.Context(), tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) GetSlowQueries(c *gin.Context) {
+	var q models.SlowQueriesQuery
+	if v := c.DefaultQuery("minDurationMs", "0"); v != "0" {
+		var n int
+		_, _ = fmt.Sscanf(v, "%d", &n)
+		q.MinDurationMs = n
+	}
+	q.Database = c.Query("database")
+	if l := c.DefaultQuery("limit", "50"); l != "" {
+		var n int
+		_, _ = fmt.Sscanf(l, "%d", &n)
+		if n > 0 {
+			q.Limit = n
+		}
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetSlowQueries(c.Request.Context(), tenantID, &q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }
