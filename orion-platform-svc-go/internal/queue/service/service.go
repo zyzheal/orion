@@ -9,10 +9,11 @@ import (
 
 type Service struct {
 	repo *repository.Repository
+	jobs *repository.JobRepository
 }
 
-func NewService(repo *repository.Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *repository.Repository, jobs *repository.JobRepository) *Service {
+	return &Service{repo: repo, jobs: jobs}
 }
 
 func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateQueueRequest) (*models.Queue, error) {

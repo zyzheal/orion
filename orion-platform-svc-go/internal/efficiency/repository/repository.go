@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
-	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
 
@@ -14,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var ErrNotFound = errors.New("not found")
+var ErrNotFound = errors.New("efficiency record not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -24,210 +22,169 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// --- Metrics ---
+// ===== MetricSnapshot =====
 
-func (r *Repository) CreateMetric(ctx context.Context, metric *models.Metric) error {
-	metric.ID = uuid.New().String()
-	metric.CreatedAt = time.Now().UTC()
-	metric.UpdatedAt = time.Now().UTC()
+func (r *Repository) CreateSnapshot(ctx context.Context, s *models.MetricSnapshot) error {
+	s.ID = uuid.New().String()
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO efficiency_metrics (id, tenant_id, name, description, metric_type, scope, scope_id, baseline_value, current_value, target_value, unit, status, created_at, updated_at)
-		 VALUES (:id, :tenantId, :name, :description, :metricType, :scope, :scopeId, :baselineValue, :currentValue, :targetValue, :unit, :status, :createdAt, :updatedAt)`,
-		metric)
+		`INSERT INTO efficiency_metric_snapshots (id, tenant_id, time_window, deployment_frequency, lead_time_ms, change_failure_rate, mttr_ms, captured_at)
+		 VALUES (:id, :tenantId, :timeWindow, :deploymentFrequency, :leadTimeMs, :changeFailureRate, :mttrMs, :capturedAt)`,
+		s)
 	return err
 }
 
-func (r *Repository) GetMetricByID(ctx context.Context, tenantID, id string) (*models.Metric, error) {
-	var metric models.Metric
-	err := r.db.GetContext(ctx, &metric, `SELECT * FROM efficiency_metrics WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	return &metric, err
+func (r *Repository) ListSnapshotsByTenant(ctx context.Context, tenantID string, limit int) ([]models.MetricSnapshot, error) {
+	var snapshots []models.MetricSnapshot
+	err := r.db.SelectContext(ctx, &snapshots,
+		`SELECT * FROM efficiency_metric_snapshots
+		 WHERE tenant_id=$1 ORDER BY captured_at DESC LIMIT $2`,
+		tenantID, limit)
+	return snapshots, err
 }
 
-func (r *Repository) ListMetrics(ctx context.Context, tenantID string, filter *models.MetricFilter) ([]models.Metric, int, error) {
-	where := "WHERE tenant_id=$1"
-	args := []interface{}{tenantID}
-	argIdx := 2
-
-	if filter != nil {
-		if filter.MetricType != nil && *filter.MetricType != "" {
-			where += fmt.Sprintf(" AND metric_type=$%d", argIdx); args = append(args, *filter.MetricType); argIdx++
-		}
-		if filter.Scope != nil && *filter.Scope != "" {
-			where += fmt.Sprintf(" AND scope=$%d", argIdx); args = append(args, *filter.Scope); argIdx++
-		}
-		if filter.Status != nil && *filter.Status != "" {
-			where += fmt.Sprintf(" AND status=$%d", argIdx); args = append(args, *filter.Status); argIdx++
-		}
-		if filter.Limit > 0 {
-			where += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
-			args = append(args, filter.Limit, filter.Offset)
-		}
-	}
-
-	var metrics []models.Metric
-	err := r.db.SelectContext(ctx, &metrics, fmt.Sprintf(`SELECT * FROM efficiency_metrics %s ORDER BY created_at DESC`, where), args...)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	var total int
-	err = r.db.GetContext(ctx, &total, `SELECT COUNT(*) FROM efficiency_metrics WHERE tenant_id=$1`, tenantID)
-	return metrics, total, err
-}
-
-func (r *Repository) UpdateMetric(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Metric, error) {
-	if len(updates) == 0 {
-		return nil, ErrNotFound
-	}
-	updates["updated_at"] = time.Now().UTC()
-	setClauses, args := buildSetClause(updates)
-	args = append(args, id, tenantID)
-	result, err := r.db.ExecContext(ctx,
-		fmt.Sprintf(`UPDATE efficiency_metrics SET %s WHERE id=$%d AND tenant_id=$%d`, setClauses, len(args)-1, len(args)), args...)
-	if err != nil {
-		return nil, err
-	}
-	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
-	}
-	return r.GetMetricByID(ctx, tenantID, id)
-}
-
-func (r *Repository) DeleteMetric(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM efficiency_metrics WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return false, err
-	}
-	rows, _ := result.RowsAffected()
-	return rows > 0, nil
-}
-
-// --- Scores ---
-
-func (r *Repository) CreateScore(ctx context.Context, score *models.Score) error {
-	score.ID = uuid.New().String()
-	score.CreatedAt = time.Now().UTC()
-	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO efficiency_scores (id, tenant_id, metric_id, score, score_date, notes, created_at)
-		 VALUES (:id, :tenantId, :metricId, :score, :scoreDate, :notes, :createdAt)`,
-		score)
+func (r *Repository) PruneOldSnapshots(ctx context.Context, tenantID string, keep int) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM efficiency_metric_snapshots
+		 WHERE id NOT IN (
+			 SELECT id FROM efficiency_metric_snapshots
+			 WHERE tenant_id=$1 ORDER BY captured_at DESC LIMIT $2
+		 ) AND tenant_id=$3`,
+		tenantID, keep, tenantID)
 	return err
 }
 
-func (r *Repository) ListScoresByMetric(ctx context.Context, tenantID, metricID string) ([]models.Score, error) {
-	var scores []models.Score
-	err := r.db.SelectContext(ctx, &scores,
-		`SELECT * FROM efficiency_scores WHERE tenant_id=$1 AND metric_id=$2 ORDER BY score_date DESC`, tenantID, metricID)
-	return scores, err
-}
+// ===== ReportHistory =====
 
-// --- Recommendations ---
-
-func (r *Repository) CreateRecommendation(ctx context.Context, rec *models.Recommendation) error {
-	rec.ID = uuid.New().String()
-	rec.CreatedAt = time.Now().UTC()
-	rec.UpdatedAt = time.Now().UTC()
+func (r *Repository) CreateReportHistory(ctx context.Context, entry *models.ReportHistoryEntry) error {
+	entry.ID = uuid.New().String()
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO efficiency_recommendations (id, tenant_id, metric_id, title, description, impact_level, estimated_savings, implementation_effort, status, created_at, updated_at)
-		 VALUES (:id, :tenantId, :metricId, :title, :description, :impactLevel, :estimatedSavings, :implementationEffort, :status, :createdAt, :updatedAt)`,
-		rec)
+		`INSERT INTO efficiency_report_history (id, tenant_id, report_data, generated_at)
+		 VALUES (:id, :tenantId, :reportData, :generatedAt)`,
+		entry)
 	return err
 }
 
-func (r *Repository) GetRecommendationByID(ctx context.Context, tenantID, id string) (*models.Recommendation, error) {
-	var rec models.Recommendation
-	err := r.db.GetContext(ctx, &rec, `SELECT * FROM efficiency_recommendations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	return &rec, err
+func (r *Repository) ListReportHistory(ctx context.Context, tenantID string, limit int) ([]models.ReportHistoryEntry, error) {
+	var entries []models.ReportHistoryEntry
+	err := r.db.SelectContext(ctx, &entries,
+		`SELECT * FROM efficiency_report_history
+		 WHERE tenant_id=$1 ORDER BY generated_at DESC LIMIT $2`,
+		tenantID, limit)
+	return entries, err
 }
 
-func (r *Repository) ListRecommendations(ctx context.Context, tenantID string, status *string) ([]models.Recommendation, error) {
-	where := "WHERE tenant_id=$1"
-	args := []interface{}{tenantID}
-	if status != nil && *status != "" {
-		where += " AND status=$2"
-		args = append(args, *status)
-	}
-	var recs []models.Recommendation
-	err := r.db.SelectContext(ctx, &recs, fmt.Sprintf(`SELECT * FROM efficiency_recommendations %s ORDER BY created_at DESC`, where), args...)
-	return recs, err
+// ===== TeamData =====
+
+func (r *Repository) CreateTeamData(ctx context.Context, t *models.TeamData) error {
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO efficiency_team_data (id, tenant_id, name, members, pipelines, deployments)
+		 VALUES (:id, :tenantId, :name, :members, :pipelines, :deployments)
+		 ON CONFLICT (tenant_id, id) DO UPDATE SET
+			name=EXCLUDED.name, members=EXCLUDED.members, pipelines=EXCLUDED.pipelines, deployments=EXCLUDED.deployments`,
+		t)
+	return err
 }
 
-func (r *Repository) UpdateRecommendation(ctx context.Context, tenantID, id string, status string) (*models.Recommendation, error) {
-	var result sql.Result
-	var err error
-	switch status {
-	case "accepted":
-		result, err = r.db.ExecContext(ctx, `UPDATE efficiency_recommendations SET status=$1, accepted_at=$2 WHERE id=$3 AND tenant_id=$4 AND status=$5`,
-			"accepted", time.Now().UTC(), id, tenantID, "suggested")
-	case "implemented":
-		result, err = r.db.ExecContext(ctx, `UPDATE efficiency_recommendations SET status=$1, implemented_at=$2 WHERE id=$3 AND tenant_id=$4 AND status=$5`,
-			"implemented", time.Now().UTC(), id, tenantID, "accepted")
-	case "rejected":
-		result, err = r.db.ExecContext(ctx, `UPDATE efficiency_recommendations SET status=$1 WHERE id=$2 AND tenant_id=$3`,
-			"rejected", id, tenantID)
-	default:
+func (r *Repository) GetTeamData(ctx context.Context, tenantID, teamID string) (*models.TeamData, error) {
+	var t models.TeamData
+	err := r.db.GetContext(ctx, &t,
+		`SELECT * FROM efficiency_team_data WHERE tenant_id=$1 AND id=$2`, tenantID, teamID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	if err != nil {
-		return nil, err
-	}
-	if rows, _ := result.RowsAffected(); rows == 0 {
+	return &t, err
+}
+
+func (r *Repository) ListTeamData(ctx context.Context, tenantID string) ([]models.TeamData, error) {
+	var teams []models.TeamData
+	err := r.db.SelectContext(ctx, &teams,
+		`SELECT * FROM efficiency_team_data WHERE tenant_id=$1`, tenantID)
+	return teams, err
+}
+
+// ===== ProjectData =====
+
+func (r *Repository) CreateProjectData(ctx context.Context, p *models.ProjectData) error {
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO efficiency_project_data (id, tenant_id, name, pipelines, deployments, commits)
+		 VALUES (:id, :tenantId, :name, :pipelines, :deployments, :commits)
+		 ON CONFLICT (tenant_id, id) DO UPDATE SET
+			name=EXCLUDED.name, pipelines=EXCLUDED.pipelines, deployments=EXCLUDED.deployments, commits=EXCLUDED.commits`,
+		p)
+	return err
+}
+
+func (r *Repository) GetProjectData(ctx context.Context, tenantID, projectID string) (*models.ProjectData, error) {
+	var p models.ProjectData
+	err := r.db.GetContext(ctx, &p,
+		`SELECT * FROM efficiency_project_data WHERE tenant_id=$1 AND id=$2`, tenantID, projectID)
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
-	return r.GetRecommendationByID(ctx, tenantID, id)
+	return &p, err
 }
 
-func (r *Repository) DeleteRecommendation(ctx context.Context, tenantID, id string) (bool, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM efficiency_recommendations WHERE id=$1 AND tenant_id=$2`, id, tenantID)
-	if err != nil {
-		return false, err
-	}
-	rows, _ := result.RowsAffected()
-	return rows > 0, nil
+func (r *Repository) ListProjectData(ctx context.Context, tenantID string) ([]models.ProjectData, error) {
+	var projects []models.ProjectData
+	err := r.db.SelectContext(ctx, &projects,
+		`SELECT * FROM efficiency_project_data WHERE tenant_id=$1`, tenantID)
+	return projects, err
 }
 
-// --- Stats ---
+// ===== GlobalDeployment =====
 
-func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.EfficiencyStats, error) {
-	stats := &models.EfficiencyStats{}
-
-	err := r.db.GetContext(ctx, &stats.TotalMetrics, `SELECT COUNT(*) FROM efficiency_metrics WHERE tenant_id=$1`, tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.db.GetContext(ctx, &stats.AvgScore,
-		`SELECT COALESCE(AVG(score), 0) FROM efficiency_scores WHERE tenant_id=$1`, tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.db.GetContext(ctx, &stats.TotalRecommendations,
-		`SELECT COUNT(*) FROM efficiency_recommendations WHERE tenant_id=$1`, tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.db.GetContext(ctx, &stats.AcceptedCount,
-		`SELECT COUNT(*) FROM efficiency_recommendations WHERE tenant_id=$1 AND status='accepted'`, tenantID)
-	if err != nil {
-		return nil, err
-	}
-
-	err = r.db.GetContext(ctx, &stats.ImplementedCount,
-		`SELECT COUNT(*) FROM efficiency_recommendations WHERE tenant_id=$1 AND status='implemented'`, tenantID)
-
-	return stats, err
+func (r *Repository) CreateGlobalDeployment(ctx context.Context, d *models.GlobalDeployment) error {
+	d.ID = uuid.New().String()
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO efficiency_global_deployments (id, tenant_id, deployment_data, deployed_at)
+		 VALUES (:id, :tenantId, :deploymentData, :deployedAt)`,
+		d)
+	return err
 }
 
-func buildSetClause(updates map[string]interface{}) (string, []interface{}) {
-	clauses := []string{}
-	args := []interface{}{}
-	i := 1
-	for key, val := range updates {
-		clauses = append(clauses, fmt.Sprintf("%s = $%d", key, i))
-		args = append(args, val)
-		i++
-	}
-	return strings.Join(clauses, ", "), args
+func (r *Repository) ListGlobalDeployments(ctx context.Context, tenantID string) ([]models.GlobalDeployment, error) {
+	var depl []models.GlobalDeployment
+	err := r.db.SelectContext(ctx, &depl,
+		`SELECT * FROM efficiency_global_deployments WHERE tenant_id=$1 ORDER BY deployed_at DESC`, tenantID)
+	return depl, err
+}
+
+func (r *Repository) DeleteGlobalDeploymentsByTenant(ctx context.Context, tenantID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM efficiency_global_deployments WHERE tenant_id=$1`, tenantID)
+	return err
+}
+
+// ===== GlobalPipeline =====
+
+func (r *Repository) CreateGlobalPipeline(ctx context.Context, p *models.GlobalPipeline) error {
+	p.ID = uuid.New().String()
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO efficiency_global_pipelines (id, tenant_id, pipeline_data, completed_at)
+		 VALUES (:id, :tenantId, :pipelineData, :completedAt)`,
+		p)
+	return err
+}
+
+func (r *Repository) ListGlobalPipelines(ctx context.Context, tenantID string) ([]models.GlobalPipeline, error) {
+	var pips []models.GlobalPipeline
+	err := r.db.SelectContext(ctx, &pips,
+		`SELECT * FROM efficiency_global_pipelines WHERE tenant_id=$1 ORDER BY completed_at DESC`, tenantID)
+	return pips, err
+}
+
+func (r *Repository) DeleteGlobalPipelinesByTenant(ctx context.Context, tenantID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM efficiency_global_pipelines WHERE tenant_id=$1`, tenantID)
+	return err
+}
+
+// ===== Helpers for table existence detection =====
+
+// TableExists checks if a table exists in the current database.
+func (r *Repository) TableExists(ctx context.Context, tableName string) (bool, error) {
+	var exists bool
+	err := r.db.GetContext(ctx, &exists,
+		fmt.Sprintf(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, tableName))
+	return exists, err
 }

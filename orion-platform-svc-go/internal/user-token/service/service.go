@@ -1,0 +1,66 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"math/rand"
+	"time"
+
+	"orion/platform-svc-go/internal/user-token/models"
+	"orion/platform-svc-go/internal/user-token/repository"
+)
+
+var ErrForbidden = errors.New("forbidden")
+
+type Service struct {
+	repo *repository.Repository
+}
+
+func NewService(repo *repository.Repository) *Service {
+	return &Service{repo: repo}
+}
+
+// GetTokens returns all tokens for a user.
+func (s *Service) GetTokens(ctx context.Context, tenantID, userID string) ([]models.Token, error) {
+	return s.repo.ListByUserID(ctx, tenantID, userID)
+}
+
+// CreateToken creates a new API token for a user.
+func (s *Service) CreateToken(ctx context.Context, tenantID string, req models.CreateTokenRequest) (models.CreateTokenResponse, error) {
+	var expiresAt *time.Time
+	if req.ExpiresInDays != nil && *req.ExpiresInDays > 0 {
+		t := time.Now().UTC().Add(time.Duration(*req.ExpiresInDays) * 24 * time.Hour)
+		expiresAt = &t
+	}
+	_, err := s.repo.Create(ctx, tenantID, req.UserID, req.Name, expiresAt)
+	if err != nil {
+		return models.CreateTokenResponse{}, err
+	}
+	// Generate raw token (returned only once)
+	rawToken := generateRawToken()
+	return models.CreateTokenResponse{Token: rawToken}, nil
+}
+
+// DeleteToken deletes a token.
+func (s *Service) DeleteToken(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func generateRawToken() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return "tok_" + formatBytes(b)
+}
+
+func formatBytes(b []byte) string {
+	var s string
+	for _, c := range b {
+		s += formatByte(c)
+	}
+	return s
+}
+
+func formatByte(b byte) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	return string(chars[int(b)%len(chars)])
+}

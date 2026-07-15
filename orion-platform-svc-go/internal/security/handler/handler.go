@@ -1,0 +1,190 @@
+package handler
+
+import (
+	"context"
+	"strconv"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/security/models"
+	"orion/platform-svc-go/internal/security/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handler struct {
+	svc *service.Service
+}
+
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	r := rg.Group("/security/vulnerabilities")
+
+	// GET /api/v1/security/vulnerabilities — list vulnerabilities for current tenant
+	r.GET("",
+		auth.RequirePermission("security", "read"),
+		h.ListVulnerabilities)
+
+	// POST /api/v1/security/vulnerabilities/scan — trigger dependency CVE scan
+	r.POST("/scan",
+		auth.RequirePermission("security", "write"),
+		h.TriggerScan)
+
+	// GET /api/v1/security/vulnerabilities/:id — get specific vulnerability details
+	r.GET("/:id",
+		auth.RequirePermission("security", "read"),
+		h.GetVulnerability)
+
+	// POST /api/v1/security/vulnerabilities/:id/remediate — remediate/dismiss a vulnerability
+	r.POST("/:id/remediate",
+		auth.RequirePermission("security", "write"),
+		h.Remediate)
+}
+
+// ListVulnerabilities lists vulnerabilities for the current tenant.
+func (h *Handler) ListVulnerabilities(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	opt := models.ListVulnerabilitiesOptions{}
+	if severity := c.Query("severity"); severity != "" {
+		opt.Severity = models.VulnerabilitySeverity(severity)
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		opt.Limit, _ = strconv.Atoi(limitStr)
+	}
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		opt.Offset, _ = strconv.Atoi(offsetStr)
+	}
+	if pageStr := c.Query("page"); pageStr != "" {
+		opt.Page, _ = strconv.Atoi(pageStr)
+	}
+	if opt.Page <= 0 {
+		opt.Page = 1
+	}
+	if opt.Limit <= 0 || opt.Limit > 100 {
+		opt.Limit = 20
+	}
+
+	report, err := h.svc.GetVulnerabilityReport(ctx, tenantID, opt)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+
+	respondSuccess(c, gin.H{
+		"data": report.Vulnerabilities,
+		"meta": gin.H{
+			"total":          report.TotalVulnerabilities,
+			"bySeverity":     report.BySeverity,
+			"byStatus":       report.ByStatus,
+			"openCritical":   report.OpenCritical,
+			"openHigh":       report.OpenHigh,
+		},
+	})
+}
+
+// TriggerScan triggers a dependency vulnerability scan.
+func (h *Handler) TriggerScan(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	var req models.ScanVulnerabilitiesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	result, err := h.svc.ScanDependencies(ctx, tenantID, req.ProjectPath)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+
+	respondCreated(c, result)
+}
+
+// GetVulnerability retrieves details for a specific vulnerability.
+func (h *Handler) GetVulnerability(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	id := c.Param("id")
+
+	vuln, err := h.svc.CheckVulnerability(ctx, tenantID, id)
+	if err != nil {
+		respondNotFound(c, "vulnerability not found")
+		return
+	}
+
+	respondSuccess(c, gin.H{
+		"id":             vuln.ID,
+		"cveId":          vuln.CVEID,
+		"packageName":    vuln.PackageName,
+		"packageVersion": vuln.PackageVersion,
+		"severity":       vuln.Severity,
+		"description":    vuln.Description,
+		"fixVersion":     vuln.FixVersion,
+		"status":         vuln.Status,
+		"detectedAt":     vuln.DetectedAt,
+	})
+}
+
+// Remediate marks a vulnerability as remediated, ignored, or false_positive.
+func (h *Handler) Remediate(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+	id := c.Param("id")
+
+	var req models.RemediateVulnerabilityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	if req.Action == "" {
+		respondBadRequest(c, "missing required field: action (remediate | ignore | false_positive)")
+		return
+	}
+
+	// Parse the ID — could be "cveId:packageName" format or just CVE
+	cveID := id
+	packageName := ""
+	if colonIdx := lastColon(id); colonIdx != -1 {
+		cveID = id[:colonIdx]
+		packageName = id[colonIdx+1:]
+	}
+
+	vuln, err := h.svc.RemediateVulnerability(ctx, tenantID, cveID, packageName, req)
+	if err != nil {
+		switch {
+		case err.Error() == service.ErrNotFound.Error():
+			respondNotFound(c, "vulnerability not found")
+		case err.Error() == service.ErrInvalidInput.Error() || len(err.Error()) > len(service.ErrInvalidInput.Error()) && err.Error()[:len(service.ErrInvalidInput.Error())] == service.ErrInvalidInput.Error():
+			respondBadRequest(c, err.Error())
+		default:
+			respondInternalError(c, err.Error())
+		}
+		return
+	}
+
+	respondSuccess(c, gin.H{
+		"id":          vuln.ID,
+		"cveId":       vuln.CVEID,
+		"packageName": vuln.PackageName,
+		"status":      vuln.Status,
+		"updatedAt":   vuln.UpdatedAt,
+	})
+}
+
+// lastColon returns the index of the last colon in the string, or -1 if none.
+func lastColon(s string) int {
+	idx := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] == ':' {
+			idx = i
+		}
+	}
+	return idx
+}

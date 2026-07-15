@@ -43,6 +43,11 @@ func NewPipelineEngine(repo *repository.Repository) *PipelineEngine {
 
 // RegisterSpec registers an inline YAML spec for a pipeline.
 func (e *PipelineEngine) RegisterSpec(pipelineID, version, yamlSpec string) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[pipeline-engine] RegisterSpec recovered from panic: %v\n", r)
+		}
+	}()
 	e.specStore[fmt.Sprintf("%s@%s", pipelineID, version)] = yamlSpec
 }
 
@@ -119,6 +124,18 @@ func (e *PipelineEngine) createStageWithTasks(ctx context.Context, runID string,
 
 // Execute triggers a pipeline run and executes it.
 func (e *PipelineEngine) Execute(ctx context.Context, tenantID string, req models.TriggerRequest) (*models.PipelineRun, error) {
+	var run *models.PipelineRun
+	var err error
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("pipeline engine panic: %v", r)
+		}
+	}()
+	run, err = e.execute(ctx, tenantID, req)
+	return run, err
+}
+
+func (e *PipelineEngine) execute(ctx context.Context, tenantID string, req models.TriggerRequest) (*models.PipelineRun, error) {
 	// Parse or retrieve spec
 	var spec *models.PipelineSpec
 	var err error
@@ -278,6 +295,11 @@ func (e *PipelineEngine) topologicalSort(stages []models.StageSpec) []models.Sta
 
 // CancelRun cancels a running pipeline.
 func (e *PipelineEngine) CancelRun(ctx context.Context, tenantID, runID, triggerBy string) (*models.PipelineRun, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[pipeline-engine] CancelRun recovered from panic: %v\n", r)
+		}
+	}()
 	run, err := e.repo.GetRun(ctx, tenantID, runID)
 	if err != nil {
 		return nil, err

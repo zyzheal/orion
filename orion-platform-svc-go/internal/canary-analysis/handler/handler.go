@@ -23,6 +23,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/:id", auth.RequirePermission("canary_analysis", "read"), h.Get)
 	f.PUT("/:id", auth.RequirePermission("canary_analysis", "write"), h.Update)
 	f.DELETE("/:id", auth.RequirePermission("canary_analysis", "delete"), h.Delete)
+
+	// Business endpoints
+	f.POST("/force-promote", auth.RequirePermission("canary_analysis", "execute"), h.ForcePromote)
+	f.POST("/force-rollback", auth.RequirePermission("canary_analysis", "execute"), h.ForceRollback)
+	f.POST("/models/retrain", auth.RequirePermission("canary_analysis", "execute"), h.RetrainModel)
+	f.GET("/metrics/discover", auth.RequirePermission("canary_analysis", "read"), h.DiscoverMetrics)
+	f.GET("/runs/:runID/metrics", auth.RequirePermission("canary_analysis", "read"), h.GetRunMetrics)
+	f.GET("/runs/:runID/ml-results", auth.RequirePermission("canary_analysis", "read"), h.GetMLResults)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {
@@ -98,4 +106,82 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) ForcePromote(c *gin.Context) {
+	var req models.ForcePromoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.ForcePromote(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) ForceRollback(c *gin.Context) {
+	var req models.ForceRollbackRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.ForceRollback(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) RetrainModel(c *gin.Context) {
+	var req models.RetrainRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.RetrainModel(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) DiscoverMetrics(c *gin.Context) {
+	query := c.Query("query")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.DiscoverMetrics(c.Request.Context(), tenantID, query)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) GetRunMetrics(c *gin.Context) {
+	runID := c.Param("runID")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetRunMetrics(c.Request.Context(), tenantID, runID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) GetMLResults(c *gin.Context) {
+	runID := c.Param("runID")
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.GetMLResults(c.Request.Context(), tenantID, runID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }

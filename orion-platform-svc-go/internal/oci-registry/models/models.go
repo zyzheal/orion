@@ -24,3 +24,28 @@ type UpdateOciRegistryRequest struct {
 	Value   *string `json:"value"`
 	Enabled *bool   `json:"enabled"`
 }
+
+// ToggleRegistryRequest is the request body for enabling/disabling a registry.
+type ToggleRegistryRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+// TagsQuery is the query parameters for listing image tags.
+type TagsQuery struct {
+	Page  int `json:"page" form:"page"`
+	Limit int `json:"limit" form:"limit"`
+}
+
+// Tag represents a single image tag in an OCI repository.
+type Tag struct {
+	Name      string `json:"name"`
+	Digest    string `json:"digest"`
+	Size      int64  `json:"size"`
+	CreatedAt int64  `json:"createdAt"`
+}
+
+// TagsResponse is the response for listing image tags.
+type TagsResponse struct {
+	Total int   `json:"total"`
+	Tags  []Tag `json:"tags"`
+}

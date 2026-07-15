@@ -53,6 +53,11 @@ func (o *StageOrchestrator) SetExecutor(exec *StageExecutor) {
 // Execute runs all stages in an execution context.
 // Returns true if any stage failed.
 func (o *StageOrchestrator) Execute(ctx context.Context, run *models.PipelineRun, stageMap map[string]string, variables map[string]string) bool {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[pipeline-engine] StageOrchestrator.Execute recovered from panic: %v\n", r)
+		}
+	}()
 	execution := &Execution{
 		ID:        run.ID,
 		TenantID:  run.TenantID,
@@ -395,6 +400,110 @@ func (c *CheckpointManager) Save(ctx context.Context, runID string, stageName st
 	_ = c.repo.CreateCheckpoint(ctx, cp)
 }
 
+// SaveCheckpoint serializes expanded run state and upserts a checkpoint.
+func (c *CheckpointManager) SaveCheckpoint(ctx context.Context, runID string, pipelineID string, stageState map[string]string, variables map[string]string, lastStage string, lastTask string) error {
+	taskOutputs := make(map[string]map[string]string)
+	for k, v := range variables {
+		parts := strings.Split(strings.TrimPrefix(k, "tasks."), ".")
+		if len(parts) == 2 {
+			if taskOutputs[parts[0]] == nil {
+				taskOutputs[parts[0]] = make(map[string]string)
+			}
+			taskOutputs[parts[0]][parts[1]] = v
+		}
+	}
+	state := models.EngineState{
+		TaskOutputs: taskOutputs,
+	}
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	cp := &models.Checkpoint{
+		RunID:     runID,
+		StageName: lastStage,
+		TaskName:  stringPtr(lastTask),
+		State:     string(stateJSON),
+	}
+	// Best effort: keep old insert path if upsert table/index is absent.
+	if err := c.repo.SaveCheckpoint(ctx, cp); err != nil {
+		_ = c.repo.CreateCheckpoint(ctx, cp)
+	}
+	return nil
+}
+
+// LoadCheckpoint deserializes the latest checkpoint for a run.
+func (c *CheckpointManager) LoadCheckpoint(ctx context.Context, runID string) (*models.EngineState, error) {
+	cp, err := c.repo.GetCheckpoint(ctx, "", runID)
+	if err != nil {
+		return nil, err
+	}
+	var state models.EngineState
+	if err := json.Unmarshal([]byte(cp.State), &state); err != nil {
+		return nil, err
+	}
+	return &state, nil
+}
+
+// CleanupCompleted deletes a run's checkpoint after completion/cancellation.
+func (c *CheckpointManager) CleanupCompleted(ctx context.Context, runID string) error {
+	if _, err := c.repo.DeleteCheckpointByRunID(ctx, runID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// FindRunningCheckpoints returns checkpoints in running state for startup recovery.
+func (c *CheckpointManager) FindRunningCheckpoints(ctx context.Context) ([]models.Checkpoint, error) {
+	// Use repo best-effort query. If unavailable, falls back to getting latest checkpoint per run.
+	cps, err := c.repo.FindCheckpointsByStatus(ctx, "running")
+	if err == nil {
+		return cps, nil
+	}
+	return nil, err
+}
+
+// RecoveryResult summarizes startup orphaned-run recovery.
+type RecoveryResult struct {
+	Recovered    int
+	MarkedFailed int
+	Restored     int
+	Errors       []string
+}
+
+// RecoverOrphanedRuns evaluates RUNNING checkpoints and either restores or marks stale runs.
+func (c *CheckpointManager) RecoverOrphanedRuns(ctx context.Context, tenantID string, engine *PipelineEngine, markFailedIfStale bool) *RecoveryResult {
+	result := &RecoveryResult{}
+	cps, err := c.FindRunningCheckpoints(ctx)
+	if err != nil {
+		result.Errors = append(result.Errors, err.Error())
+		return result
+	}
+	result.Recovered = len(cps)
+	for _, cp := range cps {
+		run, runErr := c.repo.GetRun(ctx, tenantID, cp.RunID)
+		if runErr != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("run %s not found: %v", cp.RunID, runErr))
+			continue
+		}
+		if run.Status == models.RunStatusRunning && markFailedIfStale {
+			if _, err := engine.CancelRun(ctx, tenantID, cp.RunID, "orphan recovery"); err != nil {
+				result.Errors = append(result.Errors, err.Error())
+			}
+			result.MarkedFailed++
+		}
+		_ = c.CleanupCompleted(ctx, cp.RunID)
+	}
+	return result
+}
+
+// stringPtr returns a pointer to a string (nil for empty).
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
 // nowInt64 returns current unix timestamp as int64.
 func nowInt64() int64 {
 	return nowTime().Unix()

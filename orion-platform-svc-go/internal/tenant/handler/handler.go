@@ -9,6 +9,8 @@ import (
 	"orion/platform-svc-go/internal/tenant/models"
 	"orion/platform-svc-go/internal/tenant/service"
 
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -161,7 +163,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "tenant deleted"})
+	c.JSON(http.StatusNoContent, nil)
 }
 
 func (h *Handler) Split(c *gin.Context) {
@@ -406,7 +408,7 @@ func (h *Handler) RemoveUser(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "User removed from tenant successfully"})
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // ==================== Invitations ====================

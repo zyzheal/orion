@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"strconv"
-
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/diagnostic/models"
 	"orion/platform-svc-go/internal/diagnostic/service"
@@ -37,7 +35,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// POST /diagnostic/sessions/:id/complete - Complete session
 	f.POST("/sessions/:id/complete", auth.RequirePermission("diagnostic", "write"), h.CompleteSession)
 	// GET /diagnostic/sessions/:id/complexity - Estimate fix complexity
-	// f.GET("/sessions/:id/complexity", auth.RequirePermission("diagnostic", "read"), h.EstimateComplexity)
+	f.GET("/sessions/:id/complexity", auth.RequirePermission("diagnostic", "read"), h.EstimateComplexity)
 
 	// --- Reports ---
 	// GET /diagnostic/reports - Get report history
@@ -55,7 +53,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// GET /diagnostic/knowledge/stats - Get knowledge base stats
 	f.GET("/knowledge/stats", auth.RequirePermission("diagnostic", "read"), h.GetStats)
 	// POST /diagnostic/knowledge/outcomes - Record diagnostic outcome
-	// f.POST("/knowledge/outcomes", auth.RequirePermission("diagnostic", "write"), h.RecordOutcome)
+	f.POST("/knowledge/outcomes", auth.RequirePermission("diagnostic", "write"), h.RecordOutcome)
 
 	// --- Status ---
 	// GET /diagnostic/status - Get diagnostic service status
@@ -326,9 +324,4 @@ func (h *Handler) GetStatus(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, status)
-}
-
-func init() {
-	// Silence unused import
-	_ = strconv.Atoi
 }

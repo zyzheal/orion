@@ -34,3 +34,40 @@ type PaginatedResponse struct {
 	Page     int         `json:"page"`
 	PageSize int         `json:"pageSize"`
 }
+
+// ForcePromoteRequest is the request body for force-promoting a canary.
+type ForcePromoteRequest struct {
+	RunID string `json:"runId"`
+}
+
+// ForceRollbackRequest is the request body for force-rolling back a canary.
+type ForceRollbackRequest struct {
+	RunID  string `json:"runId"`
+	Reason string `json:"reason"`
+}
+
+// RetrainRequest is the request body for retraining an ML model.
+type RetrainRequest struct {
+	Model   string `json:"model"`
+	Dataset string `json:"dataset"`
+}
+
+// RetrainResult is the result of a model retrain operation.
+type RetrainResult struct {
+	Model  string `json:"model"`
+	Status string `json:"status"`
+}
+
+// RunMetrics holds metrics for a canary run.
+type RunMetrics struct {
+	RunID   string            `json:"runId"`
+	Metrics map[string]float64 `json:"metrics"`
+}
+
+// MLResults holds ML decision results for a canary run.
+type MLResults struct {
+	RunID      string   `json:"runId"`
+	Decision   string   `json:"decision"`
+	Confidence float64  `json:"confidence"`
+	Factors    []string `json:"factors"`
+}

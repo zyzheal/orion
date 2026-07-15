@@ -1,0 +1,317 @@
+package handler
+
+import (
+	"strconv"
+	"time"
+
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/llm-trace/models"
+	"orion/platform-svc-go/internal/llm-trace/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Handler exposes LLM trace endpoints.
+type Handler struct {
+	svc *service.Service
+}
+
+// NewHandler creates a new Handler.
+func NewHandler(svc *service.Service) *Handler {
+	return &Handler{svc: svc}
+}
+
+// RegisterRoutes registers all llm-trace endpoints under /api/v1/llm.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	f := rg.Group("/api/v1/llm")
+
+	// --- Traces ---
+	// GET /api/v1/llm/traces/:traceId - Get trace by ID
+	f.GET("/traces/:traceId", auth.RequirePermission("llm-trace", "read"), h.GetTrace)
+
+	// GET /api/v1/llm/traces - List traces with filters
+	f.GET("/traces", auth.RequirePermission("llm-trace", "read"), h.ListTraces)
+
+	// POST /api/v1/llm/traces - Create a new trace
+	f.POST("/traces", auth.RequirePermission("llm-trace", "write"), h.CreateTrace)
+
+	// POST /api/v1/llm/traces/:traceId/complete - Complete a trace
+	f.POST("/traces/:traceId/complete", auth.RequirePermission("llm-trace", "write"), h.CompleteTrace)
+
+	// --- Stats & Cost ---
+	// GET /api/v1/llm/stats/daily - Get daily aggregated statistics
+	f.GET("/stats/daily", auth.RequirePermission("llm-trace", "read"), h.GetDailyStats)
+
+	// GET /api/v1/llm/cost/breakdown - Get cost breakdown
+	// (placed before /traces/:traceId pattern to avoid collision — no :id param)
+	// already safe since /stats/ and /cost/ paths differ from /traces/:traceId
+
+	// GET /api/v1/llm/tracking/accuracy - Get tracking accuracy metrics
+	f.GET("/tracking/accuracy", auth.RequirePermission("llm-trace", "read"), h.GetTrackingAccuracy)
+
+	// GET /api/v1/llm/pricing - Get model pricing table
+	f.GET("/pricing", auth.RequirePermission("llm-trace", "read"), h.GetPricing)
+
+	// POST /api/v1/llm/cost/estimate - Estimate cost for tokens
+	f.POST("/cost/estimate", auth.RequirePermission("llm-trace", "read"), h.EstimateCost)
+}
+
+// getTenantID extracts tenant_id from Gin context.
+func (h *Handler) getTenantID(c *gin.Context) string {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		return "00000000-0000-0000-0000-000000000000"
+	}
+	return tenantID
+}
+
+// getUserID extracts user_id from Gin context.
+func (h *Handler) getUserID(c *gin.Context) string {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		return "system"
+	}
+	return userID
+}
+
+// GetTrace handler - GET /api/v1/llm/traces/:traceId
+func (h *Handler) GetTrace(c *gin.Context) {
+	traceID := c.Param("traceId")
+	tenantID := h.getTenantID(c)
+
+	t, err := h.svc.GetTrace(c.Request.Context(), traceID, tenantID)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "Trace not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, t)
+}
+
+// ListTraces handler - GET /api/v1/llm/traces
+func (h *Handler) ListTraces(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+
+	limitStr := c.Query("limit")
+	scenarioID := c.Query("scenarioId")
+
+	q := &models.ListTracesQuery{}
+	if scenarioID != "" {
+		q.ScenarioID = &scenarioID
+	}
+	if limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err == nil && limit > 0 {
+			q.Limit = &limit
+		}
+	}
+
+	traces, total, err := h.svc.ListTraces(c.Request.Context(), tenantID, q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+
+	respondSuccess(c, gin.H{
+		"data":  traces,
+		"total": total,
+		"limit": derefInt(q.Limit),
+	})
+}
+
+// CreateTrace handler - POST /api/v1/llm/traces
+func (h *Handler) CreateTrace(c *gin.Context) {
+	var req models.TraceCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	userID := h.getUserID(c)
+
+	t, err := h.svc.CreateTrace(c.Request.Context(), tenantID, userID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondCreated(c, t)
+}
+
+// CompleteTrace handler - POST /api/v1/llm/traces/:traceId/complete
+func (h *Handler) CompleteTrace(c *gin.Context) {
+	traceID := c.Param("traceId")
+	tenantID := h.getTenantID(c)
+
+	var req models.TraceCompleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+
+	t, err := h.svc.CompleteTrace(c.Request.Context(), traceID, tenantID, &req)
+	if err != nil {
+		if service.IsNotFound(err) {
+			respondNotFound(c, "Trace not found")
+			return
+		}
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, t)
+}
+
+// GetDailyStats handler - GET /api/v1/llm/stats/daily
+func (h *Handler) GetDailyStats(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+
+	var date *string
+	if dateStr := c.Query("date"); dateStr != "" {
+		// Validate date format
+		_, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			respondBadRequest(c, "invalid date format, expected YYYY-MM-DD")
+			return
+		}
+		date = &dateStr
+	}
+
+	stats, err := h.svc.GetDailyStats(c.Request.Context(), tenantID, date)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, stats)
+}
+
+// GetTrackingAccuracy handler - GET /api/v1/llm/tracking/accuracy
+func (h *Handler) GetTrackingAccuracy(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+
+	accuracy, err := h.svc.GetTrackingAccuracy(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, accuracy)
+}
+
+// GetPricing handler - GET /api/v1/llm/pricing
+func (h *Handler) GetPricing(c *gin.Context) {
+	pricing := h.svc.GetAllPricing(c.Request.Context())
+
+	pricingMap := make(map[string]gin.H)
+	for k, v := range pricing {
+		pricingMap[k] = gin.H{
+			"input":  v.Input,
+			"output": v.Output,
+		}
+	}
+
+	respondSuccess(c, gin.H{
+		"currency": "CNY",
+		"unit":     "per token",
+		"pricing":  pricingMap,
+	})
+}
+
+// EstimateCost handler - POST /api/v1/llm/cost/estimate
+func (h *Handler) EstimateCost(c *gin.Context) {
+	var req models.CostEstimateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, "Missing required fields: modelId, inputTokens, outputTokens")
+		return
+	}
+
+	breakdown := h.svc.CalculateCost(c.Request.Context(), req.ModelID, req.InputTokens, req.OutputTokens)
+
+	respondSuccess(c, gin.H{
+		"modelId":       req.ModelID,
+		"inputTokens":   req.InputTokens,
+		"outputTokens":  req.OutputTokens,
+		"inputCost":     breakdown.InputCost,
+		"outputCost":    breakdown.OutputCost,
+		"totalCost":     breakdown.TotalCost,
+		"currency":      breakdown.Currency,
+		"breakdownByModel": breakdown.BreakdownByModel,
+	})
+}
+
+// GetCostBreakdown handler - GET /api/v1/llm/cost/breakdown
+func (h *Handler) GetCostBreakdown(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+
+	q := &models.CostBreakdownQuery{}
+	if startDateStr := c.Query("startDate"); startDateStr != "" {
+		t, err := parseTimeQuery(startDateStr)
+		if err != nil {
+			respondBadRequest(c, "invalid startDate format")
+			return
+		}
+		q.StartDate = &t
+	}
+	if endDateStr := c.Query("endDate"); endDateStr != "" {
+		t, err := parseTimeQuery(endDateStr)
+		if err != nil {
+			respondBadRequest(c, "invalid endDate format")
+			return
+		}
+		q.EndDate = &t
+	}
+
+	breakdown, totalTraces, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, q)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+
+	respondSuccess(c, gin.H{
+		"tenantId":     tenantID,
+		"startDate":    startDateForQuery(q.StartDate),
+		"endDate":      endDateForQuery(q.EndDate),
+		"totalTraces":  totalTraces,
+		"inputCost":    breakdown.InputCost,
+		"outputCost":   breakdown.OutputCost,
+		"totalCost":    breakdown.TotalCost,
+		"currency":     breakdown.Currency,
+		"breakdownByModel": breakdown.BreakdownByModel,
+	})
+}
+
+// parseTimeQuery parses an ISO-8601 or YYYY-MM-DD string into time.Time.
+func parseTimeQuery(s string) (time.Time, error) {
+	// Try YYYY-MM-DD
+	parsed, err := time.Parse("2006-01-02", s)
+	if err == nil {
+		return parsed, nil
+	}
+	// Try RFC3339
+	parsed, err = time.Parse(time.RFC3339, s)
+	if err == nil {
+		return parsed, nil
+	}
+	return time.Time{}, err
+}
+
+func derefInt(i *int) int {
+	if i == nil {
+		return 0
+	}
+	return *i
+}
+
+func startDateForQuery(t *time.Time) interface{} {
+	if t != nil {
+		return t.Format("2006-01-02")
+	}
+	return nil
+}
+
+func endDateForQuery(t *time.Time) interface{} {
+	if t != nil {
+		return t.Format("2006-01-02")
+	}
+	return nil
+}

@@ -3,32 +3,29 @@ package handler
 import (
 	"net/http"
 
-	"orion/go-common/pkg/errors"
-
 	"github.com/gin-gonic/gin"
 )
 
-// respondSuccess writes a canonical success envelope.
 func respondSuccess(c *gin.Context, data any) {
-	errors.WriteSuccess(c, data)
+	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "success": true, "data": data})
 }
 
-// respondCreated writes a canonical 201-created envelope.
 func respondCreated(c *gin.Context, data any) {
-	errors.WriteCreated(c, data)
+	c.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "success": true, "data": data})
 }
 
-// respondNotFound writes a canonical NOT_FOUND error envelope.
-func respondNotFound(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrNotFound, message, http.StatusNotFound)
+func respondNoContent(c *gin.Context) {
+	c.Status(http.StatusNoContent)
 }
 
-// respondBadRequest writes a canonical BAD_REQUEST error envelope.
 func respondBadRequest(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
+	c.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "success": false, "error": gin.H{"code": "bad_request", "message": message}})
 }
 
-// respondInternalError writes a canonical INTERNAL_ERROR envelope.
+func respondNotFound(c *gin.Context, message string) {
+	c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "success": false, "error": gin.H{"code": "not_found", "message": message}})
+}
+
 func respondInternalError(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
+	c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "success": false, "error": gin.H{"code": "internal_error", "message": message}})
 }

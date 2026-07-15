@@ -455,6 +455,59 @@ import (
 	pe_repo "orion/platform-svc-go/internal/pipeline-engine/repository"
 	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
 
+	// ---- Batch 1: 17 unregistered modules ----
+	aiAgent_handler "orion/platform-svc-go/internal/ai-agent/handler"
+	aiAgent_repo "orion/platform-svc-go/internal/ai-agent/repository"
+	aiAgent_service "orion/platform-svc-go/internal/ai-agent/service"
+	aiAgents_handler "orion/platform-svc-go/internal/ai-agents/handler"
+	aiAgents_repo "orion/platform-svc-go/internal/ai-agents/repository"
+	aiAgents_service "orion/platform-svc-go/internal/ai-agents/service"
+	aiCost_handler "orion/platform-svc-go/internal/ai-cost/handler"
+	aiCost_repo "orion/platform-svc-go/internal/ai-cost/repository"
+	aiCost_service "orion/platform-svc-go/internal/ai-cost/service"
+	aiDecision_handler "orion/platform-svc-go/internal/ai-decision/handler"
+	aiDecision_repo "orion/platform-svc-go/internal/ai-decision/repository"
+	aiDecision_service "orion/platform-svc-go/internal/ai-decision/service"
+	aiGateway_handler "orion/platform-svc-go/internal/ai-gateway/handler"
+	aiGateway_repo "orion/platform-svc-go/internal/ai-gateway/repository"
+	aiGateway_service "orion/platform-svc-go/internal/ai-gateway/service"
+	aiReview_handler "orion/platform-svc-go/internal/ai-review/handler"
+	aiReview_repo "orion/platform-svc-go/internal/ai-review/repository"
+	aiReview_service "orion/platform-svc-go/internal/ai-review/service"
+	aiSecurity_handler "orion/platform-svc-go/internal/ai-security/handler"
+	aiSecurity_repo "orion/platform-svc-go/internal/ai-security/repository"
+	aiSecurity_service "orion/platform-svc-go/internal/ai-security/service"
+	apkUploadHistory_handler "orion/platform-svc-go/internal/apk-upload-history/handler"
+	apkUploadHistory_repo "orion/platform-svc-go/internal/apk-upload-history/repository"
+	apkUploadHistory_service "orion/platform-svc-go/internal/apk-upload-history/service"
+	artifactLifecycle_handler "orion/platform-svc-go/internal/artifact-lifecycle/handler"
+	artifactLifecycle_repo "orion/platform-svc-go/internal/artifact-lifecycle/repository"
+	artifactLifecycle_service "orion/platform-svc-go/internal/artifact-lifecycle/service"
+	artifactVersion_handler "orion/platform-svc-go/internal/artifact-version/handler"
+	artifactVersion_repo "orion/platform-svc-go/internal/artifact-version/repository"
+	artifactVersion_service "orion/platform-svc-go/internal/artifact-version/service"
+	autonomousPipeline_handler "orion/platform-svc-go/internal/autonomous-pipeline/handler"
+	autonomousPipeline_repo "orion/platform-svc-go/internal/autonomous-pipeline/repository"
+	autonomousPipeline_service "orion/platform-svc-go/internal/autonomous-pipeline/service"
+	branchPolicy_handler "orion/platform-svc-go/internal/branch-policy/handler"
+	branchPolicy_repo "orion/platform-svc-go/internal/branch-policy/repository"
+	branchPolicy_service "orion/platform-svc-go/internal/branch-policy/service"
+	cache_mod_handler "orion/platform-svc-go/internal/cache/handler"
+	cache_mod_repo "orion/platform-svc-go/internal/cache/repository"
+	cache_mod_service "orion/platform-svc-go/internal/cache/service"
+	cacheCleanup_handler "orion/platform-svc-go/internal/cache-cleanup/handler"
+	cacheCleanup_repo "orion/platform-svc-go/internal/cache-cleanup/repository"
+	cacheCleanup_service "orion/platform-svc-go/internal/cache-cleanup/service"
+	capacity_handler "orion/platform-svc-go/internal/capacity/handler"
+	capacity_repo "orion/platform-svc-go/internal/capacity/repository"
+	capacity_service "orion/platform-svc-go/internal/capacity/service"
+	circuitBreaker_handler "orion/platform-svc-go/internal/circuit-breaker/handler"
+	circuitBreaker_repo "orion/platform-svc-go/internal/circuit-breaker/repository"
+	circuitBreaker_service "orion/platform-svc-go/internal/circuit-breaker/service"
+	community_handler "orion/platform-svc-go/internal/community/handler"
+	community_repo "orion/platform-svc-go/internal/community/repository"
+	community_service "orion/platform-svc-go/internal/community/service"
+
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
@@ -715,6 +768,110 @@ import (
 	tenant_gw_handler "orion/platform-svc-go/internal/tenant-gateway/handler"
 	tenant_gw_repo "orion/platform-svc-go/internal/tenant-gateway/repository"
 	tenant_gw_service "orion/platform-svc-go/internal/tenant-gateway/service"
+
+	// Batch 2: 17 modules
+	communityAdvanced_handler "orion/platform-svc-go/internal/community-advanced/handler"
+	communityAdvanced_repo "orion/platform-svc-go/internal/community-advanced/repository"
+	communityAdvanced_service "orion/platform-svc-go/internal/community-advanced/service"
+	configMgmtEnhanced_handler "orion/platform-svc-go/internal/config-mgmt-enhanced/handler"
+	configMgmtEnhanced_repo "orion/platform-svc-go/internal/config-mgmt-enhanced/repository"
+	configMgmtEnhanced_service "orion/platform-svc-go/internal/config-mgmt-enhanced/service"
+	confirm_handler "orion/platform-svc-go/internal/confirmation/handler"
+	confirm_repo "orion/platform-svc-go/internal/confirmation/repository"
+	confirm_service "orion/platform-svc-go/internal/confirmation/service"
+	dataPipeline_handler "orion/platform-svc-go/internal/data-pipeline/handler"
+	dataPipeline_repo "orion/platform-svc-go/internal/data-pipeline/repository"
+	dataPipeline_service "orion/platform-svc-go/internal/data-pipeline/service"
+	disasterRecovery_handler "orion/platform-svc-go/internal/disaster-recovery/handler"
+	disasterRecovery_repo "orion/platform-svc-go/internal/disaster-recovery/repository"
+	disasterRecovery_service "orion/platform-svc-go/internal/disaster-recovery/service"
+	ephemeralEnv_handler "orion/platform-svc-go/internal/ephemeral-env/handler"
+	ephemeralEnv_repo "orion/platform-svc-go/internal/ephemeral-env/repository"
+	ephemeralEnv_service "orion/platform-svc-go/internal/ephemeral-env/service"
+	escalation_handler "orion/platform-svc-go/internal/escalation/handler"
+	escalation_repo "orion/platform-svc-go/internal/escalation/repository"
+	escalation_service "orion/platform-svc-go/internal/escalation/service"
+	eventTriggerRegistry_handler "orion/platform-svc-go/internal/event-trigger-registry/handler"
+	eventTriggerRegistry_repo "orion/platform-svc-go/internal/event-trigger-registry/repository"
+	eventTriggerRegistry_service "orion/platform-svc-go/internal/event-trigger-registry/service"
+	insp_handler "orion/platform-svc-go/internal/inspection/handler"
+	insp_repo "orion/platform-svc-go/internal/inspection/repository"
+	insp_service "orion/platform-svc-go/internal/inspection/service"
+	llmTrace_handler "orion/platform-svc-go/internal/llm-trace/handler"
+	llmTrace_repo "orion/platform-svc-go/internal/llm-trace/repository"
+	llmTrace_service "orion/platform-svc-go/internal/llm-trace/service"
+	mcp_handler "orion/platform-svc-go/internal/mcp/handler"
+	mcp_repo "orion/platform-svc-go/internal/mcp/repository"
+	mcp_service "orion/platform-svc-go/internal/mcp/service"
+	metadata_handler "orion/platform-svc-go/internal/metadata/handler"
+	metadata_repo "orion/platform-svc-go/internal/metadata/repository"
+	metadata_service "orion/platform-svc-go/internal/metadata/service"
+	middlewareOps_handler "orion/platform-svc-go/internal/middleware-ops/handler"
+	middlewareOps_repo "orion/platform-svc-go/internal/middleware-ops/repository"
+	middlewareOps_service "orion/platform-svc-go/internal/middleware-ops/service"
+	mlops_handler "orion/platform-svc-go/internal/mlops/handler"
+	mlops_repo "orion/platform-svc-go/internal/mlops/repository"
+	mlops_service "orion/platform-svc-go/internal/mlops/service"
+	module_handler "orion/platform-svc-go/internal/module/handler"
+	module_repo "orion/platform-svc-go/internal/module/repository"
+	module_service "orion/platform-svc-go/internal/module/service"
+	observability_handler "orion/platform-svc-go/internal/observability/handler"
+	observability_repo "orion/platform-svc-go/internal/observability/repository"
+	observability_service "orion/platform-svc-go/internal/observability/service"
+	pipelineBudget_handler "orion/platform-svc-go/internal/pipeline-budget/handler"
+	pipelineBudget_repo "orion/platform-svc-go/internal/pipeline-budget/repository"
+	pipelineBudget_service "orion/platform-svc-go/internal/pipeline-budget/service"
+	pipelineErrorDetail_handler "orion/platform-svc-go/internal/pipeline-error-detail/handler"
+	pipelineErrorDetail_repo "orion/platform-svc-go/internal/pipeline-error-detail/repository"
+	pipelineErrorDetail_service "orion/platform-svc-go/internal/pipeline-error-detail/service"
+	pipelineTemplates_handler "orion/platform-svc-go/internal/pipeline-templates/handler"
+	pipelineTemplates_repo "orion/platform-svc-go/internal/pipeline-templates/repository"
+	pipelineTemplates_service "orion/platform-svc-go/internal/pipeline-templates/service"
+	privacy_handler "orion/platform-svc-go/internal/privacy/handler"
+	privacy_repo "orion/platform-svc-go/internal/privacy/repository"
+	privacy_service "orion/platform-svc-go/internal/privacy/service"
+	saga_handler "orion/platform-svc-go/internal/saga/handler"
+	saga_repo "orion/platform-svc-go/internal/saga/repository"
+	saga_service "orion/platform-svc-go/internal/saga/service"
+	security_handler "orion/platform-svc-go/internal/security/handler"
+	security_repo "orion/platform-svc-go/internal/security/repository"
+	security_service "orion/platform-svc-go/internal/security/service"
+	selfHealing_handler "orion/platform-svc-go/internal/self-healing/handler"
+	selfHealing_repo "orion/platform-svc-go/internal/self-healing/repository"
+	selfHealing_service "orion/platform-svc-go/internal/self-healing/service"
+	smartDeploy_handler "orion/platform-svc-go/internal/smart-deploy/handler"
+	smartDeploy_repo "orion/platform-svc-go/internal/smart-deploy/repository"
+	smartDeploy_service "orion/platform-svc-go/internal/smart-deploy/service"
+	sso_handler "orion/platform-svc-go/internal/sso/handler"
+	sso_repo "orion/platform-svc-go/internal/sso/repository"
+	sso_service "orion/platform-svc-go/internal/sso/service"
+	taskTimeout_handler "orion/platform-svc-go/internal/task-timeout/handler"
+	taskTimeout_repo "orion/platform-svc-go/internal/task-timeout/repository"
+	taskTimeout_service "orion/platform-svc-go/internal/task-timeout/service"
+	terminalAudit_handler "orion/platform-svc-go/internal/terminal-audit/handler"
+	terminalAudit_repo "orion/platform-svc-go/internal/terminal-audit/repository"
+	terminalAudit_service "orion/platform-svc-go/internal/terminal-audit/service"
+	testGeneration_handler "orion/platform-svc-go/internal/test-generation/handler"
+	testGeneration_repo "orion/platform-svc-go/internal/test-generation/repository"
+	testGeneration_service "orion/platform-svc-go/internal/test-generation/service"
+	testSelector_handler "orion/platform-svc-go/internal/test-selector/handler"
+	testSelector_repo "orion/platform-svc-go/internal/test-selector/repository"
+	testSelector_service "orion/platform-svc-go/internal/test-selector/service"
+	userActivity_handler "orion/platform-svc-go/internal/user-activity/handler"
+	userActivity_repo "orion/platform-svc-go/internal/user-activity/repository"
+	userActivity_service "orion/platform-svc-go/internal/user-activity/service"
+	userProfile_handler "orion/platform-svc-go/internal/user-profile/handler"
+	userProfile_repo "orion/platform-svc-go/internal/user-profile/repository"
+	userProfile_service "orion/platform-svc-go/internal/user-profile/service"
+	userStatus_handler "orion/platform-svc-go/internal/user-status/handler"
+	userStatus_repo "orion/platform-svc-go/internal/user-status/repository"
+	userStatus_service "orion/platform-svc-go/internal/user-status/service"
+	userToken_handler "orion/platform-svc-go/internal/user-token/handler"
+	userToken_repo "orion/platform-svc-go/internal/user-token/repository"
+	userToken_service "orion/platform-svc-go/internal/user-token/service"
+	vector_handler "orion/platform-svc-go/internal/vector/handler"
+	vector_repo "orion/platform-svc-go/internal/vector/repository"
+	vector_service "orion/platform-svc-go/internal/vector/service"
 )
 
 
@@ -1356,7 +1513,8 @@ func main() {
 	progessiveSvc := progessive_service.NewService(progessiveRepo)
 	progessiveH := progessive_handler.NewHandler(progessiveSvc)
 	queue_modRepo := queue_mod_repo.NewRepository(db.DB)
-	queue_modSvc := queue_mod_service.NewService(queue_modRepo)
+	queue_modJobRepo := queue_mod_repo.NewJobRepository(db.DB)
+	queue_modSvc := queue_mod_service.NewService(queue_modRepo, queue_modJobRepo)
 	queue_modH := queue_mod_handler.NewHandler(queue_modSvc)
 	riskRepo := risk_repo.NewRepository(db.DB)
 	riskSvc := risk_service.NewService(riskRepo)
@@ -1817,6 +1975,130 @@ func main() {
 	vectorize_rulesH.RegisterRoutes(rg)
 	version_archiveH.RegisterRoutes(rg)
 
+// pipelineErrorDetail
+pipelineErrorDetailRepo := pipelineErrorDetail_repo.NewRepository(db.DB)
+pipelineErrorDetailSvc := pipelineErrorDetail_service.NewService(pipelineErrorDetailRepo)
+pipelineErrorDetailHandler := pipelineErrorDetail_handler.NewHandler(pipelineErrorDetailSvc)
+pipelineErrorDetailHandler.RegisterRoutes(rg)
+// pipelineTemplates
+pipelineTemplatesRepo := pipelineTemplates_repo.NewRepository(db.DB)
+pipelineTemplatesSvc := pipelineTemplates_service.NewService(pipelineTemplatesRepo)
+pipelineTemplatesHandler := pipelineTemplates_handler.NewHandler(pipelineTemplatesSvc)
+pipelineTemplatesHandler.RegisterRoutes(rg)
+// privacy
+privacyRepo := privacy_repo.NewRepository(db.DB)
+privacySvc := privacy_service.NewService(privacyRepo)
+privacyHandler := privacy_handler.NewHandler(privacySvc)
+privacyHandler.RegisterRoutes(rg)
+// saga
+sagaRepo := saga_repo.NewRepository(db.DB)
+sagaSvc := saga_service.NewSagaCoordinator(sagaRepo)
+sagaHandler := saga_handler.NewHandler(sagaSvc)
+sagaHandler.RegisterRoutes(rg)
+// security
+securityRepo := security_repo.NewRepository(db.DB)
+securitySvc := security_service.NewService(securityRepo)
+securityHandler := security_handler.NewHandler(securitySvc)
+securityHandler.RegisterRoutes(rg)
+// selfHealing
+selfHealingRepo := selfHealing_repo.NewRepository(db.DB)
+selfHealingSvc := selfHealing_service.NewService(selfHealingRepo, selfHealing_service.Options{})
+selfHealingHandler := selfHealing_handler.NewHandler(selfHealingSvc)
+selfHealingHandler.RegisterRoutes(rg)
+// smartDeploy
+smartDeployRepo := smartDeploy_repo.NewRepository(db.DB)
+smartDeploySvc := smartDeploy_service.NewService(smartDeployRepo)
+smartDeployHandler := smartDeploy_handler.NewHandler(smartDeploySvc)
+smartDeployHandler.RegisterRoutes(rg)
+// sso
+ssoRepo := sso_repo.NewRepository(db.DB)
+ssoSvc := sso_service.NewService(ssoRepo)
+ssoHandler := sso_handler.NewHandler(ssoSvc)
+ssoHandler.RegisterRoutes(rg)
+// taskTimeout
+taskTimeoutRepo := taskTimeout_repo.NewRepository(db.DB)
+taskTimeoutSvc := taskTimeout_service.NewService(taskTimeoutRepo, taskTimeout_service.Config{}, logger)
+taskTimeoutHandler := taskTimeout_handler.NewHandler(taskTimeoutSvc)
+taskTimeoutHandler.RegisterRoutes(rg)
+// terminalAudit
+terminalAuditRepo := terminalAudit_repo.NewRepository(db.DB)
+terminalAuditSvc := terminalAudit_service.NewService(terminalAuditRepo)
+terminalAuditHandler := terminalAudit_handler.NewHandler(terminalAuditSvc)
+terminalAuditHandler.RegisterRoutes(rg)
+// testGeneration
+testGenerationRepo := testGeneration_repo.NewRepository(db.DB)
+testGenerationSvc := testGeneration_service.NewService(testGenerationRepo)
+testGenerationHandler := testGeneration_handler.NewHandler(testGenerationSvc)
+testGenerationHandler.RegisterRoutes(rg)
+// testSelector
+testSelectorRepo := testSelector_repo.NewRepository(db.DB)
+testSelectorSvc := testSelector_service.NewService(testSelectorRepo, db.DB)
+testSelectorHandler := testSelector_handler.NewHandler(testSelectorSvc)
+testSelectorHandler.RegisterRoutes(rg)
+// userActivity
+userActivityRepo := userActivity_repo.NewRepository(db.DB)
+userActivitySvc := userActivity_service.NewService(userActivityRepo)
+userActivityHandler := userActivity_handler.NewHandler(userActivitySvc)
+userActivityHandler.RegisterRoutes(rg)
+// userProfile
+userProfileRepo := userProfile_repo.NewRepository(db.DB)
+userProfileSvc := userProfile_service.NewService(userProfileRepo)
+userProfileHandler := userProfile_handler.NewHandler(userProfileSvc)
+userProfileHandler.RegisterRoutes(rg)
+// userStatus
+userStatusRepo := userStatus_repo.NewRepository(db.DB)
+userStatusSvc := userStatus_service.NewService(userStatusRepo)
+userStatusHandler := userStatus_handler.NewHandler(userStatusSvc)
+userStatusHandler.RegisterRoutes(rg)
+// userToken
+userTokenRepo := userToken_repo.NewRepository(db.DB)
+userTokenSvc := userToken_service.NewService(userTokenRepo)
+userTokenHandler := userToken_handler.NewHandler(userTokenSvc)
+userTokenHandler.RegisterRoutes(rg)
+// vector
+vectorRepo := vector_repo.NewRepository(db.DB)
+vectorSvc := vector_service.NewService(vectorRepo)
+vectorHandler := vector_handler.NewHandler(vectorSvc)
+vectorHandler.RegisterRoutes(rg)
+
+
+	// ---- Batch 1: 17 unregistered module routes ----
+	aiAgentH := aiAgent_handler.NewHandler(aiAgent_service.NewService(aiAgent_repo.NewRepository(db.DB)))
+	aiAgentsH := aiAgents_handler.NewHandler(aiAgents_service.NewService(aiAgents_repo.NewRepository(db.DB)))
+	aiCostH := aiCost_handler.NewHandler(aiCost_service.NewService(aiCost_repo.NewRepository(db.DB)))
+	aiDecisionH := aiDecision_handler.NewHandler(aiDecision_service.NewService(aiDecision_repo.NewRepository(db.DB)))
+	aiGatewayH := aiGateway_handler.NewHandler(aiGateway_service.NewService(aiGateway_repo.NewRepository(db.DB)))
+	aiReviewH := aiReview_handler.NewHandler(aiReview_service.NewService(aiReview_repo.NewRepository(db.DB)))
+	aiSecurityH := aiSecurity_handler.NewHandler(aiSecurity_service.NewService(aiSecurity_repo.NewRepository(db.DB)))
+	apkUploadHistoryH := apkUploadHistory_handler.NewHandler(apkUploadHistory_service.NewService(apkUploadHistory_repo.NewRepository(db.DB)))
+	artifactLifecycleH := artifactLifecycle_handler.NewHandler(artifactLifecycle_service.NewService(artifactLifecycle_repo.NewRepository(db.DB)))
+	artifactVersionH := artifactVersion_handler.NewHandler(artifactVersion_service.NewService(artifactVersion_repo.NewRepository(db.DB)))
+	autonomousPipelineH := autonomousPipeline_handler.NewHandler(autonomousPipeline_service.NewService(autonomousPipeline_repo.NewRepository(db.DB)))
+	branchPolicyH := branchPolicy_handler.NewHandler(branchPolicy_service.NewService(branchPolicy_repo.NewRepository(db.DB)))
+	cacheModH := cache_mod_handler.NewHandler(cache_mod_service.NewService(cache_mod_repo.NewRepository(db.DB)))
+	cacheCleanupH := cacheCleanup_handler.NewHandler(cacheCleanup_service.NewService(cacheCleanup_repo.NewRepository(db.DB)))
+	capacityH := capacity_handler.NewHandler(capacity_service.NewService(capacity_repo.NewRepository(db.DB)))
+	circuitBreakerH := circuitBreaker_handler.NewHandler(circuitBreaker_service.NewService(circuitBreaker_repo.NewRepository(db.DB)))
+	communityH := community_handler.NewHandler(community_service.NewService(community_repo.NewRepository(db.DB)))
+
+	aiAgentH.RegisterRoutes(rg)
+	aiAgentsH.RegisterRoutes(rg)
+	aiCostH.RegisterRoutes(rg)
+	aiDecisionH.RegisterRoutes(rg)
+	aiGatewayH.RegisterRoutes(rg)
+	aiReviewH.RegisterRoutes(rg)
+	aiSecurityH.RegisterRoutes(rg)
+	apkUploadHistoryH.RegisterRoutes(rg)
+	artifactLifecycleH.RegisterRoutes(rg)
+	artifactVersionH.RegisterRoutes(rg)
+	autonomousPipelineH.RegisterRoutes(rg)
+	branchPolicyH.RegisterRoutes(rg)
+	cacheModH.RegisterRoutes(rg)
+	cacheCleanupH.RegisterRoutes(rg)
+	capacityH.RegisterRoutes(rg)
+	circuitBreakerH.RegisterRoutes(rg)
+	communityH.RegisterRoutes(rg)
+
 	// Pipeline Engine (Phase 3.1)
 	peRepo := pe_repo.NewRepository(db.DB)
 	peEngine := pe_service.NewPipelineEngine(peRepo)
@@ -1828,7 +2110,7 @@ func main() {
 	ai_decisionsH := ai_decisions_handler.NewHandler(ai_decisionsSvc)
 	ai_decisionsH.RegisterRoutes(rg)
 
-	ai_degradationSvc := ai_degradation_service.NewDegradationService(ai_degradation_repo.NewRepository(db.DB))
+	ai_degradationSvc := ai_degradation_service.NewService(ai_degradation_repo.NewRepository(db.DB))
 	ai_degradationH := ai_degradation_handler.NewHandler(ai_degradationSvc)
 	ai_degradationH.RegisterRoutes(rg)
 
@@ -1866,6 +2148,42 @@ func main() {
 	tenant_gwSvc := tenant_gw_service.NewService(tenant_gw_repo.NewRepository(db.DB))
 	tenant_gwH := tenant_gw_handler.NewHandler(tenant_gwSvc)
 	tenant_gwH.RegisterRoutes(rg)
+	// ---- Batch 2: 17 module routes ----
+	communityAdvancedH := communityAdvanced_handler.NewHandler(communityAdvanced_service.NewService(communityAdvanced_repo.NewRepository(db.DB)))
+	configMgmtEnhancedH := configMgmtEnhanced_handler.NewHandler(configMgmtEnhanced_service.NewService(configMgmtEnhanced_repo.NewRepository(db.DB)))
+	confirmH := confirm_handler.NewHandler(confirm_service.NewService(confirm_repo.NewRepository(db.DB)))
+	dataPipelineH := dataPipeline_handler.NewHandler(dataPipeline_service.NewService(dataPipeline_repo.NewRepository(db.DB)))
+	disasterRecoveryH := disasterRecovery_handler.NewHandler(disasterRecovery_service.NewService(disasterRecovery_repo.NewRepository(db.DB)))
+	ephemeralEnvH := ephemeralEnv_handler.NewHandler(ephemeralEnv_service.NewService(ephemeralEnv_repo.NewRepository(db.DB)))
+	escalationH := escalation_handler.NewHandler(escalation_service.NewService(escalation_repo.NewRepository(db.DB)))
+	eventTriggerRegistryH := eventTriggerRegistry_handler.NewHandler(eventTriggerRegistry_service.NewService(eventTriggerRegistry_repo.NewRepository(db.DB)))
+	inspH := insp_handler.NewHandler(insp_service.NewService(insp_repo.NewRepository(db.DB)))
+	llmTraceH := llmTrace_handler.NewHandler(llmTrace_service.NewService(llmTrace_repo.NewRepository(db.DB)))
+	mcpH := mcp_handler.NewHandler(mcp_service.NewService(mcp_repo.NewRepository(db.DB)))
+	metadataH := metadata_handler.NewHandler(metadata_service.NewService(metadata_repo.NewRepository(db.DB)))
+	middlewareOpsH := middlewareOps_handler.NewHandler(middlewareOps_service.NewService(middlewareOps_repo.NewRepository(db.DB)))
+	mlopsH := mlops_handler.NewHandler(mlops_service.NewService(mlops_repo.NewRepository(db.DB)))
+	moduleH := module_handler.NewHandler(module_service.NewService(module_repo.NewRepository(db.DB)))
+	observabilityH := observability_handler.NewHandler(observability_service.NewService(observability_repo.NewRepository(db.DB)))
+	pipelineBudgetH := pipelineBudget_handler.NewHandler(pipelineBudget_service.NewService(pipelineBudget_repo.NewRepository(db.DB)))
+
+	communityAdvancedH.RegisterRoutes(rg)
+	configMgmtEnhancedH.RegisterRoutes(rg)
+	confirmH.RegisterRoutes(rg)
+	dataPipelineH.RegisterRoutes(rg)
+	disasterRecoveryH.RegisterRoutes(rg)
+	ephemeralEnvH.RegisterRoutes(rg)
+	escalationH.RegisterRoutes(rg)
+	eventTriggerRegistryH.RegisterRoutes(rg)
+	inspH.RegisterRoutes(rg)
+	llmTraceH.RegisterRoutes(rg)
+	mcpH.RegisterRoutes(rg)
+	metadataH.RegisterRoutes(rg)
+	middlewareOpsH.RegisterRoutes(rg)
+	mlopsH.RegisterRoutes(rg)
+	moduleH.RegisterRoutes(rg)
+	observabilityH.RegisterRoutes(rg)
+	pipelineBudgetH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {

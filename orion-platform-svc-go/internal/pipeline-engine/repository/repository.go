@@ -289,6 +289,52 @@ func (r *Repository) GetCheckpoint(ctx context.Context, tenantID, runID string) 
 	return &cp, nil
 }
 
+// SaveCheckpoint upserts a checkpoint (INSERT or UPDATE by run_id).
+// Mirrors TS behavior: each run_id has at most one active checkpoint.
+func (r *Repository) SaveCheckpoint(ctx context.Context, cp *models.Checkpoint) error {
+	now := unixNow()
+	if cp.ID == "" {
+		cp.ID = uuid.New().String()
+		cp.CreatedAt = now
+		_, err := r.db.ExecContext(ctx,
+			`INSERT INTO pipeline_checkpoints (id, run_id, stage_name, task_name, state, created_at)
+			 VALUES ($1, $2, $3, $4, $5, $6)
+			 ON CONFLICT (run_id) DO UPDATE SET
+					stage_name = EXCLUDED.stage_name,
+					task_name = EXCLUDED.task_name,
+					state = EXCLUDED.state,
+					created_at = EXCLUDED.created_at`,
+			cp.ID, cp.RunID, cp.StageName, nullString(cp.TaskName), cp.State, now,
+		)
+		return err
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE pipeline_checkpoints SET stage_name=$1, task_name=$2, state=$3, created_at=$4
+		 WHERE run_id=$5`,
+		cp.StageName, nullString(cp.TaskName), cp.State, now, cp.RunID,
+	)
+	return err
+}
+
+// FindCheckpointsByStatus finds all checkpoints with a given status (for startup recovery).
+func (r *Repository) FindCheckpointsByStatus(ctx context.Context, status string) ([]models.Checkpoint, error) {
+	cps := make([]models.Checkpoint, 0)
+	err := r.db.SelectContext(ctx, &cps,
+		`SELECT id, run_id, stage_name, task_name, state, created_at
+		 FROM pipeline_checkpoints WHERE state=$1 ORDER BY created_at DESC`, status)
+	return cps, err
+}
+
+// DeleteCheckpointByRunID removes a checkpoint (cleanup after completion).
+func (r *Repository) DeleteCheckpointByRunID(ctx context.Context, runID string) (bool, error) {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM pipeline_checkpoints WHERE run_id=$1`, runID)
+	if err != nil {
+		return false, err
+	}
+	rows, _ := res.RowsAffected()
+	return rows > 0, nil
+}
+
 // GetCompletedStageNames returns all stage names with status=SUCCESS for a run.
 func (r *Repository) GetCompletedStageNames(ctx context.Context, tenantID, runID string) ([]string, error) {
 	var names []string

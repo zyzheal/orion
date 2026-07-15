@@ -8,6 +8,8 @@ import (
 	"orion/platform-svc-go/internal/change/models"
 	"orion/platform-svc-go/internal/change/service"
 
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -150,7 +152,7 @@ func (h *Handler) DeleteChangeRequest(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "change request deleted"})
+	c.JSON(http.StatusNoContent, nil)
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {

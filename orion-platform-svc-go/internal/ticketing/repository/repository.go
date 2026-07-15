@@ -631,6 +631,202 @@ func (r *Repository) SetServiceActive(ctx context.Context, tenantID string, acti
 	return err
 }
 
+// --- Ticket SLA Tracking ---
+
+// TicketSLATracking maps the ticket_sla_tracking row.
+type TicketSLATracking struct {
+	ID                        string     `db:"id"`
+	TicketID                  string     `db:"ticket_id"`
+	Priority                  string     `db:"priority"`
+	TargetResolutionTimeMs    int64      `db:"target_resolution_time_ms"`
+	ActualResolutionTimeMs    *int64     `db:"actual_resolution_time_ms"`
+	Breached                  bool       `db:"breached"`
+	BreachedAt                *time.Time `db:"breached_at"`
+	ResolvedAt                *time.Time `db:"resolved_at"`
+	FirstResponseAt           *time.Time `db:"first_response_at"`
+	ResponseBreached          bool       `db:"response_breached"`
+	CreatedAt                 time.Time  `db:"created_at"`
+	UpdatedAt                 time.Time  `db:"updated_at"`
+}
+
+// UpsertSLATracking creates or updates the SLA tracking row for a ticket.
+func (r *Repository) UpsertSLATracking(ctx context.Context, tenantID, ticketID, priority string, targetResolutionMs int64) (*TicketSLATracking, error) {
+	var t TicketSLATracking
+	now := time.Now().UTC()
+	err := r.db.GetContext(ctx, &t,
+		`INSERT INTO ticket_sla_tracking (id, ticket_id, priority, target_resolution_time_ms, breached, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
+		 ON CONFLICT (ticket_id) DO UPDATE SET updated_at=$7
+		 RETURNING *`,
+		uuid.New().String(), ticketID, priority, targetResolutionMs, false, now, now)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetSLATracking returns the SLA tracking row for a ticket.
+func (r *Repository) GetSLATracking(ctx context.Context, tenantID, ticketID string) (*TicketSLATracking, error) {
+	var t TicketSLATracking
+	err := r.db.GetContext(ctx, &t,
+		`SELECT * FROM ticket_sla_tracking WHERE ticket_id=$1`, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// UpdateSLATracking updates a subset of SLA tracking fields.
+func (r *Repository) UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error {
+	updates["updated_at"] = time.Now().UTC()
+	keys := make([]string, 0, len(updates))
+	for k := range updates {
+		keys = append(keys, k)
+	}
+	set := make([]string, 0, len(keys))
+	args := make([]interface{}, 0, len(keys)+1)
+	for i, k := range keys {
+		set = append(set, k+"=$"+string(rune(i+2)))
+		args = append(args, updates[k])
+	}
+	sql := "UPDATE ticket_sla_tracking SET " + joinSQL(set, ", ") + " WHERE ticket_id=$1"
+	args = append([]interface{}{ticketID}, args...)
+	_, err := r.db.ExecContext(ctx, sql, args...)
+	return err
+}
+
+// RecordSLABreach records a SLA breach for a ticket.
+func (r *Repository) RecordSLABreach(ctx context.Context, tenantID, ticketID, policyID, btype string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO ticket_sla_breaches (id, tenant_id, ticket_id, policy_id, type, breached_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		uuid.New().String(), tenantID, ticketID, policyID, btype, time.Now().UTC())
+	return err
+}
+
+// --- Ticket Assignments ---
+
+func (r *Repository) CreateAssignment(ctx context.Context, tenantID, ticketID, assignee, assignedBy, reason string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO ticket_assignments (id, tenant_id, ticket_id, assignee, assigned_by, reason, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		uuid.New().String(), tenantID, ticketID, assignee, assignedBy, reason, time.Now().UTC())
+	return err
+}
+
+func (r *Repository) GetAssignmentsByTicket(ctx context.Context, tenantID, ticketID string) ([]struct {
+	ID        string    `db:"id"`
+	TicketID  string    `db:"ticket_id"`
+	Assignee  string    `db:"assignee"`
+	AssignedBy string   `db:"assigned_by"`
+	Reason    string    `db:"reason"`
+	CreatedAt time.Time `db:"created_at"`
+}, error) {
+	var rows []struct {
+		ID         string    `db:"id"`
+		TenantID   string    `db:"tenant_id"`
+		TicketID   string    `db:"ticket_id"`
+		Assignee   string    `db:"assignee"`
+		AssignedBy string    `db:"assigned_by"`
+		Reason     string    `db:"reason"`
+		CreatedAt  time.Time `db:"created_at"`
+	}
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT * FROM ticket_assignments WHERE tenant_id=$1 AND ticket_id=$2 ORDER BY created_at DESC`,
+		tenantID, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	results := make([]struct {
+		ID         string    `db:"id"`
+		TicketID   string    `db:"ticket_id"`
+		Assignee   string    `db:"assignee"`
+		AssignedBy string    `db:"assigned_by"`
+		Reason     string    `db:"reason"`
+		CreatedAt  time.Time `db:"created_at"`
+	}, len(rows))
+	for i, r := range rows {
+		results[i] = struct {
+			ID         string    `db:"id"`
+			TicketID   string    `db:"ticket_id"`
+			Assignee   string    `db:"assignee"`
+			AssignedBy string    `db:"assigned_by"`
+			Reason     string    `db:"reason"`
+			CreatedAt  time.Time `db:"created_at"`
+		}{
+			ID:         r.ID,
+			TicketID:   r.TicketID,
+			Assignee:   r.Assignee,
+			AssignedBy: r.AssignedBy,
+			Reason:     r.Reason,
+			CreatedAt:  r.CreatedAt,
+		}
+	}
+	return results, nil
+}
+
+// --- Count by status ---
+
+// CountTicketsByStatus returns counts per status for a tenant.
+func (r *Repository) CountTicketsByStatus(ctx context.Context, tenantID string) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT status, COUNT(*) AS cnt FROM tickets WHERE tenant_id=$1 GROUP BY status`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]int)
+	for rows.Next() {
+		var status string
+		var cnt int
+		if err := rows.Scan(&status, &cnt); err != nil {
+			return nil, err
+		}
+		out[status] = cnt
+	}
+	return out, nil
+}
+
+// CountTicketsByPriority returns counts per priority for a tenant.
+func (r *Repository) CountTicketsByPriority(ctx context.Context, tenantID string) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT priority, COUNT(*) AS cnt FROM tickets WHERE tenant_id=$1 GROUP BY priority`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]int)
+	for rows.Next() {
+		var p string
+		var cnt int
+		if err := rows.Scan(&p, &cnt); err != nil {
+			return nil, err
+		}
+		out[p] = cnt
+	}
+	return out, nil
+}
+
+// CountTicketsByCategory returns counts per category for a tenant.
+func (r *Repository) CountTicketsByCategory(ctx context.Context, tenantID string) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT category, COUNT(*) AS cnt FROM tickets WHERE tenant_id=$1 GROUP BY category`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]int)
+	for rows.Next() {
+		var cat string
+		var cnt int
+		if err := rows.Scan(&cat, &cnt); err != nil {
+			return nil, err
+		}
+		out[cat] = cnt
+	}
+	return out, nil
+}
+
 // --- Helpers ---
 
 func joinSQL(clauses []string, sep string) string {

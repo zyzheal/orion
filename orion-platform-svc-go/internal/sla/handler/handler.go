@@ -8,6 +8,8 @@ import (
 	"orion/platform-svc-go/internal/sla/models"
 	"orion/platform-svc-go/internal/sla/service"
 
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -136,7 +138,7 @@ func (h *Handler) DeleteDefinition(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "SLA definition deleted"})
+	c.JSON(http.StatusNoContent, nil)
 }
 
 // ==================== Tracking ====================

@@ -5,7 +5,6 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/efficiency/models"
-	"orion/platform-svc-go/internal/efficiency/repository"
 	"orion/platform-svc-go/internal/efficiency/service"
 
 	"github.com/gin-gonic/gin"
@@ -19,228 +18,319 @@ func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// RegisterRoutes registers all efficiency endpoints under the given group.
+// RegisterRoutes registers efficiency endpoints under the given group.
+// TS source routes: /api/v1/efficiency/{path}
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	f := rg.Group("/efficiency")
+	// Reports (GET)
+	rg.GET("/reports", auth.RequirePermission("efficiency", "read"), h.GetReports)
+	rg.GET("/reports/history", auth.RequirePermission("efficiency", "read"), h.GetReportHistory)
 
-	// === Metrics CRUD ===
-	f.GET("", auth.RequirePermission("efficiency", "read"), h.ListMetrics)
-	// POST metric handled below
-	f.POST("/metrics", auth.RequirePermission("efficiency", "write"), h.CreateMetric)
-	f.GET("/metrics/:id", auth.RequirePermission("efficiency", "read"), h.GetMetric)
-	f.PUT("/metrics/:id", auth.RequirePermission("efficiency", "write"), h.UpdateMetric)
-	f.DELETE("/metrics/:id", auth.RequirePermission("efficiency", "delete"), h.DeleteMetric)
+	// Teams list MUST come before teams/:teamId to avoid param collision
+	rg.GET("/teams/list", auth.RequirePermission("efficiency", "read"), h.GetAllTeams)
+	rg.GET("/teams/:teamId", auth.RequirePermission("efficiency", "read"), h.GetTeamMetrics)
 
-	// === Scores ===
-	f.POST("/scores", auth.RequirePermission("efficiency", "write"), h.CreateScore)
-	// GET scores handled below
+	// Projects
+	rg.GET("/projects/:projectId", auth.RequirePermission("efficiency", "read"), h.GetProjectMetrics)
 
-	// === Recommendations ===
-	f.POST("/recommendations", auth.RequirePermission("efficiency", "write"), h.CreateRecommendation)
-	f.GET("/recommendations", auth.RequirePermission("efficiency", "read"), h.ListRecommendations)
-	f.GET("/recommendations/:id", auth.RequirePermission("efficiency", "read"), h.GetRecommendation)
-	f.PUT("/recommendations/:id", auth.RequirePermission("efficiency", "write"), h.UpdateRecommendation)
-	f.DELETE("/recommendations/:id", auth.RequirePermission("efficiency", "delete"), h.DeleteRecommendation)
+	// Period comparison
+	rg.POST("/compare", auth.RequirePermission("efficiency", "read"), h.ComparePeriods)
 
-	// === Stats ===
-	f.GET("/stats", auth.RequirePermission("efficiency", "read"), h.Stats)
+	// DORA metrics
+	rg.GET("/dora", auth.RequirePermission("efficiency", "read"), h.GetAllDORA)
+	rg.GET("/dora/trend", auth.RequirePermission("efficiency", "read"), h.GetDORATrend)
+
+	// Dashboard
+	rg.GET("/dashboard", auth.RequirePermission("efficiency", "read"), h.GetDashboard)
+
+	// Trends (historical snapshots)
+	rg.GET("/trends", auth.RequirePermission("efficiency", "read"), h.GetTrends)
+
+	// Bottlenecks
+	rg.GET("/bottlenecks", auth.RequirePermission("efficiency", "read"), h.GetBottlenecks)
+
+	// Developer profiles
+	rg.GET("/developer-profiles", auth.RequirePermission("efficiency", "read"), h.GetDeveloperProfiles)
 }
 
-// ==================== Metrics ====================
+// ==================== Reports ====================
 
-func (h *Handler) ListMetrics(c *gin.Context) {
+func (h *Handler) GetReports(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	filter := &models.MetricFilter{Limit: 20}
-	if l := c.Query("limit"); l != "" {
-		filter.Limit, _ = strconv.Atoi(l)
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	if o := c.Query("offset"); o != "" {
-		filter.Offset, _ = strconv.Atoi(o)
+	if tenantID == "" {
+		respondBadRequest(c, "tenantId is required")
+		return
 	}
-	if mt := c.Query("metricType"); mt != "" {
-		filter.MetricType = &mt
+	timeWindow := models.TimeWindow(c.Query("timeWindow"))
+	if timeWindow == "" {
+		timeWindow = models.TimeWindowWeek
 	}
-	if scope := c.Query("scope"); scope != "" {
-		filter.Scope = &scope
+	windowSize := parseInt(c.Query("windowSize"), 1)
+	if windowSize <= 0 {
+		windowSize = 1
 	}
-	if s := c.Query("status"); s != "" {
-		filter.Status = &s
-	}
-	result, total, err := h.svc.ListMetrics(c.Request.Context(), tenantID, filter)
+
+	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, timeWindow, windowSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result, "total": total})
+	respondSuccess(c, gin.H{"report": report})
 }
 
-func (h *Handler) CreateMetric(c *gin.Context) {
+func (h *Handler) GetReportHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var req models.CreateMetricRequest
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	limit := parseInt(c.Query("limit"), 10)
+	if limit <= 0 {
+		limit = 10
+	}
+
+	history, err := h.svc.GetReportHistory(c.Request.Context(), tenantID, limit)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"history": history, "total": len(history)})
+}
+
+// ==================== Team / Project Metrics ====================
+
+func (h *Handler) GetTeamMetrics(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	teamID := c.Param("teamId")
+	if teamID == "" {
+		respondBadRequest(c, "teamId is required")
+		return
+	}
+
+	metrics, err := h.svc.GetTeamMetrics(c.Request.Context(), tenantID, teamID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"metrics": metrics})
+}
+
+func (h *Handler) GetProjectMetrics(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	projectId := c.Param("projectId")
+	if projectId == "" {
+		respondBadRequest(c, "projectId is required")
+		return
+	}
+
+	metrics, err := h.svc.GetProjectMetrics(c.Request.Context(), tenantID, projectId)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, gin.H{"metrics": metrics})
+}
+
+func (h *Handler) GetAllTeams(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = "default"
+	}
+
+	teams := h.svc.GetAllTeams(c.Request.Context(), tenantID)
+	respondSuccess(c, gin.H{"teams": teams})
+}
+
+// ==================== Period Comparison ====================
+
+func (h *Handler) ComparePeriods(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = "default"
+	}
+
+	var req models.ComparePeriodsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateMetric(c.Request.Context(), tenantID, req)
+	if req.TenantID != nil && *req.TenantID != "" {
+		tenantID = *req.TenantID
+	}
+	if req.PeriodA == nil || req.PeriodB == nil {
+		respondBadRequest(c, "periodA and periodB are required")
+		return
+	}
+
+	comparison, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, *req.PeriodA, *req.PeriodB)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	respondSuccess(c, gin.H{"comparison": comparison})
 }
 
-func (h *Handler) GetMetric(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	result, err := h.svc.GetMetric(c.Request.Context(), tenantID, id)
-	if err != nil {
-		respondNotFound(c, "metric not found")
-		return
-	}
-	respondSuccess(c, result)
-}
+// ==================== DORA Metrics ====================
 
-func (h *Handler) UpdateMetric(c *gin.Context) {
+func (h *Handler) GetAllDORA(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	var req models.UpdateMetricRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
-		return
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	result, err := h.svc.UpdateMetric(c.Request.Context(), tenantID, id, req)
-	if err != nil {
-		if err == repository.ErrNotFound {
-			respondNotFound(c, "metric not found")
-			return
-		}
-		respondInternalError(c, err.Error())
-		return
+	if tenantID == "" {
+		tenantID = "default"
 	}
-	respondSuccess(c, result)
-}
+	timeWindow := models.TimeWindow(c.Query("timeWindow"))
+	if timeWindow == "" {
+		timeWindow = models.TimeWindowWeek
+	}
+	windowSize := parseInt(c.Query("windowSize"), 1)
+	if windowSize <= 0 {
+		windowSize = 1
+	}
 
-func (h *Handler) DeleteMetric(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	deleted, err := h.svc.DeleteMetric(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetAllDORA(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	if !deleted {
-		respondNotFound(c, "metric not found")
-		return
-	}
-	respondSuccess(c, gin.H{"message": "metric deleted"})
+	respondSuccess(c, gin.H{"dora": result})
 }
 
-// ==================== Scores ====================
-
-func (h *Handler) CreateScore(c *gin.Context) {
+func (h *Handler) GetDORATrend(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var req models.CreateScoreRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
-		return
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	result, err := h.svc.CreateScore(c.Request.Context(), tenantID, req)
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	timeWindow := models.TimeWindow(c.Query("timeWindow"))
+	if timeWindow == "" {
+		timeWindow = models.TimeWindowWeek
+	}
+	windowSize := parseInt(c.Query("windowSize"), 1)
+	if windowSize <= 0 {
+		windowSize = 1
+	}
+
+	trend, err := h.svc.GetDORATrend(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	respondSuccess(c, gin.H{"trend": trend})
 }
 
-// ==================== Recommendations ====================
+// ==================== Dashboard ====================
 
-func (h *Handler) CreateRecommendation(c *gin.Context) {
+func (h *Handler) GetDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var req models.CreateRecommendationRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
-		return
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	// Apply defaults for missing required fields
-	if req.ImpactLevel == "" {
-		req.ImpactLevel = "medium"
+	if tenantID == "" {
+		tenantID = "default"
 	}
-	result, err := h.svc.CreateRecommendation(c.Request.Context(), tenantID, req)
+	timeWindow := models.TimeWindow(c.Query("timeWindow"))
+	if timeWindow == "" {
+		timeWindow = models.TimeWindowWeek
+	}
+	windowSize := parseInt(c.Query("windowSize"), 1)
+	if windowSize <= 0 {
+		windowSize = 1
+	}
+
+	dashboard := h.svc.GetDashboardData(c.Request.Context(), tenantID, timeWindow, windowSize)
+	respondSuccess(c, gin.H{"dashboard": dashboard})
+}
+
+// ==================== Trends ====================
+
+func (h *Handler) GetTrends(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
+	}
+	if tenantID == "" {
+		tenantID = "default"
+	}
+	weeks := parseInt(c.Query("weeks"), 12)
+	if weeks <= 0 {
+		weeks = 12
+	}
+
+	snapshots, err := h.svc.GetHistoricalSnapshots(c.Request.Context(), tenantID, weeks)
 	if err != nil {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	respondSuccess(c, gin.H{"trends": snapshots})
 }
 
-func (h *Handler) ListRecommendations(c *gin.Context) {
+// ==================== Bottlenecks ====================
+
+func (h *Handler) GetBottlenecks(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	result, err := h.svc.ListRecommendations(c.Request.Context(), tenantID, status)
-	if err != nil {
-		respondInternalError(c, err.Error())
-		return
+	if tenantID == "" {
+		tenantID = "default"
 	}
-	respondSuccess(c, result)
+	timeWindow := models.TimeWindow(c.Query("timeWindow"))
+	if timeWindow == "" {
+		timeWindow = models.TimeWindowWeek
+	}
+	windowSize := parseInt(c.Query("windowSize"), 1)
+	if windowSize <= 0 {
+		windowSize = 1
+	}
+
+	bottlenecks := h.svc.GetBottlenecks(c.Request.Context(), tenantID, timeWindow, windowSize)
+	respondSuccess(c, gin.H{"bottlenecks": bottlenecks})
 }
 
-func (h *Handler) GetRecommendation(c *gin.Context) {
+// ==================== Developer Profiles ====================
+
+func (h *Handler) GetDeveloperProfiles(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	result, err := h.svc.GetRecommendation(c.Request.Context(), tenantID, id)
-	if err != nil {
-		respondNotFound(c, "recommendation not found")
-		return
+	if tenantID == "" {
+		tenantID = c.Query("tenantId")
 	}
-	respondSuccess(c, result)
+	if tenantID == "" {
+		tenantID = "default"
+	}
+
+	profiles := h.svc.GetDeveloperProfiles(c.Request.Context(), tenantID)
+	respondSuccess(c, gin.H{"profiles": profiles})
 }
 
-func (h *Handler) UpdateRecommendation(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	status := c.Query("status")
-	if status == "" {
-		respondBadRequest(c, "status query parameter is required")
-		return
-	}
-	result, err := h.svc.UpdateRecommendation(c.Request.Context(), tenantID, id, status)
-	if err != nil {
-		if err == repository.ErrNotFound {
-			respondNotFound(c, "recommendation not found")
-			return
-		}
-		respondInternalError(c, err.Error())
-		return
-	}
-	respondSuccess(c, result)
-}
+// ==================== Helpers ====================
 
-func (h *Handler) DeleteRecommendation(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	id := c.Param("id")
-	deleted, err := h.svc.DeleteRecommendation(c.Request.Context(), tenantID, id)
+func parseInt(s string, defaultVal int) int {
+	if s == "" {
+		return defaultVal
+	}
+	n, err := strconv.Atoi(s)
 	if err != nil {
-		respondInternalError(c, err.Error())
-		return
+		return defaultVal
 	}
-	if !deleted {
-		respondNotFound(c, "recommendation not found")
-		return
-	}
-	respondSuccess(c, gin.H{"message": "recommendation deleted"})
-}
-
-// ==================== Stats ====================
-
-func (h *Handler) Stats(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
-	if err != nil {
-		respondInternalError(c, err.Error())
-		return
-	}
-	respondSuccess(c, result)
+	return n
 }

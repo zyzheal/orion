@@ -23,6 +23,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("service_catalog", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("service_catalog", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("service_catalog", "delete"), h.Delete)
+
+	// Request lifecycle endpoints
+	r.POST("/requests/:id/status", auth.RequirePermission("service_catalog", "write"), h.UpdateRequestStatus)
+	r.GET("/requests/:id/timeline", auth.RequirePermission("service_catalog", "read"), h.GetRequestTimeline)
+	r.GET("/sla-breaches", auth.RequirePermission("service_catalog", "read"), h.GetSLABreaches)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -85,4 +90,46 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) UpdateRequestStatus(c *gin.Context) {
+	id := c.Param("id")
+	var req models.StatusUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.UpdateRequestStatus(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
+}
+
+func (h *Handler) GetRequestTimeline(c *gin.Context) {
+	id := c.Param("id")
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.GetRequestTimeline(c.Request.Context(), tenantID, id)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
+}
+
+func (h *Handler) GetSLABreaches(c *gin.Context) {
+	var q models.SLABreachesQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.GetSLABreaches(c.Request.Context(), tenantID, &q)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
 }

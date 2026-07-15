@@ -23,6 +23,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("oci_registry", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("oci_registry", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("oci_registry", "delete"), h.Delete)
+	// Business endpoints
+	r.PATCH("/:registryId/enable", auth.RequirePermission("oci_registry", "write"), h.ToggleRegistry)
+	r.GET("/repositories/:registryId/:name/tags", auth.RequirePermission("oci_registry", "read"), h.ListTags)
+	r.DELETE("/images/:registryId/:name/:digest", auth.RequirePermission("oci_registry", "delete"), h.DeleteImage)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -85,4 +89,67 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"message": "deleted"})
+}
+
+// ToggleRegistry enables or disables a registry.
+// PATCH /oci-registry/:registryId/enable
+func (h *Handler) ToggleRegistry(c *gin.Context) {
+	registryID := c.Param("registryId")
+	var req models.ToggleRegistryRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.ToggleRegistry(c.Request.Context(), tenantID, registryID, &req)
+	if err != nil {
+		if err.Error() == "oci-registry not found" {
+			c.JSON(404, gin.H{"error": "registry not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
+}
+
+// ListTags lists image tags for a repository in a registry.
+// GET /oci-registry/repositories/:registryId/:name/tags
+func (h *Handler) ListTags(c *gin.Context) {
+	registryID := c.Param("registryId")
+	name := c.Param("name")
+	var q models.TagsQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	tenantID := c.GetString("tenant_id")
+	result, err := h.svc.ListTags(c.Request.Context(), tenantID, registryID, name, &q)
+	if err != nil {
+		if err.Error() == "oci-registry not found" {
+			c.JSON(404, gin.H{"error": "registry not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
+}
+
+// DeleteImage deletes an image by digest from a registry.
+// DELETE /oci-registry/images/:registryId/:name/:digest
+func (h *Handler) DeleteImage(c *gin.Context) {
+	registryID := c.Param("registryId")
+	name := c.Param("name")
+	digest := c.Param("digest")
+	tenantID := c.GetString("tenant_id")
+	if err := h.svc.DeleteImage(c.Request.Context(), tenantID, registryID, name, digest); err != nil {
+		if err.Error() == "oci-registry not found" {
+			c.JSON(404, gin.H{"error": "registry not found"})
+			return
+		}
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"message": "image deleted"})
 }

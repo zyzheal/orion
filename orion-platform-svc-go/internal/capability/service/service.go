@@ -267,3 +267,4 @@ func IsNotFound(err error) bool {
 func ErrNotFoundCapability(id string) error {
 	return fmt.Errorf("capability %q not found: %w", id, ErrNotFound)
 }
+

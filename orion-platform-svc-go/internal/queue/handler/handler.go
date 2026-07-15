@@ -23,6 +23,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("queue", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("queue", "write"), h.Update)
 	r.DELETE("/:id", auth.RequirePermission("queue", "delete"), h.Delete)
+
+	// Job business endpoints
+	r.POST("/:queueName/jobs", auth.RequirePermission("queue", "write"), h.EnqueueJob)
+	r.POST("/:queueName/dequeue", auth.RequirePermission("queue", "write"), h.DequeueJob)
+	r.POST("/jobs/:id/complete", auth.RequirePermission("queue", "write"), h.CompleteJob)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -85,4 +90,56 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) EnqueueJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	queueName := c.Param("queueName")
+	var req models.EnqueueJobRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.svc.EnqueueJob(c.Request.Context(), tenantID, queueName, &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(201, gin.H{"data": result})
+}
+
+func (h *Handler) DequeueJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	queueName := c.Param("queueName")
+	var req models.DequeueRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.svc.DequeueJob(c.Request.Context(), tenantID, queueName, &req)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	if result == nil {
+		c.JSON(404, gin.H{"message": "no pending jobs"})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
+}
+
+func (h *Handler) CompleteJob(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	jobID := c.Param("id")
+	var req models.CompleteJobRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := h.svc.CompleteJob(c.Request.Context(), tenantID, jobID, &req)
+	if err != nil {
+		c.JSON(404, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": result})
 }

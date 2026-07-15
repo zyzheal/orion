@@ -116,7 +116,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "deleted"})
+	c.JSON(http.StatusNoContent, nil)
 }
 
 // Count returns the total number of hooks for the tenant.
