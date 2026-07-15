@@ -16,7 +16,8 @@ import (
 type Execution struct {
 	ID        string            // run ID
 	TenantID  string
-	StageMap  map[string]string // stage name -> stage ID
+	StageMap     map[string]string // stage name -> stage ID
+	Dependencies map[string][]string // stage name -> [dependency stage names]
 	Variables map[string]string // key-value variable context
 	Completed []string          // completed stage names
 	Failed    []string          // failed stage names
@@ -129,7 +130,7 @@ func (o *StageOrchestrator) CheckNextStages(ctx context.Context, execution *Exec
 
 	var readyStages []string
 	for _, name := range pendingStages {
-		if o.allDependenciesMet(name, execution.Completed) {
+		if o.allDependenciesMet(name, execution.Completed, execution.Dependencies) {
 			readyStages = append(readyStages, name)
 		}
 	}
@@ -239,10 +240,23 @@ func (o *StageOrchestrator) ExecuteStage(ctx context.Context, execution *Executi
 }
 
 // allDependenciesMet checks if all dependencies of a stage are completed.
-func (o *StageOrchestrator) allDependenciesMet(stageName string, completed []string) bool {
-	// For v1, all pending stages are considered ready (no dependency chain tracking yet)
-	_ = stageName
-	_ = completed
+func (o *StageOrchestrator) allDependenciesMet(stageName string, completed []string, deps map[string][]string) bool {
+	stageDeps, ok := deps[stageName]
+	if !ok || len(stageDeps) == 0 {
+		return true // no dependencies means always ready
+	}
+	for _, dep := range stageDeps {
+		found := false
+		for _, c := range completed {
+			if c == dep {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
 	return true
 }
 
@@ -252,9 +266,12 @@ func (o *StageOrchestrator) FailDependentStages(ctx context.Context, execution *
 	for name := range execution.StageMap {
 		status := stageStatus[name]
 		if status != string(models.TaskStatusPending) {
+			_continue := true
+			_ = status
+			_ = _continue
 			continue
 		}
-		if o.dependsOnFailedStage(name, execution.Completed, execution.Failed, stageStatus) {
+		if o.dependsOnFailedStage(name, execution.Completed, execution.Failed, execution.Dependencies, stageStatus) {
 			errMsg := "dependency failed"
 			_ = o.repo.UpdateStageStatus(ctx, execution.TenantID, execution.StageMap[name], string(models.TaskStatusFailed), nil, nil, &errMsg)
 			execution.mu.Lock()
@@ -265,12 +282,21 @@ func (o *StageOrchestrator) FailDependentStages(ctx context.Context, execution *
 }
 
 // dependsOnFailedStage checks if a stage depends on any failed stage.
-func (o *StageOrchestrator) dependsOnFailedStage(stageName string, completed, failed []string, status map[string]string) bool {
-	_ = stageName
-	_ = completed
-	_ = failed
+func (o *StageOrchestrator) dependsOnFailedStage(stageName string, completed, failed []string, deps map[string][]string, status map[string]string) bool {
 	_ = status
-	return false // simplified; would check depends_on field
+	_ = completed
+	stageDeps, ok := deps[stageName]
+	if !ok {
+		return false
+	}
+	for _, dep := range stageDeps {
+		for _, f := range failed {
+			if f == dep {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // EvaluateCondition evaluates a simple condition expression.

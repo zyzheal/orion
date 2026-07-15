@@ -127,6 +127,19 @@ type Checkpoint struct {
 	CreatedAt int64     `json:"created_at" db:"created_at"`
 }
 
+// ExecutionState is the runtime context for an orchestration run.
+// It mirrors the public-facing models.PipelineRun but carries additional
+// fields needed by the engine (stage map, variables, dependency graph).
+type ExecutionState struct {
+	ID           string            // run ID
+	TenantID     string
+	StageMap     map[string]string // stage name -> stage ID
+	DependsOn    map[string][]string // stage name -> [dependency stage names]
+	Variables    map[string]string
+	Completed    []string // completed stage names
+	Failed       []string // failed stage names
+}
+
 // --- YAML parsing models ---
 
 // PipelineSpec represents the parsed YAML pipeline definition.
