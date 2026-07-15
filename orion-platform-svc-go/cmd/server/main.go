@@ -512,6 +512,7 @@ import (
 	"orion/go-common/pkg/database"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
+	platmw "orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/otel"
 	redis "orion/go-common/pkg/redis"
 
@@ -1768,6 +1769,9 @@ func main() {
 	r.Use(middleware.Recovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
+	r.Use(platmw.Tracing(platmw.TracingConfig{
+		ServiceName: "orion-platform-svc",
+	}))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: ffCfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz", "/metrics", "/health"}}))
