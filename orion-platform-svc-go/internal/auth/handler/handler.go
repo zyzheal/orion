@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"orion/go-common/pkg/errors"
@@ -12,7 +13,16 @@ import (
 
 // Handler exposes HTTP endpoints for authentication.
 type Handler struct {
-	svc *service.Service
+	svc AuthService
+}
+
+// AuthService defines the contract the handler needs from the service layer.
+type AuthService interface {
+	Login(ctx context.Context, req *models.LoginRequest, tenantID string) (*models.LoginResponse, error)
+	Register(ctx context.Context, req *models.RegisterRequest, tenantID string) (*models.RegisterResponse, error)
+	Refresh(ctx context.Context, req *models.RefreshRequest) (*models.RefreshResponse, error)
+	Logout(ctx context.Context, req *models.LogoutRequest) error
+	GetProfile(ctx context.Context, tenantID, userID string) (*models.MeResponse, error)
 }
 
 // NewHandler creates a new Handler instance.

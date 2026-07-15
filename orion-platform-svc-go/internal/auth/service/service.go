@@ -35,13 +35,47 @@ var (
 	ErrTenantAccessDenied  = errors.New("user does not have access to the specified tenant")
 	ErrMultipleTenants     = errors.New("user belongs to multiple tenants, specify X-Tenant-ID header")
 	ErrPasswordTooShort    = errors.New("password must be at least 8 characters")
+	ErrUserNotFound        = errors.New("user not found")
 )
+
+// UserRepository defines the user persistence contract.
+type UserRepository interface {
+	GetByUsername(ctx context.Context, username string) (*user_models.User, error)
+	Create(ctx context.Context, user *user_models.User) error
+	GetByID(ctx context.Context, tenantID, id string) (*user_models.User, error)
+}
+
+// AuthRepository defines the auth persistence contract.
+type AuthRepository interface {
+	Create(ctx context.Context, rt *models.RefreshToken) error
+	FindByHash(ctx context.Context, tokenHash string) (*auth_repo.RefreshTokenRow, error)
+	DeleteByHash(ctx context.Context, tokenHash string) error
+	FindTenantsByUserID(ctx context.Context, userID string) ([]string, error)
+}
+
+// passwordHasher abstracts password hashing for testability.
+type passwordHasher interface {
+	hash(password string) (string, error)
+	compare(password, hash string) error
+}
+
+type bcryptHasher struct{}
+
+func (bcryptHasher) hash(password string) (string, error) {
+	b, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
+	return string(b), err
+}
+
+func (bcryptHasher) compare(password, hash string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+}
 
 // Service provides authentication business logic.
 type Service struct {
-	authRepo  *auth_repo.Repository
-	userRepo  *user_repo.Repository
+	authRepo  AuthRepository
+	userRepo  UserRepository
 	jwtSecret string
+	hasher    passwordHasher
 }
 
 // NewService creates a new Service instance.
@@ -51,6 +85,13 @@ func NewService(authRepo *auth_repo.Repository, userRepo *user_repo.Repository, 
 		userRepo:  userRepo,
 		jwtSecret: jwtSecret,
 	}
+}
+
+func (s *Service) getHasher() passwordHasher {
+	if s.hasher != nil {
+		return s.hasher
+	}
+	return bcryptHasher{}
 }
 
 // Register creates a new user account.
@@ -67,7 +108,7 @@ func (s *Service) Register(ctx context.Context, req *models.RegisterRequest, req
 		return nil, ErrUsernameExists
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcryptCost)
+	hashedPassword, err := s.getHasher().hash(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -115,7 +156,7 @@ func (s *Service) Login(ctx context.Context, req *models.LoginRequest, requested
 		return nil, ErrUserSuspended
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+	if err := s.getHasher().compare(req.Password, user.Password); err != nil {
 		return nil, ErrInvalidCredentials
 	}
 
@@ -320,6 +361,3 @@ func buildAvatarURL(username string) string {
 	return fmt.Sprintf("https://ui-avatars.com/api/?name=%s&background=1890ff&color=fff",
 		url.QueryEscape(username))
 }
-
-// ErrUserNotFound for profile lookup.
-var ErrUserNotFound = errors.New("user not found")
