@@ -249,7 +249,7 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 		DeploymentID: deploymentID,
 		Action:       "rollback_triggered",
 		PerformedBy:  req.TriggeredBy,
-		Details:      fmt.Sprintf(`{"reason":"%s","targetVersion":"%s","rollbackId":"%s"}`, req.Reason, rollback.TargetVersion, rollback.ID),
+		Details:      fmt.Sprintf(`{"reason":"%s","targetVersion":"%s","rollbackId":"%s"}`, req.Reason, *rollback.TargetVersion, rollback.ID),
 	})
 
 	// Simulate rollback completion

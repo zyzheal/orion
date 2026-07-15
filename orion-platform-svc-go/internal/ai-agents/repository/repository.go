@@ -156,7 +156,7 @@ func (r *Repository) UpdateAgent(ctx context.Context, id string, tenantID string
 
 	sql := fmt.Sprintf(
 		`UPDATE ai_agents SET %s, updated_at=$%d WHERE id=$%d AND tenant_id=$%d`,
-		strings.Join(setClauses, ", "), updatedAtIdx, id, tenantID)
+		strings.Join(setClauses, ", "), updatedAtIdx, argIdx, argIdx+1)
 
 	_, err := r.db.ExecContext(ctx, sql, args...)
 	if err != nil {

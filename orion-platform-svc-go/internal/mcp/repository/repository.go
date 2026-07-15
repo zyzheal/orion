@@ -149,12 +149,10 @@ func (r *Repository) ListTools(ctx context.Context, q models.ListMCPToolsQuery) 
 	var args []interface{}
 
 	if q.ServerID != "" {
-		sql = fmt.Sprintf(`SELECT * FROM mcp_tool WHERE server_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-			1, 2, 3)
-			args = []interface{}{q.ServerID, q.Limit, q.Offset}
+		sql = `SELECT * FROM mcp_tool WHERE server_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
+		args = []interface{}{q.ServerID, q.Limit, q.Offset}
 	} else {
-		sql = fmt.Sprintf(`SELECT * FROM mcp_tool ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-			1, 2)
+		sql = `SELECT * FROM mcp_tool ORDER BY created_at DESC LIMIT $1 OFFSET $2`
 		args = []interface{}{q.Limit, q.Offset}
 	}
 

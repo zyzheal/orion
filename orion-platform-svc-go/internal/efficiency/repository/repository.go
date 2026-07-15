@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"orion/platform-svc-go/internal/efficiency/models"
 
@@ -185,6 +184,6 @@ func (r *Repository) DeleteGlobalPipelinesByTenant(ctx context.Context, tenantID
 func (r *Repository) TableExists(ctx context.Context, tableName string) (bool, error) {
 	var exists bool
 	err := r.db.GetContext(ctx, &exists,
-		fmt.Sprintf(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, tableName))
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)`, tableName)
 	return exists, err
 }
