@@ -23,6 +23,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/:id", auth.RequirePermission("community_advanced", "read"), h.Get)
 	f.PUT("/:id", auth.RequirePermission("community_advanced", "write"), h.Update)
 	f.DELETE("/:id", auth.RequirePermission("community_advanced", "delete"), h.Delete)
+
+	// Business endpoints
+	f.POST("/badges", auth.RequirePermission("community_advanced", "write"), h.AwardBadge)
+	f.POST("/mentorship", auth.RequirePermission("community_advanced", "write"), h.AssignMentorship)
+	f.POST("/best-practices/:id/vote", auth.RequirePermission("community_advanced", "write"), h.VoteBestPractice)
+	f.POST("/incentive-programs", auth.RequirePermission("community_advanced", "write"), h.CreateIncentiveProgram)
 }
 
 func (h *Handler) getTenantID(c *gin.Context) string {
@@ -98,4 +104,65 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 	respondSuccess(c, gin.H{"deleted": true})
+}
+
+func (h *Handler) AwardBadge(c *gin.Context) {
+	var req models.AwardBadgeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.AwardBadge(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) AssignMentorship(c *gin.Context) {
+	var req models.MentorshipRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.AssignMentorship(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) VoteBestPractice(c *gin.Context) {
+	id := c.Param("id")
+	var req models.VoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.VoteBestPractice(c.Request.Context(), tenantID, id, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
+}
+
+func (h *Handler) CreateIncentiveProgram(c *gin.Context) {
+	var req models.IncentiveProgramRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.CreateIncentiveProgram(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	respondSuccess(c, result)
 }
