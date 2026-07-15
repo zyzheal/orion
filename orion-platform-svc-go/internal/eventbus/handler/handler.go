@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/eventbus/models"
 	"orion/platform-svc-go/internal/eventbus/service"
@@ -23,14 +24,18 @@ func NewHandler(svc *service.Service) *Handler {
 
 // RegisterRoutes registers all event bus endpoints under the given group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	rg.POST("/events", h.Publish)
-	rg.GET("/events", h.List)
-	rg.GET("/events/count", h.Count)
-	rg.POST("/connect", h.Connect)
-	rg.GET("/status", h.GetStatus)
-	rg.GET("/subscriptions", h.ListSubscriptions)
-	rg.GET("/dlq", h.GetDLQ)
-	rg.GET("/stats", h.GetStats)
+	read := auth.RequirePermission("eventbus", "read")
+	write := auth.RequirePermission("eventbus", "write")
+
+	rg.POST("/events", write, h.Publish)
+	rg.GET("/events", read, h.List)
+	rg.GET("/events/count", read, h.Count)
+
+	rg.POST("/connect", write, h.Connect)
+	rg.GET("/status", read, h.GetStatus)
+	rg.GET("/subscriptions", read, h.ListSubscriptions)
+	rg.GET("/dlq", read, h.GetDLQ)
+	rg.GET("/stats", read, h.GetStats)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
@@ -129,16 +134,6 @@ func (h *Handler) Count(c *gin.Context) {
 	errors.WriteSuccess(c, gin.H{"count": count})
 }
 
-// respondBadRequest writes a canonical BAD_REQUEST error envelope.
-func respondBadRequest(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
-}
-
-// respondInternalError writes a canonical INTERNAL_ERROR envelope.
-func respondInternalError(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
-}
-
 // Connect handles POST /connect — connect to NATS cluster.
 func (h *Handler) Connect(c *gin.Context) {
 	var req models.ConnectRequest
@@ -180,7 +175,15 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 // GetDLQ handles GET /dlq — dead letter queue messages.
 func (h *Handler) GetDLQ(c *gin.Context) {
 	tenantID := h.getTenantID(c)
-	limit, _ := strconv.Atoi(c.Query("limit"))
+	limit := 20
+	if l := c.Query("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 {
+			limit = v
+			if limit > 100 {
+				limit = 100
+			}
+		}
+	}
 	resp, err := h.svc.GetDLQ(c.Request.Context(), tenantID, &models.DLQQuery{Limit: limit})
 	if err != nil {
 		respondInternalError(c, err.Error())
@@ -198,4 +201,14 @@ func (h *Handler) GetStats(c *gin.Context) {
 		return
 	}
 	errors.WriteSuccess(c, stats)
+}
+
+// respondBadRequest writes a canonical BAD_REQUEST error envelope.
+func respondBadRequest(c *gin.Context, message string) {
+	errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
+}
+
+// respondInternalError writes a canonical INTERNAL_ERROR envelope.
+func respondInternalError(c *gin.Context, message string) {
+	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
 }
