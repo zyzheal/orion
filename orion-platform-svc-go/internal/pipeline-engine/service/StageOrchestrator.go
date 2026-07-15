@@ -266,9 +266,6 @@ func (o *StageOrchestrator) FailDependentStages(ctx context.Context, execution *
 	for name := range execution.StageMap {
 		status := stageStatus[name]
 		if status != string(models.TaskStatusPending) {
-			_continue := true
-			_ = status
-			_ = _continue
 			continue
 		}
 		if o.dependsOnFailedStage(name, execution.Completed, execution.Failed, execution.Dependencies, stageStatus) {
@@ -283,7 +280,6 @@ func (o *StageOrchestrator) FailDependentStages(ctx context.Context, execution *
 
 // dependsOnFailedStage checks if a stage depends on any failed stage.
 func (o *StageOrchestrator) dependsOnFailedStage(stageName string, completed, failed []string, deps map[string][]string, status map[string]string) bool {
-	_ = status
 	_ = completed
 	stageDeps, ok := deps[stageName]
 	if !ok {
