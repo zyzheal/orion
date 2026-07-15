@@ -26,6 +26,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/events", h.Publish)
 	rg.GET("/events", h.List)
 	rg.GET("/events/count", h.Count)
+	rg.POST("/connect", h.Connect)
+	rg.GET("/status", h.GetStatus)
+	rg.GET("/subscriptions", h.ListSubscriptions)
+	rg.GET("/dlq", h.GetDLQ)
+	rg.GET("/stats", h.GetStats)
 }
 
 // getTenantID extracts tenant_id from Gin context, falling back to a zero UUID.
@@ -132,4 +137,65 @@ func respondBadRequest(c *gin.Context, message string) {
 // respondInternalError writes a canonical INTERNAL_ERROR envelope.
 func respondInternalError(c *gin.Context, message string) {
 	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
+}
+
+// Connect handles POST /connect — connect to NATS cluster.
+func (h *Handler) Connect(c *gin.Context) {
+	var req models.ConnectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondBadRequest(c, err.Error())
+		return
+	}
+	tenantID := h.getTenantID(c)
+	result, err := h.svc.Connect(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	errors.WriteCreated(c, result)
+}
+
+// GetStatus handles GET /status — event bus connection health check.
+func (h *Handler) GetStatus(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	errors.WriteSuccess(c, status)
+}
+
+// ListSubscriptions handles GET /subscriptions — active subscriptions.
+func (h *Handler) ListSubscriptions(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	subs, err := h.svc.ListSubscriptions(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"subscriptions": subs})
+}
+
+// GetDLQ handles GET /dlq — dead letter queue messages.
+func (h *Handler) GetDLQ(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	resp, err := h.svc.GetDLQ(c.Request.Context(), tenantID, &models.DLQQuery{Limit: limit})
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	errors.WriteSuccess(c, resp)
+}
+
+// GetStats handles GET /stats — event bus statistics.
+func (h *Handler) GetStats(c *gin.Context) {
+	tenantID := h.getTenantID(c)
+	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+	errors.WriteSuccess(c, stats)
 }

@@ -17,12 +17,16 @@ var ErrEventNotFound = errors.New("event not found")
 
 // Service provides business logic for the event bus.
 type Service struct {
-	repo *repository.Repository
+	repo    *repository.Repository
+	busConn *busConn
 }
 
 // NewService creates a new event bus service.
 func NewService(repo *repository.Repository) *Service {
-	return &Service{repo: repo}
+	return &Service{
+		repo:    repo,
+		busConn: newBusConn(),
+	}
 }
 
 // Publish publishes a new event and returns it.
