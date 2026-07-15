@@ -2,61 +2,51 @@ package service
 
 import (
 	"context"
-	"errors"
-	"time"
 
 	"orion/platform-svc-go/internal/service-catalog/models"
 )
 
-// validStatusTransitions defines allowed status transitions for service requests.
-var validStatusTransitions = map[string][]string{
-	"pending":     {"approved", "rejected", "cancelled"},
-	"approved":    {"in_progress", "cancelled"},
-	"in_progress": {"fulfilled", "cancelled"},
-	"fulfilled":   {},
-	"rejected":    {},
-	"cancelled":   {},
-}
-
-// updateRequestStatusLocked performs the status transition without reading the
-// current row (stub — real implementation validates the transition).
+// UpdateRequestStatus validates and persists a status transition.
 func (s *Service) UpdateRequestStatus(ctx context.Context, tenantID, id string, req *models.StatusUpdateRequest) (*models.ServiceRequest, error) {
-	now := time.Now().UTC()
-	nowUnix := now.UnixMilli()
-
-	result := &models.ServiceRequest{
-		ID:         id,
-		TenantID:   tenantID,
-		Status:     req.Status,
-		AssignedTo: req.AssignedTo,
-		UpdatedAt:  nowUnix,
+	assignedTo := (*string)(nil)
+	if req.AssignedTo != "" {
+		assignedTo = &req.AssignedTo
 	}
-
-	// TODO: read current request row and validate the transition against
-	// validStatusTransitions, persist the new status, and append a timeline
-	// entry. Stubbed here until the request/timeline repositories exist.
-	_ = ctx
-
+	by := "system"
+	result, err := s.repo.UpdateRequestStatus(ctx, tenantID, id, req.Status, req.Comment, assignedTo, by)
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
-// GetRequestTimeline returns all timeline entries for a given request.
+// GetRequestTimeline returns timeline entries for a request.
 func (s *Service) GetRequestTimeline(ctx context.Context, tenantID, id string) ([]models.TimelineEntry, error) {
-	// TODO: verify request exists and belongs to tenant, then query the
-	// timeline table for entries of this request.
-	_ = ctx
-	_ = tenantID
-	_ = id
-	return nil, errors.New("not yet implemented")
+	entries, err := s.repo.GetRequestTimeline(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 // GetSLABreaches returns requests that have breached their SLA targets.
 func (s *Service) GetSLABreaches(ctx context.Context, tenantID string, q *models.SLABreachesQuery) (*models.SLABreachesResponse, error) {
-	// TODO: query requests whose actual resolution time exceeds their SLA
-	// target. Optional filters: q.Service, q.From (window start), q.Limit.
-	// For each breached request compute overdueMs = actualMs - slaTargetMs.
-	_ = ctx
-	_ = tenantID
-	_ = q
-	return nil, errors.New("not yet implemented")
+	if q.Limit <= 0 || q.Limit > 100 {
+		q.Limit = 20
+	}
+	breaches, err := s.repo.GetSLABreaches(ctx, tenantID, q.Service, q.From, q.Limit)
+	if err != nil {
+		return nil, err
+	}
+	// Filter out zero-overdue entries (should not happen, but safety net)
+	var valid []models.SLABreach
+	for _, b := range breaches {
+		if b.OverdueMs > 0 {
+			valid = append(valid, b)
+		}
+	}
+	return &models.SLABreachesResponse{
+		Total:    len(valid),
+		Breaches: valid,
+	}, nil
 }

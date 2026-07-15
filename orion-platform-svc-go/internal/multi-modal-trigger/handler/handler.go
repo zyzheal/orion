@@ -2,6 +2,7 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/multi-modal-trigger/models"
 	"orion/platform-svc-go/internal/multi-modal-trigger/service"
 
@@ -31,65 +32,65 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	tenantID := h.getTenantID(c)
 	items, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": items, "total": len(items)})
+	respondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "not found"})
+		respondNotFound(c)
 		return
 	}
-	c.JSON(200, gin.H{"data": item})
+	respondSuccess(c, item)
 }
 
 func (h *Handler) Create(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	tenantID := h.getTenantID(c)
 	var req models.CreateMultiModalTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": item})
+	errors.WriteCreated(c, item)
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	var req models.UpdateMultiModalTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": item})
+	respondSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
+	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"message": "deleted"})
+	respondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) ExecuteTrigger(c *gin.Context) {
