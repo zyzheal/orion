@@ -1,8 +1,8 @@
 # Phase 5 Go 迁移进度追踪
 
-**更新日期**: 2026-07-15 (功能缺口修复完成)  
+**更新日期**: 2026-07-15 (Auth 模块 Go 实现 + main.go 集成完成)  
 **当前分支**: fix/p0-route-auth-and-error-envelope  
-**总览**: Wave 0-7b 完成 + Phase 3 引擎层完成 + 724 stub 修复 + P0 安全修复 + 9 模块功能缺口修复
+**总览**: Wave 0-7b 完成 + Phase 3 引擎层完成 + 724 stub 修复 + P0 安全修复 + 9 模块功能缺口修复 + OTel 追踪 + PipelineEngine 独立入口 + ADR-015
 
 ---
 
@@ -121,10 +121,13 @@
 | ~~P0 CheckpointManager~~ | ✅ 已完成 |
 | ~~P0 TransactionLog~~ | ✅ 已完成 |
 | ~~P1 9 模块功能缺口修复 (37端点)~~ | ✅ 已完成 |
-| **P1** 创建 ADR 记录架构决策 | ✅ 已完成 (ADR-015) |
-| **P2** PipelineEngine 独立部署准备 | ⬜ 3-5 天 |
-| **P2** OTel 追踪集成 | ⬜ 需评估 |
-| **P2** Gateway 业务逻辑迁移 (12 routes.ts) | ⬜ 需评估 |
+| ~~P1 创建 ADR 记录架构决策~~ | ✅ 已完成 (ADR-015) |
+| ~~P2 OTel 追踪集成~~ | ✅ 已完成 (`0a1d44d2`, 142行 middleware) |
+| ~~P2 PipelineEngine 独立部署入口~~ | ✅ 已完成 (`530ede9a`, port 8081, 127行) |
+| **P2** PipelineEngine gRPC 暴露 | ⬜ 待加 |
+| **P2** Gateway 业务逻辑迁移 (auth.routes.ts → Go 实现) | ✅ 5 端点完整实现 (Login/Register/Refresh/Logout/Me) |
+| **P2** PipelineEngine gRPC 暴露 | ⬜ 待加 |
+| **P2** 对齐 Gateway 模块路由 (已迁移 11 个 vs 13 个 Gateway 路由文件) | ⬜ 需评估 |
 
 ---
 
@@ -132,6 +135,12 @@
 
 | Commit | 说明 |
 |--------|------|
+| `0a1d44d2` | feat(go-svc): add OTel tracing middleware with X-Trace-ID propagation |
+| `530ede9a` | feat(go-svc): add independent pipeline-engine entry point (port 8081) |
+| `1b42e36e` | docs: add ADR-015 Phase 5 Go migration architecture decisions |
+| `160b9026` | fix(pipeline-engine): dependency tracking + Saga compensation + ExecutionState |
+| `286b5133` | fix(go-svc): DDD+security review - error info leaks, stubs, unified errors |
+| `5f2090fd` | feat(go-svc): fix functional gaps - 37 business endpoints across 9 modules |
 | `e380da2c` | feat(go-svc): add pipeline module (15 endpoints, 4-layer architecture) |
 | `6be33530` | feat(go-svc): Phase 5 build service migration (12 endpoints, 5 files) |
 | `52b15be1` | feat(go-svc): Phase 4 gateway business logic migration complete (11 modules) |

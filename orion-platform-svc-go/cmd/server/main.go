@@ -162,6 +162,10 @@ import (
 	user_repo "orion/platform-svc-go/internal/user/repository"
 	user_service "orion/platform-svc-go/internal/user/service"
 
+	auth_handler "orion/platform-svc-go/internal/auth/handler"
+	auth_repo "orion/platform-svc-go/internal/auth/repository"
+	auth_service "orion/platform-svc-go/internal/auth/service"
+
 	perm_handler "orion/platform-svc-go/internal/permission/handler"
 	perm_repo "orion/platform-svc-go/internal/permission/repository"
 	perm_service "orion/platform-svc-go/internal/permission/service"
@@ -1760,6 +1764,11 @@ func main() {
 	userSvc := user_service.NewService(userRepo)
 	userH := user_handler.NewHandler(userSvc)
 
+	// auth services
+	authRepo := auth_repo.NewRepository(db.DB)
+	authSvc := auth_service.NewService(authRepo, userRepo, ffCfg.JWTSecret)
+	authH := auth_handler.NewHandler(authSvc)
+
 	// permission services
 	permRepo := perm_repo.NewRepository(db.DB)
 	permSvc := perm_service.NewService(permRepo)
@@ -1773,8 +1782,15 @@ func main() {
 		ServiceName: "orion-platform-svc",
 	}))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+
+	// Public routes (no JWT required)
+	public := r.Group("/api/v1")
+
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{JWTSecret: ffCfg.JWTSecret, RedisClient: rdb, SkipPaths: []string{"/healthz", "/metrics", "/health"}}))
+
+	// Register auth routes (public + protected)
+	authH.RegisterRoutes(public, rg)
 
 	// Register routes
 	ffH.RegisterRoutes(rg)
