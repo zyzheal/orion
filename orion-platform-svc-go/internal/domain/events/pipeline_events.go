@@ -2,10 +2,41 @@ package events
 
 import (
 	"encoding/json"
-	"time"
 )
 
-// --- Pipeline Domain Events ---
+// --- Pipeline Lifecycle Domain Events ---
+
+// PipelineCreatedEvent is raised when a new pipeline is created.
+type PipelineCreatedEvent struct {
+	BaseDomainEvent
+	PipelineName string `json:"pipeline_name"`
+}
+
+// PipelineActivatedEvent is raised when a pipeline is activated.
+type PipelineActivatedEvent struct {
+	BaseDomainEvent
+	PipelineName string `json:"pipeline_name"`
+}
+
+// PipelineDeactivatedEvent is raised when a pipeline is deactivated.
+type PipelineDeactivatedEvent struct {
+	BaseDomainEvent
+	PipelineName string `json:"pipeline_name"`
+}
+
+// PipelineUpdatedEvent is raised when a pipeline definition is updated.
+type PipelineUpdatedEvent struct {
+	BaseDomainEvent
+	PipelineName string `json:"pipeline_name"`
+}
+
+// PipelineDeletedEvent is raised when a pipeline is deleted.
+type PipelineDeletedEvent struct {
+	BaseDomainEvent
+	PipelineName string `json:"pipeline_name"`
+}
+
+// --- Pipeline Execution Domain Events ---
 
 // PipelineStartedEvent is raised when a pipeline execution is started.
 type PipelineStartedEvent struct {
@@ -19,19 +50,26 @@ type PipelineStartedEvent struct {
 // PipelineCompletedEvent is raised when a pipeline execution is completed.
 type PipelineCompletedEvent struct {
 	BaseDomainEvent
-	Status          string                 `json:"status"`     // success, failed, cancelled
-	TotalDurationMs int64                  `json:"total_duration_ms"`
+	Status          string                    `json:"status"`     // success, failed, cancelled
+	TotalDurationMs int64                     `json:"total_duration_ms"`
 	Artifacts       []map[string]interface{} `json:"artifacts"`
 }
 
 // PipelineCancelledEvent is raised when a pipeline execution is cancelled.
 type PipelineCancelledEvent struct {
 	BaseDomainEvent
-	Reason       string `json:"reason"`
-	CancelledBy  string `json:"cancelled_by"`
+	Reason      string `json:"reason"`
+	CancelledBy string `json:"cancelled_by"`
 }
 
 // --- Approval Domain Events ---
+
+// ApprovalCreatedEvent is raised when an approval request is created.
+type ApprovalCreatedEvent struct {
+	BaseDomainEvent
+	ApprovalType string `json:"approval_type"`
+	TotalLevels  int    `json:"total_levels"`
+}
 
 // ApprovalRequestedEvent is raised when an approval request is submitted.
 type ApprovalRequestedEvent struct {
@@ -42,20 +80,42 @@ type ApprovalRequestedEvent struct {
 	ReqByID     string `json:"req_by_id"`
 }
 
-// ApprovalLevelApprovedEvent is raised when a single level is approved.
+// ApprovalLevelApprovedEvent is raised when a single approval level is approved.
 type ApprovalLevelApprovedEvent struct {
 	BaseDomainEvent
-	Level        int    `json:"level"`
-	ApproverID   string `json:"approver_id"`
-	ApproverName string `json:"approver_name"`
-	Comment      string `json:"comment"`
+	Level      int    `json:"level"`
+	LevelID    string `json:"level_id"`
+	ApproverID string `json:"approver_id"`
+}
+
+// ApprovalLevelRejectedEvent is raised when a single approval level is rejected.
+type ApprovalLevelRejectedEvent struct {
+	BaseDomainEvent
+	Level      int    `json:"level"`
+	LevelID    string `json:"level_id"`
+	ApproverID string `json:"approver_id"`
+	Comment    string `json:"comment"`
 }
 
 // ApprovalCompletedEvent is raised when the full approval chain is completed.
 type ApprovalCompletedEvent struct {
 	BaseDomainEvent
-	FinalStatus     string `json:"final_status"`   // approved, rejected, withdrawn
-	TotalDurationMs int64  `json:"total_duration_ms"`
+	ApprovalType string `json:"approval_type"`
+	TotalLevels  int    `json:"total_levels"`
+}
+
+// ApprovalCancelledEvent is raised when an approval request is cancelled.
+type ApprovalCancelledEvent struct {
+	BaseDomainEvent
+	ApprovalType string `json:"approval_type"`
+	Reason       string `json:"reason"`
+}
+
+// ApprovalWithdrawnEvent is raised when an approval request is withdrawn by the requester.
+type ApprovalWithdrawnEvent struct {
+	BaseDomainEvent
+	ApprovalType string `json:"approval_type"`
+	Reason       string `json:"reason"`
 }
 
 // ApprovalDelegateEvent is raised when an approver delegates to another.
@@ -65,6 +125,16 @@ type ApprovalDelegateEvent struct {
 	NewApproverID  string `json:"new_approver_id"`
 	Level          int    `json:"level"`
 	Reason         string `json:"reason"`
+}
+
+// ApprovalReassignedEvent is raised when an approver is reassigned.
+type ApprovalReassignedEvent struct {
+	BaseDomainEvent
+	Level           int    `json:"level"`
+	OldApproverID   string `json:"old_approver_id"`
+	NewApproverID   string `json:"new_approver_id"`
+	NewApproverName string `json:"new_approver_name"`
+	Comment         string `json:"comment"`
 }
 
 // --- FeatureFlag Domain Events ---
@@ -81,10 +151,10 @@ type FeatureFlagToggledEvent struct {
 // FeatureFlagCreatedEvent is raised when a feature flag is created.
 type FeatureFlagCreatedEvent struct {
 	BaseDomainEvent
-	FlagKey string `json:"flag_key"`
-	Enabled bool   `json:"enabled"`
-	Description string `json:"description"`
-	CreatedBy string `json:"created_by"`
+	FlagKey       string `json:"flag_key"`
+	Enabled       bool   `json:"enabled"`
+	Description   string `json:"description"`
+	CreatedBy     string `json:"created_by"`
 }
 
 // FeatureFlagDeletedEvent is raised when a feature flag is deleted.

@@ -95,15 +95,26 @@ func (a *ApprovalAggregate) RejectLevel(levelID, approverID, comment string) eve
 	}
 }
 
+// CancelApproval creates an ApprovalCancelledEvent.
+func (a *ApprovalAggregate) CancelApproval(reason string) events.DomainEvent {
+	if a.Status != "PENDING" {
+		return nil
+	}
+	a.Status = "CANCELLED"
+	a.UpdatedAt = time.Now().UTC()
+	return &events.ApprovalCancelledEvent{
+		ApprovalType: a.ApprovalType,
+		Reason:       reason,
+	}
+}
+
 // Apply applies a domain event to the Approval aggregate state.
 func (a *ApprovalAggregate) Apply(e events.DomainEvent) {
-	switch ev := e.(type) {
+	switch e.(type) {
 	case *events.ApprovalCreatedEvent:
 		a.Status = "PENDING"
 	case *events.ApprovalLevelApprovedEvent:
-		// Update level status
 	case *events.ApprovalLevelRejectedEvent:
-		// Update level status
 	case *events.ApprovalCompletedEvent:
 		a.Status = "APPROVED"
 	case *events.ApprovalCancelledEvent:

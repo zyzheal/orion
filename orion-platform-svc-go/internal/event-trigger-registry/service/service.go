@@ -16,16 +16,17 @@ func NewService(repo *repository.Repository) *Service {
 }
 
 func (s *Service) ListTriggers(ctx context.Context, tenantID string) ([]models.WorkflowTrigger, error) {
-	items, _, err := s.repo.FindAll(ctx)
+	items, _, err := s.repo.FindAll(ctx, tenantID)
 	return items, err
 }
 
 func (s *Service) GetTrigger(ctx context.Context, tenantID, id string) (*models.WorkflowTrigger, error) {
-	return s.repo.GetByID(ctx, id)
+	return s.repo.GetByID(ctx, id, tenantID)
 }
 
 func (s *Service) CreateTrigger(ctx context.Context, tenantID string, req models.CreateTriggerRequest) (*models.WorkflowTrigger, error) {
 	m := &models.WorkflowTrigger{
+		TenantID:       tenantID,
 		Name:           req.Name,
 		Type:           req.Type,
 		WorkflowID:     req.WorkflowID,
@@ -41,7 +42,7 @@ func (s *Service) CreateTrigger(ctx context.Context, tenantID string, req models
 }
 
 func (s *Service) UpdateTrigger(ctx context.Context, tenantID, id string, req models.CreateTriggerRequest) (*models.WorkflowTrigger, error) {
-	existing, err := s.repo.GetByID(ctx, id)
+	existing, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -59,5 +60,5 @@ func (s *Service) UpdateTrigger(ctx context.Context, tenantID, id string, req mo
 }
 
 func (s *Service) DeleteTrigger(ctx context.Context, tenantID, id string) error {
-	return s.repo.Delete(ctx, id)
+	return s.repo.Delete(ctx, id, tenantID)
 }

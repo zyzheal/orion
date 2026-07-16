@@ -19,6 +19,7 @@ const (
 // WorkflowTrigger represents a registered trigger (event or cron based).
 type WorkflowTrigger struct {
 	ID             string            `json:"id" db:"id"`
+	TenantID       string            `json:"tenantId" db:"tenant_id"`
 	Name           string            `json:"name" db:"name"`
 	Type           string            `json:"type" db:"type"`             // "event" or "cron"
 	WorkflowID     string            `json:"workflowId" db:"workflow_id"`

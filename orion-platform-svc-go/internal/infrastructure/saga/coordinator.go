@@ -3,8 +3,6 @@ package saga
 import (
 	"context"
 	"time"
-
-	"orion/platform-svc-go/internal/domain/events"
 )
 
 // SagaCoordinator manages distributed transactions using the Saga pattern.

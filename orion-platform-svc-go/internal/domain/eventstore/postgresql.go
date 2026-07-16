@@ -67,6 +67,30 @@ func (es *PostgreSQLEventStore) Append(ctx context.Context, evs ...events.Domain
 	return tx.Commit()
 }
 
+// rowToStoredEvent converts a raw row struct into a DomainEvent-compatible storedEvent.
+func rowToStoredEvent(row struct {
+	ID            string          `db:"id"`
+	AggregateType string          `db:"aggregate_type"`
+	AggregateID   string          `db:"aggregate_id"`
+	TenantID      string          `db:"tenant_id"`
+	EventType     string          `db:"event_type"`
+	EventData     json.RawMessage `db:"event_data"`
+	OccurredAt    time.Time       `db:"occurred_at"`
+	CorrelationID string          `db:"correlation_id"`
+	CausationID   string          `db:"causation_id"`
+}) events.DomainEvent {
+	return &storedEvent{
+		aggregateType: row.AggregateType,
+		aggregateID:   row.AggregateID,
+		eventType:     row.EventType,
+		tenantID:      row.TenantID,
+		occurredAt:    row.OccurredAt,
+		correlationID: row.CorrelationID,
+		causationID:   row.CausationID,
+		eventData:     row.EventData,
+	}
+}
+
 // GetByAggregate retrieves all events for a specific aggregate, ordered by occurrence time.
 func (es *PostgreSQLEventStore) GetByAggregate(ctx context.Context, tenantID, aggregateType, aggregateID string) ([]events.DomainEvent, error) {
 	rows, err := es.db.QueryxContext(ctx,
@@ -84,20 +108,20 @@ func (es *PostgreSQLEventStore) GetByAggregate(ctx context.Context, tenantID, ag
 	events := make([]events.DomainEvent, 0)
 	for rows.Next() {
 		var row struct {
-			ID           string          `db:"id"`
-			AggregateType string         `db:"aggregate_type"`
-			AggregateID  string          `db:"aggregate_id"`
-			TenantID     string          `db:"tenant_id"`
-			EventType    string          `db:"event_type"`
-			EventData    json.RawMessage `db:"event_data"`
-			OccurredAt   time.Time       `db:"occurred_at"`
-			CorrelationID string         `db:"correlation_id"`
-			CausationID  string          `db:"causation_id"`
+			ID            string          `db:"id"`
+			AggregateType string          `db:"aggregate_type"`
+			AggregateID   string          `db:"aggregate_id"`
+			TenantID      string          `db:"tenant_id"`
+			EventType     string          `db:"event_type"`
+			EventData     json.RawMessage `db:"event_data"`
+			OccurredAt    time.Time       `db:"occurred_at"`
+			CorrelationID string          `db:"correlation_id"`
+			CausationID   string          `db:"causation_id"`
 		}
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-		events = append(events, row)
+		events = append(events, rowToStoredEvent(row))
 	}
 
 	return events, nil
@@ -118,8 +142,23 @@ func (es *PostgreSQLEventStore) GetByType(ctx context.Context, tenantID, eventTy
 	defer rows.Close()
 
 	events := make([]events.DomainEvent, 0)
-	_ = rows // events would be populated from rows
-	// TODO: Implement full row scanning and deserialization
+	for rows.Next() {
+		var row struct {
+			ID            string          `db:"id"`
+			AggregateType string          `db:"aggregate_type"`
+			AggregateID   string          `db:"aggregate_id"`
+			TenantID      string          `db:"tenant_id"`
+			EventType     string          `db:"event_type"`
+			EventData     json.RawMessage `db:"event_data"`
+			OccurredAt    time.Time       `db:"occurred_at"`
+			CorrelationID string          `db:"correlation_id"`
+			CausationID   string          `db:"causation_id"`
+		}
+		if err := rows.StructScan(&row); err != nil {
+			return nil, fmt.Errorf("scan event row: %w", err)
+		}
+		events = append(events, rowToStoredEvent(row))
+	}
 
 	return events, nil
 }
@@ -175,20 +214,20 @@ func (es *PostgreSQLEventStore) GetEventsAfterVersion(ctx context.Context, tenan
 	events := make([]events.DomainEvent, 0)
 	for rows.Next() {
 		var row struct {
-			ID           string          `db:"id"`
-			AggregateType string         `db:"aggregate_type"`
-			AggregateID  string          `db:"aggregate_id"`
-			TenantID     string          `db:"tenant_id"`
-			EventType    string          `db:"event_type"`
-			EventData    json.RawMessage `db:"event_data"`
-			OccurredAt   time.Time       `db:"occurred_at"`
-			CorrelationID string         `db:"correlation_id"`
-			CausationID  string          `db:"causation_id"`
+			ID            string          `db:"id"`
+			AggregateType string          `db:"aggregate_type"`
+			AggregateID   string          `db:"aggregate_id"`
+			TenantID      string          `db:"tenant_id"`
+			EventType     string          `db:"event_type"`
+			EventData     json.RawMessage `db:"event_data"`
+			OccurredAt    time.Time       `db:"occurred_at"`
+			CorrelationID string          `db:"correlation_id"`
+			CausationID   string          `db:"causation_id"`
 		}
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-		events = append(events, row)
+		events = append(events, rowToStoredEvent(row))
 	}
 
 	return events, nil
@@ -197,6 +236,7 @@ func (es *PostgreSQLEventStore) GetEventsAfterVersion(ctx context.Context, tenan
 // DeleteOlderThan removes events older than the given timestamp.
 // Returns the number of deleted events.
 func (es *PostgreSQLEventStore) DeleteOlderThan(ctx context.Context, tenantID string, olderThan time.Time) (int64, error) {
+	_ = ctx // used by exec
 	result, err := es.db.ExecContext(ctx,
 		`DELETE FROM domain_events WHERE tenant_id=$1 AND occurred_at < $2`,
 		tenantID, olderThan,

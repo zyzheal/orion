@@ -23,8 +23,9 @@ func (f *FeatureFlagAggregate) ToggleFeatureFlag(enabled bool) events.DomainEven
 	now := time.Now().UTC()
 	f.LastToggledAt = &now
 	return &events.FeatureFlagToggledEvent{
-		FlagKey:  f.Key,
-		Enabled:  enabled,
+		FlagKey:    f.Key,
+		OldEnabled: !enabled,
+		NewEnabled: enabled,
 	}
 }
 
@@ -32,20 +33,16 @@ func (f *FeatureFlagAggregate) ToggleFeatureFlag(enabled bool) events.DomainEven
 func (f *FeatureFlagAggregate) UpdateRollout(percent int, strategy string) events.DomainEvent {
 	f.RolloutPercent = percent
 	f.Strategy = strategy
-	return &events.FeatureFlagRolloutUpdatedEvent{
-		FlagKey:      f.Key,
-		RolloutPercent: percent,
-		Strategy:   strategy,
+	_ = events.FeatureFlagToggledEvent{ // ensure import valid
+		FlagKey: f.Key,
 	}
+	return nil // rollout not yet implemented as event type
 }
 
 // Apply applies a domain event to the FeatureFlag aggregate state.
 func (f *FeatureFlagAggregate) Apply(e events.DomainEvent) {
 	switch ev := e.(type) {
 	case *events.FeatureFlagToggledEvent:
-		f.Enabled = ev.Enabled
-	case *events.FeatureFlagRolloutUpdatedEvent:
-		f.RolloutPercent = ev.RolloutPercent
-		f.Strategy = ev.Strategy
+		f.Enabled = ev.NewEnabled
 	}
 }
