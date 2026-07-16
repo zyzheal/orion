@@ -881,6 +881,10 @@ import (
 	vector_handler "orion/platform-svc-go/internal/vector/handler"
 	vector_repo "orion/platform-svc-go/internal/vector/repository"
 	vector_service "orion/platform-svc-go/internal/vector/service"
+
+	vuln_handler "orion/platform-svc-go/internal/vulnerability/handler"
+	vuln_repo "orion/platform-svc-go/internal/vulnerability/repository"
+	vuln_service "orion/platform-svc-go/internal/vulnerability/service"
 )
 
 
@@ -2195,6 +2199,9 @@ vectorHandler.RegisterRoutes(rg)
 	moduleH := module_handler.NewHandler(module_service.NewService(module_repo.NewRepository(db.DB)))
 	observabilityH := observability_handler.NewHandler(observability_service.NewService(observability_repo.NewRepository(db.DB)))
 	pipelineBudgetH := pipelineBudget_handler.NewHandler(pipelineBudget_service.NewService(pipelineBudget_repo.NewRepository(db.DB)))
+	vulnRepo := vuln_repo.NewRepository(db.DB)
+	vulnSvc := vuln_service.NewService(vulnRepo)
+	vulnH := vuln_handler.NewHandler(vulnSvc)
 
 	communityAdvancedH.RegisterRoutes(rg)
 	configMgmtEnhancedH.RegisterRoutes(rg)
@@ -2213,6 +2220,7 @@ vectorHandler.RegisterRoutes(rg)
 	moduleH.RegisterRoutes(rg)
 	observabilityH.RegisterRoutes(rg)
 	pipelineBudgetH.RegisterRoutes(rg)
+	vulnH.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {
