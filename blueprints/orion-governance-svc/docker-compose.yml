@@ -1,0 +1,56 @@
+services:
+  governance-svc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3030:3030"
+    environment:
+      - PORT=3030
+      - HOST=0.0.0.0
+      - NODE_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=orion_governance
+      - DB_USER=orion
+      - DB_PASSWORD=${DB_PASSWORD:-orion_secret}
+      - JWT_SECRET=${JWT_SECRET:-governance_jwt_secret}
+      - LOG_LEVEL=info
+      - LOG_PRETTY=false
+      - RATE_LIMIT_MAX=200
+      - RATE_LIMIT_WINDOW_MS=60000
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - orion-network
+
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=orion_governance
+      - POSTGRES_USER=orion
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-orion_secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orion -d orion_governance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - orion-network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  orion-network:
+    driver: bridge

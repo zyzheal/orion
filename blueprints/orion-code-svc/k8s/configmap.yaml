@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orion-code-svc-config
+  namespace: orion
+  labels:
+    app: orion-code-svc
+    component: code-management
+data:
+  nats-url: "nats://nats.nats.svc.cluster.local:4222"
+  log-level: "info"
+  cors-origin: "http://localhost:5173,http://localhost:3000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orion-code-svc-secrets
+  namespace: orion
+  labels:
+    app: orion-code-svc
+    component: code-management
+type: Opaque
+stringData:
+  database-url: ""  # To be configured via external secrets operator
+  jwt-secret: ""    # To be configured via external secrets operator
+  github-token: ""  # To be configured via external secrets operator
+  gitlab-token: ""  # To be configured via external secrets operator

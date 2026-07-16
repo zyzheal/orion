@@ -1,0 +1,8 @@
+service_name: orion-user-svc
+environment: development
+http_addr: ":8084"
+database_url: "postgres://orion:orion@localhost:5432/orion_user?sslmode=disable"
+redis_addr: "localhost:6379"
+redis_db: 0
+jwt_secret: "change-me"
+otel_endpoint: ""

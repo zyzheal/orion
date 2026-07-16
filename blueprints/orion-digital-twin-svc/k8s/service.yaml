@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orion-digital-twin-svc
+  namespace: orion
+  labels:
+    app: orion-digital-twin-svc
+    version: v1
+    component: digital-twin-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3008
+      protocol: TCP
+  selector:
+    app: orion-digital-twin-svc

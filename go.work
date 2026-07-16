@@ -1,30 +1,6 @@
 go 1.25.0
 
 use (
-	./orion-ai-svc-go
-	./orion-alert-breaker-svc-go
-	./orion-api-gateway-go
-	./orion-auth-svc
-	./orion-ci-cd-svc-go
-	./orion-community-svc-go
-	./orion-config-mgmt-svc-go
-	./orion-event-bus-svc-go
-	./orion-finops-svc-go
 	./orion-go-common
-	./orion-governance-svc-go
-	./orion-identity-svc-go
-	./orion-infra-ops-svc-go
-	./orion-inspection-svc-go
-	./orion-lowcode-svc-go
-	./orion-monitor-svc-go
-	./orion-notification-svc-go
-	./orion-pandawiki-svc-go
 	./orion-platform-svc-go
-	./orion-security-svc-go
-	./orion-skill-config-svc-go
-	./orion-ticket-svc-go
-	./orion-tool-svc-go
-	./orion-user-svc
-	./orion-visor-svc-go
-	./orion-workflow-svc-go
 )

@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orion-notify-svc
+  namespace: orion
+  labels:
+    app: orion-notify-svc
+    version: v1
+    component: notify-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: orion-notify-svc
+  template:
+    metadata:
+      labels:
+        app: orion-notify-svc
+        version: v1
+        component: notify-service
+    spec:
+      containers:
+        - name: notify-svc
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          image: orion-notify-svc:v1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3026
+              name: http
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3026"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: orion-notify-secrets
+                  key: DATABASE_URL
+            - name: CORS_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  name: orion-notify-config
+                  key: CORS_ORIGIN
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3026
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3026
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      restartPolicy: Always
