@@ -25,7 +25,7 @@ func Load() *Config {
 	port, _ := strconv.Atoi(getEnv("PORT", "8080"))
 	dbPort, _ := strconv.Atoi(getEnv("DB_PORT", "5432"))
 
-	jwtSecret := getEnv("JWT_SECRET", "change-me-in-production")
+	jwtSecret := requireEnv("JWT_SECRET")
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 
 	return &Config{

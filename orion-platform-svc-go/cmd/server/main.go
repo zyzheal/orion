@@ -828,7 +828,7 @@ func main() {
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
-			log.Printf("warning: failed to run migrations: %v", err)
+			log.Fatalf("failed to run migrations: %v", err)
 		}
 	}
 

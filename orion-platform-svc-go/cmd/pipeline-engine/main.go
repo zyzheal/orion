@@ -88,7 +88,7 @@ func main() {
 	// Auth middleware
 	rg := r.Group("/api/v1")
 	rg.Use(auth.Auth(auth.AuthConfig{
-		JWTSecret:   getEnv("JWT_SECRET", "change-me-in-production"),
+		JWTSecret:   getEnvRequired("JWT_SECRET"),
 		RedisClient: rdb,
 		SkipPaths:   []string{"/healthz", "/metrics"},
 	}))
