@@ -27,6 +27,10 @@ import (
 	artifact_repo "orion/platform-svc-go/internal/artifact/repository"
 	artifact_service "orion/platform-svc-go/internal/artifact/service"
 
+	eventstore "orion/platform-svc-go/internal/domain/eventstore"
+	eventbus "orion/platform-svc-go/internal/infrastructure/eventbus"
+	application "orion/platform-svc-go/internal/application"
+
 	fed_handler "orion/platform-svc-go/internal/federation/handler"
 	fed_repo "orion/platform-svc-go/internal/federation/repository"
 	fed_service "orion/platform-svc-go/internal/federation/service"
@@ -824,6 +828,20 @@ func main() {
 		logger.Fatal("failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
+
+	// ---- Event Infrastructure (EventStore + NATS Publisher + AggregateLoader) ----
+	eventStore := eventstore.NewPostgreSQLEventStore(db.DB)
+	natsPublisher, natsErr := eventbus.NewNATSEventPublisher(nil) // nil store — ComposedPublisher owns persistence
+	if natsErr != nil {
+		logger.Warn("NATS publisher init failed (async dispatch disabled)", zap.Error(natsErr))
+		natsPublisher = nil
+	}
+	composedPublisher := eventbus.NewComposedEventPublisher(eventStore, natsPublisher)
+	aggregateLoader := application.NewAggregateLoader(eventStore)
+	aggregateService := application.NewAggregateService(eventStore)
+	_ = composedPublisher   // used by command handlers
+	_ = aggregateLoader     // used by command handlers
+	_ = aggregateService    // used by query handlers
 
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {

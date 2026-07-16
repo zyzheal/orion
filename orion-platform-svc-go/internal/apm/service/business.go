@@ -64,8 +64,6 @@ func (s *Service) GetServiceTopology(ctx context.Context, tenantID string, q *mo
 			}
 			if !q.IncludeDependencies {
 				filteredEdges = nil
-			} else {
-				filteredEdges = filteredEdges
 			}
 			edges = filteredEdges
 		}

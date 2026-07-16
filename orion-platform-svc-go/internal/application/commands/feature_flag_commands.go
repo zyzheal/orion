@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/application/queries"
-	"orion/platform-svc-go/internal/domain/aggregates"
 	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
 )
@@ -82,7 +81,7 @@ func NewToggleFeatureFlagHandler(store eventstore.EventStore, publisher events.E
 
 // Execute toggles the specified feature flag.
 func (h *ToggleFeatureFlagHandler) Execute(ctx context.Context, cmd *ToggleFeatureFlagCommand) (*CommandResult, error) {
-	agg, err := h.loadFeatureFlagAggregate(ctx, cmd.GetTenantID(), cmd.FlagKey)
+	agg, err := loadFeatureFlagAggregate(h.store, ctx, cmd.GetTenantID(), cmd.FlagKey)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +137,7 @@ func NewUpdateRolloutHandler(store eventstore.EventStore, publisher events.Event
 
 // Execute updates the rollout configuration of the specified feature flag.
 func (h *UpdateRolloutHandler) Execute(ctx context.Context, cmd *UpdateRolloutCommand) (*CommandResult, error) {
-	agg, err := h.loadFeatureFlagAggregate(ctx, cmd.GetTenantID(), cmd.FlagKey)
+	agg, err := loadFeatureFlagAggregate(h.store, ctx, cmd.GetTenantID(), cmd.FlagKey)
 	if err != nil {
 		return nil, err
 	}
@@ -174,53 +173,3 @@ func (h *UpdateRolloutHandler) Execute(ctx context.Context, cmd *UpdateRolloutCo
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-// loadFeatureFlagAggregate loads the event stream and rebuilds a FeatureFlagAggregate
-// by replaying all events onto a fresh instance.
-func (h *ToggleFeatureFlagHandler) loadFeatureFlagAggregate(ctx context.Context, tenantID, flagKey string) (*aggregates.FeatureFlagAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypeFeatureFlag, flagKey)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.FeatureFlagAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   flagKey,
-			AggregateType: queries.AggregateTypeFeatureFlag,
-			TenantID:      tenantID,
-		},
-		Name: flagKey, // fallback: use key as name if not yet set via event
-		Key:  flagKey,
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
-
-func (h *UpdateRolloutHandler) loadFeatureFlagAggregate(ctx context.Context, tenantID, flagKey string) (*aggregates.FeatureFlagAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypeFeatureFlag, flagKey)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.FeatureFlagAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   flagKey,
-			AggregateType: queries.AggregateTypeFeatureFlag,
-			TenantID:      tenantID,
-		},
-		Name: flagKey,
-		Key:  flagKey,
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}

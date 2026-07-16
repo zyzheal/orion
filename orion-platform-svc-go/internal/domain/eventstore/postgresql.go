@@ -55,8 +55,8 @@ func (es *PostgreSQLEventStore) Append(ctx context.Context, evs ...events.Domain
 			ev.EventType(),
 			dataJSON,
 			ev.OccurredAt(),
-			"",
-			"",
+			safeCorrelationID(ev),
+			safeCausationID(ev),
 			time.Now().UTC(),
 		)
 		if err != nil {
@@ -106,7 +106,9 @@ func (es *PostgreSQLEventStore) GetByAggregate(ctx context.Context, tenantID, ag
 	defer rows.Close()
 
 	events := make([]events.DomainEvent, 0)
+	version := 0
 	for rows.Next() {
+		version++
 		var row struct {
 			ID            string          `db:"id"`
 			AggregateType string          `db:"aggregate_type"`
@@ -121,7 +123,9 @@ func (es *PostgreSQLEventStore) GetByAggregate(ctx context.Context, tenantID, ag
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-		events = append(events, rowToStoredEvent(row))
+				ev := rowToStoredEvent(row)
+		ev.SetVersion(version)
+		events = append(events, ev)
 	}
 
 	return events, nil
@@ -142,7 +146,9 @@ func (es *PostgreSQLEventStore) GetByType(ctx context.Context, tenantID, eventTy
 	defer rows.Close()
 
 	events := make([]events.DomainEvent, 0)
+	version := 0
 	for rows.Next() {
+		version++
 		var row struct {
 			ID            string          `db:"id"`
 			AggregateType string          `db:"aggregate_type"`
@@ -157,7 +163,9 @@ func (es *PostgreSQLEventStore) GetByType(ctx context.Context, tenantID, eventTy
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-		events = append(events, rowToStoredEvent(row))
+				ev := rowToStoredEvent(row)
+		ev.SetVersion(version)
+		events = append(events, ev)
 	}
 
 	return events, nil
@@ -212,7 +220,9 @@ func (es *PostgreSQLEventStore) GetEventsAfterVersion(ctx context.Context, tenan
 	defer rows.Close()
 
 	events := make([]events.DomainEvent, 0)
+	version := 0
 	for rows.Next() {
+		version++
 		var row struct {
 			ID            string          `db:"id"`
 			AggregateType string          `db:"aggregate_type"`
@@ -227,7 +237,9 @@ func (es *PostgreSQLEventStore) GetEventsAfterVersion(ctx context.Context, tenan
 		if err := rows.StructScan(&row); err != nil {
 			return nil, fmt.Errorf("scan event row: %w", err)
 		}
-		events = append(events, rowToStoredEvent(row))
+				ev := rowToStoredEvent(row)
+		ev.SetVersion(version)
+		events = append(events, ev)
 	}
 
 	return events, nil
@@ -245,4 +257,21 @@ func (es *PostgreSQLEventStore) DeleteOlderThan(ctx context.Context, tenantID st
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+// safeCorrelationID extracts CorrelationID via type assertion, defaulting to empty string.
+// Used because DomainEvent interface does not declare CorrelationID().
+func safeCorrelationID(ev events.DomainEvent) string {
+	if x, ok := ev.(interface{ CorrelationID() string }); ok {
+		return x.CorrelationID()
+	}
+	return ""
+}
+
+// safeCausationID extracts CausationID via type assertion, defaulting to empty string.
+func safeCausationID(ev events.DomainEvent) string {
+	if x, ok := ev.(interface{ CausationID() string }); ok {
+		return x.CausationID()
+	}
+	return ""
 }

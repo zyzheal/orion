@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
 )
 
@@ -18,7 +17,8 @@ var (
 	ErrAggregateNotFound = errors.New("aggregate not found")
 	ErrAggregateNotReady = errors.New("aggregate is not in a valid state for this command")
 	ErrAppendFailed      = errors.New("failed to persist events")
-	ErrPublishFailed     = errors.New("failed to publish event")
+	ErrPublishFailed      = errors.New("failed to publish event")
+	ErrHandlerNotFound    = errors.New("no handler registered for command")
 )
 
 // ============================================================================
@@ -83,9 +83,10 @@ type CommandHandler[C any, R any] interface {
 
 // CommandBus dispatches Command objects to their registered handlers.
 //
-// Design note: the bus mirrors the QueryBus pattern for symmetry. Handlers
-// are registered by command type name (e.g. "ActivatePipelineCommand") and
-// resolved at dispatch time. In production this can be extended with
+// Handlers are registered by command type name (e.g. "ActivatePipelineCommand")
+// and resolved at dispatch time.  The generic Execute method provides compile-
+// time type safety: callers must pass the correct command type and receive
+// the matching CommandResult.  In production this can be extended with
 // middleware (validation, auth, tracing, retry) without changing the model.
 type CommandBus struct {
 	handlers map[string]any
@@ -97,16 +98,38 @@ func NewCommandBus() *CommandBus {
 }
 
 // Register registers a command handler for the given command type name.
-// The name is derived from the concrete command struct's type
-// (e.g. "ActivatePipelineCommand").
 func (b *CommandBus) Register(name string, handler any) {
 	b.handlers[name] = handler
 }
 
-// Resolve returns the handler registered for the given command type name.
-// Returns nil if no handler is registered.
-func (b *CommandBus) Resolve(name string) any {
-	return b.handlers[name]
+// Dispatch runs the named command through its registered handler.
+// Because Go does not support generics on methods, this is a standalone
+// generic function.  It gives compile-time type safety: the command type
+// C must match the handler's expected input, and the result type R is
+// inferred.
+//
+// Usage:
+//
+//  bus.Register("ActivatePipelineCommand", activateHandler)
+//  result, err := Dispatch[*ActivatePipelineCommand, *CommandResult](ctx, bus, "ActivatePipelineCommand", cmd)
+func Dispatch[C any, R any](
+	ctx context.Context,
+	bus *CommandBus,
+	name string,
+	cmd C,
+) (R, error) {
+	var zero R
+	handlerRaw := bus.handlers[name]
+	if handlerRaw == nil {
+		return zero, ErrHandlerNotFound
+	}
+	type handler interface {
+		Execute(ctx context.Context, cmd C) (R, error)
+	}
+	if h, ok := handlerRaw.(handler); ok {
+		return h.Execute(ctx, cmd)
+	}
+	return zero, ErrHandlerNotFound
 }
 
 // ---------------------------------------------------------------------------

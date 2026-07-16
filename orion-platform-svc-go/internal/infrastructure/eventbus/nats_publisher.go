@@ -92,7 +92,7 @@ func NewNATSEventPublisher(store EventStore) (*NATSEventPublisher, error) {
 	}
 
 	// Ensure the stream exists so Publish succeeds out of the box.
-	_ = js.CreateStream(context.Background(), nats.StreamConfig{
+	_ , _ = js.AddStream(&nats.StreamConfig{
 		Name:      stream,
 		Subjects:  []string{prefix + ".>"},
 		Retention: nats.InterestPolicy,
@@ -126,7 +126,7 @@ func (p *NATSEventPublisher) Publish(ctx context.Context, event events.DomainEve
 
 	subject := p.subject(event.EventType())
 	_, err = p.retry(func() (*nats.PubAck, error) {
-		return p.jet.Publish(ctx, subject, payload, nats.MsgId(event.AggregateID()+event.EventType()))
+		return p.jet.Publish(subject, payload, nats.MsgId(event.AggregateID()+event.EventType()))
 	})
 	if err != nil {
 		log.Printf("[nats publisher] failed to publish event %s after %d retries: %v",
@@ -168,7 +168,7 @@ func (p *NATSEventPublisher) PublishBatch(ctx context.Context, eventsList []even
 			return err
 		}
 		_, err = p.retry(func() (*nats.PubAck, error) {
-			return p.jet.Publish(ctx, p.subject(ev.EventType()), payload)
+			return p.jet.Publish(p.subject(ev.EventType()), payload)
 		})
 		if err != nil {
 			log.Printf("[nats publisher] batch dispatch failed for %s after %d retries: %v",
@@ -246,9 +246,9 @@ func (s *NATSEventSubscriber) handlerFunc(eventType string, handler events.Event
 		for attempt := 1; attempt <= maxRetries; attempt++ {
             // Build a minimal DomainEvent from headers for the handler.
             hdrEvent := &headerDomainEvent{
-                AggregateType: eventType,
-                TenantID:      tenant,
-                CorrelationID: correlation,
+                aggType:     eventType,
+                tenantID:    tenant,
+                correlationID: correlation,
                 RawPayload:    msg.Data,
             }
 			err := handler.Handle(ctx, hdrEvent)
@@ -323,6 +323,8 @@ func serializeEvent(ev events.DomainEvent) ([]byte, error) {
 		TenantID:      ev.TenantID(),
 		OccurredAt:    ev.OccurredAt().UTC().Format(time.RFC3339Nano),
 		Version:       ev.Version(),
+		CorrelationID: safeCorrelationID(ev),
+		CausationID:   safeCausationID(ev),
 	}
 	return json.Marshal(envelope)
 }
@@ -333,21 +335,23 @@ func serializeEvent(ev events.DomainEvent) ([]byte, error) {
 // available in NATS headers plus the raw payload.  Use when the full event
 // body is not needed by the handler.
 type headerDomainEvent struct {
-	AggregateType string
-	AggregateID   string
-	EventType     string
-	TenantID      string
-	CorrelationID string
-	RawPayload    []byte
+	aggType     string
+	aggID       string
+	evType      string
+	tenantID    string
+	correlationID string
+	RawPayload  []byte
 }
 
-func (h *headerDomainEvent) AggregateType() string { return h.AggregateType }
-func (h *headerDomainEvent) AggregateID() string   { return h.AggregateID }
-func (h *headerDomainEvent) EventType() string     { return h.EventType }
-func (h *headerDomainEvent) TenantID() string      { return h.TenantID }
+func (h *headerDomainEvent) AggregateType() string { return h.aggType }
+func (h *headerDomainEvent) AggregateID() string   { return h.aggID }
+func (h *headerDomainEvent) EventType() string     { return h.evType }
+func (h *headerDomainEvent) TenantID() string      { return h.tenantID }
 func (h *headerDomainEvent) OccurredAt() time.Time { return time.Time{} }
 func (h *headerDomainEvent) Version() int          { return 0 }
-
+func (h *headerDomainEvent) SetAggregateID(string)    {}
+func (h *headerDomainEvent) SetTenantID(string)       {}
+func (h *headerDomainEvent) SetVersion(int)            {}
 // --- Helpers ---
 
 // headerToDomainEvent deserializes a NATS message body into the provided
@@ -377,9 +381,18 @@ func handlerName(h events.EventHandler) string {
 	return "unknown-handler"
 }
 
-// --- DomainEventStore interface used by the publisher ---
+// safeCorrelationID extracts CorrelationID via type assertion.
+func safeCorrelationID(ev events.DomainEvent) string {
+	if x, ok := ev.(interface{ CorrelationID() string }); ok {
+		return x.CorrelationID()
+	}
+	return ""
+}
 
-// DomainEventStore is embedded here as a forward declaration of the store
-// interface expected by NewNATSEventPublisher.  The concrete implementation
-// lives in the domain package.
-type DomainEventStore = events.DomainEventStore
+// safeCausationID extracts CausationID via type assertion.
+func safeCausationID(ev events.DomainEvent) string {
+	if x, ok := ev.(interface{ CausationID() string }); ok {
+		return x.CausationID()
+	}
+	return ""
+}

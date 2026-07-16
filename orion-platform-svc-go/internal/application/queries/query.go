@@ -3,7 +3,6 @@ package queries
 import (
 	"context"
 	"errors"
-	"time"
 
 	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
@@ -149,9 +148,9 @@ func (r *eventStoreReader) rebuildAggregateFromEvents(
 // ============================================================================
 
 const (
-	AggregateTypePipeline  = "Pipeline"
-	AggregateTypeApproval  = "Approval"
-	AggregateTypeFeatureFlag = "FeatureFlag"
+	AggregateTypePipeline    = "pipeline"
+	AggregateTypeApproval    = "approval"
+	AggregateTypeFeatureFlag = "feature_flag"
 )
 
 // ============================================================================

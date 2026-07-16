@@ -36,9 +36,13 @@ func (p *Permissions) Scan(src interface{}) error {
 	var v []Permission
 	switch s := src.(type) {
 	case []byte:
-		return json.Unmarshal(s, &v)
+		if err := json.Unmarshal(s, &v); err != nil {
+			return err
+		}
 	case string:
-		return json.Unmarshal([]byte(s), &v)
+		if err := json.Unmarshal([]byte(s), &v); err != nil {
+			return err
+		}
 	default:
 		return fmt.Errorf("cannot scan %T into Permissions", src)
 	}

@@ -165,6 +165,16 @@ type FeatureFlagDeletedEvent struct {
 	Reason    string `json:"reason"`
 }
 
+// FeatureFlagRolloutUpdatedEvent is raised when the rollout configuration
+// of a feature flag is changed.
+type FeatureFlagRolloutUpdatedEvent struct {
+	BaseDomainEvent
+	FlagKey    string `json:"flag_key"`
+	OldPercent int    `json:"old_percent"`
+	NewPercent int    `json:"new_percent"`
+	Strategy   string `json:"strategy"`
+}
+
 // --- Utility ---
 
 // MarshalDomainEvent marshals a domain event to JSON.

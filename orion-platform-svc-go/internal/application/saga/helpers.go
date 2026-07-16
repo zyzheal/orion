@@ -3,12 +3,13 @@ package saga
 import (
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
-// generateID returns a short unique identifier for a given prefix.
-// In production this would be a UUID; here we use a deterministic-looking string.
+// generateID returns a UUID-based identifier with the given prefix.
 func generateID(prefix string) string {
-	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
+	return fmt.Sprintf("%s-%s", prefix, uuid.New())
 }
 
 // getString reads a string value from ctxData, falling back to fallback if absent or empty.

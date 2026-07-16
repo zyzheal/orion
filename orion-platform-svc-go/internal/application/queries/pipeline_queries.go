@@ -288,7 +288,7 @@ func buildPipelineSummary(aggID string, evs []events.DomainEvent) PipelineSummar
 	occurredAt := time.Time{}
 	for _, ev := range evs {
 		agg.Apply(ev)
-		if agg.UpdatedAt.IsZero() || ev.OccurredAt().After(occurredAt) {
+		if ev.OccurredAt().After(occurredAt) {
 			occurredAt = ev.OccurredAt()
 		}
 	}

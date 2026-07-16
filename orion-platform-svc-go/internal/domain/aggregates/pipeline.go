@@ -50,6 +50,8 @@ func (p *PipelineAggregate) UpdatePipelineYAML(newYaml string) events.DomainEven
 // Apply applies a domain event to the Pipeline aggregate state.
 func (p *PipelineAggregate) Apply(e events.DomainEvent) {
 	switch e.(type) {
+	case *events.PipelineCreatedEvent:
+		p.Status = "DRAFT"
 	case *events.PipelineActivatedEvent:
 		p.Status = "ACTIVE"
 		now := time.Now().UTC()

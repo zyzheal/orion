@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"orion/platform-svc-go/internal/application/queries"
 	"orion/platform-svc-go/internal/domain/aggregates"
@@ -210,7 +209,7 @@ func NewApproveLevelHandler(store eventstore.EventStore, publisher events.EventP
 
 // Execute approves the specified level of an approval request.
 func (h *ApproveLevelHandler) Execute(ctx context.Context, cmd *ApproveLevelCommand) (*CommandResult, error) {
-	agg, err := h.loadApprovalAggregate(ctx, cmd.GetTenantID(), cmd.ApprovalID)
+	agg, err := loadApprovalAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ApprovalID)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +260,7 @@ func NewRejectLevelHandler(store eventstore.EventStore, publisher events.EventPu
 
 // Execute rejects the specified level of an approval request.
 func (h *RejectLevelHandler) Execute(ctx context.Context, cmd *RejectLevelCommand) (*CommandResult, error) {
-	agg, err := h.loadApprovalAggregate(ctx, cmd.GetTenantID(), cmd.ApprovalID)
+	agg, err := loadApprovalAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ApprovalID)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +311,7 @@ func NewCancelApprovalHandler(store eventstore.EventStore, publisher events.Even
 
 // Execute cancels a pending approval request.
 func (h *CancelApprovalHandler) Execute(ctx context.Context, cmd *CancelApprovalCommand) (*CommandResult, error) {
-	agg, err := h.loadApprovalAggregate(ctx, cmd.GetTenantID(), cmd.ID)
+	agg, err := loadApprovalAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -348,70 +347,3 @@ func (h *CancelApprovalHandler) Execute(ctx context.Context, cmd *CancelApproval
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-// loadApprovalAggregate loads the event stream and rebuilds an ApprovalAggregate
-// by replaying all events onto a fresh instance.
-func (h *ApproveLevelHandler) loadApprovalAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.ApprovalAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypeApproval, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.ApprovalAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypeApproval,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
-
-func (h *RejectLevelHandler) loadApprovalAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.ApprovalAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypeApproval, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.ApprovalAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypeApproval,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
-
-func (h *CancelApprovalHandler) loadApprovalAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.ApprovalAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypeApproval, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.ApprovalAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypeApproval,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}

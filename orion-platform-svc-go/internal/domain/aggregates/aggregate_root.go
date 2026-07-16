@@ -12,6 +12,8 @@ type AggregateRoot interface {
 	GetTenantID() string
 	GetVersion() int
 	SetVersion(int)
+	SetAggregateID(id string)
+	SetTenantID(id string)
 	Apply(events.DomainEvent)
 	GetPendingEvents() []events.DomainEvent
 	ClearPendingEvents()
@@ -33,6 +35,8 @@ func (b *BaseAggregate) GetAggregateID() string   { return b.AggregateID }
 func (b *BaseAggregate) GetTenantID() string      { return b.TenantID }
 func (b *BaseAggregate) GetVersion() int          { return b.Version }
 func (b *BaseAggregate) SetVersion(v int)         { b.Version = v }
+func (b *BaseAggregate) SetAggregateID(id string) { b.AggregateID = id }
+func (b *BaseAggregate) SetTenantID(id string)    { b.TenantID = id }
 
 func (b *BaseAggregate) Apply(e events.DomainEvent) {
 	// Default no-op. Subtypes override to apply event to state.

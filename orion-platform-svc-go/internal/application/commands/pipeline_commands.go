@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/application/queries"
-	"orion/platform-svc-go/internal/domain/aggregates"
 	"orion/platform-svc-go/internal/domain/eventstore"
 	"orion/platform-svc-go/internal/domain/events"
 )
@@ -93,7 +92,7 @@ func NewActivatePipelineHandler(store eventstore.EventStore, publisher events.Ev
 
 // Execute activates the specified pipeline.
 func (h *ActivatePipelineHandler) Execute(ctx context.Context, cmd *ActivatePipelineCommand) (*CommandResult, error) {
-	agg, err := h.loadPipelineAggregate(ctx, cmd.GetTenantID(), cmd.ID)
+	agg, err := loadPipelineAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +104,6 @@ func (h *ActivatePipelineHandler) Execute(ctx context.Context, cmd *ActivatePipe
 	}
 
 	// Set event base fields (occurredAt)
-	now := time.Now().UTC()
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
@@ -148,7 +146,7 @@ func NewDeactivatePipelineHandler(store eventstore.EventStore, publisher events.
 
 // Execute deactivates the specified pipeline.
 func (h *DeactivatePipelineHandler) Execute(ctx context.Context, cmd *DeactivatePipelineCommand) (*CommandResult, error) {
-	agg, err := h.loadPipelineAggregate(ctx, cmd.GetTenantID(), cmd.ID)
+	agg, err := loadPipelineAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +199,7 @@ func NewUpdatePipelineYAMLHandler(store eventstore.EventStore, publisher events.
 
 // Execute updates the YAML definition of the specified pipeline.
 func (h *UpdatePipelineYAMLHandler) Execute(ctx context.Context, cmd *UpdatePipelineYAMLCommand) (*CommandResult, error) {
-	agg, err := h.loadPipelineAggregate(ctx, cmd.GetTenantID(), cmd.ID)
+	agg, err := loadPipelineAggregate(h.store, ctx, cmd.GetTenantID(), cmd.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,70 +237,3 @@ func (h *UpdatePipelineYAMLHandler) Execute(ctx context.Context, cmd *UpdatePipe
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-// loadPipelineAggregate loads the event stream and rebuilds a PipelineAggregate
-// by replaying all events onto a fresh instance.
-func (h *ActivatePipelineHandler) loadPipelineAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.PipelineAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypePipeline, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.PipelineAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypePipeline,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
-
-func (h *DeactivatePipelineHandler) loadPipelineAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.PipelineAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypePipeline, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.PipelineAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypePipeline,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
-
-func (h *UpdatePipelineYAMLHandler) loadPipelineAggregate(ctx context.Context, tenantID, aggregateID string) (*aggregates.PipelineAggregate, error) {
-	evs, err := h.store.GetByAggregate(ctx, tenantID, queries.AggregateTypePipeline, aggregateID)
-	if err != nil {
-		return nil, err
-	}
-	if len(evs) == 0 {
-		return nil, ErrAggregateNotFound
-	}
-	agg := &aggregates.PipelineAggregate{
-		BaseAggregate: aggregates.BaseAggregate{
-			AggregateID:   aggregateID,
-			AggregateType: queries.AggregateTypePipeline,
-			TenantID:      tenantID,
-		},
-	}
-	for _, ev := range evs {
-		agg.Apply(ev)
-	}
-	return agg, nil
-}
