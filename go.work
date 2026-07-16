@@ -5,7 +5,6 @@ use (
 	./orion-alert-breaker-svc-go
 	./orion-api-gateway-go
 	./orion-auth-svc
-	./orion-cache-cleanup-svc-go
 	./orion-ci-cd-svc-go
 	./orion-community-svc-go
 	./orion-config-mgmt-svc-go
@@ -17,7 +16,6 @@ use (
 	./orion-infra-ops-svc-go
 	./orion-inspection-svc-go
 	./orion-lowcode-svc-go
-	./orion-mcp-svc-go
 	./orion-monitor-svc-go
 	./orion-notification-svc-go
 	./orion-pandawiki-svc-go
