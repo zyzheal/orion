@@ -2,38 +2,84 @@ package service
 
 import (
 	"context"
-	"strings"
+	"errors"
 
 	"orion/platform-svc-go/internal/project-member/models"
 	"orion/platform-svc-go/internal/project-member/repository"
+)
+
+var (
+	ErrNotFound       = errors.New("project member not found")
+	ErrBadRequest      = errors.New("invalid request")
+	ErrInvalidRole     = errors.New("invalid role")
+	ErrDuplicateMember = errors.New("user is already a member of this project")
 )
 
 type Service struct {
 	repo *repository.Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *repository.Repository) *Service { return &Service{repo: repo} }
+
+func (s *Service) CreateMember(ctx context.Context, tenantID string, req models.CreateProjectMemberRequest) (*models.ProjectMember, error) {
+	if req.ProjectID == "" || req.UserID == "" { return nil, ErrBadRequest }
+	if !isValidRole(req.Role) { return nil, ErrInvalidRole }
+	if _, err := s.repo.GetByProjectUser(ctx, tenantID, req.ProjectID, req.UserID); err == nil { return nil, ErrDuplicateMember }
+	m := &models.ProjectMember{
+		ProjectID:   req.ProjectID,
+		UserID:      req.UserID,
+		Role:        req.Role,
+		Permissions: req.Permissions,
+		InvitedBy:   req.InvitedBy,
+		Status:      "active",
+	}
+	return s.repo.Create(ctx, tenantID, m)
 }
 
-// GetProjectMembers retrieves all members for a project.
-func (s *Service) GetProjectMembers(ctx context.Context, tenantID, projectID string) ([]models.ProjectMember, error) {
-	return s.repo.GetProjectMembers(ctx, tenantID, projectID)
+func (s *Service) GetMember(ctx context.Context, tenantID, id string) (*models.ProjectMember, error) {
+	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-// AddProjectMember adds a user to a project with the given role.
-// Returns (created bool, err) — created indicates whether a new row was inserted.
-func (s *Service) AddProjectMember(ctx context.Context, tenantID, projectID, userID, role string) (bool, error) {
-	role = strings.TrimSpace(role)
-	return s.repo.AddProjectMember(ctx, tenantID, projectID, userID, role)
+func (s *Service) GetMemberByProjectUser(ctx context.Context, tenantID, projectID, userID string) (*models.ProjectMember, error) {
+	return s.repo.GetByProjectUser(ctx, tenantID, projectID, userID)
 }
 
-// IsProjectMember checks whether a user is a member of a project.
-func (s *Service) IsProjectMember(ctx context.Context, tenantID, projectID, userID string) (bool, error) {
-	return s.repo.IsProjectMember(ctx, tenantID, projectID, userID)
+func (s *Service) ListMembers(ctx context.Context, tenantID string, q models.ListMembersQuery) ([]models.ProjectMember, int, error) {
+	return s.repo.List(ctx, tenantID, q)
 }
 
-// RemoveProjectMember removes a user from a project.
-func (s *Service) RemoveProjectMember(ctx context.Context, tenantID, projectID, userID string) error {
-	return s.repo.RemoveProjectMember(ctx, tenantID, projectID, userID)
+func (s *Service) ListByProject(ctx context.Context, tenantID, projectID string) ([]models.ProjectMember, error) {
+	return s.repo.GetByProject(ctx, tenantID, projectID)
+}
+
+func (s *Service) UpdateMember(ctx context.Context, tenantID, id string, req models.UpdateProjectMemberRequest) (*models.ProjectMember, error) {
+	updates := make(map[string]interface{})
+	if req.Role != nil {
+		if !isValidRole(*req.Role) { return nil, ErrInvalidRole }
+		updates["role"] = *req.Role
+	}
+	if req.Status != nil { updates["status"] = *req.Status }
+	if req.Permissions != nil { updates["permissions"] = req.Permissions }
+	return s.repo.Update(ctx, tenantID, id, updates)
+}
+
+func (s *Service) DeleteMember(ctx context.Context, tenantID, id string) error {
+	return s.repo.Delete(ctx, tenantID, id)
+}
+
+func (s *Service) DeleteByProject(ctx context.Context, tenantID, projectID string) error {
+	return s.repo.DeleteByProject(ctx, tenantID, projectID)
+}
+
+func (s *Service) CheckRole(ctx context.Context, tenantID, projectID, userID, role string) (bool, error) {
+	return s.repo.HasRole(ctx, tenantID, projectID, userID, role)
+}
+
+func (s *Service) CountByProject(ctx context.Context, tenantID, projectID string) (int, error) {
+	return s.repo.CountByProject(ctx, tenantID, projectID)
+}
+
+func isValidRole(role string) bool {
+	switch role { case "owner", "admin", "developer", "viewer": return true }
+	return false
 }

@@ -25,3 +25,18 @@ type CostFilter struct {
 	FromDate string `json:"fromDate"`
 	ToDate   string `json:"toDate"`
 }
+
+// DailyCost aggregates cost for a single day.
+type DailyCost struct {
+	Date    string  `json:"date"`
+	Total   float64 `json:"total"`
+	Records int     `json:"records"`
+}
+
+// ModelCost aggregates cost for a single model.
+type ModelCost struct {
+	Model   string  `json:"model"`
+	Total   float64 `json:"total"`
+	Records int     `json:"records"`
+}
+

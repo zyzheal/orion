@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"orion/platform-svc-go/internal/ai-cost/models"
 
@@ -85,6 +86,49 @@ func (r *Repository) GetSummary(ctx context.Context, tenantID string, f models.C
 		s.ByDate[d.Date] = d.Cost
 	}
 	return &s, nil
+}
+
+// DailyCost aggregates cost for a single day.
+type DailyCost struct {
+	Date    string  `db:"date" json:"date"`
+	Cost    float64 `db:"cost_sum" json:"total"`
+	Records int     `db:"records"`
+}
+
+// ModelCost aggregates cost for a single model.
+type ModelCost struct {
+	Model   string  `db:"model_id" json:"model"`
+	Cost    float64 `db:"cost_sum" json:"total"`
+	Records int     `db:"records"`
+}
+
+func (r *Repository) GetDailyCosts(ctx context.Context, tenantID string, since time.Time) ([]DailyCost, error) {
+	var items []DailyCost
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT DATE(created_at)::text as date, SUM(cost)::float8 as cost_sum, COUNT(*) as records
+		 FROM ai_cost_records
+		 WHERE tenant_id=$1 AND created_at >= $2
+		 GROUP BY DATE(created_at)
+		 ORDER BY date`, tenantID, since)
+	return items, err
+}
+
+func (r *Repository) GetTopModelsByCost(ctx context.Context, tenantID string, limit int) ([]ModelCost, error) {
+	var items []ModelCost
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT model_id, SUM(cost)::float8 as cost_sum, COUNT(*) as records
+		 FROM ai_cost_records
+		 WHERE tenant_id=$1
+		 GROUP BY model_id
+		 ORDER BY cost_sum DESC
+		 LIMIT $2`, tenantID, limit)
+	return items, err
+}
+
+func (r *Repository) DeleteByID(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM ai_cost_records WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
 }
 
 func (r *Repository) EnsureTable(ctx context.Context) error {

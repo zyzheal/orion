@@ -22,7 +22,9 @@ func NewHandler(svc *service.Service) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
     r := rg.Group("/privacy")
     r.GET("", auth.RequirePermission("privacy", "read"), h.GetConfig)
-    r.PUT("", auth.RequirePermission("privacy", "write"), h.UpdateConfig)
+    r.PUT("", auth.RequirePermission("privacy", "write"), h.UpsertConfig)
+    r.DELETE("", auth.RequirePermission("privacy", "write"), h.DeleteConfig)
+    r.GET("/compliance", auth.RequirePermission("privacy", "read"), h.ListComplianceStatus)
 }
 
 func (h *Handler) GetConfig(c *gin.Context) {
@@ -36,7 +38,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
     errors.WriteSuccess(c, config)
 }
 
-func (h *Handler) UpdateConfig(c *gin.Context) {
+func (h *Handler) UpsertConfig(c *gin.Context) {
     tenantID := c.GetString("tenant_id")
     ctx := c.Request.Context()
     var config models.PrivacyConfig
@@ -44,10 +46,31 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
         return
     }
-    err := h.svc.UpdatePrivacyConfig(ctx, tenantID, &config)
+    result, err := h.svc.UpsertPrivacyConfig(ctx, tenantID, &config)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
         return
     }
-    errors.WriteSuccess(c, nil)
+    errors.WriteSuccess(c, result)
+}
+
+func (h *Handler) DeleteConfig(c *gin.Context) {
+    tenantID := c.GetString("tenant_id")
+    ctx := c.Request.Context()
+    err := h.svc.DeletePrivacyConfig(ctx, tenantID)
+    if err != nil {
+        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    errors.WriteSuccess(c, gin.H{"message": "privacy config deleted"})
+}
+
+func (h *Handler) ListComplianceStatus(c *gin.Context) {
+    ctx := c.Request.Context()
+    statuses, err := h.svc.ListComplianceStatus(ctx)
+    if err != nil {
+        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    errors.WriteSuccess(c, statuses)
 }

@@ -643,99 +643,9 @@ import (
 	version_archive_service "orion/platform-svc-go/internal/version-archive/service"
 
 	// ---- Wave 7b-j: Webhook + automation modules ----
-	webhook_approval_handler "orion/platform-svc-go/internal/webhook-approval/handler"
-	webhook_approval_repo "orion/platform-svc-go/internal/webhook-approval/repository"
-	webhook_approval_service "orion/platform-svc-go/internal/webhook-approval/service"
-	webhook_auth_handler "orion/platform-svc-go/internal/webhook-auth/handler"
-	webhook_auth_repo "orion/platform-svc-go/internal/webhook-auth/repository"
-	webhook_auth_service "orion/platform-svc-go/internal/webhook-auth/service"
-	webhook_database_handler "orion/platform-svc-go/internal/webhook-database/handler"
-	webhook_database_repo "orion/platform-svc-go/internal/webhook-database/repository"
-	webhook_database_service "orion/platform-svc-go/internal/webhook-database/service"
-	webhook_file_handler "orion/platform-svc-go/internal/webhook-file/handler"
-	webhook_file_repo "orion/platform-svc-go/internal/webhook-file/repository"
-	webhook_file_service "orion/platform-svc-go/internal/webhook-file/service"
-	webhook_integration_handler "orion/platform-svc-go/internal/webhook-integration/handler"
-	webhook_integration_repo "orion/platform-svc-go/internal/webhook-integration/repository"
-	webhook_integration_service "orion/platform-svc-go/internal/webhook-integration/service"
-	webhook_logic_handler "orion/platform-svc-go/internal/webhook-logic/handler"
-	webhook_logic_repo "orion/platform-svc-go/internal/webhook-logic/repository"
-	webhook_logic_service "orion/platform-svc-go/internal/webhook-logic/service"
-	webhook_notification_handler "orion/platform-svc-go/internal/webhook-notification/handler"
-	webhook_notification_repo "orion/platform-svc-go/internal/webhook-notification/repository"
-	webhook_notification_service "orion/platform-svc-go/internal/webhook-notification/service"
-	webhook_security_handler "orion/platform-svc-go/internal/webhook-security/handler"
-	webhook_security_repo "orion/platform-svc-go/internal/webhook-security/repository"
-	webhook_security_service "orion/platform-svc-go/internal/webhook-security/service"
-	webhook_variable_handler "orion/platform-svc-go/internal/webhook-variable/handler"
-	webhook_variable_repo "orion/platform-svc-go/internal/webhook-variable/repository"
-	webhook_variable_service "orion/platform-svc-go/internal/webhook-variable/service"
-	webhook_workflow_handler "orion/platform-svc-go/internal/webhook-workflow/handler"
-	webhook_workflow_repo "orion/platform-svc-go/internal/webhook-workflow/repository"
-	webhook_workflow_service "orion/platform-svc-go/internal/webhook-workflow/service"
-	webhook_trigger_handler "orion/platform-svc-go/internal/webhook-trigger/handler"
-	webhook_trigger_repo "orion/platform-svc-go/internal/webhook-trigger/repository"
-	webhook_trigger_service "orion/platform-svc-go/internal/webhook-trigger/service"
-	webhook_webapp_handler "orion/platform-svc-go/internal/webhook-webapp/handler"
-	webhook_webapp_repo "orion/platform-svc-go/internal/webhook-webapp/repository"
-	webhook_webapp_service "orion/platform-svc-go/internal/webhook-webapp/service"
-	webhook_pipeline_handler "orion/platform-svc-go/internal/webhook-pipeline/handler"
-	webhook_pipeline_repo "orion/platform-svc-go/internal/webhook-pipeline/repository"
-	webhook_pipeline_service "orion/platform-svc-go/internal/webhook-pipeline/service"
-	webhook_deployment_handler "orion/platform-svc-go/internal/webhook-deployment/handler"
-	webhook_deployment_repo "orion/platform-svc-go/internal/webhook-deployment/repository"
-	webhook_deployment_service "orion/platform-svc-go/internal/webhook-deployment/service"
-	webhook_config_handler "orion/platform-svc-go/internal/webhook-config/handler"
-	webhook_config_repo "orion/platform-svc-go/internal/webhook-config/repository"
-	webhook_config_service "orion/platform-svc-go/internal/webhook-config/service"
-		webhook_secret_handler "orion/platform-svc-go/internal/webhook-secret/handler"
-		webhook_secret_repo "orion/platform-svc-go/internal/webhook-secret/repository"
-		webhook_secret_service "orion/platform-svc-go/internal/webhook-secret/service"
 		webhook_store_handler "orion/platform-svc-go/internal/webhook/store/handler"
 		webhook_store_repo "orion/platform-svc-go/internal/webhook/store/repository"
 		webhook_store_service "orion/platform-svc-go/internal/webhook/store/service"
-	webhook_monitor_handler "orion/platform-svc-go/internal/webhook-monitor/handler"
-	webhook_monitor_repo "orion/platform-svc-go/internal/webhook-monitor/repository"
-	webhook_monitor_service "orion/platform-svc-go/internal/webhook-monitor/service"
-	webhook_incident_handler "orion/platform-svc-go/internal/webhook-incident/handler"
-	webhook_incident_repo "orion/platform-svc-go/internal/webhook-incident/repository"
-	webhook_incident_service "orion/platform-svc-go/internal/webhook-incident/service"
-	webhook_ticket_handler "orion/platform-svc-go/internal/webhook-ticket/handler"
-	webhook_ticket_repo "orion/platform-svc-go/internal/webhook-ticket/repository"
-	webhook_ticket_service "orion/platform-svc-go/internal/webhook-ticket/service"
-	webhook_workorder_handler "orion/platform-svc-go/internal/webhook-workorder/handler"
-	webhook_workorder_repo "orion/platform-svc-go/internal/webhook-workorder/repository"
-	webhook_workorder_service "orion/platform-svc-go/internal/webhook-workorder/service"
-	webhook_notify_handler "orion/platform-svc-go/internal/webhook-notify/handler"
-	webhook_notify_repo "orion/platform-svc-go/internal/webhook-notify/repository"
-	webhook_notify_service "orion/platform-svc-go/internal/webhook-notify/service"
-	webhook_event_handler "orion/platform-svc-go/internal/webhook-event/handler"
-	webhook_event_repo "orion/platform-svc-go/internal/webhook-event/repository"
-	webhook_event_service "orion/platform-svc-go/internal/webhook-event/service"
-	webhook_queue_handler "orion/platform-svc-go/internal/webhook-queue/handler"
-	webhook_queue_repo "orion/platform-svc-go/internal/webhook-queue/repository"
-	webhook_queue_service "orion/platform-svc-go/internal/webhook-queue/service"
-	webhook_cache_handler "orion/platform-svc-go/internal/webhook-cache/handler"
-	webhook_cache_repo "orion/platform-svc-go/internal/webhook-cache/repository"
-	webhook_cache_service "orion/platform-svc-go/internal/webhook-cache/service"
-	webhook_db_sync_handler "orion/platform-svc-go/internal/webhook-db-sync/handler"
-	webhook_db_sync_repo "orion/platform-svc-go/internal/webhook-db-sync/repository"
-	webhook_db_sync_service "orion/platform-svc-go/internal/webhook-db-sync/service"
-	webhook_transform_handler "orion/platform-svc-go/internal/webhook-transform/handler"
-	webhook_transform_repo "orion/platform-svc-go/internal/webhook-transform/repository"
-	webhook_transform_service "orion/platform-svc-go/internal/webhook-transform/service"
-	webhook_validate_handler "orion/platform-svc-go/internal/webhook-validate/handler"
-	webhook_validate_repo "orion/platform-svc-go/internal/webhook-validate/repository"
-	webhook_validate_service "orion/platform-svc-go/internal/webhook-validate/service"
-	webhook_log_handler "orion/platform-svc-go/internal/webhook-log/handler"
-	webhook_log_repo "orion/platform-svc-go/internal/webhook-log/repository"
-	webhook_log_service "orion/platform-svc-go/internal/webhook-log/service"
-	webhook_metric_handler "orion/platform-svc-go/internal/webhook-metric/handler"
-	webhook_metric_repo "orion/platform-svc-go/internal/webhook-metric/repository"
-	webhook_metric_service "orion/platform-svc-go/internal/webhook-metric/service"
-	webhook_trace_handler "orion/platform-svc-go/internal/webhook-trace/handler"
-	webhook_trace_repo "orion/platform-svc-go/internal/webhook-trace/repository"
-	webhook_trace_service "orion/platform-svc-go/internal/webhook-trace/service"
 	deployment_trigger_handler "orion/platform-svc-go/internal/deployment-trigger/handler"
 	deployment_trigger_repo "orion/platform-svc-go/internal/deployment-trigger/repository"
 	deployment_trigger_service "orion/platform-svc-go/internal/deployment-trigger/service"
@@ -1599,158 +1509,68 @@ func main() {
 	// ---- Wave 7b-j: Webhook + automation services ----
 
 	// webhook-approval services
-	webhook_approvalRepo := webhook_approval_repo.NewRepository(db.DB)
-	webhook_approvalSvc := webhook_approval_service.NewService(webhook_approvalRepo)
-	webhook_approvalH := webhook_approval_handler.NewHandler(webhook_approvalSvc)
 
 	// webhook-auth services
-	webhook_authRepo := webhook_auth_repo.NewRepository(db.DB)
-	webhook_authSvc := webhook_auth_service.NewService(webhook_authRepo)
-	webhook_authH := webhook_auth_handler.NewHandler(webhook_authSvc)
 
 	// webhook-database services
-	webhook_databaseRepo := webhook_database_repo.NewRepository(db.DB)
-	webhook_databaseSvc := webhook_database_service.NewService(webhook_databaseRepo)
-	webhook_databaseH := webhook_database_handler.NewHandler(webhook_databaseSvc)
 
 	// webhook-file services
-	webhook_fileRepo := webhook_file_repo.NewRepository(db.DB)
-	webhook_fileSvc := webhook_file_service.NewService(webhook_fileRepo)
-	webhook_fileH := webhook_file_handler.NewHandler(webhook_fileSvc)
 
 	// webhook-integration services
-	webhook_integrationRepo := webhook_integration_repo.NewRepository(db.DB)
-	webhook_integrationSvc := webhook_integration_service.NewService(webhook_integrationRepo)
-	webhook_integrationH := webhook_integration_handler.NewHandler(webhook_integrationSvc)
 
 	// webhook-logic services
-	webhook_logicRepo := webhook_logic_repo.NewRepository(db.DB)
-	webhook_logicSvc := webhook_logic_service.NewService(webhook_logicRepo)
-	webhook_logicH := webhook_logic_handler.NewHandler(webhook_logicSvc)
 
 	// webhook-notification services
-	webhook_notificationRepo := webhook_notification_repo.NewRepository(db.DB)
-	webhook_notificationSvc := webhook_notification_service.NewService(webhook_notificationRepo)
-	webhook_notificationH := webhook_notification_handler.NewHandler(webhook_notificationSvc)
 
 	// webhook-security services
-	webhook_securityRepo := webhook_security_repo.NewRepository(db.DB)
-	webhook_securitySvc := webhook_security_service.NewService(webhook_securityRepo)
-	webhook_securityH := webhook_security_handler.NewHandler(webhook_securitySvc)
 
 	// webhook-variable services
-	webhook_variableRepo := webhook_variable_repo.NewRepository(db.DB)
-	webhook_variableSvc := webhook_variable_service.NewService(webhook_variableRepo)
-	webhook_variableH := webhook_variable_handler.NewHandler(webhook_variableSvc)
 
 	// webhook-workflow services
-	webhook_workflowRepo := webhook_workflow_repo.NewRepository(db.DB)
-	webhook_workflowSvc := webhook_workflow_service.NewService(webhook_workflowRepo)
-	webhook_workflowH := webhook_workflow_handler.NewHandler(webhook_workflowSvc)
 
 	// webhook-trigger services
-	webhook_triggerRepo := webhook_trigger_repo.NewRepository(db.DB)
-	webhook_triggerSvc := webhook_trigger_service.NewService(webhook_triggerRepo)
-	webhook_triggerH := webhook_trigger_handler.NewHandler(webhook_triggerSvc)
 
 	// webhook-webapp services
-	webhook_webappRepo := webhook_webapp_repo.NewRepository(db.DB)
-	webhook_webappSvc := webhook_webapp_service.NewService(webhook_webappRepo)
-	webhook_webappH := webhook_webapp_handler.NewHandler(webhook_webappSvc)
 
 	// webhook-pipeline services
-	webhook_pipelineRepo := webhook_pipeline_repo.NewRepository(db.DB)
-	webhook_pipelineSvc := webhook_pipeline_service.NewService(webhook_pipelineRepo)
-	webhook_pipelineH := webhook_pipeline_handler.NewHandler(webhook_pipelineSvc)
 
 	// webhook-deployment services
-	webhook_deploymentRepo := webhook_deployment_repo.NewRepository(db.DB)
-	webhook_deploymentSvc := webhook_deployment_service.NewService(webhook_deploymentRepo)
-	webhook_deploymentH := webhook_deployment_handler.NewHandler(webhook_deploymentSvc)
 
 	// webhook-config services
-	webhook_configRepo := webhook_config_repo.NewRepository(db.DB)
-	webhook_configSvc := webhook_config_service.NewService(webhook_configRepo)
-	webhook_configH := webhook_config_handler.NewHandler(webhook_configSvc)
 
 // webhook/store unified config store
 		webhook_storeRepo := webhook_store_repo.NewRepository(db.DB)
 		webhook_storeSvc := webhook_store_service.NewService(webhook_storeRepo)
 		webhook_storeH := webhook_store_handler.NewHandler(webhook_storeSvc)
 	// webhook-secret services
-	webhook_secretRepo := webhook_secret_repo.NewRepository(db.DB)
-	webhook_secretSvc := webhook_secret_service.NewService(webhook_secretRepo)
-	webhook_secretH := webhook_secret_handler.NewHandler(webhook_secretSvc)
 
 	// webhook-monitor services
-	webhook_monitorRepo := webhook_monitor_repo.NewRepository(db.DB)
-	webhook_monitorSvc := webhook_monitor_service.NewService(webhook_monitorRepo)
-	webhook_monitorH := webhook_monitor_handler.NewHandler(webhook_monitorSvc)
 
 	// webhook-incident services
-	webhook_incidentRepo := webhook_incident_repo.NewRepository(db.DB)
-	webhook_incidentSvc := webhook_incident_service.NewService(webhook_incidentRepo)
-	webhook_incidentH := webhook_incident_handler.NewHandler(webhook_incidentSvc)
 
 	// webhook-ticket services
-	webhook_ticketRepo := webhook_ticket_repo.NewRepository(db.DB)
-	webhook_ticketSvc := webhook_ticket_service.NewService(webhook_ticketRepo)
-	webhook_ticketH := webhook_ticket_handler.NewHandler(webhook_ticketSvc)
 
 	// webhook-workorder services
-	webhook_workorderRepo := webhook_workorder_repo.NewRepository(db.DB)
-	webhook_workorderSvc := webhook_workorder_service.NewService(webhook_workorderRepo)
-	webhook_workorderH := webhook_workorder_handler.NewHandler(webhook_workorderSvc)
 
 	// webhook-notify services
-	webhook_notifyRepo := webhook_notify_repo.NewRepository(db.DB)
-	webhook_notifySvc := webhook_notify_service.NewService(webhook_notifyRepo)
-	webhook_notifyH := webhook_notify_handler.NewHandler(webhook_notifySvc)
 
 	// webhook-event services
-	webhook_eventRepo := webhook_event_repo.NewRepository(db.DB)
-	webhook_eventSvc := webhook_event_service.NewService(webhook_eventRepo)
-	webhook_eventH := webhook_event_handler.NewHandler(webhook_eventSvc)
 
 	// webhook-queue services
-	webhook_queueRepo := webhook_queue_repo.NewRepository(db.DB)
-	webhook_queueSvc := webhook_queue_service.NewService(webhook_queueRepo)
-	webhook_queueH := webhook_queue_handler.NewHandler(webhook_queueSvc)
 
 	// webhook-cache services
-	webhook_cacheRepo := webhook_cache_repo.NewRepository(db.DB)
-	webhook_cacheSvc := webhook_cache_service.NewService(webhook_cacheRepo)
-	webhook_cacheH := webhook_cache_handler.NewHandler(webhook_cacheSvc)
 
 	// webhook-db-sync services
-	webhook_db_syncRepo := webhook_db_sync_repo.NewRepository(db.DB)
-	webhook_db_syncSvc := webhook_db_sync_service.NewService(webhook_db_syncRepo)
-	webhook_db_syncH := webhook_db_sync_handler.NewHandler(webhook_db_syncSvc)
 
 	// webhook-transform services
-	webhook_transformRepo := webhook_transform_repo.NewRepository(db.DB)
-	webhook_transformSvc := webhook_transform_service.NewService(webhook_transformRepo)
-	webhook_transformH := webhook_transform_handler.NewHandler(webhook_transformSvc)
 
 	// webhook-validate services
-	webhook_validateRepo := webhook_validate_repo.NewRepository(db.DB)
-	webhook_validateSvc := webhook_validate_service.NewService(webhook_validateRepo)
-	webhook_validateH := webhook_validate_handler.NewHandler(webhook_validateSvc)
 
 	// webhook-log services
-	webhook_logRepo := webhook_log_repo.NewRepository(db.DB)
-	webhook_logSvc := webhook_log_service.NewService(webhook_logRepo)
-	webhook_logH := webhook_log_handler.NewHandler(webhook_logSvc)
 
 	// webhook-metric services
-	webhook_metricRepo := webhook_metric_repo.NewRepository(db.DB)
-	webhook_metricSvc := webhook_metric_service.NewService(webhook_metricRepo)
-	webhook_metricH := webhook_metric_handler.NewHandler(webhook_metricSvc)
 
 	// webhook-trace services
-	webhook_traceRepo := webhook_trace_repo.NewRepository(db.DB)
-	webhook_traceSvc := webhook_trace_service.NewService(webhook_traceRepo)
-	webhook_traceH := webhook_trace_handler.NewHandler(webhook_traceSvc)
 
 	// deployment-trigger services
 	deployment_triggerRepo := deployment_trigger_repo.NewRepository(db.DB)
@@ -1936,37 +1756,7 @@ func main() {
 	canary_analysisH.RegisterRoutes(rg)
 
 	// ---- Wave 7b-j: Webhook + automation routes ----
-	webhook_approvalH.RegisterRoutes(rg)
-	webhook_authH.RegisterRoutes(rg)
-	webhook_databaseH.RegisterRoutes(rg)
-	webhook_fileH.RegisterRoutes(rg)
-	webhook_integrationH.RegisterRoutes(rg)
-	webhook_logicH.RegisterRoutes(rg)
-	webhook_notificationH.RegisterRoutes(rg)
-	webhook_securityH.RegisterRoutes(rg)
-	webhook_variableH.RegisterRoutes(rg)
-	webhook_workflowH.RegisterRoutes(rg)
-	webhook_triggerH.RegisterRoutes(rg)
-	webhook_webappH.RegisterRoutes(rg)
-	webhook_pipelineH.RegisterRoutes(rg)
-	webhook_deploymentH.RegisterRoutes(rg)
-	webhook_configH.RegisterRoutes(rg)
 		webhook_storeH.RegisterRoutes(rg)
-		webhook_secretH.RegisterRoutes(rg)
-	webhook_monitorH.RegisterRoutes(rg)
-	webhook_incidentH.RegisterRoutes(rg)
-	webhook_ticketH.RegisterRoutes(rg)
-	webhook_workorderH.RegisterRoutes(rg)
-	webhook_notifyH.RegisterRoutes(rg)
-	webhook_eventH.RegisterRoutes(rg)
-	webhook_queueH.RegisterRoutes(rg)
-	webhook_cacheH.RegisterRoutes(rg)
-	webhook_db_syncH.RegisterRoutes(rg)
-	webhook_transformH.RegisterRoutes(rg)
-	webhook_validateH.RegisterRoutes(rg)
-	webhook_logH.RegisterRoutes(rg)
-	webhook_metricH.RegisterRoutes(rg)
-	webhook_traceH.RegisterRoutes(rg)
 	deployment_triggerH.RegisterRoutes(rg)
 	incident_actionH.RegisterRoutes(rg)
 	ticket_automationH.RegisterRoutes(rg)

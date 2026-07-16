@@ -1,102 +1,95 @@
 package handler
 
 import (
+	"strconv"
+
 	"orion/go-common/pkg/auth"
+	goerr "orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/project-member/models"
 	"orion/platform-svc-go/internal/project-member/service"
-
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-	svc *service.Service
-}
+type Handler struct { svc *service.Service }
+func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
 
-func NewHandler(svc *service.Service) *Handler {
-	return &Handler{svc: svc}
-}
-
-// RegisterRoutes registers the project-member endpoints.
-// Mirrors TS routes at /api/v1/project-members with prefix /project-members.
-//
-// GET    /:projectId           — list project members (project:read)
-// POST   /:projectId           — add a member (project:write)
-// DELETE /:projectId/:userId   — remove a member (project:delete)
-// GET    /:projectId/check/:userId — check membership (project:read)
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	f := rg.Group("/project-members")
-
-	// GET /:projectId/check/:userId — must be registered before /:projectId/*
-	// to avoid conflict with the variadic catch-all; Gin requires more specific
-	// routes first, but ":projectId/check/:userId" is a concrete pattern so
-	// Gin resolves it correctly regardless of order. Register first for clarity.
-	f.GET("/:projectId/check/:userId", auth.RequirePermission("project", "read"), h.Check)
-	// GET  /:projectId — list members
-	f.GET("/:projectId", auth.RequirePermission("project", "read"), h.List)
-	// POST /:projectId — add member
-	f.POST("/:projectId", auth.RequirePermission("project", "write"), h.Add)
-	// DELETE /:projectId/:userId — remove member
-	f.DELETE("/:projectId/:userId", auth.RequirePermission("project", "delete"), h.Remove)
+	r := rg.Group("/project-members")
+	r.GET("", auth.RequirePermission("project_member", "read"), h.List)
+	r.GET("/:id", auth.RequirePermission("project_member", "read"), h.Get)
+	r.POST("", auth.RequirePermission("project_member", "write"), h.Create)
+	r.PUT("/:id", auth.RequirePermission("project_member", "write"), h.Update)
+	r.DELETE("/:id", auth.RequirePermission("project_member", "delete"), h.Delete)
+	r.GET("/by-project/:projectID", auth.RequirePermission("project_member", "read"), h.ListByProject)
+	r.GET("/by-project/:projectID/count", auth.RequirePermission("project_member", "read"), h.CountByProject)
+	r.GET("/role-check", auth.RequirePermission("project_member", "read"), h.CheckRole)
 }
 
-// List returns all members of a project.
-// GET /api/v1/project-members/:projectId
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	projectID := c.Param("projectId")
-	members, err := h.svc.GetProjectMembers(c.Request.Context(), tenantID, projectID)
-	if err != nil {
-		respondInternalError(c, err.Error())
-		return
-	}
-	respondSuccess(c, gin.H{"data": members, "total": len(members)})
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	q := models.ListMembersQuery{ProjectID: c.Query("project_id"), UserID: c.Query("user_id"), Role: c.Query("role"), Status: c.Query("status"), Limit: &limit, Offset: &offset}
+	items, total, err := h.svc.ListMembers(c.Request.Context(), tenantID, q)
+	if err != nil { goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500); return }
+	goerr.WriteSuccess(c, gin.H{"data": items, "total": total})
 }
 
-// Add adds a user to a project with the given role.
-// POST /api/v1/project-members/:projectId
-func (h *Handler) Add(c *gin.Context) {
-	tenantID := c.GetString("tenant_id")
-	projectID := c.Param("projectId")
-	var req models.AddMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
-		return
-	}
-	created, err := h.svc.AddProjectMember(c.Request.Context(), tenantID, projectID, req.UserID, req.Role)
-	if err != nil {
-		respondInternalError(c, err.Error())
-		return
-	}
-	if !created {
-		respondSuccess(c, gin.H{"message": "Member already exists", "user_id": req.UserID, "role": req.Role})
-		return
-	}
-	respondCreated(c, gin.H{"message": "Member added", "user_id": req.UserID, "role": req.Role})
+func (h *Handler) Get(c *gin.Context) {
+	tenantID := c.GetString("tenant_id"); id := c.Param("id")
+	item, err := h.svc.GetMember(c.Request.Context(), tenantID, id)
+	if err != nil { goerr.WriteError(c, goerr.ErrNotFound, "not found", 404); return }
+	goerr.WriteSuccess(c, item)
 }
 
-// Remove removes a user from a project.
-// DELETE /api/v1/project-members/:projectId/:userId
-func (h *Handler) Remove(c *gin.Context) {
+func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	projectID := c.Param("projectId")
-	userID := c.Param("userId")
-	if err := h.svc.RemoveProjectMember(c.Request.Context(), tenantID, projectID, userID); err != nil {
-		respondInternalError(c, err.Error())
+	var req models.CreateProjectMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil { goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400); return }
+	item, err := h.svc.CreateMember(c.Request.Context(), tenantID, req)
+	if err != nil {
+		switch err {
+		case service.ErrBadRequest, service.ErrInvalidRole: goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
+		case service.ErrDuplicateMember: goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 409)
+		default: goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
+		}
 		return
 	}
-	respondSuccess(c, gin.H{"message": "Member removed"})
+	goerr.WriteCreated(c, item)
 }
 
-// Check verifies whether a user is a member of a project.
-// GET /api/v1/project-members/:projectId/check/:userId
-func (h *Handler) Check(c *gin.Context) {
+func (h *Handler) Update(c *gin.Context) {
+	tenantID := c.GetString("tenant_id"); id := c.Param("id")
+	var req models.UpdateProjectMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil { goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400); return }
+	item, err := h.svc.UpdateMember(c.Request.Context(), tenantID, id, req)
+	if err != nil { goerr.WriteError(c, goerr.ErrNotFound, "not found", 404); return }
+	goerr.WriteSuccess(c, item)
+}
+
+func (h *Handler) Delete(c *gin.Context) {
+	tenantID := c.GetString("tenant_id"); id := c.Param("id")
+	if err := h.svc.DeleteMember(c.Request.Context(), tenantID, id); err != nil { goerr.WriteError(c, goerr.ErrNotFound, "not found", 404); return }
+	goerr.WriteSuccess(c, gin.H{"message": "deleted"})
+}
+
+func (h *Handler) ListByProject(c *gin.Context) {
+	tenantID := c.GetString("tenant_id"); projectID := c.Param("projectID")
+	items, err := h.svc.ListByProject(c.Request.Context(), tenantID, projectID)
+	if err != nil { goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500); return }
+	goerr.WriteSuccess(c, gin.H{"data": items, "total": len(items)})
+}
+
+func (h *Handler) CountByProject(c *gin.Context) {
+	tenantID := c.GetString("tenant_id"); projectID := c.Param("projectID")
+	count, err := h.svc.CountByProject(c.Request.Context(), tenantID, projectID)
+	if err != nil { goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500); return }
+	goerr.WriteSuccess(c, gin.H{"count": count})
+}
+
+func (h *Handler) CheckRole(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	projectID := c.Param("projectId")
-	userID := c.Param("userId")
-	isMember, err := h.svc.IsProjectMember(c.Request.Context(), tenantID, projectID, userID)
-	if err != nil {
-		respondInternalError(c, err.Error())
-		return
-	}
-	respondSuccess(c, gin.H{"isMember": isMember})
+	result, err := h.svc.CheckRole(c.Request.Context(), tenantID, c.Query("project_id"), c.Query("user_id"), c.Query("role"))
+	if err != nil { goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500); return }
+	goerr.WriteSuccess(c, gin.H{"has_role": result})
 }

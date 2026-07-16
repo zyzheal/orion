@@ -25,6 +25,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("", auth.RequirePermission("ai-gateway", "write"), h.ProcessRequest)
 	r.GET("/:id", auth.RequirePermission("ai-gateway", "read"), h.GetRequest)
 	r.GET("", auth.RequirePermission("ai-gateway", "read"), h.ListRequests)
+	r.GET("/by-provider/:provider", auth.RequirePermission("ai-gateway", "read"), h.ListByProvider)
+	r.GET("/by-model/:model", auth.RequirePermission("ai-gateway", "read"), h.ListByModel)
+	r.GET("/recent/:n", auth.RequirePermission("ai-gateway", "read"), h.ListRecent)
 }
 
 func (h *Handler) ProcessRequest(c *gin.Context) {
@@ -35,7 +38,7 @@ func (h *Handler) ProcessRequest(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.svc.SimulateGatewayCall(ctx, tenantID, req)
+	resp, err := h.svc.RecordRequest(ctx, tenantID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -64,6 +67,59 @@ func (h *Handler) ListRequests(c *gin.Context) {
 	}
 	q.Limit = limit
 	items, total, err := h.svc.ListRequests(ctx, tenantID, q)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": items, "total": total})
+}
+
+func (h *Handler) ListByProvider(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := c.Request.Context()
+	provider := c.Param("provider")
+	limit := 50
+	if c.Query("limit") != "" {
+		fmt.Sscanf(c.Query("limit"), "%d", &limit)
+	}
+	items, total, err := h.svc.ListByProvider(ctx, tenantID, provider, limit)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": items, "total": total})
+}
+
+func (h *Handler) ListByModel(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := c.Request.Context()
+	model := c.Param("model")
+	limit := 50
+	if c.Query("limit") != "" {
+		fmt.Sscanf(c.Query("limit"), "%d", &limit)
+	}
+	// GetByModel currently filters by provider field; rename is a future improvement
+	items, total, err := h.svc.GetByModel(ctx, tenantID, model)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// Truncate to limit
+	if len(items) > limit {
+		items = items[:limit]
+	}
+	errors.WriteSuccess(c, gin.H{"data": items, "total": total})
+}
+
+func (h *Handler) ListRecent(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := c.Request.Context()
+	n := 20
+	fmt.Sscanf(c.Param("n"), "%d", &n)
+	if n <= 0 || n > 100 {
+		n = 20
+	}
+	items, total, err := h.svc.ListRecent(ctx, tenantID, n)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
