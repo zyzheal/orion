@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -10,9 +11,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// BudgetService defines the contract the handler needs from the service layer.
+type BudgetService interface {
+	GetBudget(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error)
+	UpsertBudget(ctx context.Context, tenantID, pipelineID string, req *models.UpsertBudgetRequest) (*models.BudgetConfig, error)
+	GetBudgetUsage(ctx context.Context, tenantID, pipelineID string) (*models.BudgetUsage, error)
+	GetAlerts(ctx context.Context, tenantID, pipelineID string) ([]models.BudgetAlert, error)
+	CreateAlert(ctx context.Context, tenantID, pipelineID string, req *models.CreateAlertRequest) (*models.BudgetAlert, error)
+	UpdateAlert(ctx context.Context, tenantID, pipelineID, alertID string, req *models.UpdateAlertRequest) (*models.BudgetAlert, error)
+	DeleteAlert(ctx context.Context, tenantID, pipelineID, alertID string) error
+	GetHistoryPage(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*service.HistoryPage, error)
+}
+
 // Handler exposes HTTP endpoints for pipeline budget management.
 type Handler struct {
-	svc *service.Service
+	svc BudgetService
 }
 
 // NewHandler creates a new Handler instance.

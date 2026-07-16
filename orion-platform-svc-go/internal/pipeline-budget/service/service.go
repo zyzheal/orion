@@ -15,9 +15,18 @@ import (
 	"github.com/google/uuid"
 )
 
+// Repository defines the persistence contract for pipeline budgets.
+type Repository interface {
+	GetByPipelineID(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error)
+	Upsert(ctx context.Context, b *models.BudgetConfig) error
+	AppendHistory(ctx context.Context, h *models.BudgetHistoryRecord) error
+	ListHistory(ctx context.Context, tenantID, pipelineID string, offset, limit int) ([]models.BudgetHistoryRecord, error)
+	CountHistory(ctx context.Context, tenantID, pipelineID string) (int, error)
+}
+
 // Service coordinates business logic for pipeline budget management.
 type Service struct {
-	repo *repository.Repository
+	repo Repository
 }
 
 // NewService creates a new Service instance.

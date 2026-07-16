@@ -15,7 +15,23 @@ import (
 
 // Handler exposes HTTP endpoints for Pipeline Templates.
 type Handler struct {
-	svc *service.Service
+	svc Service
+}
+
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	GetCategories(ctx context.Context, tenantID string) ([]models.TemplateCategorySummary, error)
+	List(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error)
+	Create(ctx context.Context, tenantID string, req models.CreateTemplateRequest, authorID string) (*models.PipelineTemplate, error)
+	Get(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateTemplateRequest) (*models.PipelineTemplate, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Publish(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	Deprecate(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	GetVersions(ctx context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error)
+	Instantiate(ctx context.Context, tenantID, id string, req models.InstantiateTemplateRequest) (*models.InstantiateTemplateResponse, error)
+	Star(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	Unstar(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
 }
 
 // NewHandler creates a new Handler.

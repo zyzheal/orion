@@ -2,6 +2,7 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/webhook-webapp/models"
 	"orion/platform-svc-go/internal/webhook-webapp/service"
 
@@ -30,32 +31,32 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.LWLELULHLOLOLKLuLWLELULALPLP
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(201, gin.H{"data": result})
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrNotFound, err.Error(), 404)
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	results, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(200, gin.H{"data": results})
@@ -65,22 +66,22 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updates)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": "deleted"})
+	errors.WriteSuccess(c, "deleted")
 }

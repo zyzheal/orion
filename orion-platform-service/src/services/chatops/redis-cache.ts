@@ -3,4 +3,4 @@
  * ChatOpsRedisService imports from '../redis-cache' (relative to chatops/).
  */
 
-export { RedisCache, default } from '../redis-cache';
+export { RedisCache } from '../redis-cache';

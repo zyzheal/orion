@@ -13,8 +13,17 @@ import (
 	"github.com/google/uuid"
 )
 
+type Repository interface {
+	ListTemplates(ctx context.Context, tenantID string) ([]models.PipelineTemplate, error)
+	GetTemplateByID(ctx context.Context, id string, tenantID string) (*models.PipelineTemplate, error)
+	CreateTemplate(ctx context.Context, template *models.PipelineTemplate) error
+	UpdateTemplate(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PipelineTemplate, error)
+	DeleteTemplate(ctx context.Context, id string, tenantID string) (bool, error)
+	CreatePipelineFromTemplate(ctx context.Context, tenantID string, templateID string, name string) (*models.InstantiatedPipeline, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo Repository
 }
 
 func NewService(repo *repository.Repository) *Service {

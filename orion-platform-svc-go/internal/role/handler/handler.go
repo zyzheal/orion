@@ -119,7 +119,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 // Count returns the total number of roles for the tenant.

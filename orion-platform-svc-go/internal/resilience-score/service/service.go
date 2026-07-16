@@ -15,8 +15,24 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Repository defines the storage interface used by Service.
+type Repository interface {
+	ListServiceScores(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ServiceResilienceScore, int, error)
+	GetServiceScore(ctx context.Context, tenantID, serviceName string) (*models.ServiceResilienceScore, error)
+	ListHistory(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ResilienceHistory, int, error)
+	ListRecommendations(ctx context.Context, tenantID string, q models.ListQuery, priority, component string) ([]models.ResilienceRecommendation, int, error)
+	EnsureRecommendations(ctx context.Context, tenantID string) error
+	UpsertServiceScore(ctx context.Context, tenantID string, s *models.ServiceResilienceScore) error
+	GetRecentHistory(ctx context.Context, tenantID string, limit int) ([]models.ResilienceHistory, error)
+	CreateHistory(ctx context.Context, tenantID string, h *models.ResilienceHistory) error
+	CreateBenchmark(ctx context.Context, tenantID string, b *models.ResilienceBenchmark) error
+	GetBenchmark(ctx context.Context, tenantID, id string) (*models.ResilienceBenchmark, error)
+}
+
+var _ Repository = (*repository.Repository)(nil)
+
 type Service struct {
-	repo *repository.Repository
+	repo Repository
 	db   *sqlx.DB
 	rng  *rand.Rand
 }

@@ -145,7 +145,7 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 		respondNotFound(c, "schedule not found")
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{})
+	c.Status(http.StatusNoContent)
 }
 
 // --- Assignments ---
@@ -225,7 +225,7 @@ func (h *Handler) DeleteAssignment(c *gin.Context) {
 		respondNotFound(c, "assignment not found")
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{})
+	c.Status(http.StatusNoContent)
 }
 
 // --- Overrides ---
@@ -304,7 +304,7 @@ func (h *Handler) DeleteOverride(c *gin.Context) {
 		respondNotFound(c, "override not found")
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{})
+	c.Status(http.StatusNoContent)
 }
 
 // --- On-Call Now ---

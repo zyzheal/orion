@@ -16,8 +16,25 @@ import (
 var ErrTemplateNotPublished = errors.New("template must be published before instantiation")
 var ErrValidation = errors.New("validation error")
 
+// Repository defines the persistence contract for pipeline templates.
+type Repository interface {
+	Create(ctx context.Context, m *models.PipelineTemplate) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	List(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.PipelineTemplate, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	SetStatus(ctx context.Context, tenantID, id string, status models.TemplateStatus, publishedAt *int64) (*models.PipelineTemplate, error)
+	CreateVersion(ctx context.Context, v *models.TemplateVersion) error
+	ListVersions(ctx context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error)
+	DeleteVersionsByTemplateID(ctx context.Context, templateID string) error
+	IncrementUsageCount(ctx context.Context, tenantID, id string) error
+	IncrementStarCount(ctx context.Context, tenantID, id string) error
+	DecrementStarCount(ctx context.Context, tenantID, id string) error
+	CategoryCounts(ctx context.Context, tenantID string) (map[string]int, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo Repository
 }
 
 func NewService(repo *repository.Repository) *Service {

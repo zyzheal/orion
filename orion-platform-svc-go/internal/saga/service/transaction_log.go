@@ -6,7 +6,6 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/saga/models"
-	"orion/platform-svc-go/internal/saga/repository"
 )
 
 var (
@@ -21,11 +20,11 @@ var (
 // - Transaction query with filters
 // - Step execution recording
 type TransactionLog struct {
-	repo *repository.Repository
+	repo Repository
 }
 
 // NewTransactionLog creates a new TransactionLog backed by Postgres.
-func NewTransactionLog(repo *repository.Repository) *TransactionLog {
+func NewTransactionLog(repo Repository) *TransactionLog {
 	return &TransactionLog{repo: repo}
 }
 

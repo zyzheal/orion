@@ -51,5 +51,5 @@ func (h *Handler) SetTimeouts(c *gin.Context) {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
         return
     }
-    c.JSON(http.StatusOK, gin.H{"ok": true})
+    errors.WriteSuccess(c, gin.H{"ok": true})
 }

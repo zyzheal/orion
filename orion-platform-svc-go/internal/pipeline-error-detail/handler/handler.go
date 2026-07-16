@@ -7,13 +7,19 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/pipeline-error-detail/models"
 	"orion/platform-svc-go/internal/pipeline-error-detail/service"
 
 	"github.com/gin-gonic/gin"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error)
+}
+
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

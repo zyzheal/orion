@@ -8,6 +8,7 @@ import (
         "orion/platform-svc-go/internal/channel/service"
 
         "github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -33,12 +34,12 @@ func (h *Handler) CreateChannel(c *gin.Context) {
         tenantID := c.GetString("tenant_id")
         var req models.CreateChannelRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(201, result)
@@ -49,7 +50,7 @@ func (h *Handler) GetChannel(c *gin.Context) {
         id := c.Param("id")
         result, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
         if err != nil {
-                c.JSON(404, gin.H{"error": "channel not found"})
+                errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
         }
         c.JSON(200, result)
@@ -73,7 +74,7 @@ func (h *Handler) ListChannels(c *gin.Context) {
         }
         result, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(200, gin.H{"data": result, "total": total})
@@ -84,12 +85,12 @@ func (h *Handler) UpdateChannel(c *gin.Context) {
         id := c.Param("id")
         var req models.UpdateChannelRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
         if err != nil {
-                c.JSON(404, gin.H{"error": "channel not found"})
+                errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
         }
         c.JSON(200, result)
@@ -100,14 +101,14 @@ func (h *Handler) DeleteChannel(c *gin.Context) {
         id := c.Param("id")
         deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         if !deleted {
-                c.JSON(404, gin.H{"error": "channel not found"})
+                errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
         }
-        c.JSON(200, gin.H{"message": "channel deleted"})
+        errors.WriteSuccess(c, gin.H{"message": "channel deleted"})
 }
 
 func (h *Handler) GetEnabledByType(c *gin.Context) {
@@ -115,7 +116,7 @@ func (h *Handler) GetEnabledByType(c *gin.Context) {
         channelType := c.Param("type")
         result, err := h.svc.GetEnabledByType(c.Request.Context(), tenantID, channelType)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(200, result)

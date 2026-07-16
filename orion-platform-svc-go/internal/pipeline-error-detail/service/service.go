@@ -17,11 +17,16 @@ var (
 	ErrRunNotFound = errors.New("pipeline run not found")
 )
 
-type Service struct {
-	repo *repository.Repository
+// Repository defines the data access contract needed by Service.
+type Repository interface {
+	GetRunDetail(ctx context.Context, runID string) (*repository.RunDetail, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo Repository
+}
+
+func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 

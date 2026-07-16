@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/artifact-lifecycle/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -36,15 +37,15 @@ func (h *Handler) AdvanceStage(c *gin.Context) {
 	id := c.Param("id")
 	var req models.AdvanceStageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.AdvanceStage(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-c.JSON(http.StatusOK, result)
+errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ArchiveArtifact(c *gin.Context) {
@@ -53,10 +54,10 @@ func (h *Handler) ArchiveArtifact(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Archive(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) CreateLifecycle(c *gin.Context) {
@@ -64,15 +65,15 @@ func (h *Handler) CreateLifecycle(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateArtifactLifecycleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) DeleteLifecycle(c *gin.Context) {
@@ -80,10 +81,10 @@ func (h *Handler) DeleteLifecycle(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) GetLifecycle(c *gin.Context) {
@@ -92,10 +93,10 @@ func (h *Handler) GetLifecycle(c *gin.Context) {
 	artifactID := c.Param("artifactId")
 	result, err := h.svc.GetByArtifactID(ctx, tenantID, artifactID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) GetStageHistory(c *gin.Context) {
@@ -104,10 +105,10 @@ func (h *Handler) GetStageHistory(c *gin.Context) {
 	artifactID := c.Query("artifactId")
 	result, err := h.svc.GetStageHistory(ctx, tenantID, artifactID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListLifecycle(c *gin.Context) {
@@ -117,8 +118,8 @@ func (h *Handler) ListLifecycle(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 result, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

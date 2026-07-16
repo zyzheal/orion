@@ -6,6 +6,7 @@ import (
         "orion/platform-svc-go/internal/sso-providers/service"
 
         "github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -31,12 +32,12 @@ func (h *Handler) CreateProvider(c *gin.Context) {
         tenantID := c.GetString("tenant_id")
         var req models.CreateSSOProviderRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(201, result)
@@ -47,7 +48,7 @@ func (h *Handler) GetProvider(c *gin.Context) {
         id := c.Param("id")
         provider, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
         if err != nil {
-                c.JSON(404, gin.H{"error": "provider not found"})
+                errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
         c.JSON(200, provider)
@@ -65,7 +66,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
         }
         providers, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(200, gin.H{"data": providers, "total": total})
@@ -76,12 +77,12 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
         id := c.Param("id")
         var req models.UpdateSSOProviderRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
         if err != nil {
-                c.JSON(404, gin.H{"error": "provider not found"})
+                errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
         c.JSON(200, result)
@@ -92,14 +93,14 @@ func (h *Handler) DeleteProvider(c *gin.Context) {
         id := c.Param("id")
         deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         if !deleted {
-                c.JSON(404, gin.H{"error": "provider not found"})
+                errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
-        c.JSON(200, gin.H{"message": "provider deleted"})
+        errors.WriteSuccess(c, gin.H{"message": "provider deleted"})
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
@@ -107,7 +108,7 @@ func (h *Handler) TestConnection(c *gin.Context) {
         id := c.Param("id")
         ok, msg, err := h.svc.TestConnection(c.Request.Context(), tenantID, id)
         if err != nil {
-                c.JSON(404, gin.H{"error": "provider not found"})
+                errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
         c.JSON(200, gin.H{"success": ok, "message": msg})

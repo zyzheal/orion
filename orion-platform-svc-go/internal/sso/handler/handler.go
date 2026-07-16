@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/sso/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -34,15 +35,15 @@ func (h *Handler) CreateProvider(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var provider models.SSOProvider
 	if err := c.ShouldBindJSON(&provider); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 result, err := h.svc.CreateProvider(ctx, tenantID, &provider)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) GetProvider(c *gin.Context) {
@@ -51,10 +52,10 @@ func (h *Handler) GetProvider(c *gin.Context) {
 	id := c.Param("id")
 result, err := h.svc.GetProvider(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) HandleCallback(c *gin.Context) {
@@ -65,10 +66,10 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 	userID := c.Query("userID")
 	result, err := h.svc.HandleCallback(ctx, tenantID, state, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) InitiateLogin(c *gin.Context) {
@@ -76,15 +77,15 @@ func (h *Handler) InitiateLogin(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SSOLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.InitiateLogin(ctx, tenantID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListProviders(c *gin.Context) {
@@ -95,7 +96,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
 	q := models.ListProvidersQuery{Limit: limit, Offset: offset}
 result, total, err := h.svc.ListProviders(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": result, "total": total})
@@ -107,12 +108,12 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 	id := c.Param("id")
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	if err := h.svc.UpdateProvider(ctx, tenantID, id, updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }

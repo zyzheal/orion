@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-template/models"
 	"orion/platform-svc-go/internal/pipeline-template/service"
@@ -8,11 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-	svc *service.Service
+// HandlerService is the contract the handler needs from the service layer.
+type HandlerService interface {
+	ListTemplates(ctx context.Context, tenantID string) ([]models.PipelineTemplate, int, error)
+	GetTemplate(ctx context.Context, id string, tenantID string) (*models.PipelineTemplate, error)
+	CreateTemplate(ctx context.Context, req *models.CreateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
+	UpdateTemplate(ctx context.Context, id string, req *models.UpdateTemplateRequest, tenantID string) (*models.PipelineTemplate, error)
+	DeleteTemplate(ctx context.Context, id string, tenantID string) (bool, error)
+	InstantiateTemplate(ctx context.Context, templateID string, req *models.InstantiateRequest, tenantID string) (*models.InstantiatedPipeline, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc HandlerService
+}
+
+func NewHandler(svc HandlerService) *Handler {
 	return &Handler{svc: svc}
 }
 

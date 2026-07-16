@@ -7,6 +7,7 @@ import (
         "orion/platform-svc-go/internal/auth-mfa/service"
 
         "github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -40,12 +41,12 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateMFADeviceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.CreateDevice(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(201, result)
@@ -56,10 +57,10 @@ func (h *Handler) ListDevices(c *gin.Context) {
 	userID := c.GetString("user_id")
 	devices, err := h.svc.ListDevices(c.Request.Context(), tenantID, userID, nil)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": devices})
+	errors.WriteSuccess(c, devices)
 }
 
 func (h *Handler) GetDevice(c *gin.Context) {
@@ -67,7 +68,7 @@ func (h *Handler) GetDevice(c *gin.Context) {
 	id := c.Param("id")
 	device, err := h.svc.GetDevice(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "device not found"})
+		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
 	c.JSON(200, device)
@@ -77,20 +78,20 @@ func (h *Handler) ActivateDevice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.ActivateDevice(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(404, gin.H{"error": "device not found"})
+		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
-	c.JSON(200, gin.H{"message": "device activated"})
+	errors.WriteSuccess(c, gin.H{"message": "device activated"})
 }
 
 func (h *Handler) DisableDevice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DisableDevice(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(404, gin.H{"error": "device not found"})
+		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
-	c.JSON(200, gin.H{"message": "device disabled"})
+	errors.WriteSuccess(c, gin.H{"message": "device disabled"})
 }
 
 func (h *Handler) DeleteDevice(c *gin.Context) {
@@ -98,14 +99,14 @@ func (h *Handler) DeleteDevice(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteDevice(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	if !deleted {
-		c.JSON(404, gin.H{"error": "device not found"})
+		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
-	c.JSON(200, gin.H{"message": "device deleted"})
+	errors.WriteSuccess(c, gin.H{"message": "device deleted"})
 }
 
 func (h *Handler) VerifyCode(c *gin.Context) {
@@ -113,12 +114,12 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.VerifyMFACodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "code is required"})
+		errors.WriteError(c, errors.ErrBadRequest, "code is required", 400)
 		return
 	}
 	valid, err := h.svc.VerifyCode(c.Request.Context(), tenantID, userID, req.Code)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(200, gin.H{"valid": valid})
@@ -129,7 +130,7 @@ func (h *Handler) GenerateBackupCodes(c *gin.Context) {
 	userID := c.GetString("user_id")
 	codes, err := h.svc.GenerateBackupCodes(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(200, gin.H{"codes": codes})

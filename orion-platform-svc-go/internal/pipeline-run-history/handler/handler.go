@@ -1,16 +1,23 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/pipeline-run-history/models"
 	"orion/platform-svc-go/internal/pipeline-run-history/service"
 
 	"github.com/gin-gonic/gin"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) (*models.RunHistoryResponse, error)
+}
+
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

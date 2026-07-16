@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/vector/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -35,15 +36,15 @@ func (h *Handler) CreateStore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateStoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.CreateStore(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) DeleteStore(c *gin.Context) {
@@ -51,10 +52,10 @@ func (h *Handler) DeleteStore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteStore(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) DeleteVectors(c *gin.Context) {
@@ -63,15 +64,15 @@ func (h *Handler) DeleteVectors(c *gin.Context) {
 	storeID := c.Param("id")
 	var ids []string
 	if err := c.ShouldBindJSON(&ids); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.DeleteVectors(ctx, tenantID, storeID, ids)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"deleted": result})
+	errors.WriteSuccess(c, gin.H{"deleted": result})
 }
 
 func (h *Handler) GetStore(c *gin.Context) {
@@ -80,10 +81,10 @@ func (h *Handler) GetStore(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetStore(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListStores(c *gin.Context) {
@@ -93,10 +94,10 @@ func (h *Handler) ListStores(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 result, err := h.svc.ListStores(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) SearchVectors(c *gin.Context) {
@@ -105,15 +106,15 @@ func (h *Handler) SearchVectors(c *gin.Context) {
 	storeID := c.Param("id")
 	var req models.SearchQuery
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.SearchVectors(ctx, tenantID, storeID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) UpsertVectors(c *gin.Context) {
@@ -122,12 +123,12 @@ func (h *Handler) UpsertVectors(c *gin.Context) {
 	storeID := c.Param("id")
 	var req models.UpsertVectorsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	if err := h.svc.UpsertVectors(ctx, tenantID, storeID, req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	errors.WriteSuccess(c, gin.H{"ok": true})
 }

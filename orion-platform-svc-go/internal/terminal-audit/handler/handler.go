@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -9,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/terminal-audit/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -33,15 +33,15 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var ids []string
 	if err := c.ShouldBindJSON(&ids); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.DeleteBatch(ctx, tenantID, ids)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"deleted": result})
+	errors.WriteSuccess(c, gin.H{"deleted": result})
 }
 
 func (h *Handler) GetAudit(c *gin.Context) {
@@ -50,10 +50,10 @@ func (h *Handler) GetAudit(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetAudit(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
@@ -61,10 +61,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListAudits(c *gin.Context) {
@@ -75,10 +75,10 @@ func (h *Handler) ListAudits(c *gin.Context) {
 q := models.AuditQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListAudits(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) SearchAudits(c *gin.Context) {
@@ -89,8 +89,8 @@ func (h *Handler) SearchAudits(c *gin.Context) {
 q := models.AuditQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.SearchAudits(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

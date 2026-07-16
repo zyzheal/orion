@@ -1,22 +1,34 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-sse/models"
-	"orion/platform-svc-go/internal/pipeline-sse/service"
 
 	"github.com/gin-gonic/gin"
 )
 
+// Hub defines the service interface needed by the SSE handler.
+// Extracted from *service.SSEHub so tests can use a mock.
+type Hub interface {
+	CreateConnection(pipelineID, runID, userID string, logLevels []string, includeLogs, includeStatus bool) string
+	StreamLogEvents(c *gin.Context, connID string)
+	StreamStatusEvents(c *gin.Context, connID string)
+	PublishLogEvent(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
+	PublishStatusEvent(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
+	GetStats() *models.SSEStats
+	ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+}
+
 // Handler exposes HTTP handlers for pipeline SSE endpoints.
 type Handler struct {
-	hub *service.SSEHub
+	hub Hub
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(hub *service.SSEHub) *Handler {
+func NewHandler(hub Hub) *Handler {
 	return &Handler{hub: hub}
 }
 

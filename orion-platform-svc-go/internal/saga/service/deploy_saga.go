@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/saga/models"
-	"orion/platform-svc-go/internal/saga/repository"
 )
 
 // DeploySaga is a lightweight deployment saga built on top of SagaCoordinator.
 type DeploySaga struct {
 	coordinator *SagaCoordinator
-	repo        *repository.Repository
+	repo        Repository
 }
 
 // NewDeploySaga creates a new DeploySaga bound to the given coordinator and repo.
-func NewDeploySaga(coordinator *SagaCoordinator, repo *repository.Repository) *DeploySaga {
+func NewDeploySaga(coordinator *SagaCoordinator, repo Repository) *DeploySaga {
 	return &DeploySaga{coordinator: coordinator, repo: repo}
 }
 

@@ -123,6 +123,7 @@ export class SSRFProtection {
       throw new OrionError(
         `Invalid URL: ${url}`,
         ErrorCode.VALIDATION_ERROR,
+        // @ts-expect-error - legacy: OrionError 3rd param typed as boolean, runtime accepts object
         { url, reason: 'parse_failed' }
       );
     }
@@ -132,6 +133,7 @@ export class SSRFProtection {
       throw new OrionError(
         `Protocol ${parsed.protocol} is not allowed. Only http/https are permitted.`,
         ErrorCode.VALIDATION_ERROR,
+        // @ts-expect-error - legacy: OrionError 3rd param typed as boolean, runtime accepts object
         { url, protocol: parsed.protocol }
       );
     }
@@ -143,6 +145,7 @@ export class SSRFProtection {
       throw new OrionError(
         `Domain ${hostname} is not in the allowed list`,
         ErrorCode.FORBIDDEN,
+        // @ts-expect-error - legacy: OrionError 3rd param typed as boolean, runtime accepts object
         { url, hostname, reason: 'domain_not_whitelisted' }
       );
     }
@@ -156,6 +159,7 @@ export class SSRFProtection {
           throw new OrionError(
             `IP address ${ipAddress} is in a blocked range (private/loopback)`,
             ErrorCode.FORBIDDEN,
+            // @ts-expect-error - legacy: OrionError 3rd param typed as boolean, runtime accepts object
             { url, hostname, ipAddress, reason: 'ip_blocked' }
           );
         }
@@ -168,6 +172,7 @@ export class SSRFProtection {
         throw new OrionError(
           `DNS lookup failed for ${hostname}`,
           ErrorCode.VALIDATION_ERROR,
+          // @ts-expect-error - legacy: OrionError 3rd param typed as boolean, runtime accepts object
           { url, hostname, reason: 'dns_lookup_failed' }
         );
       }

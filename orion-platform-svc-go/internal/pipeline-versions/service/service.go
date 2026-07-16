@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-versions/models"
-	"orion/platform-svc-go/internal/pipeline-versions/repository"
 )
 
 var (
@@ -19,16 +18,31 @@ var (
 	ErrNoRollbackTarget = errors.New("no rollback target")
 )
 
-type Service struct {
-	repo *repository.Repository
+// Repository defines the persistence contract for pipeline versions.
+type Repository interface {
+	CreateVersion(ctx context.Context, v *models.Version) error
+	GetVersion(ctx context.Context, tenantID, id string) (*models.Version, error)
+	ListVersions(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error)
+	UpdateVersion(ctx context.Context, tenantID, id string, updates map[string]any) (*models.Version, error)
+	DeleteVersion(ctx context.Context, tenantID, id string) (bool, error)
+	ClearDefaultForPipeline(ctx context.Context, tenantID, pipelineID string) error
+	SetStatusPublished(ctx context.Context, tenantID, id string, publishedAt time.Time, isDefault bool) error
+	SetStatusDeprecated(ctx context.Context, tenantID, id string) error
+	ListPublishedVersions(ctx context.Context, tenantID, pipelineID string) ([]models.Version, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo Repository
+}
+
+// NewService creates a new Service instance.
+// It accepts *repository.Repository but stores it as the Repository interface.
+func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, ErrNotFound)
 }
 
 func IsBadRequest(err error) bool {

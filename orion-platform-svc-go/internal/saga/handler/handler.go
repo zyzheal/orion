@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -9,13 +10,26 @@ import (
 	"orion/platform-svc-go/internal/saga/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
-type Handler struct {
-	coordinator *service.SagaCoordinator
+// Coordinator defines the interface for saga coordinator operations used by the handler.
+// Extracted to enable testability with mock implementations.
+type Coordinator interface {
+	Start(ctx context.Context, tenantID string, req *models.CreateSagaRequest) (*models.SagaTransaction, error)
+	GetTransaction(ctx context.Context, tenantID, txID string) (*models.SagaTransaction, error)
+	ListTransactions(ctx context.Context, tenantID string, q models.ListSagasQuery) (*models.SagaListResponse, error)
+	Cancel(ctx context.Context, tenantID, txID string, reason string) (*models.SagaTransaction, error)
+	StartCompensation(ctx context.Context, tenantID, txID string, reason string) error
+	GetSteps(ctx context.Context, tenantID, txID string) ([]models.SagaStep, error)
+	GetStepByID(ctx context.Context, tenantID, stepID string) (*models.SagaStep, error)
 }
 
-func NewHandler(coordinator *service.SagaCoordinator) *Handler {
+type Handler struct {
+	coordinator Coordinator
+}
+
+func NewHandler(coordinator Coordinator) *Handler {
 	return &Handler{
 		coordinator: coordinator,
 	}
@@ -176,7 +190,7 @@ func respondSuccess(c *gin.Context, data interface{}) {
 }
 
 func respondCreated(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusCreated, data)
+	errors.WriteCreated(c, data)
 }
 
 func respondBadRequest(c *gin.Context, message string) {

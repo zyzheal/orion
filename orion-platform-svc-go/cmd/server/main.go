@@ -514,6 +514,7 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	"orion/go-common/pkg/errors"
 	orionlog "orion/go-common/pkg/logger"
 	"orion/go-common/pkg/middleware"
 	platmw "orion/platform-svc-go/internal/middleware"
@@ -687,9 +688,12 @@ import (
 	webhook_config_handler "orion/platform-svc-go/internal/webhook-config/handler"
 	webhook_config_repo "orion/platform-svc-go/internal/webhook-config/repository"
 	webhook_config_service "orion/platform-svc-go/internal/webhook-config/service"
-	webhook_secret_handler "orion/platform-svc-go/internal/webhook-secret/handler"
-	webhook_secret_repo "orion/platform-svc-go/internal/webhook-secret/repository"
-	webhook_secret_service "orion/platform-svc-go/internal/webhook-secret/service"
+		webhook_secret_handler "orion/platform-svc-go/internal/webhook-secret/handler"
+		webhook_secret_repo "orion/platform-svc-go/internal/webhook-secret/repository"
+		webhook_secret_service "orion/platform-svc-go/internal/webhook-secret/service"
+		webhook_store_handler "orion/platform-svc-go/internal/webhook/store/handler"
+		webhook_store_repo "orion/platform-svc-go/internal/webhook/store/repository"
+		webhook_store_service "orion/platform-svc-go/internal/webhook/store/service"
 	webhook_monitor_handler "orion/platform-svc-go/internal/webhook-monitor/handler"
 	webhook_monitor_repo "orion/platform-svc-go/internal/webhook-monitor/repository"
 	webhook_monitor_service "orion/platform-svc-go/internal/webhook-monitor/service"
@@ -1665,6 +1669,10 @@ func main() {
 	webhook_configSvc := webhook_config_service.NewService(webhook_configRepo)
 	webhook_configH := webhook_config_handler.NewHandler(webhook_configSvc)
 
+// webhook/store unified config store
+		webhook_storeRepo := webhook_store_repo.NewRepository(db.DB)
+		webhook_storeSvc := webhook_store_service.NewService(webhook_storeRepo)
+		webhook_storeH := webhook_store_handler.NewHandler(webhook_storeSvc)
 	// webhook-secret services
 	webhook_secretRepo := webhook_secret_repo.NewRepository(db.DB)
 	webhook_secretSvc := webhook_secret_service.NewService(webhook_secretRepo)
@@ -1775,7 +1783,7 @@ func main() {
 	permH := perm_handler.NewHandler(permSvc)
 
 	r := gin.New()
-	r.Use(middleware.Recovery(logger))
+	r.Use(errors.ErrorRecovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
 	r.Use(platmw.Tracing(platmw.TracingConfig{
@@ -1939,7 +1947,8 @@ func main() {
 	webhook_pipelineH.RegisterRoutes(rg)
 	webhook_deploymentH.RegisterRoutes(rg)
 	webhook_configH.RegisterRoutes(rg)
-	webhook_secretH.RegisterRoutes(rg)
+		webhook_storeH.RegisterRoutes(rg)
+		webhook_secretH.RegisterRoutes(rg)
 	webhook_monitorH.RegisterRoutes(rg)
 	webhook_incidentH.RegisterRoutes(rg)
 	webhook_ticketH.RegisterRoutes(rg)

@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/ai-review/models"
 	"orion/platform-svc-go/internal/ai-review/service"
 
@@ -34,10 +34,10 @@ func (h *Handler) ApproveReview(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Approve(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) CreateReview(c *gin.Context) {
@@ -45,15 +45,15 @@ func (h *Handler) CreateReview(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) GetReview(c *gin.Context) {
@@ -62,10 +62,10 @@ func (h *Handler) GetReview(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
@@ -77,10 +77,10 @@ func (h *Handler) ListReviews(c *gin.Context) {
 	q := models.ListReviewsQuery{Status: status, Limit: limit, Offset: offset}
 	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) RejectReview(c *gin.Context) {
@@ -89,8 +89,8 @@ func (h *Handler) RejectReview(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Reject(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

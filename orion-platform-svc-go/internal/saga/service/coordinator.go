@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/saga/models"
-	"orion/platform-svc-go/internal/saga/repository"
 )
 
 var (
@@ -17,13 +16,47 @@ var (
 	ErrInvalidStatus  = errors.New("invalid saga status for this operation")
 )
 
+// Repository defines the data-access interface used by SagaCoordinator, DeploySaga, and TransactionLog.
+type Repository interface {
+	// SagaTransaction operations
+	CreateTransaction(ctx context.Context, tx *models.SagaTransaction) error
+	GetTransaction(ctx context.Context, tenantID, txID string) (*models.SagaTransaction, error)
+	GetTransactionByRequestID(ctx context.Context, tenantID, requestID string) (*models.SagaTransaction, error)
+	UpdateTransactionStatus(ctx context.Context, tenantID, txID string, status models.SagaStatus, currentStep int, errMsg *string, completedAt *int64) error
+	ListTransactions(ctx context.Context, tenantID string, q models.ListSagasQuery) ([]models.SagaTransaction, error)
+	CountTransactions(ctx context.Context, tenantID string, status, sagaName string) (int, error)
+
+	// SagaStep operations
+	CreateStep(ctx context.Context, step *models.SagaStep) error
+	GetStepsByTransaction(ctx context.Context, tenantID, txID string) ([]models.SagaStep, error)
+	GetStep(ctx context.Context, tenantID, stepID string) (*models.SagaStep, error)
+	UpdateStepStatus(ctx context.Context, tenantID, stepID string, status models.SagaStepStatus, errMsg *string, output *string, retryCount int, completedAt *int64) error
+	UpdateStepCompensation(ctx context.Context, tenantID, stepID string, status models.SagaStepStatus, compensatedAt *int64) error
+	GetNextPendingStep(ctx context.Context, tenantID, txID string, currentStep int) (*models.SagaStep, error)
+}
+
+// Coordinator exposes the SagaCoordinator methods consumed by the HTTP handler.
+// It is deliberately separate from SagaCoordinator so that handler tests can inject a mock.
+type Coordinator interface {
+	Start(ctx context.Context, tenantID string, req *models.CreateSagaRequest) (*models.SagaTransaction, error)
+	GetTransaction(ctx context.Context, tenantID, txID string) (*models.SagaTransaction, error)
+	ListTransactions(ctx context.Context, tenantID string, q models.ListSagasQuery) (*models.SagaListResponse, error)
+	Cancel(ctx context.Context, tenantID, txID string, reason string) (*models.SagaTransaction, error)
+	StartCompensation(ctx context.Context, tenantID, txID string, reason string) error
+	GetSteps(ctx context.Context, tenantID, txID string) ([]models.SagaStep, error)
+	GetStepByID(ctx context.Context, tenantID, stepID string) (*models.SagaStep, error)
+}
+
+// verify at compile time
+var _ Coordinator = (*SagaCoordinator)(nil)
+
 // SagaCoordinator coordinates saga execution with compensation support.
 type SagaCoordinator struct {
-	repo    *repository.Repository
+	repo    Repository
 	timeout time.Duration
 }
 
-func NewSagaCoordinator(repo *repository.Repository) *SagaCoordinator {
+func NewSagaCoordinator(repo Repository) *SagaCoordinator {
 	return &SagaCoordinator{
 		repo:    repo,
 		timeout: 3600 * time.Second,

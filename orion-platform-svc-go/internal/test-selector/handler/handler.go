@@ -167,5 +167,5 @@ func (h *Handler) RunTestSuite(c *gin.Context) {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
         return
     }
-    c.JSON(http.StatusOK, gin.H{"ok": true, "message": "test suite run triggered"})
+    errors.WriteSuccess(c, gin.H{"ok": true, "message": "test suite run triggered"})
 }

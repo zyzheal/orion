@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/ai-agent/models"
 	"orion/platform-svc-go/internal/ai-agent/service"
 
@@ -35,15 +36,15 @@ func (h *Handler) CreateAgent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) DeleteAgent(c *gin.Context) {
@@ -51,10 +52,10 @@ func (h *Handler) DeleteAgent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) GetAgent(c *gin.Context) {
@@ -63,10 +64,10 @@ func (h *Handler) GetAgent(c *gin.Context) {
 id := c.Param("id")
 	result, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListAgents(c *gin.Context) {
@@ -78,10 +79,10 @@ func (h *Handler) ListAgents(c *gin.Context) {
 	q := models.ListAgentsQuery{Status: status, Limit: limit, Offset: offset}
 	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListRuns(c *gin.Context) {
@@ -92,10 +93,10 @@ func (h *Handler) ListRuns(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	result, err := h.svc.ListRuns(ctx, tenantID, agentID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) RunAgent(c *gin.Context) {
@@ -104,15 +105,15 @@ func (h *Handler) RunAgent(c *gin.Context) {
 	agentID := c.Param("id")
 	var req models.RunAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Run(ctx, tenantID, agentID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) UpdateAgent(c *gin.Context) {
@@ -121,13 +122,13 @@ func (h *Handler) UpdateAgent(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

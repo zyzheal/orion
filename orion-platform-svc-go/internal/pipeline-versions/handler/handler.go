@@ -1,6 +1,7 @@
 package handler
 
 import (
+        "context"
         "errors"
 
         "orion/go-common/pkg/auth"
@@ -10,11 +11,24 @@ import (
         "github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-        svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+        CreateVersion(ctx context.Context, tenantID, pipelineID string, req *models.CreateVersionRequest, createdBy string) (*models.Version, error)
+        GetVersion(ctx context.Context, tenantID, versionID string) (*models.Version, error)
+        ListVersions(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error)
+        UpdateVersion(ctx context.Context, tenantID, versionID string, req *models.UpdateVersionRequest) (*models.Version, error)
+        DeleteVersion(ctx context.Context, tenantID, versionID string) error
+        PublishVersion(ctx context.Context, tenantID, versionID string, req *models.PublishVersionRequest) (*models.Version, error)
+        DeprecateVersion(ctx context.Context, tenantID, versionID string) (*models.Version, error)
+        RollbackVersion(ctx context.Context, tenantID, pipelineID string, req *models.RollbackVersionRequest) (*models.Version, error)
+        CompareVersions(ctx context.Context, tenantID string, req *models.CompareVersionsRequest) (*models.CompareResult, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+        svc Service
+}
+
+func NewHandler(svc Service) *Handler {
         return &Handler{svc: svc}
 }
 

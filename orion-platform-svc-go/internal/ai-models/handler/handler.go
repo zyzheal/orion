@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/ai-models/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 // Handler exposes HTTP endpoints for AI model management.
@@ -185,7 +186,7 @@ func (h *Handler) DeleteModel(c *gin.Context) {
 		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{"ok": true})
+	c.Status(http.StatusNoContent)
 }
 
 // ListVersions lists versions for a model.
@@ -335,59 +336,32 @@ func (h *Handler) StopCanary(c *gin.Context) {
 		respondNotFound(c, err.Error())
 		return
 	}
-	c.JSON(http.StatusNoContent, gin.H{"ok": true})
+	c.Status(http.StatusNoContent)
 }
 
 // --- Response helpers ---
 
 // respondSuccess sends a 200 response with data.
 func respondSuccess(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusOK, gin.H{
-		"ok":   true,
-		"data": data,
-	})
+	errors.WriteSuccess(c, data)
 }
 
 // respondCreated sends a 201 response with data.
 func respondCreated(c *gin.Context, data interface{}) {
-	c.JSON(http.StatusCreated, gin.H{
-		"ok":   true,
-		"data": data,
-	})
+	errors.WriteCreated(c, data)
 }
 
 // respondBadRequest sends a 400 response with error message.
 func respondBadRequest(c *gin.Context, msg string) {
-	c.JSON(http.StatusBadRequest, gin.H{
-		"ok":    false,
-		"error": gin.H{
-			"code":    http.StatusBadRequest,
-			"type":    "BadRequest",
-			"message": msg,
-		},
-	})
+	errors.WriteError(c, errors.ErrBadRequest, msg, http.StatusBadRequest)
 }
 
 // respondNotFound sends a 404 response with error message.
 func respondNotFound(c *gin.Context, msg string) {
-	c.JSON(http.StatusNotFound, gin.H{
-		"ok":    false,
-		"error": gin.H{
-			"code":    http.StatusNotFound,
-			"type":    "NotFound",
-			"message": msg,
-		},
-	})
+	errors.WriteError(c, errors.ErrNotFound, msg, http.StatusNotFound)
 }
 
 // respondInternalError sends a 500 response with error message.
 func respondInternalError(c *gin.Context, msg string) {
-	c.JSON(http.StatusInternalServerError, gin.H{
-		"ok":    false,
-		"error": gin.H{
-			"code":    http.StatusInternalServerError,
-			"type":    "InternalError",
-			"message": msg,
-		},
-	})
+	errors.WriteError(c, errors.ErrInternal, msg, http.StatusInternalServerError)
 }

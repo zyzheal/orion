@@ -15,8 +15,27 @@ import (
 	"github.com/google/uuid"
 )
 
+// Repository defines the persistence contract for SBOM data.
+type Repository interface {
+	CreateSBOM(ctx context.Context, sbom *models.SBOMDocument) error
+	GetSBOM(ctx context.Context, id string, tenantID string) (*models.SBOMDocument, error)
+	ListSBOMs(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.SBOMDocument, int, error)
+	DeleteSBOM(ctx context.Context, id string, tenantID string) (bool, error)
+	CreateComponent(ctx context.Context, comp *models.SBOMComponent) error
+	ListComponents(ctx context.Context, sbomID string, tenantID string, offset, limit int) ([]models.SBOMComponent, int, error)
+	CountComponentsBySBOM(ctx context.Context, sbomID string, tenantID string) (int, error)
+	UpdateSBOMCounts(ctx context.Context, id string, tenantID string, compCount, vulnCount, licCount int) error
+	UpdateSBOMStatus(ctx context.Context, id string, tenantID string, status string) (*models.SBOMDocument, error)
+	ListVulnerabilities(ctx context.Context, sbomID string, tenantID string, severity *string, offset, limit int) ([]models.Vulnerability, int, error)
+	CreateVulnerability(ctx context.Context, vuln *models.Vulnerability) error
+	DistinctLicenses(ctx context.Context, sbomID string, tenantID string) ([]models.SBOMComponent, error)
+	CountComponentsByLicense(ctx context.Context, sbomID string, tenantID string, licenseID string) (int, error)
+	ListAttestations(ctx context.Context, sbomID string, tenantID string) ([]models.SBOMAttestation, error)
+	CreateAttestation(ctx context.Context, att *models.SBOMAttestation) error
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo Repository
 }
 
 func NewService(repo *repository.Repository) *Service {

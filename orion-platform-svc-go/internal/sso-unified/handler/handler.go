@@ -6,6 +6,7 @@ import (
         "orion/platform-svc-go/internal/sso-unified/service"
 
         "github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -30,12 +31,12 @@ func (h *Handler) CreateConfig(c *gin.Context) {
         tenantID := c.GetString("tenant_id")
         var req models.CreateSSOConfigRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         c.JSON(201, result)
@@ -45,10 +46,10 @@ func (h *Handler) ListConfigs(c *gin.Context) {
         tenantID := c.GetString("tenant_id")
         configs, err := h.svc.GetAll(c.Request.Context(), tenantID)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(200, gin.H{"data": configs})
+        errors.WriteSuccess(c, configs)
 }
 
 func (h *Handler) GetConfig(c *gin.Context) {
@@ -56,7 +57,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
         provider := c.Param("provider")
         config, err := h.svc.Get(c.Request.Context(), tenantID, provider)
         if err != nil {
-                c.JSON(404, gin.H{"error": "config not found"})
+                errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
         }
         c.JSON(200, config)
@@ -67,12 +68,12 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
         provider := c.Param("provider")
         var req models.UpdateSSOConfigRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                c.JSON(400, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
         result, err := h.svc.Update(c.Request.Context(), tenantID, provider, &req)
         if err != nil {
-                c.JSON(404, gin.H{"error": "config not found"})
+                errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
         }
         c.JSON(200, result)
@@ -83,12 +84,12 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
         provider := c.Param("provider")
         deleted, err := h.svc.Delete(c.Request.Context(), tenantID, provider)
         if err != nil {
-                c.JSON(500, gin.H{"error": err.Error()})
+                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
         if !deleted {
-                c.JSON(404, gin.H{"error": "config not found"})
+                errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
         }
-        c.JSON(200, gin.H{"message": "config deleted"})
+        errors.WriteSuccess(c, gin.H{"message": "config deleted"})
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -10,10 +11,27 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	ListSBOMs(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.SBOMDocument, int, error)
+	GenerateSBOM(ctx context.Context, req *models.GenerateSBOMRequest, tenantID string) (*models.SBOMDocument, error)
+	GetSBOM(ctx context.Context, id string, tenantID string) (*models.SBOMDocument, error)
+	DeleteSBOM(ctx context.Context, id string, tenantID string) (bool, error)
+	ListComponents(ctx context.Context, sbomID string, tenantID string, offset, limit int) ([]models.SBOMComponent, int, error)
+	ListVulnerabilities(ctx context.Context, sbomID string, tenantID string, severity *string, offset, limit int) ([]models.Vulnerability, int, error)
+	ScanSBOM(ctx context.Context, id string, tenantID string, req *models.ScanRequest) (*models.SBOMDocument, error)
+	GetLicenses(ctx context.Context, sbomID string, tenantID string) ([]models.LicenseInfo, error)
+	ListAttestations(ctx context.Context, sbomID string, tenantID string) ([]models.SBOMAttestation, error)
+	CreateAttestation(ctx context.Context, sbomID string, tenantID string, req *models.CreateAttestationRequest) (*models.SBOMAttestation, error)
+	ExportSBOM(ctx context.Context, id string, tenantID string, format string) (*models.ExportResponse, error)
+	CompareSBOMs(ctx context.Context, fromID, toID, tenantID string) (*models.SBOMComparison, error)
 }
 
+type Handler struct {
+	svc Service
+}
+
+// NewHandler creates a new Handler bound to the SBOM service.
 func NewHandler(svc *service.Service) *Handler {
 	return &Handler{svc: svc}
 }

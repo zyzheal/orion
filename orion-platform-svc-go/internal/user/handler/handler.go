@@ -126,7 +126,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 // Count returns the total number of users for the tenant.
@@ -172,5 +172,5 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	errors.WriteSuccess(c, gin.H{"ok": true})
 }

@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/mcp/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -34,15 +35,15 @@ func (h *Handler) CreateServer(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateMCPServerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.CreateServer(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) DeleteServer(c *gin.Context) {
@@ -50,10 +51,10 @@ func (h *Handler) DeleteServer(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteServer(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) GetServer(c *gin.Context) {
@@ -62,10 +63,10 @@ func (h *Handler) GetServer(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetServer(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-c.JSON(http.StatusOK, result)
+errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListServers(c *gin.Context) {
@@ -76,10 +77,10 @@ func (h *Handler) ListServers(c *gin.Context) {
 q := models.ListMCPServersQuery{Limit: limit, Offset: offset}
 result, err := h.svc.ListServers(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListTools(c *gin.Context) {
@@ -89,10 +90,10 @@ func (h *Handler) ListTools(c *gin.Context) {
 q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListTools(ctx, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) UpdateServer(c *gin.Context) {
@@ -101,13 +102,13 @@ func (h *Handler) UpdateServer(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateMCPServerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.UpdateServer(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

@@ -17,6 +17,7 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/database"
+	"orion/go-common/pkg/errors"
 	"orion/go-common/pkg/middleware"
 	redis "orion/go-common/pkg/redis"
 
@@ -79,7 +80,7 @@ func main() {
 
 	// Setup gin router
 	r := gin.New()
-	r.Use(middleware.Recovery(nil))
+	r.Use(errors.ErrorRecovery(nil))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(nil))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -10,11 +11,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-	svc *service.Service
+// ResilienceService defines the service interface used by Handler.
+type ResilienceService interface {
+	GetGlobalScore(ctx context.Context, tenantID string) (*models.GlobalResilienceScore, error)
+	ListServiceScores(ctx context.Context, tenantID string, q models.ListQuery) (*models.PaginatedResponse, error)
+	GetServiceScore(ctx context.Context, tenantID, name string) (*models.ServiceResilienceScore, error)
+	ListHistory(ctx context.Context, tenantID string, q models.ListQuery) (*models.PaginatedResponse, error)
+	ListRecommendations(ctx context.Context, tenantID string, q models.ListQuery, priority, component string) (*models.PaginatedResponse, error)
+	Assess(ctx context.Context, tenantID string, req models.AssessResilienceRequest) (any, error)
+	GetComponentScores(ctx context.Context, tenantID string) ([]models.ComponentScoreBreakdown, error)
+	CreateBenchmark(ctx context.Context, tenantID string, req models.CreateBenchmarkRequest) (*models.ResilienceBenchmark, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+var _ ResilienceService = (*service.Service)(nil)
+
+type Handler struct {
+	svc ResilienceService
+}
+
+func NewHandler(svc ResilienceService) *Handler {
 	return &Handler{svc: svc}
 }
 

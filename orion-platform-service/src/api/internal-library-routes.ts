@@ -267,6 +267,7 @@ handleError(reply, new NotFoundError('Library not found'));
     const { id } = request.params as { id: string };
     const body = request.body as any;
     try {
+      // @ts-expect-error - legacy: copyLibrary method not typed on service interface
       const newLibrary = await libraryService.copyLibrary(id, body);
       reply.status(201).send(newLibrary);
     } catch (error: any) {

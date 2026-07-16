@@ -8,11 +8,17 @@ import (
 	"orion/platform-svc-go/internal/pipeline-run-history/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// Repository defines the data access contract needed by Service.
+type Repository interface {
+	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, error)
+	CountRunHistory(ctx context.Context, pipelineID string, tenantID string) (int, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo Repository
+}
+
+func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 

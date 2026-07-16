@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -9,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/disaster-recovery/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -34,15 +34,15 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDisasterPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.CreatePlan(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
@@ -51,10 +51,10 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetPlan(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListPlans(c *gin.Context) {
@@ -64,10 +64,10 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	result, err := h.svc.ListPlans(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
@@ -76,15 +76,15 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDisasterPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.UpdatePlan(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) RunPlan(c *gin.Context) {
@@ -93,10 +93,10 @@ func (h *Handler) RunPlan(c *gin.Context) {
 	planID := c.Param("id")
 	result, err := h.svc.RunPlan(ctx, tenantID, planID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListRuns(c *gin.Context) {
@@ -105,8 +105,8 @@ func (h *Handler) ListRuns(c *gin.Context) {
 	planID := c.Param("id")
 	result, err := h.svc.ListRuns(ctx, tenantID, planID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

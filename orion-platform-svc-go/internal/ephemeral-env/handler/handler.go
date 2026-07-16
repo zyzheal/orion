@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/ephemeral-env/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -35,15 +36,15 @@ func (h *Handler) CreateEnv(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEphemeralEnvRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.CreateEnv(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) DeleteEnv(c *gin.Context) {
@@ -51,10 +52,10 @@ func (h *Handler) DeleteEnv(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteEnv(ctx, tenantID, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) DestroyEnv(c *gin.Context) {
@@ -63,10 +64,10 @@ func (h *Handler) DestroyEnv(c *gin.Context) {
 id := c.Param("id")
 result, err := h.svc.DestroyEnv(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-c.JSON(http.StatusOK, result)
+errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ExtendTTL(c *gin.Context) {
@@ -75,15 +76,15 @@ func (h *Handler) ExtendTTL(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ExtendTTLRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.ExtendTTL(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) GetEnv(c *gin.Context) {
@@ -92,10 +93,10 @@ func (h *Handler) GetEnv(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetEnv(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) GetLogs(c *gin.Context) {
@@ -105,10 +106,10 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	result, err := h.svc.GetLogs(ctx, tenantID, envID, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListEnvs(c *gin.Context) {
@@ -118,8 +119,8 @@ func (h *Handler) ListEnvs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	result, err := h.svc.ListEnvs(ctx, tenantID, limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

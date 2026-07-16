@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/runbook/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -29,10 +30,10 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": items, "total": len(items)})
+	errors.WriteSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -40,25 +41,25 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "not found"})
+		errors.WriteError(c, errors.ErrNotFound, "not found", 404)
 		return
 	}
-	c.JSON(200, gin.H{"data": item})
+	errors.WriteSuccess(c, item)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRunbookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(201, gin.H{"data": item})
+	errors.WriteCreated(c, item)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -66,23 +67,23 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRunbookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": item})
+	errors.WriteSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"message": "deleted"})
+	errors.WriteSuccess(c, gin.H{"message": "deleted"})
 }

@@ -204,6 +204,7 @@ export default async function featureFlagRoutes(
       const flags = await service.listFlags(tenantId, {
         status: query.status,
         environment: query.environment,
+        // @ts-expect-error - legacy: 'q' field not in typed listFlags options, runtime property only
         q: query.q,
       });
       return reply.status(200).send({ success: true, data: flags });

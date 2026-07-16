@@ -7,21 +7,28 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-sse/models"
-	"orion/platform-svc-go/internal/pipeline-sse/repository"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
+// Repository defines the data-access interface needed by SSEHub.
+// Extracted from *repository.Repository so tests can use a mock.
+type Repository interface {
+	CreateLogEvent(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
+	CreateStatusEvent(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
+	ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+}
+
 // SSEHub manages in-memory SSE connections and event broadcasting.
 type SSEHub struct {
 	mu          sync.RWMutex
 	connections map[string]*models.SSEConnection
-	repo        *repository.Repository
+	repo        Repository
 }
 
 // NewSSEHub creates a new SSEHub.
-func NewSSEHub(repo *repository.Repository) *SSEHub {
+func NewSSEHub(repo Repository) *SSEHub {
 	return &SSEHub{
 		connections: make(map[string]*models.SSEConnection),
 		repo:       repo,

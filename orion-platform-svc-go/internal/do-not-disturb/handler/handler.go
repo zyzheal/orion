@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/do-not-disturb/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/errors"
 )
 
 type Handler struct {
@@ -30,12 +31,12 @@ func (h *Handler) Create(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateDoNotDisturbRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(201, result)
@@ -46,7 +47,7 @@ func (h *Handler) Get(c *gin.Context) {
 	userID := c.GetString("user_id")
 	result, err := h.svc.Get(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "dnd schedule not found"})
+		errors.WriteError(c, errors.ErrNotFound, "dnd schedule not found", 404)
 		return
 	}
 	c.JSON(200, result)
@@ -57,12 +58,12 @@ func (h *Handler) Update(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.UpdateDoNotDisturbRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.Update(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(200, result)
@@ -73,7 +74,7 @@ func (h *Handler) IsActive(c *gin.Context) {
 	userID := c.GetString("user_id")
 	active, err := h.svc.IsActive(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
 	c.JSON(200, gin.H{"active": active})

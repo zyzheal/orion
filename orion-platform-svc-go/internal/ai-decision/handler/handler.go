@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/ai-decision/models"
 	"orion/platform-svc-go/internal/ai-decision/service"
 
@@ -34,10 +34,10 @@ func (h *Handler) GetDecision(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) GetDecisionStats(c *gin.Context) {
@@ -45,10 +45,10 @@ func (h *Handler) GetDecisionStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListDecisions(c *gin.Context) {
@@ -60,10 +60,10 @@ func (h *Handler) ListDecisions(c *gin.Context) {
 q := models.ListDecisionsQuery{Status: status, Limit: limit, Offset: offset}
 	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) MakeDecision(c *gin.Context) {
@@ -71,15 +71,15 @@ func (h *Handler) MakeDecision(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.MakeDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.MakeDecision(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusCreated, result)
+	errors.WriteCreated(c, result)
 }
 
 func (h *Handler) OverrideDecision(c *gin.Context) {
@@ -88,13 +88,13 @@ func (h *Handler) OverrideDecision(c *gin.Context) {
 	id := c.Param("id")
 	var req models.OverrideDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.OverrideDecision(ctx, tenantID, id, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, result)
+	errors.WriteSuccess(c, result)
 }

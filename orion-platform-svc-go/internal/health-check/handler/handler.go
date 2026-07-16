@@ -51,10 +51,10 @@ func (h *Handler) ListChecks(c *gin.Context) {
 	ctx := c.Request.Context()
 	checks, err := h.svc.List(ctx, tenantID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": checks})
+	respondSuccess(c, checks)
 }
 
 func (h *Handler) GetCheck(c *gin.Context) {
@@ -62,14 +62,14 @@ func (h *Handler) GetCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	check, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
 	if check == nil {
-		c.JSON(404, gin.H{"error": "health check not found"})
+		respondNotFound(c, "health check not found")
 		return
 	}
-	c.JSON(200, gin.H{"data": check})
+	respondSuccess(c, check)
 }
 
 func (h *Handler) CreateCheck(c *gin.Context) {
@@ -77,19 +77,19 @@ func (h *Handler) CreateCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		c.JSON(400, gin.H{"error": "invalid check type"})
+		respondBadRequest(c, "invalid check type")
 		return
 	}
 	id, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(201, gin.H{"data": gin.H{"id": id}})
+	respondCreated(c, gin.H{"id": id})
 }
 
 func (h *Handler) UpdateCheck(c *gin.Context) {
@@ -97,28 +97,28 @@ func (h *Handler) UpdateCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		c.JSON(400, gin.H{"error": "invalid check type"})
+		respondBadRequest(c, "invalid check type")
 		return
 	}
 	if err := h.svc.Update(ctx, tenantID, c.Param("id"), req); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"message": "health check updated"})
+	respondSuccess(c, gin.H{"message": "health check updated"})
 }
 
 func (h *Handler) DeleteCheck(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	ctx := c.Request.Context()
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"message": "health check deleted"})
+	respondSuccess(c, gin.H{"message": "health check deleted"})
 }
 
 func (h *Handler) ExecuteCheck(c *gin.Context) {
@@ -130,13 +130,13 @@ func (h *Handler) ExecuteCheck(c *gin.Context) {
 	result, err := h.svc.ExecuteCheck(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
-			c.JSON(404, gin.H{"error": "health check not found"})
+			respondNotFound(c, "health check not found")
 		} else {
-			c.JSON(500, gin.H{"error": err.Error()})
+			respondInternalError(c, err.Error())
 		}
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) ExecuteAll(c *gin.Context) {
@@ -145,28 +145,28 @@ func (h *Handler) ExecuteAll(c *gin.Context) {
 
 	result, err := h.svc.ExecuteAll(ctx, tenantID)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	respondSuccess(c, result)
 }
 
 func (h *Handler) QuickCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.QuickHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		respondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		c.JSON(400, gin.H{"error": "invalid check type"})
+		respondBadRequest(c, "invalid check type")
 		return
 	}
 
 	result, err := h.svc.QuickCheck(ctx, req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		respondInternalError(c, err.Error())
 		return
 	}
-	c.JSON(200, gin.H{"data": result})
+	respondSuccess(c, result)
 }

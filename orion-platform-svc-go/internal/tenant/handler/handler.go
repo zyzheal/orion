@@ -163,7 +163,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) Split(c *gin.Context) {
@@ -408,7 +408,7 @@ func (h *Handler) RemoveUser(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"ok": true})
+	errors.WriteSuccess(c, gin.H{"ok": true})
 }
 
 // ==================== Invitations ====================
