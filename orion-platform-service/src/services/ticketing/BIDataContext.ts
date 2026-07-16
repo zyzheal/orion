@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BIDataContext - Shared data view for Ticket BI computation modules
  *

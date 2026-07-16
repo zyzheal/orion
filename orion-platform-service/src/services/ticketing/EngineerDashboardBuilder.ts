@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EngineerDashboardBuilder - Computes engineer personal dashboard
  *

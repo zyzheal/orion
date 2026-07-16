@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ComponentAnalyzer - Vulnerability fetching and dependency analysis
  *

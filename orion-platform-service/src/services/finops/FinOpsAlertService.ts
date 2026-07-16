@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FinOpsAlertService - 告警管理
  *

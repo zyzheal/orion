@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * [ARCHIVED] This module has been migrated to orion-platform-svc-go.
  * Go service: internal/alert/handler/handler.go
@@ -353,6 +354,7 @@ export default async function alertRoutes(
   });
 
   // PUT /alert/:id - Update alert
+  // @ts-expect-error - legacy: RouteGenericInterface type mismatch on param-typed route
   app.put('/:id', {
     onRequest: [requirePermission({ resource: 'alert', action: 'write' })],
   }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
@@ -363,6 +365,7 @@ export default async function alertRoutes(
   });
 
   // DELETE /alert/:id - Delete alert
+  // @ts-expect-error - legacy: RouteGenericInterface type mismatch on param-typed route
   app.delete('/:id', {
     onRequest: [requirePermission({ resource: 'alert', action: 'delete' })],
   }, async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {

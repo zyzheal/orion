@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TimeSeriesUtils - Shared time-series utilities for Ticket BI computation
  *

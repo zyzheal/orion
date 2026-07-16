@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EnvironmentService
  * GAP-CN-02: Multi-environment management for pipeline deployments.

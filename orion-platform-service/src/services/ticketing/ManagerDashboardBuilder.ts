@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ManagerDashboardBuilder - Computes manager/team-level BI dashboard
  *

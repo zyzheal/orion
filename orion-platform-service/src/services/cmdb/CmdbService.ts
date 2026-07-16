@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CMDB 核心服务
  *

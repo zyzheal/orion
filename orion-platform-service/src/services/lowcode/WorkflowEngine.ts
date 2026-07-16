@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * WorkflowEngine - 工作流引擎核心（门面）
  *

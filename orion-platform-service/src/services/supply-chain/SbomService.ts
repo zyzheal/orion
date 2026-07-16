@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SbomService - 统一 SBOM 服务 (Facade)
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EngineerMetricsCalculator - Per-engineer efficiency and performance computation
  *

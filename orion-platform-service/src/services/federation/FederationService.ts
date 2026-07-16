@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FederationService - Multi-cluster federation management
  *

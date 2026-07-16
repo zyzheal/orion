@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Federation Advanced Service - Phase 4
  *

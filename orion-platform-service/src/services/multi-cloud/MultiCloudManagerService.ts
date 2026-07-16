@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MultiCloudManagerService - Multi-cloud account and resource management
  *

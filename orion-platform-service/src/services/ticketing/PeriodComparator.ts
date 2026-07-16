@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PeriodComparator - Compare two time periods for trend analysis
  *

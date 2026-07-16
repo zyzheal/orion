@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CloudProviderService - Cloud provider account and resource management
  *

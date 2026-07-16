@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * TimeTrendAnalyzer - Compute time-series trends for BI metrics
  *

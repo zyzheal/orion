@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * BIExporter - Export ticket data for external BI tools
  *

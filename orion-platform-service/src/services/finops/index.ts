@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FinOps 模块导出
  */

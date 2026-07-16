@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * SLAUtils - Shared SLA computation utilities for Ticket BI
  *

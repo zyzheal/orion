@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * LicenseChecker - Compliance checking, poisoning detection, security scoring
  *

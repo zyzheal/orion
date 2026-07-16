@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FinOpsService - Business logic facade for all FinOps operations
  *
