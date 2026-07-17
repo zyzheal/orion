@@ -1,7 +1,6 @@
 package events
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -38,95 +37,45 @@ type DomainEvent interface {
 
 // BaseDomainEvent provides common fields for all domain events.
 // Embed this struct in concrete event types to automatically satisfy DomainEvent.
-// Unexported fields use custom MarshalJSON/UnmarshalJSON for serialization.
+// Fields are exported with json tags so concrete event fields serialize correctly.
+// Field names differ from getter method names to avoid Go compilation conflicts.
 type BaseDomainEvent struct {
-	aggregateType string
-	aggregateID   string
-	eventType     string
-	tenantID      string
-	occurredAt    time.Time
-	version       int
-	CorrelationID string `json:"correlation_id"`
-	CausationID   string `json:"causation_id"`
-}
-
-// MarshalJSON implements json.Marshaler for BaseDomainEvent so that
-// unexported fields are included in serialization.
-func (e BaseDomainEvent) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"aggregate_type": e.aggregateType,
-		"aggregate_id":   e.aggregateID,
-		"event_type":     e.eventType,
-		"tenant_id":      e.tenantID,
-		"occurred_at":    e.occurredAt,
-		"version":        e.version,
-		"correlation_id": e.CorrelationID,
-		"causation_id":   e.CausationID,
-	})
-}
-
-// UnmarshalJSON implements json.Unmarshaler for BaseDomainEvent.
-func (e *BaseDomainEvent) UnmarshalJSON(data []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	if v, ok := raw["aggregate_type"].(string); ok {
-		e.aggregateType = v
-	}
-	if v, ok := raw["aggregate_id"].(string); ok {
-		e.aggregateID = v
-	}
-	if v, ok := raw["event_type"].(string); ok {
-		e.eventType = v
-	}
-	if v, ok := raw["tenant_id"].(string); ok {
-		e.tenantID = v
-	}
-	if v, ok := raw["occurred_at"].(string); ok {
-		t, err := time.Parse(time.RFC3339Nano, v)
-		if err == nil {
-			e.occurredAt = t
-		}
-	}
-	if v, ok := raw["version"].(float64); ok {
-		e.version = int(v)
-	}
-	if v, ok := raw["correlation_id"].(string); ok {
-		e.CorrelationID = v
-	}
-	if v, ok := raw["causation_id"].(string); ok {
-		e.CausationID = v
-	}
-	return nil
+	BaseAggregateType string    `json:"aggregate_type"`
+	BaseAggregateID   string    `json:"aggregate_id"`
+	BaseEventType     string    `json:"event_type"`
+	BaseTenantID      string    `json:"tenant_id"`
+	BaseOccurredAt    time.Time `json:"occurred_at"`
+	BaseVersion       int       `json:"version"`
+	CorrelationID     string    `json:"correlation_id"`
+	CausationID       string    `json:"causation_id"`
 }
 
 // AggregateType returns the aggregate type.
-func (e *BaseDomainEvent) AggregateType() string { return e.aggregateType }
+func (e *BaseDomainEvent) AggregateType() string { return e.BaseAggregateType }
 
 // AggregateID returns the aggregate ID.
-func (e *BaseDomainEvent) AggregateID() string { return e.aggregateID }
+func (e *BaseDomainEvent) AggregateID() string { return e.BaseAggregateID }
 
 // EventType returns the event type identifier.
-func (e *BaseDomainEvent) EventType() string { return e.eventType }
+func (e *BaseDomainEvent) EventType() string { return e.BaseEventType }
 
 // TenantID returns the tenant ID.
-func (e *BaseDomainEvent) TenantID() string { return e.tenantID }
+func (e *BaseDomainEvent) TenantID() string { return e.BaseTenantID }
 
 // OccurredAt returns the event occurrence time.
-func (e *BaseDomainEvent) OccurredAt() time.Time { return e.occurredAt }
+func (e *BaseDomainEvent) OccurredAt() time.Time { return e.BaseOccurredAt }
 
 // Version returns the event version number.
-func (e *BaseDomainEvent) Version() int { return e.version }
+func (e *BaseDomainEvent) Version() int { return e.BaseVersion }
 
 // SetAggregateID sets the aggregate ID (called by aggregate when adding the event).
-func (e *BaseDomainEvent) SetAggregateID(id string) { e.aggregateID = id }
+func (e *BaseDomainEvent) SetAggregateID(id string) { e.BaseAggregateID = id }
 
 // SetTenantID sets the tenant ID (called by aggregate when adding the event).
-func (e *BaseDomainEvent) SetTenantID(tenantID string) { e.tenantID = tenantID }
+func (e *BaseDomainEvent) SetTenantID(tenantID string) { e.BaseTenantID = tenantID }
 
 // SetVersion sets the event version (called by aggregate when adding the event).
-func (e *BaseDomainEvent) SetVersion(v int) { e.version = v }
+func (e *BaseDomainEvent) SetVersion(v int) { e.BaseVersion = v }
 
 // NewBaseDomainEvent creates a new BaseDomainEvent with the given parameters.
 func NewBaseDomainEvent(
@@ -134,11 +83,11 @@ func NewBaseDomainEvent(
 	occurredAt time.Time, version int,
 ) BaseDomainEvent {
 	return BaseDomainEvent{
-		aggregateType: aggregateType,
-		aggregateID:   aggregateID,
-		eventType:     eventType,
-		tenantID:      tenantID,
-		occurredAt:    occurredAt,
-		version:       version,
+		BaseAggregateType: aggregateType,
+		BaseAggregateID:   aggregateID,
+		BaseEventType:     eventType,
+		BaseTenantID:      tenantID,
+		BaseOccurredAt:    occurredAt,
+		BaseVersion:       version,
 	}
 }
