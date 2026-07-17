@@ -125,3 +125,80 @@ func (r *Repository) UpdateRunStatus(ctx context.Context, tenantID, runID, statu
 		`UPDATE chaos_experiment_runs SET status=$1, updated_at=NOW() WHERE id=$2 AND tenant_id=$3`, status, runID, tenantID)
 	return err
 }
+
+// --- Fault Injection Records ---
+
+func (r *Repository) CreateInjection(ctx context.Context, rec *models.InjectionRecord) error {
+	now := time.Now().UTC()
+	rec.ID = uuid.New().String()
+	rec.CreatedAt = now
+	rec.UpdatedAt = now
+	if rec.Status == "" {
+		rec.Status = "pending"
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO chaos_injections (id, tenant_id, experiment_id, injection_id, fault_type,
+			target, config_json, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		rec.ID, rec.TenantID, rec.ExperimentID, rec.InjectionID, rec.FaultType,
+		rec.Target, rec.ConfigJSON, rec.Status, rec.CreatedAt, rec.UpdatedAt)
+	return err
+}
+
+func (r *Repository) UpdateInjectionStatus(ctx context.Context, tenantID, injectionID, status string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chaos_injections SET status=$1, updated_at=NOW() WHERE injection_id=$2 AND tenant_id=$3`,
+		status, injectionID, tenantID)
+	return err
+}
+
+func (r *Repository) GetInjection(ctx context.Context, tenantID, injectionID string) (*models.InjectionRecord, error) {
+	var rec models.InjectionRecord
+	err := r.db.GetContext(ctx, &rec,
+		`SELECT * FROM chaos_injections WHERE injection_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT 1`,
+		injectionID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
+func (r *Repository) ListInjectionsByExperiment(ctx context.Context, tenantID, experimentID string) ([]models.InjectionRecord, error) {
+	var items []models.InjectionRecord
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM chaos_injections WHERE tenant_id=$1 AND experiment_id=$2 ORDER BY created_at DESC`,
+		tenantID, experimentID)
+	return items, err
+}
+
+// --- Recovery Records ---
+
+func (r *Repository) CreateRecovery(ctx context.Context, rec *models.RecoveryRecord) error {
+	now := time.Now().UTC()
+	rec.ID = uuid.New().String()
+	rec.CreatedAt = now
+	rec.UpdatedAt = now
+	if rec.Status == "" {
+		rec.Status = "recovering"
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO chaos_recoveries (id, tenant_id, experiment_id, status, message, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		rec.ID, rec.TenantID, rec.ExperimentID, rec.Status, rec.Message, rec.CreatedAt, rec.UpdatedAt)
+	return err
+}
+
+func (r *Repository) UpdateRecoveryStatus(ctx context.Context, tenantID, experimentID, status, message string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chaos_recoveries SET status=$1, message=$2, updated_at=NOW() WHERE experiment_id=$3 AND tenant_id=$4`,
+		status, message, experimentID, tenantID)
+	return err
+}
+
+func (r *Repository) ListRecoveriesByExperiment(ctx context.Context, tenantID, experimentID string) ([]models.RecoveryRecord, error) {
+	var items []models.RecoveryRecord
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM chaos_recoveries WHERE tenant_id=$1 AND experiment_id=$2 ORDER BY created_at DESC`,
+		tenantID, experimentID)
+	return items, err
+}
