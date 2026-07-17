@@ -107,6 +107,10 @@ func (m *mockAuditRepo) CoverageStats(_ context.Context, tenantID string) (model
 
 func (m *mockAuditRepo) key(tenantID, id string) string { return tenantID + ":" + id }
 
+func newMockAuditRepo() *mockAuditRepo {
+	return &mockAuditRepo{logs: map[string]*models.AuditLog{}}
+}
+
 // --- Tests ---
 
 func TestAuditErrNotFound(t *testing.T) {

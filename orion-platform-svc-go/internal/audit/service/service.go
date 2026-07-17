@@ -16,11 +16,11 @@ import (
 
 // Service provides business logic for the audit module.
 type Service struct {
-	repo *repository.Repository
+	repo auditRepo
 }
 
-// NewService creates a new Service backed by the given Repository.
-func NewService(repo *repository.Repository) *Service {
+// NewService creates a new Service backed by the given Repository interface.
+func NewService(repo auditRepo) *Service {
 	return &Service{repo: repo}
 }
 

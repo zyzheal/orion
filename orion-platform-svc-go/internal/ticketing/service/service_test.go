@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 	"time"
-	"unsafe"
 
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
@@ -61,11 +60,11 @@ func newMockTicketRepo() *mockTicketRepo {
 		relations:     []models.TicketRelation{},
 		assignmentRules: []models.AssignmentRule{},
 		automationRules: []models.AutomationRule{},
-		slaPolicies:   []models.SLAPolicy{},
+		slaPolicies:     []models.SLAPolicy{},
+		serviceActive:   true,
 		countByStatus: make(map[string]int),
 		countByPriority: make(map[string]int),
 		countByCategory: make(map[string]int),
-		serviceActive: true,
 	}
 }
 
@@ -164,6 +163,10 @@ func (m *mockTicketRepo) AssignTicket(_ context.Context, _tenantID, id, assignee
 		t.Status = "assigned"
 		t.UpdatedAt = time.Now().UTC()
 	}
+	return nil
+}
+
+func (m *mockTicketRepo) CreateAssignment(_ context.Context, _tenantID, _ticketID, _assignee, _assignedBy, _reason string) error {
 	return nil
 }
 
@@ -614,10 +617,7 @@ func (m *mockTicketRepo) SetServiceActive(_ context.Context, _tenantID string, a
 // ============================================================================
 
 func newTestService(repo *mockTicketRepo) *Service {
-	svc := NewService(nil)
-	// Unsafe pointer cast: mockTicketRepo -> repository.Repository
-	svc.repo = (*repository.Repository)(unsafe.Pointer(repo))
-	return svc
+	return &Service{repo: repo}
 }
 
 // seedTicket creates a ticket and returns its ID
@@ -696,15 +696,15 @@ func TestService_CreateTicket_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if repo.GetTicket(context.Background(), "t1", "gen-test ticket").Title != "test ticket" {
+	got, err := repo.GetTicket(context.Background(), "t1", "gen-test ticket")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Title != "test ticket" {
 		t.Errorf("expected title 'test ticket', got mismatch")
 	}
-}
-	if result.Priority != "high" {
-		t.Errorf("expected priority 'high', got %s", result.Priority)
-	}
-}
 
+	}
 func TestService_CreateTicket_DefaultPriority(t *testing.T) {
 	repo := newMockTicketRepo()
 	svc := newTestService(repo)
