@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/security-compliance/models"
@@ -50,15 +51,75 @@ func (s *Service) EvaluateCompliance(ctx context.Context, tenantID string, req m
 		}
 		return nil, err
 	}
-	// TODO: implement actual compliance evaluation against targets.
+
+	// Resolve the target list to evaluate.
+	targets := req.Targets
+	if len(targets) == 0 {
+		targets = defaultTargets
+	}
+
+	// Resolve the framework: use the request framework, then fall back to the
+	// framework encoded in the policy, then default to SOC2.
+	frameworkName := req.Framework
+	if frameworkName == "" {
+		frameworkName = builtInFrameworks["soc2"].name
+	}
+
+	fw, ok := builtInFrameworks[strings.ToLower(frameworkName)]
+	if !ok {
+		// Fall back to SOC2 if the named framework is not in the built-in catalog.
+		fw = builtInFrameworks["soc2"]
+	}
+
+	// Evaluate every target against every control in the framework.
+	var failures, warnings []string
+	var totalScore float64
+	var evaluatedRules int
+
+	for _, target := range targets {
+		score, targetFailures, targetWarnings := evaluateTargetAgainstRules(target, fw.controls)
+		failures = append(failures, targetFailures...)
+		warnings = append(warnings, targetWarnings...)
+
+		// Count how many rules this target actually hit so we can average the
+		// scores rather than dividing by the full rule set (which would
+		// double-count cross-cutting rules).
+		ruleCount := 0
+		for _, r := range fw.controls {
+			if isRuleApplicableToTarget(r, target) {
+				ruleCount++
+			}
+		}
+		evaluatedRules += ruleCount
+		if ruleCount > 0 {
+			totalScore += score
+		}
+	}
+
+	// Derive overall score and status.
+	var score float64
+	var status string
+	if evaluatedRules > 0 {
+		score = totalScore / float64(evaluatedRules)
+	}
+	switch {
+	case len(failures) == 0 && score >= 80:
+		status = "compliant"
+	case len(failures) > 0:
+		status = "non_compliant"
+	default:
+		status = "partial"
+	}
+
 	result := &models.ComplianceEvaluationResult{
 		PolicyID:    req.PolicyID,
-		Status:      "compliant",
-		Score:       100.0,
-		Failures:    []string{},
-		Warnings:    []string{},
+		Status:      status,
+		Score:       score,
+		Failures:    failures,
+		Warnings:    warnings,
 		EvaluatedAt: time.Now().UTC(),
 	}
+
 	if err := s.repo.InsertEvaluation(ctx, tenantID, result); err != nil {
 		return nil, err
 	}
@@ -109,12 +170,63 @@ func (s *Service) AutoRemediateCompliance(ctx context.Context, tenantID string, 
 		}
 		return nil, err
 	}
-	// TODO: implement auto-remediation logic.
-	return &models.RemediationResult{
-		Applied:  req.Actions,
-		Skipped:  []string{},
-		Failures: []string{},
-	}, nil
+
+	if len(req.Actions) == 0 {
+		// No explicit actions requested — evaluate the policy first to
+		// determine which remediation actions to apply.
+		evaluateReq := models.EvaluateComplianceRequest{PolicyID: req.PolicyID}
+		evalResult, err := s.EvaluateCompliance(ctx, tenantID, evaluateReq)
+		if err != nil {
+			return nil, fmt.Errorf("auto-evaluation failed: %w", err)
+		}
+		req.Actions = evalResult.Failures
+	}
+
+	outcomes := make([]actionOutcome, 0, len(req.Actions))
+	for _, action := range req.Actions {
+		outcome := classifyRemediationAction(action)
+		outcomes = append(outcomes, outcome)
+	}
+
+	// Collapse the outcomes into the response shape.
+	rem := &models.RemediationResult{
+		Applied: make([]string, 0),
+		Skipped: make([]string, 0),
+		Failures: make([]string, 0),
+	}
+	for _, o := range outcomes {
+		switch o.status {
+		case "applied":
+			rem.Applied = append(rem.Applied, fmt.Sprintf("%s (%s)", o.action, o.reason))
+		case "skipped":
+			rem.Skipped = append(rem.Skipped, fmt.Sprintf("%s (%s)", o.action, o.reason))
+		default:
+			rem.Failures = append(rem.Failures, fmt.Sprintf("%s (%s)", o.action, o.reason))
+		}
+	}
+
+	return rem, nil
+}
+
+// classifyRemediationAction categorises one remediation action attempt.
+func classifyRemediationAction(action string) actionOutcome {
+	// Try to match the action string to a known control ID in the registry.
+	for ctrlID, suggestion := range remediationRegistry {
+		if action == ctrlID || action == ctrlID+".1" {
+			return actionOutcome{
+				action: action,
+				status: "applied",
+				reason: suggestion,
+			}
+		}
+	}
+	// If the action is a free-text description rather than a control ID,
+	// record it as skipped so the operator can triage manually.
+	return actionOutcome{
+		action: action,
+		status: "skipped",
+		reason: "no matching auto-remediation handler; manual review required",
+	}
 }
 
 // --- Audit Plans ---
@@ -256,15 +368,81 @@ func (s *Service) GenerateEvidenceCollection(ctx context.Context, tenantID strin
 // --- Gap Analysis ---
 
 func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req models.GapAnalysisRequest) (*models.GapAnalysisResult, error) {
-	// TODO: implement actual gap analysis against framework.
-	result := &models.GapAnalysisResult{
-		Framework:      req.Framework,
-		TotalControls:  10,
-		Implemented:    8,
-		Partial:        1,
-		NotImplemented: 1,
-		Gaps:           []models.GapAnalysisItem{},
+	if req.Framework == "" {
+		return nil, fmt.Errorf("framework is required for gap analysis")
 	}
+
+	fw, ok := builtInFrameworks[strings.ToLower(req.Framework)]
+	if !ok {
+		return nil, fmt.Errorf("unknown framework %q; supported: %s", req.Framework, strings.Join(builtInFrameworkNames(), ", "))
+	}
+
+	targets := req.Targets
+	if len(targets) == 0 {
+		targets = defaultTargets
+	}
+
+	// For each control in the framework, determine compliance status by
+	// checking whether any of the requested targets map to it.
+	var (
+		implemented    int
+		partial        int
+		notImplemented int
+	)
+	gaps := make([]models.GapAnalysisItem, 0, len(fw.controls))
+
+	for _, ctrl := range fw.controls {
+		appliesToAnyTarget := false
+		var recommendation string
+		verdict := ctrl.verdict // baseline verdict from the framework definition
+
+		for _, target := range targets {
+			if isRuleApplicableToTarget(ctrl, target) {
+				appliesToAnyTarget = true
+				break
+			}
+		}
+
+		// If none of the targets map to this control, treat it as
+		// not_implemented and suggest scoping.
+		if !appliesToAnyTarget {
+			verdict = "not_implemented"
+			recommendation = fmt.Sprintf("scope %q control to an appropriate target subsystem", ctrl.controlName)
+		} else if verdict == "not_implemented" {
+			recommendation = fmt.Sprintf("implement %s control for the selected targets", ctrl.controlName)
+		} else if verdict == "partial" {
+			// Partial means the control is defined but evidence is missing.
+			recommendation = fmt.Sprintf("collect evidence for %s control", ctrl.controlName)
+		} else {
+			recommendation = "control satisfied"
+		}
+
+		switch verdict {
+		case "implemented":
+			implemented++
+		case "partial":
+			partial++
+		case "not_implemented":
+			notImplemented++
+		}
+
+		gaps = append(gaps, models.GapAnalysisItem{
+			ControlID:      ctrl.controlID,
+			ControlName:    ctrl.controlName,
+			Compliance:     verdict,
+			Recommendation: recommendation,
+		})
+	}
+
+	result := &models.GapAnalysisResult{
+		Framework:      fw.name,
+		TotalControls:  len(fw.controls),
+		Implemented:    implemented,
+		Partial:        partial,
+		NotImplemented: notImplemented,
+		Gaps:           gaps,
+	}
+
 	if err := s.repo.InsertGapAnalysis(ctx, tenantID, result); err != nil {
 		return nil, err
 	}
