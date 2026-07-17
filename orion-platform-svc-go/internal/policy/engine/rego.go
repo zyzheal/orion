@@ -747,6 +747,10 @@ func normalise(v interface{}) (interface{}, kind) {
 		return t, kindStr
 	case float64:
 		return t, kindNum
+	case int:
+		return float64(t), kindNum
+	case int64:
+		return float64(t), kindNum
 	case bool:
 		if t {
 			return float64(1), kindNum
@@ -816,12 +820,7 @@ func emptyPolicy() *policy {
 func (p policy) evaluate(input map[string]interface{}) (map[string]interface{}, error) {
 	result := make(map[string]interface{})
 	for _, r := range p.rules {
-		if r.body.eval(&ctx{input: input}) {
-			result[r.name] = true
-		}
-	}
-	if _, ok := result["allow"]; !ok {
-		result["allow"] = false
+		result[r.name] = r.body.eval(&ctx{input: input})
 	}
 	return result, nil
 }
