@@ -528,6 +528,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	sourceguard "orion/platform-svc-go/internal/infrastructure/middleware"
 
 	alert_breaker_handler "orion/platform-svc-go/internal/alert-breaker/handler"
 	alert_breaker_repo "orion/platform-svc-go/internal/alert-breaker/repository"
@@ -853,7 +854,31 @@ func main() {
 	cqrsHandler := cqrs_http.NewHandler(commandBus)
 
 	migrationsDir := "migrations"
-	if _, err := os.Stat(migrationsDir); err == nil {
+	if _, err := os.Stat(migrationsDir); err != nil {
+		migrationsDir = "" // no migrations directory — skip both rollback and forward
+	}
+
+	// Rollback migrations when explicitly requested via MIGRATE_DOWN_TO env var.
+	// Rollback runs BEFORE forward migrations so a restart without the env var
+	// simply picks up the already-applied state.
+	targetVersionStr := os.Getenv("MIGRATE_DOWN_TO")
+	if migrationsDir != "" && targetVersionStr != "" {
+		var targetVersion int
+		if _, err := fmt.Sscanf(targetVersionStr, "%d", &targetVersion); err == nil {
+			if targetVersion < 0 {
+				log.Fatalf("MIGRATE_DOWN_TO must be >= 0, got: %s", targetVersionStr)
+			}
+			if err := database.RunMigrationsDownTo(db, migrationsDir, targetVersion); err != nil {
+				log.Fatalf("failed to roll back migrations to version %d: %v", targetVersion, err)
+			}
+			log.Printf("rollback to version %d completed, exiting", targetVersion)
+			return
+		}
+		log.Fatalf("invalid MIGRATE_DOWN_TO value (must be an integer): %s", targetVersionStr)
+	}
+
+	// Forward migrations (run on every start, skip already-applied)
+	if migrationsDir != "" {
 		if err := database.RunMigrations(db, migrationsDir); err != nil {
 			log.Fatalf("failed to run migrations: %v", err)
 		}
@@ -1641,6 +1666,11 @@ func main() {
 		ServiceName: "orion-platform-svc",
 	}))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+
+	// Dual-write conflict prevention (P0-2): tag writes + block TS conflicts
+	sourceGuard := sourceguard.NewSourceGuard()
+	r.Use(sourceGuard.SetSource())
+	r.Use(sourceGuard.BlockConflicts())
 
 	// Public routes (no JWT required)
 	public := r.Group("/api/v1")
