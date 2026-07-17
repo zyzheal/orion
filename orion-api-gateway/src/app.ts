@@ -22,6 +22,8 @@ import { registerRoutes, gatewayDynamicRoutes } from './routes';
 import { metricsRoutes, httpRequestDuration, httpRequestTotal, activeConnections } from './routes/metrics';
 import { serviceRegistry } from './services/service-registry';
 import { TokenService } from './services/token.service';
+import { grayReleaseService } from './services/gray-release.service';
+import { createGrayRouteHook } from './middleware/gray-route';
 import { redisClient } from './utils/redis';
 import { AuthRoutes } from './routes/auth.routes';
 import { TenantRoutes } from './routes/tenant.routes';
@@ -129,6 +131,16 @@ export async function createApp(options: AppOptions = {}): Promise<{
     tokenService.setRedisClient(redisClientInstance);
   }
 
+  // ==================== 初始化灰度发布服务 ====================
+
+  // 初始化灰度发布服务（Phase 5 P0-4）
+  // 当 GRAY_RELEASE_ENABLED=true 时，连接 Redis 并订阅配置变更 channel
+  try {
+    await grayReleaseService.connect();
+  } catch (error) {
+    app.log.warn({ err: error instanceof Error ? error.message : String(error) }, 'GrayRelease service failed to initialize, falling back to static routing');
+  }
+
   // ==================== 初始化 WebSocket 服务器 ====================
 
   // 初始化 WebSocket 服务器
@@ -166,6 +178,12 @@ export async function createApp(options: AppOptions = {}): Promise<{
   // 权限检查中间件（在租户解析之后，基于 RBAC+ABAC 进行 API 路由级权限控制）
   const permissionMiddleware = new PermissionMiddleware(app);
   app.addHook('onRequest', permissionMiddleware.handler.bind(permissionMiddleware));
+
+  // 灰度路由中间件（Phase 5 P0-4）
+  // 在租户/权限之后、路由处理之前运行，解析灰度路由目标并写入请求上下文
+  // 路由处理器调用 proxyMiddleware.forward() 时读取 request.grayReleaseResult
+  const grayRouteHook = createGrayRouteHook(grayReleaseService);
+  app.addHook('onRequest', grayRouteHook);
 
   // ==================== 指标采集钩子 ====================
 
@@ -261,6 +279,9 @@ export async function createApp(options: AppOptions = {}): Promise<{
 
   const gracefulShutdown = async () => {
     app.log.info('Received shutdown signal, shutting down gracefully...');
+
+    // 关闭灰度发布服务
+    await grayReleaseService.close();
 
     // 关闭 WebSocket 服务器
     await wsServer.shutdown();

@@ -37,8 +37,11 @@ declare module 'fastify' {
   interface FastifyRequest {
     tenantId?: string;
     requestId: string;
+    grayReleaseResult?: GrayRoutingResult;
   }
 }
+
+import { GrayRoutingResult } from '../services/gray-release.service';
 
 export class ProxyMiddleware {
   private proxyServer: httpProxy;
@@ -187,13 +190,24 @@ export class ProxyMiddleware {
     request.raw.setTimeout(timeout);
 
     // 模块级灰度路由：在转发前解析目标 URL
-    // 基于 MODULE_ROUTING 环境变量和 tenantId 哈希，决定是否切换到 Go 服务
+    // 优先级：1) GrayReleaseService（Redis 热配置） 2) ModuleRoutingService（环境变量降级）
     const requestPath = request.raw.url || '';
-    const routing = moduleRoutingService.resolveTarget(target, requestPath, request);
-    const resolvedTarget = routing.target;
+    let resolvedTarget: string;
+    let routingSource: string;
+
+    // 检查是否存在灰度发布解析结果（由 gray-route middleware 注入）
+    if (request.grayReleaseResult) {
+      resolvedTarget = request.grayReleaseResult.target;
+      routingSource = `gray:${request.grayReleaseResult.source}`;
+    } else {
+      // 降级到模块级路由（环境变量 MODULE_ROUTING）
+      const routing = moduleRoutingService.resolveTarget(target, requestPath, request);
+      resolvedTarget = routing.target;
+      routingSource = routing.source;
+    }
 
     // 将灰度路由信息写入响应头（用于调试/可观测性）
-    reply.header('X-Module-Routing-Source', routing.source);
+    reply.header('X-Module-Routing-Source', routingSource);
 
     // 构建代理请求头，传播认证和追踪信息
     const proxyHeaders: Record<string, string> = {
