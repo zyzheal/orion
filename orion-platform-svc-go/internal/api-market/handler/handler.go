@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/api-market/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -84,27 +85,27 @@ func (h *Handler) getOwnerID(c *gin.Context) string {
 func (h *Handler) CreateProduct(c *gin.Context) {
 	var req models.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	ownerID := h.getOwnerID(c)
 	product, err := h.svc.CreateProduct(c.Request.Context(), &req, ownerID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, product)
+	middleware.RespondCreated(c, product)
 }
 
 func (h *Handler) ListProducts(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	products, err := h.svc.ListProducts(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, products)
+	middleware.RespondSuccess(c, products)
 }
 
 func (h *Handler) GetProduct(c *gin.Context) {
@@ -113,13 +114,13 @@ func (h *Handler) GetProduct(c *gin.Context) {
 	product, err := h.svc.GetProduct(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "product not found")
+			middleware.RespondNotFound(c, "product not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, product)
+	middleware.RespondSuccess(c, product)
 }
 
 func (h *Handler) PublishProduct(c *gin.Context) {
@@ -128,13 +129,13 @@ func (h *Handler) PublishProduct(c *gin.Context) {
 	product, err := h.svc.PublishProduct(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "product not found")
+			middleware.RespondNotFound(c, "product not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, product)
+	middleware.RespondSuccess(c, product)
 }
 
 func (h *Handler) DeleteProduct(c *gin.Context) {
@@ -142,14 +143,14 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteProduct(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "product not found")
+		middleware.RespondNotFound(c, "product not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "product deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "product deleted"})
 }
 
 // --- Developer App handlers ---
@@ -157,17 +158,17 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 func (h *Handler) CreateDeveloperApp(c *gin.Context) {
 	var req models.CreateDeveloperAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	developerID := h.getOwnerID(c)
 	app, err := h.svc.CreateDeveloperApp(c.Request.Context(), &req, developerID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, app)
+	middleware.RespondCreated(c, app)
 }
 
 func (h *Handler) ListApps(c *gin.Context) {
@@ -175,10 +176,10 @@ func (h *Handler) ListApps(c *gin.Context) {
 	developerID := h.getOwnerID(c)
 	apps, err := h.svc.ListAppsByDeveloper(c.Request.Context(), tenantID, developerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, apps)
+	middleware.RespondSuccess(c, apps)
 }
 
 func (h *Handler) GetApp(c *gin.Context) {
@@ -187,13 +188,13 @@ func (h *Handler) GetApp(c *gin.Context) {
 	app, err := h.svc.GetApp(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "app not found")
+			middleware.RespondNotFound(c, "app not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, app)
+	middleware.RespondSuccess(c, app)
 }
 
 // --- API Key handlers ---
@@ -206,13 +207,13 @@ func (h *Handler) GenerateAPIKey(c *gin.Context) {
 	key, err := h.svc.GenerateAPIKey(c.Request.Context(), appID, req.Scopes, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "app not found")
+			middleware.RespondNotFound(c, "app not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, key)
+	middleware.RespondCreated(c, key)
 }
 
 func (h *Handler) ListAPIKeys(c *gin.Context) {
@@ -220,34 +221,34 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	keys, err := h.svc.ListAPIKeys(c.Request.Context(), appID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Return safe keys (without secrets)
-	respondSuccess(c, keys)
+	middleware.RespondSuccess(c, keys)
 }
 
 func (h *Handler) ValidateToken(c *gin.Context) {
 	var req models.ValidateTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.ClientID == "" || req.ClientSecret == "" {
-		respondBadRequest(c, "clientId and clientSecret required")
+		middleware.RespondBadRequest(c, "clientId and clientSecret required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.ValidateAPIKey(c.Request.Context(), tenantID, req.ClientID, req.ClientSecret)
 	if err != nil {
 		if err == service.ErrInvalidCredentials {
-			respondUnauthorized(c, "invalid credentials")
+			middleware.RespondForbidden(c, "invalid credentials")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"valid":              true,
 		"credentialId":       result.CredentialID,
 		"appId":              result.AppID,
@@ -262,16 +263,16 @@ func (h *Handler) CheckSubscription(c *gin.Context) {
 	appID := c.Query("appId")
 	productID := c.Query("productId")
 	if appID == "" || productID == "" {
-		respondBadRequest(c, "appId and productId are required")
+		middleware.RespondBadRequest(c, "appId and productId are required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	hasAccess, err := h.svc.CheckSubscription(c.Request.Context(), appID, productID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"appId":     appID,
 		"productId": productID,
 		"hasAccess": hasAccess,
@@ -281,20 +282,20 @@ func (h *Handler) CheckSubscription(c *gin.Context) {
 func (h *Handler) Subscribe(c *gin.Context) {
 	var req models.SubscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	err := h.svc.Subscribe(c.Request.Context(), &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "subscribed successfully"})
+	middleware.RespondCreated(c, gin.H{"message": "subscribed successfully"})
 }
 
 func (h *Handler) ListSubscriptions(c *gin.Context) {
@@ -305,21 +306,21 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 	app, err := h.svc.GetApp(c.Request.Context(), appID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "app not found")
+			middleware.RespondNotFound(c, "app not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Check ownership (if developer_id is set and differs from user)
 	if app.DeveloperID != nil && ownerID != "" && *app.DeveloperID != ownerID {
-		respondUnauthorized(c, "not authorized to view subscriptions for this app")
+		middleware.RespondForbidden(c, "not authorized to view subscriptions for this app")
 		return
 	}
 	subs, err := h.svc.ListSubscriptions(c.Request.Context(), appID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, subs)
+	middleware.RespondSuccess(c, subs)
 }

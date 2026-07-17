@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/llm-trace/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes LLM trace endpoints.
@@ -82,13 +83,13 @@ func (h *Handler) GetTrace(c *gin.Context) {
 	t, err := h.svc.GetTrace(c.Request.Context(), traceID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Trace not found")
+			middleware.RespondNotFound(c, "Trace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // ListTraces handler - GET /api/v1/llm/traces
@@ -111,11 +112,11 @@ func (h *Handler) ListTraces(c *gin.Context) {
 
 	traces, total, err := h.svc.ListTraces(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  traces,
 		"total": total,
 		"limit": derefInt(q.Limit),
@@ -126,7 +127,7 @@ func (h *Handler) ListTraces(c *gin.Context) {
 func (h *Handler) CreateTrace(c *gin.Context) {
 	var req models.TraceCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -134,10 +135,10 @@ func (h *Handler) CreateTrace(c *gin.Context) {
 
 	t, err := h.svc.CreateTrace(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 // CompleteTrace handler - POST /api/v1/llm/traces/:traceId/complete
@@ -147,20 +148,20 @@ func (h *Handler) CompleteTrace(c *gin.Context) {
 
 	var req models.TraceCompleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	t, err := h.svc.CompleteTrace(c.Request.Context(), traceID, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Trace not found")
+			middleware.RespondNotFound(c, "Trace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // GetDailyStats handler - GET /api/v1/llm/stats/daily
@@ -172,7 +173,7 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 		// Validate date format
 		_, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
-			respondBadRequest(c, "invalid date format, expected YYYY-MM-DD")
+			middleware.RespondBadRequest(c, "invalid date format, expected YYYY-MM-DD")
 			return
 		}
 		date = &dateStr
@@ -180,10 +181,10 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 
 	stats, err := h.svc.GetDailyStats(c.Request.Context(), tenantID, date)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // GetTrackingAccuracy handler - GET /api/v1/llm/tracking/accuracy
@@ -192,10 +193,10 @@ func (h *Handler) GetTrackingAccuracy(c *gin.Context) {
 
 	accuracy, err := h.svc.GetTrackingAccuracy(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, accuracy)
+	middleware.RespondSuccess(c, accuracy)
 }
 
 // GetPricing handler - GET /api/v1/llm/pricing
@@ -210,7 +211,7 @@ func (h *Handler) GetPricing(c *gin.Context) {
 		}
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"currency": "CNY",
 		"unit":     "per token",
 		"pricing":  pricingMap,
@@ -221,13 +222,13 @@ func (h *Handler) GetPricing(c *gin.Context) {
 func (h *Handler) EstimateCost(c *gin.Context) {
 	var req models.CostEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "Missing required fields: modelId, inputTokens, outputTokens")
+		middleware.RespondBadRequest(c, "Missing required fields: modelId, inputTokens, outputTokens")
 		return
 	}
 
 	breakdown := h.svc.CalculateCost(c.Request.Context(), req.ModelID, req.InputTokens, req.OutputTokens)
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"modelId":       req.ModelID,
 		"inputTokens":   req.InputTokens,
 		"outputTokens":  req.OutputTokens,
@@ -247,7 +248,7 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 	if startDateStr := c.Query("startDate"); startDateStr != "" {
 		t, err := parseTimeQuery(startDateStr)
 		if err != nil {
-			respondBadRequest(c, "invalid startDate format")
+			middleware.RespondBadRequest(c, "invalid startDate format")
 			return
 		}
 		q.StartDate = &t
@@ -255,7 +256,7 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 	if endDateStr := c.Query("endDate"); endDateStr != "" {
 		t, err := parseTimeQuery(endDateStr)
 		if err != nil {
-			respondBadRequest(c, "invalid endDate format")
+			middleware.RespondBadRequest(c, "invalid endDate format")
 			return
 		}
 		q.EndDate = &t
@@ -263,11 +264,11 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 
 	breakdown, totalTraces, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"tenantId":     tenantID,
 		"startDate":    startDateForQuery(q.StartDate),
 		"endDate":      endDateForQuery(q.EndDate),

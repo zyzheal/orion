@@ -13,6 +13,7 @@ import (
 	"orion/platform-svc-go/internal/service-registry/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 const resource = "service-registry"
@@ -75,10 +76,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, f)
 	if err != nil {
-		respondInternalError(c, "failed to list services: "+err.Error())
+		middleware.RespondInternalError(c, "failed to list services: "+err.Error())
 		return
 	}
-	respondSuccess(c, models.ListResponse{
+	middleware.RespondSuccess(c, models.ListResponse{
 		Data:  items,
 		Total: len(items),
 		Page:  page,
@@ -91,18 +92,18 @@ func (h *Handler) Register(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.ServiceID == "" || req.ServiceName == "" || req.ServiceURL == "" {
-		respondBadRequest(c, "serviceId, serviceName, and serviceUrl are required")
+		middleware.RespondBadRequest(c, "serviceId, serviceName, and serviceUrl are required")
 		return
 	}
 
 	// Check for duplicate serviceId within tenant
 	existing, err := h.svc.GetByServiceID(c.Request.Context(), tenantID, req.ServiceID)
 	if err != nil {
-		respondInternalError(c, "failed to check existing service: "+err.Error())
+		middleware.RespondInternalError(c, "failed to check existing service: "+err.Error())
 		return
 	}
 	if existing != nil {
@@ -119,7 +120,7 @@ func (h *Handler) Register(c *gin.Context) {
 			map[string]any{"serviceId": req.ServiceID})
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 // Deregister handles DELETE /services/:id.
@@ -129,15 +130,15 @@ func (h *Handler) Deregister(c *gin.Context) {
 
 	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "Service not found: "+id)
+		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
 	}
 
 	if err := h.svc.Deregister(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
-		respondInternalError(c, "failed to deregister service: "+err.Error())
+		middleware.RespondInternalError(c, "failed to deregister service: "+err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "Service " + entity.ServiceID + " deregistered"})
+	middleware.RespondSuccess(c, gin.H{"message": "Service " + entity.ServiceID + " deregistered"})
 }
 
 // Health handles GET /services/:id/health.
@@ -147,7 +148,7 @@ func (h *Handler) Health(c *gin.Context) {
 
 	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "Service not found: "+id)
+		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
 	}
 
@@ -157,7 +158,7 @@ func (h *Handler) Health(c *gin.Context) {
 		lastHeartbeat = entity.LastHeartbeatAt.Format("2006-01-02T15:04:05Z")
 	}
 
-	respondSuccess(c, models.HealthResponse{
+	middleware.RespondSuccess(c, models.HealthResponse{
 		ServiceID:     entity.ServiceID,
 		Status:        entity.HealthStatus,
 		LatencyMs:     0,
@@ -174,13 +175,13 @@ func (h *Handler) Heartbeat(c *gin.Context) {
 
 	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "Service not found: "+id)
+		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
 	}
 
 	if err := h.svc.RecordHeartbeat(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
-		respondInternalError(c, "failed to record heartbeat: "+err.Error())
+		middleware.RespondInternalError(c, "failed to record heartbeat: "+err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "Heartbeat recorded"})
+	middleware.RespondSuccess(c, gin.H{"message": "Heartbeat recorded"})
 }

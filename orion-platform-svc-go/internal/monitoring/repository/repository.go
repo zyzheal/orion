@@ -20,6 +20,12 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// PingContext verifies that the database connection is alive.
+// Useful for health checks before performing queries.
+func (r *Repository) PingContext(ctx context.Context) error {
+	return r.db.PingContext(ctx)
+}
+
 // --- Service Control ---
 
 func (r *Repository) SetServiceStatus(ctx context.Context, tenantID, status string) error {
@@ -395,6 +401,79 @@ func (r *Repository) ListAnomalies(ctx context.Context, tenantID string, limit, 
 		`SELECT * FROM anomalies WHERE tenant_id=$1 ORDER BY detected_at DESC LIMIT $2 OFFSET $3`,
 		tenantID, limit, offset)
 	return items, err
+}
+
+// CountAnomaliesByMetric returns the count and average score grouped by metric.
+func (r *Repository) CountAnomaliesByMetric(ctx context.Context, tenantID string) ([]struct {
+	Metric   string  `db:"metric"`
+	Count    int     `db:"count"`
+	AvgScore float64 `db:"avg_score"`
+}, error) {
+	var rows []struct {
+		Metric   string  `db:"metric"`
+		Count    int     `db:"count"`
+		AvgScore float64 `db:"avg_score"`
+	}
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT metric, COUNT(*) AS count, AVG(score) AS avg_score
+		 FROM anomalies WHERE tenant_id=$1 GROUP BY metric ORDER BY count DESC`,
+		tenantID)
+	return rows, err
+}
+
+// CountAnomaliesBySeverity returns anomaly counts grouped by severity.
+func (r *Repository) CountAnomaliesBySeverity(ctx context.Context, tenantID string) ([]struct {
+	Severity string `db:"severity"`
+	Count    int    `db:"count"`
+}, error) {
+	var rows []struct {
+		Severity string `db:"severity"`
+		Count    int    `db:"count"`
+	}
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT severity, COUNT(*) AS count FROM anomalies WHERE tenant_id=$1 GROUP BY severity`,
+		tenantID)
+	return rows, err
+}
+
+// CountAnomaliesLast24h returns the number of anomalies detected in the last 24 hours.
+func (r *Repository) CountAnomaliesLast24h(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.GetContext(ctx, &count,
+		`SELECT COUNT(*) FROM anomalies WHERE tenant_id=$1 AND detected_at >= NOW() - INTERVAL '24 hours'`,
+		tenantID)
+	return count, err
+}
+
+// UpdateAlertStatus updates an alert's status and/or severity atomically.
+func (r *Repository) UpdateAlertStatus(ctx context.Context, tenantID, id, severity, status string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE alerts SET severity=$1, status=$2, updated_at=NOW() WHERE id=$3 AND tenant_id=$4`,
+		severity, status, id, tenantID)
+	return err
+}
+
+// CountAlertsBySeverity returns alert counts grouped by severity and status.
+func (r *Repository) CountAlertsBySeverity(ctx context.Context, tenantID string) ([]models.Alert, error) {
+	var items []models.Alert
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT * FROM alerts WHERE tenant_id=$1`, tenantID)
+	return items, err
+}
+
+// RuleAlertCounts returns (rule_name, active_alert_count) for every rule that has active alerts.
+func (r *Repository) RuleAlertCounts(ctx context.Context, tenantID string) ([]models.RuleAlertCounts, error) {
+	var rows []models.RuleAlertCounts
+	err := r.db.SelectContext(ctx, &rows,
+		`SELECT r.name AS rule_name, COUNT(*) AS active
+		 FROM alerts a
+		 JOIN alert_rules r ON r.id = a.rule_id
+		 WHERE a.tenant_id=$1 AND a.status IN ('firing', 'acknowledged')
+		 GROUP BY r.name
+		 HAVING COUNT(*) > 0
+		 ORDER BY active DESC`,
+		tenantID)
+	return rows, err
 }
 
 // --- Helpers ---

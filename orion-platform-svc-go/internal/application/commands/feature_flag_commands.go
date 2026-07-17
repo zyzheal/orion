@@ -25,8 +25,8 @@ import (
 // ToggleFeatureFlagCommand toggles a feature flag on or off.
 type ToggleFeatureFlagCommand struct {
 	baseCommand
-	FlagKey  string // feature flag key
-	Enabled  bool   // target enabled state
+	FlagKey   string // feature flag key
+	Enabled   bool   // target enabled state
 	ToggledBy string // user who toggled the flag
 }
 
@@ -43,10 +43,10 @@ func (c *ToggleFeatureFlagCommand) Validate() error {
 // UpdateRolloutCommand updates the rollout percentage and strategy of a feature flag.
 type UpdateRolloutCommand struct {
 	baseCommand
-	FlagKey     string // feature flag key
-	Percent     int    // rollout percentage (0-100)
-	Strategy    string // ALL/NONE/PERCENTAGE/TARGETING
-	UpdatedBy  string // user who made the change
+	FlagKey   string // feature flag key
+	Percent   int    // rollout percentage (0-100)
+	Strategy  string // ALL/NONE/PERCENTAGE/TARGETING
+	UpdatedBy string // user who made the change
 }
 
 func (c *UpdateRolloutCommand) Validate() error {
@@ -98,10 +98,7 @@ func (h *ToggleFeatureFlagHandler) Execute(ctx context.Context, cmd *ToggleFeatu
 		toggled.ToggledBy = cmd.ToggledBy
 	}
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
+	// ComposedEventPublisher handles both persistence and notification
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -149,10 +146,6 @@ func (h *UpdateRolloutHandler) Execute(ctx context.Context, cmd *UpdateRolloutCo
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -171,5 +164,3 @@ func (h *UpdateRolloutHandler) Execute(ctx context.Context, cmd *UpdateRolloutCo
 		Events:        []events.DomainEvent{newEvent},
 	}, nil
 }
-
-// ---------------------------------------------------------------------------

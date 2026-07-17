@@ -145,6 +145,9 @@ type baseCommand struct {
 // GetTenantID returns the tenant ID for multi-tenant isolation.
 func (b *baseCommand) GetTenantID() string { return b.tenantID }
 
+// SetTenantID sets the tenant ID — used by HTTP handlers when building a command.
+func (b *baseCommand) SetTenantID(tenantID string) { b.tenantID = tenantID }
+
 // requireTenant validates that tenantID is set.
 // Call this from concrete command Validate() methods.
 func requireTenant(tenantID string) error {

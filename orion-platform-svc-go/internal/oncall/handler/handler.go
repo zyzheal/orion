@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/oncall/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles on-call API routes.
@@ -74,13 +75,13 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 	status := ptrIf(c.Query("status"))
 	schedules, total, err := h.svc.List(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if schedules == nil {
 		schedules = []models.Schedule{}
 	}
-	respondSuccess(c, models.ListSchedulesResponse{
+	middleware.RespondSuccess(c, models.ListSchedulesResponse{
 		Schedules: schedules,
 		Total:     total,
 	})
@@ -91,58 +92,58 @@ func (h *Handler) GetSchedule(c *gin.Context) {
 	schedule, err := h.svc.Get(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "schedule not found")
+			middleware.RespondNotFound(c, "schedule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) CreateSchedule(c *gin.Context) {
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	schedule, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, schedule)
+	middleware.RespondCreated(c, schedule)
 }
 
 func (h *Handler) UpdateSchedule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	schedule, err := h.svc.Update(c.Request.Context(), id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "schedule not found")
+			middleware.RespondNotFound(c, "schedule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.Delete(c.Request.Context(), id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "schedule not found")
+		middleware.RespondNotFound(c, "schedule not found")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -154,13 +155,13 @@ func (h *Handler) ListAssignments(c *gin.Context) {
 	scheduleID := ptrIf(c.Query("scheduleId"))
 	assignments, total, err := h.svc.ListAssignments(c.Request.Context(), scheduleID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if assignments == nil {
 		assignments = []models.Assignment{}
 	}
-	respondSuccess(c, models.ListAssignmentsResponse{
+	middleware.RespondSuccess(c, models.ListAssignmentsResponse{
 		Assignments: assignments,
 		Total:       total,
 		ScheduleID:  func() string { if scheduleID != nil { return *scheduleID }; return "" }(),
@@ -172,57 +173,57 @@ func (h *Handler) GetAssignment(c *gin.Context) {
 	assignment, err := h.svc.GetAssignment(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "assignment not found")
+			middleware.RespondNotFound(c, "assignment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, assignment)
+	middleware.RespondSuccess(c, assignment)
 }
 
 func (h *Handler) CreateAssignment(c *gin.Context) {
 	var req models.CreateAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	assignment, err := h.svc.CreateAssignment(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, assignment)
+	middleware.RespondCreated(c, assignment)
 }
 
 func (h *Handler) UpdateAssignment(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	assignment, err := h.svc.UpdateAssignment(c.Request.Context(), id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "assignment not found")
+			middleware.RespondNotFound(c, "assignment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, assignment)
+	middleware.RespondSuccess(c, assignment)
 }
 
 func (h *Handler) DeleteAssignment(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteAssignment(c.Request.Context(), id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "assignment not found")
+		middleware.RespondNotFound(c, "assignment not found")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -234,13 +235,13 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 	scheduleID := ptrIf(c.Query("scheduleId"))
 	overrides, total, err := h.svc.ListOverrides(c.Request.Context(), scheduleID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if overrides == nil {
 		overrides = []models.Override{}
 	}
-	respondSuccess(c, models.ListOverridesResponse{
+	middleware.RespondSuccess(c, models.ListOverridesResponse{
 		Overrides: overrides,
 		Total:     total,
 	})
@@ -251,57 +252,57 @@ func (h *Handler) GetOverride(c *gin.Context) {
 	override, err := h.svc.GetOverride(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "override not found")
+			middleware.RespondNotFound(c, "override not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, override)
+	middleware.RespondSuccess(c, override)
 }
 
 func (h *Handler) CreateOverride(c *gin.Context) {
 	var req models.CreateOverrideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	override, err := h.svc.CreateOverride(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, override)
+	middleware.RespondCreated(c, override)
 }
 
 func (h *Handler) UpdateOverride(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateOverrideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	override, err := h.svc.UpdateOverride(c.Request.Context(), id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "override not found")
+			middleware.RespondNotFound(c, "override not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, override)
+	middleware.RespondSuccess(c, override)
 }
 
 func (h *Handler) DeleteOverride(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteOverride(c.Request.Context(), id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "override not found")
+		middleware.RespondNotFound(c, "override not found")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -312,19 +313,19 @@ func (h *Handler) DeleteOverride(c *gin.Context) {
 func (h *Handler) GetOnCallNow(c *gin.Context) {
 	scheduleID := c.Query("scheduleId")
 	if scheduleID == "" {
-		respondBadRequest(c, "scheduleId is required")
+		middleware.RespondBadRequest(c, "scheduleId is required")
 		return
 	}
 	result, err := h.svc.GetOnCallNow(c.Request.Context(), scheduleID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "no active on-call found for this schedule")
+			middleware.RespondNotFound(c, "no active on-call found for this schedule")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Helpers ---

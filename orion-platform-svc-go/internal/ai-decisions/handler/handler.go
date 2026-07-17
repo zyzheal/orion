@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/ai-decisions/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes AI decision endpoints.
@@ -117,10 +118,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	decisions, total, err := h.svc.ListDecisions(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:   decisions,
 		Total:  total,
 		Offset: derefInt(q.Offset),
@@ -132,7 +133,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var req models.RecordDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -140,10 +141,10 @@ func (h *Handler) Create(c *gin.Context) {
 
 	d, err := h.svc.RecordDecision(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 // Get handler - GET /ai/decisions/:id
@@ -154,13 +155,13 @@ func (h *Handler) Get(c *gin.Context) {
 	d, err := h.svc.GetDecision(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Decision not found")
+			middleware.RespondNotFound(c, "Decision not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 // Delete handler - DELETE /ai/decisions/:id
@@ -171,17 +172,17 @@ func (h *Handler) Delete(c *gin.Context) {
 	deleted, err := h.svc.DeleteDecision(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Decision not found")
+			middleware.RespondNotFound(c, "Decision not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "Decision not found")
+		middleware.RespondNotFound(c, "Decision not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 // GetExplanation handler - GET /ai/decisions/:id/explanation
@@ -192,13 +193,13 @@ func (h *Handler) GetExplanation(c *gin.Context) {
 	result, err := h.svc.GetExplanation(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Decision not found")
+			middleware.RespondNotFound(c, "Decision not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // SubmitFeedback handler - POST /ai/decisions/:id/feedback
@@ -209,20 +210,20 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 
 	var req models.SubmitFeedbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	d, err := h.svc.SubmitFeedback(c.Request.Context(), tenantID, userID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Decision not found")
+			middleware.RespondNotFound(c, "Decision not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 // GetTraces handler - GET /ai/decisions/:id/trace
@@ -233,13 +234,13 @@ func (h *Handler) GetTraces(c *gin.Context) {
 	traces, err := h.svc.GetTraces(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Decision not found")
+			middleware.RespondNotFound(c, "Decision not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": traces, "total": len(traces)})
+	middleware.RespondSuccess(c, gin.H{"data": traces, "total": len(traces)})
 }
 
 // GetStats handler - GET /ai/decisions/stats
@@ -265,10 +266,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID, dateRange)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // AnalyzeDecisions handler - POST /ai/decisions/analyze
@@ -277,20 +278,20 @@ func (h *Handler) AnalyzeDecisions(c *gin.Context) {
 
 	var req models.AnalyzeDecisionsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.AnalysisType == "" {
-		respondBadRequest(c, "analysisType is required")
+		middleware.RespondBadRequest(c, "analysisType is required")
 		return
 	}
 
 	result, err := h.svc.AnalyzeDecisions(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // parseTimeQuery parses an ISO-8601 string or unix seconds string into int64.

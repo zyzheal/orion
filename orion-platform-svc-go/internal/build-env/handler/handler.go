@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/build-env/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -92,10 +93,10 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 	}
 	items, err := h.svc.ListBuilds(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"builds": items,
 		"total":  len(items),
 	})
@@ -107,28 +108,28 @@ func (h *Handler) GetBuild(c *gin.Context) {
 	m, err := h.svc.GetBuild(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "build not found")
+			middleware.RespondNotFound(c, "build not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) CreateBuild(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateBuild(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) UpdateBuild(c *gin.Context) {
@@ -136,26 +137,26 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateBuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.UpdateBuild(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "build not found")
+			middleware.RespondNotFound(c, "build not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) DeleteBuild(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteBuild(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Writer.WriteHeader(http.StatusNoContent)
@@ -170,10 +171,10 @@ func (h *Handler) ListBuildImages(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListBuildImages(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"images": items,
 		"total":  len(items),
 	})
@@ -184,25 +185,25 @@ func (h *Handler) GetBuildImage(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.GetBuildImage(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) CreateBuildImage(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateBuildImage(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) UpdateBuildImage(c *gin.Context) {
@@ -210,22 +211,22 @@ func (h *Handler) UpdateBuildImage(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateBuildImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.UpdateBuildImage(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) DeleteBuildImage(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteBuildImage(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Writer.WriteHeader(http.StatusNoContent)
@@ -242,10 +243,10 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	configs, err := h.svc.ListCacheConfigs(c.Request.Context(), tenantID, level, status, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"configs": configs,
 		"total":   len(configs),
 	})
@@ -257,32 +258,32 @@ func (h *Handler) GetCacheConfig(c *gin.Context) {
 	config, err := h.svc.GetCacheConfig(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsInvalidID(err) {
-			respondBadRequest(c, "invalid config id")
+			middleware.RespondBadRequest(c, "invalid config id")
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, "cache config not found")
+			middleware.RespondNotFound(c, "cache config not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 func (h *Handler) CreateCacheConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildCacheConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.CreateCacheConfig(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, config)
+	middleware.RespondCreated(c, config)
 }
 
 func (h *Handler) UpdateCacheConfig(c *gin.Context) {
@@ -290,23 +291,23 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateBuildCacheConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.UpdateCacheConfig(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsInvalidID(err) {
-			respondBadRequest(c, "invalid config id")
+			middleware.RespondBadRequest(c, "invalid config id")
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, "cache config not found")
+			middleware.RespondNotFound(c, "cache config not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 func (h *Handler) DeleteCacheConfig(c *gin.Context) {
@@ -314,10 +315,10 @@ func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteCacheConfig(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsInvalidID(err) {
-			respondBadRequest(c, "invalid config id")
+			middleware.RespondBadRequest(c, "invalid config id")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Writer.WriteHeader(http.StatusNoContent)
@@ -332,10 +333,10 @@ func (h *Handler) ListBuildLogs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	logs, err := h.svc.ListBuildLogs(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"logs":  logs,
 		"total": len(logs),
 	})
@@ -346,10 +347,10 @@ func (h *Handler) GetBuildLog(c *gin.Context) {
 	id := c.Param("id")
 	log, err := h.svc.GetBuildLog(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, log)
+	middleware.RespondSuccess(c, log)
 }
 
 // --- Cache Monitor handlers ---
@@ -358,10 +359,10 @@ func (h *Handler) GetCacheDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dashboard, err := h.svc.GetDashboard(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dashboard)
+	middleware.RespondSuccess(c, dashboard)
 }
 
 func (h *Handler) GetCacheMetrics(c *gin.Context) {
@@ -370,13 +371,13 @@ func (h *Handler) GetCacheMetrics(c *gin.Context) {
 	metrics, err := h.svc.GetCacheMetrics(c.Request.Context(), tenantID, cacheID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "cache not found")
+			middleware.RespondNotFound(c, "cache not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 func (h *Handler) AssessCacheHealth(c *gin.Context) {
@@ -384,10 +385,10 @@ func (h *Handler) AssessCacheHealth(c *gin.Context) {
 	cacheID := c.Param("cacheId")
 	health, err := h.svc.AssessCacheHealth(c.Request.Context(), tenantID, cacheID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, health)
+	middleware.RespondSuccess(c, health)
 }
 
 func (h *Handler) AnalyzePerformanceImpact(c *gin.Context) {
@@ -395,22 +396,22 @@ func (h *Handler) AnalyzePerformanceImpact(c *gin.Context) {
 	pipelineID := c.Param("pipelineId")
 	impact, err := h.svc.AnalyzePerformanceImpact(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, impact)
+	middleware.RespondSuccess(c, impact)
 }
 
 func (h *Handler) RecordCacheEvent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordCacheEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.RecordCacheEvent(c.Request.Context(), tenantID, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "cache event recorded"})
+	middleware.RespondCreated(c, gin.H{"message": "cache event recorded"})
 }

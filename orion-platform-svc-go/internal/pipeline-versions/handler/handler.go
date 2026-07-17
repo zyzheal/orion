@@ -3,12 +3,14 @@ package handler
 import (
         "context"
         "errors"
+	"orion/platform-svc-go/internal/middleware"
 
         "orion/go-common/pkg/auth"
         "orion/platform-svc-go/internal/pipeline-versions/models"
         "orion/platform-svc-go/internal/pipeline-versions/service"
 
         "github.com/gin-gonic/gin"
+	"strconv"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -60,10 +62,10 @@ func (h *Handler) ListVersions(c *gin.Context) {
                 q.Tags = &tags
         }
         if limit := c.Query("limit"); limit != "" {
-                q.Limit, _ = parseInt(limit, 20)
+                q.Limit = parseInt(limit, 20)
         }
         if offset := c.Query("offset"); offset != "" {
-                q.Offset, _ = parseInt(offset, 0)
+                q.Offset = parseInt(offset, 0)
         }
         if sort := c.Query("sort"); sort != "" {
                 q.Sort = sort
@@ -74,10 +76,10 @@ func (h *Handler) ListVersions(c *gin.Context) {
 
         result, err := h.svc.ListVersions(c.Request.Context(), tenantID, pipelineID, q)
         if err != nil {
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetVersion(c *gin.Context) {
@@ -87,13 +89,13 @@ func (h *Handler) GetVersion(c *gin.Context) {
         result, err := h.svc.GetVersion(c.Request.Context(), tenantID, versionID)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateVersion(c *gin.Context) {
@@ -106,20 +108,20 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 
         var req models.CreateVersionRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                respondBadRequest(c, err.Error())
+                middleware.RespondBadRequest(c, err.Error())
                 return
         }
 
         result, err := h.svc.CreateVersion(c.Request.Context(), tenantID, pipelineID, &req, userID)
         if err != nil {
                 if service.IsBadRequest(err) {
-                        respondBadRequest(c, err.Error())
+                        middleware.RespondBadRequest(c, err.Error())
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondCreated(c, result)
+        middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) UpdateVersion(c *gin.Context) {
@@ -128,28 +130,28 @@ func (h *Handler) UpdateVersion(c *gin.Context) {
 
         var req models.UpdateVersionRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                respondBadRequest(c, err.Error())
+                middleware.RespondBadRequest(c, err.Error())
                 return
         }
 
         result, err := h.svc.UpdateVersion(c.Request.Context(), tenantID, versionID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
                 if service.IsLocked(err) {
-                        respondBadRequest(c, "cannot update published version")
+                        middleware.RespondBadRequest(c, "cannot update published version")
                         return
                 }
                 if service.IsBadRequest(err) {
-                        respondBadRequest(c, err.Error())
+                        middleware.RespondBadRequest(c, err.Error())
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteVersion(c *gin.Context) {
@@ -158,13 +160,13 @@ func (h *Handler) DeleteVersion(c *gin.Context) {
 
         if err := h.svc.DeleteVersion(c.Request.Context(), tenantID, versionID); err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, gin.H{"message": "version deleted"})
+        middleware.RespondSuccess(c, gin.H{"message": "version deleted"})
 }
 
 // ==================== Lifecycle ====================
@@ -179,17 +181,17 @@ func (h *Handler) PublishVersion(c *gin.Context) {
         result, err := h.svc.PublishVersion(c.Request.Context(), tenantID, versionID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
                 if service.IsBadRequest(err) || errors.Is(err, service.ErrAlreadyPublished) {
-                        respondBadRequest(c, err.Error())
+                        middleware.RespondBadRequest(c, err.Error())
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
@@ -199,13 +201,13 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
         result, err := h.svc.DeprecateVersion(c.Request.Context(), tenantID, versionID)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) RollbackVersion(c *gin.Context) {
@@ -214,24 +216,24 @@ func (h *Handler) RollbackVersion(c *gin.Context) {
 
         var req models.RollbackVersionRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                respondBadRequest(c, err.Error())
+                middleware.RespondBadRequest(c, err.Error())
                 return
         }
 
         result, err := h.svc.RollbackVersion(c.Request.Context(), tenantID, pipelineID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
                 if service.IsBadRequest(err) || errors.Is(err, service.ErrNoRollbackTarget) {
-                        respondBadRequest(c, err.Error())
+                        middleware.RespondBadRequest(c, err.Error())
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
 }
 
 // ==================== Compare ====================
@@ -241,22 +243,33 @@ func (h *Handler) CompareVersions(c *gin.Context) {
 
         var req models.CompareVersionsRequest
         if err := c.ShouldBindJSON(&req); err != nil {
-                respondBadRequest(c, err.Error())
+                middleware.RespondBadRequest(c, err.Error())
                 return
         }
 
         result, err := h.svc.CompareVersions(c.Request.Context(), tenantID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
-                        respondNotFound(c, "version not found")
+                        middleware.RespondNotFound(c, "version not found")
                         return
                 }
                 if service.IsBadRequest(err) {
-                        respondBadRequest(c, err.Error())
+                        middleware.RespondBadRequest(c, err.Error())
                         return
                 }
-                respondInternalError(c, err.Error())
+                middleware.RespondInternalError(c, err.Error())
                 return
         }
-        respondSuccess(c, result)
+        middleware.RespondSuccess(c, result)
+}
+
+func parseInt(s string, defaultVal int) int {
+	if s == "" {
+		return defaultVal
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return n
 }

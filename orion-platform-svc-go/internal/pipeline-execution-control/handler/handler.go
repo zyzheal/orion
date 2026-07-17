@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-execution-control/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -54,24 +55,24 @@ func (h *Handler) Pause(c *gin.Context) {
 
 	var req models.PauseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Pause(c.Request.Context(), runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
 		if err == service.ErrInvalidStatus {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) Resume(c *gin.Context) {
@@ -80,24 +81,24 @@ func (h *Handler) Resume(c *gin.Context) {
 
 	var req models.ResumeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Resume(c.Request.Context(), runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
 		if err == service.ErrInvalidStatus {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) Abort(c *gin.Context) {
@@ -106,24 +107,24 @@ func (h *Handler) Abort(c *gin.Context) {
 
 	var req models.AbortRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Abort(c.Request.Context(), runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
 		if err == service.ErrInvalidStatus {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) Retry(c *gin.Context) {
@@ -132,24 +133,24 @@ func (h *Handler) Retry(c *gin.Context) {
 
 	var req models.RetryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Retry(c.Request.Context(), runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
 		if err == service.ErrInvalidStatus {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) Restart(c *gin.Context) {
@@ -158,20 +159,20 @@ func (h *Handler) Restart(c *gin.Context) {
 
 	var req models.RestartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	run, err := h.svc.Restart(c.Request.Context(), runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) GetCheckpoints(c *gin.Context) {
@@ -180,10 +181,10 @@ func (h *Handler) GetCheckpoints(c *gin.Context) {
 
 	cps, total, err := h.svc.GetCheckpoints(c.Request.Context(), runID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.CheckpointListResponse{
+	middleware.RespondSuccess(c, models.CheckpointListResponse{
 		Data:  cps,
 		Total: total,
 	})
@@ -195,10 +196,10 @@ func (h *Handler) GetControlLogs(c *gin.Context) {
 
 	logs, total, err := h.svc.GetPauseResumeLogs(c.Request.Context(), runID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.ControlLogListResponse{
+	middleware.RespondSuccess(c, models.ControlLogListResponse{
 		Data:  logs,
 		Total: total,
 	})

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/efficiency/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -60,7 +61,7 @@ func (h *Handler) GetReports(c *gin.Context) {
 		tenantID = c.Query("tenantId")
 	}
 	if tenantID == "" {
-		respondBadRequest(c, "tenantId is required")
+		middleware.RespondBadRequest(c, "tenantId is required")
 		return
 	}
 	timeWindow := models.TimeWindow(c.Query("timeWindow"))
@@ -74,10 +75,10 @@ func (h *Handler) GetReports(c *gin.Context) {
 
 	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, timeWindow, windowSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"report": report})
+	middleware.RespondSuccess(c, gin.H{"report": report})
 }
 
 func (h *Handler) GetReportHistory(c *gin.Context) {
@@ -95,10 +96,10 @@ func (h *Handler) GetReportHistory(c *gin.Context) {
 
 	history, err := h.svc.GetReportHistory(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"history": history, "total": len(history)})
+	middleware.RespondSuccess(c, gin.H{"history": history, "total": len(history)})
 }
 
 // ==================== Team / Project Metrics ====================
@@ -113,16 +114,16 @@ func (h *Handler) GetTeamMetrics(c *gin.Context) {
 	}
 	teamID := c.Param("teamId")
 	if teamID == "" {
-		respondBadRequest(c, "teamId is required")
+		middleware.RespondBadRequest(c, "teamId is required")
 		return
 	}
 
 	metrics, err := h.svc.GetTeamMetrics(c.Request.Context(), tenantID, teamID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"metrics": metrics})
+	middleware.RespondSuccess(c, gin.H{"metrics": metrics})
 }
 
 func (h *Handler) GetProjectMetrics(c *gin.Context) {
@@ -135,16 +136,16 @@ func (h *Handler) GetProjectMetrics(c *gin.Context) {
 	}
 	projectId := c.Param("projectId")
 	if projectId == "" {
-		respondBadRequest(c, "projectId is required")
+		middleware.RespondBadRequest(c, "projectId is required")
 		return
 	}
 
 	metrics, err := h.svc.GetProjectMetrics(c.Request.Context(), tenantID, projectId)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"metrics": metrics})
+	middleware.RespondSuccess(c, gin.H{"metrics": metrics})
 }
 
 func (h *Handler) GetAllTeams(c *gin.Context) {
@@ -154,7 +155,7 @@ func (h *Handler) GetAllTeams(c *gin.Context) {
 	}
 
 	teams := h.svc.GetAllTeams(c.Request.Context(), tenantID)
-	respondSuccess(c, gin.H{"teams": teams})
+	middleware.RespondSuccess(c, gin.H{"teams": teams})
 }
 
 // ==================== Period Comparison ====================
@@ -167,23 +168,23 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 
 	var req models.ComparePeriodsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.TenantID != nil && *req.TenantID != "" {
 		tenantID = *req.TenantID
 	}
 	if req.PeriodA == nil || req.PeriodB == nil {
-		respondBadRequest(c, "periodA and periodB are required")
+		middleware.RespondBadRequest(c, "periodA and periodB are required")
 		return
 	}
 
 	comparison, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, *req.PeriodA, *req.PeriodB)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"comparison": comparison})
+	middleware.RespondSuccess(c, gin.H{"comparison": comparison})
 }
 
 // ==================== DORA Metrics ====================
@@ -207,10 +208,10 @@ func (h *Handler) GetAllDORA(c *gin.Context) {
 
 	result, err := h.svc.GetAllDORA(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"dora": result})
+	middleware.RespondSuccess(c, gin.H{"dora": result})
 }
 
 func (h *Handler) GetDORATrend(c *gin.Context) {
@@ -232,10 +233,10 @@ func (h *Handler) GetDORATrend(c *gin.Context) {
 
 	trend, err := h.svc.GetDORATrend(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"trend": trend})
+	middleware.RespondSuccess(c, gin.H{"trend": trend})
 }
 
 // ==================== Dashboard ====================
@@ -258,7 +259,7 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 	}
 
 	dashboard := h.svc.GetDashboardData(c.Request.Context(), tenantID, timeWindow, windowSize)
-	respondSuccess(c, gin.H{"dashboard": dashboard})
+	middleware.RespondSuccess(c, gin.H{"dashboard": dashboard})
 }
 
 // ==================== Trends ====================
@@ -278,10 +279,10 @@ func (h *Handler) GetTrends(c *gin.Context) {
 
 	snapshots, err := h.svc.GetHistoricalSnapshots(c.Request.Context(), tenantID, weeks)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"trends": snapshots})
+	middleware.RespondSuccess(c, gin.H{"trends": snapshots})
 }
 
 // ==================== Bottlenecks ====================
@@ -304,7 +305,7 @@ func (h *Handler) GetBottlenecks(c *gin.Context) {
 	}
 
 	bottlenecks := h.svc.GetBottlenecks(c.Request.Context(), tenantID, timeWindow, windowSize)
-	respondSuccess(c, gin.H{"bottlenecks": bottlenecks})
+	middleware.RespondSuccess(c, gin.H{"bottlenecks": bottlenecks})
 }
 
 // ==================== Developer Profiles ====================
@@ -319,7 +320,7 @@ func (h *Handler) GetDeveloperProfiles(c *gin.Context) {
 	}
 
 	profiles := h.svc.GetDeveloperProfiles(c.Request.Context(), tenantID)
-	respondSuccess(c, gin.H{"profiles": profiles})
+	middleware.RespondSuccess(c, gin.H{"profiles": profiles})
 }
 
 // ==================== Helpers ====================

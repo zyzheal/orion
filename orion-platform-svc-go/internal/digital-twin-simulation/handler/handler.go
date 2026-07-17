@@ -6,6 +6,7 @@ import (
 	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler wires Gin routes to the Digital Twin simulation service.
@@ -53,15 +54,15 @@ func (h *Handler) CreateTwin(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTwinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	twin, err := h.svc.CreateTwin(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, twinToResponse(twin))
+	middleware.RespondCreated(c, twinToResponse(twin))
 }
 
 func (h *Handler) ListTwins(c *gin.Context) {
@@ -69,14 +70,14 @@ func (h *Handler) ListTwins(c *gin.Context) {
 	q := parseListQuery(c)
 	items, total, err := h.svc.ListTwins(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]gin.H, len(items))
 	for i, t := range items {
 		data[i] = twinToResponse(&t)
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  data,
 		"total": total,
 		"offset": q.Offset,
@@ -90,13 +91,13 @@ func (h *Handler) GetTwin(c *gin.Context) {
 	twin, err := h.svc.GetTwin(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "digital twin not found")
+			middleware.RespondNotFound(c, "digital twin not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, twinToResponse(twin))
+	middleware.RespondSuccess(c, twinToResponse(twin))
 }
 
 func (h *Handler) UpdateTwin(c *gin.Context) {
@@ -104,19 +105,19 @@ func (h *Handler) UpdateTwin(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTwinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	twin, err := h.svc.UpdateTwin(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "digital twin not found")
+			middleware.RespondNotFound(c, "digital twin not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, twinToResponse(twin))
+	middleware.RespondSuccess(c, twinToResponse(twin))
 }
 
 func (h *Handler) DeleteTwin(c *gin.Context) {
@@ -125,13 +126,13 @@ func (h *Handler) DeleteTwin(c *gin.Context) {
 	err := h.svc.DeleteTwin(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "digital twin not found")
+			middleware.RespondNotFound(c, "digital twin not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 // --- Sync ---
@@ -142,13 +143,13 @@ func (h *Handler) SyncTwin(c *gin.Context) {
 	twin, err := h.svc.SyncTwin(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "digital twin not found")
+			middleware.RespondNotFound(c, "digital twin not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, twinToResponse(twin))
+	middleware.RespondSuccess(c, twinToResponse(twin))
 }
 
 // --- State ---
@@ -158,13 +159,13 @@ func (h *Handler) GetState(c *gin.Context) {
 	state, err := h.svc.GetState(c.Request.Context(), id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "twin state not found")
+			middleware.RespondNotFound(c, "twin state not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, state)
+	middleware.RespondSuccess(c, state)
 }
 
 // --- Simulate ---
@@ -174,19 +175,19 @@ func (h *Handler) Simulate(c *gin.Context) {
 	id := c.Param("id")
 	var req models.SimulateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	sim, err := h.svc.Simulate(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "digital twin not found")
+			middleware.RespondNotFound(c, "digital twin not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, simulationToResponse(sim))
+	middleware.RespondCreated(c, simulationToResponse(sim))
 }
 
 // --- Simulation History ---
@@ -196,14 +197,14 @@ func (h *Handler) ListSimulations(c *gin.Context) {
 	q := parseListQuery(c)
 	sims, total, err := h.svc.ListSimulations(c.Request.Context(), id, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]gin.H, len(sims))
 	for i, s := range sims {
 		data[i] = simulationToResponse(&s)
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  data,
 		"total": total,
 		"offset": q.Offset,
@@ -218,13 +219,13 @@ func (h *Handler) GetComparison(c *gin.Context) {
 	comparison, err := h.svc.GetComparison(c.Request.Context(), id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
-			respondNotFound(c, "twin state not found")
+			middleware.RespondNotFound(c, "twin state not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, comparison)
+	middleware.RespondSuccess(c, comparison)
 }
 
 // --- Predict ---
@@ -233,15 +234,15 @@ func (h *Handler) Predict(c *gin.Context) {
 	id := c.Param("id")
 	var req models.PredictRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	prediction, err := h.svc.Predict(c.Request.Context(), id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, prediction)
+	middleware.RespondSuccess(c, prediction)
 }
 
 // --- Helpers ---

@@ -99,9 +99,12 @@ type PermissionRequest struct {
 	UserID       string    `json:"user_id" db:"user_id"`
 	CapabilityID string    `json:"capability_id" db:"capability_id"`
 	Status       string    `json:"status" db:"status"` // pending, approved, rejected, granted
-	Reason       string    `json:"reason" db:"reason"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	Reason             string     `json:"reason" db:"reason"`
+	ApproverID         string     `json:"approver_id" db:"approver_id"`
+	DurationHours      int        `json:"duration_hours" db:"duration_hours"`
+	EnvironmentSuffix  string     `json:"environment_suffix" db:"environment_suffix"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 type CleanupResult struct {

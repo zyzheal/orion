@@ -58,8 +58,8 @@ func (c *DeactivatePipelineCommand) Validate() error {
 // UpdatePipelineYAMLCommand updates the YAML definition of a pipeline.
 type UpdatePipelineYAMLCommand struct {
 	baseCommand
-	ID       string // pipeline aggregate ID
-	NewYAML  string // new YAML content
+	ID        string // pipeline aggregate ID
+	NewYAML   string // new YAML content
 	ChangedBy string // user who initiated the change
 }
 
@@ -107,10 +107,7 @@ func (h *ActivatePipelineHandler) Execute(ctx context.Context, cmd *ActivatePipe
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
+	// ComposedEventPublisher handles both persistence and notification
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -159,10 +156,6 @@ func (h *DeactivatePipelineHandler) Execute(ctx context.Context, cmd *Deactivate
 
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
-
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
 
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
@@ -213,10 +206,6 @@ func (h *UpdatePipelineYAMLHandler) Execute(ctx context.Context, cmd *UpdatePipe
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -235,5 +224,3 @@ func (h *UpdatePipelineYAMLHandler) Execute(ctx context.Context, cmd *UpdatePipe
 		Events:        []events.DomainEvent{newEvent},
 	}, nil
 }
-
-// ---------------------------------------------------------------------------

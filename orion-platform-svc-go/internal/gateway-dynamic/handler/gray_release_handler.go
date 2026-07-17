@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/gateway-dynamic/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // GrayReleaseHandler exposes HTTP endpoints for gray release management.
@@ -50,30 +51,30 @@ func (h *GrayReleaseHandler) CreateGrayRelease(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	routeID := c.PostForm("route_id")
 	if routeID == "" {
-		respondBadRequest(c, "route_id is required")
+		middleware.RespondBadRequest(c, "route_id is required")
 		return
 	}
 
 	var req models.GrayReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Strategy == "" {
-		respondBadRequest(c, "strategy is required")
+		middleware.RespondBadRequest(c, "strategy is required")
 		return
 	}
 
 	result, err := h.svc.Create(c.Request.Context(), tenantID, routeID, req)
 	if err != nil {
 		if err == models.ErrInvalidPercentage {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": result})
+	middleware.RespondCreated(c, gin.H{"data": result})
 }
 
 // GetGrayRelease retrieves gray release status for a route.
@@ -83,10 +84,10 @@ func (h *GrayReleaseHandler) GetGrayRelease(c *gin.Context) {
 
 	result, err := h.svc.Get(c.Request.Context(), tenantID, routeID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 // UpdateGrayRelease modifies gray release config.
@@ -96,16 +97,16 @@ func (h *GrayReleaseHandler) UpdateGrayRelease(c *gin.Context) {
 
 	var req models.GrayReleaseUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.Update(c.Request.Context(), tenantID, routeID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 // EnableGrayRelease activates gray release for a route.
@@ -115,10 +116,10 @@ func (h *GrayReleaseHandler) EnableGrayRelease(c *gin.Context) {
 
 	result, err := h.svc.Enable(c.Request.Context(), tenantID, routeID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 // DisableGrayRelease deactivates gray release for a route.
@@ -128,10 +129,10 @@ func (h *GrayReleaseHandler) DisableGrayRelease(c *gin.Context) {
 
 	result, err := h.svc.Disable(c.Request.Context(), tenantID, routeID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 // RollbackGrayRelease performs a rollback on gray release for a route.
@@ -141,10 +142,10 @@ func (h *GrayReleaseHandler) RollbackGrayRelease(c *gin.Context) {
 
 	result, err := h.svc.Rollback(c.Request.Context(), tenantID, routeID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 // GrayReleaseStats returns aggregate gray release stats for a tenant.
@@ -153,8 +154,8 @@ func (h *GrayReleaseHandler) GrayReleaseStats(c *gin.Context) {
 
 	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": stats})
+	middleware.RespondSuccess(c, gin.H{"data": stats})
 }

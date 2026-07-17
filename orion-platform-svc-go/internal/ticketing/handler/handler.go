@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/ticketing/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -141,29 +142,29 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) StartService(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.StartService(c.Request.Context(), tenantID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "ticketing service started"})
+	middleware.RespondSuccess(c, gin.H{"message": "ticketing service started"})
 }
 
 func (h *Handler) StopService(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.StopService(c.Request.Context(), tenantID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "ticketing service stopped"})
+	middleware.RespondSuccess(c, gin.H{"message": "ticketing service stopped"})
 }
 
 func (h *Handler) HealthCheck(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	active, err := h.svc.HealthCheck(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"healthy": active})
+	middleware.RespondSuccess(c, gin.H{"healthy": active})
 }
 
 // ==================== Ticket CRUD ====================
@@ -172,20 +173,20 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	reporterID := c.GetString("user_id")
 	if reporterID == "" {
-		respondBadRequest(c, "user_id required")
+		middleware.RespondBadRequest(c, "user_id required")
 		return
 	}
 	t, err := h.svc.CreateTicket(c.Request.Context(), tenantID, req, reporterID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 // CreateTicketFromAlert mirrors /tickets/from-alert: creates a ticket sourced from an alert.
@@ -204,21 +205,21 @@ func (h *Handler) createTicketWithSource(c *gin.Context, source string) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.Source = source
 	reporterID := c.GetString("user_id")
 	if reporterID == "" {
-		respondBadRequest(c, "user_id required")
+		middleware.RespondBadRequest(c, "user_id required")
 		return
 	}
 	t, err := h.svc.CreateTicket(c.Request.Context(), tenantID, req, reporterID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) GetTicket(c *gin.Context) {
@@ -227,13 +228,13 @@ func (h *Handler) GetTicket(c *gin.Context) {
 	t, err := h.svc.GetTicket(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "ticket not found")
+			middleware.RespondNotFound(c, "ticket not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) ListTickets(c *gin.Context) {
@@ -241,10 +242,10 @@ func (h *Handler) ListTickets(c *gin.Context) {
 	q := buildTicketListQuery(c)
 	items, err := h.svc.ListTickets(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // ==================== Workflow ====================
@@ -255,15 +256,15 @@ func (h *Handler) TransitionStatus(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.TransitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.TransitionStatus(c.Request.Context(), tenantID, ticketID, req, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) AssignTicket(c *gin.Context) {
@@ -272,15 +273,15 @@ func (h *Handler) AssignTicket(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.AssignRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.AssignTicket(c.Request.Context(), tenantID, ticketID, req, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) EscalateTicket(c *gin.Context) {
@@ -289,15 +290,15 @@ func (h *Handler) EscalateTicket(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.EscalateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.EscalateTicket(c.Request.Context(), tenantID, ticketID, req, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) ResolveTicket(c *gin.Context) {
@@ -306,15 +307,15 @@ func (h *Handler) ResolveTicket(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ResolveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.ResolveTicket(c.Request.Context(), tenantID, ticketID, req, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) CloseTicket(c *gin.Context) {
@@ -327,10 +328,10 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	t, err := h.svc.CloseTicket(c.Request.Context(), tenantID, ticketID, body.Comment, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) GetWorkflowHistory(c *gin.Context) {
@@ -338,10 +339,10 @@ func (h *Handler) GetWorkflowHistory(c *gin.Context) {
 	ticketID := c.Param("id")
 	items, err := h.svc.GetWorkflowHistory(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // ==================== Assignment Rules ====================
@@ -350,39 +351,39 @@ func (h *Handler) AddAssignmentRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAssignmentRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.AddAssignmentRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, r)
+	middleware.RespondCreated(c, r)
 }
 
 func (h *Handler) GetAssignmentRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rules, err := h.svc.GetAssignmentRules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rules)
+	middleware.RespondSuccess(c, rules)
 }
 
 func (h *Handler) RemoveAssignmentRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, "invalid rule id")
+		middleware.RespondBadRequest(c, "invalid rule id")
 		return
 	}
 	if err := h.svc.RemoveAssignmentRule(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "assignment rule removed"})
+	middleware.RespondSuccess(c, gin.H{"message": "assignment rule removed"})
 }
 
 // ==================== Relations ====================
@@ -392,15 +393,15 @@ func (h *Handler) AddRelation(c *gin.Context) {
 	ticketID := c.Param("id")
 	var req models.CreateRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.AddRelation(c.Request.Context(), tenantID, ticketID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, r)
+	middleware.RespondCreated(c, r)
 }
 
 func (h *Handler) GetRelations(c *gin.Context) {
@@ -408,10 +409,10 @@ func (h *Handler) GetRelations(c *gin.Context) {
 	ticketID := c.Param("id")
 	rels, err := h.svc.GetRelations(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rels)
+	middleware.RespondSuccess(c, rels)
 }
 
 func (h *Handler) FindRelatedTickets(c *gin.Context) {
@@ -419,10 +420,10 @@ func (h *Handler) FindRelatedTickets(c *gin.Context) {
 	ticketID := c.Param("id")
 	rels, err := h.svc.FindRelatedTickets(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rels)
+	middleware.RespondSuccess(c, rels)
 }
 
 func (h *Handler) DetectDuplicates(c *gin.Context) {
@@ -430,25 +431,25 @@ func (h *Handler) DetectDuplicates(c *gin.Context) {
 	ticketID := c.Param("id")
 	rels, err := h.svc.DetectDuplicates(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rels)
+	middleware.RespondSuccess(c, rels)
 }
 
 func (h *Handler) CorrelateRootCause(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CorrelateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CorrelateRootCause(c.Request.Context(), tenantID, req.TicketIDs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== SLA ====================
@@ -457,15 +458,15 @@ func (h *Handler) AddSLATarget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLATargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	sla, err := h.svc.AddSLATarget(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, sla)
+	middleware.RespondCreated(c, sla)
 }
 
 func (h *Handler) GetTicketSLA(c *gin.Context) {
@@ -473,10 +474,10 @@ func (h *Handler) GetTicketSLA(c *gin.Context) {
 	ticketID := c.Param("id")
 	status, err := h.svc.GetTicketSLA(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 // ==================== Reports ====================
@@ -485,50 +486,50 @@ func (h *Handler) GetSLACompliance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	report, err := h.svc.GetSLACompliance(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) GetResolutionStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetResolutionStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetBacklogAnalysis(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	analysis, err := h.svc.GetBacklogAnalysis(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, analysis)
+	middleware.RespondSuccess(c, analysis)
 }
 
 func (h *Handler) GetTrendReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	report, err := h.svc.GetTrendReport(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) GetStatistics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	report, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // ==================== Dispatch ====================
@@ -537,25 +538,25 @@ func (h *Handler) RegisterEngineer(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RegisterEngineerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	e, err := h.svc.RegisterEngineer(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, e)
+	middleware.RespondCreated(c, e)
 }
 
 func (h *Handler) ListEngineers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	engineers, err := h.svc.ListEngineers(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, engineers)
+	middleware.RespondSuccess(c, engineers)
 }
 
 func (h *Handler) GetEngineer(c *gin.Context) {
@@ -563,10 +564,10 @@ func (h *Handler) GetEngineer(c *gin.Context) {
 	id := c.Param("id")
 	e, err := h.svc.GetEngineer(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, e)
+	middleware.RespondSuccess(c, e)
 }
 
 func (h *Handler) AutoDispatch(c *gin.Context) {
@@ -574,10 +575,10 @@ func (h *Handler) AutoDispatch(c *gin.Context) {
 	ticketID := c.Param("ticketId")
 	result, err := h.svc.AutoDispatch(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ManualDispatch(c *gin.Context) {
@@ -587,14 +588,14 @@ func (h *Handler) ManualDispatch(c *gin.Context) {
 		EngineerID string `json:"engineer_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.ManualDispatch(c.Request.Context(), tenantID, ticketID, body.EngineerID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "ticket dispatched"})
+	middleware.RespondSuccess(c, gin.H{"message": "ticket dispatched"})
 }
 
 func (h *Handler) GetBestMatch(c *gin.Context) {
@@ -602,130 +603,130 @@ func (h *Handler) GetBestMatch(c *gin.Context) {
 	ticketID := c.Param("ticketId")
 	result, err := h.svc.GetBestMatch(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CalculateDispatchScore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DispatchScoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CalculateDispatchScore(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetDispatchQueueStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status, err := h.svc.GetDispatchQueueStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) GetDispatchQueueEntries(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	entries, err := h.svc.GetDispatchQueueEntries(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, entries)
+	middleware.RespondSuccess(c, entries)
 }
 
 func (h *Handler) GetSLAAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alerts, err := h.svc.GetSLAAlerts(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alerts)
+	middleware.RespondSuccess(c, alerts)
 }
 
 func (h *Handler) AddDispatchRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AddDispatchRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.AddDispatchRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, r)
+	middleware.RespondCreated(c, r)
 }
 
 func (h *Handler) GetDispatchRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rules, err := h.svc.GetDispatchRules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rules)
+	middleware.RespondSuccess(c, rules)
 }
 
 func (h *Handler) GetLoadBalanceReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	report, err := h.svc.GetLoadBalanceReport(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) GetReassignmentSuggestions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	suggestions, err := h.svc.GetReassignmentSuggestions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, suggestions)
+	middleware.RespondSuccess(c, suggestions)
 }
 
 func (h *Handler) GetDispatchMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.GetDispatchMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 func (h *Handler) GetAssignmentSuccessMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.GetAssignmentSuccessMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 func (h *Handler) GetTimeToAssignmentStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetTimeToAssignmentStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetEngineerPerformance(c *gin.Context) {
@@ -733,44 +734,44 @@ func (h *Handler) GetEngineerPerformance(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	perf, err := h.svc.GetEngineerPerformance(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, perf)
+	middleware.RespondSuccess(c, perf)
 }
 
 func (h *Handler) GetAllEngineerPerformances(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	perfs, err := h.svc.GetAllEngineerPerformances(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, perfs)
+	middleware.RespondSuccess(c, perfs)
 }
 
 func (h *Handler) UpdateDispatchWeights(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.UpdateWeightsRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateDispatchWeights(c.Request.Context(), tenantID, body.Weights); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "dispatch weights updated"})
+	middleware.RespondSuccess(c, gin.H{"message": "dispatch weights updated"})
 }
 
 func (h *Handler) GetDispatchWeights(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	weights, err := h.svc.GetDispatchWeights(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, weights)
+	middleware.RespondSuccess(c, weights)
 }
 
 // ==================== Transfer ====================
@@ -781,14 +782,14 @@ func (h *Handler) TransferTicket(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.TransferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.TransferTicket(c.Request.Context(), tenantID, ticketID, req, userID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "ticket transferred"})
+	middleware.RespondSuccess(c, gin.H{"message": "ticket transferred"})
 }
 
 func (h *Handler) GetTransferHistory(c *gin.Context) {
@@ -796,20 +797,20 @@ func (h *Handler) GetTransferHistory(c *gin.Context) {
 	ticketID := c.Param("ticketId")
 	history, err := h.svc.GetTransferHistory(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, history)
+	middleware.RespondSuccess(c, history)
 }
 
 func (h *Handler) GetTransferStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetTransferStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ==================== Suspend ====================
@@ -818,15 +819,15 @@ func (h *Handler) CreateSuspend(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSuspendRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	s, err := h.svc.CreateSuspend(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, s)
+	middleware.RespondCreated(c, s)
 }
 
 func (h *Handler) ActivateSuspend(c *gin.Context) {
@@ -834,10 +835,10 @@ func (h *Handler) ActivateSuspend(c *gin.Context) {
 	id := c.Param("id")
 	s, err := h.svc.ActivateSuspend(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, s)
+	middleware.RespondSuccess(c, s)
 }
 
 func (h *Handler) EndSuspend(c *gin.Context) {
@@ -845,10 +846,10 @@ func (h *Handler) EndSuspend(c *gin.Context) {
 	id := c.Param("id")
 	s, err := h.svc.EndSuspend(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, s)
+	middleware.RespondSuccess(c, s)
 }
 
 func (h *Handler) CancelSuspend(c *gin.Context) {
@@ -856,20 +857,20 @@ func (h *Handler) CancelSuspend(c *gin.Context) {
 	id := c.Param("id")
 	s, err := h.svc.CancelSuspend(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, s)
+	middleware.RespondSuccess(c, s)
 }
 
 func (h *Handler) ListSuspensions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	suspensions, err := h.svc.ListSuspensions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, suspensions)
+	middleware.RespondSuccess(c, suspensions)
 }
 
 func (h *Handler) GetSuspend(c *gin.Context) {
@@ -877,10 +878,10 @@ func (h *Handler) GetSuspend(c *gin.Context) {
 	id := c.Param("id")
 	s, err := h.svc.GetSuspend(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, s)
+	middleware.RespondSuccess(c, s)
 }
 
 func (h *Handler) GetEngineerSuspensions(c *gin.Context) {
@@ -888,10 +889,10 @@ func (h *Handler) GetEngineerSuspensions(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	suspensions, err := h.svc.GetEngineerSuspensions(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, suspensions)
+	middleware.RespondSuccess(c, suspensions)
 }
 
 func (h *Handler) GetEngineerSuspendImpact(c *gin.Context) {
@@ -899,10 +900,10 @@ func (h *Handler) GetEngineerSuspendImpact(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	impact, err := h.svc.GetEngineerSuspendImpact(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, impact)
+	middleware.RespondSuccess(c, impact)
 }
 
 // ==================== BI Analytics ====================
@@ -911,20 +912,20 @@ func (h *Handler) GetExecutiveDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dashboard, err := h.svc.GetExecutiveDashboard(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dashboard)
+	middleware.RespondSuccess(c, dashboard)
 }
 
 func (h *Handler) GetManagerDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dashboard, err := h.svc.GetManagerDashboard(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dashboard)
+	middleware.RespondSuccess(c, dashboard)
 }
 
 func (h *Handler) GetEngineerDashboard(c *gin.Context) {
@@ -932,10 +933,10 @@ func (h *Handler) GetEngineerDashboard(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	dashboard, err := h.svc.GetEngineerDashboard(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dashboard)
+	middleware.RespondSuccess(c, dashboard)
 }
 
 func (h *Handler) GetEngineerEfficiency(c *gin.Context) {
@@ -943,10 +944,10 @@ func (h *Handler) GetEngineerEfficiency(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	efficiency, err := h.svc.GetEngineerEfficiency(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, efficiency)
+	middleware.RespondSuccess(c, efficiency)
 }
 
 func (h *Handler) GetEfficiencyScore(c *gin.Context) {
@@ -954,10 +955,10 @@ func (h *Handler) GetEfficiencyScore(c *gin.Context) {
 	engineerID := c.Param("engineerId")
 	score, err := h.svc.GetEfficiencyScore(c.Request.Context(), tenantID, engineerID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, score)
+	middleware.RespondSuccess(c, score)
 }
 
 func (h *Handler) ComparePeriods(c *gin.Context) {
@@ -965,30 +966,30 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 	current := c.Query("current")
 	previous := c.Query("previous")
 	if current == "" || previous == "" {
-		respondBadRequest(c, "current and previous period required")
+		middleware.RespondBadRequest(c, "current and previous period required")
 		return
 	}
 	result, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, current, previous)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ExportBIData(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.BIDataExportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExportBIData(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetTimeTrend(c *gin.Context) {
@@ -999,10 +1000,10 @@ func (h *Handler) GetTimeTrend(c *gin.Context) {
 	}
 	trend, err := h.svc.GetTimeTrend(c.Request.Context(), tenantID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trend)
+	middleware.RespondSuccess(c, trend)
 }
 
 // ==================== SLA Policies ====================
@@ -1011,25 +1012,25 @@ func (h *Handler) CreateSLAPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.CreateSLAPolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, p)
+	middleware.RespondCreated(c, p)
 }
 
 func (h *Handler) ListSLAPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policies, err := h.svc.ListSLAPolicies(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policies)
+	middleware.RespondSuccess(c, policies)
 }
 
 func (h *Handler) GetSLAPolicy(c *gin.Context) {
@@ -1037,10 +1038,10 @@ func (h *Handler) GetSLAPolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	p, err := h.svc.GetSLAPolicy(c.Request.Context(), tenantID, policyID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, p)
+	middleware.RespondSuccess(c, p)
 }
 
 func (h *Handler) UpdateSLAPolicy(c *gin.Context) {
@@ -1048,25 +1049,25 @@ func (h *Handler) UpdateSLAPolicy(c *gin.Context) {
 	policyID := c.Param("policyId")
 	var req models.UpdateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	p, err := h.svc.UpdateSLAPolicy(c.Request.Context(), tenantID, policyID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, p)
+	middleware.RespondSuccess(c, p)
 }
 
 func (h *Handler) DeleteSLAPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	if err := h.svc.DeleteSLAPolicy(c.Request.Context(), tenantID, policyID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "SLA policy deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "SLA policy deleted"})
 }
 
 func (h *Handler) GetTicketSLAStatus(c *gin.Context) {
@@ -1074,20 +1075,20 @@ func (h *Handler) GetTicketSLAStatus(c *gin.Context) {
 	ticketID := c.Param("ticketId")
 	status, err := h.svc.GetTicketSLAStatus(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) GetBreaches(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	breaches, err := h.svc.GetBreaches(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, breaches)
+	middleware.RespondSuccess(c, breaches)
 }
 
 func (h *Handler) GetCompliance(c *gin.Context) {
@@ -1095,10 +1096,10 @@ func (h *Handler) GetCompliance(c *gin.Context) {
 	policyID := c.Param("policyId")
 	result, err := h.svc.GetCompliance(c.Request.Context(), tenantID, policyID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Automation Rules ====================
@@ -1107,25 +1108,25 @@ func (h *Handler) CreateAutomationRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAutomationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.CreateAutomationRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, r)
+	middleware.RespondCreated(c, r)
 }
 
 func (h *Handler) ListAutomationRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rules, err := h.svc.ListAutomationRules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rules)
+	middleware.RespondSuccess(c, rules)
 }
 
 func (h *Handler) UpdateAutomationRule(c *gin.Context) {
@@ -1133,25 +1134,25 @@ func (h *Handler) UpdateAutomationRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	var req models.UpdateAutomationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	r, err := h.svc.UpdateAutomationRule(c.Request.Context(), tenantID, ruleID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, r)
+	middleware.RespondSuccess(c, r)
 }
 
 func (h *Handler) DeleteAutomationRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	if err := h.svc.DeleteAutomationRule(c.Request.Context(), tenantID, ruleID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "automation rule deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "automation rule deleted"})
 }
 
 func (h *Handler) ExecuteRule(c *gin.Context) {
@@ -1159,10 +1160,10 @@ func (h *Handler) ExecuteRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	result, err := h.svc.ExecuteRule(c.Request.Context(), tenantID, ruleID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Helpers ====================

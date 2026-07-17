@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/internal-library/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -60,15 +61,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateInternalLibraryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -76,13 +77,13 @@ func (h *Handler) Get(c *gin.Context) {
 	m, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -91,10 +92,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"libraries": items,
 		"total":     len(items),
 	})
@@ -105,13 +106,13 @@ func (h *Handler) GetByName(c *gin.Context) {
 	m, err := h.svc.GetByName(c.Request.Context(), tenantID, c.Param("name"))
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) ListByLanguage(c *gin.Context) {
@@ -120,10 +121,10 @@ func (h *Handler) ListByLanguage(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListByLanguage(c.Request.Context(), tenantID, c.Param("language"), limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"libraries": items,
 		"total":     len(items),
 	})
@@ -135,10 +136,10 @@ func (h *Handler) ListByOwner(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListByOwner(c.Request.Context(), tenantID, c.Param("owner"), limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"libraries": items,
 		"total":     len(items),
 	})
@@ -148,29 +149,29 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateInternalLibraryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Writer.WriteHeader(http.StatusNoContent)
@@ -184,23 +185,23 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 	libraryID := c.Param("id")
 	var req models.PublishVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.PublishVersion(c.Request.Context(), libraryID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
 		if err != nil && service.IsVersionExists(err) {
-			respondConflict(c, "version already exists")
+			middleware.RespondConflict(c, "version already exists")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, v)
+	middleware.RespondCreated(c, v)
 }
 
 func (h *Handler) ListVersions(c *gin.Context) {
@@ -208,13 +209,13 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	versions, err := h.svc.ListVersions(c.Request.Context(), libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"versions": versions,
 		"total":    len(versions),
 	})
@@ -226,13 +227,13 @@ func (h *Handler) GetVersion(c *gin.Context) {
 	v, err := h.svc.GetVersion(c.Request.Context(), libraryID, version)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, v)
+	middleware.RespondSuccess(c, v)
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
@@ -240,19 +241,19 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 	version := c.Param("version")
 	var req models.DeprecateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	v, err := h.svc.DeprecateVersion(c.Request.Context(), libraryID, version, req.Reason, req.MigrationGuide, req.EOLDate)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, v)
+	middleware.RespondSuccess(c, v)
 }
 
 // =============================================================================
@@ -264,23 +265,23 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	id := c.Param("id")
 	var req models.DeprecateLibraryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	lib, err := h.svc.Deprecate(c.Request.Context(), tenantID, id, req.Reason, req.MigrationGuide, req.EOLDate)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
 		if service.IsAlreadyDeprecated(err) {
-			respondConflict(c, "library already deprecated")
+			middleware.RespondConflict(c, "library already deprecated")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, lib)
+	middleware.RespondSuccess(c, lib)
 }
 
 func (h *Handler) Activate(c *gin.Context) {
@@ -289,17 +290,17 @@ func (h *Handler) Activate(c *gin.Context) {
 	lib, err := h.svc.Activate(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
 		if service.IsAlreadyActive(err) {
-			respondConflict(c, "library already active")
+			middleware.RespondConflict(c, "library already active")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, lib)
+	middleware.RespondSuccess(c, lib)
 }
 
 // =============================================================================
@@ -311,13 +312,13 @@ func (h *Handler) ListDependents(c *gin.Context) {
 	dependents, err := h.svc.ListDependents(c.Request.Context(), libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"dependents": dependents,
 		"total":      len(dependents),
 	})
@@ -327,19 +328,19 @@ func (h *Handler) AddDependent(c *gin.Context) {
 	libraryID := c.Param("id")
 	var req models.AddDependentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.AddDependent(c.Request.Context(), libraryID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) UpdateDependentVersion(c *gin.Context) {
@@ -347,28 +348,28 @@ func (h *Handler) UpdateDependentVersion(c *gin.Context) {
 	repoName := c.Param("repoName")
 	var req models.UpdateDependentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateDependentVersion(c.Request.Context(), libraryID, repoName, req.Version); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "dependent not found")
+			middleware.RespondNotFound(c, "dependent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) CheckDependencies(c *gin.Context) {
 	repoName := c.Param("repoName")
 	results, err := h.svc.CheckDependencies(c.Request.Context(), repoName)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results)
+	middleware.RespondSuccess(c, results)
 }
 
 func (h *Handler) UpdateStats(c *gin.Context) {
@@ -376,13 +377,13 @@ func (h *Handler) UpdateStats(c *gin.Context) {
 	stats, err := h.svc.UpdateStats(c.Request.Context(), libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "library not found")
+			middleware.RespondNotFound(c, "library not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ---------------------------------------------------------------------------

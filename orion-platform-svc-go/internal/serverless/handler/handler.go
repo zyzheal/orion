@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/serverless/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -76,15 +77,15 @@ func (h *Handler) CreateFunction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFunctionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	f, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, f)
+	middleware.RespondCreated(c, f)
 }
 
 func (h *Handler) GetFunction(c *gin.Context) {
@@ -93,13 +94,13 @@ func (h *Handler) GetFunction(c *gin.Context) {
 	f, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, f)
+	middleware.RespondSuccess(c, f)
 }
 
 func (h *Handler) ListFunctions(c *gin.Context) {
@@ -117,10 +118,10 @@ func (h *Handler) ListFunctions(c *gin.Context) {
 	}
 	items, err := h.svc.List(c.Request.Context(), tenantID, q, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) UpdateFunction(c *gin.Context) {
@@ -128,18 +129,18 @@ func (h *Handler) UpdateFunction(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateFunctionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if _, err := h.svc.Update(c.Request.Context(), tenantID, id, req); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "function updated"})
+	middleware.RespondSuccess(c, gin.H{"message": "function updated"})
 }
 
 func (h *Handler) DeleteFunction(c *gin.Context) {
@@ -147,13 +148,13 @@ func (h *Handler) DeleteFunction(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "function deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "function deleted"})
 }
 
 // --- Deployment handlers ---
@@ -164,13 +165,13 @@ func (h *Handler) DeployFunction(c *gin.Context) {
 	d, err := h.svc.Deploy(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) ListDeployments(c *gin.Context) {
@@ -178,10 +179,10 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 	id := c.Param("id")
 	items, err := h.svc.ListDeployments(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // --- Invocation handler ---
@@ -194,17 +195,17 @@ func (h *Handler) InvokeFunction(c *gin.Context) {
 	result, err := h.svc.Invoke(c.Request.Context(), tenantID, id, payload)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
 		if err.Error() == "function not deployed" {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Logs handler ---
@@ -224,10 +225,10 @@ func (h *Handler) GetFunctionLogs(c *gin.Context) {
 	}
 	items, err := h.svc.GetLogs(c.Request.Context(), tenantID, id, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // --- Metrics handlers ---
@@ -237,20 +238,20 @@ func (h *Handler) GetFunctionMetrics(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.GetMetrics(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) GetAggregateMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	agg, err := h.svc.GetAggregateMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, agg)
+	middleware.RespondSuccess(c, agg)
 }
 
 // --- Trigger handlers ---
@@ -259,19 +260,19 @@ func (h *Handler) CreateTrigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.CreateTrigger(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "function not found")
+			middleware.RespondNotFound(c, "function not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) GetTrigger(c *gin.Context) {
@@ -280,13 +281,13 @@ func (h *Handler) GetTrigger(c *gin.Context) {
 	t, err := h.svc.GetTrigger(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "trigger not found")
+			middleware.RespondNotFound(c, "trigger not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) ListTriggers(c *gin.Context) {
@@ -301,10 +302,10 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 	}
 	items, err := h.svc.ListTriggers(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) DeleteTrigger(c *gin.Context) {
@@ -312,13 +313,13 @@ func (h *Handler) DeleteTrigger(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteTrigger(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "trigger not found")
+			middleware.RespondNotFound(c, "trigger not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "trigger deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "trigger deleted"})
 }
 
 // --- Auto-scaling handler ---
@@ -327,8 +328,8 @@ func (h *Handler) EvaluateAutoScaling(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	recommendations, err := h.svc.EvaluateAutoScaling(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, recommendations)
+	middleware.RespondSuccess(c, recommendations)
 }

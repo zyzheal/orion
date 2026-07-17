@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/workflow-trigger/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for workflow trigger operations.
@@ -45,16 +46,16 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateWorkflowTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	trigger, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, trigger)
+	middleware.RespondCreated(c, trigger)
 }
 
 // List retrieves workflow triggers with optional filters and pagination.
@@ -85,10 +86,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, total, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Page:     page,
 		PageSize: pageSize,
@@ -101,10 +102,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := getTenantID(c)
 	trigger, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, trigger)
+	middleware.RespondSuccess(c, trigger)
 }
 
 // Update modifies an existing workflow trigger.
@@ -113,30 +114,30 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateWorkflowTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	trigger, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trigger)
+	middleware.RespondSuccess(c, trigger)
 }
 
 // Delete removes a workflow trigger by id.
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // Enable enables a workflow trigger.
@@ -145,13 +146,13 @@ func (h *Handler) Enable(c *gin.Context) {
 	trigger, err := h.svc.SetEnabled(c.Request.Context(), tenantID, c.Param("id"), true)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trigger)
+	middleware.RespondSuccess(c, trigger)
 }
 
 // Disable disables a workflow trigger.
@@ -160,13 +161,13 @@ func (h *Handler) Disable(c *gin.Context) {
 	trigger, err := h.svc.SetEnabled(c.Request.Context(), tenantID, c.Param("id"), false)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trigger)
+	middleware.RespondSuccess(c, trigger)
 }
 
 // Trigger manually triggers a workflow execution via a trigger.
@@ -180,17 +181,17 @@ func (h *Handler) Trigger(c *gin.Context) {
 
 	if err := h.svc.Trigger(c.Request.Context(), tenantID, c.Param("id"), payload); err != nil {
 		if err == models.ErrTriggerNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if err == models.ErrTriggerDisabled {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "triggered"})
+	middleware.RespondSuccess(c, gin.H{"message": "triggered"})
 }
 
 // ExecuteWorkflow executes a workflow by definition ID.
@@ -207,5 +208,5 @@ func (h *Handler) ExecuteWorkflow(c *gin.Context) {
 	_ = payload
 	_ = tenantID
 
-	respondSuccess(c, gin.H{"message": "workflow execution initiated"})
+	middleware.RespondSuccess(c, gin.H{"message": "workflow execution initiated"})
 }

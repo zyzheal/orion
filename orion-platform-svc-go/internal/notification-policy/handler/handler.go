@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/notification-policy/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -105,10 +106,10 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 	policies, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     policies,
 		Total:    total,
 		Page:     page,
@@ -122,49 +123,49 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	policy, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification policy not found")
+			middleware.RespondNotFound(c, "notification policy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	policy, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, policy)
+	middleware.RespondCreated(c, policy)
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	policy, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification policy not found")
+			middleware.RespondNotFound(c, "notification policy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
@@ -172,40 +173,40 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "notification policy not found")
+		middleware.RespondNotFound(c, "notification policy not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "notification policy deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "notification policy deleted"})
 }
 
 func (h *Handler) CountPolicies(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 func (h *Handler) EvaluatePolicies(c *gin.Context) {
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	results, err := h.svc.Evaluate(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results)
+	middleware.RespondSuccess(c, results)
 }
 
 // --- Workflow handlers ---
@@ -217,10 +218,10 @@ func (h *Handler) ListWorkflows(c *gin.Context) {
 
 	workflows, total, err := h.svc.ListWorkflows(c.Request.Context(), tenantID, policyID, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     workflows,
 		Total:    total,
 		Page:     page,
@@ -235,20 +236,20 @@ func (h *Handler) GetWorkflow(c *gin.Context) {
 	workflow, err := h.svc.GetWorkflow(c.Request.Context(), tenantID, policyID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification policy workflow not found")
+			middleware.RespondNotFound(c, "notification policy workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, workflow)
+	middleware.RespondSuccess(c, workflow)
 }
 
 func (h *Handler) CreateWorkflow(c *gin.Context) {
 	policyID := c.Param("policyId")
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.PolicyID = policyID
@@ -256,10 +257,10 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 	userID := h.getUserID(c)
 	workflow, err := h.svc.CreateWorkflow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, workflow)
+	middleware.RespondCreated(c, workflow)
 }
 
 func (h *Handler) UpdateWorkflow(c *gin.Context) {
@@ -267,20 +268,20 @@ func (h *Handler) UpdateWorkflow(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	workflow, err := h.svc.UpdateWorkflow(c.Request.Context(), tenantID, policyID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification policy workflow not found")
+			middleware.RespondNotFound(c, "notification policy workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, workflow)
+	middleware.RespondSuccess(c, workflow)
 }
 
 func (h *Handler) DeleteWorkflow(c *gin.Context) {
@@ -289,12 +290,12 @@ func (h *Handler) DeleteWorkflow(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteWorkflow(c.Request.Context(), tenantID, policyID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "notification policy workflow not found")
+		middleware.RespondNotFound(c, "notification policy workflow not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "notification policy workflow deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "notification policy workflow deleted"})
 }

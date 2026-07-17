@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/workflow-task/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -67,7 +68,7 @@ func (h *Handler) ListTasks(c *gin.Context) {
 
 	tasks, total, err := h.svc.ListTasks(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -80,7 +81,7 @@ func (h *Handler) ListTasks(c *gin.Context) {
 		pageSize = 20
 	}
 
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     tasks,
 		Total:    total,
 		Page:     page,
@@ -95,13 +96,13 @@ func (h *Handler) GetTask(c *gin.Context) {
 	task, err := h.svc.GetTask(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow task not found")
+			middleware.RespondNotFound(c, "workflow task not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, task)
+	middleware.RespondSuccess(c, task)
 }
 
 // ClaimTask handler - POST /workflow-tasks/:id/claim
@@ -109,7 +110,7 @@ func (h *Handler) ClaimTask(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ClaimTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -117,24 +118,24 @@ func (h *Handler) ClaimTask(c *gin.Context) {
 	// Use the authenticated user as the assignee
 	assigneeID := c.GetString("user_id")
 	if assigneeID == "" {
-		respondBadRequest(c, "user_id not found in context")
+		middleware.RespondBadRequest(c, "user_id not found in context")
 		return
 	}
 
 	task, err := h.svc.Claim(c.Request.Context(), id, tenantID, assigneeID, req.Comment)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow task not found")
+			middleware.RespondNotFound(c, "workflow task not found")
 			return
 		}
 		if err == service.ErrTaskInvalidStatus {
-			respondBadRequest(c, "task is not in pending status")
+			middleware.RespondBadRequest(c, "task is not in pending status")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, task)
+	middleware.RespondSuccess(c, task)
 }
 
 // CompleteTask handler - POST /workflow-tasks/:id/complete
@@ -142,7 +143,7 @@ func (h *Handler) CompleteTask(c *gin.Context) {
 	id := c.Param("id")
 	var req models.CompleteTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -150,19 +151,19 @@ func (h *Handler) CompleteTask(c *gin.Context) {
 	task, err := h.svc.Complete(c.Request.Context(), id, tenantID, req.Comment, req.FormData)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow task not found")
+			middleware.RespondNotFound(c, "workflow task not found")
 			return
 		}
 		if err == service.ErrTaskAlreadyCompleted {
-			respondBadRequest(c, "task is already completed")
+			middleware.RespondBadRequest(c, "task is already completed")
 			return
 		}
 		if err == service.ErrTaskCancelled {
-			respondBadRequest(c, "task has been cancelled")
+			middleware.RespondBadRequest(c, "task has been cancelled")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, task)
+	middleware.RespondSuccess(c, task)
 }

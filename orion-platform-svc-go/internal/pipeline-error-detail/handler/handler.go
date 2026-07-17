@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	stderrors "errors"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -43,22 +44,22 @@ func (h *Handler) ErrorDetail(c *gin.Context) {
 	detail, err := h.svc.GetErrorDetail(ctx, runID)
 	if err != nil {
 		if stderrors.Is(err, service.ErrInvalidRun) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if stderrors.Is(err, service.ErrRunNotFound) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
 		if stderrors.Is(err, service.ErrNotFailed) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, detail)
+	middleware.RespondSuccess(c, detail)
 }
 
 // respondSuccess writes a canonical success envelope.

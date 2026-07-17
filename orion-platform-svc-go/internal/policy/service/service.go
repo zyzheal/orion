@@ -1,14 +1,18 @@
 package service
 
 import (
+
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
+	"orion/platform-svc-go/internal/policy/engine"
 	"orion/platform-svc-go/internal/policy/models"
 	"orion/platform-svc-go/internal/policy/repository"
 )
@@ -80,32 +84,96 @@ func (s *Service) TogglePolicy(ctx context.Context, tenantID, id string, enabled
 // --- Policy evaluations ---
 
 func (s *Service) EvaluatePolicy(ctx context.Context, tenantID string, req models.EvaluatePolicyRequest) (*models.EvaluatePolicyResponse, error) {
-	// TODO: evaluate Rego policy against input using OPA.
-	// For now, return a placeholder response.
 	policy, err := s.repo.GetPolicy(ctx, tenantID, req.PolicyID)
 	if err != nil {
 		return nil, ErrPolicyNotFound
 	}
-	result := models.EvaluatePolicyResponse{
-		Decision: "unknown",
-		Rego:     policy.Rego,
-		Result:   map[string]interface{}{},
+	if !policy.Enabled {
+		return &models.EvaluatePolicyResponse{
+			Decision: "unknown",
+			Rego:     policy.Rego,
+			Result:   map[string]interface{}{},
+			Error:    fmt.Sprintf("policy %q is disabled", policy.ID),
+		}, nil
 	}
-	// Persist evaluation record.
-	inputJSON, _ := json.Marshal(req.Input)
-	outputJSON, _ := json.Marshal(result)
+
+	result := s.evaluateRego(policy.Rego, req.Input)
+
 	eval := &models.PolicyEvaluation{
 		TenantID:   tenantID,
 		PolicyID:   req.PolicyID,
 		RunID:      "",
 		ResourceID: req.ResourceID,
-		InputJSON:  string(inputJSON),
-		OutputJSON: string(outputJSON),
-		Decision:   result.Decision,
+		InputJSON:  result.inputJSON,
+		OutputJSON: result.outputJSON,
+		Decision:   result.decision,
 		ExecutedBy: "",
 	}
+	if result.err != "" {
+		eval.Decision = "unknown"
+	}
 	_ = s.repo.CreateEvaluation(ctx, eval)
-	return &result, nil
+	return result.resp, nil
+}
+
+// evaluateResult wraps the response, decision, persisted JSON and any parse error.
+type evaluateResult struct {
+	resp       *models.EvaluatePolicyResponse
+	decision   string
+	inputJSON  string
+	outputJSON string
+	err        string
+}
+
+func (s *Service) evaluateRego(rego string, input map[string]interface{}) *evaluateResult {
+	inputJSON, _ := json.Marshal(input)
+	resp := &models.EvaluatePolicyResponse{
+		Decision: "allow",
+		Rego:     rego,
+		Result:   map[string]interface{}{},
+	}
+
+	eng, err := engine.Compile(rego)
+	if err != nil {
+		resp.Decision = "unknown"
+		resp.Error = fmt.Sprintf("rego compile error: %v", err)
+		outputJSON, _ := json.Marshal(resp)
+		return &evaluateResult{resp: resp, decision: "unknown", inputJSON: string(inputJSON), outputJSON: string(outputJSON), err: resp.Error}
+	}
+	evalOut, err := eng.Evaluate(input)
+	if err != nil {
+		resp.Decision = "unknown"
+		resp.Error = fmt.Sprintf("rego eval error: %v", err)
+		outputJSON, _ := json.Marshal(resp)
+		return &evaluateResult{resp: resp, decision: "unknown", inputJSON: string(inputJSON), outputJSON: string(outputJSON), err: resp.Error}
+	}
+	resp.Result = evalOut
+
+	// Determine decision from evaluation.
+	// If allow exists, use it; otherwise deny if any derived rule is true, else allow.
+	if allow, ok := evalOut["allow"]; ok {
+		switch v := allow.(type) {
+		case bool:
+			if !v {
+				resp.Decision = "deny"
+			}
+		default:
+			if !isBoolTrue(v) {
+				resp.Decision = "deny"
+			}
+		}
+	}
+	outputJSON, _ := json.Marshal(resp)
+	return &evaluateResult{resp: resp, decision: resp.Decision, inputJSON: string(inputJSON), outputJSON: string(outputJSON), err: ""}
+}
+
+func isBoolTrue(v interface{}) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	default:
+		return false
+	}
 }
 
 func (s *Service) GetEvaluationHistory(ctx context.Context, tenantID, policyID string, limit, offset int) ([]models.PolicyEvaluation, error) {
@@ -116,11 +184,36 @@ func (s *Service) ListEvaluations(ctx context.Context, tenantID string, limit, o
 	return s.repo.ListEvaluations(ctx, tenantID, limit, offset)
 }
 
+// EvaluateGate evaluates a gate policy against the input using the policy engine.
 func (s *Service) EvaluateGate(ctx context.Context, tenantID, gateID string, input map[string]interface{}) (*models.EvaluatePolicyResponse, error) {
-	// TODO: evaluate gate policy.
 	result := models.EvaluatePolicyResponse{
 		Decision: "unknown",
 		Result:   map[string]interface{}{},
+	}
+	if input == nil {
+		input = map[string]interface{}{}
+	}
+	eng, err := engine.Compile(gateID)
+	if err != nil {
+		result.Error = fmt.Sprintf("gate policy compile error: %v", err)
+		result.Decision = "deny"
+	} else {
+		out, evalErr := eng.Evaluate(input)
+		if evalErr != nil {
+			result.Error = fmt.Sprintf("gate policy evaluation error: %v", evalErr)
+			result.Decision = "unknown"
+		} else {
+			result.Result = out
+			if allow, ok := out["allow"]; ok {
+				if b, ok := allow.(bool); ok && b {
+					result.Decision = "allow"
+				} else {
+					_ = b
+				}
+			} else {
+				result.Decision = "deny"
+			}
+		}
 	}
 	eval := &models.PolicyEvaluation{
 		TenantID:   tenantID,
@@ -203,32 +296,153 @@ func (s *Service) GetBundle(ctx context.Context, tenantID, id string) (*models.P
 	return s.repo.GetBundle(ctx, tenantID, id)
 }
 
+// SyncBundles fetches Rego content from sourceURL and persists it as a bundle.
 func (s *Service) SyncBundles(ctx context.Context, tenantID string, sourceURL string) (*models.SyncBundlesResponse, error) {
-	// TODO: actually sync bundles from source URL.
-	// For now, create a bundle record.
-	b := &models.PolicyBundle{
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, "GET", sourceURL, nil)
+	if err != nil {
+		b := recordSyncBundle(tenantID, sourceURL, "failed")
+		_ = s.repo.CreateBundle(ctx, b)
+		return &models.SyncBundlesResponse{Updated: 0, Message: fmt.Sprintf("sync failed: %v", err)}, nil
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		b := recordSyncBundle(tenantID, sourceURL, "failed")
+		_ = s.repo.CreateBundle(ctx, b)
+		return &models.SyncBundlesResponse{Updated: 0, Message: fmt.Sprintf("sync failed: %v", err)}, nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b := recordSyncBundle(tenantID, sourceURL, "failed")
+		_ = s.repo.CreateBundle(ctx, b)
+		return &models.SyncBundlesResponse{Updated: 0, Message: fmt.Sprintf("sync failed: HTTP %d", resp.StatusCode)}, nil
+	}
+	body, err := readBodyJSON(resp.Body)
+	if err != nil {
+		b := recordSyncBundle(tenantID, sourceURL, "failed")
+		_ = s.repo.CreateBundle(ctx, b)
+		return &models.SyncBundlesResponse{Updated: 0, Message: fmt.Sprintf("sync failed to parse bundle: %v", err)}, nil
+	}
+	bundles := parseBundlePayload(body, sourceURL)
+	updated := 0
+	for _, b := range bundles {
+		pb := &models.PolicyBundle{
+			TenantID:  tenantID,
+			Name:      b.ID,
+			SourceURL: sourceURL,
+			Version:   b.Rego,
+			Status:    "synced",
+		}
+		if s.repo.CreateBundle(ctx, pb) == nil {
+			updated++
+		}
+	}
+	msg := fmt.Sprintf("synced %d bundle(s) from %s", updated, sourceURL)
+	return &models.SyncBundlesResponse{Updated: updated, Message: msg}, nil
+}
+
+func recordSyncBundle(tenantID, sourceURL, status string) *models.PolicyBundle {
+	return &models.PolicyBundle{
 		TenantID:  tenantID,
 		Name:      "sync-" + time.Now().Format("20060102-150405"),
 		SourceURL: sourceURL,
-		Status:    "synced",
+		Status:    status,
 	}
-	_ = s.repo.CreateBundle(ctx, b)
-	return &models.SyncBundlesResponse{Updated: 1, Message: "bundles synced"}, nil
+}
+
+func readBodyJSON(r io.Reader) (map[string]interface{}, error) {
+	var out map[string]interface{}
+	dec := json.NewDecoder(r)
+	return out, dec.Decode(&out)
+}
+
+type regoBundle struct {
+	ID   string
+	Rego string
+}
+
+func parseBundlePayload(body map[string]interface{}, sourceURL string) []regoBundle {
+	var bundles []regoBundle
+	if bundlesSlice, ok := body["bundles"].([]interface{}); ok {
+		for _, bi := range bundlesSlice {
+			if m, ok := bi.(map[string]interface{}); ok {
+				bundles = append(bundles, regoBundle{
+					ID:   fmt.Sprintf("%v", m["id"]),
+					Rego: fmt.Sprintf("%v", m["rego"]),
+				})
+			}
+		}
+	} else if rego, ok := body["rego"]; ok {
+		bundles = []regoBundle{{ID: sourceURL + "/" + time.Now().Format("20060102-150405"), Rego: fmt.Sprintf("%v", rego)}}
+	}
+	if len(bundles) == 0 {
+		// Treat the entire body as a single Rego document.
+		bundles = []regoBundle{{ID: sourceURL + "/" + time.Now().Format("20060102-150405"), Rego: fmt.Sprintf("%v", body)}}
+	}
+	return bundles
 }
 
 // --- Policy testing ---
 
 func (s *Service) TestPolicy(ctx context.Context, rego string, testCases []map[string]interface{}) ([]models.TestCaseResult, error) {
-	// TODO: evaluate Rego against test cases using OPA.
-	results := make([]models.TestCaseResult, 0, len(testCases))
-	for _, tc := range testCases {
+	eng, err := engine.Compile(rego)
+	if err != nil {
+		results := make([]models.TestCaseResult, len(testCases))
+		for i, tc := range testCases {
+			name, _ := tc["name"]
+			results[i] = models.TestCaseResult{
+				Name:   fmt.Sprintf("%v", name),
+				Passed: false,
+				Error:  fmt.Sprintf("rego compile error: %v", err),
+			}
+		}
+		return results, nil
+	}
+	results := make([]models.TestCaseResult, len(testCases))
+	for i, tc := range testCases {
 		name, _ := tc["name"]
-		results = append(results, models.TestCaseResult{
+		// The "expected" key (if present) is compared against the evaluation
+		// result's "allow" value to determine pass/fail.
+		evalOut, evalErr := eng.Evaluate(tc)
+		if evalErr != nil {
+			results[i] = models.TestCaseResult{
+				Name:   fmt.Sprintf("%v", name),
+				Passed: false,
+				Output: map[string]interface{}{},
+				Error:  fmt.Sprintf("evaluation error: %v", evalErr),
+			}
+			continue
+		}
+		expected, _ := tc["expected"]
+		passed := true
+		if expected != nil {
+			allow, ok := evalOut["allow"]
+			if !ok {
+				passed = false
+			} else {
+				switch e := expected.(type) {
+				case bool:
+					if allow != e {
+						passed = false
+					}
+				case float64:
+					if e == 0 && allow == true {
+						passed = false
+					} else if e != 0 && allow == false {
+						passed = false
+					}
+				default:
+					if fmt.Sprintf("%v", allow) != fmt.Sprintf("%v", e) {
+						passed = false
+					}
+				}
+			}
+		}
+		results[i] = models.TestCaseResult{
 			Name:   fmt.Sprintf("%v", name),
-			Passed: false,
-			Output: map[string]interface{}{},
-			Error:  "OPA evaluation not yet implemented",
-		})
+			Passed: passed,
+			Output: evalOut,
+		}
 	}
 	return results, nil
 }

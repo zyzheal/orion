@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/security/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -70,11 +71,11 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 
 	report, err := h.svc.GetVulnerabilityReport(ctx, tenantID, opt)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": report.Vulnerabilities,
 		"meta": gin.H{
 			"total":          report.TotalVulnerabilities,
@@ -93,17 +94,17 @@ func (h *Handler) TriggerScan(c *gin.Context) {
 
 	var req models.ScanVulnerabilitiesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.ScanDependencies(ctx, tenantID, req.ProjectPath)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // GetVulnerability retrieves details for a specific vulnerability.
@@ -114,11 +115,11 @@ func (h *Handler) GetVulnerability(c *gin.Context) {
 
 	vuln, err := h.svc.CheckVulnerability(ctx, tenantID, id)
 	if err != nil {
-		respondNotFound(c, "vulnerability not found")
+		middleware.RespondNotFound(c, "vulnerability not found")
 		return
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"id":             vuln.ID,
 		"cveId":          vuln.CVEID,
 		"packageName":    vuln.PackageName,
@@ -139,12 +140,12 @@ func (h *Handler) Remediate(c *gin.Context) {
 
 	var req models.RemediateVulnerabilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	if req.Action == "" {
-		respondBadRequest(c, "missing required field: action (remediate | ignore | false_positive)")
+		middleware.RespondBadRequest(c, "missing required field: action (remediate | ignore | false_positive)")
 		return
 	}
 
@@ -160,16 +161,16 @@ func (h *Handler) Remediate(c *gin.Context) {
 	if err != nil {
 		switch {
 		case err.Error() == service.ErrNotFound.Error():
-			respondNotFound(c, "vulnerability not found")
+			middleware.RespondNotFound(c, "vulnerability not found")
 		case err.Error() == service.ErrInvalidInput.Error() || len(err.Error()) > len(service.ErrInvalidInput.Error()) && err.Error()[:len(service.ErrInvalidInput.Error())] == service.ErrInvalidInput.Error():
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		default:
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"id":          vuln.ID,
 		"cveId":       vuln.CVEID,
 		"packageName": vuln.PackageName,

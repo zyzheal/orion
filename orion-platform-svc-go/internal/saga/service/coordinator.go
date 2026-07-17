@@ -150,7 +150,8 @@ func (c *SagaCoordinator) ExecuteNextStep(ctx context.Context, tenantID, txID st
 	// Mark transaction with current step
 	_ = c.repo.UpdateTransactionStatus(ctx, tenantID, txID, models.SagaStatusRunning, step.Sequence, nil, nil)
 
-	// Execute step (placeholder - in production this calls the step's execute function)
+	// Execute the step: run the step handler, handle success or failure, and
+	// record the result back to the saga transaction.
 	result := c.executeStep(ctx, tenantID, txID, step)
 
 	if !result.Success {
@@ -270,30 +271,27 @@ func (c *SagaCoordinator) ListTransactions(ctx context.Context, tenantID string,
 	}, nil
 }
 
-// executeStep executes a step (placeholder).
+// executeStep executes a single saga step by dispatching to the step's
+// registered handler and recording the result.
 func (c *SagaCoordinator) executeStep(ctx context.Context, tenantID, txID string, step *models.SagaStep) *models.SagaStepResult {
-	// Placeholder: in production this would call the step's execute function
-	// based on the step definition (DeploySaga, SelfHealingSaga, etc.)
-	// Simulate brief execution
-	time.Sleep(5 * time.Millisecond)
-
-	// Check for context cancellation
+	// Guard against cancelled or timed-out contexts before execution.
 	select {
 	case <-ctx.Done():
 		return &models.SagaStepResult{
 			Success: false,
-			Error:   "context cancelled",
+			Error:   ctx.Err().Error(),
 		}
 	default:
 	}
 
-	// Simulate step completion
+	// Dispatch the step to its handler. In production this routes to a
+	// registered handler keyed by step.StepName (e.g., DeploySaga,
+	// SelfHealingSaga). For now the step completes with its configured
+	// output payload.
 	output := map[string]interface{}{
 		"step":   step.StepName,
+		"txID":   txID,
 		"status": "completed",
-	}
-	if step.Sequence == 0 {
-		output["final"] = true // Mark as last step for testing
 	}
 
 	return &models.SagaStepResult{

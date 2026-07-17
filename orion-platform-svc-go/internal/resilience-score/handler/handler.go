@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/resilience-score/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // ResilienceService defines the service interface used by Handler.
@@ -71,10 +72,10 @@ func (h *Handler) GetGlobalScore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	score, err := h.svc.GetGlobalScore(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"score": score})
+	middleware.RespondSuccess(c, gin.H{"score": score})
 }
 
 // ----- Service Scores -----
@@ -92,10 +93,10 @@ func (h *Handler) ListServiceScores(c *gin.Context) {
 		Order: order,
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": result.Data,
 		"total": result.Total,
 		"page":  result.Page,
@@ -108,10 +109,10 @@ func (h *Handler) GetServiceScore(c *gin.Context) {
 	name := c.Param("name")
 	score, err := h.svc.GetServiceScore(c.Request.Context(), tenantID, name)
 	if err != nil {
-		respondNotFound(c, "Service resilience score "+name+" not found")
+		middleware.RespondNotFound(c, "Service resilience score "+name+" not found")
 		return
 	}
-	respondSuccess(c, gin.H{"score": score})
+	middleware.RespondSuccess(c, gin.H{"score": score})
 }
 
 // ----- History -----
@@ -129,10 +130,10 @@ func (h *Handler) ListHistory(c *gin.Context) {
 		Order: order,
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": result.Data,
 		"total": result.Total,
 		"page":  result.Page,
@@ -153,10 +154,10 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 		Size: size,
 	}, priority, component)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": result.Data,
 		"total": result.Total,
 		"page":  result.Page,
@@ -170,7 +171,7 @@ func (h *Handler) Assess(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AssessResilienceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Scope == "" {
@@ -178,10 +179,10 @@ func (h *Handler) Assess(c *gin.Context) {
 	}
 	result, err := h.svc.Assess(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"result": result})
+	middleware.RespondCreated(c, gin.H{"result": result})
 }
 
 // ----- Components -----
@@ -190,10 +191,10 @@ func (h *Handler) GetComponentScores(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	components, err := h.svc.GetComponentScores(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": components})
+	middleware.RespondSuccess(c, gin.H{"data": components})
 }
 
 // ----- Benchmarks -----
@@ -202,13 +203,13 @@ func (h *Handler) CreateBenchmark(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBenchmarkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	benchmark, err := h.svc.CreateBenchmark(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"benchmark": benchmark})
+	middleware.RespondCreated(c, gin.H{"benchmark": benchmark})
 }

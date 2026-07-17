@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/chaos/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -50,15 +51,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -67,13 +68,13 @@ func (h *Handler) Get(c *gin.Context) {
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -83,10 +84,10 @@ func (h *Handler) List(c *gin.Context) {
 	status := c.Query("status")
 	items, err := h.svc.List(c.Request.Context(), tenantID, status, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -94,15 +95,15 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Experiment Activation ---
@@ -113,10 +114,10 @@ func (h *Handler) Activate(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.ActivateExperiment(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // Archive handles POST /experiments/:id/archive.
@@ -125,10 +126,10 @@ func (h *Handler) Archive(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.ArchiveExperiment(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Experiment Execution ---
@@ -139,15 +140,15 @@ func (h *Handler) Run(c *gin.Context) {
 	id := c.Param("id")
 	var req models.RunExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	run, err := h.svc.RunExperiment(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, run)
+	middleware.RespondCreated(c, run)
 }
 
 // GetRun handles GET /runs/:runId.
@@ -157,13 +158,13 @@ func (h *Handler) GetRun(c *gin.Context) {
 	run, err := h.svc.GetRun(c.Request.Context(), tenantID, runID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "run not found")
+			middleware.RespondNotFound(c, "run not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 // Rollback handles POST /runs/:runId/rollback.
@@ -174,10 +175,10 @@ func (h *Handler) Rollback(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	run, err := h.svc.RollbackRun(c.Request.Context(), tenantID, runID, body.Reason)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 // --- Running Experiments ---
@@ -187,10 +188,10 @@ func (h *Handler) GetRunning(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetRunningExperiments(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"experiments": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"experiments": items, "total": len(items)})
 }
 
 // --- Fault Injection (Direct) ---
@@ -200,15 +201,15 @@ func (h *Handler) CpuSpike(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteCPUSpike(c.Request.Context(), tenantID, body.Target, body.Config)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // MemoryLeak handles POST /inject/memory-leak.
@@ -216,15 +217,15 @@ func (h *Handler) MemoryLeak(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteMemoryLeak(c.Request.Context(), tenantID, body.Target, body.Config)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // NetworkLatency handles POST /inject/network-latency.
@@ -232,15 +233,15 @@ func (h *Handler) NetworkLatency(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteNetworkLatency(c.Request.Context(), tenantID, body.Target, body.Config)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // ServiceDown handles POST /inject/service-down.
@@ -248,15 +249,15 @@ func (h *Handler) ServiceDown(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteServiceDown(c.Request.Context(), tenantID, body.Target, body.Config)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // --- Recovery ---
@@ -267,10 +268,10 @@ func (h *Handler) Recover(c *gin.Context) {
 	experimentID := c.Param("experimentId")
 	result, err := h.svc.RecoverExperiment(c.Request.Context(), tenantID, experimentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ValidateRecovery handles POST /validate-recovery/:experimentId.
@@ -279,10 +280,10 @@ func (h *Handler) ValidateRecovery(c *gin.Context) {
 	experimentID := c.Param("experimentId")
 	val, err := h.svc.ValidateRecovery(c.Request.Context(), tenantID, experimentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, val)
+	middleware.RespondSuccess(c, val)
 }
 
 // RecoveryReport handles GET /recovery-report/:experimentId.
@@ -291,10 +292,10 @@ func (h *Handler) RecoveryReport(c *gin.Context) {
 	experimentID := c.Param("experimentId")
 	report, err := h.svc.GenerateRecoveryReport(c.Request.Context(), tenantID, experimentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // --- Pre-release Verify ---
@@ -304,13 +305,13 @@ func (h *Handler) PreReleaseVerify(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.PreReleaseVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.PreReleaseVerify(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

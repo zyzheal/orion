@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/dba/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -75,20 +76,20 @@ func (h *Handler) ListOrders(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	result, err := h.svc.ListOrders(c.Request.Context(), tenantID, status, page, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetOrder(c *gin.Context) {
 	id := c.Param("id")
 	order, err := h.svc.GetOrder(c.Request.Context(), id)
 	if err != nil {
-		respondNotFound(c, "order not found")
+		middleware.RespondNotFound(c, "order not found")
 		return
 	}
-	respondSuccess(c, order)
+	middleware.RespondSuccess(c, order)
 }
 
 func (h *Handler) CreateOrder(c *gin.Context) {
@@ -96,15 +97,15 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	order, err := h.svc.CreateOrder(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, order)
+	middleware.RespondCreated(c, order)
 }
 
 func (h *Handler) ApproveOrder(c *gin.Context) {
@@ -112,30 +113,30 @@ func (h *Handler) ApproveOrder(c *gin.Context) {
 	approvedBy := c.GetString("user_id")
 	order, err := h.svc.ApproveOrder(c.Request.Context(), id, approvedBy)
 	if err != nil {
-		respondNotFound(c, "order not found")
+		middleware.RespondNotFound(c, "order not found")
 		return
 	}
-	respondSuccess(c, order)
+	middleware.RespondSuccess(c, order)
 }
 
 func (h *Handler) RejectOrder(c *gin.Context) {
 	id := c.Param("id")
 	order, err := h.svc.RejectOrder(c.Request.Context(), id)
 	if err != nil {
-		respondNotFound(c, "order not found")
+		middleware.RespondNotFound(c, "order not found")
 		return
 	}
-	respondSuccess(c, order)
+	middleware.RespondSuccess(c, order)
 }
 
 func (h *Handler) ExecuteOrder(c *gin.Context) {
 	id := c.Param("id")
 	order, err := h.svc.ExecuteOrder(c.Request.Context(), id)
 	if err != nil {
-		respondNotFound(c, "order not found")
+		middleware.RespondNotFound(c, "order not found")
 		return
 	}
-	respondSuccess(c, order)
+	middleware.RespondSuccess(c, order)
 }
 
 // ---- Data Sources ----
@@ -144,69 +145,69 @@ func (h *Handler) ListDataSources(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	sources, err := h.svc.ListDataSources(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sources)
+	middleware.RespondSuccess(c, sources)
 }
 
 func (h *Handler) GetDataSource(c *gin.Context) {
 	id := c.Param("id")
 	ds, err := h.svc.GetDataSource(c.Request.Context(), id)
 	if err != nil {
-		respondNotFound(c, "data source not found")
+		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
-	respondSuccess(c, ds)
+	middleware.RespondSuccess(c, ds)
 }
 
 func (h *Handler) CreateDataSource(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ds, err := h.svc.CreateDataSource(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ds)
+	middleware.RespondCreated(c, ds)
 }
 
 func (h *Handler) UpdateDataSource(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ds, err := h.svc.UpdateDataSource(c.Request.Context(), id, req)
 	if err != nil {
-		respondNotFound(c, "data source not found")
+		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
-	respondSuccess(c, ds)
+	middleware.RespondSuccess(c, ds)
 }
 
 func (h *Handler) DeleteDataSource(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteDataSource(c.Request.Context(), id); err != nil {
-		respondNotFound(c, "data source not found")
+		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "data source deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "data source deleted"})
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.TestConnection(c.Request.Context(), id)
 	if err != nil {
-		respondNotFound(c, "data source not found")
+		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Audit Rules ----
@@ -215,40 +216,40 @@ func (h *Handler) ListAuditRules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rules, err := h.svc.ListAuditRules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rules)
+	middleware.RespondSuccess(c, rules)
 }
 
 func (h *Handler) CreateAuditRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.CreateAuditRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, rule)
+	middleware.RespondCreated(c, rule)
 }
 
 func (h *Handler) UpdateAuditRule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAuditRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.UpdateAuditRule(c.Request.Context(), id, req)
 	if err != nil {
-		respondNotFound(c, "audit rule not found")
+		middleware.RespondNotFound(c, "audit rule not found")
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 // ---- Direct Query ----
@@ -258,19 +259,19 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.DirectQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc.ExecuteDirectQuery(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !resp.Success {
-		respondBadRequest(c, resp.Error)
+		middleware.RespondBadRequest(c, resp.Error)
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":             resp.Data,
 		"execution_record": resp.ExecutionRecord,
 	})
@@ -288,10 +289,10 @@ func (h *Handler) ListQueryLogs(c *gin.Context) {
 	}
 	result, err := h.svc.ListQueryLogs(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Helpers ----

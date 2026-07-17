@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/ueba/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -42,16 +43,16 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) ListAlerts(c *gin.Context) {
 	var q models.ListAlertsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	alerts, err := h.svc.ListAlerts(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"alerts": alerts, "count": len(alerts)})
+	middleware.RespondSuccess(c, gin.H{"alerts": alerts, "count": len(alerts)})
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
@@ -59,57 +60,57 @@ func (h *Handler) GetAlert(c *gin.Context) {
 	alert, err := h.svc.GetAlert(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, gin.H{"alert": alert})
+	middleware.RespondSuccess(c, gin.H{"alert": alert})
 }
 
 func (h *Handler) CreateAlert(c *gin.Context) {
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"alert": alert})
+	middleware.RespondCreated(c, gin.H{"alert": alert})
 }
 
 func (h *Handler) DismissAlert(c *gin.Context) {
 	var req models.DismissAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	err := h.svc.DismissAlert(c.Request.Context(), c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, gin.H{"message": "alert dismissed"})
+	middleware.RespondSuccess(c, gin.H{"message": "alert dismissed"})
 }
 
 func (h *Handler) ListProfiles(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	profiles, err := h.svc.ListProfiles(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"profiles": profiles, "count": len(profiles)})
+	middleware.RespondSuccess(c, gin.H{"profiles": profiles, "count": len(profiles)})
 }
 
 func (h *Handler) GetProfile(c *gin.Context) {
@@ -117,31 +118,31 @@ func (h *Handler) GetProfile(c *gin.Context) {
 	profile, err := h.svc.GetProfile(c.Request.Context(), tenantID, c.Param("entityId"))
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "profile not found")
+			middleware.RespondNotFound(c, "profile not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, gin.H{"profile": profile})
+	middleware.RespondSuccess(c, gin.H{"profile": profile})
 }
 
 func (h *Handler) DetectAnomaly(c *gin.Context) {
 	var req models.DetectAnomalyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	alertReq, err := h.svc.DetectAnomaly(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, alertReq)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"alert": alert})
+	middleware.RespondSuccess(c, gin.H{"alert": alert})
 }

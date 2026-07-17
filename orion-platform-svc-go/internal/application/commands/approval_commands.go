@@ -109,8 +109,8 @@ func (c *RejectLevelCommand) Validate() error {
 // CancelApprovalCommand cancels a pending approval request.
 type CancelApprovalCommand struct {
 	baseCommand
-	ID      string // approval aggregate ID
-	Reason  string // cancellation reason
+	ID          string // approval aggregate ID
+	Reason      string // cancellation reason
 	CancelledBy string // user who cancelled
 }
 
@@ -168,12 +168,7 @@ func (h *CreateApprovalHandler) Execute(ctx context.Context, cmd *CreateApproval
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	// Persist the initial event
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
-	// Publish the event
+	// ComposedEventPublisher handles both persistence and notification
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -220,10 +215,6 @@ func (h *ApproveLevelHandler) Execute(ctx context.Context, cmd *ApproveLevelComm
 	}
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
-
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
 
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
@@ -272,10 +263,6 @@ func (h *RejectLevelHandler) Execute(ctx context.Context, cmd *RejectLevelComman
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -323,10 +310,6 @@ func (h *CancelApprovalHandler) Execute(ctx context.Context, cmd *CancelApproval
 	newEvent.SetAggregateID(agg.GetAggregateID())
 	newEvent.SetTenantID(agg.GetTenantID())
 
-	if err := h.store.Append(ctx, newEvent); err != nil {
-		return nil, errors.Join(ErrAppendFailed, err)
-	}
-
 	if err := h.publisher.Publish(ctx, newEvent); err != nil {
 		return &CommandResult{
 			Success:       true,
@@ -345,5 +328,3 @@ func (h *CancelApprovalHandler) Execute(ctx context.Context, cmd *CancelApproval
 		Events:        []events.DomainEvent{newEvent},
 	}, nil
 }
-
-// ---------------------------------------------------------------------------

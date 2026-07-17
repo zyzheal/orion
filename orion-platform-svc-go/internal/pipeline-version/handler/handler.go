@@ -2,6 +2,7 @@ package handler
 
 import (
 	stderrors "errors"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -43,32 +44,32 @@ func (h *Handler) GetVersion(c *gin.Context) {
 	version, err := h.svc.GetVersion(c.Request.Context(), c.Param("versionId"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	middleware.RespondSuccess(c, version)
 }
 
 func (h *Handler) DiffVersions(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.DiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	diff, err := h.svc.DiffVersions(c.Request.Context(), c.Param("versionId"), req.OtherVersionID, tenantID)
 	if err != nil {
 		if stderrors.Is(err, service.ErrVersionNotFound) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, diff)
+	middleware.RespondSuccess(c, diff)
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
@@ -76,32 +77,32 @@ func (h *Handler) Rollback(c *gin.Context) {
 	_, err := h.svc.Rollback(c.Request.Context(), c.Param("versionId"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, nil)
+	middleware.RespondSuccess(c, nil)
 }
 
 func (h *Handler) AddTag(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.AddTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	version, err := h.svc.AddTag(c.Request.Context(), c.Param("versionId"), tenantID, req.Tag)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	middleware.RespondSuccess(c, version)
 }
 
 func (h *Handler) RemoveTag(c *gin.Context) {
@@ -110,32 +111,32 @@ func (h *Handler) RemoveTag(c *gin.Context) {
 	version, err := h.svc.RemoveTag(c.Request.Context(), c.Param("versionId"), tenantID, tag)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	middleware.RespondSuccess(c, version)
 }
 
 func (h *Handler) SetBaseline(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.SetBaselineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	version, err := h.svc.SetBaseline(c.Request.Context(), c.Param("versionId"), tenantID, req.Set)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	middleware.RespondSuccess(c, version)
 }
 
 func respondSuccess(c *gin.Context, data interface{}) {

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/scheduled-notification/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -91,10 +92,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	schedules, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     schedules,
 		Total:    total,
 		Page:     page,
@@ -105,17 +106,17 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	schedule, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, schedule)
+	middleware.RespondCreated(c, schedule)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -124,33 +125,33 @@ func (h *Handler) Get(c *gin.Context) {
 	schedule, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	schedule, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -158,24 +159,24 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "scheduled notification not found")
+		middleware.RespondNotFound(c, "scheduled notification not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "scheduled notification deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "scheduled notification deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	total, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"total": total})
+	middleware.RespondSuccess(c, gin.H{"total": total})
 }
 
 func (h *Handler) Execute(c *gin.Context) {
@@ -184,13 +185,13 @@ func (h *Handler) Execute(c *gin.Context) {
 	err := h.svc.Execute(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "scheduled notification executed"})
+	middleware.RespondSuccess(c, gin.H{"message": "scheduled notification executed"})
 }
 
 func (h *Handler) Pause(c *gin.Context) {
@@ -199,13 +200,13 @@ func (h *Handler) Pause(c *gin.Context) {
 	schedule, err := h.svc.Pause(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) Resume(c *gin.Context) {
@@ -214,13 +215,13 @@ func (h *Handler) Resume(c *gin.Context) {
 	schedule, err := h.svc.Resume(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) GetLogs(c *gin.Context) {
@@ -229,11 +230,11 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	logs, err := h.svc.GetLogs(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "scheduled notification not found")
+			middleware.RespondNotFound(c, "scheduled notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	middleware.RespondSuccess(c, logs)
 }

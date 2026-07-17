@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/cost-allocation/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes the cost-allocation module's HTTP endpoints.
@@ -62,25 +63,25 @@ func (h *Handler) ListAllocations(c *gin.Context) {
 	}
 	result, err := h.svc.ListAllocations(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateAllocation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAllocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateAllocation(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetAllocation(c *gin.Context) {
@@ -88,10 +89,10 @@ func (h *Handler) GetAllocation(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetAllocation(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "allocation not found")
+		middleware.RespondNotFound(c, "allocation not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateAllocation(c *gin.Context) {
@@ -99,19 +100,19 @@ func (h *Handler) UpdateAllocation(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAllocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateAllocation(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if err == repository.ErrNotFound {
-			respondNotFound(c, "allocation not found")
+			middleware.RespondNotFound(c, "allocation not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteAllocation(c *gin.Context) {
@@ -119,14 +120,14 @@ func (h *Handler) DeleteAllocation(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteAllocation(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "allocation not found")
+		middleware.RespondNotFound(c, "allocation not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "allocation deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "allocation deleted"})
 }
 
 // ==================== Rules ====================
@@ -136,16 +137,16 @@ func (h *Handler) CreateRule(c *gin.Context) {
 	allocationID := c.Param("id")
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.AllocationID = allocationID
 	result, err := h.svc.CreateRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListRules(c *gin.Context) {
@@ -153,10 +154,10 @@ func (h *Handler) ListRules(c *gin.Context) {
 	allocationID := c.Param("id")
 	result, err := h.svc.ListRules(c.Request.Context(), tenantID, allocationID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
@@ -164,14 +165,14 @@ func (h *Handler) DeleteRule(c *gin.Context) {
 	ruleID := c.Param("ruleId")
 	deleted, err := h.svc.DeleteRule(c.Request.Context(), tenantID, ruleID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "rule not found")
+		middleware.RespondNotFound(c, "rule not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "rule deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "rule deleted"})
 }
 
 // ==================== Reports ====================
@@ -180,15 +181,15 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateReport(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
@@ -205,10 +206,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 	}
 	result, err := h.svc.ListReports(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
@@ -216,10 +217,10 @@ func (h *Handler) GetReport(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetReport(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "report not found")
+		middleware.RespondNotFound(c, "report not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CompleteReport(c *gin.Context) {
@@ -231,15 +232,15 @@ func (h *Handler) CompleteReport(c *gin.Context) {
 		ResultData    string  `json:"resultData"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CompleteReport(c.Request.Context(), tenantID, id, body.TotalCost, body.AllocatedCost, body.ResultData)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) FailReport(c *gin.Context) {
@@ -249,15 +250,15 @@ func (h *Handler) FailReport(c *gin.Context) {
 		ErrorMessage string `json:"errorMessage" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.FailReport(c.Request.Context(), tenantID, id, body.ErrorMessage)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
@@ -265,12 +266,12 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteReport(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "report not found")
+		middleware.RespondNotFound(c, "report not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "report deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "report deleted"})
 }

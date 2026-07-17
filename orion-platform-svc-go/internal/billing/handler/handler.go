@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/billing/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes the billing module's HTTP endpoints.
@@ -63,29 +64,29 @@ func (h *Handler) ListAccounts(c *gin.Context) {
 	}
 	result, err := h.svc.ListAccounts(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateAccount(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateAccount(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetAccount(c *gin.Context) {
@@ -94,13 +95,13 @@ func (h *Handler) GetAccount(c *gin.Context) {
 	result, err := h.svc.GetAccount(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "account not found")
+			middleware.RespondNotFound(c, "account not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateAccount(c *gin.Context) {
@@ -108,23 +109,23 @@ func (h *Handler) UpdateAccount(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateAccount(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "account not found")
+			middleware.RespondNotFound(c, "account not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteAccount(c *gin.Context) {
@@ -133,13 +134,13 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 	err := h.svc.DeleteAccount(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "account not found")
+			middleware.RespondNotFound(c, "account not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "account deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "account deleted"})
 }
 
 // ==================== Invoices ====================
@@ -167,29 +168,29 @@ func (h *Handler) ListInvoices(c *gin.Context) {
 	}
 	result, total, err := h.svc.ListInvoices(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result, "total": total})
+	middleware.RespondSuccess(c, gin.H{"data": result, "total": total})
 }
 
 func (h *Handler) CreateInvoice(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateInvoiceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateInvoice(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetInvoice(c *gin.Context) {
@@ -198,13 +199,13 @@ func (h *Handler) GetInvoice(c *gin.Context) {
 	result, err := h.svc.GetInvoice(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "invoice not found")
+			middleware.RespondNotFound(c, "invoice not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateInvoice(c *gin.Context) {
@@ -212,19 +213,19 @@ func (h *Handler) UpdateInvoice(c *gin.Context) {
 	id := c.Param("id")
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateInvoice(c.Request.Context(), tenantID, id, updates)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "invoice not found")
+			middleware.RespondNotFound(c, "invoice not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteInvoice(c *gin.Context) {
@@ -233,13 +234,13 @@ func (h *Handler) DeleteInvoice(c *gin.Context) {
 	err := h.svc.DeleteInvoice(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "invoice not found")
+			middleware.RespondNotFound(c, "invoice not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "invoice deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "invoice deleted"})
 }
 
 // ==================== Line Items ====================
@@ -249,24 +250,24 @@ func (h *Handler) CreateLineItem(c *gin.Context) {
 	invoiceID := c.Param("invoiceId")
 	var req models.CreateLineItemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.InvoiceID = invoiceID
 	result, err := h.svc.CreateLineItem(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "invoice not found")
+			middleware.RespondNotFound(c, "invoice not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListLineItems(c *gin.Context) {
@@ -274,10 +275,10 @@ func (h *Handler) ListLineItems(c *gin.Context) {
 	invoiceID := c.Param("invoiceId")
 	result, err := h.svc.ListLineItems(c.Request.Context(), tenantID, invoiceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Subscriptions ====================
@@ -290,29 +291,29 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 	}
 	result, err := h.svc.ListSubscriptions(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateSubscription(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateSubscription(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetSubscription(c *gin.Context) {
@@ -321,13 +322,13 @@ func (h *Handler) GetSubscription(c *gin.Context) {
 	result, err := h.svc.GetSubscription(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "subscription not found")
+			middleware.RespondNotFound(c, "subscription not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateSubscription(c *gin.Context) {
@@ -335,23 +336,23 @@ func (h *Handler) UpdateSubscription(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateSubscription(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "subscription not found")
+			middleware.RespondNotFound(c, "subscription not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteSubscription(c *gin.Context) {
@@ -360,13 +361,13 @@ func (h *Handler) DeleteSubscription(c *gin.Context) {
 	err := h.svc.DeleteSubscription(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "subscription not found")
+			middleware.RespondNotFound(c, "subscription not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "subscription deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "subscription deleted"})
 }
 
 // ==================== Stats ====================
@@ -375,8 +376,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetBillingStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

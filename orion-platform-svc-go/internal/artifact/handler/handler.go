@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/artifact/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -83,19 +84,19 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -111,10 +112,10 @@ func (h *Handler) List(c *gin.Context) {
 		Offset:    offset,
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -122,10 +123,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "artifact not found")
+		middleware.RespondNotFound(c, "artifact not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -133,25 +134,25 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "artifact deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "artifact deleted"})
 }
 
 // --- Tags ---
@@ -161,14 +162,14 @@ func (h *Handler) AddTags(c *gin.Context) {
 	id := c.Param("id")
 	var body models.AddTagsRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.AddTags(c.Request.Context(), tenantID, id, body.Tags); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "tags added"})
+	middleware.RespondSuccess(c, gin.H{"message": "tags added"})
 }
 
 func (h *Handler) RemoveTags(c *gin.Context) {
@@ -176,14 +177,14 @@ func (h *Handler) RemoveTags(c *gin.Context) {
 	id := c.Param("id")
 	var body models.RemoveTagsRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.RemoveTags(c.Request.Context(), tenantID, id, body.Tags); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "tags removed"})
+	middleware.RespondSuccess(c, gin.H{"message": "tags removed"})
 }
 
 func (h *Handler) GetTags(c *gin.Context) {
@@ -191,10 +192,10 @@ func (h *Handler) GetTags(c *gin.Context) {
 	id := c.Param("id")
 	tags, err := h.svc.GetTags(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.ArtifactTagResponse{ArtifactID: id, Tags: tags})
+	middleware.RespondSuccess(c, models.ArtifactTagResponse{ArtifactID: id, Tags: tags})
 }
 
 // --- Download ---
@@ -210,13 +211,13 @@ func (h *Handler) Download(c *gin.Context) {
 	m, err := h.svc.Download(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "artifact not found")
+			middleware.RespondNotFound(c, "artifact not found")
 			return
 		}
-		respondForbidden(c, err.Error())
+	middleware.RespondForbidden(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"artifact": m, "storage_path": m.StoragePath})
+	middleware.RespondSuccess(c, gin.H{"artifact": m, "storage_path": m.StoragePath})
 }
 
 func (h *Handler) GetDownloadHistory(c *gin.Context) {
@@ -224,10 +225,10 @@ func (h *Handler) GetDownloadHistory(c *gin.Context) {
 	id := c.Param("id")
 	hist, err := h.svc.GetDownloadHistory(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, hist)
+	middleware.RespondSuccess(c, hist)
 }
 
 // --- Search ---
@@ -236,17 +237,17 @@ func (h *Handler) Search(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	query := c.Query("query")
 	if query == "" {
-		respondBadRequest(c, "query is required")
+		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	artifacts, err := h.svc.Search(c.Request.Context(), tenantID, query, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, artifacts)
+	middleware.RespondSuccess(c, artifacts)
 }
 
 // --- Promote ---
@@ -256,7 +257,7 @@ func (h *Handler) Promote(c *gin.Context) {
 	id := c.Param("id")
 	var body models.PromoteArtifactRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Default promotedBy to current user.
@@ -265,10 +266,10 @@ func (h *Handler) Promote(c *gin.Context) {
 	}
 	promotion, err := h.svc.Promote(c.Request.Context(), tenantID, id, body)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, promotion)
+	middleware.RespondCreated(c, promotion)
 }
 
 func (h *Handler) GetStage(c *gin.Context) {
@@ -277,13 +278,13 @@ func (h *Handler) GetStage(c *gin.Context) {
 	stage, err := h.svc.GetCurrentStage(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "artifact not found")
+			middleware.RespondNotFound(c, "artifact not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"stage": *stage})
+	middleware.RespondSuccess(c, gin.H{"stage": *stage})
 }
 
 func (h *Handler) GetPromotionHistory(c *gin.Context) {
@@ -291,10 +292,10 @@ func (h *Handler) GetPromotionHistory(c *gin.Context) {
 	id := c.Param("id")
 	hist, err := h.svc.GetPromotionHistory(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"history": hist})
+	middleware.RespondSuccess(c, gin.H{"history": hist})
 }
 
 // --- Deprecate ---
@@ -304,10 +305,10 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Deprecate(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Quarantine ---
@@ -317,15 +318,15 @@ func (h *Handler) Quarantine(c *gin.Context) {
 	id := c.Param("id")
 	var body models.QuarantineArtifactRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Quarantine(c.Request.Context(), tenantID, id, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Stats ---
@@ -334,28 +335,28 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetTypeStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	types, err := h.svc.GetTypeStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, types)
+	middleware.RespondSuccess(c, types)
 }
 
 func (h *Handler) GetNamespaces(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ns, err := h.svc.GetNamespaces(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ns)
+	middleware.RespondSuccess(c, ns)
 }

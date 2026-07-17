@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/product-line/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -57,15 +58,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateProductLineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -73,10 +74,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) GetByName(c *gin.Context) {
@@ -84,10 +85,10 @@ func (h *Handler) GetByName(c *gin.Context) {
 	name := c.Param("name")
 	m, err := h.svc.GetByName(c.Request.Context(), tenantID, name)
 	if err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -96,10 +97,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -107,22 +108,22 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateProductLineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	c.Status(204)
@@ -136,10 +137,10 @@ func (h *Handler) Activate(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Activate(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Suspend(c *gin.Context) {
@@ -147,10 +148,10 @@ func (h *Handler) Suspend(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Suspend(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // ==================== Branch-Environment Mapping ====================
@@ -164,7 +165,7 @@ func (h *Handler) ResolveEnvironment(c *gin.Context) {
 	branch := c.Query("branch")
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, id); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	environment := "dev"
@@ -172,7 +173,7 @@ func (h *Handler) ResolveEnvironment(c *gin.Context) {
 		// TODO: resolve via environmentMappings in the full model
 		environment = "dev"
 	}
-	respondSuccess(c, gin.H{"environment": environment})
+	middleware.RespondSuccess(c, gin.H{"environment": environment})
 }
 
 // RequiresApproval checks whether a branch requires approval before deployment.
@@ -183,11 +184,11 @@ func (h *Handler) RequiresApproval(c *gin.Context) {
 	_ = c.Query("branch")
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, id); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	// Default to true (safe default per TS service)
-	respondSuccess(c, gin.H{"requiresApproval": true})
+	middleware.RespondSuccess(c, gin.H{"requiresApproval": true})
 }
 
 // ==================== ReleaseTrain ====================
@@ -197,20 +198,20 @@ func (h *Handler) CreateReleaseTrain(c *gin.Context) {
 	productLineID := c.Param("id")
 	var req models.CreateReleaseTrainRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	rt, err := h.svc.CreateReleaseTrain(c.Request.Context(), tenantID, productLineID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, rt)
+	middleware.RespondCreated(c, rt)
 }
 
 func (h *Handler) GetReleaseTrains(c *gin.Context) {
@@ -218,15 +219,15 @@ func (h *Handler) GetReleaseTrains(c *gin.Context) {
 	productLineID := c.Param("id")
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	rts, err := h.svc.GetReleaseTrains(c.Request.Context(), tenantID, productLineID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rts)
+	middleware.RespondSuccess(c, rts)
 }
 
 // ==================== HotfixChannel ====================
@@ -236,20 +237,20 @@ func (h *Handler) CreateHotfixChannel(c *gin.Context) {
 	productLineID := c.Param("id")
 	var req models.CreateHotfixChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	hc, err := h.svc.CreateHotfixChannel(c.Request.Context(), tenantID, productLineID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, hc)
+	middleware.RespondCreated(c, hc)
 }
 
 func (h *Handler) GetHotfixChannels(c *gin.Context) {
@@ -257,15 +258,15 @@ func (h *Handler) GetHotfixChannels(c *gin.Context) {
 	productLineID := c.Param("id")
 	// Verify product line exists
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
-		respondNotFound(c, "ProductLine not found")
+		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
 	hcs, err := h.svc.GetHotfixChannels(c.Request.Context(), tenantID, productLineID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, hcs)
+	middleware.RespondSuccess(c, hcs)
 }
 
 func (h *Handler) IsHotfix(c *gin.Context) {
@@ -274,8 +275,8 @@ func (h *Handler) IsHotfix(c *gin.Context) {
 	branch := c.Query("branch")
 	isHotfix, err := h.svc.IsHotfixBranch(c.Request.Context(), tenantID, productLineID, branch)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"isHotfix": isHotfix})
+	middleware.RespondSuccess(c, gin.H{"isHotfix": isHotfix})
 }

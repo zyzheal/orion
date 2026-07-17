@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -78,14 +79,14 @@ func parsePagination(c *gin.Context) (page, pageSize int) {
 func (h *Handler) Publish(c *gin.Context) {
 	var req models.PublishRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	event, err := h.svc.Publish(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteCreated(c, event)
@@ -105,13 +106,13 @@ func (h *Handler) List(c *gin.Context) {
 
 	events, err := h.svc.List(c.Request.Context(), tenantID, filter, offset, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	total, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -128,7 +129,7 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"count": count})
@@ -138,13 +139,13 @@ func (h *Handler) Count(c *gin.Context) {
 func (h *Handler) Connect(c *gin.Context) {
 	var req models.ConnectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.Connect(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteCreated(c, result)
@@ -155,7 +156,7 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteSuccess(c, status)
@@ -166,7 +167,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	subs, err := h.svc.ListSubscriptions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"subscriptions": subs})
@@ -186,7 +187,7 @@ func (h *Handler) GetDLQ(c *gin.Context) {
 	}
 	resp, err := h.svc.GetDLQ(c.Request.Context(), tenantID, &models.DLQQuery{Limit: limit})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteSuccess(c, resp)
@@ -197,7 +198,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	errors.WriteSuccess(c, stats)

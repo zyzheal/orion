@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -54,35 +55,35 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) Record(c *gin.Context) {
 	var req models.AuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	log, err := h.svc.Record(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, log)
+	middleware.RespondCreated(c, log)
 }
 
 func (h *Handler) RecordBatch(c *gin.Context) {
 	var req models.AuditLogBatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if len(req.Logs) == 0 {
-		respondBadRequest(c, "logs array is required")
+		middleware.RespondBadRequest(c, "logs array is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	logs, err := h.svc.RecordBatch(c.Request.Context(), req.Logs, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, logs)
+	middleware.RespondCreated(c, logs)
 }
 
 func (h *Handler) Query(c *gin.Context) {
@@ -133,10 +134,10 @@ func (h *Handler) Query(c *gin.Context) {
 
 	logs, total, err := h.svc.Query(c.Request.Context(), &q, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": logs,
 		"total": total,
 		"page": q.Offset,
@@ -154,13 +155,13 @@ func (h *Handler) GetRunAuditTrail(c *gin.Context) {
 	trail, err := h.svc.GetRunAuditTrail(c.Request.Context(), tenantID, runID, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trail)
+	middleware.RespondSuccess(c, trail)
 }
 
 func (h *Handler) CleanupExpired(c *gin.Context) {
@@ -171,10 +172,10 @@ func (h *Handler) CleanupExpired(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.CleanupExpired(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"deleted": deleted,
 	})
 }

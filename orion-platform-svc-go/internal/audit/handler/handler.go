@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/audit/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -83,10 +84,10 @@ func (h *Handler) ListLogs(c *gin.Context) {
 	q := parseAuditQuery(c, tenantID)
 	result, err := h.svc.List(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetLog(c *gin.Context) {
@@ -95,28 +96,28 @@ func (h *Handler) GetLog(c *gin.Context) {
 	entry, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "audit log not found")
+			middleware.RespondNotFound(c, "audit log not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, entry)
+	middleware.RespondSuccess(c, entry)
 }
 
 func (h *Handler) CreateLog(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AuditLogCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"entry": entry})
+	middleware.RespondCreated(c, gin.H{"entry": entry})
 }
 
 func (h *Handler) VerifySingle(c *gin.Context) {
@@ -125,13 +126,13 @@ func (h *Handler) VerifySingle(c *gin.Context) {
 	entry, valid, err := h.svc.VerifySingle(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "audit log not found")
+			middleware.RespondNotFound(c, "audit log not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"entry":   entry,
 		"isValid": valid,
 	})
@@ -150,10 +151,10 @@ func (h *Handler) VerifyChain(c *gin.Context) {
 	}
 	result, err := h.svc.VerifyChain(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"result":     result,
 		"verifiedAt": result.VerifiedAt,
 	})
@@ -168,10 +169,10 @@ func (h *Handler) Actions(c *gin.Context) {
 	}
 	actions, err := h.svc.GetActions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"actions": actions})
+	middleware.RespondSuccess(c, gin.H{"actions": actions})
 }
 
 func (h *Handler) ResourceTypes(c *gin.Context) {
@@ -181,10 +182,10 @@ func (h *Handler) ResourceTypes(c *gin.Context) {
 	}
 	resourceTypes, err := h.svc.GetResourceTypes(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"resourceTypes": resourceTypes})
+	middleware.RespondSuccess(c, gin.H{"resourceTypes": resourceTypes})
 }
 
 // --- Compliance reporting ---
@@ -196,10 +197,10 @@ func (h *Handler) ComplianceSOC2(c *gin.Context) {
 	}
 	report, err := h.svc.ComplianceReport(c.Request.Context(), tenantID, "SOC2")
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) ComplianceISO27001(c *gin.Context) {
@@ -209,10 +210,10 @@ func (h *Handler) ComplianceISO27001(c *gin.Context) {
 	}
 	report, err := h.svc.ComplianceReport(c.Request.Context(), tenantID, "ISO27001")
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) ComplianceCombined(c *gin.Context) {
@@ -222,10 +223,10 @@ func (h *Handler) ComplianceCombined(c *gin.Context) {
 	}
 	report, err := h.svc.ComplianceReport(c.Request.Context(), tenantID, "COMBINED")
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) ComplianceCoverage(c *gin.Context) {
@@ -235,10 +236,10 @@ func (h *Handler) ComplianceCoverage(c *gin.Context) {
 	}
 	stats, err := h.svc.CoverageStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) ComplianceCheck(c *gin.Context) {
@@ -256,10 +257,10 @@ func (h *Handler) ComplianceCheck(c *gin.Context) {
 	}
 	report, err := h.svc.ComplianceReport(c.Request.Context(), tenantID, body.Framework)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // --- Compatibility endpoints ---
@@ -271,10 +272,10 @@ func (h *Handler) ChainInfo(c *gin.Context) {
 	}
 	info, err := h.svc.ChainInfo(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, info)
+	middleware.RespondSuccess(c, info)
 }
 
 func (h *Handler) StorageStats(c *gin.Context) {
@@ -284,22 +285,22 @@ func (h *Handler) StorageStats(c *gin.Context) {
 	}
 	stats, err := h.svc.StorageStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"stats": stats})
+	middleware.RespondSuccess(c, gin.H{"stats": stats})
 }
 
 func (h *Handler) StorageFlush(c *gin.Context) {
 	// PostgreSQL doesn't need flush — data is already persisted
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"status":  "noop",
 		"message": "PostgreSQL storage does not require flush",
 	})
 }
 
 func (h *Handler) ChainGenesis(c *gin.Context) {
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"genesisHash": service.GenesisHash,
 	})
 }
@@ -311,14 +312,14 @@ func (h *Handler) ChainLatest(c *gin.Context) {
 	}
 	result, err := h.svc.List(c.Request.Context(), tenantID, models.AuditLogQuery{Limit: 1})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if result.Total == 0 {
-		respondNotFound(c, "no audit logs found")
+		middleware.RespondNotFound(c, "no audit logs found")
 		return
 	}
-	respondSuccess(c, result.Entries[0])
+	middleware.RespondSuccess(c, result.Entries[0])
 }
 
 // --- Export ---
@@ -333,7 +334,7 @@ func (h *Handler) ExportLogs(c *gin.Context) {
 	}
 	result, err := h.svc.Export(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	contentType := "application/json"
@@ -371,7 +372,7 @@ func (h *Handler) ExportCSV(c *gin.Context) {
 		Format:       "csv",
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Header("Content-Type", "text/csv")
@@ -405,7 +406,7 @@ func (h *Handler) ExportJSON(c *gin.Context) {
 		Format:       "json",
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Header("Content-Type", "application/json")

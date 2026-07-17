@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/finops/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -84,30 +85,30 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) CreateBudgetGuard(c *gin.Context) {
 	var req models.CreateBudgetGuardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" || req.Action == "" {
-		respondBadRequest(c, "name and action are required")
+		middleware.RespondBadRequest(c, "name and action are required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	guard, err := h.svc.CreateBudgetGuard(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, guard)
+	middleware.RespondCreated(c, guard)
 }
 
 func (h *Handler) ListBudgetGuards(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	guards, err := h.svc.ListBudgetGuards(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, guards)
+	middleware.RespondSuccess(c, guards)
 }
 
 func (h *Handler) DeleteBudgetGuard(c *gin.Context) {
@@ -115,14 +116,14 @@ func (h *Handler) DeleteBudgetGuard(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteBudgetGuard(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "budget guard not found")
+		middleware.RespondNotFound(c, "budget guard not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "budget guard deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "budget guard deleted"})
 }
 
 // --- Evaluate Cost ---
@@ -135,25 +136,25 @@ func (h *Handler) EvaluateCost(c *gin.Context) {
 		Environment   *string  `json:"environment"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.PipelineID == "" || req.EstimatedCost == nil {
-		respondBadRequest(c, "pipelineId and estimatedCost are required")
+		middleware.RespondBadRequest(c, "pipelineId and estimatedCost are required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.EvaluateCost(c.Request.Context(), tenantID, req.PipelineID, *req.EstimatedCost, req.ProjectID, req.Environment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Mirrors TS: 200 if passed, 403 if failed
 	if !result.Passed {
-		respondForbidden(c, result.Message)
+	middleware.RespondForbidden(c, result.Message)
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Anomalies ---
@@ -164,10 +165,10 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, req.Days, req.Start, req.End)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Cost Trend ---
@@ -185,10 +186,10 @@ func (h *Handler) GetCostTrend(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	trend, err := h.svc.GetCostTrend(c.Request.Context(), tenantID, days)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trend)
+	middleware.RespondSuccess(c, trend)
 }
 
 // --- Cost Overview ---
@@ -197,10 +198,10 @@ func (h *Handler) GetCostOverview(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	overview, err := h.svc.GetCostOverview(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, overview)
+	middleware.RespondSuccess(c, overview)
 }
 
 // --- Optimization Suggestions ---
@@ -223,10 +224,10 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 	}
 	suggestions, err := h.svc.GetOptimizationSuggestions(c.Request.Context(), tenantID, catPtr, minPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, suggestions)
+	middleware.RespondSuccess(c, suggestions)
 }
 
 func (h *Handler) ApplyOptimization(c *gin.Context) {
@@ -234,14 +235,14 @@ func (h *Handler) ApplyOptimization(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	applied, err := h.svc.ApplyOptimization(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !applied {
-		respondNotFound(c, "optimization not found")
+		middleware.RespondNotFound(c, "optimization not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "optimization applied"})
+	middleware.RespondSuccess(c, gin.H{"message": "optimization applied"})
 }
 
 func (h *Handler) RejectOptimization(c *gin.Context) {
@@ -249,14 +250,14 @@ func (h *Handler) RejectOptimization(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	rejected, err := h.svc.RejectOptimization(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !rejected {
-		respondNotFound(c, "optimization not found")
+		middleware.RespondNotFound(c, "optimization not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "optimization rejected"})
+	middleware.RespondSuccess(c, gin.H{"message": "optimization rejected"})
 }
 
 // --- Cost Comparison (4.40) ---
@@ -264,16 +265,16 @@ func (h *Handler) RejectOptimization(c *gin.Context) {
 func (h *Handler) CompareCosts(c *gin.Context) {
 	var req models.CostComparisonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.CompareCosts(c.Request.Context(), tenantID, req.ServiceA, req.ServiceB, req.Period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Service Cost Trend (4.40) ---
@@ -284,10 +285,10 @@ func (h *Handler) GetServiceCostTrend(c *gin.Context) {
 	period := c.DefaultQuery("period", "monthly")
 	trend, err := h.svc.GetServiceCostTrend(c.Request.Context(), tenantID, serviceID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trend)
+	middleware.RespondSuccess(c, trend)
 }
 
 // --- Service Optimization Suggestions (4.40) ---
@@ -298,8 +299,8 @@ func (h *Handler) GetServiceOptimizationSuggestions(c *gin.Context) {
 	entityType := c.DefaultQuery("entityType", "project")
 	suggestions, err := h.svc.GetServiceOptimizationSuggestions(c.Request.Context(), tenantID, serviceID, entityType)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, suggestions)
+	middleware.RespondSuccess(c, suggestions)
 }

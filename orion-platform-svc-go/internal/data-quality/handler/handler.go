@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/data-quality/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -66,29 +67,29 @@ func (h *Handler) ListRules(c *gin.Context) {
 	}
 	result, err := h.svc.ListRules(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateRule(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetRule(c *gin.Context) {
@@ -97,13 +98,13 @@ func (h *Handler) GetRule(c *gin.Context) {
 	result, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateRule(c *gin.Context) {
@@ -111,23 +112,23 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateRule(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
@@ -136,13 +137,13 @@ func (h *Handler) DeleteRule(c *gin.Context) {
 	err := h.svc.DeleteRule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "rule deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "rule deleted"})
 }
 
 // ==================== Scan Results ====================
@@ -151,23 +152,23 @@ func (h *Handler) CreateScanResult(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScanResultRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateScanResult(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListScanResults(c *gin.Context) {
@@ -179,10 +180,10 @@ func (h *Handler) ListScanResults(c *gin.Context) {
 	}
 	result, err := h.svc.ListScanResults(c.Request.Context(), tenantID, ruleID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Alerts ====================
@@ -195,33 +196,33 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	}
 	result, err := h.svc.ListAlerts(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateAlert(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateAlert(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
@@ -230,13 +231,13 @@ func (h *Handler) GetAlert(c *gin.Context) {
 	result, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateAlert(c *gin.Context) {
@@ -244,23 +245,23 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteAlert(c *gin.Context) {
@@ -269,13 +270,13 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 	err := h.svc.DeleteAlert(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "alert deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "alert deleted"})
 }
 
 // ==================== Stats ====================
@@ -284,8 +285,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

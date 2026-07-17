@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/cron/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -42,15 +43,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -58,10 +59,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "not found")
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -70,10 +71,10 @@ func (h *Handler) List(c *gin.Context) {
 	off, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, off)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -81,7 +82,7 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	updates := make(map[string]interface{})
@@ -106,45 +107,45 @@ func (h *Handler) Update(c *gin.Context) {
 		}
 	}
 	if len(updates) == 0 {
-		respondBadRequest(c, "no fields to update")
+		middleware.RespondBadRequest(c, "no fields to update")
 		return
 	}
 	m, err := h.svc.UpdatePartial(c.Request.Context(), tenantID, id, updates)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) EnableJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.EnableJob(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "cron job enabled"})
+	middleware.RespondSuccess(c, gin.H{"message": "cron job enabled"})
 }
 
 func (h *Handler) DisableJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DisableJob(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "cron job disabled"})
+	middleware.RespondSuccess(c, gin.H{"message": "cron job disabled"})
 }
 
 func (h *Handler) ExecuteJob(c *gin.Context) {
@@ -152,10 +153,10 @@ func (h *Handler) ExecuteJob(c *gin.Context) {
 	id := c.Param("id")
 	execution, err := h.svc.ExecuteJob(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, execution)
+	middleware.RespondSuccess(c, execution)
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
@@ -163,10 +164,10 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	jobID := c.Query("jobId")
 	history, err := h.svc.GetExecutionHistory(c.Request.Context(), tenantID, jobID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, history)
+	middleware.RespondSuccess(c, history)
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
@@ -174,33 +175,33 @@ func (h *Handler) GetExecution(c *gin.Context) {
 	executionID := c.Param("executionId")
 	evt, err := h.svc.GetExecutionByID(c.Request.Context(), tenantID, executionID)
 	if err != nil {
-		respondNotFound(c, "execution not found")
+		middleware.RespondNotFound(c, "execution not found")
 		return
 	}
-	respondSuccess(c, evt)
+	middleware.RespondSuccess(c, evt)
 }
 
 func (h *Handler) RunningJobs(c *gin.Context) {
 	running := h.svc.GetRunningJobs()
-	respondSuccess(c, running)
+	middleware.RespondSuccess(c, running)
 }
 
 func (h *Handler) Status(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) StartScheduler(c *gin.Context) {
 	h.svc.Start()
-	respondSuccess(c, gin.H{"message": "cron scheduler started"})
+	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler started"})
 }
 
 func (h *Handler) StopScheduler(c *gin.Context) {
 	h.svc.Stop()
-	respondSuccess(c, gin.H{"message": "cron scheduler stopped"})
+	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler stopped"})
 }

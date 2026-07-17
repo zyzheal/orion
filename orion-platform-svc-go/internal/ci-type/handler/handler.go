@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/ci-type/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -95,10 +96,10 @@ func (h *Handler) ListTypes(c *gin.Context) {
 
 	types, total, err := h.svc.ListTypes(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     types,
 		Total:    total,
 		Page:     1,
@@ -110,24 +111,24 @@ func (h *Handler) ListTypes(c *gin.Context) {
 func (h *Handler) CreateType(c *gin.Context) {
 	var req models.CreateCITypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" {
-		respondBadRequest(c, "name is required")
+		middleware.RespondBadRequest(c, "name is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	t, err := h.svc.CreateType(c.Request.Context(), &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 // GetType handler - GET /ci-types/:id
@@ -137,13 +138,13 @@ func (h *Handler) GetType(c *gin.Context) {
 	schema, err := h.svc.GetTypeWithSchema(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schema)
+	middleware.RespondSuccess(c, schema)
 }
 
 // UpdateType handler - PUT /ci-types/:id
@@ -151,20 +152,20 @@ func (h *Handler) UpdateType(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCITypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	t, err := h.svc.UpdateType(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // DeleteType handler - DELETE /ci-types/:id
@@ -173,14 +174,14 @@ func (h *Handler) DeleteType(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteType(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "CI type not found")
+		middleware.RespondNotFound(c, "CI type not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 // GetAttributes handler - GET /ci-types/:id/attributes
@@ -190,13 +191,13 @@ func (h *Handler) GetAttributes(c *gin.Context) {
 	attrs, err := h.svc.GetAttributes(c.Request.Context(), ciTypeID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, attrs)
+	middleware.RespondSuccess(c, attrs)
 }
 
 // SetAttributes handler - PUT /ci-types/:id/attributes
@@ -206,24 +207,24 @@ func (h *Handler) SetAttributes(c *gin.Context) {
 		Attributes []models.CreateCIAttributeRequest `json:"attributes"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Attributes == nil {
-		respondBadRequest(c, "attributes must be an array")
+		middleware.RespondBadRequest(c, "attributes must be an array")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	attrs, err := h.svc.SetAttributes(c.Request.Context(), ciTypeID, tenantID, req.Attributes)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, attrs)
+	middleware.RespondSuccess(c, attrs)
 }
 
 // ValidateInstance handler - POST /ci-types/:id/validate
@@ -233,24 +234,24 @@ func (h *Handler) ValidateInstance(c *gin.Context) {
 		Data map[string]interface{} `json:"data" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "data object is required")
+		middleware.RespondBadRequest(c, "data object is required")
 		return
 	}
 	if req.Data == nil {
-		respondBadRequest(c, "data object is required")
+		middleware.RespondBadRequest(c, "data object is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.ValidateInstance(c.Request.Context(), ciTypeID, tenantID, req.Data)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // CreateVersion handler - POST /ci-types/:id/versions
@@ -262,13 +263,13 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 	version, err := h.svc.CreateVersion(c.Request.Context(), ciTypeID, tenantID, req.ChangeSummary)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, version)
+	middleware.RespondCreated(c, version)
 }
 
 // GetVersions handler - GET /ci-types/:id/versions
@@ -278,13 +279,13 @@ func (h *Handler) GetVersions(c *gin.Context) {
 	versions, err := h.svc.GetVersions(c.Request.Context(), ciTypeID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type not found")
+			middleware.RespondNotFound(c, "CI type not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }
 
 // Rollback handler - POST /ci-types/:id/versions/:versionId/rollback
@@ -295,11 +296,11 @@ func (h *Handler) Rollback(c *gin.Context) {
 	t, err := h.svc.Rollback(c.Request.Context(), ciTypeID, tenantID, versionID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI type or version not found")
+			middleware.RespondNotFound(c, "CI type or version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }

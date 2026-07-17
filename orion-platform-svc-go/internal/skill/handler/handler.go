@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/skill/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -70,22 +71,22 @@ func (h *Handler) ListSkills(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	skills, total := h.svc.ListSkills(c.Request.Context(), tenantID, category, status, page, limit)
-	respondSuccess(c, gin.H{"skills": skills, "total": total})
+	middleware.RespondSuccess(c, gin.H{"skills": skills, "total": total})
 }
 
 func (h *Handler) CreateSkill(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.CreateSkill(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, skill)
+	middleware.RespondCreated(c, skill)
 }
 
 func (h *Handler) GetSkill(c *gin.Context) {
@@ -94,13 +95,13 @@ func (h *Handler) GetSkill(c *gin.Context) {
 	skill, err := h.svc.GetSkill(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, skill)
+	middleware.RespondSuccess(c, skill)
 }
 
 func (h *Handler) UpdateSkill(c *gin.Context) {
@@ -108,19 +109,19 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.UpdateSkill(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, skill)
+	middleware.RespondSuccess(c, skill)
 }
 
 func (h *Handler) DeleteSkill(c *gin.Context) {
@@ -128,23 +129,23 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteSkill(c.Request.Context(), tenantID, id); err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "skill deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "skill deleted"})
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ==================== Version management ====================
@@ -155,13 +156,13 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }
 
 func (h *Handler) AddVersion(c *gin.Context) {
@@ -169,23 +170,23 @@ func (h *Handler) AddVersion(c *gin.Context) {
 	skillID := c.Param("skillId")
 	var req models.AddVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	version, err := h.svc.AddVersion(c.Request.Context(), tenantID, skillID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
 		if err == service.ErrDuplicateVersion {
-			respondConflict(c, err.Error())
+			middleware.RespondConflict(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, version)
+	middleware.RespondCreated(c, version)
 }
 
 // ==================== Rating ====================
@@ -196,19 +197,19 @@ func (h *Handler) RateSkill(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.RateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	skill, err := h.svc.RateSkill(c.Request.Context(), tenantID, skillID, userID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"skill": skill, "message": "rating submitted"})
+	middleware.RespondSuccess(c, gin.H{"skill": skill, "message": "rating submitted"})
 }
 
 func (h *Handler) GetRatingStats(c *gin.Context) {
@@ -217,13 +218,13 @@ func (h *Handler) GetRatingStats(c *gin.Context) {
 	stats, err := h.svc.GetRatingStats(c.Request.Context(), tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ==================== Instances ====================
@@ -232,10 +233,10 @@ func (h *Handler) ListInstances(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	instances, err := h.svc.ListInstances(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, instances)
+	middleware.RespondSuccess(c, instances)
 }
 
 func (h *Handler) CreateInstance(c *gin.Context) {
@@ -246,7 +247,7 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 		Config       string `json:"config"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, req.SkillID, models.CreateInstanceRequest{
@@ -255,13 +256,13 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 	})
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, inst)
+	middleware.RespondCreated(c, inst)
 }
 
 func (h *Handler) GetInstance(c *gin.Context) {
@@ -270,13 +271,13 @@ func (h *Handler) GetInstance(c *gin.Context) {
 	inst, err := h.svc.GetInstance(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if err == service.ErrInstanceNotFound {
-			respondNotFound(c, "skill instance not found")
+			middleware.RespondNotFound(c, "skill instance not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, inst)
+	middleware.RespondSuccess(c, inst)
 }
 
 func (h *Handler) UpdateInstance(c *gin.Context) {
@@ -284,19 +285,19 @@ func (h *Handler) UpdateInstance(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateInstanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	inst, err := h.svc.UpdateInstance(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if err == service.ErrInstanceNotFound {
-			respondNotFound(c, "skill instance not found")
+			middleware.RespondNotFound(c, "skill instance not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, inst)
+	middleware.RespondSuccess(c, inst)
 }
 
 func (h *Handler) DeleteInstance(c *gin.Context) {
@@ -304,13 +305,13 @@ func (h *Handler) DeleteInstance(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteInstance(c.Request.Context(), tenantID, id); err != nil {
 		if err == service.ErrInstanceNotFound {
-			respondNotFound(c, "skill instance not found")
+			middleware.RespondNotFound(c, "skill instance not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "skill instance deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "skill instance deleted"})
 }
 
 // ==================== Execution ====================
@@ -321,19 +322,19 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ExecuteSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	execution, err := h.svc.ExecuteSkill(c.Request.Context(), tenantID, skillID, userID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, execution)
+	middleware.RespondSuccess(c, execution)
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
@@ -343,10 +344,10 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	executions, err := h.svc.ListExecutions(c.Request.Context(), tenantID, skillID, page, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, executions)
+	middleware.RespondSuccess(c, executions)
 }
 
 // ==================== Review workflow ====================
@@ -357,17 +358,17 @@ func (h *Handler) GetReview(c *gin.Context) {
 	review, err := h.svc.GetReview(c.Request.Context(), tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if review == nil {
-		respondSuccess(c, gin.H{"review": nil})
+		middleware.RespondSuccess(c, gin.H{"review": nil})
 		return
 	}
-	respondSuccess(c, review)
+	middleware.RespondSuccess(c, review)
 }
 
 func (h *Handler) SubmitReview(c *gin.Context) {
@@ -377,17 +378,17 @@ func (h *Handler) SubmitReview(c *gin.Context) {
 	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "submit", models.ReviewActionRequest{})
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
 		if err == service.ErrAlreadySubmitted {
-			respondConflict(c, err.Error())
+			middleware.RespondConflict(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"review": review, "message": "skill submitted for review"})
+	middleware.RespondSuccess(c, gin.H{"review": review, "message": "skill submitted for review"})
 }
 
 func (h *Handler) ApproveReview(c *gin.Context) {
@@ -399,17 +400,17 @@ func (h *Handler) ApproveReview(c *gin.Context) {
 	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "approve", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
 		if err == service.ErrNotSubmitted {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"review": review, "message": "skill approved"})
+	middleware.RespondSuccess(c, gin.H{"review": review, "message": "skill approved"})
 }
 
 func (h *Handler) RejectReview(c *gin.Context) {
@@ -422,17 +423,17 @@ func (h *Handler) RejectReview(c *gin.Context) {
 	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "reject", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
 		if err == service.ErrNotSubmitted {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"review": review, "message": "skill rejected"})
+	middleware.RespondSuccess(c, gin.H{"review": review, "message": "skill rejected"})
 }
 
 func (h *Handler) ArchiveReview(c *gin.Context) {
@@ -444,13 +445,13 @@ func (h *Handler) ArchiveReview(c *gin.Context) {
 	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "archive", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
-			respondNotFound(c, "skill not found")
+			middleware.RespondNotFound(c, "skill not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"review": review, "message": "skill archived"})
+	middleware.RespondSuccess(c, gin.H{"review": review, "message": "skill archived"})
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
@@ -458,10 +459,10 @@ func (h *Handler) ListReviews(c *gin.Context) {
 	status := c.Query("status")
 	reviews, err := h.svc.ListReviews(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, reviews)
+	middleware.RespondSuccess(c, reviews)
 }
 
 // ==================== Audit log ====================
@@ -472,5 +473,5 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	logs, total := h.svc.ListAuditLogs(c.Request.Context(), tenantID, skillID, page, limit)
-	respondSuccess(c, gin.H{"audit_logs": logs, "total": total})
+	middleware.RespondSuccess(c, gin.H{"audit_logs": logs, "total": total})
 }

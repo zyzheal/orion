@@ -9,6 +9,7 @@ import (
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for feature flag operations.
@@ -47,20 +48,20 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
 	if err != nil {
 		if err == service.ErrDuplicateKey {
-			respondConflict(c, err.Error())
+			middleware.RespondConflict(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, flag)
+	middleware.RespondCreated(c, flag)
 }
 
 // List retrieves feature flags with optional status/environment filters and pagination.
@@ -86,10 +87,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "page": page, "page_size": pageSize})
+	middleware.RespondSuccess(c, gin.H{"data": items, "page": page, "page_size": pageSize})
 }
 
 // Search performs a text search across flag name, key, and description.
@@ -97,7 +98,7 @@ func (h *Handler) Search(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	query := c.Query("q")
 	if query == "" {
-		respondBadRequest(c, "query parameter 'q' is required")
+		middleware.RespondBadRequest(c, "query parameter 'q' is required")
 		return
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -105,10 +106,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 	items, err := h.svc.Search(c.Request.Context(), tenantID, query, (page-1)*pageSize, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // Get retrieves a single feature flag by id.
@@ -116,10 +117,10 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	flag, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, flag)
+	middleware.RespondSuccess(c, flag)
 }
 
 // Update modifies an existing feature flag.
@@ -129,30 +130,30 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
 		if err == service.ErrFlagNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, flag)
+	middleware.RespondSuccess(c, flag)
 }
 
 // Delete removes a feature flag by id.
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // Count returns the total number of feature flags for the tenant.
@@ -160,10 +161,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // SetRollout sets the rollout percentage for a flag.
@@ -173,24 +174,24 @@ func (h *Handler) SetRollout(c *gin.Context) {
 
 	var req models.SetRolloutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flag, err := h.svc.SetRolloutPercentage(c.Request.Context(), tenantID, c.Param("id"), updatedBy, req.Percentage)
 	if err != nil {
 		if err == service.ErrInvalidRollout {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if err == service.ErrFlagNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, flag)
+	middleware.RespondSuccess(c, flag)
 }
 
 // RecordToggle records a toggle event for a flag.
@@ -200,22 +201,22 @@ func (h *Handler) RecordToggle(c *gin.Context) {
 
 	var req models.RecordToggleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	// Verify the flag exists and belongs to this tenant.
 	_, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 
 	if err := h.svc.RecordToggle(c.Request.Context(), c.Param("id"), req.OldValue, req.NewValue, changedBy, req.Reason); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "toggle recorded"})
+	middleware.RespondSuccess(c, gin.H{"message": "toggle recorded"})
 }
 
 // Evaluate evaluates a single feature flag.
@@ -224,16 +225,16 @@ func (h *Handler) Evaluate(c *gin.Context) {
 
 	var req models.EvaluateFlagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.EvaluateFlag(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // EvaluateBatch evaluates multiple feature flags in a single request.
@@ -242,16 +243,16 @@ func (h *Handler) EvaluateBatch(c *gin.Context) {
 
 	var reqs []models.EvaluateFlagRequest
 	if err := c.ShouldBindJSON(&reqs); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.EvaluateFlags(c.Request.Context(), tenantID, reqs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"results": results})
+	middleware.RespondSuccess(c, gin.H{"results": results})
 }
 
 // ToggleHistory retrieves the toggle history for a flag.
@@ -262,15 +263,15 @@ func (h *Handler) ToggleHistory(c *gin.Context) {
 	// Verify the flag exists and belongs to this tenant.
 	_, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	records, err := h.svc.ListToggleHistory(c.Request.Context(), id, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, records)
+	middleware.RespondSuccess(c, records)
 }

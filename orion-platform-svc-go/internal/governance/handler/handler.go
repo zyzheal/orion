@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/governance/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -68,17 +69,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreatePolicy(c *gin.Context) {
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	p, err := h.svc.CreatePolicy(c.Request.Context(), &req, tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, h.policyToResponse(p))
+	middleware.RespondCreated(c, h.policyToResponse(p))
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
@@ -92,14 +93,14 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	policies, total, err := h.svc.ListPolicies(c.Request.Context(), tenantID, q, offset, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.PolicyResponse, len(policies))
 	for i, p := range policies {
 		data[i] = h.policyToResponse(&p)
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":   data,
 		"total":  total,
 		"offset": offset,
@@ -112,27 +113,27 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	p, err := h.svc.GetPolicy(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	respondSuccess(c, h.policyToResponse(p))
+	middleware.RespondSuccess(c, h.policyToResponse(p))
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	p, err := h.svc.UpdatePolicy(c.Request.Context(), id, tenantID, &req, userID)
 	if err != nil {
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	respondSuccess(c, h.policyToResponse(p))
+	middleware.RespondSuccess(c, h.policyToResponse(p))
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
@@ -141,7 +142,7 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	userID := h.getUserID(c)
 	err := h.svc.DeletePolicy(c.Request.Context(), id, tenantID, userID)
 	if err != nil {
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -155,10 +156,10 @@ func (h *Handler) EnablePolicy(c *gin.Context) {
 	userID := h.getUserID(c)
 	p, err := h.svc.EnablePolicy(c.Request.Context(), id, tenantID, userID)
 	if err != nil {
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	respondSuccess(c, h.policyToResponse(p))
+	middleware.RespondSuccess(c, h.policyToResponse(p))
 }
 
 func (h *Handler) DisablePolicy(c *gin.Context) {
@@ -167,10 +168,10 @@ func (h *Handler) DisablePolicy(c *gin.Context) {
 	userID := h.getUserID(c)
 	p, err := h.svc.DisablePolicy(c.Request.Context(), id, tenantID, userID)
 	if err != nil {
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	respondSuccess(c, h.policyToResponse(p))
+	middleware.RespondSuccess(c, h.policyToResponse(p))
 }
 
 // ---- Audit Logs handler ----
@@ -181,7 +182,7 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	logs, total, err := h.svc.GetAuditLogs(c.Request.Context(), id, offset, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.AuditLogResponse, len(logs))
@@ -201,7 +202,7 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 			Severity:     log.Severity,
 		}
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":   data,
 		"total":  total,
 		"offset": offset,
@@ -214,16 +215,16 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 func (h *Handler) CheckCompliance(c *gin.Context) {
 	var req models.ComplianceCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.CheckCompliance(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Compliance Report handler ----
@@ -238,10 +239,10 @@ func (h *Handler) GetComplianceReport(c *gin.Context) {
 	}
 	report, err := h.svc.GetComplianceReport(c.Request.Context(), tenantID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // ---- Apply Policy handler ----
@@ -250,7 +251,7 @@ func (h *Handler) ApplyPolicy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ApplyPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -258,13 +259,13 @@ func (h *Handler) ApplyPolicy(c *gin.Context) {
 	result, err := h.svc.ApplyPolicy(c.Request.Context(), id, tenantID, &req, userID)
 	if err != nil {
 		if err == service.ErrPolicyNotActive {
-			respondBadRequestWithDetails(c, "Policy must be active to apply", map[string]any{"policyId": id})
+			middleware.RespondBadRequest(c, "Policy must be active to apply")
 			return
 		}
-		respondNotFound(c, "Policy not found")
+		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Rules handler ----
@@ -275,7 +276,7 @@ func (h *Handler) GetRules(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	rules, total, err := h.svc.GetRules(c.Request.Context(), tenantID, offset, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.PolicyRuleResp, len(rules))
@@ -295,7 +296,7 @@ func (h *Handler) GetRules(c *gin.Context) {
 			Enabled:     r.Enabled,
 		}
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":   data,
 		"total":  total,
 		"offset": offset,

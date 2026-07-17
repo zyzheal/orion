@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/problem/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -82,10 +83,10 @@ func (h *Handler) ListProblems(c *gin.Context) {
 
 	problems, total, err := h.svc.ListProblems(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problems": problems, "total": total})
+	middleware.RespondSuccess(c, gin.H{"problems": problems, "total": total})
 }
 
 func (h *Handler) GetProblem(c *gin.Context) {
@@ -95,13 +96,13 @@ func (h *Handler) GetProblem(c *gin.Context) {
 	problem, err := h.svc.GetProblem(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problem": problem})
+	middleware.RespondSuccess(c, gin.H{"problem": problem})
 }
 
 func (h *Handler) CreateProblem(c *gin.Context) {
@@ -109,7 +110,7 @@ func (h *Handler) CreateProblem(c *gin.Context) {
 
 	var req models.CreateProblemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.CreatedBy = h.getAuthUserID(c)
@@ -117,13 +118,13 @@ func (h *Handler) CreateProblem(c *gin.Context) {
 	problem, err := h.svc.CreateProblem(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"problem": problem})
+	middleware.RespondCreated(c, gin.H{"problem": problem})
 }
 
 func (h *Handler) UpdateProblem(c *gin.Context) {
@@ -132,20 +133,20 @@ func (h *Handler) UpdateProblem(c *gin.Context) {
 
 	var req models.UpdateProblemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	updated, err := h.svc.UpdateProblem(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problem": updated})
+	middleware.RespondSuccess(c, gin.H{"problem": updated})
 }
 
 func (h *Handler) DeleteProblem(c *gin.Context) {
@@ -155,13 +156,13 @@ func (h *Handler) DeleteProblem(c *gin.Context) {
 	err := h.svc.DeleteProblem(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "problem deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "problem deleted"})
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
@@ -169,10 +170,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"stats": stats})
+	middleware.RespondSuccess(c, gin.H{"stats": stats})
 }
 
 // ==================== Status Transition ====================
@@ -185,7 +186,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		Status string `json:"status" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -193,13 +194,13 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	updated, err := h.svc.UpdateProblem(c.Request.Context(), tenantID, id, &reqStruct)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problem": updated})
+	middleware.RespondSuccess(c, gin.H{"problem": updated})
 }
 
 // ==================== Linking ====================
@@ -212,20 +213,20 @@ func (h *Handler) LinkIncident(c *gin.Context) {
 		IncidentID string `json:"incidentId" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	problem, err := h.svc.LinkIncident(c.Request.Context(), tenantID, problemID, req.IncidentID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problem": problem, "incidentId": req.IncidentID})
+	middleware.RespondSuccess(c, gin.H{"problem": problem, "incidentId": req.IncidentID})
 }
 
 func (h *Handler) GetIncidentLinks(c *gin.Context) {
@@ -235,13 +236,13 @@ func (h *Handler) GetIncidentLinks(c *gin.Context) {
 	links, err := h.svc.GetIncidentLinks(c.Request.Context(), tenantID, problemID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"incidentIds": links})
+	middleware.RespondSuccess(c, gin.H{"incidentIds": links})
 }
 
 func (h *Handler) LinkChange(c *gin.Context) {
@@ -252,20 +253,20 @@ func (h *Handler) LinkChange(c *gin.Context) {
 		ChangeID string `json:"changeId" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	problem, err := h.svc.LinkChange(c.Request.Context(), tenantID, problemID, req.ChangeID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"problem": problem, "changeId": req.ChangeID})
+	middleware.RespondSuccess(c, gin.H{"problem": problem, "changeId": req.ChangeID})
 }
 
 func (h *Handler) GetChangeLinks(c *gin.Context) {
@@ -275,13 +276,13 @@ func (h *Handler) GetChangeLinks(c *gin.Context) {
 	links, err := h.svc.GetChangeLinks(c.Request.Context(), tenantID, problemID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"changeIds": links})
+	middleware.RespondSuccess(c, gin.H{"changeIds": links})
 }
 
 // ==================== Known Errors (KEDB) ====================
@@ -297,10 +298,10 @@ func (h *Handler) ListKnownErrors(c *gin.Context) {
 
 	kes, total, err := h.svc.ListKnownErrors(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"knownErrors": kes, "total": total})
+	middleware.RespondSuccess(c, gin.H{"knownErrors": kes, "total": total})
 }
 
 func (h *Handler) SearchKnownErrors(c *gin.Context) {
@@ -310,13 +311,13 @@ func (h *Handler) SearchKnownErrors(c *gin.Context) {
 	kes, total, err := h.svc.SearchKnownErrors(c.Request.Context(), tenantID, query)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"knownErrors": kes, "total": total})
+	middleware.RespondSuccess(c, gin.H{"knownErrors": kes, "total": total})
 }
 
 func (h *Handler) GetKnownError(c *gin.Context) {
@@ -326,13 +327,13 @@ func (h *Handler) GetKnownError(c *gin.Context) {
 	ke, err := h.svc.GetKnownError(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "known error not found")
+			middleware.RespondNotFound(c, "known error not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"knownError": ke})
+	middleware.RespondSuccess(c, gin.H{"knownError": ke})
 }
 
 func (h *Handler) CreateKnownError(c *gin.Context) {
@@ -340,7 +341,7 @@ func (h *Handler) CreateKnownError(c *gin.Context) {
 
 	var req models.CreateKnownErrorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.CreatedBy = h.getAuthUserID(c)
@@ -348,13 +349,13 @@ func (h *Handler) CreateKnownError(c *gin.Context) {
 	ke, err := h.svc.CreateKnownError(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "problem not found")
+			middleware.RespondNotFound(c, "problem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"knownError": ke})
+	middleware.RespondCreated(c, gin.H{"knownError": ke})
 }
 
 func (h *Handler) UpdateKnownError(c *gin.Context) {
@@ -363,20 +364,20 @@ func (h *Handler) UpdateKnownError(c *gin.Context) {
 
 	var req models.UpdateKnownErrorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	ke, err := h.svc.UpdateKnownError(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "known error not found")
+			middleware.RespondNotFound(c, "known error not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"knownError": ke})
+	middleware.RespondSuccess(c, gin.H{"knownError": ke})
 }
 
 func (h *Handler) DeleteKnownError(c *gin.Context) {
@@ -386,13 +387,13 @@ func (h *Handler) DeleteKnownError(c *gin.Context) {
 	err := h.svc.DeleteKnownError(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "known error not found")
+			middleware.RespondNotFound(c, "known error not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "known error deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "known error deleted"})
 }
 
 // ==================== Helpers ====================

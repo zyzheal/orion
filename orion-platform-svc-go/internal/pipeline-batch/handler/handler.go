@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-batch/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -48,15 +49,15 @@ func (h *Handler) CreatePhaseGroup(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.CreatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	group, err := h.svc.CreatePhaseGroup(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, group)
+	middleware.RespondCreated(c, group)
 }
 
 func (h *Handler) ListPhaseGroups(c *gin.Context) {
@@ -69,10 +70,10 @@ func (h *Handler) ListPhaseGroups(c *gin.Context) {
 	groups, total, err := h.svc.ListPhaseGroups(c.Request.Context(), tenantID,
 		getStrPtr(pipelineID), getStrPtr(status), &limit, &offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{Data: groups, Total: total})
+	middleware.RespondSuccess(c, models.PaginatedResponse{Data: groups, Total: total})
 }
 
 func (h *Handler) GetPhaseGroup(c *gin.Context) {
@@ -80,34 +81,34 @@ func (h *Handler) GetPhaseGroup(c *gin.Context) {
 	group, err := h.svc.GetPhaseGroup(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) UpdatePhaseGroup(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.UpdatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	group, err := h.svc.UpdatePhaseGroup(c.Request.Context(), c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else if err == service.ErrNothingToUpdate {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) DeletePhaseGroup(c *gin.Context) {
@@ -115,14 +116,14 @@ func (h *Handler) DeletePhaseGroup(c *gin.Context) {
 	deleted, err := h.svc.DeletePhaseGroup(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "phase group not found")
+		middleware.RespondNotFound(c, "phase group not found")
 		return
 	}
 	c.Status(204)
@@ -133,15 +134,15 @@ func (h *Handler) StartExecution(c *gin.Context) {
 	group, err := h.svc.StartExecution(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		} else if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) PauseExecution(c *gin.Context) {
@@ -149,15 +150,15 @@ func (h *Handler) PauseExecution(c *gin.Context) {
 	group, err := h.svc.PauseExecution(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		} else if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) ResumeExecution(c *gin.Context) {
@@ -165,15 +166,15 @@ func (h *Handler) ResumeExecution(c *gin.Context) {
 	group, err := h.svc.ResumeExecution(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		} else if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) AdvanceToNextBatch(c *gin.Context) {
@@ -181,13 +182,13 @@ func (h *Handler) AdvanceToNextBatch(c *gin.Context) {
 	group, err := h.svc.AdvanceToNextBatch(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) RollbackExecution(c *gin.Context) {
@@ -195,25 +196,25 @@ func (h *Handler) RollbackExecution(c *gin.Context) {
 	group, err := h.svc.RollbackExecution(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		} else if service.IsNotFound(err) {
-			respondNotFound(c, "phase group not found")
+			middleware.RespondNotFound(c, "phase group not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, group)
+	middleware.RespondSuccess(c, group)
 }
 
 func (h *Handler) ListBatchRuns(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	runs, err := h.svc.ListBatchRuns(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, runs)
+	middleware.RespondSuccess(c, runs)
 }
 
 func (h *Handler) CompleteBatch(c *gin.Context) {
@@ -225,13 +226,13 @@ func (h *Handler) CompleteBatch(c *gin.Context) {
 	run, err := h.svc.CompleteBatch(c.Request.Context(), c.Param("id"), c.Param("batchId"), tenantID, req.Result)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "batch run not found")
+			middleware.RespondNotFound(c, "batch run not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func (h *Handler) FailBatch(c *gin.Context) {
@@ -243,13 +244,13 @@ func (h *Handler) FailBatch(c *gin.Context) {
 	run, err := h.svc.FailBatch(c.Request.Context(), c.Param("id"), c.Param("batchId"), tenantID, req.Result)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "batch run not found")
+			middleware.RespondNotFound(c, "batch run not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 func getStrPtr(s string) *string {

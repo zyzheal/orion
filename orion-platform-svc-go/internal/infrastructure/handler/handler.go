@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/infrastructure/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -70,10 +71,10 @@ func (h *Handler) ListConnectors(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListConnectors(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) GetConnector(c *gin.Context) {
@@ -82,28 +83,28 @@ func (h *Handler) GetConnector(c *gin.Context) {
 	m, err := h.svc.GetConnector(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "connector not found")
+			middleware.RespondNotFound(c, "connector not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) RegisterConnector(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RegisterConnectorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.RegisterConnector(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Connect(c *gin.Context) {
@@ -111,20 +112,20 @@ func (h *Handler) Connect(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Connect(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Disconnect(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Disconnect(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "disconnected successfully"})
+	middleware.RespondSuccess(c, gin.H{"message": "disconnected successfully"})
 }
 
 func (h *Handler) Reconnect(c *gin.Context) {
@@ -132,20 +133,20 @@ func (h *Handler) Reconnect(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Reconnect(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) UnregisterConnector(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.UnregisterConnector(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "connector unregistered"})
+	middleware.RespondSuccess(c, gin.H{"message": "connector unregistered"})
 }
 
 func (h *Handler) GetHealthMetrics(c *gin.Context) {
@@ -154,23 +155,23 @@ func (h *Handler) GetHealthMetrics(c *gin.Context) {
 	metrics, err := h.svc.GetHealthMetrics(c.Request.Context(), tenantID, connectorID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "health metrics not found")
+			middleware.RespondNotFound(c, "health metrics not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 func (h *Handler) ListAllHealthMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.ListAllHealthMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": metrics, "total": len(metrics)})
+	middleware.RespondSuccess(c, gin.H{"data": metrics, "total": len(metrics)})
 }
 
 // --- Sandbox handlers ---
@@ -179,10 +180,10 @@ func (h *Handler) ListSandboxes(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListSandboxes(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) GetSandbox(c *gin.Context) {
@@ -191,28 +192,28 @@ func (h *Handler) GetSandbox(c *gin.Context) {
 	sb, err := h.svc.GetSandbox(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sandbox not found")
+			middleware.RespondNotFound(c, "sandbox not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sb)
+	middleware.RespondSuccess(c, sb)
 }
 
 func (h *Handler) CreateSandbox(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSandboxRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	sb, err := h.svc.CreateSandbox(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, sb)
+	middleware.RespondCreated(c, sb)
 }
 
 func (h *Handler) IsolateSandbox(c *gin.Context) {
@@ -220,10 +221,10 @@ func (h *Handler) IsolateSandbox(c *gin.Context) {
 	id := c.Param("id")
 	sb, err := h.svc.IsolateSandbox(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sb)
+	middleware.RespondSuccess(c, sb)
 }
 
 func (h *Handler) ReleaseSandbox(c *gin.Context) {
@@ -231,10 +232,10 @@ func (h *Handler) ReleaseSandbox(c *gin.Context) {
 	id := c.Param("id")
 	sb, err := h.svc.ReleaseSandbox(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sb)
+	middleware.RespondSuccess(c, sb)
 }
 
 func (h *Handler) BlockAllTraffic(c *gin.Context) {
@@ -242,10 +243,10 @@ func (h *Handler) BlockAllTraffic(c *gin.Context) {
 	id := c.Param("id")
 	sb, err := h.svc.IsolateSandbox(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sb)
+	middleware.RespondSuccess(c, sb)
 }
 
 func (h *Handler) AllowTraffic(c *gin.Context) {
@@ -253,15 +254,15 @@ func (h *Handler) AllowTraffic(c *gin.Context) {
 	_ = c.Param("id")
 	var req models.AllowTrafficRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.AllowTraffic(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }
 
 func (h *Handler) DenyTraffic(c *gin.Context) {
@@ -272,15 +273,15 @@ func (h *Handler) DenyTraffic(c *gin.Context) {
 		ToEnv   string `json:"toEnv" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.DenyTraffic(c.Request.Context(), tenantID, body.FromEnv, body.ToEnv)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }
 
 func (h *Handler) ConfigureDnsIsolation(c *gin.Context) {
@@ -288,15 +289,15 @@ func (h *Handler) ConfigureDnsIsolation(c *gin.Context) {
 	sandboxID := c.Param("id")
 	var req models.DnsIsolationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.ConfigureDnsIsolation(c.Request.Context(), tenantID, req, sandboxID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }
 
 func (h *Handler) ConfigureEgressTraffic(c *gin.Context) {
@@ -304,13 +305,13 @@ func (h *Handler) ConfigureEgressTraffic(c *gin.Context) {
 	sandboxID := c.Param("id")
 	var req models.EgressTrafficRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.ConfigureEgressTraffic(c.Request.Context(), tenantID, req, sandboxID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policy)
+	middleware.RespondSuccess(c, policy)
 }

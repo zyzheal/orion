@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/contract/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -58,29 +59,29 @@ func (h *Handler) ListContracts(c *gin.Context) {
 	}
 	result, err := h.svc.ListContracts(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateContract(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateContract(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetContract(c *gin.Context) {
@@ -89,13 +90,13 @@ func (h *Handler) GetContract(c *gin.Context) {
 	result, err := h.svc.GetContract(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "contract not found")
+			middleware.RespondNotFound(c, "contract not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateContract(c *gin.Context) {
@@ -103,23 +104,23 @@ func (h *Handler) UpdateContract(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateContract(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "contract not found")
+			middleware.RespondNotFound(c, "contract not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteContract(c *gin.Context) {
@@ -128,13 +129,13 @@ func (h *Handler) DeleteContract(c *gin.Context) {
 	err := h.svc.DeleteContract(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "contract not found")
+			middleware.RespondNotFound(c, "contract not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "contract deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "contract deleted"})
 }
 
 // ==================== Endpoints ====================
@@ -144,23 +145,23 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 	contractID := c.Param("id")
 	var req models.CreateEndpointRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateEndpoint(c.Request.Context(), tenantID, contractID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "contract not found")
+			middleware.RespondNotFound(c, "contract not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListEndpoints(c *gin.Context) {
@@ -168,10 +169,10 @@ func (h *Handler) ListEndpoints(c *gin.Context) {
 	contractID := c.Param("id")
 	result, err := h.svc.ListEndpoints(c.Request.Context(), tenantID, contractID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteEndpoint(c *gin.Context) {
@@ -181,13 +182,13 @@ func (h *Handler) DeleteEndpoint(c *gin.Context) {
 	err := h.svc.DeleteEndpoint(c.Request.Context(), tenantID, contractID, endpointID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "endpoint not found")
+			middleware.RespondNotFound(c, "endpoint not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "endpoint deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "endpoint deleted"})
 }
 
 // ==================== Stats ====================
@@ -196,8 +197,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

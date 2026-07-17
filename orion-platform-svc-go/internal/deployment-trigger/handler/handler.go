@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -35,15 +36,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -51,58 +52,58 @@ func (h *Handler) Get(c *gin.Context) {
 	result, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	results, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if results == nil {
 		results = []models.DeploymentTrigger{}
 	}
-	respondSuccess(c, gin.H{"data": results})
+	middleware.RespondSuccess(c, gin.H{"data": results})
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"data": "deleted"})
 }
 
 func (h *Handler) GetExecutions(c *gin.Context) {
@@ -118,16 +119,16 @@ func (h *Handler) GetExecutions(c *gin.Context) {
 	results, err := h.svc.GetExecutions(c.Request.Context(), tenantID, c.Param("id"), limit)
 	if err != nil {
 		if err == service.ErrNotFound {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if results == nil {
 		results = []models.TriggerExecution{}
 	}
-	respondSuccess(c, gin.H{"data": results})
+	middleware.RespondSuccess(c, gin.H{"data": results})
 }
 
 func (h *Handler) Execute(c *gin.Context) {
@@ -136,15 +137,15 @@ func (h *Handler) Execute(c *gin.Context) {
 	if err != nil {
 		switch err {
 		case service.ErrNotFound:
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 		case service.ErrDisabled:
 			errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		default:
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func respondSuccess(c *gin.Context, data any) {

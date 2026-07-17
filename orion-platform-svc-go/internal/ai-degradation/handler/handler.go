@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/ai-degradation/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 var _ = http.StatusOK
@@ -90,18 +91,18 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDegradationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	ctx := context.Background()
 	config, err := h.svc.CreateConfig(ctx, tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondCreated(c, config)
+	middleware.RespondCreated(c, config)
 }
 
 // GetConfig retrieves a degradation configuration by ID.
@@ -110,11 +111,11 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	ctx := context.Background()
 	config, err := h.svc.GetConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 // ListConfigs lists degradation configurations.
@@ -123,7 +124,7 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 	ctx := context.Background()
 	req := models.ListConfigsQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Limit <= 0 || req.Limit > 100 {
@@ -132,10 +133,10 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 
 	resp, err := h.svc.ListConfigs(ctx, tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // UpdateConfig updates a degradation configuration.
@@ -144,16 +145,16 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 	ctx := context.Background()
 	var req models.UpdateDegradationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	config, err := h.svc.UpdateConfig(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 // DeleteConfig deletes a degradation configuration.
@@ -163,11 +164,11 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 
 	err := h.svc.DeleteConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 // EnableConfig enables a degradation configuration.
@@ -177,10 +178,10 @@ func (h *Handler) EnableConfig(c *gin.Context) {
 
 	config, err := h.svc.EnableConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 // DisableConfig disables a degradation configuration.
@@ -190,10 +191,10 @@ func (h *Handler) DisableConfig(c *gin.Context) {
 
 	config, err := h.svc.DisableConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 // TriggerDegradation manually triggers degradation.
@@ -207,13 +208,13 @@ func (h *Handler) TriggerDegradation(c *gin.Context) {
 	history, err := h.svc.TriggerDegradation(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		if err.Error() == "config not found" {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondCreated(c, history)
+	middleware.RespondCreated(c, history)
 }
 
 // RecoverService recovers a degraded service.
@@ -223,10 +224,10 @@ func (h *Handler) RecoverService(c *gin.Context) {
 
 	config, err := h.svc.RecoverService(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 // GetHistory retrieves degradation history for a config.
@@ -235,7 +236,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	ctx := context.Background()
 	req := models.ListHistoryQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Limit <= 0 || req.Limit > 100 {
@@ -244,10 +245,10 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 	resp, err := h.svc.GetHistory(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // GetGlobalStatus returns the global degradation status.
@@ -257,8 +258,8 @@ func (h *Handler) GetGlobalStatus(c *gin.Context) {
 
 	status, err := h.svc.GetGlobalStatus(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }

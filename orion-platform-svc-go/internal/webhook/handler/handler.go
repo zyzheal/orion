@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/webhook/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP handlers for webhook endpoints.
@@ -90,10 +91,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	webhooks, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     webhooks,
 		Total:    total,
 		Page:     page,
@@ -105,17 +106,17 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	w, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, w)
+	middleware.RespondCreated(c, w)
 }
 
 // Get handles GET /webhooks/:id
@@ -125,13 +126,13 @@ func (h *Handler) Get(c *gin.Context) {
 	w, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 // Update handles PUT /webhooks/:id
@@ -139,20 +140,20 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	w, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 // Delete handles DELETE /webhooks/:id
@@ -161,13 +162,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "webhook deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "webhook deleted"})
 }
 
 // Count handles GET /webhooks/count
@@ -175,10 +176,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // --- Webhook action handlers ---
@@ -189,28 +190,28 @@ func (h *Handler) Trigger(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	if err := h.svc.Trigger(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "webhook triggered"})
+	middleware.RespondSuccess(c, gin.H{"message": "webhook triggered"})
 }
 
 // TriggerByEvent handles POST /webhooks/trigger-event?event_type=xxx
 func (h *Handler) TriggerByEvent(c *gin.Context) {
 	eventType := c.Query("event_type")
 	if eventType == "" {
-		respondBadRequest(c, "event_type query parameter is required")
+		middleware.RespondBadRequest(c, "event_type query parameter is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	if err := h.svc.TriggerByEvent(c.Request.Context(), tenantID, eventType); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "webhooks triggered by event"})
+	middleware.RespondSuccess(c, gin.H{"message": "webhooks triggered by event"})
 }
 
 // RotateSecret handles POST /webhooks/:id/rotate-secret
@@ -220,13 +221,13 @@ func (h *Handler) RotateSecret(c *gin.Context) {
 	secret, err := h.svc.RotateSecret(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"secret": secret})
+	middleware.RespondSuccess(c, gin.H{"secret": secret})
 }
 
 // --- Delivery handlers ---
@@ -238,10 +239,10 @@ func (h *Handler) ListDeliveries(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, webhookID); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -249,10 +250,10 @@ func (h *Handler) ListDeliveries(c *gin.Context) {
 
 	deliveries, total, err := h.svc.ListDeliveries(c.Request.Context(), webhookID, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":     deliveries,
 		"page":     page,
 		"pageSize": pageSize,

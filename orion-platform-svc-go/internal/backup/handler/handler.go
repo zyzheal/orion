@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/backup/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -75,10 +76,10 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	plans, total, err := h.svc.ListPlans(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:  plans,
 		Total: total,
 		Page:  1,
@@ -92,48 +93,48 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	plan, err := h.svc.GetPlan(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup plan not found")
+			middleware.RespondNotFound(c, "backup plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 func (h *Handler) CreatePlan(c *gin.Context) {
 	var req models.CreateBackupPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	plan, err := h.svc.CreatePlan(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, plan)
+	middleware.RespondCreated(c, plan)
 }
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateBackupPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	plan, err := h.svc.UpdatePlan(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup plan not found")
+			middleware.RespondNotFound(c, "backup plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 func (h *Handler) DeletePlan(c *gin.Context) {
@@ -141,14 +142,14 @@ func (h *Handler) DeletePlan(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeletePlan(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "backup plan not found")
+		middleware.RespondNotFound(c, "backup plan not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "backup plan deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "backup plan deleted"})
 }
 
 // --- Recovery Plan handlers ---
@@ -157,10 +158,10 @@ func (h *Handler) ListRecoveryPlans(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	plans, total, err := h.svc.ListRecoveryPlans(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:  plans,
 		Total: total,
 		Page:  1,
@@ -174,48 +175,48 @@ func (h *Handler) GetRecoveryPlan(c *gin.Context) {
 	plan, err := h.svc.GetRecoveryPlan(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "recovery plan not found")
+			middleware.RespondNotFound(c, "recovery plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 func (h *Handler) CreateRecoveryPlan(c *gin.Context) {
 	var req models.CreateRecoveryPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	plan, err := h.svc.CreateRecoveryPlan(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, plan)
+	middleware.RespondCreated(c, plan)
 }
 
 func (h *Handler) UpdateRecoveryPlan(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRecoveryPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	plan, err := h.svc.UpdateRecoveryPlan(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "recovery plan not found")
+			middleware.RespondNotFound(c, "recovery plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 func (h *Handler) DeleteRecoveryPlan(c *gin.Context) {
@@ -223,14 +224,14 @@ func (h *Handler) DeleteRecoveryPlan(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteRecoveryPlan(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "recovery plan not found")
+		middleware.RespondNotFound(c, "recovery plan not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "recovery plan deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "recovery plan deleted"})
 }
 
 // --- Verify & Restore handlers ---
@@ -241,13 +242,13 @@ func (h *Handler) VerifyBackup(c *gin.Context) {
 	job, err := h.svc.VerifyBackup(c.Request.Context(), backupID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup not found")
+			middleware.RespondNotFound(c, "backup not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, job)
+	middleware.RespondSuccess(c, job)
 }
 
 func (h *Handler) InitiateRestore(c *gin.Context) {
@@ -256,13 +257,13 @@ func (h *Handler) InitiateRestore(c *gin.Context) {
 	restore, err := h.svc.InitiateRestore(c.Request.Context(), planID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup plan not found")
+			middleware.RespondNotFound(c, "backup plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"executionId": restore.ID,
 		"planId":      planID,
 		"status":      "initiated",
@@ -280,10 +281,10 @@ func (h *Handler) ListBackups(c *gin.Context) {
 	}
 	jobs, total, err := h.svc.ListBackups(c.Request.Context(), tenantID, statusPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:  jobs,
 		Total: total,
 		Page:  1,
@@ -297,13 +298,13 @@ func (h *Handler) GetBackup(c *gin.Context) {
 	job, err := h.svc.GetBackup(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup not found")
+			middleware.RespondNotFound(c, "backup not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, job)
+	middleware.RespondSuccess(c, job)
 }
 
 func (h *Handler) TriggerBackup(c *gin.Context) {
@@ -312,13 +313,13 @@ func (h *Handler) TriggerBackup(c *gin.Context) {
 	job, err := h.svc.TriggerBackup(c.Request.Context(), planID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "backup plan not found")
+			middleware.RespondNotFound(c, "backup plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{
+	middleware.RespondCreated(c, gin.H{
 		"backupId": job.ID,
 		"planId":   planID,
 		"status":   job.Status,

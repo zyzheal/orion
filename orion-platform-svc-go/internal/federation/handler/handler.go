@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/federation/models"
 	"orion/platform-svc-go/internal/federation/service"
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -62,60 +63,60 @@ func (h *Handler) CreateFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateFederationConfig(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) GetFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) ListFederations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListFederationConfigs(c.Request.Context(), tenantID)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) UpdateFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.UpdateFederationConfig(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) DeleteFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	err := h.svc.DeleteFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 // ---------------------------------------------------------------------------
@@ -126,85 +127,85 @@ func (h *Handler) RegisterExecutor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExecutorRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.RegisterExecutor(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) ListExecutors(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListExecutors(c.Request.Context(), tenantID)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetExecutorHealth(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	e, hlt, err := h.svc.GetExecutorHealth(c.Request.Context(), tenantID, c.Param("executorId"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"executor": e, "health": hlt})
+	middleware.RespondSuccess(c, gin.H{"executor": e, "health": hlt})
 }
 
 func (h *Handler) GetExecutorDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetExecutorDashboard(c.Request.Context(), tenantID)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) ExecutorHeartbeat(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ExecutorHeartbeatRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	e, hlt, err := h.svc.ExecutorHeartbeat(c.Request.Context(), tenantID, c.Param("executorId"), &req)
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"executor": e, "health": hlt})
+	middleware.RespondSuccess(c, gin.H{"executor": e, "health": hlt})
 }
 
 func (h *Handler) DeregisterExecutor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ok, err := h.svc.DeregisterExecutor(c.Request.Context(), tenantID, c.Param("executorId"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"deregistered": ok})
+	middleware.RespondSuccess(c, gin.H{"deregistered": ok})
 }
 
 func (h *Handler) DispatchJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DispatchJobRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.DispatchJob(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -215,15 +216,15 @@ func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSchedulingPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateSchedulingPolicy(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
@@ -231,10 +232,10 @@ func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 	_ = tenantID
 	items, err := h.svc.ListSchedulingPolicies(c.Request.Context(), tenantID)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // ---------------------------------------------------------------------------
@@ -245,15 +246,15 @@ func (h *Handler) ScheduleCrossClusterJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ScheduleCrossClusterJobRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.ScheduleCrossClusterJob(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -264,25 +265,25 @@ func (h *Handler) CreateResourcePool(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateResourcePoolRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateResourcePool(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) GetResourcePoolStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetResourcePoolStatus(c.Request.Context(), tenantID, c.Param("poolId"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 // ---------------------------------------------------------------------------
@@ -293,15 +294,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederatedClusterRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -311,54 +312,54 @@ func (h *Handler) List(c *gin.Context) {
 	_ = ps
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederatedClusterRequest
 	if err := c.ShouldBindJSON(&req); err != nullErr {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nullErr {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nullErr {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // Sentinel error for the handler's error-checking idiom.

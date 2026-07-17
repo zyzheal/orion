@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/health-check/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 var validCheckTypes = map[string]bool{
@@ -51,10 +52,10 @@ func (h *Handler) ListChecks(c *gin.Context) {
 	ctx := c.Request.Context()
 	checks, err := h.svc.List(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, checks)
+	middleware.RespondSuccess(c, checks)
 }
 
 func (h *Handler) GetCheck(c *gin.Context) {
@@ -62,14 +63,14 @@ func (h *Handler) GetCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	check, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if check == nil {
-		respondNotFound(c, "health check not found")
+		middleware.RespondNotFound(c, "health check not found")
 		return
 	}
-	respondSuccess(c, check)
+	middleware.RespondSuccess(c, check)
 }
 
 func (h *Handler) CreateCheck(c *gin.Context) {
@@ -77,19 +78,19 @@ func (h *Handler) CreateCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		respondBadRequest(c, "invalid check type")
+		middleware.RespondBadRequest(c, "invalid check type")
 		return
 	}
 	id, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"id": id})
+	middleware.RespondCreated(c, gin.H{"id": id})
 }
 
 func (h *Handler) UpdateCheck(c *gin.Context) {
@@ -97,28 +98,28 @@ func (h *Handler) UpdateCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		respondBadRequest(c, "invalid check type")
+		middleware.RespondBadRequest(c, "invalid check type")
 		return
 	}
 	if err := h.svc.Update(ctx, tenantID, c.Param("id"), req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "health check updated"})
+	middleware.RespondSuccess(c, gin.H{"message": "health check updated"})
 }
 
 func (h *Handler) DeleteCheck(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	ctx := c.Request.Context()
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "health check deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "health check deleted"})
 }
 
 func (h *Handler) ExecuteCheck(c *gin.Context) {
@@ -130,13 +131,13 @@ func (h *Handler) ExecuteCheck(c *gin.Context) {
 	result, err := h.svc.ExecuteCheck(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		if errors.Is(err, service.ErrNotFound) {
-			respondNotFound(c, "health check not found")
+			middleware.RespondNotFound(c, "health check not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ExecuteAll(c *gin.Context) {
@@ -145,28 +146,28 @@ func (h *Handler) ExecuteAll(c *gin.Context) {
 
 	result, err := h.svc.ExecuteAll(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) QuickCheck(c *gin.Context) {
 	ctx := c.Request.Context()
 	var req models.QuickHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if !validCheckTypes[req.CheckType] {
-		respondBadRequest(c, "invalid check type")
+		middleware.RespondBadRequest(c, "invalid check type")
 		return
 	}
 
 	result, err := h.svc.QuickCheck(ctx, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

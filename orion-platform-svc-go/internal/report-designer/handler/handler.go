@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/report-designer/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -71,17 +72,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateReport(c *gin.Context) {
 	var req models.CreateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	req.TenantID = &tenantID
 	report, err := h.svc.CreateReport(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, report)
+	middleware.RespondCreated(c, report)
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
@@ -90,33 +91,33 @@ func (h *Handler) GetReport(c *gin.Context) {
 	report, err := h.svc.GetReport(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) UpdateReport(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	report, err := h.svc.UpdateReport(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 			return
 	}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
@@ -124,14 +125,14 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	deleted, err := h.svc.DeleteReport(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "report not found")
+		middleware.RespondNotFound(c, "report not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
@@ -152,10 +153,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 
 	items, total, err := h.svc.ListReports(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     offset/limit + 1,
@@ -168,37 +169,37 @@ func (h *Handler) ListReports(c *gin.Context) {
 func (h *Handler) CreateDatasource(c *gin.Context) {
 	var req models.CreateDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	req.TenantID = &tenantID
 	ds, err := h.svc.CreateDatasource(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ds)
+	middleware.RespondCreated(c, ds)
 }
 
 func (h *Handler) UpdateDatasource(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	ds, err := h.svc.UpdateDatasource(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "datasource not found")
+			middleware.RespondNotFound(c, "datasource not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ds)
+	middleware.RespondSuccess(c, ds)
 }
 
 func (h *Handler) DeleteDatasource(c *gin.Context) {
@@ -206,24 +207,24 @@ func (h *Handler) DeleteDatasource(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	deleted, err := h.svc.DeleteDatasource(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "datasource not found")
+		middleware.RespondNotFound(c, "datasource not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) ListDatasources(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	datasources, err := h.svc.ListDatasources(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, datasources)
+	middleware.RespondSuccess(c, datasources)
 }
 
 // --- Schedule handlers ---
@@ -231,7 +232,7 @@ func (h *Handler) ListDatasources(c *gin.Context) {
 func (h *Handler) CreateSchedule(c *gin.Context) {
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Set reportId from URL param for convenience
@@ -244,33 +245,33 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 	schedule, err := h.svc.CreateSchedule(c.Request.Context(), &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, schedule)
+	middleware.RespondCreated(c, schedule)
 }
 
 func (h *Handler) UpdateSchedule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	schedule, err := h.svc.UpdateSchedule(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "schedule not found")
+			middleware.RespondNotFound(c, "schedule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
@@ -278,14 +279,14 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	deleted, err := h.svc.DeleteSchedule(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "schedule not found")
+		middleware.RespondNotFound(c, "schedule not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) ListSchedules(c *gin.Context) {
@@ -293,10 +294,10 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	schedules, err := h.svc.ListSchedules(c.Request.Context(), reportID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, schedules)
+	middleware.RespondSuccess(c, schedules)
 }
 
 // --- Execution / Preview handlers ---
@@ -309,13 +310,13 @@ func (h *Handler) PreviewReport(c *gin.Context) {
 	result, err := h.svc.PreviewReport(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ExecuteReport(c *gin.Context) {
@@ -335,13 +336,13 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 	execution, err := h.svc.ExecuteReport(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, execution)
+	middleware.RespondCreated(c, execution)
 }
 
 func (h *Handler) GetExecutionHistory(c *gin.Context) {
@@ -350,10 +351,10 @@ func (h *Handler) GetExecutionHistory(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	executions, err := h.svc.GetExecutionHistory(c.Request.Context(), id, tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, executions)
+	middleware.RespondSuccess(c, executions)
 }
 
 // --- Helpers ---

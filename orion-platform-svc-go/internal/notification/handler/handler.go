@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/notification/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles HTTP requests for notification endpoints.
@@ -82,10 +83,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	notifications, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     notifications,
 		Total:    total,
 		Page:     page,
@@ -98,17 +99,17 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // Create handles POST /notifications
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -119,13 +120,13 @@ func (h *Handler) Create(c *gin.Context) {
 	n, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
 		if err == service.ErrInvalidInput {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, n)
+	middleware.RespondCreated(c, n)
 }
 
 // Count handles GET /notifications/count
@@ -133,10 +134,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // Get handles GET /notifications/:id
@@ -146,13 +147,13 @@ func (h *Handler) Get(c *gin.Context) {
 	n, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification not found")
+			middleware.RespondNotFound(c, "notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, n)
+	middleware.RespondSuccess(c, n)
 }
 
 // Update handles PUT /notifications/:id
@@ -160,20 +161,20 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	n, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification not found")
+			middleware.RespondNotFound(c, "notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, n)
+	middleware.RespondSuccess(c, n)
 }
 
 // Delete handles DELETE /notifications/:id
@@ -182,14 +183,14 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "notification not found")
+		middleware.RespondNotFound(c, "notification not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "notification deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "notification deleted"})
 }
 
 // MarkRead handles POST /notifications/:id/read
@@ -199,13 +200,13 @@ func (h *Handler) MarkRead(c *gin.Context) {
 	err := h.svc.MarkRead(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification not found")
+			middleware.RespondNotFound(c, "notification not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "notification marked as read"})
+	middleware.RespondSuccess(c, gin.H{"message": "notification marked as read"})
 }
 
 // MarkAllRead handles POST /notifications/read-all
@@ -217,8 +218,8 @@ func (h *Handler) MarkAllRead(c *gin.Context) {
 	}
 	err := h.svc.MarkAllRead(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "all notifications marked as read"})
+	middleware.RespondSuccess(c, gin.H{"message": "all notifications marked as read"})
 }

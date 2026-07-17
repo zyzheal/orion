@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -45,10 +46,10 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	items, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -56,22 +57,22 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c)
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, item)
+	middleware.RespondSuccess(c, item)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.CreateServiceCatalogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
 	errors.WriteCreated(c, item)
@@ -82,41 +83,41 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateServiceCatalogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, item)
+	middleware.RespondSuccess(c, item)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) UpdateRequestStatus(c *gin.Context) {
 	id := c.Param("id")
 	var req models.StatusUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.UpdateRequestStatus(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetRequestTimeline(c *gin.Context) {
@@ -124,25 +125,25 @@ func (h *Handler) GetRequestTimeline(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetRequestTimeline(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetSLABreaches(c *gin.Context) {
 	var q models.SLABreachesQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetSLABreaches(c.Request.Context(), tenantID, &q)
 	if err != nil {
-		respondInternalError(c)
+		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func respondSuccess(c *gin.Context, data any) {

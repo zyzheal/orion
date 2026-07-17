@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/lowcode/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for the lowcode module.
@@ -106,13 +107,13 @@ func (h *Handler) GetFlow(c *gin.Context) {
 	flow, err := h.svc.GetFlow(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, flow)
+	middleware.RespondSuccess(c, flow)
 }
 
 // CreateFlow handles POST /flows
@@ -122,16 +123,16 @@ func (h *Handler) CreateFlow(c *gin.Context) {
 
 	var req models.CreateFlowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flow, err := h.svc.CreateFlow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, flow)
+	middleware.RespondCreated(c, flow)
 }
 
 // UpdateFlow handles PUT /flows/:id
@@ -140,20 +141,20 @@ func (h *Handler) UpdateFlow(c *gin.Context) {
 
 	var req models.UpdateFlowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flow, err := h.svc.UpdateFlow(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, flow)
+	middleware.RespondSuccess(c, flow)
 }
 
 // DeleteFlow handles DELETE /flows/:id
@@ -161,13 +162,13 @@ func (h *Handler) DeleteFlow(c *gin.Context) {
 	tenantID := getTenantID(c)
 	if err := h.svc.DeleteFlow(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 // PublishFlow handles POST /flows/:id/publish
@@ -176,13 +177,13 @@ func (h *Handler) PublishFlow(c *gin.Context) {
 	flow, err := h.svc.PublishFlow(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, flow)
+	middleware.RespondSuccess(c, flow)
 }
 
 // ExecuteFlow handles POST /flows/:id/execute
@@ -200,17 +201,17 @@ func (h *Handler) ExecuteFlow(c *gin.Context) {
 	inst, err := h.svc.ExecuteFlow(c.Request.Context(), tenantID, userID, c.Param("id"), input.Input)
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
 		if err == service.ErrFlowNotEnabled {
 			errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, inst)
+	middleware.RespondCreated(c, inst)
 }
 
 // --- Version Handlers ---
@@ -223,13 +224,13 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 	snap, err := h.svc.CreateVersion(c.Request.Context(), tenantID, userID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, snap)
+	middleware.RespondCreated(c, snap)
 }
 
 // ListVersions handles GET /workflows/:id/versions
@@ -238,13 +239,13 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	snapshots, err := h.svc.ListVersions(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, snapshots)
+	middleware.RespondSuccess(c, snapshots)
 }
 
 // --- Import / Export Handlers ---
@@ -256,16 +257,16 @@ func (h *Handler) ImportWorkflow(c *gin.Context) {
 
 	var req models.ImportWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flow, err := h.svc.ImportWorkflow(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, flow)
+	middleware.RespondCreated(c, flow)
 }
 
 // ExportWorkflow handles POST /workflows/:id/export
@@ -274,13 +275,13 @@ func (h *Handler) ExportWorkflow(c *gin.Context) {
 	resp, err := h.svc.ExportWorkflow(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
-			respondNotFound(c, "flow not found")
+			middleware.RespondNotFound(c, "flow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // --- Template Handlers ---
@@ -289,10 +290,10 @@ func (h *Handler) ExportWorkflow(c *gin.Context) {
 func (h *Handler) ListTemplates(c *gin.Context) {
 	items, err := h.svc.ListTemplates(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // CreateTemplate handles POST /templates
@@ -301,16 +302,16 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	tmpl, err := h.svc.CreateTemplate(c.Request.Context(), userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tmpl)
+	middleware.RespondCreated(c, tmpl)
 }
 
 // ApplyTemplate handles POST /templates/:id/apply
@@ -320,18 +321,18 @@ func (h *Handler) ApplyTemplate(c *gin.Context) {
 
 	var req models.ApplyTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	flow, err := h.svc.ApplyTemplate(c.Request.Context(), tenantID, userID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrTemplateNotFound {
-			respondNotFound(c, "template not found")
+			middleware.RespondNotFound(c, "template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, flow)
+	middleware.RespondCreated(c, flow)
 }

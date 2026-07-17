@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/apm/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -43,25 +44,25 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entities, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
+	middleware.RespondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entity)
+	middleware.RespondCreated(c, entity)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -69,26 +70,26 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -96,14 +97,14 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "not found")
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) GetSlowTraces(c *gin.Context) {
@@ -115,10 +116,10 @@ func (h *Handler) GetSlowTraces(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetSlowTraces(c.Request.Context(), tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetServiceTopology(c *gin.Context) {
@@ -130,10 +131,10 @@ func (h *Handler) GetServiceTopology(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetServiceTopology(c.Request.Context(), tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetSlowQueries(c *gin.Context) {
@@ -154,8 +155,8 @@ func (h *Handler) GetSlowQueries(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetSlowQueries(c.Request.Context(), tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

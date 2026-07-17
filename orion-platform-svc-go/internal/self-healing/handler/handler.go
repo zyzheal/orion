@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/self-healing/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -75,16 +76,16 @@ func (h *Handler) CreateIncident(c *gin.Context) {
 
 	var req models.CreateIncidentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	incident, err := h.svc.CreateIncident(ctx, tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, incident)
+	middleware.RespondCreated(c, incident)
 }
 
 func (h *Handler) GetIncident(c *gin.Context) {
@@ -93,10 +94,10 @@ func (h *Handler) GetIncident(c *gin.Context) {
 
 	incident, err := h.svc.GetIncident(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "incident not found")
+		middleware.RespondNotFound(c, "incident not found")
 		return
 	}
-	respondSuccess(c, incident)
+	middleware.RespondSuccess(c, incident)
 }
 
 // === History ===
@@ -127,10 +128,10 @@ func (h *Handler) ListHistory(c *gin.Context) {
 
 	incidents, total, err := h.svc.ListHistory(ctx, tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  incidents,
 		"total": total,
 	})
@@ -149,10 +150,10 @@ func (h *Handler) GetEffectiveness(c *gin.Context) {
 
 	eff, err := h.svc.GetEffectiveness(ctx, tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, eff)
+	middleware.RespondSuccess(c, eff)
 }
 
 // === Strategies ===
@@ -162,10 +163,10 @@ func (h *Handler) ListStrategies(c *gin.Context) {
 
 	strategies, err := h.svc.ListStrategies(ctx)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  strategies,
 		"total": len(strategies),
 	})
@@ -176,10 +177,10 @@ func (h *Handler) GetStrategy(c *gin.Context) {
 
 	strategy, err := h.svc.GetStrategy(ctx, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "strategy not found")
+		middleware.RespondNotFound(c, "strategy not found")
 		return
 	}
-	respondSuccess(c, strategy)
+	middleware.RespondSuccess(c, strategy)
 }
 
 func (h *Handler) ToggleStrategy(c *gin.Context) {
@@ -187,16 +188,16 @@ func (h *Handler) ToggleStrategy(c *gin.Context) {
 
 	var req models.ToggleStrategyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	err := h.svc.ToggleStrategy(ctx, c.Param("id"), req.Enabled)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"id":      c.Param("id"),
 		"enabled": req.Enabled,
 	})
@@ -207,16 +208,16 @@ func (h *Handler) RegisterStrategy(c *gin.Context) {
 
 	var req models.RegisterStrategyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	strategy, err := h.svc.RegisterStrategy(ctx, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, strategy)
+	middleware.RespondCreated(c, strategy)
 }
 
 // === Approvals ===
@@ -227,10 +228,10 @@ func (h *Handler) ListApprovals(c *gin.Context) {
 
 	approvals, err := h.svc.ListApprovals(ctx, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  approvals,
 		"total": len(approvals),
 	})
@@ -241,10 +242,10 @@ func (h *Handler) GetApproval(c *gin.Context) {
 
 	approval, err := h.svc.GetApproval(ctx, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "approval request not found")
+		middleware.RespondNotFound(c, "approval request not found")
 		return
 	}
-	respondSuccess(c, approval)
+	middleware.RespondSuccess(c, approval)
 }
 
 func (h *Handler) RespondApproval(c *gin.Context) {
@@ -253,20 +254,20 @@ func (h *Handler) RespondApproval(c *gin.Context) {
 
 	var req models.RespondApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	incident, err := h.svc.RespondApproval(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	message := "Healing execution started"
 	if !req.Approved {
 		message = "Approval rejected"
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"incidentId":     incident.ID,
 		"status":         incident.Status,
 		"approvalStatus": incident.ApprovalStatus,

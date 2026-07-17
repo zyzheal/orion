@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -103,10 +104,10 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 
 	pipelines, total, err := h.svc.ListPipelines(ctx, tenantID, opt)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  pipelines,
 		"total": total,
 	})
@@ -118,16 +119,16 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 
 	var req models.CreatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	pipeline, err := h.svc.CreatePipeline(ctx, tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, pipeline)
+	middleware.RespondCreated(c, pipeline)
 }
 
 func (h *Handler) GetPipeline(c *gin.Context) {
@@ -135,10 +136,10 @@ func (h *Handler) GetPipeline(c *gin.Context) {
 	ctx := context.Background()
 	pipeline, err := h.svc.GetPipeline(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "pipeline not found")
+		middleware.RespondNotFound(c, "pipeline not found")
 		return
 	}
-	respondSuccess(c, pipeline)
+	middleware.RespondSuccess(c, pipeline)
 }
 
 func (h *Handler) UpdatePipeline(c *gin.Context) {
@@ -147,16 +148,16 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 
 	var req models.UpdatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	pipeline, err := h.svc.UpdatePipeline(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, pipeline)
+	middleware.RespondSuccess(c, pipeline)
 }
 
 func (h *Handler) DeletePipeline(c *gin.Context) {
@@ -164,14 +165,14 @@ func (h *Handler) DeletePipeline(c *gin.Context) {
 	ctx := context.Background()
 	deleted, err := h.svc.DeletePipeline(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "pipeline not found")
+		middleware.RespondNotFound(c, "pipeline not found")
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 // === Validation ===
@@ -182,16 +183,16 @@ func (h *Handler) ValidatePipeline(c *gin.Context) {
 
 	var req models.CreatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.ValidatePipeline(ctx, tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // === Runs ===
@@ -201,10 +202,10 @@ func (h *Handler) StartRun(c *gin.Context) {
 	ctx := context.Background()
 	result, err := h.svc.StartRun(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) StopRun(c *gin.Context) {
@@ -212,10 +213,10 @@ func (h *Handler) StopRun(c *gin.Context) {
 	ctx := context.Background()
 	err := h.svc.StopRun(ctx, tenantID, c.Param("runId"))
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "run stopped"})
+	middleware.RespondSuccess(c, gin.H{"message": "run stopped"})
 }
 
 // === Batch ===
@@ -228,16 +229,16 @@ func (h *Handler) BatchStart(c *gin.Context) {
 		PipelineIDs []string `json:"pipelineIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.BatchStart(ctx, tenantID, req.PipelineIDs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results)
+	middleware.RespondSuccess(c, results)
 }
 
 func (h *Handler) BatchStop(c *gin.Context) {
@@ -248,16 +249,16 @@ func (h *Handler) BatchStop(c *gin.Context) {
 		RunIDs []string `json:"runIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.BatchStop(ctx, tenantID, req.RunIDs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results)
+	middleware.RespondSuccess(c, results)
 }
 
 func (h *Handler) BatchDelete(c *gin.Context) {
@@ -268,16 +269,16 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 		PipelineIDs []string `json:"pipelineIds" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	results, err := h.svc.BatchDelete(ctx, tenantID, req.PipelineIDs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results)
+	middleware.RespondSuccess(c, results)
 }
 
 // === Stats & Versions ===
@@ -287,10 +288,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx := context.Background()
 	stats, err := h.svc.GetStats(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetVersions(c *gin.Context) {
@@ -298,8 +299,8 @@ func (h *Handler) GetVersions(c *gin.Context) {
 	ctx := context.Background()
 	versions, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }

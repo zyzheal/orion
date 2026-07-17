@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/code-repo/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -99,10 +100,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) ListAdapters(c *gin.Context) {
 	adapters, err := h.svc.ListAdapters(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, adapters)
+	middleware.RespondSuccess(c, adapters)
 }
 
 // --- Repositories ---
@@ -111,10 +112,10 @@ func (h *Handler) ListRepositories(c *gin.Context) {
 	adapterID := c.Param("adapterId")
 	repos, err := h.svc.ListRepositories(c.Request.Context(), adapterID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, repos)
+	middleware.RespondSuccess(c, repos)
 }
 
 func (h *Handler) GetRepository(c *gin.Context) {
@@ -123,13 +124,13 @@ func (h *Handler) GetRepository(c *gin.Context) {
 	repo, err := h.svc.GetRepository(c.Request.Context(), adapterID, repoID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "repository not found")
+			middleware.RespondNotFound(c, "repository not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, repo)
+	middleware.RespondSuccess(c, repo)
 }
 
 // --- Branches ---
@@ -139,10 +140,10 @@ func (h *Handler) ListBranches(c *gin.Context) {
 	repoID := c.Param("repoId")
 	branches, err := h.svc.ListBranches(c.Request.Context(), adapterID, repoID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, branches)
+	middleware.RespondSuccess(c, branches)
 }
 
 func (h *Handler) CreateBranch(c *gin.Context) {
@@ -150,14 +151,14 @@ func (h *Handler) CreateBranch(c *gin.Context) {
 	repoID := c.Param("repoId")
 	var req models.CreateBranchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.CreateBranch(c.Request.Context(), adapterID, repoID, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "branch created", "name": req.Name})
+	middleware.RespondCreated(c, gin.H{"message": "branch created", "name": req.Name})
 }
 
 func (h *Handler) DeleteBranch(c *gin.Context) {
@@ -165,10 +166,10 @@ func (h *Handler) DeleteBranch(c *gin.Context) {
 	repoID := c.Param("repoId")
 	branchName := c.Param("branchName")
 	if err := h.svc.DeleteBranch(c.Request.Context(), adapterID, repoID, branchName); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "branch deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "branch deleted"})
 }
 
 // --- Pull Requests ---
@@ -179,30 +180,30 @@ func (h *Handler) ListPullRequests(c *gin.Context) {
 	state := c.Query("state")
 	prs, err := h.svc.ListPullRequests(c.Request.Context(), adapterID, repoID, state)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, prs)
+	middleware.RespondSuccess(c, prs)
 }
 
 func (h *Handler) GetPullRequestByID(c *gin.Context) {
 	adapterID := c.Param("adapterId")
 	repoID := c.Query("repoId")
 	if repoID == "" {
-		respondBadRequest(c, "repoId query parameter is required")
+		middleware.RespondBadRequest(c, "repoId query parameter is required")
 		return
 	}
 	prID := c.Param("prId")
 	pr, err := h.svc.GetPullRequest(c.Request.Context(), adapterID, repoID, prID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pull request not found")
+			middleware.RespondNotFound(c, "pull request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pr)
+	middleware.RespondSuccess(c, pr)
 }
 
 func (h *Handler) CreatePullRequest(c *gin.Context) {
@@ -210,15 +211,15 @@ func (h *Handler) CreatePullRequest(c *gin.Context) {
 	repoID := c.Param("repoId")
 	var req models.CreatePullRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	pr, err := h.svc.CreatePullRequest(c.Request.Context(), adapterID, repoID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, pr)
+	middleware.RespondCreated(c, pr)
 }
 
 func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
@@ -228,13 +229,13 @@ func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
 		repoID = c.Param("repoId")
 	}
 	if repoID == "" {
-		respondBadRequest(c, "repoId is required in query or request body")
+		middleware.RespondBadRequest(c, "repoId is required in query or request body")
 		return
 	}
 	prID := c.Param("prId")
 	var req models.UpdatePullRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Allow repoId from body
@@ -242,19 +243,19 @@ func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
 		repoID = req.RepoID
 	}
 	if repoID == "" {
-		respondBadRequest(c, "repoId is required")
+		middleware.RespondBadRequest(c, "repoId is required")
 		return
 	}
 	pr, err := h.svc.UpdatePullRequest(c.Request.Context(), adapterID, repoID, prID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pull request not found")
+			middleware.RespondNotFound(c, "pull request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pr)
+	middleware.RespondSuccess(c, pr)
 }
 
 func (h *Handler) MergePullRequest(c *gin.Context) {
@@ -262,10 +263,10 @@ func (h *Handler) MergePullRequest(c *gin.Context) {
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
 	if err := h.svc.MergePullRequest(c.Request.Context(), adapterID, repoID, prID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "pull request merged"})
+	middleware.RespondSuccess(c, gin.H{"message": "pull request merged"})
 }
 
 func (h *Handler) ClosePullRequest(c *gin.Context) {
@@ -273,10 +274,10 @@ func (h *Handler) ClosePullRequest(c *gin.Context) {
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
 	if err := h.svc.ClosePullRequest(c.Request.Context(), adapterID, repoID, prID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "pull request closed"})
+	middleware.RespondSuccess(c, gin.H{"message": "pull request closed"})
 }
 
 // --- Reviews ---
@@ -289,15 +290,15 @@ func (h *Handler) AddReview(c *gin.Context) {
 	username := c.GetString("username")
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	review, err := h.svc.AddReview(c.Request.Context(), adapterID, repoID, prID, userID, username, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, review)
+	middleware.RespondCreated(c, review)
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
@@ -306,10 +307,10 @@ func (h *Handler) ListReviews(c *gin.Context) {
 	prID := c.Param("prId")
 	reviews, err := h.svc.ListReviews(c.Request.Context(), adapterID, repoID, prID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, reviews)
+	middleware.RespondSuccess(c, reviews)
 }
 
 // --- Comments ---
@@ -322,15 +323,15 @@ func (h *Handler) AddComment(c *gin.Context) {
 	username := c.GetString("username")
 	var req models.CreateCommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	comment, err := h.svc.AddComment(c.Request.Context(), adapterID, repoID, prID, userID, username, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, comment)
+	middleware.RespondCreated(c, comment)
 }
 
 func (h *Handler) ListComments(c *gin.Context) {
@@ -339,10 +340,10 @@ func (h *Handler) ListComments(c *gin.Context) {
 	prID := c.Param("prId")
 	comments, err := h.svc.ListComments(c.Request.Context(), adapterID, repoID, prID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, comments)
+	middleware.RespondSuccess(c, comments)
 }
 
 // --- Commits ---
@@ -354,10 +355,10 @@ func (h *Handler) ListCommits(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	commits, err := h.svc.ListCommits(c.Request.Context(), adapterID, repoID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, commits)
+	middleware.RespondSuccess(c, commits)
 }
 
 func (h *Handler) GetCommit(c *gin.Context) {
@@ -367,13 +368,13 @@ func (h *Handler) GetCommit(c *gin.Context) {
 	commit, err := h.svc.GetCommit(c.Request.Context(), adapterID, repoID, sha)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "commit not found")
+			middleware.RespondNotFound(c, "commit not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, commit)
+	middleware.RespondSuccess(c, commit)
 }
 
 // --- File Diff ---
@@ -386,10 +387,10 @@ func (h *Handler) GetFileDiff(c *gin.Context) {
 	path := c.Query("path")
 	diff, err := h.svc.GetFileDiff(c.Request.Context(), adapterID, repoID, base, head, path)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, diff)
+	middleware.RespondSuccess(c, diff)
 }
 
 // --- Code Owners ---
@@ -398,10 +399,10 @@ func (h *Handler) ListCodeOwners(c *gin.Context) {
 	repoID := c.Query("repoId")
 	owners, err := h.svc.ListCodeOwners(c.Request.Context(), repoID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"owners": owners})
+	middleware.RespondSuccess(c, gin.H{"owners": owners})
 }
 
 // --- Webhooks ---
@@ -411,10 +412,10 @@ func (h *Handler) ListWebhookLogs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	logs, err := h.svc.ListWebhookLogs(c.Request.Context(), limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"logs": logs})
+	middleware.RespondSuccess(c, gin.H{"logs": logs})
 }
 
 // --- Webhook Secrets ---
@@ -423,15 +424,15 @@ func (h *Handler) SetWebhookSecret(c *gin.Context) {
 	repoID := c.Param("id")
 	var req models.SetWebhookSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "secret is required in request body")
+		middleware.RespondBadRequest(c, "secret is required in request body")
 		return
 	}
 	resp, err := h.svc.SetWebhookSecret(c.Request.Context(), repoID, req.Secret)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, resp)
+	middleware.RespondCreated(c, resp)
 }
 
 func (h *Handler) GetWebhookSecret(c *gin.Context) {
@@ -439,13 +440,13 @@ func (h *Handler) GetWebhookSecret(c *gin.Context) {
 	resp, err := h.svc.GetWebhookSecret(c.Request.Context(), repoID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook secret not found for this repository")
+			middleware.RespondNotFound(c, "webhook secret not found for this repository")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) RotateWebhookSecret(c *gin.Context) {
@@ -454,8 +455,8 @@ func (h *Handler) RotateWebhookSecret(c *gin.Context) {
 	c.ShouldBindJSON(&req) // optional body
 	resp, err := h.svc.RotateWebhookSecret(c.Request.Context(), repoID, req.Secret)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }

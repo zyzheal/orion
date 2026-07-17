@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/subapp/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -61,40 +62,40 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetAll(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) ListEnabled(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetEnabled(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items})
+	middleware.RespondSuccess(c, gin.H{"data": items})
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	m, err := h.svc.GetByKey(c.Request.Context(), tenantID, c.Param("key"))
 	if err != nil {
-		respondNotFound(c, "sub-app not found")
+		middleware.RespondNotFound(c, "sub-app not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) History(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetHistory(c.Request.Context(), tenantID, c.Param("key"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -102,7 +103,7 @@ func (h *Handler) Create(c *gin.Context) {
 	createdBy := c.GetString("user_id")
 	var req models.CreateSubAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Convert optional string pointers
@@ -116,13 +117,13 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	if err != nil {
 		if err == service.ErrSubAppKeyExists {
-			respondConflict(c, "sub-app with key already exists")
+			middleware.RespondConflict(c, "sub-app with key already exists")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -130,7 +131,7 @@ func (h *Handler) Update(c *gin.Context) {
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateSubAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	updatedByPtr := &updatedBy
@@ -143,17 +144,17 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {
-			respondNotFound(c, "sub-app not found")
+			middleware.RespondNotFound(c, "sub-app not found")
 			return
 		}
 		if err == service.ErrSubAppKeyImmutable {
-			respondBadRequest(c, "cannot change sub-app key")
+			middleware.RespondBadRequest(c, "cannot change sub-app key")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) ToggleStatus(c *gin.Context) {
@@ -169,17 +170,17 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {
-			respondNotFound(c, "sub-app not found")
+			middleware.RespondNotFound(c, "sub-app not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	message := "sub-app disabled successfully"
 	if m.Status == models.SubAppStatusEnabled {
 		message = "sub-app enabled successfully"
 	}
-	respondSuccess(c, gin.H{"data": m, "message": message})
+	middleware.RespondSuccess(c, gin.H{"data": m, "message": message})
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -194,11 +195,11 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {
-			respondNotFound(c, "sub-app not found")
+			middleware.RespondNotFound(c, "sub-app not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "sub-app deleted successfully"})
+	middleware.RespondSuccess(c, gin.H{"message": "sub-app deleted successfully"})
 }

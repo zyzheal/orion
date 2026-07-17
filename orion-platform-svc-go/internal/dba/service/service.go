@@ -2,8 +2,14 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
+	"net/url"
+	"strings"
 	"time"
+
+	_ "github.com/lib/pq"
 
 	"orion/platform-svc-go/internal/dba/models"
 	"orion/platform-svc-go/internal/dba/repository"
@@ -84,6 +90,7 @@ func (s *Service) CreateDataSource(ctx context.Context, tenantID string, req mod
 		Port:     req.Port,
 		Database: req.Database,
 		Username: req.Username,
+		Password: req.Password,
 	}
 	if err := s.repo.CreateDataSource(ctx, ds); err != nil {
 		return nil, err
@@ -121,25 +128,29 @@ func (s *Service) DeleteDataSource(ctx context.Context, id string) error {
 	return s.repo.DeleteDataSource(ctx, id)
 }
 
-// TestConnection checks connectivity to a data source.
+// TestConnection checks connectivity to a data source by opening a real
+// PostgreSQL connection and running a lightweight probe (SELECT 1 + version).
 func (s *Service) TestConnection(ctx context.Context, id string) (*models.TestConnectionResult, error) {
 	ds, err := s.repo.GetDataSource(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: implement real connection test against the external database.
-	// For now, simulate a quick check and mark status.
-	start := time.Now()
-	// Placeholder: mark as online for successful retrieval.
-	// Real implementation would open a connection to ds.Host:ds.Port.
-	latency := float64(time.Since(start).Milliseconds())
-	_ = ds
-	if err := s.repo.UpdateDataSourceStatus(ctx, id, "online"); err != nil {
-		return nil, err
+	ok, message, version, latency := testPGConnection(ds, 5*time.Second)
+	if ok {
+		if err := s.repo.UpdateDataSourceStatus(ctx, id, "online"); err != nil {
+			return nil, err
+		}
+		return &models.TestConnectionResult{
+			Success: true,
+			Message: message,
+			Latency: &latency,
+			Version: &version,
+		}, nil
 	}
+	_ = s.repo.UpdateDataSourceStatus(ctx, id, "error")
 	return &models.TestConnectionResult{
-		Success: true,
-		Message: "Connection successful",
+		Success: false,
+		Message: message,
 		Latency: &latency,
 	}, nil
 }
@@ -191,7 +202,8 @@ func (s *Service) UpdateAuditRule(ctx context.Context, id string, req models.Upd
 
 // ---- Direct Query ----
 
-// ExecuteDirectQuery runs a read-only SQL query against a data source.
+// ExecuteDirectQuery runs a read-only SQL query against a PostgreSQL data source.
+// The query is validated as SELECT-only and logged for audit purposes.
 func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) (*models.DirectQueryResponse, error) {
 	ds, err := s.repo.GetDataSource(ctx, req.DataSourceID)
 	if err != nil {
@@ -218,20 +230,221 @@ func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID strin
 		}, nil
 	}
 
-	// TODO: implement real query execution against the external PostgreSQL data source.
-	// Real implementation would open a connection to ds.Host:ds.Port using ds.Username/password.
-	// For now, return a placeholder success response.
-	latency := float64(1)
-	rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "success", "", 0, &latency)
+	// Validate that the query is read-only.
+	normalized := strings.TrimSpace(strings.ToLower(req.SQL))
+	if !isReadOnlySQL(normalized) {
+		errMsg := fmt.Sprintf("Read-only queries are required. Detected non-SELECT statement.")
+		rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "error", errMsg, 0, nil)
+		if err := s.repo.InsertQueryExecutionLog(ctx, rec); err != nil {
+			return nil, err
+		}
+		return &models.DirectQueryResponse{
+			Success:         false,
+			Error:           errMsg,
+			ExecutionRecord: rec,
+		}, nil
+	}
+
+	timeout := 30 * time.Second
+	if req.Timeout != nil && *req.Timeout > 0 {
+		timeout = time.Duration(*req.Timeout) * time.Second
+	}
+
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	rows, err := executePGQuery(ds, ctx, req.SQL)
+	if err != nil {
+		latency := float64(time.Since(start).Milliseconds())
+		errMsg := err.Error()
+		rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "error", errMsg, 0, &latency)
+		if logErr := s.repo.InsertQueryExecutionLog(ctx, rec); logErr != nil {
+			return nil, logErr
+		}
+		return &models.DirectQueryResponse{
+			Success:         false,
+			Error:           errMsg,
+			ExecutionRecord: rec,
+		}, nil
+	}
+	defer rows.Close()
+
+	// Extract column names.
+	columns, err := rows.Columns()
+	if err != nil {
+		latency := float64(time.Since(start).Milliseconds())
+		errMsg := fmt.Sprintf("failed to read column metadata: %s", err)
+		rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "error", errMsg, 0, &latency)
+		if logErr := s.repo.InsertQueryExecutionLog(ctx, rec); logErr != nil {
+			return nil, logErr
+		}
+		return &models.DirectQueryResponse{
+			Success:         false,
+			Error:           errMsg,
+			ExecutionRecord: rec,
+		}, nil
+	}
+
+	// Build field descriptors.
+	fields := make([]map[string]interface{}, 0, len(columns))
+	for _, col := range columns {
+		fields = append(fields, map[string]interface{}{
+			"name":     col,
+			"dataType": "text",
+		})
+	}
+
+	rowCount := 0
+	rowLimit := 500 // prevent large result sets from overwhelming the response.
+	var data []map[string]interface{}
+	for rows.Next() && rowCount < rowLimit {
+		values := make([]interface{}, len(columns))
+		for i := range columns {
+			values[i] = new(interface{})
+		}
+		if err := rows.Scan(values...); err != nil {
+			latencyMs := float64(time.Since(start).Milliseconds())
+			errMsg := fmt.Sprintf("failed to scan row: %s", err)
+			rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "error", errMsg, rowCount, &latencyMs)
+			if logErr := s.repo.InsertQueryExecutionLog(ctx, rec); logErr != nil {
+				return nil, logErr
+			}
+			return &models.DirectQueryResponse{
+				Success:         false,
+				Error:           errMsg,
+				ExecutionRecord: rec,
+			}, nil
+		}
+		rowMap := make(map[string]interface{})
+		for i, col := range columns {
+			rowMap[col] = values[i]
+		}
+		data = append(data, rowMap)
+		rowCount++
+	}
+
+	latency := float64(time.Since(start).Milliseconds())
+	truncated := rowCount >= rowLimit
+
+	fieldsMap := make(map[string]interface{})
+	fieldsMap["columns"] = columns
+
+	var message string
+	if rowCount >= rowLimit {
+		message = fmt.Sprintf("Query returned %d+ rows (truncated to %d).", rowCount+1, rowLimit)
+	} else {
+		message = fmt.Sprintf("Query returned %d rows.", rowCount)
+	}
+
+	// Record the execution for audit.
+	rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, ds.Name, req.SQL, "success", "", rowCount, &latency)
+	if err := s.repo.InsertQueryExecutionLog(ctx, rec); err != nil {
+		return nil, err
+	}
+
 	return &models.DirectQueryResponse{
 		Success: true,
 		Data: &models.DirectQueryData{
-			Rows:     []map[string]interface{}{},
-			RowCount: 0,
-			Latency:  latency,
+			Rows:      data,
+			RowCount:  rowCount,
+			Fields:    fields,
+			Latency:   latency,
+			Truncated: &truncated,
+			Message:   message,
 		},
 		ExecutionRecord: rec,
 	}, nil
+}
+
+// ---- Internal helpers ----
+
+func isReadOnlySQL(sql string) bool {
+	// Strip leading whitespace and comments.
+	for {
+		pos := strings.IndexAny(sql, ";--/\n")
+		if pos == -1 {
+			break
+		}
+		switch sql[pos] {
+		case ';':
+			sql = strings.TrimSpace(sql[pos+1:])
+		case '-', '/':
+			sql = sql[pos+1:]
+		case '\n':
+			sql = strings.TrimSpace(sql[1:])
+		default:
+			break
+		}
+	}
+	if strings.HasPrefix(sql, "with") {
+		return strings.HasPrefix(sql, "with") &&
+			(strings.Contains(sql, "select") || strings.Contains(sql, " SELECT"))
+	}
+	return strings.HasPrefix(sql, "select")
+}
+
+func buildPGDSN(ds *models.DataSource) string {
+	host := ds.Host
+	port := ds.Port
+	database := ds.Database
+	user := ""
+	password := ""
+	if ds.Username != nil {
+		user = *ds.Username
+	}
+	if ds.Password != nil {
+		password = *ds.Password
+	}
+	// Default to standard PostgreSQL port.
+	if port <= 0 {
+		port = 5432
+	}
+	if database == "" {
+		database = "postgres"
+	}
+	dsn := fmt.Sprintf(
+		"host=%s port=%d user=%s password=%q dbname=%s sslmode=require ApplicationName=orion-dba",
+		host, port, user, password, database,
+	)
+	return dsn
+}
+
+func testPGConnection(ds *models.DataSource, timeout time.Duration) (ok bool, message string, version string, latency float64) {
+	dsn := buildPGDSN(ds)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	conn, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return false, fmt.Sprintf("failed to open connection: %s", err), "", 0
+	}
+	defer conn.Close()
+	start := time.Now()
+	err = conn.PingContext(ctx)
+	if err != nil {
+		return false, fmt.Sprintf("failed to ping database: %s", err), "", 0
+	}
+	rows, err := conn.QueryContext(ctx, "SHOW server_version")
+	if err != nil {
+		return true, "Connection successful", "", float64(time.Since(start).Milliseconds())
+	}
+	if rows.Next() {
+		rows.Scan(&version)
+	}
+	rows.Close()
+	latency = float64(time.Since(start).Milliseconds())
+	return true, "Connection successful", version, latency
+}
+
+func executePGQuery(ds *models.DataSource, ctx context.Context, query string) (*sql.Rows, error) {
+	dsn := buildPGDSN(ds)
+	conn, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open connection to %s: %w", ds.Name, err)
+	}
+	conn.SetMaxOpenConns(1)
+	conn.SetConnMaxLifetime(30 * time.Second)
+	return conn.QueryContext(ctx, query)
 }
 
 func newExecutionRecord(_ context.Context, tenantID, userID, dataSourceID, dataSourceName, sql, status string, errMsg string, rowCount int, latency *float64) *models.QueryExecutionRecord {
@@ -272,3 +485,6 @@ func (s *Service) ListQueryLogs(ctx context.Context, tenantID string, q models.Q
 		Limit: q.Limit,
 	}, nil
 }
+
+// unused sentinel — URL values are encoded via standard library.
+var _ = url.PathEscape

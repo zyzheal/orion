@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/chatops/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -244,10 +245,10 @@ func (h *Handler) ListCommands(c *gin.Context) {
 	offset := (page - 1) * limit
 	cmds, err := h.svc.ListCommands(c.Request.Context(), tenantID, plPtr, namePtr, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"commands": cmds})
+	middleware.RespondSuccess(c, gin.H{"commands": cmds})
 }
 
 func (h *Handler) GetCommandHelp(c *gin.Context) {
@@ -256,13 +257,13 @@ func (h *Handler) GetCommandHelp(c *gin.Context) {
 	cmd, err := h.svc.GetCommandHelp(c.Request.Context(), tenantID, name)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "command not found")
+			middleware.RespondNotFound(c, "command not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, cmd)
+	middleware.RespondSuccess(c, cmd)
 }
 
 // ---- Execution ----
@@ -272,15 +273,15 @@ func (h *Handler) ExecuteCommand(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ExecuteCommandRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ex, err := h.svc.ExecuteCommand(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ex)
+	middleware.RespondCreated(c, ex)
 }
 
 func (h *Handler) GetExecutionStatus(c *gin.Context) {
@@ -289,13 +290,13 @@ func (h *Handler) GetExecutionStatus(c *gin.Context) {
 	ex, err := h.svc.GetExecutionStatus(c.Request.Context(), tenantID, commandID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "execution not found")
+			middleware.RespondNotFound(c, "execution not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ex)
+	middleware.RespondSuccess(c, ex)
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
@@ -323,10 +324,10 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 	offset := (page - 1) * limit
 	execs, err := h.svc.ListExecutions(c.Request.Context(), tenantID, cID, uID, s, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"executions": execs})
+	middleware.RespondSuccess(c, gin.H{"executions": execs})
 }
 
 // ---- Webhook Message ----
@@ -336,15 +337,15 @@ func (h *Handler) ReceiveMessage(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ReceiveMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ReceiveMessage(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // ---- Recommendations ----
@@ -358,10 +359,10 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 	resourceID := req.Context.ResourceID
 	recommendations, err := h.svc.GetRecommendations(c.Request.Context(), tenantID, userID, currentPage, resourceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"recommendations": recommendations})
+	middleware.RespondSuccess(c, gin.H{"recommendations": recommendations})
 }
 
 // ---- Knowledge Recommendations ----
@@ -372,10 +373,10 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	recs, err := h.svc.GetKnowledgeRecommendations(c.Request.Context(), tenantID, context, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"recommendations": recs})
+	middleware.RespondSuccess(c, gin.H{"recommendations": recs})
 }
 
 // ---- Sessions / Messages ----
@@ -391,17 +392,17 @@ func (h *Handler) GetSessionMessages(c *gin.Context) {
 	}
 	messages, err := h.svc.GetSessionMessages(c.Request.Context(), tenantID, sessionID, limit, cursorPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"messages": messages})
+	middleware.RespondSuccess(c, gin.H{"messages": messages})
 }
 
 // ---- SSE Stream ----
 
 func (h *Handler) StreamRecommendations(c *gin.Context) {
 	// Basic placeholder: return empty recommendations stream
-	respondSuccess(c, gin.H{"stream": "connected", "recommendations": []string{}})
+	middleware.RespondSuccess(c, gin.H{"stream": "connected", "recommendations": []string{}})
 }
 
 // ---- Notification Preferences ----
@@ -412,13 +413,13 @@ func (h *Handler) GetNotificationPreferences(c *gin.Context) {
 	pref, err := h.svc.GetNotificationPreference(c.Request.Context(), tenantID, userID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondSuccess(c, gin.H{})
+			middleware.RespondSuccess(c, gin.H{})
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pref)
+	middleware.RespondSuccess(c, pref)
 }
 
 func (h *Handler) UpdateNotificationPreferences(c *gin.Context) {
@@ -426,15 +427,15 @@ func (h *Handler) UpdateNotificationPreferences(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.UpdateNotificationPreferenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	pref, err := h.svc.UpdateNotificationPreference(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, pref)
+	middleware.RespondCreated(c, pref)
 }
 
 // ---- DND Settings ----
@@ -445,13 +446,13 @@ func (h *Handler) GetDNDSettings(c *gin.Context) {
 	settings, err := h.svc.GetDNDSettings(c.Request.Context(), tenantID, userID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondSuccess(c, &models.DNDSettings{})
+			middleware.RespondSuccess(c, &models.DNDSettings{})
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, settings)
+	middleware.RespondSuccess(c, settings)
 }
 
 func (h *Handler) UpdateDNDSettings(c *gin.Context) {
@@ -459,15 +460,15 @@ func (h *Handler) UpdateDNDSettings(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.UpdateDNDRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	settings, err := h.svc.UpdateDNDSettings(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, settings)
+	middleware.RespondSuccess(c, settings)
 }
 
 func (h *Handler) ToggleDND(c *gin.Context) {
@@ -475,15 +476,15 @@ func (h *Handler) ToggleDND(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.ToggleDNDRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	settings, err := h.svc.ToggleDND(c.Request.Context(), tenantID, userID, req.Enabled)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, settings)
+	middleware.RespondSuccess(c, settings)
 }
 
 // ---- Platform Configs ----
@@ -493,10 +494,10 @@ func (h *Handler) GetPlatformConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	configs, err := h.svc.GetPlatformConfigs(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"platforms": configs})
+	middleware.RespondSuccess(c, gin.H{"platforms": configs})
 }
 
 func (h *Handler) UpdatePlatformConfigs(c *gin.Context) {
@@ -504,15 +505,15 @@ func (h *Handler) UpdatePlatformConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.UpdatePlatformConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	configs, err := h.svc.UpdatePlatformConfigs(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"platforms": configs})
+	middleware.RespondSuccess(c, gin.H{"platforms": configs})
 }
 
 // ---- Alert States ----
@@ -522,10 +523,10 @@ func (h *Handler) GetAlertStates(c *gin.Context) {
 	userID := c.GetString("user_id")
 	alerts, err := h.svc.GetAlertStates(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"alerts": alerts})
+	middleware.RespondSuccess(c, gin.H{"alerts": alerts})
 }
 
 func (h *Handler) MarkAlertRead(c *gin.Context) {
@@ -533,10 +534,10 @@ func (h *Handler) MarkAlertRead(c *gin.Context) {
 	userID := c.GetString("user_id")
 	alertID := c.Param("id")
 	if err := h.svc.MarkAlertRead(c.Request.Context(), tenantID, userID, alertID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) MarkAlertAcknowledged(c *gin.Context) {
@@ -544,10 +545,10 @@ func (h *Handler) MarkAlertAcknowledged(c *gin.Context) {
 	userID := c.GetString("user_id")
 	alertID := c.Param("id")
 	if err := h.svc.MarkAlertAcknowledged(c.Request.Context(), tenantID, userID, alertID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) MarkAlertDismissed(c *gin.Context) {
@@ -555,10 +556,10 @@ func (h *Handler) MarkAlertDismissed(c *gin.Context) {
 	userID := c.GetString("user_id")
 	alertID := c.Param("id")
 	if err := h.svc.MarkAlertDismissed(c.Request.Context(), tenantID, userID, alertID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Dashboard Stats ----
@@ -571,10 +572,10 @@ func (h *Handler) GetDashboardStats(c *gin.Context) {
 	req.EndDate = c.Query("endDate")
 	stats, err := h.svc.GetDashboardStats(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ---- Health Check ----
@@ -582,10 +583,10 @@ func (h *Handler) GetDashboardStats(c *gin.Context) {
 func (h *Handler) HealthCheck(c *gin.Context) {
 	result, err := h.svc.HealthCheck(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Audit ----
@@ -611,20 +612,20 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	}
 	logs, err := h.svc.ListAuditLogs(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"logs": logs})
+	middleware.RespondSuccess(c, gin.H{"logs": logs})
 }
 
 func (h *Handler) GetAuditStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetAuditStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) ExportAuditLogs(c *gin.Context) {
@@ -635,10 +636,10 @@ func (h *Handler) ExportAuditLogs(c *gin.Context) {
 	}
 	result, err := h.svc.ExportAuditLogs(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Permission Check ----
@@ -647,15 +648,15 @@ func (h *Handler) GetAllowedCommands(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {
-		respondForbidden(c, "user not authenticated")
+	middleware.RespondForbidden(c, "user not authenticated")
 		return
 	}
 	commands, err := h.svc.GetUserAllowedCommands(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"commands": commands})
+	middleware.RespondSuccess(c, gin.H{"commands": commands})
 }
 
 // ---- Admin: Capability Mappings ----
@@ -669,29 +670,29 @@ func (h *Handler) GetAllCapabilityMappings(c *gin.Context) {
 	}
 	mappings, err := h.svc.GetAllCapabilityMappings(c.Request.Context(), tenantID, envPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": mappings})
+	middleware.RespondSuccess(c, gin.H{"data": mappings})
 }
 
 func (h *Handler) CreateCapabilityMapping(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.CommandID == "" || req.CapabilityID == "" {
-		respondBadRequest(c, "command_id and capability_id are required")
+		middleware.RespondBadRequest(c, "command_id and capability_id are required")
 		return
 	}
 	mapping, err := h.svc.CreateCapabilityMapping(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": mapping})
+	middleware.RespondCreated(c, gin.H{"data": mapping})
 }
 
 func (h *Handler) UpdateCapabilityMapping(c *gin.Context) {
@@ -699,19 +700,19 @@ func (h *Handler) UpdateCapabilityMapping(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCapabilityMappingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	mapping, err := h.svc.UpdateCapabilityMapping(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "mapping not found")
+			middleware.RespondNotFound(c, "mapping not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": mapping})
+	middleware.RespondSuccess(c, gin.H{"data": mapping})
 }
 
 func (h *Handler) DeleteCapabilityMapping(c *gin.Context) {
@@ -719,13 +720,13 @@ func (h *Handler) DeleteCapabilityMapping(c *gin.Context) {
 	_id := c.Param("id")
 	if err := h.svc.DeleteCapabilityMapping(c.Request.Context(), tenantID, _id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "mapping not found")
+			middleware.RespondNotFound(c, "mapping not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Approval Configs ----
@@ -734,26 +735,26 @@ func (h *Handler) GetAllApprovalConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	configs, err := h.svc.GetAllApprovalConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs})
+	middleware.RespondSuccess(c, gin.H{"data": configs})
 }
 
 func (h *Handler) UpdateApprovalConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var configs []models.ApprovalConfigInput
 	if err := c.ShouldBindJSON(&configs); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req := models.UpdateApprovalConfigsRequest{Configs: configs}
 	result, err := h.svc.UpdateApprovalConfigs(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) GetApprovalConfigByCapability(c *gin.Context) {
@@ -762,13 +763,13 @@ func (h *Handler) GetApprovalConfigByCapability(c *gin.Context) {
 	config, err := h.svc.GetApprovalConfigByCapability(c.Request.Context(), tenantID, capability)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "approval config not found")
+			middleware.RespondNotFound(c, "approval config not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": config})
+	middleware.RespondSuccess(c, gin.H{"data": config})
 }
 
 func (h *Handler) UpdateApprovalConfig(c *gin.Context) {
@@ -776,19 +777,19 @@ func (h *Handler) UpdateApprovalConfig(c *gin.Context) {
 	capability := c.Param("capability")
 	var req models.UpdateApprovalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.UpdateApprovalConfig(c.Request.Context(), tenantID, capability, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "approval config not found")
+			middleware.RespondNotFound(c, "approval config not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": config})
+	middleware.RespondSuccess(c, gin.H{"data": config})
 }
 
 // ---- Admin: Approvers ----
@@ -797,27 +798,27 @@ func (h *Handler) GetApprovers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	approvers, err := h.svc.GetApprovers(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": approvers})
+	middleware.RespondSuccess(c, gin.H{"data": approvers})
 }
 
 func (h *Handler) GetApproverSchedule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	schedule, err := h.svc.GetApproverSchedule(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": schedule})
+	middleware.RespondSuccess(c, gin.H{"data": schedule})
 }
 
 func (h *Handler) UpdateApproverSchedule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var schedule []models.ApproverScheduleInput
 	if err := c.ShouldBindJSON(&schedule); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	modelSchedule := make([]models.ApproverSchedule, len(schedule))
@@ -829,10 +830,10 @@ func (h *Handler) UpdateApproverSchedule(c *gin.Context) {
 		}
 	}
 	if err := h.svc.UpdateApproverSchedule(c.Request.Context(), tenantID, modelSchedule); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Global Approval Config ----
@@ -842,20 +843,20 @@ func (h *Handler) GetGlobalApprovalConfig(c *gin.Context) {
 	config, err := h.svc.GetGlobalApprovalConfig(c.Request.Context(), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondSuccess(c, &models.GlobalApprovalConfig{})
+			middleware.RespondSuccess(c, &models.GlobalApprovalConfig{})
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": config})
+	middleware.RespondSuccess(c, gin.H{"data": config})
 }
 
 func (h *Handler) UpdateGlobalApprovalConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateGlobalApprovalConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config := &models.GlobalApprovalConfig{
@@ -863,10 +864,10 @@ func (h *Handler) UpdateGlobalApprovalConfig(c *gin.Context) {
 		Mode:    req.Mode,
 	}
 	if err := h.svc.UpdateGlobalApprovalConfig(c.Request.Context(), tenantID, config); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Roles ----
@@ -875,29 +876,29 @@ func (h *Handler) GetAllRoles(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	roles, err := h.svc.GetAllRoles(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": roles})
+	middleware.RespondSuccess(c, gin.H{"data": roles})
 }
 
 func (h *Handler) CreateRole(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" {
-		respondBadRequest(c, "name is required")
+		middleware.RespondBadRequest(c, "name is required")
 		return
 	}
 	role, err := h.svc.CreateRole(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": role})
+	middleware.RespondCreated(c, gin.H{"data": role})
 }
 
 func (h *Handler) UpdateRole(c *gin.Context) {
@@ -905,19 +906,19 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	role, err := h.svc.UpdateRole(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "role not found")
+			middleware.RespondNotFound(c, "role not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": role})
+	middleware.RespondSuccess(c, gin.H{"data": role})
 }
 
 func (h *Handler) DeleteRole(c *gin.Context) {
@@ -925,13 +926,13 @@ func (h *Handler) DeleteRole(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteRole(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "role not found")
+			middleware.RespondNotFound(c, "role not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Command Permissions ----
@@ -940,29 +941,29 @@ func (h *Handler) GetAllCommandPermissions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	perms, err := h.svc.GetAllCommandPermissions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": perms})
+	middleware.RespondSuccess(c, gin.H{"data": perms})
 }
 
 func (h *Handler) CreateCommandPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Command == "" || req.Capability == "" {
-		respondBadRequest(c, "command and capability are required")
+		middleware.RespondBadRequest(c, "command and capability are required")
 		return
 	}
 	perm, err := h.svc.CreateCommandPermission(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": perm})
+	middleware.RespondCreated(c, gin.H{"data": perm})
 }
 
 func (h *Handler) UpdateCommandPermission(c *gin.Context) {
@@ -970,19 +971,19 @@ func (h *Handler) UpdateCommandPermission(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCommandPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	perm, err := h.svc.UpdateCommandPermission(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "command permission not found")
+			middleware.RespondNotFound(c, "command permission not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": perm})
+	middleware.RespondSuccess(c, gin.H{"data": perm})
 }
 
 func (h *Handler) DeleteCommandPermission(c *gin.Context) {
@@ -990,13 +991,13 @@ func (h *Handler) DeleteCommandPermission(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteCommandPermission(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "command permission not found")
+			middleware.RespondNotFound(c, "command permission not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Environment Permissions ----
@@ -1005,29 +1006,29 @@ func (h *Handler) GetAllEnvironmentPermissions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	perms, err := h.svc.GetAllEnvironmentPermissions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": perms})
+	middleware.RespondSuccess(c, gin.H{"data": perms})
 }
 
 func (h *Handler) CreateEnvironmentPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Environment == "" {
-		respondBadRequest(c, "environment is required")
+		middleware.RespondBadRequest(c, "environment is required")
 		return
 	}
 	perm, err := h.svc.CreateEnvironmentPermission(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": perm})
+	middleware.RespondCreated(c, gin.H{"data": perm})
 }
 
 func (h *Handler) UpdateEnvironmentPermission(c *gin.Context) {
@@ -1035,19 +1036,19 @@ func (h *Handler) UpdateEnvironmentPermission(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateEnvironmentPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	perm, err := h.svc.UpdateEnvironmentPermission(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "environment permission not found")
+			middleware.RespondNotFound(c, "environment permission not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": perm})
+	middleware.RespondSuccess(c, gin.H{"data": perm})
 }
 
 func (h *Handler) DeleteEnvironmentPermission(c *gin.Context) {
@@ -1055,13 +1056,13 @@ func (h *Handler) DeleteEnvironmentPermission(c *gin.Context) {
 	_id := c.Param("id")
 	if err := h.svc.DeleteEnvironmentPermission(c.Request.Context(), tenantID, _id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "environment permission not found")
+			middleware.RespondNotFound(c, "environment permission not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Command Versions ----
@@ -1071,10 +1072,10 @@ func (h *Handler) GetAllCommandVersions(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("perPage", "20"))
 	result, err := h.svc.GetAllCommandVersions(c.Request.Context(), tenantID, 1, perPage)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result.Versions, "total": result.Total})
+	middleware.RespondSuccess(c, gin.H{"data": result.Versions, "total": result.Total})
 }
 
 func (h *Handler) GetVersionsByCommand(c *gin.Context) {
@@ -1082,30 +1083,30 @@ func (h *Handler) GetVersionsByCommand(c *gin.Context) {
 	commandID := c.Param("commandId")
 	versions, err := h.svc.GetVersionsByCommand(c.Request.Context(), tenantID, commandID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": versions})
+	middleware.RespondSuccess(c, gin.H{"data": versions})
 }
 
 func (h *Handler) CreateCommandVersion(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCommandVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.CommandID == "" || req.CommandText == "" {
-		respondBadRequest(c, "command_id and command_text are required")
+		middleware.RespondBadRequest(c, "command_id and command_text are required")
 		return
 	}
 	req.CreatedBy = c.GetString("user_id")
 	version, err := h.svc.CreateCommandVersion(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": version})
+	middleware.RespondCreated(c, gin.H{"data": version})
 }
 
 func (h *Handler) RollbackCommandVersion(c *gin.Context) {
@@ -1113,17 +1114,17 @@ func (h *Handler) RollbackCommandVersion(c *gin.Context) {
 	commandID := c.Param("commandId")
 	version, err := strconv.Atoi(c.Param("version"))
 	if err != nil {
-		respondBadRequest(c, "invalid version")
+		middleware.RespondBadRequest(c, "invalid version")
 		return
 	}
 	// Get all versions and find the target
 	versions, err := h.svc.GetVersionsByCommand(c.Request.Context(), tenantID, commandID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if version <= 0 || version > len(versions) {
-		respondNotFound(c, "version not found")
+		middleware.RespondNotFound(c, "version not found")
 		return
 	}
 	target := versions[version-1]
@@ -1137,10 +1138,10 @@ func (h *Handler) RollbackCommandVersion(c *gin.Context) {
 	}
 	newVersion, err := h.svc.CreateCommandVersion(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": newVersion})
+	middleware.RespondSuccess(c, gin.H{"data": newVersion})
 }
 
 func (h *Handler) AddVersionTag(c *gin.Context) {
@@ -1148,18 +1149,18 @@ func (h *Handler) AddVersionTag(c *gin.Context) {
 	versionID := c.Param("versionId")
 	var req models.AddTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.TagName == "" {
-		respondBadRequest(c, "tag_name is required")
+		middleware.RespondBadRequest(c, "tag_name is required")
 		return
 	}
 	if err := h.svc.AddTag(c.Request.Context(), tenantID, versionID, req.TagName, c.GetString("user_id")); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) RemoveVersionTag(c *gin.Context) {
@@ -1167,10 +1168,10 @@ func (h *Handler) RemoveVersionTag(c *gin.Context) {
 	versionID := c.Param("versionId")
 	tagName := c.Param("tagName")
 	if err := h.svc.RemoveTag(c.Request.Context(), tenantID, versionID, tagName); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) DeleteCommandVersion(c *gin.Context) {
@@ -1178,13 +1179,13 @@ func (h *Handler) DeleteCommandVersion(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteCommandVersion(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "version not found")
+			middleware.RespondNotFound(c, "version not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Rate Limits ----
@@ -1193,29 +1194,29 @@ func (h *Handler) GetAllRateLimits(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limits, err := h.svc.GetAllRateLimits(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": limits})
+	middleware.RespondSuccess(c, gin.H{"data": limits})
 }
 
 func (h *Handler) CreateRateLimit(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRateLimitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.TargetType == "" || req.LimitType == "" || req.LimitCount <= 0 || req.WindowSeconds <= 0 {
-		respondBadRequest(c, "target_type, limit_type, limit_count, window_seconds are required")
+		middleware.RespondBadRequest(c, "target_type, limit_type, limit_count, window_seconds are required")
 		return
 	}
 	lim, err := h.svc.CreateRateLimit(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": lim})
+	middleware.RespondCreated(c, gin.H{"data": lim})
 }
 
 func (h *Handler) UpdateRateLimit(c *gin.Context) {
@@ -1223,19 +1224,19 @@ func (h *Handler) UpdateRateLimit(c *gin.Context) {
 	id := c.Param("id")
 	var body map[string]interface{}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	lim, err := h.svc.UpdateRateLimit(c.Request.Context(), tenantID, id, body)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rate limit not found")
+			middleware.RespondNotFound(c, "rate limit not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": lim})
+	middleware.RespondSuccess(c, gin.H{"data": lim})
 }
 
 func (h *Handler) DeleteRateLimit(c *gin.Context) {
@@ -1243,13 +1244,13 @@ func (h *Handler) DeleteRateLimit(c *gin.Context) {
 	_id := c.Param("id")
 	if err := h.svc.DeleteRateLimit(c.Request.Context(), tenantID, _id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rate limit not found")
+			middleware.RespondNotFound(c, "rate limit not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 // ---- Admin: Webhooks ----
@@ -1258,30 +1259,30 @@ func (h *Handler) GetAllWebhooks(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	webhooks, err := h.svc.GetAllWebhooks(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": webhooks})
+	middleware.RespondSuccess(c, gin.H{"data": webhooks})
 }
 
 func (h *Handler) CreateWebhook(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" || req.URL == "" || len(req.Events) == 0 {
-		respondBadRequest(c, "name, url, events are required")
+		middleware.RespondBadRequest(c, "name, url, events are required")
 		return
 	}
 	req.CreatedBy = c.GetString("user_id")
 	webhook, err := h.svc.CreateWebhook(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": webhook})
+	middleware.RespondCreated(c, gin.H{"data": webhook})
 }
 
 func (h *Handler) UpdateWebhook(c *gin.Context) {
@@ -1289,19 +1290,19 @@ func (h *Handler) UpdateWebhook(c *gin.Context) {
 	id := c.Param("id")
 	var body map[string]interface{}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	webhook, err := h.svc.UpdateWebhook(c.Request.Context(), tenantID, id, body)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": webhook})
+	middleware.RespondSuccess(c, gin.H{"data": webhook})
 }
 
 func (h *Handler) DeleteWebhook(c *gin.Context) {
@@ -1309,13 +1310,13 @@ func (h *Handler) DeleteWebhook(c *gin.Context) {
 	_id := c.Param("id")
 	if err := h.svc.DeleteWebhook(c.Request.Context(), tenantID, _id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": true})
+	middleware.RespondSuccess(c, gin.H{"success": true})
 }
 
 func (h *Handler) TestWebhook(c *gin.Context) {
@@ -1324,13 +1325,13 @@ func (h *Handler) TestWebhook(c *gin.Context) {
 	result, err := h.svc.TestWebhook(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "webhook not found")
+			middleware.RespondNotFound(c, "webhook not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": result.Success, "data": result})
+	middleware.RespondSuccess(c, gin.H{"success": result.Success, "data": result})
 }
 
 func (h *Handler) GetWebhookLogs(c *gin.Context) {
@@ -1339,10 +1340,10 @@ func (h *Handler) GetWebhookLogs(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	logs, err := h.svc.GetWebhookLogs(c.Request.Context(), tenantID, id, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": logs})
+	middleware.RespondSuccess(c, gin.H{"data": logs})
 }
 
 // ---- Chat Config ----
@@ -1352,10 +1353,10 @@ func (h *Handler) GetQuestionConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	configs, err := h.svc.GetQuestionConfigs(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs})
+	middleware.RespondSuccess(c, gin.H{"data": configs})
 }
 
 func (h *Handler) UpdateQuestionConfigs(c *gin.Context) {
@@ -1365,16 +1366,16 @@ func (h *Handler) UpdateQuestionConfigs(c *gin.Context) {
 		QuestionConfigs []models.QuestionConfigInput `json:"question_configs"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req := models.UpdateQuestionConfigsRequest{QuestionConfigs: body.QuestionConfigs}
 	configs, err := h.svc.UpdateQuestionConfigs(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs})
+	middleware.RespondSuccess(c, gin.H{"data": configs})
 }
 
 func (h *Handler) GetCommandConfigs(c *gin.Context) {
@@ -1382,10 +1383,10 @@ func (h *Handler) GetCommandConfigs(c *gin.Context) {
 	userID := c.GetString("user_id")
 	configs, err := h.svc.GetCommandConfigs(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs})
+	middleware.RespondSuccess(c, gin.H{"data": configs})
 }
 
 func (h *Handler) UpdateCommandConfigs(c *gin.Context) {
@@ -1395,14 +1396,14 @@ func (h *Handler) UpdateCommandConfigs(c *gin.Context) {
 		CommandConfigs []models.CommandConfigInput `json:"command_configs"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req := models.UpdateCommandConfigsRequest{CommandConfigs: body.CommandConfigs}
 	updated, err := h.svc.UpdateCommandConfigs(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": updated})
+	middleware.RespondSuccess(c, gin.H{"data": updated})
 }

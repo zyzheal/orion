@@ -2,8 +2,7 @@ package handler
 
 import (
 	"context"
-	"net/http"
-	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/chaos-gateway/models"
@@ -97,10 +96,10 @@ func (h *Handler) GetScenarios(c *gin.Context) {
 	ctx := context.Background()
 	scenarios, err := h.svc.GetScenarios(ctx)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": scenarios})
+	middleware.RespondSuccess(c, gin.H{"data": scenarios})
 }
 
 // ListExperiments returns a paginated list of experiments.
@@ -110,7 +109,7 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 
 	var q models.ListQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
@@ -122,10 +121,10 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 
 	data, total, err := h.svc.ListExperiments(ctx, tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondPaginated(c, data, q.Offset, q.Limit, total)
+	middleware.RespondPaginated(c, data, q.Offset, q.Limit, total)
 }
 
 // CreateExperiment creates a new experiment.
@@ -139,16 +138,16 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	exp, err := h.svc.CreateExperiment(ctx, tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, exp)
+	middleware.RespondCreated(c, exp)
 }
 
 // GetExperiment retrieves a single experiment by id.
@@ -159,10 +158,10 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 
 	exp, err := h.svc.GetExperiment(ctx, tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // UpdateExperiment updates an experiment.
@@ -173,7 +172,7 @@ func (h *Handler) UpdateExperiment(c *gin.Context) {
 
 	var req models.UpdateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -181,13 +180,13 @@ func (h *Handler) UpdateExperiment(c *gin.Context) {
 	if err != nil {
 		// Map known errors.
 		if err.Error() == "chaos experiment not found" {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // DeleteExperiment deletes an experiment.
@@ -199,13 +198,13 @@ func (h *Handler) DeleteExperiment(c *gin.Context) {
 	err := h.svc.DeleteExperiment(ctx, tenantID, id)
 	if err != nil {
 		if err.Error() == "chaos experiment not found" {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondNoContent(c)
 }
 
 // StartExperiment starts an experiment.
@@ -216,10 +215,10 @@ func (h *Handler) StartExperiment(c *gin.Context) {
 
 	exp, err := h.svc.StartExperiment(ctx, tenantID, id)
 	if err != nil {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // StopExperiment stops an experiment.
@@ -230,10 +229,10 @@ func (h *Handler) StopExperiment(c *gin.Context) {
 
 	exp, err := h.svc.StopExperiment(ctx, tenantID, id)
 	if err != nil {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // PauseExperiment pauses a running experiment.
@@ -244,10 +243,10 @@ func (h *Handler) PauseExperiment(c *gin.Context) {
 
 	exp, err := h.svc.PauseExperiment(ctx, tenantID, id)
 	if err != nil {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // ResumeExperiment resumes a paused experiment.
@@ -258,10 +257,10 @@ func (h *Handler) ResumeExperiment(c *gin.Context) {
 
 	exp, err := h.svc.ResumeExperiment(ctx, tenantID, id)
 	if err != nil {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondSuccess(c, exp)
+	middleware.RespondSuccess(c, exp)
 }
 
 // GetResults returns paginated results for an experiment.
@@ -281,10 +280,10 @@ func (h *Handler) GetResults(c *gin.Context) {
 
 	data, total, err := h.svc.GetResults(ctx, tenantID, id, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondPaginated(c, data, q.Offset, q.Limit, total)
+	middleware.RespondPaginated(c, data, q.Offset, q.Limit, total)
 }
 
 // GetLogs returns paginated logs for an experiment.
@@ -304,10 +303,10 @@ func (h *Handler) GetLogs(c *gin.Context) {
 
 	data, total, err := h.svc.GetLogs(ctx, tenantID, id, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondPaginated(c, data, q.Offset, q.Limit, total)
+	middleware.RespondPaginated(c, data, q.Offset, q.Limit, total)
 }
 
 // ScheduleExperiment creates a scheduled experiment.
@@ -321,18 +320,16 @@ func (h *Handler) ScheduleExperiment(c *gin.Context) {
 
 	var req models.ScheduleExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	exp, err := h.svc.ScheduleExperiment(ctx, tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, exp)
+	middleware.RespondCreated(c, exp)
 }
 
 // unused import fix
-var _ = http.StatusOK
-var _ = strconv.Itoa

@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/chaos-enhanced/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -72,10 +73,10 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 	}
 	experiments, total, err := h.svc.ListExperiments(c.Request.Context(), tenantID, statusPtr, envPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     experiments,
 		Total:    total,
 		Page:     1,
@@ -86,16 +87,16 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 func (h *Handler) CreateExperiment(c *gin.Context) {
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	e, err := h.svc.CreateExperiment(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, e)
+	middleware.RespondCreated(c, e)
 }
 
 func (h *Handler) GetExperiment(c *gin.Context) {
@@ -104,13 +105,13 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 	e, err := h.svc.GetExperiment(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, e)
+	middleware.RespondSuccess(c, e)
 }
 
 func (h *Handler) StartExperiment(c *gin.Context) {
@@ -119,13 +120,13 @@ func (h *Handler) StartExperiment(c *gin.Context) {
 	e, err := h.svc.StartExperiment(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, e)
+	middleware.RespondSuccess(c, e)
 }
 
 func (h *Handler) InjectFault(c *gin.Context) {
@@ -136,15 +137,15 @@ func (h *Handler) InjectFault(c *gin.Context) {
 		FaultConfig string `json:"fault_config"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	fi, err := h.svc.InjectFault(c.Request.Context(), id, tenantID, req.FaultType, req.FaultConfig)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, fi)
+	middleware.RespondSuccess(c, fi)
 }
 
 func (h *Handler) StopExperiment(c *gin.Context) {
@@ -153,13 +154,13 @@ func (h *Handler) StopExperiment(c *gin.Context) {
 	_, err := h.svc.StopExperiment(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"experimentId": id, "stopped": true})
+	middleware.RespondSuccess(c, gin.H{"experimentId": id, "stopped": true})
 }
 
 func (h *Handler) GetExperimentStatus(c *gin.Context) {
@@ -168,13 +169,13 @@ func (h *Handler) GetExperimentStatus(c *gin.Context) {
 	status, err := h.svc.GetExperimentStatus(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) GetExperimentRecovery(c *gin.Context) {
@@ -183,24 +184,24 @@ func (h *Handler) GetExperimentRecovery(c *gin.Context) {
 	recovery, err := h.svc.GetExperimentRecovery(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "experiment not found")
+			middleware.RespondNotFound(c, "experiment not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, recovery)
+	middleware.RespondSuccess(c, recovery)
 }
 
 // --- Fault Library handlers ---
 
 func (h *Handler) ListFaults(c *gin.Context) {
 	faults := h.svc.AvailableFaultTypes()
-	respondSuccess(c, faults)
+	middleware.RespondSuccess(c, faults)
 }
 
 func (h *Handler) GetConfigTemplate(c *gin.Context) {
 	faultType := c.Param("type")
 	template := h.svc.FaultConfigTemplate(faultType)
-	respondSuccess(c, template)
+	middleware.RespondSuccess(c, template)
 }

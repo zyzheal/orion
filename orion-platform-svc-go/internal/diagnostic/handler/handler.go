@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/diagnostic/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -74,20 +75,20 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) Trigger(c *gin.Context) {
 	var req models.CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if len(req.Symptoms) == 0 {
-		respondBadRequest(c, "symptoms is required")
+		middleware.RespondBadRequest(c, "symptoms is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.TriggerDiagnostic(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // --- Sessions ---
@@ -111,10 +112,10 @@ func (h *Handler) ListSessions(c *gin.Context) {
 	}
 	sessions, total, err := h.svc.GetDiagnosticHistory(c.Request.Context(), tenantID, statusPtr, triggerTypePtr, triggerIDPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     sessions,
 		Total:    total,
 		Page:     1,
@@ -127,15 +128,15 @@ func (h *Handler) GetSession(c *gin.Context) {
 	session, err := h.svc.GetDiagnosticDetail(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic session not found")
+			middleware.RespondNotFound(c, "diagnostic session not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Try to include the associated report
 	report, _ := h.svc.GetReportBySession(c.Request.Context(), id)
-	respondSuccess(c, models.SessionWithReport{
+	middleware.RespondSuccess(c, models.SessionWithReport{
 		Session: *session,
 		Report:  report,
 	})
@@ -145,19 +146,19 @@ func (h *Handler) AddSymptom(c *gin.Context) {
 	id := c.Param("id")
 	var req models.AddSymptomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	session, err := h.svc.AddSymptomToSession(c.Request.Context(), id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic session not found")
+			middleware.RespondNotFound(c, "diagnostic session not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, session)
+	middleware.RespondSuccess(c, session)
 }
 
 func (h *Handler) CompleteSession(c *gin.Context) {
@@ -165,13 +166,13 @@ func (h *Handler) CompleteSession(c *gin.Context) {
 	result, err := h.svc.CompleteSession(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic session not found")
+			middleware.RespondNotFound(c, "diagnostic session not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) EstimateComplexity(c *gin.Context) {
@@ -179,13 +180,13 @@ func (h *Handler) EstimateComplexity(c *gin.Context) {
 	estimate, err := h.svc.EstimateFixComplexity(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic session not found")
+			middleware.RespondNotFound(c, "diagnostic session not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, estimate)
+	middleware.RespondSuccess(c, estimate)
 }
 
 // --- Reports ---
@@ -201,10 +202,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 	_ = c.Query("limit") // unused for now
 	reports, total, err := h.svc.GetReportHistory(c.Request.Context(), tenantIDPtr, sessionIDPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     reports,
 		Total:    total,
 		Page:     1,
@@ -217,13 +218,13 @@ func (h *Handler) GetReport(c *gin.Context) {
 	report, err := h.svc.GetReport(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic report not found")
+			middleware.RespondNotFound(c, "diagnostic report not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // --- Knowledge ---
@@ -231,16 +232,16 @@ func (h *Handler) GetReport(c *gin.Context) {
 func (h *Handler) AddPattern(c *gin.Context) {
 	var req models.CreatePatternRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	pattern, err := h.svc.AddPattern(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, pattern)
+	middleware.RespondCreated(c, pattern)
 }
 
 func (h *Handler) ListPatterns(c *gin.Context) {
@@ -260,10 +261,10 @@ func (h *Handler) ListPatterns(c *gin.Context) {
 	_ = c.Query("limit")
 	patterns, total, err := h.svc.SearchPatterns(c.Request.Context(), tenantIDPtr, categoryPtr, keywordPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     patterns,
 		Total:    total,
 		Page:     1,
@@ -276,42 +277,42 @@ func (h *Handler) GetPattern(c *gin.Context) {
 	pattern, err := h.svc.GetPattern(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic pattern not found")
+			middleware.RespondNotFound(c, "diagnostic pattern not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pattern)
+	middleware.RespondSuccess(c, pattern)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	stats, err := h.svc.GetKnowledgeBaseStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) RecordOutcome(c *gin.Context) {
 	var req models.RecordOutcomeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	outcome, err := h.svc.RecordOutcome(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "diagnostic session or pattern not found")
+			middleware.RespondNotFound(c, "diagnostic session or pattern not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, outcome)
+	middleware.RespondCreated(c, outcome)
 }
 
 // --- Status ---
@@ -320,8 +321,8 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }

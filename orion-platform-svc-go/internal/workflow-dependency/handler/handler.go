@@ -4,6 +4,7 @@ import (
 	"orion/platform-svc-go/internal/workflow-dependency/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -33,10 +34,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) GetGraph(c *gin.Context) {
 	graph, err := h.svc.GetGraph(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, graph)
+	middleware.RespondSuccess(c, graph)
 }
 
 func (h *Handler) CheckDefinition(c *gin.Context) {
@@ -44,20 +45,20 @@ func (h *Handler) CheckDefinition(c *gin.Context) {
 	result, err := h.svc.CheckDefinition(c.Request.Context(), definitionID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow not found")
+			middleware.RespondNotFound(c, "workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetVisualization(c *gin.Context) {
 	data, err := h.svc.GetVisualization(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }

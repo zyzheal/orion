@@ -1,6 +1,30 @@
 go 1.25.0
 
 use (
+	./blueprints/orion-ai-svc-go
+	./blueprints/orion-alert-breaker-svc-go
+	./blueprints/orion-api-gateway-go
+	./blueprints/orion-auth-svc
+	./blueprints/orion-ci-cd-svc-go
+	./blueprints/orion-community-svc-go
+	./blueprints/orion-config-mgmt-svc-go
+	./blueprints/orion-event-bus-svc-go
+	./blueprints/orion-finops-svc-go
+	./blueprints/orion-governance-svc-go
+	./blueprints/orion-identity-svc-go
+	./blueprints/orion-infra-ops-svc-go
+	./blueprints/orion-inspection-svc-go
+	./blueprints/orion-lowcode-svc-go
+	./blueprints/orion-monitor-svc-go
+	./blueprints/orion-notification-svc-go
+	./blueprints/orion-pandawiki-svc-go
+	./blueprints/orion-security-svc-go
+	./blueprints/orion-skill-config-svc-go
+	./blueprints/orion-ticket-svc-go
+	./blueprints/orion-tool-svc-go
+	./blueprints/orion-user-svc
+	./blueprints/orion-visor-svc-go
+	./blueprints/orion-workflow-svc-go
 	./orion-go-common
 	./orion-platform-svc-go
 )

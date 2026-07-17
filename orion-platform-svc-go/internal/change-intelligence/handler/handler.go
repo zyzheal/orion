@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/change-intelligence/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -44,7 +45,7 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) Analyze(c *gin.Context) {
 	var req models.AnalyzeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -54,10 +55,10 @@ func (h *Handler) Analyze(c *gin.Context) {
 	}
 	analysis, err := h.svc.Analyze(c.Request.Context(), &req, tenantID, createdBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, analysis)
+	middleware.RespondCreated(c, analysis)
 }
 
 // ListReports handles GET /change-intelligence/reports
@@ -65,10 +66,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	reports, total, err := h.svc.ListReports(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     reports,
 		Total:    total,
 		Page:     1,
@@ -83,13 +84,13 @@ func (h *Handler) GetReport(c *gin.Context) {
 	analysis, err := h.svc.GetReport(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change analysis not found")
+			middleware.RespondNotFound(c, "change analysis not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, analysis)
+	middleware.RespondSuccess(c, analysis)
 }
 
 // GetBlastRadius handles GET /change-intelligence/reports/:id/blast-radius
@@ -99,11 +100,11 @@ func (h *Handler) GetBlastRadius(c *gin.Context) {
 	response, err := h.svc.GetBlastRadius(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change analysis not found")
+			middleware.RespondNotFound(c, "change analysis not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, response)
+	middleware.RespondSuccess(c, response)
 }

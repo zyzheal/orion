@@ -28,8 +28,9 @@ import (
 	artifact_service "orion/platform-svc-go/internal/artifact/service"
 
 	eventstore "orion/platform-svc-go/internal/domain/eventstore"
+		app_commands "orion/platform-svc-go/internal/application/commands"
+		cqrs_http "orion/platform-svc-go/internal/application/http"
 	eventbus "orion/platform-svc-go/internal/infrastructure/eventbus"
-	application "orion/platform-svc-go/internal/application"
 
 	fed_handler "orion/platform-svc-go/internal/federation/handler"
 	fed_repo "orion/platform-svc-go/internal/federation/repository"
@@ -837,11 +838,19 @@ func main() {
 		natsPublisher = nil
 	}
 	composedPublisher := eventbus.NewComposedEventPublisher(eventStore, natsPublisher)
-	aggregateLoader := application.NewAggregateLoader(eventStore)
-	aggregateService := application.NewAggregateService(eventStore)
-	_ = composedPublisher   // used by command handlers
-	_ = aggregateLoader     // used by command handlers
-	_ = aggregateService    // used by query handlers
+
+	// ---- CQRS Command Bus — register all command handlers ----
+	commandBus := app_commands.NewCommandBus()
+	commandBus.Register("ActivatePipelineCommand", app_commands.NewActivatePipelineHandler(eventStore, composedPublisher))
+	commandBus.Register("DeactivatePipelineCommand", app_commands.NewDeactivatePipelineHandler(eventStore, composedPublisher))
+	commandBus.Register("UpdatePipelineYAMLCommand", app_commands.NewUpdatePipelineYAMLHandler(eventStore, composedPublisher))
+	commandBus.Register("CreateApprovalCommand", app_commands.NewCreateApprovalHandler(eventStore, composedPublisher))
+	commandBus.Register("ApproveLevelCommand", app_commands.NewApproveLevelHandler(eventStore, composedPublisher))
+	commandBus.Register("RejectLevelCommand", app_commands.NewRejectLevelHandler(eventStore, composedPublisher))
+	commandBus.Register("CancelApprovalCommand", app_commands.NewCancelApprovalHandler(eventStore, composedPublisher))
+	commandBus.Register("ToggleFeatureFlagCommand", app_commands.NewToggleFeatureFlagHandler(eventStore, composedPublisher))
+	commandBus.Register("UpdateRolloutCommand", app_commands.NewUpdateRolloutHandler(eventStore, composedPublisher))
+	cqrsHandler := cqrs_http.NewHandler(commandBus)
 
 	migrationsDir := "migrations"
 	if _, err := os.Stat(migrationsDir); err == nil {
@@ -1253,7 +1262,7 @@ func main() {
 	// workflow-webhook services
 	workflow_webhookRepo := workflow_webhook_repo.NewRepository(db.DB)
 	workflow_webhookSvc := workflow_webhook_service.NewService(workflow_webhookRepo)
-	workflow_webhookH := workflow_webhook_handler.NewHandler(workflow_webhookSvc)
+	workflow_webhookH := workflow_webhook_handler.NewHandler(workflow_webhookSvc, workflowSvc)
 
 	// lowcode services
 	lowcodeRepo := lowcode_repo.NewRepository(db.DB)
@@ -2029,6 +2038,8 @@ vectorHandler.RegisterRoutes(rg)
 	observabilityH.RegisterRoutes(rg)
 	pipelineBudgetH.RegisterRoutes(rg)
 	vulnH.RegisterRoutes(rg)
+
+	cqrsHandler.RegisterRoutes(rg)
 
 	// === Global error handlers (standard error envelope) ===
 	respondJSON := func(c *gin.Context, status int, code string, msg string) {

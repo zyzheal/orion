@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/data-lineage/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -50,29 +51,29 @@ func (h *Handler) ListLineages(c *gin.Context) {
 	}
 	result, err := h.svc.ListLineages(c.Request.Context(), tenantID, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) CreateLineage(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateLineageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateLineage(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetLineage(c *gin.Context) {
@@ -81,13 +82,13 @@ func (h *Handler) GetLineage(c *gin.Context) {
 	result, err := h.svc.GetLineage(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "lineage not found")
+			middleware.RespondNotFound(c, "lineage not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdateLineage(c *gin.Context) {
@@ -95,23 +96,23 @@ func (h *Handler) UpdateLineage(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateLineageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.UpdateLineage(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "lineage not found")
+			middleware.RespondNotFound(c, "lineage not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteLineage(c *gin.Context) {
@@ -120,13 +121,13 @@ func (h *Handler) DeleteLineage(c *gin.Context) {
 	err := h.svc.DeleteLineage(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "lineage not found")
+			middleware.RespondNotFound(c, "lineage not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "lineage deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "lineage deleted"})
 }
 
 // ==================== Nodes ====================
@@ -136,7 +137,7 @@ func (h *Handler) CreateNode(c *gin.Context) {
 	lineageID := c.Param("lineageId")
 	var req models.CreateNodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Ensure request has the correct lineage context
@@ -144,17 +145,17 @@ func (h *Handler) CreateNode(c *gin.Context) {
 	result, err := h.svc.CreateNode(c.Request.Context(), tenantID, lineageID, req2)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "lineage not found")
+			middleware.RespondNotFound(c, "lineage not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListNodes(c *gin.Context) {
@@ -162,13 +163,13 @@ func (h *Handler) ListNodes(c *gin.Context) {
 	if id := c.Param("lineageId"); id != "" {
 		result, err := h.svc.ListNodes(c.Request.Context(), tenantID, id)
 		if err != nil {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 			return
 		}
-		respondSuccess(c, result)
+		middleware.RespondSuccess(c, result)
 		return
 	}
-	respondBadRequest(c, "lineageId is required")
+	middleware.RespondBadRequest(c, "lineageId is required")
 }
 
 // ==================== Relationships ====================
@@ -178,23 +179,23 @@ func (h *Handler) CreateRelationship(c *gin.Context) {
 	lineageID := c.Param("lineageId")
 	var req models.CreateRelationshipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CreateRelationship(c.Request.Context(), tenantID, lineageID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "lineage not found")
+			middleware.RespondNotFound(c, "lineage not found")
 			return
 		}
 		if service.IsBadRequest(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // ==================== Stats ====================
@@ -203,8 +204,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

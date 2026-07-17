@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/slo/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Resource and action constants for SLO RBAC.
@@ -42,21 +43,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) GetDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	result, err := h.svc.GetDashboard(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) ListSLOs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	sloType := c.Query("type")
@@ -65,7 +66,7 @@ func (h *Handler) ListSLOs(c *gin.Context) {
 	if enabled != "" {
 		b, err := strconv.ParseBool(enabled)
 		if err != nil {
-			respondBadRequest(c, "invalid enabled value")
+			middleware.RespondBadRequest(c, "invalid enabled value")
 			return
 		}
 		enabledPtr = &b
@@ -73,36 +74,36 @@ func (h *Handler) ListSLOs(c *gin.Context) {
 
 	result, err := h.svc.ListSLOs(c.Request.Context(), tenantID, sloType, enabledPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) GetSLO(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	id := c.Param("id")
 	result, err := h.svc.GetSLO(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "SLO not found")
+		middleware.RespondNotFound(c, "SLO not found")
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) CreateSLO(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var req models.CreateSLORequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -121,22 +122,22 @@ func (h *Handler) CreateSLO(c *gin.Context) {
 	}
 
 	if err := h.svc.CreateSLO(c.Request.Context(), slo); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": slo})
+	middleware.RespondCreated(c, gin.H{"data": slo})
 }
 
 func (h *Handler) UpdateSLO(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	id := c.Param("id")
 	var req models.UpdateSLORequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -171,35 +172,35 @@ func (h *Handler) UpdateSLO(c *gin.Context) {
 
 	result, err := h.svc.UpdateSLO(c.Request.Context(), tenantID, id, updates)
 	if err != nil {
-		respondNotFound(c, "SLO not found")
+		middleware.RespondNotFound(c, "SLO not found")
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) DeleteSLO(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	id := c.Param("id")
 	if err := h.svc.DeleteSLO(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "SLO deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "SLO deleted"})
 }
 
 func (h *Handler) RecordSLI(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	var req models.SLIMeasurementRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -215,16 +216,16 @@ func (h *Handler) RecordSLI(c *gin.Context) {
 	}
 
 	if err := h.svc.RecordSLI(c.Request.Context(), m); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"data": m})
+	middleware.RespondCreated(c, gin.H{"data": m})
 }
 
 func (h *Handler) GetSLIHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	sloID := c.Param("id")
@@ -232,31 +233,31 @@ func (h *Handler) GetSLIHistory(c *gin.Context) {
 
 	result, err := h.svc.GetSLIHistory(c.Request.Context(), sloID, tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) GetLatestErrorBudget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	sloID := c.Param("id")
 	result, err := h.svc.GetLatestErrorBudget(c.Request.Context(), sloID, tenantID)
 	if err != nil {
-		respondNotFound(c, "error budget not found")
+		middleware.RespondNotFound(c, "error budget not found")
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }
 
 func (h *Handler) GetErrorBudgetHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondBadRequest(c, "tenant_id is required")
+		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	sloID := c.Param("id")
@@ -264,8 +265,8 @@ func (h *Handler) GetErrorBudgetHistory(c *gin.Context) {
 
 	result, err := h.svc.GetErrorBudgetHistory(c.Request.Context(), sloID, tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result})
+	middleware.RespondSuccess(c, gin.H{"data": result})
 }

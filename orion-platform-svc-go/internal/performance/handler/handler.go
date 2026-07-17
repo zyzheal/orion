@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/performance/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -43,25 +44,25 @@ func (h *Handler) CreateBaseline(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.CreateBaselineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	baseline, err := h.svc.CreateBaseline(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, baseline)
+	middleware.RespondCreated(c, baseline)
 }
 
 func (h *Handler) ListBaselines(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	baselines, err := h.svc.ListBaselines(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": baselines, "total": len(baselines)})
+	middleware.RespondSuccess(c, gin.H{"data": baselines, "total": len(baselines)})
 }
 
 func (h *Handler) GetBaselineByID(c *gin.Context) {
@@ -69,106 +70,106 @@ func (h *Handler) GetBaselineByID(c *gin.Context) {
 	baseline, err := h.svc.GetBaselineByID(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "baseline not found")
+			middleware.RespondNotFound(c, "baseline not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, baseline)
+	middleware.RespondSuccess(c, baseline)
 }
 
 func (h *Handler) GetEvaluationHistory(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	evalHistory, err := h.svc.GetEvaluationHistory(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": evalHistory, "total": len(evalHistory)})
+	middleware.RespondSuccess(c, gin.H{"data": evalHistory, "total": len(evalHistory)})
 }
 
 func (h *Handler) EvaluatePerformance(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluatePerformance(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ProfileService(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	profile, err := h.svc.ProfileService(c.Request.Context(), tenantID, c.Param("serviceName"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, profile)
+	middleware.RespondSuccess(c, profile)
 }
 
 func (h *Handler) GetBottlenecks(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	bottlenecks, err := h.svc.GetBottlenecks(c.Request.Context(), tenantID, c.Param("profileId"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": bottlenecks, "total": len(bottlenecks)})
+	middleware.RespondSuccess(c, gin.H{"data": bottlenecks, "total": len(bottlenecks)})
 }
 
 func (h *Handler) GetSuggestions(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	suggestions, err := h.svc.GetSuggestions(c.Request.Context(), tenantID, c.Param("serviceName"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": suggestions, "total": len(suggestions)})
+	middleware.RespondSuccess(c, gin.H{"data": suggestions, "total": len(suggestions)})
 }
 
 func (h *Handler) DetectRegression(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.DetectRegressionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.DetectRegression(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) RecordTestResult(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var req models.TestResultRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	err := h.svc.RecordTestResult(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "test result recorded"})
+	middleware.RespondCreated(c, gin.H{"message": "test result recorded"})
 }
 
 func (h *Handler) GetTestResults(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	results, err := h.svc.GetTestResults(c.Request.Context(), tenantID, c.Param("service"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": results, "total": len(results)})
+	middleware.RespondSuccess(c, gin.H{"data": results, "total": len(results)})
 }

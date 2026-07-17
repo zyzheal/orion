@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/monitoring/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -132,30 +133,30 @@ func (h *Handler) StartService(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.StartService(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) StopService(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.StopService(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) HealthCheck(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.HealthCheck(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Metrics ====================
@@ -164,29 +165,29 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.RecordMetric(c.Request.Context(), tenantID, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "metric recorded"})
+	middleware.RespondSuccess(c, gin.H{"message": "metric recorded"})
 }
 
 func (h *Handler) RegisterMetric(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateMetricRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateMetric(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
@@ -195,10 +196,10 @@ func (h *Handler) GetRegisteredMetrics(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetRegisteredMetrics(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetMetricSeries(c *gin.Context) {
@@ -207,10 +208,10 @@ func (h *Handler) GetMetricSeries(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	series, err := h.svc.GetMetricSeries(c.Request.Context(), tenantID, name, nil, nil, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, series)
+	middleware.RespondSuccess(c, series)
 }
 
 func (h *Handler) GetMetricSummary(c *gin.Context) {
@@ -218,10 +219,10 @@ func (h *Handler) GetMetricSummary(c *gin.Context) {
 	name := c.Param("name")
 	summary, err := h.svc.GetMetricSummary(c.Request.Context(), tenantID, name, nil, nil)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, summary)
+	middleware.RespondSuccess(c, summary)
 }
 
 // ==================== Alert Rules ====================
@@ -230,15 +231,15 @@ func (h *Handler) CreateRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.CreateRule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, rule)
+	middleware.RespondCreated(c, rule)
 }
 
 func (h *Handler) GetRules(c *gin.Context) {
@@ -247,10 +248,10 @@ func (h *Handler) GetRules(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetRules(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetRule(c *gin.Context) {
@@ -259,13 +260,13 @@ func (h *Handler) GetRule(c *gin.Context) {
 	rule, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 func (h *Handler) UpdateRule(c *gin.Context) {
@@ -273,29 +274,29 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.UpdateRule(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "rule not found")
+			middleware.RespondNotFound(c, "rule not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteRule(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "rule deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "rule deleted"})
 }
 
 func (h *Handler) ToggleRule(c *gin.Context) {
@@ -303,15 +304,15 @@ func (h *Handler) ToggleRule(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ToggleRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rule, err := h.svc.ToggleRule(c.Request.Context(), tenantID, id, req.Enabled)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 func (h *Handler) SuppressRule(c *gin.Context) {
@@ -321,10 +322,10 @@ func (h *Handler) SuppressRule(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	rule, err := h.svc.SuppressRule(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 func (h *Handler) UnsuppressRule(c *gin.Context) {
@@ -332,10 +333,10 @@ func (h *Handler) UnsuppressRule(c *gin.Context) {
 	id := c.Param("id")
 	rule, err := h.svc.UnsuppressRule(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, rule)
+	middleware.RespondSuccess(c, rule)
 }
 
 func (h *Handler) EvaluateRules(c *gin.Context) {
@@ -344,10 +345,10 @@ func (h *Handler) EvaluateRules(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	result, err := h.svc.EvaluateRules(c.Request.Context(), tenantID, req.RuleIDs)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ==================== Alerts ====================
@@ -358,10 +359,10 @@ func (h *Handler) GetAlerts(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetAlerts(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetActiveAlerts(c *gin.Context) {
@@ -370,10 +371,10 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetActiveAlerts(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
@@ -382,13 +383,13 @@ func (h *Handler) GetAlert(c *gin.Context) {
 	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "alert not found")
+			middleware.RespondNotFound(c, "alert not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alert)
+	middleware.RespondSuccess(c, alert)
 }
 
 func (h *Handler) AcknowledgeAlert(c *gin.Context) {
@@ -399,10 +400,10 @@ func (h *Handler) AcknowledgeAlert(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	alert, err := h.svc.AcknowledgeAlert(c.Request.Context(), tenantID, id, ackBy, req.Comment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alert)
+	middleware.RespondSuccess(c, alert)
 }
 
 func (h *Handler) ResolveAlert(c *gin.Context) {
@@ -412,10 +413,10 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	alert, err := h.svc.ResolveAlert(c.Request.Context(), tenantID, id, req.Comment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alert)
+	middleware.RespondSuccess(c, alert)
 }
 
 func (h *Handler) EscalateAlert(c *gin.Context) {
@@ -425,10 +426,10 @@ func (h *Handler) EscalateAlert(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	alert, err := h.svc.EscalateAlert(c.Request.Context(), tenantID, id, req.Comment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alert)
+	middleware.RespondSuccess(c, alert)
 }
 
 // ==================== Notification Channels ====================
@@ -437,15 +438,15 @@ func (h *Handler) CreateChannel(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ch, err := h.svc.CreateChannel(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ch)
+	middleware.RespondCreated(c, ch)
 }
 
 func (h *Handler) GetChannels(c *gin.Context) {
@@ -454,10 +455,10 @@ func (h *Handler) GetChannels(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetChannels(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) ToggleChannel(c *gin.Context) {
@@ -465,15 +466,15 @@ func (h *Handler) ToggleChannel(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ToggleChannelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ch, err := h.svc.ToggleChannel(c.Request.Context(), tenantID, id, req.Enabled)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ch)
+	middleware.RespondSuccess(c, ch)
 }
 
 // ==================== Escalation Policies ====================
@@ -482,15 +483,15 @@ func (h *Handler) CreateEscalationPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEscalationPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ep, err := h.svc.CreateEscalationPolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ep)
+	middleware.RespondCreated(c, ep)
 }
 
 func (h *Handler) GetEscalationPolicies(c *gin.Context) {
@@ -499,10 +500,10 @@ func (h *Handler) GetEscalationPolicies(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetEscalationPolicies(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // ==================== Notification History ====================
@@ -513,10 +514,10 @@ func (h *Handler) GetNotificationHistory(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetNotificationHistory(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // ==================== Dashboard ====================
@@ -525,25 +526,25 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dash, err := h.svc.GetDashboard(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dash)
+	middleware.RespondSuccess(c, dash)
 }
 
 func (h *Handler) AddWidgetConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AddWidgetConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.AddWidgetConfig(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, w)
+	middleware.RespondCreated(c, w)
 }
 
 func (h *Handler) GetWidgetConfigs(c *gin.Context) {
@@ -552,20 +553,20 @@ func (h *Handler) GetWidgetConfigs(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetWidgetConfigs(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetAggregatedMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	aggregated, err := h.svc.GetAggregatedMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, aggregated)
+	middleware.RespondSuccess(c, aggregated)
 }
 
 // ==================== Anomalies ====================
@@ -576,20 +577,20 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetAnomalySummary(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	summary, err := h.svc.GetAnomalySummary(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, summary)
+	middleware.RespondSuccess(c, summary)
 }
 
 // ==================== Collect ====================
@@ -600,8 +601,8 @@ func (h *Handler) CollectSystemMetrics(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	sm, err := h.svc.CollectSystemMetrics(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sm)
+	middleware.RespondSuccess(c, sm)
 }

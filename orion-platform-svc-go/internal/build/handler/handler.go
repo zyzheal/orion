@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/build/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -73,10 +74,10 @@ func (h *Handler) ListEnvironments(c *gin.Context) {
 	ctx := context.Background()
 	envs, err := h.svc.ListEnvironments(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": envs})
+	middleware.RespondSuccess(c, gin.H{"data": envs})
 }
 
 func (h *Handler) CreateEnvironment(c *gin.Context) {
@@ -85,16 +86,16 @@ func (h *Handler) CreateEnvironment(c *gin.Context) {
 
 	var req models.CreateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	env, err := h.svc.CreateEnvironment(ctx, tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, env)
+	middleware.RespondCreated(c, env)
 }
 
 func (h *Handler) GetEnvironment(c *gin.Context) {
@@ -102,10 +103,10 @@ func (h *Handler) GetEnvironment(c *gin.Context) {
 	ctx := context.Background()
 	env, err := h.svc.GetEnvironment(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "environment not found")
+		middleware.RespondNotFound(c, "environment not found")
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) UpdateEnvironment(c *gin.Context) {
@@ -114,16 +115,16 @@ func (h *Handler) UpdateEnvironment(c *gin.Context) {
 
 	var req models.UpdateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	env, err := h.svc.UpdateEnvironment(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondNotFound(c, "environment not found")
+		middleware.RespondNotFound(c, "environment not found")
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) DeleteEnvironment(c *gin.Context) {
@@ -131,14 +132,14 @@ func (h *Handler) DeleteEnvironment(c *gin.Context) {
 	ctx := context.Background()
 	deleted, err := h.svc.DeleteEnvironment(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "environment not found")
+		middleware.RespondNotFound(c, "environment not found")
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 // Builds
@@ -169,10 +170,10 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 
 	builds, total, err := h.svc.ListBuilds(ctx, tenantID, opt)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  builds,
 		"total": total,
 	})
@@ -184,16 +185,16 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 
 	var req models.CreateBuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	build, err := h.svc.CreateBuild(ctx, tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, build)
+	middleware.RespondCreated(c, build)
 }
 
 func (h *Handler) GetBuild(c *gin.Context) {
@@ -201,10 +202,10 @@ func (h *Handler) GetBuild(c *gin.Context) {
 	ctx := context.Background()
 	build, err := h.svc.GetBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "build not found")
+		middleware.RespondNotFound(c, "build not found")
 		return
 	}
-	respondSuccess(c, build)
+	middleware.RespondSuccess(c, build)
 }
 
 func (h *Handler) StartBuild(c *gin.Context) {
@@ -212,10 +213,10 @@ func (h *Handler) StartBuild(c *gin.Context) {
 	ctx := context.Background()
 	build, err := h.svc.StartBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, build)
+	middleware.RespondSuccess(c, build)
 }
 
 func (h *Handler) CancelBuild(c *gin.Context) {
@@ -223,10 +224,10 @@ func (h *Handler) CancelBuild(c *gin.Context) {
 	ctx := context.Background()
 	build, err := h.svc.CancelBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, build)
+	middleware.RespondSuccess(c, build)
 }
 
 func (h *Handler) RetryBuild(c *gin.Context) {
@@ -234,10 +235,10 @@ func (h *Handler) RetryBuild(c *gin.Context) {
 	ctx := context.Background()
 	build, err := h.svc.RetryBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, build)
+	middleware.RespondSuccess(c, build)
 }
 
 func (h *Handler) DeleteBuild(c *gin.Context) {
@@ -245,14 +246,14 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 	ctx := context.Background()
 	deleted, err := h.svc.DeleteBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "build not found")
+		middleware.RespondNotFound(c, "build not found")
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
@@ -260,8 +261,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx := context.Background()
 	stats, err := h.svc.GetBuildStats(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }

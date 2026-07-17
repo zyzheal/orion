@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/api-governance/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -73,16 +74,16 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateContract(c *gin.Context) {
 	var req models.CreateContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	contract, err := h.svc.CreateContract(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, models.ContractResponse{
+	middleware.RespondCreated(c, models.ContractResponse{
 		ID:             contract.ID,
 		APIName:        contract.APIName,
 		Version:        contract.Version,
@@ -101,14 +102,14 @@ func (h *Handler) ListContracts(c *gin.Context) {
 	status := ptrIf(c.Query("status"))
 	contracts, err := h.svc.ListContracts(c.Request.Context(), tenantID, apiName, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.ContractResponse, len(contracts))
 	for i, c := range contracts {
 		data[i] = h.contractToResponse(&c)
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }
 
 func (h *Handler) GetContract(c *gin.Context) {
@@ -116,10 +117,10 @@ func (h *Handler) GetContract(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	contract, err := h.svc.GetContract(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, "Contract not found")
+		middleware.RespondNotFound(c, "Contract not found")
 		return
 	}
-	respondSuccess(c, h.contractToResponse(contract))
+	middleware.RespondSuccess(c, h.contractToResponse(contract))
 }
 
 func (h *Handler) EvaluateContract(c *gin.Context) {
@@ -127,10 +128,10 @@ func (h *Handler) EvaluateContract(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	_, err := h.svc.EvaluateContract(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, "Contract not found")
+		middleware.RespondNotFound(c, "Contract not found")
 		return
 	}
-	respondSuccess(c, &service.EvaluatedContract{
+	middleware.RespondSuccess(c, &service.EvaluatedContract{
 		ContractID:  id,
 		Compliance:  true,
 		Checks: []service.EvalCheck{
@@ -146,16 +147,16 @@ func (h *Handler) VerifyContract(c *gin.Context) {
 	id := c.Param("id")
 	var req models.VerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.VerifyContract(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
-		respondNotFound(c, "Contract not found")
+		middleware.RespondNotFound(c, "Contract not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetVerificationHistory(c *gin.Context) {
@@ -163,7 +164,7 @@ func (h *Handler) GetVerificationHistory(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	history, err := h.svc.GetVerificationHistory(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.VerificationHistoryResponse, len(history))
@@ -177,7 +178,7 @@ func (h *Handler) GetVerificationHistory(c *gin.Context) {
 			VerifiedAt: v.VerifiedAt.Format(time.RFC3339),
 		}
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }
 
 // ---- Violation handlers ----
@@ -188,7 +189,7 @@ func (h *Handler) ListViolations(c *gin.Context) {
 	severity := ptrIf(c.Query("severity"))
 	violations, err := h.svc.ListViolations(c.Request.Context(), tenantID, contractID, severity)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.ViolationResponse, len(violations))
@@ -202,7 +203,7 @@ func (h *Handler) ListViolations(c *gin.Context) {
 			DetectedAt:    v.DetectedAt.Format(time.RFC3339),
 		}
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }
 
 // ---- Version handlers ----
@@ -210,16 +211,16 @@ func (h *Handler) ListViolations(c *gin.Context) {
 func (h *Handler) CreateVersion(c *gin.Context) {
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	ver, err := h.svc.CreateVersion(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, h.versionToResponse(ver))
+	middleware.RespondCreated(c, h.versionToResponse(ver))
 }
 
 func (h *Handler) ListVersions(c *gin.Context) {
@@ -228,30 +229,30 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	status := ptrIf(c.Query("status"))
 	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, apiName, status)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.VersionResponse, len(versions))
 	for i, v := range versions {
 		data[i] = h.versionToResponse(&v)
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
 	id := c.Param("id")
 	var req models.DeprecateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	updated, err := h.svc.DeprecateVersion(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
-		respondNotFound(c, "Version not found")
+		middleware.RespondNotFound(c, "Version not found")
 		return
 	}
-	respondSuccess(c, h.versionToResponse(updated))
+	middleware.RespondSuccess(c, h.versionToResponse(updated))
 }
 
 func (h *Handler) RetireVersion(c *gin.Context) {
@@ -259,24 +260,24 @@ func (h *Handler) RetireVersion(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	updated, err := h.svc.RetireVersion(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, h.versionToResponse(updated))
+	middleware.RespondSuccess(c, h.versionToResponse(updated))
 }
 
 func (h *Handler) ListDeprecatedVersions(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	versions, err := h.svc.ListDeprecatedVersions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	data := make([]models.VersionResponse, len(versions))
 	for i, v := range versions {
 		data[i] = h.versionToResponse(&v)
 	}
-	respondSuccess(c, data)
+	middleware.RespondSuccess(c, data)
 }
 
 // ---- Compatibility handler ----
@@ -284,15 +285,15 @@ func (h *Handler) ListDeprecatedVersions(c *gin.Context) {
 func (h *Handler) CheckCompatibility(c *gin.Context) {
 	var req models.CompatibilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.CheckCompatibility(c.Request.Context(), req.SourceVersion, req.TargetVersion)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---- Rule handlers ----
@@ -300,16 +301,16 @@ func (h *Handler) CheckCompatibility(c *gin.Context) {
 func (h *Handler) CreateRule(c *gin.Context) {
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	rule, err := h.svc.CreateRule(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, models.RuleResponse{
+	middleware.RespondCreated(c, models.RuleResponse{
 		ID:          rule.ID,
 		Name:        rule.Name,
 		Description: rule.Description,
@@ -324,10 +325,10 @@ func (h *Handler) GetGovernanceReport(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	stats, err := h.svc.GetGovernanceStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // ---- Helpers ----

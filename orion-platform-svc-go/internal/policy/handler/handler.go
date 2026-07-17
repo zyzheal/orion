@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/policy/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles HTTP requests for the policy module.
@@ -105,25 +106,25 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policies)
+	middleware.RespondSuccess(c, policies)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -132,13 +133,13 @@ func (h *Handler) Get(c *gin.Context) {
 	m, err := h.svc.GetPolicy(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "policy not found")
+			middleware.RespondNotFound(c, "policy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -146,25 +147,25 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.UpdatePolicy(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeletePolicy(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "policy deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "policy deleted"})
 }
 
 func (h *Handler) Toggle(c *gin.Context) {
@@ -174,15 +175,15 @@ func (h *Handler) Toggle(c *gin.Context) {
 		Enabled bool `json:"enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.TogglePolicy(c.Request.Context(), tenantID, id, req.Enabled)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Policy evaluation handlers ---
@@ -191,7 +192,7 @@ func (h *Handler) Evaluate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Default policy_id to the :id param if not provided in body.
@@ -200,10 +201,10 @@ func (h *Handler) Evaluate(c *gin.Context) {
 	}
 	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ListEvaluations(c *gin.Context) {
@@ -213,10 +214,10 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	evaluations, err := h.svc.GetEvaluationHistory(c.Request.Context(), tenantID, id, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, evaluations)
+	middleware.RespondSuccess(c, evaluations)
 }
 
 // --- Root evaluation handlers ---
@@ -226,19 +227,19 @@ func (h *Handler) EvaluatePolicyRoot(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "policy not found")
+			middleware.RespondNotFound(c, "policy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // EvaluateRoot handles POST /policies/evaluate.
@@ -246,19 +247,19 @@ func (h *Handler) EvaluateRoot(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "policy not found")
+			middleware.RespondNotFound(c, "policy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ListRootEvaluations handles GET /policies/evaluations.
@@ -268,10 +269,10 @@ func (h *Handler) ListRootEvaluations(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, evaluations)
+	middleware.RespondSuccess(c, evaluations)
 }
 
 // ListEvaluationsRuns handles GET /policies/evaluations/runs.
@@ -281,10 +282,10 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, evaluations)
+	middleware.RespondSuccess(c, evaluations)
 }
 
 // --- Violation handlers ---
@@ -295,10 +296,10 @@ func (h *Handler) ListViolations(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	violations, err := h.svc.ListViolations(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, violations)
+	middleware.RespondSuccess(c, violations)
 }
 
 func (h *Handler) WaiveViolation(c *gin.Context) {
@@ -306,14 +307,14 @@ func (h *Handler) WaiveViolation(c *gin.Context) {
 	violationID := c.Param("violationId")
 	var req models.WaiveViolationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.WaiveViolation(c.Request.Context(), tenantID, violationID, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "violation waived"})
+	middleware.RespondSuccess(c, gin.H{"message": "violation waived"})
 }
 
 func (h *Handler) ResolveViolation(c *gin.Context) {
@@ -321,14 +322,14 @@ func (h *Handler) ResolveViolation(c *gin.Context) {
 	violationID := c.Param("violationId")
 	var req models.ResolveViolationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.ResolveViolation(c.Request.Context(), tenantID, violationID, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "violation resolved"})
+	middleware.RespondSuccess(c, gin.H{"message": "violation resolved"})
 }
 
 // --- Override handlers ---
@@ -339,10 +340,10 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	overrides, err := h.svc.ListOverrides(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, overrides)
+	middleware.RespondSuccess(c, overrides)
 }
 
 func (h *Handler) CreateOverride(c *gin.Context) {
@@ -350,7 +351,7 @@ func (h *Handler) CreateOverride(c *gin.Context) {
 	overrideBy := c.GetString("user_id")
 	var req models.CreateOverrideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Default policy_id to the :id param if not provided in body.
@@ -359,10 +360,10 @@ func (h *Handler) CreateOverride(c *gin.Context) {
 	}
 	o, err := h.svc.CreateOverride(c.Request.Context(), tenantID, req, overrideBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, o)
+	middleware.RespondCreated(c, o)
 }
 
 // --- Bundle handlers ---
@@ -371,10 +372,10 @@ func (h *Handler) ListBundles(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	bundles, err := h.svc.ListBundles(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, bundles)
+	middleware.RespondSuccess(c, bundles)
 }
 
 func (h *Handler) GetBundle(c *gin.Context) {
@@ -382,17 +383,17 @@ func (h *Handler) GetBundle(c *gin.Context) {
 	id := c.Param("id")
 	b, err := h.svc.GetBundle(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, b)
+	middleware.RespondSuccess(c, b)
 }
 
 func (h *Handler) SyncBundles(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SyncBundlesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Default source_url if not provided.
@@ -401,10 +402,10 @@ func (h *Handler) SyncBundles(c *gin.Context) {
 	}
 	result, err := h.svc.SyncBundles(c.Request.Context(), tenantID, req.SourceURL)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Policy testing handler ---
@@ -412,15 +413,15 @@ func (h *Handler) SyncBundles(c *gin.Context) {
 func (h *Handler) TestPolicy(c *gin.Context) {
 	var req models.TestPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	results, err := h.svc.TestPolicy(c.Request.Context(), req.Rego, req.TestCases)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"results": results})
+	middleware.RespondSuccess(c, gin.H{"results": results})
 }
 
 // --- Exemption handlers ---
@@ -429,15 +430,15 @@ func (h *Handler) CreateExemption(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExemptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.SubmitExemption(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) GetExemption(c *gin.Context) {
@@ -446,28 +447,28 @@ func (h *Handler) GetExemption(c *gin.Context) {
 	m, err := h.svc.GetExemption(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "exemption not found")
+			middleware.RespondNotFound(c, "exemption not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) ListExemptions(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ListExemptionsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc.ListExemptions(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) ApproveExemption(c *gin.Context) {
@@ -475,17 +476,17 @@ func (h *Handler) ApproveExemption(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ReviewExemptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.Action = models.ExemptionActionApprove
 	req.Reviewer = c.GetString("user_id")
 	m, err := h.svc.ReviewExemption(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) RejectExemption(c *gin.Context) {
@@ -493,17 +494,17 @@ func (h *Handler) RejectExemption(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ReviewExemptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	req.Action = models.ExemptionActionReject
 	req.Reviewer = c.GetString("user_id")
 	m, err := h.svc.ReviewExemption(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) RevokeExemption(c *gin.Context) {
@@ -511,8 +512,8 @@ func (h *Handler) RevokeExemption(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.RevokeExemption(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai-models/models"
@@ -97,7 +98,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // registerUnused marks imports as used to prevent linter errors.
-var _ = http.StatusOK
 
 // --- Handlers ---
 
@@ -106,7 +106,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var q models.ListModelsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
@@ -115,10 +115,10 @@ func (h *Handler) ListModels(c *gin.Context) {
 
 	resp, err := h.svc.ListModels(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // RegisterModel registers a new model.
@@ -130,20 +130,20 @@ func (h *Handler) RegisterModel(c *gin.Context) {
 	}
 	var req models.RegisterModelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	m, err := h.svc.RegisterModel(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
 		if err.Error() == service.ErrModelAlreadyExists.Error() {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 // GetModel retrieves a model by ID.
@@ -153,10 +153,10 @@ func (h *Handler) GetModel(c *gin.Context) {
 
 	m, err := h.svc.GetModel(c.Request.Context(), tenantID, modelID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // UpdateModel updates model metadata.
@@ -165,16 +165,16 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 	modelID := c.Param("id")
 	var req models.UpdateModelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	m, err := h.svc.UpdateModel(c.Request.Context(), tenantID, modelID, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // DeleteModel deletes a model.
@@ -183,7 +183,7 @@ func (h *Handler) DeleteModel(c *gin.Context) {
 	modelID := c.Param("id")
 
 	if err := h.svc.DeleteModel(c.Request.Context(), tenantID, modelID); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -195,7 +195,7 @@ func (h *Handler) ListVersions(c *gin.Context) {
 	modelID := c.Param("id")
 	var q models.ListVersionsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
@@ -204,10 +204,10 @@ func (h *Handler) ListVersions(c *gin.Context) {
 
 	resp, err := h.svc.ListVersions(c.Request.Context(), tenantID, modelID, q)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // PublishVersion publishes a new version.
@@ -220,16 +220,16 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 	}
 	var req models.PublishVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	v, err := h.svc.PublishVersion(c.Request.Context(), tenantID, modelID, userID, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondCreated(c, v)
+	middleware.RespondCreated(c, v)
 }
 
 // GetVersion retrieves a version by ID.
@@ -240,10 +240,10 @@ func (h *Handler) GetVersion(c *gin.Context) {
 
 	v, err := h.svc.GetVersion(c.Request.Context(), tenantID, modelID, versionID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, v)
+	middleware.RespondSuccess(c, v)
 }
 
 // PromoteVersion promotes a version to the target environment.
@@ -257,16 +257,16 @@ func (h *Handler) PromoteVersion(c *gin.Context) {
 	}
 	var req models.PromoteVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	v, err := h.svc.PromoteVersion(c.Request.Context(), tenantID, modelID, versionID, userID, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, v)
+	middleware.RespondSuccess(c, v)
 }
 
 // RollbackVersion rolls back to the previous production version.
@@ -276,10 +276,10 @@ func (h *Handler) RollbackVersion(c *gin.Context) {
 
 	v, err := h.svc.RollbackVersion(c.Request.Context(), tenantID, modelID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, v)
+	middleware.RespondSuccess(c, v)
 }
 
 // GetModelMetrics returns current metrics and history.
@@ -289,10 +289,10 @@ func (h *Handler) GetModelMetrics(c *gin.Context) {
 
 	resp, err := h.svc.GetModelMetrics(c.Request.Context(), tenantID, modelID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // ConfigureCanary sets up a canary release.
@@ -302,16 +302,16 @@ func (h *Handler) ConfigureCanary(c *gin.Context) {
 	modelID := c.Param("id")
 	var req models.CanaryConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	cn, err := h.svc.ConfigureCanary(c.Request.Context(), tenantID, modelID, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondCreated(c, cn)
+	middleware.RespondCreated(c, cn)
 }
 
 // GetCanaryConfig retrieves the canary config.
@@ -321,10 +321,10 @@ func (h *Handler) GetCanaryConfig(c *gin.Context) {
 
 	cn, err := h.svc.GetCanaryConfig(c.Request.Context(), tenantID, modelID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, cn)
+	middleware.RespondSuccess(c, cn)
 }
 
 // StopCanary stops the canary release.
@@ -333,7 +333,7 @@ func (h *Handler) StopCanary(c *gin.Context) {
 	modelID := c.Param("id")
 
 	if err := h.svc.StopCanary(c.Request.Context(), tenantID, modelID); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	c.Status(http.StatusNoContent)

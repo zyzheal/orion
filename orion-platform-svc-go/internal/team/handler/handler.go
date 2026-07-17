@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/team/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -53,17 +54,17 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
@@ -73,10 +74,10 @@ func (h *Handler) Create(c *gin.Context) {
 		if msg != "" {
 			// Pass through to client
 		}
-		respondBadRequest(c, msg)
+		middleware.RespondBadRequest(c, msg)
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -84,10 +85,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "not found")
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -95,15 +96,15 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -111,10 +112,10 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted", "data": result})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted", "data": result})
 }
 
 func (h *Handler) GetUserTeams(c *gin.Context) {
@@ -122,10 +123,10 @@ func (h *Handler) GetUserTeams(c *gin.Context) {
 	userID := c.GetString("user_id")
 	teams, err := h.svc.GetUserTeams(c.Request.Context(), userID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, teams)
+	middleware.RespondSuccess(c, teams)
 }
 
 func (h *Handler) GetMembers(c *gin.Context) {
@@ -133,10 +134,10 @@ func (h *Handler) GetMembers(c *gin.Context) {
 	teamID := c.Param("id")
 	members, err := h.svc.GetMembers(c.Request.Context(), teamID, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, members)
+	middleware.RespondSuccess(c, members)
 }
 
 func (h *Handler) AddMember(c *gin.Context) {
@@ -145,7 +146,7 @@ func (h *Handler) AddMember(c *gin.Context) {
 	teamID := c.Param("id")
 	var req models.AddMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	role := "member"
@@ -154,10 +155,10 @@ func (h *Handler) AddMember(c *gin.Context) {
 	}
 	err := h.svc.AddMember(c.Request.Context(), teamID, req.UserID, tenantID, role, userID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "member added"})
+	middleware.RespondCreated(c, gin.H{"message": "member added"})
 }
 
 func (h *Handler) RemoveMember(c *gin.Context) {
@@ -166,14 +167,14 @@ func (h *Handler) RemoveMember(c *gin.Context) {
 	userID := c.Param("userId")
 	removed, err := h.svc.RemoveMember(c.Request.Context(), teamID, userID, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	if !removed {
-		respondNotFound(c, "member not found")
+		middleware.RespondNotFound(c, "member not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "member removed"})
+	middleware.RespondSuccess(c, gin.H{"message": "member removed"})
 }
 
 func (h *Handler) UpdateMemberRole(c *gin.Context) {
@@ -182,15 +183,15 @@ func (h *Handler) UpdateMemberRole(c *gin.Context) {
 	userID := c.Param("userId")
 	var req models.UpdateMemberRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	err := h.svc.UpdateMemberRole(c.Request.Context(), teamID, userID, tenantID, req.Role)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "member role updated"})
+	middleware.RespondSuccess(c, gin.H{"message": "member role updated"})
 }
 
 func (h *Handler) GetRoles(c *gin.Context) {
@@ -198,10 +199,10 @@ func (h *Handler) GetRoles(c *gin.Context) {
 	teamID := c.Param("id")
 	roles, err := h.svc.GetRoles(c.Request.Context(), teamID, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, roles)
+	middleware.RespondSuccess(c, roles)
 }
 
 func (h *Handler) AssignRole(c *gin.Context) {
@@ -210,15 +211,15 @@ func (h *Handler) AssignRole(c *gin.Context) {
 	teamID := c.Param("id")
 	var req models.AssignRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	err := h.svc.AssignRole(c.Request.Context(), teamID, req.RoleName, tenantID, userID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "role assigned"})
+	middleware.RespondCreated(c, gin.H{"message": "role assigned"})
 }
 
 func (h *Handler) RemoveRole(c *gin.Context) {
@@ -227,12 +228,12 @@ func (h *Handler) RemoveRole(c *gin.Context) {
 	roleName := c.Param("roleName")
 	removed, err := h.svc.RemoveRole(c.Request.Context(), teamID, roleName, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	if !removed {
-		respondNotFound(c, "role not found")
+		middleware.RespondNotFound(c, "role not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "role removed"})
+	middleware.RespondSuccess(c, gin.H{"message": "role removed"})
 }

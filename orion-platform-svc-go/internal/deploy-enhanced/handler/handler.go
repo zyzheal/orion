@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/deploy-enhanced/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -83,10 +84,10 @@ func (h *Handler) ListWindows(c *gin.Context) {
 	}
 	windows, total, err := h.svc.ListWindows(c.Request.Context(), tenantID, envPtr, statusPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     windows,
 		Total:    total,
 		Page:     1,
@@ -100,48 +101,48 @@ func (h *Handler) GetWindow(c *gin.Context) {
 	w, err := h.svc.GetWindow(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "deploy window not found")
+			middleware.RespondNotFound(c, "deploy window not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 func (h *Handler) CreateWindow(c *gin.Context) {
 	var req models.CreateDeployWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	w, err := h.svc.CreateWindow(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, w)
+	middleware.RespondCreated(c, w)
 }
 
 func (h *Handler) UpdateWindow(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDeployWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	w, err := h.svc.UpdateWindow(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "deploy window not found")
+			middleware.RespondNotFound(c, "deploy window not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 func (h *Handler) DeleteWindow(c *gin.Context) {
@@ -149,14 +150,14 @@ func (h *Handler) DeleteWindow(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteWindow(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "deploy window not found")
+		middleware.RespondNotFound(c, "deploy window not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deploy window deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deploy window deleted"})
 }
 
 func (h *Handler) CheckWindow(c *gin.Context) {
@@ -165,13 +166,13 @@ func (h *Handler) CheckWindow(c *gin.Context) {
 	result, err := h.svc.CheckWindow(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "deploy window not found")
+			middleware.RespondNotFound(c, "deploy window not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Progressive Deploy handlers ---
@@ -180,16 +181,16 @@ func (h *Handler) CreateProgressiveDeploy(c *gin.Context) {
 	deploymentID := c.Param("deploymentId")
 	var req models.CreateProgressiveDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	pd, err := h.svc.CreateProgressiveDeploy(c.Request.Context(), deploymentID, &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, pd)
+	middleware.RespondCreated(c, pd)
 }
 
 func (h *Handler) GetProgress(c *gin.Context) {
@@ -198,45 +199,45 @@ func (h *Handler) GetProgress(c *gin.Context) {
 	pd, err := h.svc.GetProgress(c.Request.Context(), deployID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "progressive deploy not found")
+			middleware.RespondNotFound(c, "progressive deploy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pd)
+	middleware.RespondSuccess(c, pd)
 }
 
 func (h *Handler) AdvanceStage(c *gin.Context) {
 	deployID := c.Param("deployId")
 	var req models.AdvanceStageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	pd, err := h.svc.AdvanceStage(c.Request.Context(), deployID, req.StageID, req.ValidationResult, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pd)
+	middleware.RespondSuccess(c, pd)
 }
 
 func (h *Handler) RollbackStage(c *gin.Context) {
 	deployID := c.Param("deployId")
 	var req models.RollbackStageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	pd, err := h.svc.RollbackStage(c.Request.Context(), deployID, req.StageID, req.Reason, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pd)
+	middleware.RespondSuccess(c, pd)
 }
 
 // --- Emergency Deploy handlers ---
@@ -244,16 +245,16 @@ func (h *Handler) RollbackStage(c *gin.Context) {
 func (h *Handler) RequestEmergencyDeploy(c *gin.Context) {
 	var req models.CreateEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	ed, err := h.svc.RequestEmergencyDeploy(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ed)
+	middleware.RespondCreated(c, ed)
 }
 
 func (h *Handler) ListEmergencies(c *gin.Context) {
@@ -265,10 +266,10 @@ func (h *Handler) ListEmergencies(c *gin.Context) {
 	}
 	emergencies, total, err := h.svc.ListEmergencies(c.Request.Context(), tenantID, statusPtr)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     emergencies,
 		Total:    total,
 		Page:     1,
@@ -280,40 +281,40 @@ func (h *Handler) ApproveEmergencyDeploy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.ApproveEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	ed, err := h.svc.ApproveEmergencyDeploy(c.Request.Context(), id, req.ApprovedBy, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "emergency deploy not found")
+			middleware.RespondNotFound(c, "emergency deploy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ed)
+	middleware.RespondSuccess(c, ed)
 }
 
 func (h *Handler) CompleteEmergencyDeploy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.CompleteEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	ed, err := h.svc.CompleteEmergencyDeploy(c.Request.Context(), id, req.PostMortem, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "emergency deploy not found")
+			middleware.RespondNotFound(c, "emergency deploy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ed)
+	middleware.RespondSuccess(c, ed)
 }
 
 func (h *Handler) RejectEmergencyDeploy(c *gin.Context) {
@@ -322,11 +323,11 @@ func (h *Handler) RejectEmergencyDeploy(c *gin.Context) {
 	ed, err := h.svc.RejectEmergencyDeploy(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "emergency deploy not found")
+			middleware.RespondNotFound(c, "emergency deploy not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ed)
+	middleware.RespondSuccess(c, ed)
 }

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/alert/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -58,15 +59,15 @@ func (h *Handler) Ingest(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.IngestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resp, err := h.svc.Ingest(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, resp)
+	middleware.RespondCreated(c, resp)
 }
 
 // ----- Alert Correlation -----
@@ -75,44 +76,44 @@ func (h *Handler) Correlate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CorrelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "alerts is required")
+		middleware.RespondBadRequest(c, "alerts is required")
 		return
 	}
 	if len(req.Alerts) == 0 {
-		respondBadRequest(c, "alerts is required")
+		middleware.RespondBadRequest(c, "alerts is required")
 		return
 	}
 	analysis, err := h.svc.Correlate(c.Request.Context(), tenantID, req.Alerts)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, analysis)
+	middleware.RespondSuccess(c, analysis)
 }
 
 func (h *Handler) GetTopology(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	topo, err := h.svc.GetTopology(c.Request.Context(), tenantID)
 	if err != nil {
-		respondSuccess(c, gin.H{"topology": nil})
+		middleware.RespondSuccess(c, gin.H{"topology": nil})
 		return
 	}
-	respondSuccess(c, gin.H{"topology": topo})
+	middleware.RespondSuccess(c, gin.H{"topology": topo})
 }
 
 func (h *Handler) SetTopology(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TopologyNodesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "Invalid topology")
+		middleware.RespondBadRequest(c, "Invalid topology")
 		return
 	}
 	update, err := h.svc.SetTopology(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"status":    "updated",
 		"nodeCount": update.NodeCount,
 		"edgeCount": update.EdgeCount,
@@ -125,20 +126,20 @@ func (h *Handler) GetDedupStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetDedupStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"stats": stats})
+	middleware.RespondSuccess(c, gin.H{"stats": stats})
 }
 
 func (h *Handler) GetGroups(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	groups, err := h.svc.GetActiveGroups(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"groups": groups})
+	middleware.RespondSuccess(c, gin.H{"groups": groups})
 }
 
 // ----- Alert Suppression -----
@@ -147,70 +148,70 @@ func (h *Handler) GetSuppressionStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetSuppressionStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"stats": stats})
+	middleware.RespondSuccess(c, gin.H{"stats": stats})
 }
 
 func (h *Handler) GetMaintenanceWindows(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	windows, err := h.svc.GetActiveMaintenanceWindows(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"windows": windows})
+	middleware.RespondSuccess(c, gin.H{"windows": windows})
 }
 
 func (h *Handler) AddMaintenanceWindow(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AddMaintenanceWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	_, err := h.svc.AddMaintenanceWindow(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondBadRequest(c, "Invalid maintenance window")
+		middleware.RespondBadRequest(c, "Invalid maintenance window")
 		return
 	}
-	respondCreated(c, gin.H{"status": "created"})
+	middleware.RespondCreated(c, gin.H{"status": "created"})
 }
 
 func (h *Handler) GetKnownIssues(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	issues, err := h.svc.GetOpenKnownIssues(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"issues": issues})
+	middleware.RespondSuccess(c, gin.H{"issues": issues})
 }
 
 func (h *Handler) AddKnownIssue(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AddKnownIssueRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	_, err := h.svc.AddKnownIssue(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondBadRequest(c, "Invalid known issue")
+		middleware.RespondBadRequest(c, "Invalid known issue")
 		return
 	}
-	respondCreated(c, gin.H{"status": "created"})
+	middleware.RespondCreated(c, gin.H{"status": "created"})
 }
 
 func (h *Handler) GetActiveAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alerts, err := h.svc.GetActiveAlerts(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"alerts": alerts, "total": len(alerts)})
+	middleware.RespondSuccess(c, gin.H{"alerts": alerts, "total": len(alerts)})
 }
 
 // ----- Alert List -----
@@ -222,10 +223,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	result, err := h.svc.ListAlerts(c.Request.Context(), tenantID, severity, status, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"alerts": result.Alerts, "total": result.Total})
+	middleware.RespondSuccess(c, gin.H{"alerts": result.Alerts, "total": result.Total})
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
@@ -233,16 +234,34 @@ func (h *Handler) GetAlert(c *gin.Context) {
 	id := c.Param("id")
 	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "Alert "+id+" not found")
+		middleware.RespondNotFound(c, "Alert "+id+" not found")
 		return
 	}
-	respondSuccess(c, gin.H{"alert": alert})
+	middleware.RespondSuccess(c, gin.H{"alert": alert})
 }
 
 func (h *Handler) UpdateAlert(c *gin.Context) {
-	respondSuccess(c, gin.H{"message": "update not implemented"})
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	var req service.UpdateAlertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	alert, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, id, req)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"alert": alert})
 }
 
 func (h *Handler) DeleteAlert(c *gin.Context) {
-	respondSuccess(c, gin.H{"message": "delete not implemented"})
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	if err := h.svc.DeleteAlert(c.Request.Context(), tenantID, id); err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+	middleware.RespondSuccess(c, gin.H{"status": "deleted"})
 }

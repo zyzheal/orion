@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/smart-deploy/models"
 	"orion/platform-svc-go/internal/smart-deploy/service"
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 type Handler struct {
 	svc *service.Service
@@ -58,15 +59,15 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 	ctx := context.Background()
 	var req models.CreateDeploymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	deployment, err := h.svc.Deploy(ctx, tenantID, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, deployment)
+	middleware.RespondCreated(c, deployment)
 }
 // GetDeployment handles GET /smart-deploy/:id
 func (h *Handler) GetDeployment(c *gin.Context) {
@@ -76,10 +77,10 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 	ctx := context.Background()
 	deployment, err := h.svc.GetDeployment(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "deployment not found")
+		middleware.RespondNotFound(c, "deployment not found")
 		return
 	}
-	respondSuccess(c, deployment)
+	middleware.RespondSuccess(c, deployment)
 }
 // ListDeployments handles GET /smart-deploy
 func (h *Handler) ListDeployments(c *gin.Context) {
@@ -119,10 +120,10 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 	}
 	deployments, total, err := h.svc.ListDeployments(ctx, tenantID, opt)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": deployments,
 		"total": total,
 		"page":  opt.Page,
@@ -137,10 +138,10 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 	ctx := context.Background()
 	deployment, err := h.svc.GetLatestDeployment(ctx, tenantID, c.Param("appName"), c.Param("environment"))
 	if err != nil {
-		respondNotFound(c, "no deployments found for this app and environment")
+		middleware.RespondNotFound(c, "no deployments found for this app and environment")
 		return
 	}
-	respondSuccess(c, deployment)
+	middleware.RespondSuccess(c, deployment)
 }
 // CancelDeployment handles POST /smart-deploy/:id/cancel
 func (h *Handler) CancelDeployment(c *gin.Context) {
@@ -152,21 +153,21 @@ func (h *Handler) CancelDeployment(c *gin.Context) {
 		CancelledBy string `json:"cancelledBy" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "missing required field: cancelledBy")
+		middleware.RespondBadRequest(c, "missing required field: cancelledBy")
 		return
 	}
 	deployment, err := h.svc.CancelDeployment(ctx, tenantID, c.Param("id"), req.CancelledBy)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, deployment)
+	middleware.RespondSuccess(c, deployment)
 }
 // DeleteDeployment handles DELETE /smart-deploy/:id
 func (h *Handler) DeleteDeployment(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 	// Delete is not exposed on service; return not-implemented.
-	respondBadRequest(c, "delete not supported for deployments")
+	middleware.RespondBadRequest(c, "delete not supported for deployments")
 }
 // Rollback handles POST /smart-deploy/:id/rollback
 func (h *Handler) Rollback(c *gin.Context) {
@@ -176,15 +177,15 @@ func (h *Handler) Rollback(c *gin.Context) {
 	ctx := context.Background()
 	var req models.CreateRollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, "missing required fields: reason, triggeredBy")
+		middleware.RespondBadRequest(c, "missing required fields: reason, triggeredBy")
 		return
 	}
 	rollback, err := h.svc.Rollback(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, rollback)
+	middleware.RespondSuccess(c, rollback)
 }
 // GetRollbackHistory handles GET /smart-deploy/:id/rollbacks
 func (h *Handler) GetRollbackHistory(c *gin.Context) {
@@ -194,10 +195,10 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 	ctx := context.Background()
 	rollbacks, err := h.svc.GetRollbackHistory(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": rollbacks,
 		"total": len(rollbacks),
 	})
@@ -210,10 +211,10 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	ctx := context.Background()
 	metrics, err := h.svc.GetMetrics(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 // GetAuditTrail handles GET /smart-deploy/:id/audit
 func (h *Handler) GetAuditTrail(c *gin.Context) {
@@ -223,10 +224,10 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 	ctx := context.Background()
 	entries, err := h.svc.GetAuditTrail(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": entries,
 		"total": len(entries),
 	})

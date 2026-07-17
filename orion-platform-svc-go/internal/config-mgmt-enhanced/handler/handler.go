@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/config-mgmt-enhanced/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -48,25 +49,25 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entities, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
+	middleware.RespondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entity)
+	middleware.RespondCreated(c, entity)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -74,26 +75,26 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -101,14 +102,14 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "not found")
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 // ==================== Change Request Handlers ====================
@@ -116,17 +117,17 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) ApproveChangeRequest(c *gin.Context) {
 	var req models.ApproveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	cr, err := h.svc.ApproveChangeRequest(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) ExecuteChangeRequest(c *gin.Context) {
@@ -134,26 +135,26 @@ func (h *Handler) ExecuteChangeRequest(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	cr, err := h.svc.ExecuteChangeRequest(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) RollbackChangeRequest(c *gin.Context) {
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	cr, err := h.svc.RollbackChangeRequest(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) GetChangeHistory(c *gin.Context) {
@@ -161,10 +162,10 @@ func (h *Handler) GetChangeHistory(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entries, err := h.svc.GetChangeHistory(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entries)
+	middleware.RespondSuccess(c, entries)
 }
 
 // ==================== Drift Handlers ====================
@@ -172,30 +173,30 @@ func (h *Handler) GetChangeHistory(c *gin.Context) {
 func (h *Handler) DriftDetect(c *gin.Context) {
 	var req models.DriftDetectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.DriftDetect(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) RemediateDrift(c *gin.Context) {
 	var req models.RemediateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	dr, err := h.svc.RemediateDrift(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, dr)
+	middleware.RespondSuccess(c, dr)
 }

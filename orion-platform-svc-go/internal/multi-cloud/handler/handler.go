@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/multi-cloud/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -98,22 +99,22 @@ func (h *Handler) AddProvider(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.CloudAccountInput
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	account, err := h.svc.AddCloudAccount(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, account)
+	middleware.RespondCreated(c, account)
 }
 
 func (h *Handler) ListProviders(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	accounts, err := h.svc.ListCloudAccounts(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Filter by query params
@@ -135,7 +136,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
 		}
 		accounts = filtered
 	}
-	respondSuccess(c, accounts)
+	middleware.RespondSuccess(c, accounts)
 }
 
 func (h *Handler) UpdateProvider(c *gin.Context) {
@@ -143,15 +144,15 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 	id := c.Param("id")
 	var body models.UpdateCloudAccountInput
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	account, err := h.svc.UpdateCloudAccount(c.Request.Context(), tenantID, id, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, account)
+	middleware.RespondSuccess(c, account)
 }
 
 func (h *Handler) DeleteProvider(c *gin.Context) {
@@ -159,14 +160,14 @@ func (h *Handler) DeleteProvider(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.RemoveCloudAccount(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "cloud account not found")
+		middleware.RespondNotFound(c, "cloud account not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "Cloud account deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "Cloud account deleted"})
 }
 
 func (h *Handler) GetProvider(c *gin.Context) {
@@ -174,10 +175,10 @@ func (h *Handler) GetProvider(c *gin.Context) {
 	id := c.Param("id")
 	account, err := h.svc.GetProvider(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, account)
+	middleware.RespondSuccess(c, account)
 }
 
 // --- Resource Inventory handlers ---
@@ -187,7 +188,7 @@ func (h *Handler) ListResources(c *gin.Context) {
 	accountID := c.Query("accountId")
 	resources, err := h.svc.GetResourceInventory(c.Request.Context(), tenantID, accountID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Filter by query params
@@ -211,7 +212,7 @@ func (h *Handler) ListResources(c *gin.Context) {
 		}
 		resources = filtered
 	}
-	respondSuccess(c, resources)
+	middleware.RespondSuccess(c, resources)
 }
 
 func (h *Handler) GetResource(c *gin.Context) {
@@ -220,16 +221,16 @@ func (h *Handler) GetResource(c *gin.Context) {
 	id := c.Param("id")
 	resources, err := h.svc.GetResourceInventory(c.Request.Context(), tenantID, "")
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	for _, r := range resources {
 		if r.ResourceType == provider && r.ResourceID == id {
-			respondSuccess(c, r)
+			middleware.RespondSuccess(c, r)
 			return
 		}
 	}
-	respondNotFound(c, "resource not found")
+	middleware.RespondNotFound(c, "resource not found")
 }
 
 func (h *Handler) SyncResources(c *gin.Context) {
@@ -240,11 +241,11 @@ func (h *Handler) SyncResources(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	result, err := h.svc.SyncResources(c.Request.Context(), "", body.AccountID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	result.Provider = body.Provider
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Cost Management handlers ---
@@ -253,10 +254,10 @@ func (h *Handler) GetCosts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetCloudStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetProviderCost(c *gin.Context) {
@@ -264,10 +265,10 @@ func (h *Handler) GetProviderCost(c *gin.Context) {
 	provider := c.Param("provider")
 	breakdown, err := h.svc.GetProviderCost(c.Request.Context(), tenantID, provider)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, breakdown)
+	middleware.RespondSuccess(c, breakdown)
 }
 
 func (h *Handler) CompareCosts(c *gin.Context) {
@@ -276,10 +277,10 @@ func (h *Handler) CompareCosts(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	comparisons, err := h.svc.CompareCloudCosts(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, comparisons)
+	middleware.RespondSuccess(c, comparisons)
 }
 
 // --- Recommendations handlers ---
@@ -288,10 +289,10 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	recommendations, err := h.svc.GetRecommendations(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, recommendations)
+	middleware.RespondSuccess(c, recommendations)
 }
 
 // --- Health Check handlers ---
@@ -300,10 +301,10 @@ func (h *Handler) GetHealth(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status, err := h.svc.GetHealthStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 // --- Resource Statistics handlers ---
@@ -312,10 +313,10 @@ func (h *Handler) GetStatistics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetResourceStatistics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // --- Resource Sync handlers ---
@@ -325,10 +326,10 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 	accountID := c.Param("accountId")
 	result, err := h.svc.SyncResources(c.Request.Context(), tenantID, accountID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Compliance handlers ---
@@ -339,15 +340,15 @@ func (h *Handler) RunComplianceCheck(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	report, err := h.svc.RunComplianceCheck(c.Request.Context(), tenantID, body.Categories)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) GetComplianceRules(c *gin.Context) {
 	rules := h.svc.GetComplianceRules()
-	respondSuccess(c, rules)
+	middleware.RespondSuccess(c, rules)
 }
 
 // --- Scheduling handlers ---
@@ -356,50 +357,50 @@ func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.SchedulingPolicyInput
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.CreateSchedulingPolicy(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, policy)
+	middleware.RespondCreated(c, policy)
 }
 
 func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policies, err := h.svc.ListSchedulingPolicies(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policies)
+	middleware.RespondSuccess(c, policies)
 }
 
 func (h *Handler) ScheduleResource(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.ScheduleResourceInput
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	decision, err := h.svc.ScheduleResource(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, decision)
+	middleware.RespondSuccess(c, decision)
 }
 
 func (h *Handler) GetSchedulingHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	history, err := h.svc.GetSchedulingHistory(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, history)
+	middleware.RespondSuccess(c, history)
 }
 
 // --- Migration handlers ---
@@ -408,15 +409,15 @@ func (h *Handler) CreateMigrationPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.MigrationPlanInput
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	plan, err := h.svc.CreateMigrationPlan(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, plan)
+	middleware.RespondCreated(c, plan)
 }
 
 func (h *Handler) ExecuteMigration(c *gin.Context) {
@@ -424,10 +425,10 @@ func (h *Handler) ExecuteMigration(c *gin.Context) {
 	planID := c.Param("planId")
 	result, err := h.svc.ExecuteMigration(c.Request.Context(), tenantID, planID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Helpers ---

@@ -3,6 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
+	"database/sql"
+	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/capability/models"
@@ -159,6 +162,31 @@ func (r *Repository) GetCapabilityForCommand(ctx context.Context, tenantID, comm
 	return &m, err
 }
 
+// GetCapabilityIDForCommand returns the capability_id mapped to a command+action.
+// An empty env string matches rows with NULL environment_suffix.
+func (r *Repository) GetCapabilityIDForCommand(ctx context.Context, tenantID, command, action, env string) (string, error) {
+	if env != "" {
+		var capabilityID string
+		err := r.db.GetContext(ctx, &capabilityID,
+			`SELECT capability_id FROM command_capability_mappings
+				WHERE tenant_id=$1 AND command_name=$2 AND command_action=$3 AND environment_suffix=$4`,
+			tenantID, command, action, env)
+		if err != nil {
+			return "", err
+		}
+		return capabilityID, nil
+	}
+	var capabilityID string
+	err := r.db.GetContext(ctx, &capabilityID,
+		`SELECT capability_id FROM command_capability_mappings
+			WHERE tenant_id=$1 AND command_name=$2 AND command_action=$3 AND environment_suffix IS NULL`,
+		tenantID, command, action)
+	if err != nil {
+		return "", err
+	}
+	return capabilityID, nil
+}
+
 // --- Role/user grants ---
 
 func (r *Repository) GrantCapabilityToRole(ctx context.Context, tenantID string, capabilityID, roleName string) error {
@@ -210,6 +238,50 @@ func (r *Repository) RevokeCapabilityFromUser(ctx context.Context, tenantID stri
 	return err
 }
 
+// --- Effective capabilities helpers ---
+
+// ListCapabilityIDsByRole returns all capability IDs assigned to a given role.
+func (r *Repository) ListCapabilityIDsByRole(ctx context.Context, tenantID, role string) ([]string, error) {
+	var ids []string
+	err := r.db.SelectContext(ctx, &ids,
+		`SELECT capability_id FROM capability_role_mappings WHERE tenant_id=$1 AND role_name=$2`,
+		tenantID, role)
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// ListCapabilityIDsByUser returns all non-expired capability IDs directly assigned to a user.
+func (r *Repository) ListCapabilityIDsByUser(ctx context.Context, tenantID, userID string) ([]string, error) {
+	var ids []string
+	err := r.db.SelectContext(ctx, &ids,
+		`SELECT capability_id FROM capability_user_mappings
+			WHERE tenant_id=$1 AND user_id=$2 AND (expires_at IS NULL OR expires_at > NOW())`,
+		tenantID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
+// GetUserGrantExpiry returns the expires_at of a direct user capability grant if set.
+func (r *Repository) GetUserGrantExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error) {
+	var expiresAt sql.NullTime
+	err := r.db.GetContext(ctx, &expiresAt,
+		`SELECT COALESCE(expires_at, NULL) FROM capability_user_mappings
+			WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3
+			AND (expires_at IS NULL OR expires_at > NOW())`,
+		tenantID, capabilityID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if expiresAt.Valid {
+		return &expiresAt.Time, nil
+	}
+	return nil, nil
+}
+
 // --- Temporary permissions ---
 
 func (r *Repository) GrantTemporaryPermission(ctx context.Context, tenantID string, userID, capabilityID, grantedBy string, envSuffix *string, expiresInHours int) error {
@@ -243,9 +315,39 @@ func (r *Repository) RevokeTemporaryPermissionByID(ctx context.Context, id int, 
 	return err
 }
 
-func (r *Repository) CleanupExpiredTemporaryPermissions(ctx context.Context) (int, error) {
+// GetTemporaryPermissionByID fetches a temporary permission by its numeric row ID.
+func (r *Repository) GetTemporaryPermissionByID(ctx context.Context, tenantID string, id int) (*models.TemporaryPermission, error) {
+	var perm models.TemporaryPermission
+	err := r.db.GetContext(ctx, &perm,
+		`SELECT * FROM temporary_permissions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	return &perm, nil
+}
+
+// GetActiveTempExpiry returns the earliest expires_at of active temporary permissions.
+func (r *Repository) GetActiveTempExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error) {
+	var expiresAt sql.NullTime
+	err := r.db.GetContext(ctx, &expiresAt,
+		`SELECT MIN(expires_at) FROM temporary_permissions
+			WHERE tenant_id=$1 AND capability_id=$2 AND user_id=$3
+			AND expires_at > NOW() AND revoked=false`,
+		tenantID, capabilityID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if expiresAt.Valid {
+		return &expiresAt.Time, nil
+	}
+	return nil, nil
+}
+
+// CleanupExpiredTemporaryPermissions revokes expired temporary permissions for a tenant.
+func (r *Repository) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (int, error) {
 	result, err := r.db.ExecContext(ctx,
-		`UPDATE temporary_permissions SET revoked=true WHERE expires_at < NOW() AND revoked=false`)
+		`UPDATE temporary_permissions SET revoked=true WHERE tenant_id=$1 AND expires_at < NOW() AND revoked=false`,
+		tenantID)
 	if err != nil {
 		return 0, err
 	}
@@ -255,11 +357,13 @@ func (r *Repository) CleanupExpiredTemporaryPermissions(ctx context.Context) (in
 
 // --- Permission requests ---
 
+// CreatePermissionRequest inserts a permission request record with tenant_id.
 func (r *Repository) CreatePermissionRequest(ctx context.Context, tenantID string, userID, capabilityID, reason string, durationHours int, envSuffix *string) error {
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO permission_requests (user_id, capability_id, reason, status, duration_hours, environment_suffix, created_at)
-		VALUES (:user_id, :capability_id, :reason, :status, :duration_hours, :environment_suffix, :created_at)`,
+		`INSERT INTO permission_requests (tenant_id, user_id, capability_id, reason, status, duration_hours, environment_suffix, created_at, updated_at)
+		VALUES (:tenant_id, :user_id, :capability_id, :reason, :status, :duration_hours, :environment_suffix, :created_at, :updated_at)`,
 		map[string]interface{}{
+			"tenant_id":          tenantID,
 			"user_id":            userID,
 			"capability_id":      capabilityID,
 			"reason":             reason,
@@ -267,24 +371,27 @@ func (r *Repository) CreatePermissionRequest(ctx context.Context, tenantID strin
 			"duration_hours":     durationHours,
 			"environment_suffix": envSuffix,
 			"created_at":         time.Now().UTC(),
+			"updated_at":         time.Now().UTC(),
 		})
 	return err
 }
 
-func (r *Repository) GetPermissionRequestByID(ctx context.Context, ticketID int) (*models.PermissionRequest, error) {
+// GetPermissionRequestByID fetches a permission request by ticket ID within a tenant.
+func (r *Repository) GetPermissionRequestByID(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
 	var pr models.PermissionRequest
 	err := r.db.GetContext(ctx, &pr,
-		`SELECT * FROM permission_requests WHERE id=$1`, ticketID)
+		`SELECT * FROM permission_requests WHERE id=$1 AND tenant_id=$2`, ticketID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &pr, nil
 }
 
+// GetUserPermissionRequests returns all permission requests for a user within a tenant.
 func (r *Repository) GetUserPermissionRequests(ctx context.Context, tenantID, userId string) ([]models.PermissionRequest, error) {
 	var items []models.PermissionRequest
 	err := r.db.SelectContext(ctx, &items,
-		`SELECT * FROM permission_requests WHERE user_id=$1 ORDER BY created_at DESC`, userId)
+		`SELECT * FROM permission_requests WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at DESC`, tenantID, userId)
 	return items, err
 }
 
@@ -323,19 +430,24 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 		return true, "active temporary permission", nil
 	}
 
-	// Check role-based grant
+	// Check role-based grant using IN clause
 	if len(userRoles) > 0 {
-		for _, role := range userRoles {
-			var count int
-			err = r.db.GetContext(ctx, &count,
-				`SELECT COUNT(*) FROM capability_role_mappings WHERE capability_id=$1 AND role_name=$2`,
-				capabilityID, role)
-			if err != nil {
-				return false, "", err
-			}
-			if count > 0 {
-				return true, "role-based grant", nil
-			}
+		placeholders := make([]string, len(userRoles))
+		args := make([]interface{}, 2+len(userRoles))
+		args[0] = capabilityID
+		for i, role := range userRoles {
+			placeholders[i] = fmt.Sprintf("$%d", i+2)
+			args[i+2] = role
+		}
+		var count int
+		err = r.db.GetContext(ctx, &count,
+			`SELECT COUNT(*) FROM capability_role_mappings WHERE capability_id=$1 AND role_name IN (`+strings.Join(placeholders, ",")+`)`,
+			args...)
+		if err != nil {
+			return false, "", err
+		}
+		if count > 0 {
+			return true, "role-based grant", nil
 		}
 	}
 
@@ -357,31 +469,45 @@ func (r *Repository) CheckPermission(ctx context.Context, tenantID, capabilityID
 // --- Audit logs ---
 
 func (r *Repository) ListAuditLogs(ctx context.Context, tenantID string, q *models.AuditLogQuery) ([]map[string]interface{}, error) {
-	var sql string
+	var query string
 	var args []interface{}
 
 	if q.UserID != nil && q.CapabilityID != nil && q.Action != nil {
-		sql = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 AND action=$4 ORDER BY created_at DESC`
+		query = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 AND action=$4 ORDER BY created_at DESC`
 		args = []interface{}{tenantID, *q.UserID, *q.CapabilityID, *q.Action}
 	} else if q.UserID != nil && q.CapabilityID != nil {
-		sql = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 ORDER BY created_at DESC`
+		query = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 AND capability_id=$3 ORDER BY created_at DESC`
 		args = []interface{}{tenantID, *q.UserID, *q.CapabilityID}
 	} else if q.UserID != nil {
-		sql = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at DESC`
+		query = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND user_id=$2 ORDER BY created_at DESC`
 		args = []interface{}{tenantID, *q.UserID}
 	} else if q.CapabilityID != nil {
-		sql = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND capability_id=$2 ORDER BY created_at DESC`
+		query = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 AND capability_id=$2 ORDER BY created_at DESC`
 		args = []interface{}{tenantID, *q.CapabilityID}
 	} else {
-		sql = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC`
+		query = `SELECT * FROM permission_audit_logs WHERE tenant_id=$1 ORDER BY created_at DESC`
 		args = []interface{}{tenantID}
 	}
 
+	// Apply pagination if requested
+	limit := 50
+	offset := 0
+	if q.Limit != nil && *q.Limit > 0 {
+		limit = *q.Limit
+	}
+	if q.Offset != nil && *q.Offset > 0 {
+		offset = *q.Offset
+	}
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT %d OFFSET %d", limit, offset)
+	}
+
 	var rows []map[string]interface{}
-	err := r.db.SelectContext(ctx, &rows, sql, args...)
+	err := r.db.SelectContext(ctx, &rows, query, args...)
 	return rows, err
 }
 
+// GetCapabilityForPermissionRequest checks that a capability exists by capability_id.
 func (r *Repository) GetCapabilityForPermissionRequest(ctx context.Context, tenantID, capabilityID string) (*models.Capability, error) {
 	var m models.Capability
 	err := r.db.GetContext(ctx, &m,
@@ -392,6 +518,31 @@ func (r *Repository) GetCapabilityForPermissionRequest(ctx context.Context, tena
 	return &m, nil
 }
 
+// InsertAuditLog writes a single permission audit log entry.
+func (r *Repository) InsertAuditLog(ctx context.Context, tenantID, action, userID, targetType, targetID, details string) error {
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO permission_audit_logs (tenant_id, action, user_id, target_type, target_id, details, created_at)
+		VALUES (:tenant_id, :action, :user_id, :target_type, :target_id, :details, :created_at)`,
+		map[string]interface{}{
+			"tenant_id":   tenantID,
+			"action":      action,
+			"user_id":     userID,
+			"target_type": targetType,
+			"target_id":   targetID,
+			"details":     details,
+			"created_at":  time.Now().UTC(),
+		})
+	return err
+}
+
+// --- Sentinel errors ---
+
+// ErrPermissionNotFound indicates a temporary permission was not found.
+var ErrPermissionNotFound = errors.New("temporary permission not found")
+
+// --- Deprecated helper ---
+
+// NotYetImplemented returns a placeholder error for unimplemented repository methods.
 func NotYetImplemented(msg string) error {
 	return fmt.Errorf("%s", msg)
 }

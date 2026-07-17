@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/saga/models"
@@ -55,7 +56,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateTransaction(c *gin.Context) {
 	var req models.CreateSagaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -63,13 +64,13 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 	tx, err := h.coordinator.Start(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if err.Error() == service.ErrSagaRunning.Error() {
-			respondConflict(c, err.Error())
+			middleware.RespondConflict(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tx)
+	middleware.RespondCreated(c, tx)
 }
 
 // GetTransaction retrieves a saga transaction.
@@ -79,10 +80,10 @@ func (h *Handler) GetTransaction(c *gin.Context) {
 
 	tx, err := h.coordinator.GetTransaction(c.Request.Context(), tenantID, txID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, tx)
+	middleware.RespondSuccess(c, tx)
 }
 
 // ListTransactions lists saga transactions.
@@ -91,23 +92,23 @@ func (h *Handler) ListTransactions(c *gin.Context) {
 
 	var q models.ListSagasQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.coordinator.ListTransactions(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // CancelTransaction cancels a running saga.
 func (h *Handler) CancelTransaction(c *gin.Context) {
 	var req models.CancelSagaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
@@ -122,13 +123,13 @@ func (h *Handler) CancelTransaction(c *gin.Context) {
 	tx, err := h.coordinator.Cancel(c.Request.Context(), tenantID, txID, reason)
 	if err != nil {
 		if err.Error() == service.ErrInvalidStatus.Error() {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tx)
+	middleware.RespondSuccess(c, tx)
 }
 
 // CompensateTransaction manually triggers compensation.
@@ -143,10 +144,10 @@ func (h *Handler) CompensateTransaction(c *gin.Context) {
 
 	err := h.coordinator.StartCompensation(c.Request.Context(), tenantID, txID, req.Reason)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"status": "compensation_started"})
+	middleware.RespondSuccess(c, gin.H{"status": "compensation_started"})
 }
 
 // GetSteps retrieves all steps in a transaction.
@@ -156,17 +157,17 @@ func (h *Handler) GetSteps(c *gin.Context) {
 
 	var q models.GetStepsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	_ = q
 
 	steps, err := h.coordinator.GetSteps(c.Request.Context(), tenantID, txID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, steps)
+	middleware.RespondSuccess(c, steps)
 }
 
 // GetStep retrieves a single step.
@@ -176,10 +177,10 @@ func (h *Handler) GetStep(c *gin.Context) {
 
 	step, err := h.coordinator.GetStepByID(c.Request.Context(), tenantID, stepID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, step)
+	middleware.RespondSuccess(c, step)
 }
 
 // --- response helpers ---

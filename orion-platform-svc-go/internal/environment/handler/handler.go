@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/environment/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -36,15 +37,15 @@ func (h *Handler) Create(c *gin.Context) {
 	createdBy := c.GetString("user_id")
 	var req models.CreateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	env, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, env)
+	middleware.RespondCreated(c, env)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -52,20 +53,20 @@ func (h *Handler) List(c *gin.Context) {
 	projectID := c.Query("projectId")
 	envs, err := h.svc.List(c.Request.Context(), tenantID, projectID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, envs)
+	middleware.RespondSuccess(c, envs)
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	env, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -73,77 +74,77 @@ func (h *Handler) Update(c *gin.Context) {
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	env, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	env, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, c.Param("id"), req.Status)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) Lock(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	env, err := h.svc.Lock(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) Unlock(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	env, err := h.svc.Unlock(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, env)
+	middleware.RespondSuccess(c, env)
 }
 
 func (h *Handler) GetLockStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	locked, err := h.svc.GetLockStatus(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"locked": locked})
+	middleware.RespondSuccess(c, gin.H{"locked": locked})
 }
 
 func (h *Handler) CheckDeploymentAllowed(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	allowed, err := h.svc.CheckDeploymentAllowed(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"allowed": allowed})
+	middleware.RespondSuccess(c, gin.H{"allowed": allowed})
 }

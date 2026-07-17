@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/abac-policy/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -47,25 +48,25 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 
 	result, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result, "total": total})
+	middleware.RespondSuccess(c, gin.H{"data": result, "total": total})
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateABACPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetPolicy(c *gin.Context) {
@@ -73,10 +74,10 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "policy not found")
+		middleware.RespondNotFound(c, "policy not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
@@ -84,19 +85,19 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateABACPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if err == repository.ErrNotFound {
-			respondNotFound(c, "policy not found")
+			middleware.RespondNotFound(c, "policy not found")
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
@@ -104,12 +105,12 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "policy not found")
+		middleware.RespondNotFound(c, "policy not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "policy deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "policy deleted"})
 }

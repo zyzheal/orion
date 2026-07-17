@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-budget/models"
@@ -76,10 +77,10 @@ func (h *Handler) GetBudget(c *gin.Context) {
 
 	b, err := h.svc.GetBudget(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, b)
+	middleware.RespondSuccess(c, b)
 }
 
 // UpsertBudget creates or updates a budget configuration for a pipeline.
@@ -90,23 +91,23 @@ func (h *Handler) UpsertBudget(c *gin.Context) {
 
 	var req models.UpsertBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if len(req.Limits) == 0 {
-		respondBadRequest(c, "limits must not be empty")
+		middleware.RespondBadRequest(c, "limits must not be empty")
 		return
 	}
 
 	b, err := h.svc.UpsertBudget(c.Request.Context(), tenantID, pipelineID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	// Mirror the TS behaviour: create returns 201, update returns 200.
 	// We use 200 for both since the TS handler always sends status 200.
-	respondSuccess(c, b)
+	middleware.RespondSuccess(c, b)
 }
 
 // ===========================================================================
@@ -121,10 +122,10 @@ func (h *Handler) GetUsage(c *gin.Context) {
 
 	usage, err := h.svc.GetBudgetUsage(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, usage)
+	middleware.RespondSuccess(c, usage)
 }
 
 // ===========================================================================
@@ -139,10 +140,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 
 	alerts, err := h.svc.GetAlerts(c.Request.Context(), tenantID, pipelineID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": alerts, "total": len(alerts)})
+	middleware.RespondSuccess(c, gin.H{"data": alerts, "total": len(alerts)})
 }
 
 // CreateAlert creates a new alert rule.
@@ -153,16 +154,16 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, pipelineID, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondCreated(c, alert)
+	middleware.RespondCreated(c, alert)
 }
 
 // UpdateAlert patches an existing alert rule.
@@ -174,16 +175,16 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 
 	var req models.UpdateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	alert, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, pipelineID, alertID, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, alert)
+	middleware.RespondSuccess(c, alert)
 }
 
 // DeleteAlert removes an alert rule.
@@ -194,10 +195,10 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 	alertID := c.Param("alertId")
 
 	if err := h.svc.DeleteAlert(c.Request.Context(), tenantID, pipelineID, alertID); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondNoContent(c)
 }
 
 // ===========================================================================
@@ -220,8 +221,8 @@ func (h *Handler) ListHistory(c *gin.Context) {
 
 	page, err := h.svc.GetHistoryPage(c.Request.Context(), tenantID, pipelineID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondPaginated(c, page.Items, offset, limit, page.Total)
+	middleware.RespondPaginated(c, page.Items, offset, limit, page.Total)
 }

@@ -233,8 +233,8 @@ type SeverityCounts struct {
 }
 
 type RuleAlertCounts struct {
-	RuleName string `json:"rule_name"`
-	Active   int    `json:"active"`
+	RuleName string `json:"rule_name" db:"rule_name"`
+	Active   int    `json:"active" db:"active"`
 }
 
 // --- Anomaly ---

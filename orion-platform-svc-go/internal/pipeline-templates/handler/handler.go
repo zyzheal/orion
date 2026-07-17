@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-templates/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for Pipeline Templates.
@@ -114,10 +115,10 @@ func (h *Handler) Categories(c *gin.Context) {
 	ctx := context.Background()
 	cats, err := h.svc.GetCategories(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cats})
+	middleware.RespondSuccess(c, gin.H{"data": cats})
 }
 
 // Search returns a paginated search of templates.
@@ -127,7 +128,7 @@ func (h *Handler) Search(c *gin.Context) {
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Handle comma-separated tags from query string
@@ -137,10 +138,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 	items, total, err := h.svc.List(ctx, tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  items,
 		"total": total,
 	})
@@ -153,7 +154,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
@@ -162,10 +163,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, total, err := h.svc.List(ctx, tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  items,
 		"total": total,
 	})
@@ -182,16 +183,16 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	tmpl, err := h.svc.Create(ctx, tenantID, req, authorID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tmpl)
+	middleware.RespondCreated(c, tmpl)
 }
 
 // Get retrieves a template by ID.
@@ -200,10 +201,10 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx := context.Background()
 	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // Update updates a template.
@@ -213,16 +214,16 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	tmpl, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // Delete removes a template.
@@ -231,13 +232,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx := context.Background()
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		if err == sql.ErrNoRows {
-			respondNotFound(c, "template not found")
+			middleware.RespondNotFound(c, "template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondNoContent(c)
 }
 
 // Publish publishes a template.
@@ -246,10 +247,10 @@ func (h *Handler) Publish(c *gin.Context) {
 	ctx := context.Background()
 	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // Deprecate deprecates a template.
@@ -258,10 +259,10 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	ctx := context.Background()
 	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // Versions returns paginated versions for a template.
@@ -271,7 +272,7 @@ func (h *Handler) Versions(c *gin.Context) {
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if q.Limit <= 0 || q.Limit > 100 {
@@ -280,10 +281,10 @@ func (h *Handler) Versions(c *gin.Context) {
 
 	versions, total, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"), &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  versions,
 		"total": total,
 	})
@@ -296,16 +297,16 @@ func (h *Handler) Instantiate(c *gin.Context) {
 
 	var req models.InstantiateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.Instantiate(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 // Star stars a template.
@@ -314,10 +315,10 @@ func (h *Handler) Star(c *gin.Context) {
 	ctx := context.Background()
 	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // Unstar removes a star from a template.
@@ -326,10 +327,10 @@ func (h *Handler) Unstar(c *gin.Context) {
 	ctx := context.Background()
 	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "template not found")
+		middleware.RespondNotFound(c, "template not found")
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 // unused import fix

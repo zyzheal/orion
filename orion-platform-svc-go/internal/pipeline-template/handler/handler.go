@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-template/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // HandlerService is the contract the handler needs from the service layer.
@@ -64,10 +65,10 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	templates, total, err := h.svc.ListTemplates(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     templates,
 		Total:    total,
 		Page:     1,
@@ -81,48 +82,48 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 	t, err := h.svc.GetTemplate(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline template not found")
+			middleware.RespondNotFound(c, "pipeline template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	t, err := h.svc.CreateTemplate(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) UpdateTemplate(c *gin.Context) {
 	id := c.Param("templateId")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	t, err := h.svc.UpdateTemplate(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline template not found")
+			middleware.RespondNotFound(c, "pipeline template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) DeleteTemplate(c *gin.Context) {
@@ -130,32 +131,32 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteTemplate(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "pipeline template not found")
+		middleware.RespondNotFound(c, "pipeline template not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "pipeline template deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "pipeline template deleted"})
 }
 
 func (h *Handler) InstantiateTemplate(c *gin.Context) {
 	id := c.Param("templateId")
 	var req models.InstantiateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	inst, err := h.svc.InstantiateTemplate(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline template not found")
+			middleware.RespondNotFound(c, "pipeline template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, inst)
+	middleware.RespondCreated(c, inst)
 }

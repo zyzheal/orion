@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/canary-analysis/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -45,25 +46,25 @@ func (h *Handler) List(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entities, err := h.svc.List(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
+	middleware.RespondSuccess(c, models.PaginatedResponse{Data: entities, Total: len(entities), Page: 1, PageSize: len(entities)})
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entity)
+	middleware.RespondCreated(c, entity)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -71,26 +72,26 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, entity)
+	middleware.RespondSuccess(c, entity)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -98,59 +99,59 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "not found")
+		middleware.RespondNotFound(c, "not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 func (h *Handler) ForcePromote(c *gin.Context) {
 	var req models.ForcePromoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.ForcePromote(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ForceRollback(c *gin.Context) {
 	var req models.ForceRollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.ForceRollback(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) RetrainModel(c *gin.Context) {
 	var req models.RetrainRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.RetrainModel(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DiscoverMetrics(c *gin.Context) {
@@ -158,10 +159,10 @@ func (h *Handler) DiscoverMetrics(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.DiscoverMetrics(c.Request.Context(), tenantID, query)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetRunMetrics(c *gin.Context) {
@@ -169,10 +170,10 @@ func (h *Handler) GetRunMetrics(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetRunMetrics(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetMLResults(c *gin.Context) {
@@ -180,8 +181,8 @@ func (h *Handler) GetMLResults(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.GetMLResults(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

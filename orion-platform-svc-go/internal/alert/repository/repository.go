@@ -39,6 +39,11 @@ func (r *Repository) GetAlertByID(ctx context.Context, tenantID, id string) (*mo
 	return &a, nil
 }
 
+func (r *Repository) DeleteAlert(ctx context.Context, tenantID, id string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM alerts WHERE id=$1 AND tenant_id=$2`, id, tenantID)
+	return err
+}
+
 func (r *Repository) UpdateAlert(ctx context.Context, a *models.Alert) error {
 	a.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,

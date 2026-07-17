@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/change-request/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -77,10 +78,10 @@ func (h *Handler) ListRequests(c *gin.Context) {
 
 	reqs, total, err := h.svc.ListRequests(c.Request.Context(), tenantID, filters)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     reqs,
 		Total:    total,
 		Page:     1,
@@ -94,27 +95,27 @@ func (h *Handler) GetRequest(c *gin.Context) {
 	req, err := h.svc.GetRequest(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, req)
+	middleware.RespondSuccess(c, req)
 }
 
 func (h *Handler) CreateRequest(c *gin.Context) {
 	var req models.CreateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Title == "" {
-		respondBadRequest(c, "title is required")
+		middleware.RespondBadRequest(c, "title is required")
 		return
 	}
 	if req.ChangeType == "" {
-		respondBadRequest(c, "changeType is required")
+		middleware.RespondBadRequest(c, "changeType is required")
 		return
 	}
 	validTypes := []string{"standard", "normal", "emergency"}
@@ -126,36 +127,36 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		}
 	}
 	if !valid {
-		respondBadRequest(c, "changeType must be one of: standard, normal, emergency")
+		middleware.RespondBadRequest(c, "changeType must be one of: standard, normal, emergency")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	cr, err := h.svc.CreateRequest(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, cr)
+	middleware.RespondCreated(c, cr)
 }
 
 func (h *Handler) UpdateRequest(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	cr, err := h.svc.UpdateRequest(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) DeleteRequest(c *gin.Context) {
@@ -164,21 +165,21 @@ func (h *Handler) DeleteRequest(c *gin.Context) {
 	deleted, err := h.svc.DeleteRequest(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "change request not found")
+		middleware.RespondNotFound(c, "change request not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "change request deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "change request deleted"})
 }
 
 // --- Approval handlers ---
@@ -189,17 +190,17 @@ func (h *Handler) SubmitForApproval(c *gin.Context) {
 	cr, err := h.svc.SubmitForApproval(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) GetApprovalChain(c *gin.Context) {
@@ -208,13 +209,13 @@ func (h *Handler) GetApprovalChain(c *gin.Context) {
 	approvals, err := h.svc.GetApprovalChain(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, approvals)
+	middleware.RespondSuccess(c, approvals)
 }
 
 func (h *Handler) ApproveRequest(c *gin.Context) {
@@ -222,28 +223,28 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	approvalID := c.Param("approvalId")
 	var req models.CreateApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.ApproverID == "" {
-		respondBadRequest(c, "approverId is required")
+		middleware.RespondBadRequest(c, "approverId is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	approval, err := h.svc.ApproveRequest(c.Request.Context(), requestID, approvalID, tenantID, req.ApproverID, req.Comments)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "approval not found")
+			middleware.RespondNotFound(c, "approval not found")
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, approval)
+	middleware.RespondSuccess(c, approval)
 }
 
 func (h *Handler) RejectRequest(c *gin.Context) {
@@ -251,28 +252,28 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	approvalID := c.Param("approvalId")
 	var req models.CreateApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.ApproverID == "" {
-		respondBadRequest(c, "approverId is required")
+		middleware.RespondBadRequest(c, "approverId is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	approval, err := h.svc.RejectRequest(c.Request.Context(), requestID, approvalID, tenantID, req.ApproverID, req.Comments)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "approval not found")
+			middleware.RespondNotFound(c, "approval not found")
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, approval)
+	middleware.RespondSuccess(c, approval)
 }
 
 // --- Execution handlers ---
@@ -281,16 +282,16 @@ func (h *Handler) StartExecution(c *gin.Context) {
 	id := c.Param("id")
 	var req models.StartExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if len(req.Steps) == 0 {
-		respondBadRequest(c, "steps array is required and must not be empty")
+		middleware.RespondBadRequest(c, "steps array is required and must not be empty")
 		return
 	}
 	for _, step := range req.Steps {
 		if step.StepName == "" || step.StepOrder == 0 {
-			respondBadRequest(c, "each step must have stepName and stepOrder")
+			middleware.RespondBadRequest(c, "each step must have stepName and stepOrder")
 			return
 		}
 	}
@@ -298,17 +299,17 @@ func (h *Handler) StartExecution(c *gin.Context) {
 	steps, err := h.svc.StartExecution(c.Request.Context(), id, tenantID, req.Steps)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, steps)
+	middleware.RespondCreated(c, steps)
 }
 
 func (h *Handler) GetExecutionProgress(c *gin.Context) {
@@ -317,37 +318,37 @@ func (h *Handler) GetExecutionProgress(c *gin.Context) {
 	progress, err := h.svc.GetExecutionProgress(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "change request not found")
+			middleware.RespondNotFound(c, "change request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, progress)
+	middleware.RespondSuccess(c, progress)
 }
 
 func (h *Handler) UpdateExecutionStep(c *gin.Context) {
 	stepID := c.Param("stepId")
 	var req models.UpdateExecutionStepRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Status == "" {
-		respondBadRequest(c, "status is required")
+		middleware.RespondBadRequest(c, "status is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
 	step, err := h.svc.UpdateExecutionStep(c.Request.Context(), stepID, tenantID, req.Status, req.Result, req.StartedAt, req.CompletedAt)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "execution step not found")
+			middleware.RespondNotFound(c, "execution step not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, step)
+	middleware.RespondSuccess(c, step)
 }
 
 // ptrString returns a pointer to the given string, or nil if empty.

@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/secret/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP handlers for secret management endpoints.
@@ -56,17 +57,17 @@ func (h *Handler) getUserID(c *gin.Context) string {
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	secret, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, secret)
+	middleware.RespondCreated(c, secret)
 }
 
 // List handles GET /secrets
@@ -78,26 +79,26 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	secrets, err := h.svc.List(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": secrets})
+	middleware.RespondSuccess(c, gin.H{"data": secrets})
 }
 
 // Resolve handles POST /secrets/resolve
 func (h *Handler) Resolve(c *gin.Context) {
 	var req models.ResolveSecretsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.Resolve(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // Get handles GET /secrets/:id
@@ -106,13 +107,13 @@ func (h *Handler) Get(c *gin.Context) {
 	secret, err := h.svc.Get(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "secret not found")
+			middleware.RespondNotFound(c, "secret not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": secret})
+	middleware.RespondSuccess(c, gin.H{"data": secret})
 }
 
 // Update handles PUT /secrets/:id
@@ -120,20 +121,20 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	secret, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "secret not found")
+			middleware.RespondNotFound(c, "secret not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": secret})
+	middleware.RespondSuccess(c, gin.H{"data": secret})
 }
 
 // Delete handles DELETE /secrets/:id
@@ -141,13 +142,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "secret not found")
+			middleware.RespondNotFound(c, "secret not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "secret deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "secret deleted"})
 }
 
 // GetReferences handles GET /secrets/:id/references
@@ -156,14 +157,14 @@ func (h *Handler) GetReferences(c *gin.Context) {
 	sec, err := h.svc.GetReferences(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "secret not found")
+			middleware.RespondNotFound(c, "secret not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	refPattern := "${secrets." + sec.Name + "}"
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": gin.H{
 			"secretName":       sec.Name,
 			"referencePattern": refPattern,

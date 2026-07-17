@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/deploy/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -76,15 +77,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDeploymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 // Get handles GET /:id.
@@ -93,10 +94,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "deployment not found")
+		middleware.RespondNotFound(c, "deployment not found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // List handles GET /history.
@@ -106,10 +107,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // GetLatest handles GET /latest/:appName/:environment.
@@ -119,10 +120,10 @@ func (h *Handler) GetLatest(c *gin.Context) {
 	environment := c.Param("environment")
 	m, err := h.svc.GetLatest(c.Request.Context(), tenantID, appName, environment)
 	if err != nil {
-		respondNotFound(c, "no deployment found")
+		middleware.RespondNotFound(c, "no deployment found")
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // GetMetrics handles GET /metrics.
@@ -130,10 +131,10 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.Metrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 // Rollback handles POST /:id/rollback.
@@ -142,15 +143,15 @@ func (h *Handler) Rollback(c *gin.Context) {
 	id := c.Param("id")
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rb, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.TargetVersion, req.Reason)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, rb)
+	middleware.RespondCreated(c, rb)
 }
 
 // GetRollbackHistory handles GET /:id/rollbacks.
@@ -159,10 +160,10 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 	deploymentID := c.Param("id")
 	items, err := h.svc.GetRollbackHistory(c.Request.Context(), tenantID, deploymentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // Cancel handles POST /:id/cancel.
@@ -170,10 +171,10 @@ func (h *Handler) Cancel(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Cancel(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deployment cancelled"})
+	middleware.RespondSuccess(c, gin.H{"message": "deployment cancelled"})
 }
 
 // GetAuditTrail handles GET /:id/audit.
@@ -181,10 +182,10 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 	deploymentID := c.Param("id")
 	entries, err := h.svc.GetAuditTrail(c.Request.Context(), deploymentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, entries)
+	middleware.RespondSuccess(c, entries)
 }
 
 // GetReleaseNotes handles GET /:id/release-notes.
@@ -192,10 +193,10 @@ func (h *Handler) GetReleaseNotes(c *gin.Context) {
 	deploymentID := c.Param("id")
 	note, err := h.svc.GetReleaseNotes(c.Request.Context(), deploymentID)
 	if err != nil {
-		respondNotFound(c, "release notes not found")
+		middleware.RespondNotFound(c, "release notes not found")
 		return
 	}
-	respondSuccess(c, note)
+	middleware.RespondSuccess(c, note)
 }
 
 // GenerateReleaseNotes handles POST /:id/release-notes/generate.
@@ -206,10 +207,10 @@ func (h *Handler) GenerateReleaseNotes(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	note, err := h.svc.GenerateReleaseNotes(c.Request.Context(), tenantID, deploymentID, req.Description)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, note)
+	middleware.RespondCreated(c, note)
 }
 
 // GetReleaseNotesByTenant handles GET /release-notes/tenant/:tenantId.
@@ -220,10 +221,10 @@ func (h *Handler) GetReleaseNotesByTenant(c *gin.Context) {
 	}
 	notes, err := h.svc.GetReleaseNotesByTenant(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, notes)
+	middleware.RespondSuccess(c, notes)
 }
 
 // LinkGitCommit handles POST /:id/git/link.
@@ -231,14 +232,14 @@ func (h *Handler) LinkGitCommit(c *gin.Context) {
 	deploymentID := c.Param("id")
 	var req models.LinkGitCommitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.LinkGitCommit(c.Request.Context(), deploymentID, req.CommitSHA, req.Branch); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "git commit linked"})
+	middleware.RespondCreated(c, gin.H{"message": "git commit linked"})
 }
 
 // GetChangelog handles GET /:id/git/changelog.
@@ -246,8 +247,8 @@ func (h *Handler) GetChangelog(c *gin.Context) {
 	deploymentID := c.Param("id")
 	entries, err := h.svc.GetDeploymentChangelog(c.Request.Context(), deploymentID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, entries)
+	middleware.RespondSuccess(c, entries)
 }

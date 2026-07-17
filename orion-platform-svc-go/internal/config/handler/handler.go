@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/config/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -99,15 +100,15 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.Create(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, cfg)
+	middleware.RespondCreated(c, cfg)
 }
 
 func (h *Handler) ListConfigs(c *gin.Context) {
@@ -121,10 +122,10 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 	}
 	result, err := h.svc.List(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result.Data, "total": result.Total})
+	middleware.RespondSuccess(c, gin.H{"data": result.Data, "total": result.Total})
 }
 
 func (h *Handler) GetConfig(c *gin.Context) {
@@ -132,10 +133,10 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	id := c.Param("configId")
 	cfg, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, cfg)
+	middleware.RespondSuccess(c, cfg)
 }
 
 func (h *Handler) UpdateConfig(c *gin.Context) {
@@ -143,25 +144,25 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 	id := c.Param("configId")
 	var req models.UpdateConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, cfg)
+	middleware.RespondSuccess(c, cfg)
 }
 
 func (h *Handler) DeleteConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("configId")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "config deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "config deleted"})
 }
 
 // ---------- Config Versions ----------
@@ -171,10 +172,10 @@ func (h *Handler) GetConfigVersions(c *gin.Context) {
 	id := c.Param("configId")
 	versions, err := h.svc.GetVersions(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": versions, "total": len(versions)})
+	middleware.RespondSuccess(c, gin.H{"data": versions, "total": len(versions)})
 }
 
 func (h *Handler) RollbackConfig(c *gin.Context) {
@@ -183,15 +184,15 @@ func (h *Handler) RollbackConfig(c *gin.Context) {
 	id := c.Param("configId")
 	var req models.RollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.Version, userID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cfg, "message": "rollback complete"})
+	middleware.RespondSuccess(c, gin.H{"data": cfg, "message": "rollback complete"})
 }
 
 func (h *Handler) CloneConfig(c *gin.Context) {
@@ -200,15 +201,15 @@ func (h *Handler) CloneConfig(c *gin.Context) {
 	id := c.Param("configId")
 	var req models.CloneConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cfg, err := h.svc.Clone(c.Request.Context(), tenantID, id, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, cfg)
+	middleware.RespondCreated(c, cfg)
 }
 
 // ---------- Audit ----------
@@ -218,10 +219,10 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 	id := c.Param("configId")
 	entries, err := h.svc.GetAuditTrail(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": entries, "total": len(entries)})
+	middleware.RespondSuccess(c, gin.H{"data": entries, "total": len(entries)})
 }
 
 func (h *Handler) GetDependencyGraph(c *gin.Context) {
@@ -229,10 +230,10 @@ func (h *Handler) GetDependencyGraph(c *gin.Context) {
 	id := c.Param("configId")
 	nodes, err := h.svc.GetDependencyGraph(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": nodes})
+	middleware.RespondSuccess(c, gin.H{"data": nodes})
 }
 
 // ---------- Snapshots ----------
@@ -243,10 +244,10 @@ func (h *Handler) CreateSnapshot(c *gin.Context) {
 	id := c.Param("configId")
 	snap, err := h.svc.CreateSnapshot(c.Request.Context(), tenantID, id, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, snap)
+	middleware.RespondCreated(c, snap)
 }
 
 func (h *Handler) ListSnapshots(c *gin.Context) {
@@ -254,10 +255,10 @@ func (h *Handler) ListSnapshots(c *gin.Context) {
 	id := c.Param("configId")
 	snaps, err := h.svc.ListSnapshots(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": snaps, "total": len(snaps)})
+	middleware.RespondSuccess(c, gin.H{"data": snaps, "total": len(snaps)})
 }
 
 func (h *Handler) GetSnapshot(c *gin.Context) {
@@ -266,10 +267,10 @@ func (h *Handler) GetSnapshot(c *gin.Context) {
 	snapshotID := c.Param("snapshotId")
 	snap, err := h.svc.GetSnapshot(c.Request.Context(), tenantID, id, snapshotID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, snap)
+	middleware.RespondSuccess(c, snap)
 }
 
 func (h *Handler) RestoreSnapshot(c *gin.Context) {
@@ -279,20 +280,20 @@ func (h *Handler) RestoreSnapshot(c *gin.Context) {
 	snapshotID := c.Param("snapshotId")
 	cfg, err := h.svc.RestoreSnapshot(c.Request.Context(), tenantID, id, snapshotID, userID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cfg, "message": "snapshot restored"})
+	middleware.RespondSuccess(c, gin.H{"data": cfg, "message": "snapshot restored"})
 }
 
 func (h *Handler) DeleteSnapshot(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	snapshotID := c.Param("snapshotId")
 	if err := h.svc.DeleteSnapshot(c.Request.Context(), tenantID, snapshotID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "snapshot deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "snapshot deleted"})
 }
 
 // ---------- Version Diff ----------
@@ -304,10 +305,10 @@ func (h *Handler) CompareVersions(c *gin.Context) {
 	versionTo := c.Query("versionTo")
 	result, err := h.svc.CompareVersions(c.Request.Context(), tenantID, id, versionFrom, versionTo)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---------- GitOps ----------
@@ -316,25 +317,25 @@ func (h *Handler) EnableGitOps(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateGitOpsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	gitOps, err := h.svc.EnableGitOps(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gitOps)
+	middleware.RespondCreated(c, gitOps)
 }
 
 func (h *Handler) ListGitOpsConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListGitOpsConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) SyncFromGit(c *gin.Context) {
@@ -342,10 +343,10 @@ func (h *Handler) SyncFromGit(c *gin.Context) {
 	id := c.Param("gitOpsConfigId")
 	sync, err := h.svc.SyncFromGit(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": sync, "message": "sync triggered"})
+	middleware.RespondSuccess(c, gin.H{"data": sync, "message": "sync triggered"})
 }
 
 func (h *Handler) DisableGitOps(c *gin.Context) {
@@ -353,30 +354,30 @@ func (h *Handler) DisableGitOps(c *gin.Context) {
 	id := c.Param("gitOpsConfigId")
 	cfg, err := h.svc.DisableGitOps(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cfg, "message": "gitops disabled"})
+	middleware.RespondSuccess(c, gin.H{"data": cfg, "message": "gitops disabled"})
 }
 
 func (h *Handler) DetectDrift(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.DetectDrift(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetSyncStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	status, err := h.svc.GetSyncStatus(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": status, "total": len(status)})
+	middleware.RespondSuccess(c, gin.H{"data": status, "total": len(status)})
 }
 
 // ---------- Change Requests ----------
@@ -386,15 +387,15 @@ func (h *Handler) CreateChangeRequest(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	cr, err := h.svc.CreateChangeRequest(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, cr)
+	middleware.RespondCreated(c, cr)
 }
 
 func (h *Handler) ListChangeRequests(c *gin.Context) {
@@ -404,10 +405,10 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 	pageSize := toInt(c.DefaultQuery("pageSize", "20"))
 	result, err := h.svc.ListChangeRequests(c.Request.Context(), tenantID, status, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result.Data, "total": result.Total})
+	middleware.RespondSuccess(c, gin.H{"data": result.Data, "total": result.Total})
 }
 
 func (h *Handler) GetChangeRequest(c *gin.Context) {
@@ -415,10 +416,10 @@ func (h *Handler) GetChangeRequest(c *gin.Context) {
 	id := c.Param("changeRequestId")
 	cr, err := h.svc.GetChangeRequest(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, cr)
+	middleware.RespondSuccess(c, cr)
 }
 
 func (h *Handler) ApproveChange(c *gin.Context) {
@@ -427,10 +428,10 @@ func (h *Handler) ApproveChange(c *gin.Context) {
 	id := c.Param("changeRequestId")
 	cr, err := h.svc.ApproveChange(c.Request.Context(), tenantID, id, userID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cr, "message": "change approved"})
+	middleware.RespondSuccess(c, gin.H{"data": cr, "message": "change approved"})
 }
 
 func (h *Handler) RejectChange(c *gin.Context) {
@@ -441,10 +442,10 @@ func (h *Handler) RejectChange(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	cr, err := h.svc.RejectChange(c.Request.Context(), tenantID, id, userID, req.Reason)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": cr, "message": "change rejected"})
+	middleware.RespondSuccess(c, gin.H{"data": cr, "message": "change rejected"})
 }
 
 // ---------- Templates ----------
@@ -454,25 +455,25 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tmpl, err := h.svc.CreateTemplate(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tmpl)
+	middleware.RespondCreated(c, tmpl)
 }
 
 func (h *Handler) ListTemplates(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	tmpls, err := h.svc.ListTemplates(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tmpls)
+	middleware.RespondSuccess(c, tmpls)
 }
 
 func (h *Handler) GetTemplate(c *gin.Context) {
@@ -480,10 +481,10 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 	id := c.Param("id")
 	tmpl, err := h.svc.GetTemplate(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 func (h *Handler) UpdateTemplate(c *gin.Context) {
@@ -491,25 +492,25 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tmpl, err := h.svc.UpdateTemplate(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, tmpl)
+	middleware.RespondSuccess(c, tmpl)
 }
 
 func (h *Handler) DeleteTemplate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteTemplate(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "template deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "template deleted"})
 }
 
 func (h *Handler) CreateTemplateVersion(c *gin.Context) {
@@ -520,15 +521,15 @@ func (h *Handler) CreateTemplateVersion(c *gin.Context) {
 		Version string `json:"version" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ver, err := h.svc.CreateTemplateVersion(c.Request.Context(), tenantID, id, userID, req.Version)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, ver)
+	middleware.RespondCreated(c, ver)
 }
 
 func (h *Handler) ListTemplateVersions(c *gin.Context) {
@@ -536,10 +537,10 @@ func (h *Handler) ListTemplateVersions(c *gin.Context) {
 	id := c.Param("id")
 	versions, err := h.svc.ListTemplateVersions(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": versions, "total": len(versions)})
+	middleware.RespondSuccess(c, gin.H{"data": versions, "total": len(versions)})
 }
 
 // ---------- Canary ----------
@@ -549,15 +550,15 @@ func (h *Handler) CreateCanary(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateCanaryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	canary, err := h.svc.CreateCanary(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, canary)
+	middleware.RespondCreated(c, canary)
 }
 
 func (h *Handler) PromoteCanary(c *gin.Context) {
@@ -565,10 +566,10 @@ func (h *Handler) PromoteCanary(c *gin.Context) {
 	id := c.Param("id")
 	canary, err := h.svc.PromoteCanary(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": canary, "message": "canary promoted"})
+	middleware.RespondSuccess(c, gin.H{"data": canary, "message": "canary promoted"})
 }
 
 func (h *Handler) RollbackCanary(c *gin.Context) {
@@ -576,10 +577,10 @@ func (h *Handler) RollbackCanary(c *gin.Context) {
 	id := c.Param("id")
 	canary, err := h.svc.RollbackCanary(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": canary, "message": "canary rolled back"})
+	middleware.RespondSuccess(c, gin.H{"data": canary, "message": "canary rolled back"})
 }
 
 // ---------- Diff ----------
@@ -590,10 +591,10 @@ func (h *Handler) CompareEnvironments(c *gin.Context) {
 	targetEnv := c.Param("targetEnv")
 	result, err := h.svc.CompareEnvironments(c.Request.Context(), tenantID, sourceEnv, targetEnv)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---------- Webhooks ----------
@@ -603,25 +604,25 @@ func (h *Handler) CreateWebhook(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	webhook, err := h.svc.CreateWebhook(c.Request.Context(), tenantID, userID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, webhook)
+	middleware.RespondCreated(c, webhook)
 }
 
 func (h *Handler) ListWebhooks(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListWebhooks(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetWebhook(c *gin.Context) {
@@ -629,10 +630,10 @@ func (h *Handler) GetWebhook(c *gin.Context) {
 	id := c.Param("id")
 	w, err := h.svc.GetWebhook(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 func (h *Handler) UpdateWebhook(c *gin.Context) {
@@ -640,25 +641,25 @@ func (h *Handler) UpdateWebhook(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.UpdateWebhook(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 func (h *Handler) DeleteWebhook(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteWebhook(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "webhook deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "webhook deleted"})
 }
 
 // ---------- Helpers ----------

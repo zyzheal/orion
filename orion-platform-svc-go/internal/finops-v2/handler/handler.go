@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/finops-v2/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -86,45 +87,45 @@ func (h *Handler) TrackProjectCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.TrackProjectCost(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entry)
+	middleware.RespondCreated(c, entry)
 }
 
 func (h *Handler) TrackTenantCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.TrackTenantCost(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entry)
+	middleware.RespondCreated(c, entry)
 }
 
 func (h *Handler) TrackTeamCost(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.TrackTeamCost(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, entry)
+	middleware.RespondCreated(c, entry)
 }
 
 func (h *Handler) GetCostByEntity(c *gin.Context) {
@@ -133,10 +134,10 @@ func (h *Handler) GetCostByEntity(c *gin.Context) {
 	entityID := c.Param("entityId")
 	items, err := h.svc.GetCostByEntity(c.Request.Context(), tenantID, entityType, entityID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetEntityCostTrend(c *gin.Context) {
@@ -146,10 +147,10 @@ func (h *Handler) GetEntityCostTrend(c *gin.Context) {
 	period := c.DefaultQuery("period", "monthly")
 	trend, err := h.svc.GetEntityCostTrend(c.Request.Context(), tenantID, entityType, entityID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trend)
+	middleware.RespondSuccess(c, trend)
 }
 
 // --- Cost overview & breakdown ---
@@ -159,10 +160,10 @@ func (h *Handler) GetCostOverview(c *gin.Context) {
 	period := c.DefaultQuery("period", "monthly")
 	summary, err := h.svc.GetCostSummary(c.Request.Context(), tenantID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"summary": summary})
+	middleware.RespondSuccess(c, gin.H{"summary": summary})
 }
 
 func (h *Handler) GetCostBreakdown(c *gin.Context) {
@@ -170,20 +171,20 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 	dimension := c.DefaultQuery("dimension", "category")
 	resp, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, dimension)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"breakdown": resp})
+	middleware.RespondSuccess(c, gin.H{"breakdown": resp})
 }
 
 func (h *Handler) GetChargeback(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	reports, err := h.svc.GetChargebackReport(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, reports)
+	middleware.RespondSuccess(c, reports)
 }
 
 // --- Budget CRUD ---
@@ -194,25 +195,25 @@ func (h *Handler) ListBudgets(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListBudgets(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) CreateBudget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	budget, err := h.svc.CreateBudget(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, budget)
+	middleware.RespondCreated(c, budget)
 }
 
 func (h *Handler) GetBudget(c *gin.Context) {
@@ -220,10 +221,10 @@ func (h *Handler) GetBudget(c *gin.Context) {
 	id := c.Param("id")
 	budget, err := h.svc.GetBudget(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "budget not found")
+		middleware.RespondNotFound(c, "budget not found")
 		return
 	}
-	respondSuccess(c, gin.H{"budget": budget})
+	middleware.RespondSuccess(c, gin.H{"budget": budget})
 }
 
 func (h *Handler) UpdateBudget(c *gin.Context) {
@@ -231,31 +232,31 @@ func (h *Handler) UpdateBudget(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	budget, err := h.svc.UpdateBudget(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, budget)
+	middleware.RespondSuccess(c, budget)
 }
 
 func (h *Handler) DeleteBudget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteBudget(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "budget deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "budget deleted"})
 }
 
 func (h *Handler) GetBudgetStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	_, err := h.svc.GetBudgetStatus(c.Request.Context(), tenantID, c.Param("id"))
-	respondInternalError(c, "GetBudgetStatus not fully implemented")
+	middleware.RespondInternalError(c, "GetBudgetStatus not fully implemented")
 	_ = err
 	return
 }
@@ -264,10 +265,10 @@ func (h *Handler) ForecastBudget(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	fc, err := h.svc.ForecastBudget(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, fc)
+	middleware.RespondSuccess(c, fc)
 }
 
 // --- Budget alerts ---
@@ -278,19 +279,19 @@ func (h *Handler) CheckBudgetAlerts(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	alerts, err := h.svc.CheckBudgetAlerts(c.Request.Context(), tenantID, body.EntityID, body.EntityType)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, alerts)
+	middleware.RespondSuccess(c, alerts)
 }
 
 func (h *Handler) GetAlertTriggers(c *gin.Context) {
 	triggers, err := h.svc.GetAlertTriggers(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, triggers)
+	middleware.RespondSuccess(c, triggers)
 }
 
 // --- Cost forecasts ---
@@ -302,10 +303,10 @@ func (h *Handler) GetCostForecasts(c *gin.Context) {
 	period := c.DefaultQuery("period", "monthly")
 	fc, err := h.svc.GetCostForecast(c.Request.Context(), tenantID, entityType, entityID, period)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"forecasts": []models.CostForecast{*fc}, "count": 1})
+	middleware.RespondSuccess(c, gin.H{"forecasts": []models.CostForecast{*fc}, "count": 1})
 }
 
 // --- Recommendations ---
@@ -314,10 +315,10 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListRecommendations(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) UpdateRecommendation(c *gin.Context) {
@@ -325,54 +326,54 @@ func (h *Handler) UpdateRecommendation(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateRecommendationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpdateRecommendationStatus(c.Request.Context(), tenantID, id, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "recommendation status updated"})
+	middleware.RespondSuccess(c, gin.H{"message": "recommendation status updated"})
 }
 
 func (h *Handler) DeleteRecommendation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteRecommendation(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "recommendation deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "recommendation deleted"})
 }
 
 func (h *Handler) GetRightSizing(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetRightSizingRecommendations(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetUnusedResources(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.DetectUnusedResources(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetSavingsEstimate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	savings, err := h.svc.EstimateSavings(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, savings)
+	middleware.RespondSuccess(c, savings)
 }
 
 // --- Reports ---
@@ -381,10 +382,10 @@ func (h *Handler) GetReports(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	reports, err := h.svc.GetReportHistory(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"reports": reports})
+	middleware.RespondSuccess(c, gin.H{"reports": reports})
 }
 
 // --- ROI ---
@@ -393,20 +394,20 @@ func (h *Handler) GetROIHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetROIHistory(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetROISummary(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	summary, err := h.svc.GetROISummary(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, summary)
+	middleware.RespondSuccess(c, summary)
 }
 
 // --- Metrics ---
@@ -415,10 +416,10 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	metrics, err := h.svc.GetMetrics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, metrics)
+	middleware.RespondSuccess(c, metrics)
 }
 
 // --- Health check ---
@@ -426,10 +427,10 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 func (h *Handler) HealthCheck(c *gin.Context) {
 	_, err := h.svc.HealthCheck(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"status": "ok"})
+	middleware.RespondSuccess(c, gin.H{"status": "ok"})
 }
 
 // --- Cost collection ---
@@ -443,7 +444,7 @@ func (h *Handler) CollectCost(c *gin.Context) {
 		days = 30
 	}
 	// Record collection metadata as a cost entry placeholder
-	respondSuccess(c, models.CollectCostResponse{
+	middleware.RespondSuccess(c, models.CollectCostResponse{
 		Provider:    req.Provider,
 		Collected:   0,
 		TotalCost:   0,
@@ -455,35 +456,35 @@ func (h *Handler) CollectCost(c *gin.Context) {
 func (h *Handler) GetProviders(c *gin.Context) {
 	providers, err := h.svc.GetRegisteredProviders(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"providers": providers})
+	middleware.RespondSuccess(c, gin.H{"providers": providers})
 }
 
 func (h *Handler) SetSchedule(c *gin.Context) {
 	var req models.ScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Provider == "" || req.CronExpression == "" {
-		respondBadRequest(c, "provider and cronExpression are required")
+		middleware.RespondBadRequest(c, "provider and cronExpression are required")
 		return
 	}
 	if err := h.svc.SetSchedule(c.Request.Context(), req.Provider, req.CronExpression, req.Enabled); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "collection schedule updated for " + req.Provider})
+	middleware.RespondSuccess(c, gin.H{"message": "collection schedule updated for " + req.Provider})
 }
 
 func (h *Handler) GetSchedule(c *gin.Context) {
 	provider := c.Param("provider")
 	schedule, err := h.svc.GetSchedule(c.Request.Context(), provider)
 	if err != nil {
-		respondNotFound(c, "schedule not found for provider: "+provider)
+		middleware.RespondNotFound(c, "schedule not found for provider: "+provider)
 		return
 	}
-	respondSuccess(c, schedule)
+	middleware.RespondSuccess(c, schedule)
 }

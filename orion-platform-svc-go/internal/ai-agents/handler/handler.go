@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/ai-agents/models"
@@ -102,12 +103,12 @@ func (h *Handler) List(c *gin.Context) {
 
 	agents, err := h.svc.ListAgents(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	total, err := h.svc.CountAgents(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -116,13 +117,13 @@ func (h *Handler) List(c *gin.Context) {
 	for i := range agents {
 		info, err := h.svc.AgentToInfo(&agents[i])
 		if err != nil {
-			respondInternalError(c, "failed to serialize agent info")
+			middleware.RespondInternalError(c, "failed to serialize agent info")
 			return
 		}
 		infoList = append(infoList, *info)
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":   infoList,
 		"total":  total,
 		"offset": offset,
@@ -138,22 +139,22 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.RegisterAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	agent, err := h.svc.RegisterAgent(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	info, err := h.svc.AgentToInfo(agent)
 	if err != nil {
-		respondInternalError(c, "failed to serialize agent info")
+		middleware.RespondInternalError(c, "failed to serialize agent info")
 		return
 	}
-	respondCreated(c, info)
+	middleware.RespondCreated(c, info)
 }
 
 // --- Get agent: GET /ai-agents/:id ---
@@ -165,19 +166,19 @@ func (h *Handler) Get(c *gin.Context) {
 	agent, err := h.svc.GetAgent(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	info, err := h.svc.AgentToInfo(agent)
 	if err != nil {
-		respondInternalError(c, "failed to serialize agent info")
+		middleware.RespondInternalError(c, "failed to serialize agent info")
 		return
 	}
-	respondSuccess(c, info)
+	middleware.RespondSuccess(c, info)
 }
 
 // --- Update agent: PUT /ai-agents/:id ---
@@ -188,26 +189,26 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	agent, err := h.svc.UpdateAgent(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	info, err := h.svc.AgentToInfo(agent)
 	if err != nil {
-		respondInternalError(c, "failed to serialize agent info")
+		middleware.RespondInternalError(c, "failed to serialize agent info")
 		return
 	}
-	respondSuccess(c, info)
+	middleware.RespondSuccess(c, info)
 }
 
 // --- Delete agent: DELETE /ai-agents/:id ---
@@ -219,18 +220,18 @@ func (h *Handler) Delete(c *gin.Context) {
 	deleted, err := h.svc.DeleteAgent(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	if !deleted {
-		respondNotFound(c, "Agent not found")
+		middleware.RespondNotFound(c, "Agent not found")
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondNoContent(c)
 }
 
 // --- Update status: POST /ai-agents/:id/status ---
@@ -241,33 +242,33 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 
 	statusStr := c.PostForm("status")
 	if statusStr == "" {
-		respondBadRequest(c, "status is required")
+		middleware.RespondBadRequest(c, "status is required")
 		return
 	}
 	status := models.AgentStatus(statusStr)
 	switch status {
 	case models.AgentStatusIdle, models.AgentStatusRunning, models.AgentStatusDisabled, models.AgentStatusError:
 	default:
-		respondBadRequest(c, "invalid status: must be idle, running, disabled, or error")
+		middleware.RespondBadRequest(c, "invalid status: must be idle, running, disabled, or error")
 		return
 	}
 
 	agent, err := h.svc.UpdateAgentStatus(c.Request.Context(), id, tenantID, status)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	info, err := h.svc.AgentToInfo(agent)
 	if err != nil {
-		respondInternalError(c, "failed to serialize agent info")
+		middleware.RespondInternalError(c, "failed to serialize agent info")
 		return
 	}
-	respondSuccess(c, info)
+	middleware.RespondSuccess(c, info)
 }
 
 // --- Get audit logs: GET /ai-agents/:id/audit-logs ---
@@ -280,10 +281,10 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	_, err := h.svc.GetAgent(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -298,7 +299,7 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 
 	logs, err := h.svc.GetAuditLogs(c.Request.Context(), id, tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -306,13 +307,13 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	for i := range logs {
 		resp, err := h.svc.AgentAuditLogToResponse(&logs[i])
 		if err != nil {
-			respondInternalError(c, "failed to serialize audit log")
+			middleware.RespondInternalError(c, "failed to serialize audit log")
 			return
 		}
 		respList = append(respList, *resp)
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  respList,
 		"total": len(respList),
 	})
@@ -326,10 +327,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx := c.Request.Context()
 	stats, err := h.svc.GetAgentStats(ctx, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) Execute(c *gin.Context) {
@@ -338,19 +339,38 @@ func (h *Handler) Execute(c *gin.Context) {
 
 	var req models.ExecuteAgentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	result, err := h.svc.ExecuteAgent(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Agent not found")
+			middleware.RespondNotFound(c, "Agent not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
+}
+
+func getPaginationParams(c *gin.Context) (offset, limit int) {
+	offset = 0
+	limit = 20
+	if o := c.Query("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+	if l := c.Query("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v >= 1 {
+			limit = v
+			if limit > 100 {
+				limit = 100
+			}
+		}
+	}
+	return
 }

@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/supply-chain/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -42,41 +43,41 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) GenerateSBOM(c *gin.Context) {
 	var req models.GenerateSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	sbom, err := h.svc.GenerateSBOM(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"sbom": sbom})
+	middleware.RespondCreated(c, gin.H{"sbom": sbom})
 }
 
 func (h *Handler) GetSBOM(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	sbom, err := h.svc.GetSBOM(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, "sbom not found")
+		middleware.RespondNotFound(c, "sbom not found")
 		return
 	}
-	respondSuccess(c, gin.H{"sbom": sbom})
+	middleware.RespondSuccess(c, gin.H{"sbom": sbom})
 }
 
 func (h *Handler) ListSBOMs(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	var q models.ListSBOMsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	sboms, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"sboms": sboms, "count": len(sboms)})
+	middleware.RespondSuccess(c, gin.H{"sboms": sboms, "count": len(sboms)})
 }
 
 func (h *Handler) AnalyzeDependencies(c *gin.Context) {
@@ -86,7 +87,7 @@ func (h *Handler) AnalyzeDependencies(c *gin.Context) {
 		Depth       int    `json:"depth"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Depth == 0 {
@@ -95,49 +96,49 @@ func (h *Handler) AnalyzeDependencies(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	err := h.svc.AnalyzeDependencies(c.Request.Context(), tenantID, req.PackageName, req.Version, req.Depth)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "dependency analysis completed"})
+	middleware.RespondSuccess(c, gin.H{"message": "dependency analysis completed"})
 }
 
 func (h *Handler) GetDependencyGraph(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	graph, err := h.svc.GetDependencyGraph(c.Request.Context(), tenantID, c.Param("packageName"), c.Param("version"))
 	if err != nil {
-		respondNotFound(c, "dependency graph not found")
+		middleware.RespondNotFound(c, "dependency graph not found")
 		return
 	}
-	respondSuccess(c, gin.H{"graph": graph})
+	middleware.RespondSuccess(c, gin.H{"graph": graph})
 }
 
 func (h *Handler) SignArtifact(c *gin.Context) {
 	var req models.SignArtifactRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	sig, err := h.svc.SignArtifact(c.Request.Context(), tenantID, c.Param("artifactId"), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"signature": sig})
+	middleware.RespondCreated(c, gin.H{"signature": sig})
 }
 
 func (h *Handler) VerifySignature(c *gin.Context) {
 	var req models.VerifySignatureRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	sig, err := h.svc.VerifyArtifactSignature(c.Request.Context(), c.Param("artifactId"), req.Signature, &req)
 	if err != nil {
-		respondNotFound(c, "signature not found")
+		middleware.RespondNotFound(c, "signature not found")
 		return
 	}
-	respondSuccess(c, gin.H{"verified": sig.Verified})
+	middleware.RespondSuccess(c, gin.H{"verified": sig.Verified})
 }
 
 func (h *Handler) GenerateReport(c *gin.Context) {
@@ -146,39 +147,39 @@ func (h *Handler) GenerateReport(c *gin.Context) {
 		ArtifactID string `json:"artifact_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	report, err := h.svc.GenerateSupplyChainReport(c.Request.Context(), tenantID, req.PipelineID, req.ArtifactID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"report": report})
+	middleware.RespondCreated(c, gin.H{"report": report})
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	report, err := h.svc.GetSupplyChainReport(c.Request.Context(), tenantID, c.Param("pipelineId"))
 	if err != nil {
-		respondNotFound(c, "report not found")
+		middleware.RespondNotFound(c, "report not found")
 		return
 	}
-	respondSuccess(c, gin.H{"report": report})
+	middleware.RespondSuccess(c, gin.H{"report": report})
 }
 
 func (h *Handler) GetVulnerabilities(c *gin.Context) {
 	name := c.Query("name")
 	version := c.Query("version")
 	if name == "" || version == "" {
-		respondBadRequest(c, "name and version are required")
+		middleware.RespondBadRequest(c, "name and version are required")
 		return
 	}
 	vulns, err := h.svc.GetVulnerabilitiesForComponent(c.Request.Context(), name, version)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"vulnerabilities": vulns, "count": len(vulns)})
+	middleware.RespondSuccess(c, gin.H{"vulnerabilities": vulns, "count": len(vulns)})
 }

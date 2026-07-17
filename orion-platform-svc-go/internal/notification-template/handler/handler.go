@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/notification-template/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -78,10 +79,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	templates, total, _, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     templates,
 		Total:    total,
 		Page:     page,
@@ -93,17 +94,17 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 	tpl, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tpl)
+	middleware.RespondCreated(c, tpl)
 }
 
 // Get handles GET /notification-templates/:id
@@ -113,13 +114,13 @@ func (h *Handler) Get(c *gin.Context) {
 	tpl, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification template not found")
+			middleware.RespondNotFound(c, "notification template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tpl)
+	middleware.RespondSuccess(c, tpl)
 }
 
 // Update handles PUT /notification-templates/:id
@@ -127,20 +128,20 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	tpl, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification template not found")
+			middleware.RespondNotFound(c, "notification template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tpl)
+	middleware.RespondSuccess(c, tpl)
 }
 
 // Delete handles DELETE /notification-templates/:id
@@ -149,14 +150,14 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "notification template not found")
+		middleware.RespondNotFound(c, "notification template not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "notification template deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "notification template deleted"})
 }
 
 // Count handles GET /notification-templates/count
@@ -164,30 +165,30 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // Render handles POST /notification-templates/render
 func (h *Handler) Render(c *gin.Context) {
 	var req models.RenderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	result, err := h.svc.Render(c.Request.Context(), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification template not found")
+			middleware.RespondNotFound(c, "notification template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // Preview handles POST /notification-templates/:id/preview
@@ -197,13 +198,13 @@ func (h *Handler) Preview(c *gin.Context) {
 	result, err := h.svc.Preview(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification template not found")
+			middleware.RespondNotFound(c, "notification template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // Duplicate handles POST /notification-templates/:id/duplicate
@@ -214,11 +215,11 @@ func (h *Handler) Duplicate(c *gin.Context) {
 	tpl, err := h.svc.Duplicate(c.Request.Context(), tenantID, userID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "notification template not found")
+			middleware.RespondNotFound(c, "notification template not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, tpl)
+	middleware.RespondCreated(c, tpl)
 }

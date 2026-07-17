@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"orion/platform-svc-go/internal/security-compliance/models"
@@ -288,11 +289,23 @@ func joinStrings(strs []string) string {
 }
 
 func joinStringsForMap(m map[string]float64) string {
-	// TODO: marshal to JSON string properly
-	return ""
+	if m == nil {
+		return "null"
+	}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return "null"
+	}
+	return string(b)
 }
 
 func joinGaps(gaps []models.GapAnalysisItem) string {
-	// TODO: marshal to JSON string properly
-	return ""
+	if len(gaps) == 0 {
+		return "null"
+	}
+	b, err := json.Marshal(gaps)
+	if err != nil {
+		return "null"
+	}
+	return string(b)
 }

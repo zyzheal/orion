@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-batch-operations/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler handles pipeline batch operation HTTP requests.
@@ -43,58 +44,58 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) BatchStart(c *gin.Context) {
 	var req models.BatchStartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	resp, err := h.svc.BatchStart(c.Request.Context(), &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline not found")
+			middleware.RespondNotFound(c, "pipeline not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // BatchStop handles POST /pipelines/batch/stop
 func (h *Handler) BatchStop(c *gin.Context) {
 	var req models.BatchStopRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	resp, err := h.svc.BatchStop(c.Request.Context(), &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline run not found")
+			middleware.RespondNotFound(c, "pipeline run not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // BatchDelete handles POST /pipelines/batch/delete
 func (h *Handler) BatchDelete(c *gin.Context) {
 	var req models.BatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	resp, err := h.svc.BatchDelete(c.Request.Context(), &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline not found")
+			middleware.RespondNotFound(c, "pipeline not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }

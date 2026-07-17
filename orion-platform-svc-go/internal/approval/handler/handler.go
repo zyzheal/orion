@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/approval/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -81,15 +82,15 @@ func (h *Handler) SubmitApprovalRequest(c *gin.Context) {
 	userName := c.GetString("user_name")
 	var req models.CreateApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateApprovalRequest(c.Request.Context(), tenantID, userID, userName, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) ListApprovalRequests(c *gin.Context) {
@@ -100,10 +101,10 @@ func (h *Handler) ListApprovalRequests(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListApprovalRequests(c.Request.Context(), tenantID, approvalType, status, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetApprovalRequest(c *gin.Context) {
@@ -112,13 +113,13 @@ func (h *Handler) GetApprovalRequest(c *gin.Context) {
 	m, err := h.svc.GetApprovalRequest(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "approval request not found")
+			middleware.RespondNotFound(c, "approval request not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) ReviewApproval(c *gin.Context) {
@@ -128,14 +129,14 @@ func (h *Handler) ReviewApproval(c *gin.Context) {
 	userName := c.GetString("user_name")
 	var req models.ReviewApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.ReviewApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval reviewed"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval reviewed"})
 }
 
 func (h *Handler) ApproveRequest(c *gin.Context) {
@@ -148,10 +149,10 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&body)
 	if err := h.svc.ApproveRequest(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval approved"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval approved"})
 }
 
 func (h *Handler) RejectRequest(c *gin.Context) {
@@ -164,10 +165,10 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&body)
 	if err := h.svc.RejectRequest(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval rejected"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval rejected"})
 }
 
 func (h *Handler) WithdrawApproval(c *gin.Context) {
@@ -180,10 +181,10 @@ func (h *Handler) WithdrawApproval(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&body)
 	if err := h.svc.WithdrawApproval(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval withdrawn"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval withdrawn"})
 }
 
 func (h *Handler) CancelApproval(c *gin.Context) {
@@ -196,10 +197,10 @@ func (h *Handler) CancelApproval(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&body)
 	if err := h.svc.CancelApproval(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval cancelled"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval cancelled"})
 }
 
 func (h *Handler) DelegateApproval(c *gin.Context) {
@@ -209,14 +210,14 @@ func (h *Handler) DelegateApproval(c *gin.Context) {
 	userName := c.GetString("user_name")
 	var req models.DelegateApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.DelegateApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval delegated"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval delegated"})
 }
 
 func (h *Handler) ReassignApproval(c *gin.Context) {
@@ -226,34 +227,34 @@ func (h *Handler) ReassignApproval(c *gin.Context) {
 	userName := c.GetString("user_name")
 	var req models.ReassignApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.ReassignApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "approval reassigned"})
+	middleware.RespondSuccess(c, gin.H{"message": "approval reassigned"})
 }
 
 func (h *Handler) GetApprovalStatistics(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) GetApprovalTrend(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	trend, err := h.svc.GetTrend(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, trend)
+	middleware.RespondSuccess(c, trend)
 }
 
 func (h *Handler) GetApprovalHistory(c *gin.Context) {
@@ -261,35 +262,35 @@ func (h *Handler) GetApprovalHistory(c *gin.Context) {
 	approvalID := c.Param("id")
 	history, err := h.svc.GetHistory(c.Request.Context(), tenantID, approvalID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, history)
+	middleware.RespondSuccess(c, history)
 }
 
 func (h *Handler) AgentAnalyze(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AgentAnalyzeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.AgentAnalyze(c.Request.Context(), tenantID, req.ApprovalID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetPendingApprovals(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.GetPendingApprovals(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetMyPendingApprovals(c *gin.Context) {
@@ -297,10 +298,10 @@ func (h *Handler) GetMyPendingApprovals(c *gin.Context) {
 	userID := c.GetString("user_id")
 	items, err := h.svc.GetMyPendingApprovals(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) RequestEmergencyApproval(c *gin.Context) {
@@ -309,15 +310,15 @@ func (h *Handler) RequestEmergencyApproval(c *gin.Context) {
 	userName := c.GetString("user_name")
 	var req models.EmergencyApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.RequestEmergencyApproval(c.Request.Context(), tenantID, userID, userName, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 // --- Templates ---
@@ -326,15 +327,15 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateTemplate(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) GetTemplates(c *gin.Context) {
@@ -343,10 +344,10 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetTemplates(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 // --- Pipeline approval gates ---
@@ -356,10 +357,10 @@ func (h *Handler) ListByRun(c *gin.Context) {
 	runID := c.Param("runId")
 	items, err := h.svc.ListByRun(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) GetStatus(c *gin.Context) {
@@ -368,10 +369,10 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	stageID := c.Param("stageId")
 	gate, err := h.svc.GetStatus(c.Request.Context(), tenantID, runID, stageID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gate)
+	middleware.RespondSuccess(c, gate)
 }
 
 func (h *Handler) ApproveGate(c *gin.Context) {
@@ -386,10 +387,10 @@ func (h *Handler) ApproveGate(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	gate, err := h.svc.ApproveGate(c.Request.Context(), tenantID, runID, stageID, userID, userName, body.Comment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gate)
+	middleware.RespondSuccess(c, gate)
 }
 
 func (h *Handler) RejectGate(c *gin.Context) {
@@ -404,8 +405,8 @@ func (h *Handler) RejectGate(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	gate, err := h.svc.RejectGate(c.Request.Context(), tenantID, runID, stageID, userID, userName, body.Comment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gate)
+	middleware.RespondSuccess(c, gate)
 }

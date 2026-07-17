@@ -7,6 +7,7 @@ import (
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct{ svc *service.Service }
@@ -35,15 +36,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 func (h *Handler) Health(c *gin.Context) {
 	status, err := h.svc.Health(c.Request.Context())
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondSuccess(c, gin.H{"status": status})
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
+	middleware.RespondSuccess(c, gin.H{"status": status})
 }
 
 func (h *Handler) Status(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	enabled, msg, err := h.svc.Status(c.Request.Context(), tenantID)
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondSuccess(c, gin.H{"enabled": enabled, "message": msg})
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
+	middleware.RespondSuccess(c, gin.H{"enabled": enabled, "message": msg})
 }
 
 // ---------------------------------------------------------------------------
@@ -53,11 +54,11 @@ func (h *Handler) Status(c *gin.Context) {
 func (h *Handler) Audit(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.AuditRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil { middleware.RespondBadRequest(c, err.Error()); return }
 	auditReq := req.ToCreateAudit()
 	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondCreated(c, gin.H{
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
+	middleware.RespondCreated(c, gin.H{
 		"checked":  true,
 		"warnings": result.Warnings,
 		"errors":   result.Errors,
@@ -68,11 +69,11 @@ func (h *Handler) Audit(c *gin.Context) {
 func (h *Handler) Parse(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ParseRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil { middleware.RespondBadRequest(c, err.Error()); return }
 	auditReq := req.ToCreateAudit()
 	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondSuccess(c, gin.H{
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
+	middleware.RespondSuccess(c, gin.H{
 		"parsed":   true,
 		"sql":      req.SQL,
 		"audit_id": result.ID,
@@ -82,11 +83,11 @@ func (h *Handler) Parse(c *gin.Context) {
 func (h *Handler) Execute(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ExecuteRequest
-	if err := c.ShouldBindJSON(&req); err != nil { respondBadRequest(c, err.Error()); return }
+	if err := c.ShouldBindJSON(&req); err != nil { middleware.RespondBadRequest(c, err.Error()); return }
 	auditReq := req.ToCreateAudit()
 	result, err := h.svc.CreateAudit(c.Request.Context(), tenantID, auditReq)
-	if err != nil { respondInternalError(c, err.Error()); return }
-	respondSuccess(c, gin.H{
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
+	middleware.RespondSuccess(c, gin.H{
 		"executed": false,
 		"message":  "Inception not configured",
 		"audit_id": result.ID,
@@ -100,9 +101,9 @@ func (h *Handler) Execute(c *gin.Context) {
 func (h *Handler) ListDatabases(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	dbs, err := h.svc.ListDatabases(c.Request.Context(), tenantID)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
 	if dbs == nil { dbs = []string{} }
-	respondSuccess(c, gin.H{"databases": dbs})
+	middleware.RespondSuccess(c, gin.H{"databases": dbs})
 }
 
 // ---------------------------------------------------------------------------
@@ -114,9 +115,9 @@ func (h *Handler) History(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.ListAudits(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nil { respondInternalError(c, err.Error()); return }
+	if err != nil { middleware.RespondInternalError(c, err.Error()); return }
 	if items == nil { items = []models.SQLAuditHistory{} }
 	total, _ := h.svc.CountAudits(c.Request.Context(), tenantID)
-	respondSuccess(c, gin.H{"records": items, "total": total})
+	middleware.RespondSuccess(c, gin.H{"records": items, "total": total})
 }
 

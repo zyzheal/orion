@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/session/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for session management operations.
@@ -46,10 +47,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, userID, (page-1)*pageSize, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "page": page, "page_size": pageSize})
+	middleware.RespondSuccess(c, gin.H{"data": items, "page": page, "page_size": pageSize})
 }
 
 // Get retrieves a single session by id.
@@ -57,30 +58,30 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	session, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, session)
+	middleware.RespondSuccess(c, session)
 }
 
 // Delete removes a session by id.
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Logout(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "session deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "session deleted"})
 }
 
 // LogoutSpecific logs out a specific session.
 func (h *Handler) LogoutSpecific(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Logout(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "session logged out"})
+	middleware.RespondSuccess(c, gin.H{"message": "session logged out"})
 }
 
 // LogoutCurrent logs out the current session.
@@ -88,17 +89,17 @@ func (h *Handler) LogoutCurrent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.LogoutSessionRequest
 	if c.ShouldBindJSON(&req) != nil {
-		respondBadRequest(c, "invalid request body")
+		middleware.RespondBadRequest(c, "invalid request body")
 		return
 	}
 
 	// Logout all sessions for the current user to effectively log out the current session.
 	_, err := h.svc.LogoutAll(c.Request.Context(), tenantID, c.GetString("user_id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "logged out"})
+	middleware.RespondSuccess(c, gin.H{"message": "logged out"})
 }
 
 // LogoutAll logs out all sessions for the current user.
@@ -106,8 +107,8 @@ func (h *Handler) LogoutAll(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	_, err := h.svc.LogoutAll(c.Request.Context(), tenantID, c.GetString("user_id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "all sessions logged out"})
+	middleware.RespondSuccess(c, gin.H{"message": "all sessions logged out"})
 }

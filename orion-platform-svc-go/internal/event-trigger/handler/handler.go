@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/event-trigger/models"
@@ -65,15 +66,15 @@ func (h *Handler) Create(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 // List handles GET /event-triggers.
@@ -102,11 +103,11 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, err := h.svc.List(c.Request.Context(), tenantID, filter, offset, ps)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	total, _ := h.svc.Count(c.Request.Context(), tenantID)
-	respondSuccess(c, gin.H{"records": items, "total": total})
+	middleware.RespondSuccess(c, gin.H{"records": items, "total": total})
 }
 
 // Count handles GET /event-triggers/count.
@@ -114,10 +115,10 @@ func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // Get handles GET /event-triggers/:id.
@@ -126,10 +127,10 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	t, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // Update handles PUT /event-triggers/:id.
@@ -138,15 +139,15 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	updated, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, updated)
+	middleware.RespondSuccess(c, updated)
 }
 
 // Delete handles DELETE /event-triggers/:id.
@@ -154,8 +155,8 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }

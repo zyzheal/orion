@@ -1,42 +1,15 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
+
 	"orion/go-common/pkg/auth"
-	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/plugin/models"
 	"orion/platform-svc-go/internal/plugin/service"
+
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
-
-// ---------------------------------------------------------------------------
-// Canonical response helpers (mirrors per-service response_writer.go files).
-// ---------------------------------------------------------------------------
-
-func respondSuccess(c *gin.Context, data any) {
-	errors.WriteSuccess(c, data)
-}
-
-func respondCreated(c *gin.Context, data any) {
-	errors.WriteCreated(c, data)
-}
-
-func respondBadRequest(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
-}
-
-func respondNotFound(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrNotFound, message, http.StatusNotFound)
-}
-
-func respondInternalError(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrInternal, message, http.StatusInternalServerError)
-}
-
-func respondServiceUnavailable(c *gin.Context, message string) {
-	errors.WriteError(c, errors.ErrServiceUnavailable, message, http.StatusServiceUnavailable)
-}
 
 // ---------------------------------------------------------------------------
 // Handler
@@ -103,15 +76,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, d)
+	middleware.RespondCreated(c, d)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -120,10 +93,10 @@ func (h *Handler) List(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -131,29 +104,29 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, d)
+	middleware.RespondSuccess(c, d)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "deleted"})
 }
 
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 // ===========================================================================
@@ -164,15 +137,15 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdatePluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	updated, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, updated)
+	middleware.RespondSuccess(c, updated)
 }
 
 func (h *Handler) Install(c *gin.Context) {
@@ -190,10 +163,10 @@ func (h *Handler) Install(c *gin.Context) {
 	}
 	p, err := h.svc.Install(c.Request.Context(), tenantID, pluginID, body.Version, body.Config)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"pluginId": pluginID, "action": "install", "version": body.Version, "plugin": p})
+	middleware.RespondSuccess(c, gin.H{"pluginId": pluginID, "action": "install", "version": body.Version, "plugin": p})
 }
 
 func (h *Handler) Enable(c *gin.Context) {
@@ -201,10 +174,10 @@ func (h *Handler) Enable(c *gin.Context) {
 	pluginID := c.Param("pluginId")
 	p, err := h.svc.Enable(c.Request.Context(), tenantID, pluginID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"pluginId": pluginID, "action": "enable", "status": "active", "plugin": p})
+	middleware.RespondSuccess(c, gin.H{"pluginId": pluginID, "action": "enable", "status": "active", "plugin": p})
 }
 
 func (h *Handler) Disable(c *gin.Context) {
@@ -212,10 +185,10 @@ func (h *Handler) Disable(c *gin.Context) {
 	pluginID := c.Param("pluginId")
 	p, err := h.svc.Disable(c.Request.Context(), tenantID, pluginID)
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"pluginId": pluginID, "action": "disable", "status": "inactive", "plugin": p})
+	middleware.RespondSuccess(c, gin.H{"pluginId": pluginID, "action": "disable", "status": "inactive", "plugin": p})
 }
 
 // ===========================================================================
@@ -231,10 +204,10 @@ func (h *Handler) Audit(c *gin.Context) {
 	}
 	logs, err := h.svc.ListAuditEntries(c.Request.Context(), tenantID, pluginID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"logs": logs, "tenantId": tenantID, "limit": limit})
+	middleware.RespondSuccess(c, gin.H{"logs": logs, "tenantId": tenantID, "limit": limit})
 }
 
 func (h *Handler) AuditTrail(c *gin.Context) {
@@ -245,10 +218,10 @@ func (h *Handler) AuditTrail(c *gin.Context) {
 	}
 	logs, err := h.svc.AuditTrail(c.Request.Context(), taskID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"taskId": taskID, "logs": logs})
+	middleware.RespondSuccess(c, gin.H{"taskId": taskID, "logs": logs})
 }
 
 // ===========================================================================
@@ -260,41 +233,41 @@ func (h *Handler) Timeline(c *gin.Context) {
 	runID := c.Param("runId")
 	execution, err := h.svc.GetExecutionByTaskID(c.Request.Context(), tenantID, runID)
 	if err != nil {
-		respondNotFound(c, "execution not found for run: "+runID)
+		middleware.RespondNotFound(c, "execution not found for run: "+runID)
 		return
 	}
-	respondSuccess(c, gin.H{"runId": runID, "execution": execution})
+	middleware.RespondSuccess(c, gin.H{"runId": runID, "execution": execution})
 }
 
 func (h *Handler) DebugPause(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	state := h.svc.Pause(c.Request.Context(), tenantID, runID)
-	respondSuccess(c, gin.H{"runId": runID, "status": "paused", "debugState": state})
+	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "paused", "debugState": state})
 }
 
 func (h *Handler) DebugResume(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	h.svc.Resume(c.Request.Context(), tenantID, runID)
-	respondSuccess(c, gin.H{"runId": runID, "status": "resumed"})
+	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "resumed"})
 }
 
 func (h *Handler) DebugStep(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	rnID := c.Param("runId")
 	state := h.svc.Step(c.Request.Context(), tenantID, rnID)
-	respondSuccess(c, gin.H{"runId": rnID, "status": "stepping", "debugState": state})
+	middleware.RespondSuccess(c, gin.H{"runId": rnID, "status": "stepping", "debugState": state})
 }
 
 func (h *Handler) DebugState(c *gin.Context) {
 	runID := c.Param("runId")
 	state := h.svc.GetDebugState(runID)
 	if state == nil {
-		respondNotFound(c, "no debug state for run: "+runID)
+		middleware.RespondNotFound(c, "no debug state for run: "+runID)
 		return
 	}
-	respondSuccess(c, state)
+	middleware.RespondSuccess(c, state)
 }
 
 // ===========================================================================
@@ -307,19 +280,19 @@ func (h *Handler) AIDiagnose(c *gin.Context) {
 		Context service.DiagnoseRequest `json:"context" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, "Missing required context fields: taskId, pluginId, errorMessage")
+		middleware.RespondBadRequest(c, "Missing required context fields: taskId, pluginId, errorMessage")
 		return
 	}
 	if body.Context.TaskID == "" || body.Context.PluginID == "" || body.Context.ErrorMessage == "" {
-		respondBadRequest(c, "Missing required context fields: taskId, pluginId, errorMessage")
+		middleware.RespondBadRequest(c, "Missing required context fields: taskId, pluginId, errorMessage")
 		return
 	}
 	result, err := h.svc.Diagnose(c.Request.Context(), tenantID, &body.Context)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ===========================================================================
@@ -330,33 +303,33 @@ func (h *Handler) UpsertPluginQuota(c *gin.Context) {
 	pluginID := c.Param("pluginId")
 	var req models.ResourceQuota
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.UpsertPluginQuota(c.Request.Context(), pluginID, &req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "quota upserted", "pluginId": pluginID})
+	middleware.RespondSuccess(c, gin.H{"message": "quota upserted", "pluginId": pluginID})
 }
 
 func (h *Handler) PluginQuota(c *gin.Context) {
 	pluginID := c.Param("pluginId")
 	q, err := h.svc.GetPluginQuota(c.Request.Context(), pluginID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, q)
+	middleware.RespondSuccess(c, q)
 }
 
 func (h *Handler) DeletePluginQuota(c *gin.Context) {
 	pluginID := c.Param("pluginId")
 	if err := h.svc.DeletePluginQuota(c.Request.Context(), pluginID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "quota deleted", "pluginId": pluginID})
+	middleware.RespondSuccess(c, gin.H{"message": "quota deleted", "pluginId": pluginID})
 }
 
 // ===========================================================================
@@ -367,16 +340,16 @@ func (h *Handler) CreateSecurityEvent(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var ev models.SecurityEvent
 	if err := c.ShouldBindJSON(&ev); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ev.ID = "" // will be generated by repository
 	ev.TenantID = tenantID
 	if err := h.svc.CreateSecurityEvent(c.Request.Context(), &ev); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "security event created"})
+	middleware.RespondCreated(c, gin.H{"message": "security event created"})
 }
 
 func (h *Handler) ListSecurityEvents(c *gin.Context) {
@@ -394,8 +367,8 @@ func (h *Handler) ListSecurityEvents(c *gin.Context) {
 	}
 	events, err := h.svc.ListSecurityEvents(c.Request.Context(), f)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, events)
+	middleware.RespondSuccess(c, events)
 }

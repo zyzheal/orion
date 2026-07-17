@@ -121,13 +121,46 @@ type StorageStats struct {
 	IsHealthy    bool   `json:"isHealthy"`
 }
 
-// ComplianceReport is a generic compliance report.
+// ComplianceReport is a SOC2 / ISO27001-style compliance report derived from
+// actual audit log data.
 type ComplianceReport struct {
-	ReportType string `json:"reportType"`
-	// Additional fields added by specific compliance reports
+	ReportType     string          `json:"reportType"`
+	PeriodStart    string          `json:"periodStart"`
+	PeriodEnd      string          `json:"periodEnd"`
+	GeneratedAt    string          `json:"generatedAt"`
+	Score          float64         `json:"score"`            // 0-100 overall
+	Rating         string          `json:"rating"`           // compliant / partial / non-compliant
+	TotalControls  int             `json:"totalControls"`
+	PassedControls int             `json:"passedControls"`
+	FailedControls int             `json:"failedControls"`
+	Findings       []ComplianceFinding `json:"findings"`
+	Controls       []ControlResult       `json:"controls"`
+	Recommendations []string                `json:"recommendations"`
 }
 
-// AuditCoverageStats holds coverage statistics.
+// ComplianceFinding is an observation tied to one or more controls.
+type ComplianceFinding struct {
+	ID          string  `json:"id"`
+	ControlID   string  `json:"controlId"`
+	Title       string  `json:"title"`
+	Description string  `json:"description"`
+	Severity    string  `json:"severity"` // low / medium / high / critical
+	Evidence    string  `json:"evidence"`
+	Remediation string  `json:"remediation"`
+}
+
+// ControlResult is the pass/fail result for a single control.
+type ControlResult struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Status      string `json:"status"` // passed / failed / warning
+	EvidenceCount int  `json:"evidenceCount"`
+	Details     string `json:"details"`
+}
+
+// AuditCoverageStats holds coverage statistics across compliance frameworks.
 type AuditCoverageStats struct {
-	// Coverage fields populated by compliance service
+	OverallCoveragePct float64        `json:"overallCoveragePct"` // 0-100
+	ByFramework        map[string]float64 `json:"byFramework"`    // e.g. {"SOC2": 75.0, "ISO27001": 80.0}
+	AssessedAt         string         `json:"assessedAt"`
 }

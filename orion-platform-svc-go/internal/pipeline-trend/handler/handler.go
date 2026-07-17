@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-trend/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -44,7 +45,7 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
 	pipelineID := c.Param("id")
 	if pipelineID == "" {
-		respondBadRequest(c, "pipeline id is required")
+		middleware.RespondBadRequest(c, "pipeline id is required")
 		return
 	}
 
@@ -54,31 +55,31 @@ func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
 	result, err := h.svc.GetRunHistoryTrend(c.Request.Context(), pipelineID, period, granularity)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if err == service.ErrInvalidPeriod || err == service.ErrInvalidGranularity {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // GetRunHistoryCompare handles GET /pipelines/trend/compare.
 func (h *Handler) GetRunHistoryCompare(c *gin.Context) {
 	rawIDs := c.Query("pipelineIds")
 	if rawIDs == "" {
-		respondBadRequest(c, "pipelineIds query parameter is required")
+		middleware.RespondBadRequest(c, "pipelineIds query parameter is required")
 		return
 	}
 
 	var pipelineIDs []string
 	if err := json.Unmarshal([]byte(rawIDs), &pipelineIDs); err != nil {
-		respondBadRequest(c, "pipelineIds must be a JSON array of strings")
+		middleware.RespondBadRequest(c, "pipelineIds must be a JSON array of strings")
 		return
 	}
 
@@ -89,16 +90,16 @@ func (h *Handler) GetRunHistoryCompare(c *gin.Context) {
 	if err != nil {
 		switch {
 		case service.IsNotFound(err):
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 		case err == service.ErrNoPipelineIDs || err == service.ErrTooManyPipelines:
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		case err == service.ErrInvalidPeriod || err == service.ErrInvalidGranularity:
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 		default:
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
 
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

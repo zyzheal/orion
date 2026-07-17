@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for gateway dynamic route management.
@@ -58,7 +59,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	items, total, err := h.svc.ListWithFilter(c.Request.Context(), tenantID, enabledFlag, q, pageSize, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -68,7 +69,7 @@ func (h *Handler) List(c *gin.Context) {
 		routes = append(routes, service.ToRouteResponse(&items[i]))
 	}
 
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":     routes,
 		"total":    total,
 		"page":     page,
@@ -84,10 +85,10 @@ func (h *Handler) Get(c *gin.Context) {
 
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, service.ToRouteResponse(m))
+	middleware.RespondSuccess(c, service.ToRouteResponse(m))
 }
 
 // Create creates a new gateway route.
@@ -98,22 +99,22 @@ func (h *Handler) Create(c *gin.Context) {
 
 	var req models.CreateGatewayRouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Path == "" || req.TargetService == "" {
-		respondBadRequest(c, "path and target_service are required")
+		middleware.RespondBadRequest(c, "path and target_service are required")
 		return
 	}
 
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Attach user identity for response.
 	m.CreatedBy = userID
-	respondCreated(c, service.ToRouteResponse(m))
+	middleware.RespondCreated(c, service.ToRouteResponse(m))
 }
 
 // Update modifies an existing gateway route.
@@ -125,17 +126,17 @@ func (h *Handler) Update(c *gin.Context) {
 
 	var req models.UpdateGatewayRouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	m.UpdatedBy = userID
-	respondSuccess(c, service.ToRouteResponse(m))
+	middleware.RespondSuccess(c, service.ToRouteResponse(m))
 }
 
 // Delete removes a gateway route.
@@ -145,7 +146,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	c.Status(204) // TS sends 204 No Content on delete
@@ -160,17 +161,17 @@ func (h *Handler) Toggle(c *gin.Context) {
 
 	var req models.ToggleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	m, err := h.svc.Toggle(c.Request.Context(), tenantID, id, req.Enabled)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 	m.UpdatedBy = userID
-	respondSuccess(c, service.ToRouteResponse(m))
+	middleware.RespondSuccess(c, service.ToRouteResponse(m))
 }
 
 // Stats returns aggregate statistics across gateway routes for the tenant.
@@ -180,8 +181,8 @@ func (h *Handler) Stats(c *gin.Context) {
 
 	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/incident/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -64,19 +65,19 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateIncidentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Title == "" || req.Type == "" || req.Severity == "" {
-		respondBadRequest(c, "title, type, and severity are required")
+		middleware.RespondBadRequest(c, "title, type, and severity are required")
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -85,13 +86,13 @@ func (h *Handler) Get(c *gin.Context) {
 	pm, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Incident not found")
+			middleware.RespondNotFound(c, "Incident not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pm)
+	middleware.RespondSuccess(c, pm)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -109,10 +110,10 @@ func (h *Handler) List(c *gin.Context) {
 		Offset:   offset,
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -120,19 +121,19 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateIncidentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Incident not found")
+			middleware.RespondNotFound(c, "Incident not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -140,13 +141,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Incident not found")
+			middleware.RespondNotFound(c, "Incident not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }
 
 // --- Statistics ---
@@ -155,10 +156,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // --- Status ---
@@ -168,28 +169,28 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Status == "" {
-		respondBadRequest(c, "status is required")
+		middleware.RespondBadRequest(c, "status is required")
 		return
 	}
 	actorID := c.GetString("user_id")
 	m, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status, actorID, req.Reason)
 	if err != nil {
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Assignment ---
@@ -199,23 +200,23 @@ func (h *Handler) AssignCommander(c *gin.Context) {
 	id := c.Param("id")
 	var req models.AssignCommanderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.CommanderID == "" {
-		respondBadRequest(c, "commander_id is required")
+		middleware.RespondBadRequest(c, "commander_id is required")
 		return
 	}
 	m, err := h.svc.AssignCommander(c.Request.Context(), tenantID, id, req.CommanderID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Escalation ---
@@ -225,26 +226,26 @@ func (h *Handler) Escalate(c *gin.Context) {
 	id := c.Param("id")
 	var req models.EscalateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.ToLevel == 0 || req.Reason == "" || req.EscalatedBy == "" {
-		respondBadRequest(c, "to_level, reason, and escalated_by are required")
+		middleware.RespondBadRequest(c, "to_level, reason, and escalated_by are required")
 		return
 	}
 	if err := h.svc.Escalate(c.Request.Context(), tenantID, id, req); err != nil {
 		if service.IsValidationErr(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"escalated": true, "to_level": req.ToLevel})
+	middleware.RespondSuccess(c, gin.H{"escalated": true, "to_level": req.ToLevel})
 }
 
 func (h *Handler) GetEscalations(c *gin.Context) {
@@ -252,10 +253,10 @@ func (h *Handler) GetEscalations(c *gin.Context) {
 	id := c.Param("id")
 	escalations, err := h.svc.GetEscalations(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, escalations)
+	middleware.RespondSuccess(c, escalations)
 }
 
 // --- SLA ---
@@ -266,13 +267,13 @@ func (h *Handler) CheckSla(c *gin.Context) {
 	sla, err := h.svc.CheckSlaBreach(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sla)
+	middleware.RespondSuccess(c, sla)
 }
 
 func (h *Handler) MarkSlaBreach(c *gin.Context) {
@@ -281,13 +282,13 @@ func (h *Handler) MarkSlaBreach(c *gin.Context) {
 	m, err := h.svc.MarkSlaBreach(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 // --- Timeline ---
@@ -297,11 +298,11 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 	id := c.Param("id")
 	var req models.AddTimelineEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.EventType == "" || req.Content == "" {
-		respondBadRequest(c, "event_type and content are required")
+		middleware.RespondBadRequest(c, "event_type and content are required")
 		return
 	}
 	if req.ActorID == "" {
@@ -310,17 +311,17 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 	event, err := h.svc.AddTimelineEvent(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsValidationErr(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, event)
+	middleware.RespondCreated(c, event)
 }
 
 func (h *Handler) GetTimeline(c *gin.Context) {
@@ -333,10 +334,10 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 		Offset: &offset,
 	})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, timeline)
+	middleware.RespondSuccess(c, timeline)
 }
 
 // --- Postmortem ---
@@ -346,11 +347,11 @@ func (h *Handler) CreatePostmortem(c *gin.Context) {
 	id := c.Param("id")
 	var req models.CreatePostmortemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Summary == "" || req.RootCause == "" {
-		respondBadRequest(c, "summary and root_cause are required")
+		middleware.RespondBadRequest(c, "summary and root_cause are required")
 		return
 	}
 	if req.CreatedBy == "" {
@@ -359,17 +360,17 @@ func (h *Handler) CreatePostmortem(c *gin.Context) {
 	pm, err := h.svc.CreatePostmortem(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsAlreadyExists(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, pm)
+	middleware.RespondCreated(c, pm)
 }
 
 func (h *Handler) GetPostmortem(c *gin.Context) {
@@ -378,13 +379,13 @@ func (h *Handler) GetPostmortem(c *gin.Context) {
 	pm, err := h.svc.GetPostmortem(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Post-mortem not found")
+			middleware.RespondNotFound(c, "Post-mortem not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pm)
+	middleware.RespondSuccess(c, pm)
 }
 
 func (h *Handler) UpdatePostmortem(c *gin.Context) {
@@ -392,23 +393,23 @@ func (h *Handler) UpdatePostmortem(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdatePostmortemRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	pm, err := h.svc.UpdatePostmortem(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pm)
+	middleware.RespondSuccess(c, pm)
 }
 
 func (h *Handler) PublishPostmortem(c *gin.Context) {
@@ -421,17 +422,17 @@ func (h *Handler) PublishPostmortem(c *gin.Context) {
 	pm, err := h.svc.PublishPostmortem(c.Request.Context(), tenantID, id, body.ReviewedBy)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pm)
+	middleware.RespondSuccess(c, pm)
 }
 
 func (h *Handler) ArchivePostmortem(c *gin.Context) {
@@ -440,17 +441,17 @@ func (h *Handler) ArchivePostmortem(c *gin.Context) {
 	pm, err := h.svc.ArchivePostmortem(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if service.IsStateConflict(err) {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, pm)
+	middleware.RespondSuccess(c, pm)
 }
 
 // --- Knowledge recommendations ---
@@ -462,11 +463,11 @@ func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
 	result, err := h.svc.GetKnowledgeRecommendations(c.Request.Context(), tenantID, id, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }

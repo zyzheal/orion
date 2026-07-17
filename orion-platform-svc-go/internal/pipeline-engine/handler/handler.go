@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-engine/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Handler exposes HTTP endpoints for the Pipeline Engine.
@@ -66,18 +67,18 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	ctx := context.Background()
 	run, err := h.engine.Execute(ctx, tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondCreated(c, run)
+	middleware.RespondCreated(c, run)
 }
 
 // GetRun retrieves pipeline run status.
@@ -86,10 +87,10 @@ func (h *Handler) GetRun(c *gin.Context) {
 	ctx := context.Background()
 	run, err := h.engine.GetRun(ctx, tenantID, c.Param("runId"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }
 
 // ListRuns lists pipeline runs.
@@ -98,7 +99,7 @@ func (h *Handler) ListRuns(c *gin.Context) {
 	ctx := context.Background()
 	req := models.ListRunsQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Limit <= 0 || req.Limit > 100 {
@@ -107,10 +108,10 @@ func (h *Handler) ListRuns(c *gin.Context) {
 
 	resp, err := h.engine.ListRuns(ctx, tenantID, c.Param("pipelineId"), req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // GetStages retrieves stages for a run.
@@ -119,10 +120,10 @@ func (h *Handler) GetStages(c *gin.Context) {
 	ctx := context.Background()
 	stages, err := h.engine.GetStages(ctx, tenantID, c.Param("runId"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": stages, "count": len(stages)})
+	middleware.RespondSuccess(c, gin.H{"data": stages, "count": len(stages)})
 }
 
 // GetTasks retrieves tasks for a stage.
@@ -131,10 +132,10 @@ func (h *Handler) GetTasks(c *gin.Context) {
 	ctx := context.Background()
 	tasks, err := h.engine.GetTasks(ctx, tenantID, c.Param("stageId"))
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": tasks, "count": len(tasks)})
+	middleware.RespondSuccess(c, gin.H{"data": tasks, "count": len(tasks)})
 }
 
 // CancelRun cancels a running pipeline.
@@ -149,8 +150,8 @@ func (h *Handler) CancelRun(c *gin.Context) {
 	}
 	run, err := h.engine.CancelRun(ctx, tenantID, c.Param("runId"), req.TriggerBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, run)
+	middleware.RespondSuccess(c, run)
 }

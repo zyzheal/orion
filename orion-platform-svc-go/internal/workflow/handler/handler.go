@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/workflow/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -83,10 +84,10 @@ func (h *Handler) List(c *gin.Context) {
 
 	wfs, total, err := h.svc.List(c.Request.Context(), tenantID, statusPtr, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     wfs,
 		Total:    total,
 		Page:     page,
@@ -100,19 +101,19 @@ func (h *Handler) Get(c *gin.Context) {
 	wf, err := h.svc.Get(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow not found")
+			middleware.RespondNotFound(c, "workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, wf)
+	middleware.RespondSuccess(c, wf)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
@@ -120,30 +121,30 @@ func (h *Handler) Create(c *gin.Context) {
 
 	wf, err := h.svc.Create(c.Request.Context(), &req, tenantID, createdBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, wf)
+	middleware.RespondCreated(c, wf)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	wf, err := h.svc.Update(c.Request.Context(), id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow not found")
+			middleware.RespondNotFound(c, "workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, wf)
+	middleware.RespondSuccess(c, wf)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -151,14 +152,14 @@ func (h *Handler) Delete(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "workflow not found")
+		middleware.RespondNotFound(c, "workflow not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "workflow deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "workflow deleted"})
 }
 
 func (h *Handler) Pause(c *gin.Context) {
@@ -167,13 +168,13 @@ func (h *Handler) Pause(c *gin.Context) {
 	wf, err := h.svc.Pause(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow not found")
+			middleware.RespondNotFound(c, "workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, wf)
+	middleware.RespondSuccess(c, wf)
 }
 
 func (h *Handler) Resume(c *gin.Context) {
@@ -182,13 +183,13 @@ func (h *Handler) Resume(c *gin.Context) {
 	wf, err := h.svc.Resume(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow not found")
+			middleware.RespondNotFound(c, "workflow not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, wf)
+	middleware.RespondSuccess(c, wf)
 }
 
 func (h *Handler) Execute(c *gin.Context) {
@@ -209,17 +210,17 @@ func (h *Handler) Execute(c *gin.Context) {
 	exec, err := h.svc.Execute(c.Request.Context(), id, tenantID, triggeredBy, initialInput)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
 		if err == service.ErrWorkflowDisabled {
-			respondBadRequest(c, err.Error())
+			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, exec)
+	middleware.RespondCreated(c, exec)
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
@@ -229,10 +230,10 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 
 	execs, total, err := h.svc.ListExecutions(c.Request.Context(), workflowID, tenantID, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     execs,
 		Total:    total,
 		Page:     page,
@@ -246,11 +247,11 @@ func (h *Handler) GetExecution(c *gin.Context) {
 	exec, err := h.svc.GetExecution(c.Request.Context(), executionID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workflow execution not found")
+			middleware.RespondNotFound(c, "workflow execution not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, exec)
+	middleware.RespondSuccess(c, exec)
 }

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/tenant-gateway/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -49,7 +50,7 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.Create(c.Request.Context(), tenantID, req)
@@ -57,7 +58,7 @@ func (h *Handler) Create(c *gin.Context) {
 		h.handleCreateErr(c, err)
 		return
 	}
-	respondCreated(c, t)
+	middleware.RespondCreated(c, t)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -66,13 +67,13 @@ func (h *Handler) Get(c *gin.Context) {
 	t, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -92,10 +93,10 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	result, err := h.svc.List(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -103,7 +104,7 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
@@ -111,7 +112,7 @@ func (h *Handler) Update(c *gin.Context) {
 		h.handleUpdateErr(c, err)
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
@@ -119,13 +120,13 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondNoContent(c)
+	middleware.RespondSuccess(c, nil) // c)
 }
 
 // --- Lifecycle ---
@@ -136,13 +137,13 @@ func (h *Handler) Suspend(c *gin.Context) {
 	t, err := h.svc.Suspend(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 func (h *Handler) Activate(c *gin.Context) {
@@ -151,13 +152,13 @@ func (h *Handler) Activate(c *gin.Context) {
 	t, err := h.svc.Activate(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // --- Quota ---
@@ -168,13 +169,13 @@ func (h *Handler) GetQuotaStatus(c *gin.Context) {
 	status, err := h.svc.GetQuotaStatus(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 func (h *Handler) AdjustQuota(c *gin.Context) {
@@ -182,41 +183,41 @@ func (h *Handler) AdjustQuota(c *gin.Context) {
 	id := c.Param("id")
 	var req models.QuotaAdjustmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	t, err := h.svc.AdjustQuota(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "tenant not found")
+			middleware.RespondNotFound(c, "tenant not found")
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondSuccess(c, t)
+	middleware.RespondSuccess(c, t)
 }
 
 // --- Error helpers ---
 
 func (h *Handler) handleCreateErr(c *gin.Context, err error) {
 	if service.IsAlreadyExists(err) {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondInternalError(c, err.Error())
+	middleware.RespondInternalError(c, err.Error())
 }
 
 func (h *Handler) handleUpdateErr(c *gin.Context, err error) {
 	if service.IsNotFound(err) {
-		respondNotFound(c, "tenant not found")
+		middleware.RespondNotFound(c, "tenant not found")
 		return
 	}
 	if service.IsAlreadyExists(err) {
-		respondConflict(c, err.Error())
+		middleware.RespondConflict(c, err.Error())
 		return
 	}
-	respondInternalError(c, err.Error())
+	middleware.RespondInternalError(c, err.Error())
 }
 
 // --- Query helpers ---

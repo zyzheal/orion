@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/compliance/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -45,10 +46,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 	framework := c.Query("framework")
 	reports, err := h.svc.ListReports(c.Request.Context(), tenantID, framework)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"reports": reports, "count": len(reports)})
+	middleware.RespondSuccess(c, gin.H{"reports": reports, "count": len(reports)})
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
@@ -56,98 +57,98 @@ func (h *Handler) GetReport(c *gin.Context) {
 	report, err := h.svc.GetReport(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, gin.H{"report": report})
+	middleware.RespondSuccess(c, gin.H{"report": report})
 }
 
 func (h *Handler) CreateReport(c *gin.Context) {
 	var req models.CreateComplianceReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"report": report})
+	middleware.RespondCreated(c, gin.H{"report": report})
 }
 
 func (h *Handler) UpdateReport(c *gin.Context) {
 	var req models.UpdateComplianceReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	report, err := h.svc.UpdateReport(c.Request.Context(), c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "report not found")
+			middleware.RespondNotFound(c, "report not found")
 		} else {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 		}
 		return
 	}
-	respondSuccess(c, gin.H{"report": report})
+	middleware.RespondSuccess(c, gin.H{"report": report})
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteReport(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "report not found")
+		middleware.RespondNotFound(c, "report not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "report deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "report deleted"})
 }
 
 func (h *Handler) ListSchedules(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"schedules": schedules, "count": len(schedules)})
+	middleware.RespondSuccess(c, gin.H{"schedules": schedules, "count": len(schedules)})
 }
 
 func (h *Handler) CreateSchedule(c *gin.Context) {
 	var req models.CreateComplianceScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"schedule": schedule})
+	middleware.RespondCreated(c, gin.H{"schedule": schedule})
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteSchedule(c.Request.Context(), c.Param("id"), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "schedule not found")
+		middleware.RespondNotFound(c, "schedule not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "schedule deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "schedule deleted"})
 }

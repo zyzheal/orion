@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/page-registry/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Resource and action constants for page-registry RBAC
@@ -63,15 +64,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) List(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	items, err := h.svc.GetAll(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  items,
 		"total": len(items),
 	})
@@ -81,15 +82,15 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) ListEnabled(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	items, err := h.svc.GetEnabled(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": items,
 	})
 }
@@ -98,20 +99,20 @@ func (h *Handler) ListEnabled(c *gin.Context) {
 func (h *Handler) GetByPath(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	path := c.Param("path")
 	if path == "" {
-		respondBadRequest(c, "path parameter is required")
+		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
 	entry, err := h.svc.GetByPath(c.Request.Context(), tenantID, path)
 	if err != nil {
-		respondNotFound(c, "page entry not found: "+path)
+		middleware.RespondNotFound(c, "page entry not found: "+path)
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data": entry,
 	})
 }
@@ -120,25 +121,25 @@ func (h *Handler) GetByPath(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	var req models.CreatePageRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
 		// Detect conflict error (path already exists)
 		if errors.Is(err, fmt.Errorf("path already exists")) {
-			respondConflict(c, "path already exists: "+req.Path)
+			middleware.RespondConflict(c, "path already exists: "+req.Path)
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{
+	middleware.RespondCreated(c, gin.H{
 		"data":    entry,
 		"message": "page entry created successfully",
 	})
@@ -148,35 +149,35 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	path := c.Param("path")
 	if path == "" {
-		respondBadRequest(c, "path parameter is required")
+		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
 	var req models.UpdatePageRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	entry, err := h.svc.Update(c.Request.Context(), tenantID, path, req)
 	if err != nil {
 		// Check for not found
 		if strings.Contains(err.Error(), "not found") {
-			respondNotFound(c, "page entry not found: "+path)
+			middleware.RespondNotFound(c, "page entry not found: "+path)
 			return
 		}
 		// Check for conflict
 		if strings.Contains(err.Error(), "path already exists") {
-			respondConflict(c, err.Error())
+			middleware.RespondConflict(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":    entry,
 		"message": "page entry updated successfully",
 	})
@@ -186,24 +187,24 @@ func (h *Handler) Update(c *gin.Context) {
 func (h *Handler) ToggleStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	path := c.Param("path")
 	if path == "" {
-		respondBadRequest(c, "path parameter is required")
+		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
 	entry, err := h.svc.ToggleStatus(c.Request.Context(), tenantID, path)
 	if err != nil {
-		respondNotFound(c, "page entry not found: "+path)
+		middleware.RespondNotFound(c, "page entry not found: "+path)
 		return
 	}
 	statusMsg := "enabled"
 	if entry.Status == "disabled" {
 		statusMsg = "disabled"
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":    entry,
 		"message": "page " + statusMsg + " successfully",
 	})
@@ -213,24 +214,24 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	path := c.Param("path")
 	if path == "" {
-		respondBadRequest(c, "path parameter is required")
+		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
 	err := h.svc.Delete(c.Request.Context(), tenantID, path)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			respondNotFound(c, "page entry not found: "+path)
+			middleware.RespondNotFound(c, "page entry not found: "+path)
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"message": "page entry deleted successfully",
 	})
 }
@@ -239,20 +240,20 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) GetHistory(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		respondUnauthorized(c, "missing tenant_id")
+		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
 	path := c.Param("path")
 	if path == "" {
-		respondBadRequest(c, "path parameter is required")
+		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
 	history, err := h.svc.GetHistory(c.Request.Context(), tenantID, path)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":  history,
 		"total": len(history),
 	})

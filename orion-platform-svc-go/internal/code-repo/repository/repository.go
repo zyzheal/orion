@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 type Repository struct {
@@ -338,16 +341,81 @@ func (r *Repository) GetFileDiff(ctx context.Context, adapterID, repoID, base, h
 
 // ListCodeOwners returns CODEOWNERS entries for a repo.
 func (r *Repository) ListCodeOwners(ctx context.Context, repoID string) ([]models.CodeOwner, error) {
-	// TODO: query code_repo_codeowners table.
-	return []models.CodeOwner{}, nil
+	var items []models.CodeOwner
+	if repoID == "" {
+		return items, nil
+	}
+	err := r.db.SelectContext(ctx, &items,
+		`SELECT pattern, owners
+		 FROM code_repo_codeowners
+		 WHERE repo_id=$1
+		 ORDER BY pattern`,
+		repoID)
+	if err != nil {
+		// Return an empty list rather than an error when the table or repo
+		// has no entries (e.g. before the migration is applied).
+		if errors.Is(err, sql.ErrNoRows) {
+			return items, nil
+		}
+		return nil, fmt.Errorf("failed to query code owners: %w", err)
+	}
+	return items, nil
 }
 
 // --- Webhook logs ---
 
-// ListWebhookLogs returns webhook delivery logs.
+// ListWebhookLogs returns webhook delivery logs with pagination.
 func (r *Repository) ListWebhookLogs(ctx context.Context, limit, offset int) ([]map[string]interface{}, error) {
-	// TODO: query webhook delivery logs.
-	return []map[string]interface{}{}, nil
+	if limit <= 0 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	query := `SELECT id, repo_id, event_type, status, url, payload, response, attempts,
+	                   created_at, delivered_at, tenant_id
+	          FROM code_repo_webhook_logs
+	          ORDER BY created_at DESC
+	          LIMIT $1 OFFSET $2`
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		// Gracefully handle the case where the table does not yet exist
+		// (migration not applied in dev/test environments).
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "42P01" {
+			return []map[string]interface{}{}, nil
+		}
+		if errors.Is(err, sql.ErrNoRows) {
+			return []map[string]interface{}{}, nil
+		}
+		return nil, fmt.Errorf("failed to query webhook logs: %w", err)
+	}
+	defer rows.Close()
+
+	logs := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var id, repoID, eventType, status, deliveredAt string
+		var payload, response sql.NullString
+		var url, attempts, createdAt, tenantID sql.NullString
+		err := rows.Scan(
+			&id, &repoID, &eventType, &status, &url, &payload, &response, &attempts,
+			&createdAt, &deliveredAt, &tenantID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan webhook log row: %w", err)
+		}
+		logs = append(logs, map[string]interface{}{
+			"id":        id,
+			"repo_id":   repoID,
+			"event_type": eventType,
+			"status":    status,
+			"delivered_at": deliveredAt,
+			"created_at": createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read webhook logs: %w", err)
+	}
+	return logs, nil
 }
 
 // --- Webhook Secrets ---

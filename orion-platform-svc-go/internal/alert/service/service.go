@@ -315,6 +315,64 @@ func (s *Service) ListAlerts(ctx context.Context, tenantID string, severity, sta
 	}, nil
 }
 
+// UpdateAlertRequest holds the updatable fields for PUT /alert/:id.
+type UpdateAlertRequest struct {
+	Severity   string                 `json:"severity"`
+	Status     string                 `json:"status"`
+	SourceName string                 `json:"sourceName"`
+	Labels     map[string]string      `json:"labels"`
+	Annotations map[string]string     `json:"annotations"`
+	Value      float64                `json:"value"`
+	Threshold  float64                `json:"threshold"`
+}
+
+// UpdateAlert applies partial updates to an existing alert.
+func (s *Service) UpdateAlert(ctx context.Context, tenantID, id string, req UpdateAlertRequest) (*models.Alert, error) {
+	alert, err := s.repo.GetAlertByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, errors.New("alert not found")
+	}
+	if req.Severity != "" {
+		alert.Severity = req.Severity
+	}
+	if req.Status != "" {
+		alert.Status = req.Status
+		if req.Status == "resolved" {
+			now := time.Now().UTC()
+			alert.ResolvedAt = &now
+		}
+	}
+	if req.SourceName != "" {
+		alert.SourceName = req.SourceName
+	}
+	if req.Labels != nil {
+		alert.Labels = req.Labels
+	}
+	if req.Annotations != nil {
+		alert.Annotations = req.Annotations
+	}
+	if req.Value != 0 {
+		alert.Value = req.Value
+	}
+	if req.Threshold != 0 {
+		alert.Threshold = req.Threshold
+	}
+	if err := s.repo.UpdateAlert(ctx, alert); err != nil {
+		return nil, err
+	}
+	return alert, nil
+}
+
+// DeleteAlert removes an alert by ID.
+func (s *Service) DeleteAlert(ctx context.Context, tenantID, id string) error {
+	exists, err := s.repo.GetAlertByID(ctx, tenantID, id)
+	if err != nil {
+		return errors.New("alert not found")
+	}
+	_ = exists
+	return s.repo.DeleteAlert(ctx, tenantID, id)
+}
+
 // GetAlert returns a single alert by ID.
 func (s *Service) GetAlert(ctx context.Context, tenantID, id string) (*models.Alert, error) {
 	alert, err := s.repo.GetAlertByID(ctx, tenantID, id)

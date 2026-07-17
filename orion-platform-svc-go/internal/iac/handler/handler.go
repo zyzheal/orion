@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/iac/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -79,25 +80,25 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.ListWorkspaces(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) CreateWorkspace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.CreateWorkspace(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, w)
+	middleware.RespondCreated(c, w)
 }
 
 func (h *Handler) GetWorkspace(c *gin.Context) {
@@ -106,13 +107,13 @@ func (h *Handler) GetWorkspace(c *gin.Context) {
 	w, err := h.svc.GetWorkspace(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workspace not found")
+			middleware.RespondNotFound(c, "workspace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 func (h *Handler) UpdateWorkspace(c *gin.Context) {
@@ -120,19 +121,19 @@ func (h *Handler) UpdateWorkspace(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	w, err := h.svc.UpdateWorkspace(c.Request.Context(), tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workspace not found")
+			middleware.RespondNotFound(c, "workspace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, w)
+	middleware.RespondSuccess(c, w)
 }
 
 // --- Plan & Apply ---
@@ -144,10 +145,10 @@ func (h *Handler) GeneratePlan(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	plan, err := h.svc.GeneratePlan(c.Request.Context(), tenantID, workspaceID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, plan)
+	middleware.RespondCreated(c, plan)
 }
 
 func (h *Handler) ApplyPlan(c *gin.Context) {
@@ -157,10 +158,10 @@ func (h *Handler) ApplyPlan(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	plan, err := h.svc.ApplyPlan(c.Request.Context(), tenantID, workspaceID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 // --- State & Resources ---
@@ -171,13 +172,13 @@ func (h *Handler) GetCurrentState(c *gin.Context) {
 	state, err := h.svc.GetCurrentState(c.Request.Context(), tenantID, workspaceID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workspace not found")
+			middleware.RespondNotFound(c, "workspace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, state)
+	middleware.RespondSuccess(c, state)
 }
 
 func (h *Handler) ListResources(c *gin.Context) {
@@ -185,10 +186,10 @@ func (h *Handler) ListResources(c *gin.Context) {
 	workspaceID := c.Param("id")
 	resources, err := h.svc.ListResources(c.Request.Context(), tenantID, workspaceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, resources)
+	middleware.RespondSuccess(c, resources)
 }
 
 func (h *Handler) ImportResource(c *gin.Context) {
@@ -196,15 +197,15 @@ func (h *Handler) ImportResource(c *gin.Context) {
 	workspaceID := c.Param("id")
 	var req models.ImportResourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	resource, err := h.svc.ImportResource(c.Request.Context(), tenantID, workspaceID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, resource)
+	middleware.RespondCreated(c, resource)
 }
 
 // --- State Versions ---
@@ -215,13 +216,13 @@ func (h *Handler) ListStateVersions(c *gin.Context) {
 	versions, err := h.svc.ListStateVersions(c.Request.Context(), tenantID, workspaceID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "workspace not found")
+			middleware.RespondNotFound(c, "workspace not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }
 
 func (h *Handler) GetStateDiff(c *gin.Context) {
@@ -230,15 +231,15 @@ func (h *Handler) GetStateDiff(c *gin.Context) {
 	versionA := c.Query("versionA")
 	versionB := c.Query("versionB")
 	if versionA == "" || versionB == "" {
-		respondBadRequest(c, "versionA and versionB query parameters are required")
+		middleware.RespondBadRequest(c, "versionA and versionB query parameters are required")
 		return
 	}
 	diff, err := h.svc.GetStateDiff(c.Request.Context(), tenantID, workspaceID, versionA, versionB)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, diff)
+	middleware.RespondSuccess(c, diff)
 }
 
 // --- Plan Details ---
@@ -248,10 +249,10 @@ func (h *Handler) ListPlans(c *gin.Context) {
 	workspaceID := c.Param("id")
 	plans, err := h.svc.ListPlans(c.Request.Context(), tenantID, workspaceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plans)
+	middleware.RespondSuccess(c, plans)
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
@@ -261,18 +262,18 @@ func (h *Handler) GetPlan(c *gin.Context) {
 	plan, err := h.svc.GetPlan(c.Request.Context(), tenantID, planID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "plan not found")
+			middleware.RespondNotFound(c, "plan not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	// Verify workspace ownership
 	if plan.WorkspaceID != workspaceID {
-		respondNotFound(c, "plan not found")
+		middleware.RespondNotFound(c, "plan not found")
 		return
 	}
-	respondSuccess(c, plan)
+	middleware.RespondSuccess(c, plan)
 }
 
 // --- Modules ---
@@ -281,25 +282,25 @@ func (h *Handler) ListModules(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	modules, err := h.svc.ListModules(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, modules)
+	middleware.RespondSuccess(c, modules)
 }
 
 func (h *Handler) CreateModule(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateModuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.CreateModule(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) GetModule(c *gin.Context) {
@@ -308,13 +309,13 @@ func (h *Handler) GetModule(c *gin.Context) {
 	m, err := h.svc.GetModule(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "module not found")
+			middleware.RespondNotFound(c, "module not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) DeleteModule(c *gin.Context) {
@@ -322,11 +323,11 @@ func (h *Handler) DeleteModule(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteModule(c.Request.Context(), tenantID, id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "module not found")
+			middleware.RespondNotFound(c, "module not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "module deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "module deleted"})
 }

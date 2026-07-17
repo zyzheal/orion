@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-graph/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -50,20 +51,20 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	pipeline, err := h.svc.GetPipeline(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline not found")
+			middleware.RespondNotFound(c, "pipeline not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
 	graph, err := h.svc.BuildGraph(id, pipeline.YamlContent)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, models.GraphResponse{
+	middleware.RespondSuccess(c, models.GraphResponse{
 		PipelineID:   id,
 		PipelineName: pipeline.Name,
 		Graph:        *graph,
@@ -74,49 +75,49 @@ func (h *Handler) GetGraph(c *gin.Context) {
 func (h *Handler) ParseYaml(c *gin.Context) {
 	var req models.YamlParseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.YamlToJson(req.YamlDefinition)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // ToYaml handles POST /pipelines/to-yaml.
 func (h *Handler) ToYaml(c *gin.Context) {
 	var req models.YamlToJsonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.JsonToYaml(req.Graph)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // Validate handles POST /pipelines/validate.
 func (h *Handler) Validate(c *gin.Context) {
 	var req models.ValidateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
 	resp, err := h.svc.Validate(req.YamlDefinition)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }

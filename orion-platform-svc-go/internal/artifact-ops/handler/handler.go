@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/artifact-ops/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -54,15 +55,15 @@ func (h *Handler) TrackOperation(c *gin.Context) {
 	actorID := c.GetString("user_id")
 	var req models.TrackOperationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	op, err := h.svc.TrackOperation(c.Request.Context(), tenantID, actorID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, op)
+	middleware.RespondCreated(c, op)
 }
 
 func (h *Handler) GetOperationHistory(c *gin.Context) {
@@ -72,35 +73,35 @@ func (h *Handler) GetOperationHistory(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.GetOperationHistory(c.Request.Context(), tenantID, artifactID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": items, "total": len(items)})
+	middleware.RespondSuccess(c, gin.H{"data": items, "total": len(items)})
 }
 
 func (h *Handler) GetArtifactStats(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Query("artifactId")
 	if artifactID == "" {
-		respondBadRequest(c, "artifactId is required")
+		middleware.RespondBadRequest(c, "artifactId is required")
 		return
 	}
 	stats, err := h.svc.GetArtifactStats(c.Request.Context(), tenantID, artifactID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 func (h *Handler) Cleanup(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Cleanup(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---------- Scan ----------
@@ -112,10 +113,10 @@ func (h *Handler) ScanArtifact(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	scan, err := h.svc.ScanArtifact(c.Request.Context(), tenantID, artifactID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, scan)
+	middleware.RespondCreated(c, scan)
 }
 
 func (h *Handler) GetScanReport(c *gin.Context) {
@@ -123,10 +124,10 @@ func (h *Handler) GetScanReport(c *gin.Context) {
 	scanID := c.Param("scanId")
 	report, err := h.svc.GetScanReport(c.Request.Context(), tenantID, scanID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) GetArtifactScanReports(c *gin.Context) {
@@ -134,25 +135,25 @@ func (h *Handler) GetArtifactScanReports(c *gin.Context) {
 	artifactID := c.Param("artifactId")
 	reports, err := h.svc.GetArtifactScanReports(c.Request.Context(), tenantID, artifactID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": reports, "total": len(reports)})
+	middleware.RespondSuccess(c, gin.H{"data": reports, "total": len(reports)})
 }
 
 func (h *Handler) DetectMalicious(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DetectMaliciousRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.DetectMalicious(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // ---------- Retention ----------
@@ -161,30 +162,30 @@ func (h *Handler) DefineRetentionPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DefineRetentionPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.DefineRetentionPolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, policy)
+	middleware.RespondCreated(c, policy)
 }
 
 func (h *Handler) EvaluateRetention(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateRetentionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluateRetention(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetRetentionReport(c *gin.Context) {
@@ -193,28 +194,28 @@ func (h *Handler) GetRetentionReport(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 	report, err := h.svc.GetRetentionReport(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": policies, "total": len(policies)})
+	middleware.RespondSuccess(c, gin.H{"data": policies, "total": len(policies)})
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	if err := h.svc.DeletePolicy(c.Request.Context(), tenantID, policyID); err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "retention policy deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "retention policy deleted"})
 }

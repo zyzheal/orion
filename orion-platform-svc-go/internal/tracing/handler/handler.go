@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/tracing/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -42,10 +43,10 @@ func (h *Handler) ListTraces(c *gin.Context) {
 	}
 	traces, err := h.svc.GetTraceList(c.Request.Context(), tenantID, serviceName, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": traces, "total": len(traces)})
+	middleware.RespondSuccess(c, gin.H{"data": traces, "total": len(traces)})
 }
 
 func (h *Handler) GetTrace(c *gin.Context) {
@@ -53,14 +54,14 @@ func (h *Handler) GetTrace(c *gin.Context) {
 	traceID := c.Param("traceId")
 	traces, err := h.svc.GetTrace(c.Request.Context(), tenantID, traceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if len(traces) == 0 {
-		respondNotFound(c, "trace not found")
+		middleware.RespondNotFound(c, "trace not found")
 		return
 	}
-	respondSuccess(c, gin.H{"traceId": traceID, "spans": traces})
+	middleware.RespondSuccess(c, gin.H{"traceId": traceID, "spans": traces})
 }
 
 func (h *Handler) GetTraceSpans(c *gin.Context) {
@@ -68,50 +69,50 @@ func (h *Handler) GetTraceSpans(c *gin.Context) {
 	traceID := c.Param("traceId")
 	traces, err := h.svc.GetTrace(c.Request.Context(), tenantID, traceID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": traces, "total": len(traces)})
+	middleware.RespondSuccess(c, gin.H{"data": traces, "total": len(traces)})
 }
 
 func (h *Handler) SearchTraces(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.TraceSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	traces, err := h.svc.SearchTraces(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": traces, "total": len(traces)})
+	middleware.RespondSuccess(c, gin.H{"data": traces, "total": len(traces)})
 }
 
 func (h *Handler) GetSamplingConfigs(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	configs, err := h.svc.GetSamplingConfigs(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs, "total": len(configs)})
+	middleware.RespondSuccess(c, gin.H{"data": configs, "total": len(configs)})
 }
 
 func (h *Handler) UpdateSamplingConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpsertSamplingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.UpsertSamplingConfig(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 func (h *Handler) GetOtelConfigs(c *gin.Context) {
@@ -119,25 +120,25 @@ func (h *Handler) GetOtelConfigs(c *gin.Context) {
 	configType := c.Query("configType")
 	configs, err := h.svc.GetOtelConfigs(c.Request.Context(), tenantID, configType)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": configs, "total": len(configs)})
+	middleware.RespondSuccess(c, gin.H{"data": configs, "total": len(configs)})
 }
 
 func (h *Handler) CreateOtelConfig(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateOtelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.CreateOtelConfig(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, config)
+	middleware.RespondCreated(c, config)
 }
 
 func (h *Handler) UpdateOtelConfig(c *gin.Context) {
@@ -145,15 +146,15 @@ func (h *Handler) UpdateOtelConfig(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateOtelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	config, err := h.svc.UpdateOtelConfig(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, config)
+	middleware.RespondSuccess(c, config)
 }
 
 func (h *Handler) DeleteOtelConfig(c *gin.Context) {
@@ -161,8 +162,8 @@ func (h *Handler) DeleteOtelConfig(c *gin.Context) {
 	id := c.Param("id")
 	err := h.svc.DeleteOtelConfig(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "OTel config deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "OTel config deleted"})
 }

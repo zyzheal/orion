@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/sbom/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -95,16 +96,16 @@ func parsePagination(c *gin.Context) (int, int) {
 func (h *Handler) ListSBOMs(c *gin.Context) {
 	var q models.ListQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	docs, total, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, &q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, &models.PaginatedResponse{
+	middleware.RespondSuccess(c, &models.PaginatedResponse{
 		Data:   docs,
 		Total:  total,
 		Offset: q.Offset,
@@ -115,16 +116,16 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 func (h *Handler) GenerateSBOM(c *gin.Context) {
 	var req models.GenerateSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	sbom, err := h.svc.GenerateSBOM(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, sbom)
+	middleware.RespondCreated(c, sbom)
 }
 
 func (h *Handler) GetSBOM(c *gin.Context) {
@@ -133,13 +134,13 @@ func (h *Handler) GetSBOM(c *gin.Context) {
 	sbom, err := h.svc.GetSBOM(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sbom not found")
+			middleware.RespondNotFound(c, "sbom not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sbom)
+	middleware.RespondSuccess(c, sbom)
 }
 
 func (h *Handler) DeleteSBOM(c *gin.Context) {
@@ -147,14 +148,14 @@ func (h *Handler) DeleteSBOM(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	deleted, err := h.svc.DeleteSBOM(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "sbom not found")
+		middleware.RespondNotFound(c, "sbom not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "sbom deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "sbom deleted"})
 }
 
 // --- Component handlers ---
@@ -168,10 +169,10 @@ func (h *Handler) ListComponents(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	comps, total, err := h.svc.ListComponents(c.Request.Context(), id, tenantID, offset, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, &models.PaginatedResponse{
+	middleware.RespondSuccess(c, &models.PaginatedResponse{
 		Data:   comps,
 		Total:  total,
 		Offset: offset,
@@ -195,10 +196,10 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 	}
 	vulns, total, err := h.svc.ListVulnerabilities(c.Request.Context(), id, tenantID, severityPtr, offset, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, &models.PaginatedResponse{
+	middleware.RespondSuccess(c, &models.PaginatedResponse{
 		Data:   vulns,
 		Total:  total,
 		Offset: offset,
@@ -214,13 +215,13 @@ func (h *Handler) ScanSBOM(c *gin.Context) {
 	sbom, err := h.svc.ScanSBOM(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sbom not found")
+			middleware.RespondNotFound(c, "sbom not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, sbom)
+	middleware.RespondSuccess(c, sbom)
 }
 
 // --- License handlers ---
@@ -230,10 +231,10 @@ func (h *Handler) GetLicenses(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	licenses, err := h.svc.GetLicenses(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": licenses})
+	middleware.RespondSuccess(c, gin.H{"data": licenses})
 }
 
 // --- Attestation handlers ---
@@ -243,30 +244,30 @@ func (h *Handler) ListAttestations(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	atts, err := h.svc.ListAttestations(c.Request.Context(), id, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": atts})
+	middleware.RespondSuccess(c, gin.H{"data": atts})
 }
 
 func (h *Handler) CreateAttestation(c *gin.Context) {
 	id := c.Param("id")
 	var req models.CreateAttestationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	att, err := h.svc.CreateAttestation(c.Request.Context(), id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sbom not found")
+			middleware.RespondNotFound(c, "sbom not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, att)
+	middleware.RespondCreated(c, att)
 }
 
 // --- Export handler ---
@@ -278,10 +279,10 @@ func (h *Handler) ExportSBOM(c *gin.Context) {
 	resp, err := h.svc.ExportSBOM(c.Request.Context(), id, tenantID, format)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sbom not found")
+			middleware.RespondNotFound(c, "sbom not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Header("Content-Type", "application/json")
@@ -294,18 +295,18 @@ func (h *Handler) ExportSBOM(c *gin.Context) {
 func (h *Handler) CompareSBOMs(c *gin.Context) {
 	var req models.CompareSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
 	comparison, err := h.svc.CompareSBOMs(c.Request.Context(), req.FromSBOMID, req.ToSBOMID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "sbom not found")
+			middleware.RespondNotFound(c, "sbom not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, comparison)
+	middleware.RespondSuccess(c, comparison)
 }

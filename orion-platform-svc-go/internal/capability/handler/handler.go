@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/capability/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -110,15 +111,15 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCapabilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, m)
+	middleware.RespondCreated(c, m)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -127,13 +128,13 @@ func (h *Handler) Get(c *gin.Context) {
 	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "capability not found")
+			middleware.RespondNotFound(c, "capability not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -142,10 +143,10 @@ func (h *Handler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items)
+	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -153,25 +154,25 @@ func (h *Handler) Update(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCapabilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, m)
+	middleware.RespondSuccess(c, m)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "capability deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "capability deleted"})
 }
 
 // GetTree handles GET /tree.
@@ -179,10 +180,10 @@ func (h *Handler) GetTree(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	tree, err := h.svc.GetTree(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tree)
+	middleware.RespondSuccess(c, tree)
 }
 
 // --- Role-based capability grants ---
@@ -194,14 +195,14 @@ func (h *Handler) GrantToRole(c *gin.Context) {
 	grantedBy := c.GetString("user_id")
 	var body models.GrantToRoleRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.GrantCapabilityToRole(c.Request.Context(), tenantID, capabilityID, body.RoleName, grantedBy); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "capability granted to role"})
+	middleware.RespondCreated(c, gin.H{"message": "capability granted to role"})
 }
 
 // RevokeFromRole handles DELETE /:id/roles/:roleName.
@@ -210,10 +211,10 @@ func (h *Handler) RevokeFromRole(c *gin.Context) {
 	capabilityID := c.Param("id")
 	roleName := c.Param("roleName")
 	if err := h.svc.RevokeCapabilityFromRole(c.Request.Context(), tenantID, capabilityID, roleName); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "capability revoked from role"})
+	middleware.RespondSuccess(c, gin.H{"message": "capability revoked from role"})
 }
 
 // --- User-based capability grants ---
@@ -225,14 +226,14 @@ func (h *Handler) GrantToUser(c *gin.Context) {
 	grantedBy := c.GetString("user_id")
 	var body models.GrantToUserRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.GrantCapabilityToUser(c.Request.Context(), tenantID, capabilityID, body.UserID, grantedBy, body.ExpiresInHours); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "capability granted to user"})
+	middleware.RespondCreated(c, gin.H{"message": "capability granted to user"})
 }
 
 // RevokeFromUser handles DELETE /:id/users/:userId.
@@ -241,10 +242,10 @@ func (h *Handler) RevokeFromUser(c *gin.Context) {
 	capabilityID := c.Param("id")
 	targetUserID := c.Param("userId")
 	if err := h.svc.RevokeCapabilityFromUser(c.Request.Context(), tenantID, capabilityID, targetUserID); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "capability revoked from user"})
+	middleware.RespondSuccess(c, gin.H{"message": "capability revoked from user"})
 }
 
 // --- Command-to-capability mapping ---
@@ -254,7 +255,7 @@ func (h *Handler) MapCommand(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.MapCommandRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	var envSuffix string
@@ -264,10 +265,10 @@ func (h *Handler) MapCommand(c *gin.Context) {
 	if err := h.svc.MapCommandToCapability(c.Request.Context(), tenantID,
 		body.CommandName, body.CommandAction, body.CapabilityID,
 		envSuffix); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, gin.H{"message": "command mapped to capability"})
+	middleware.RespondCreated(c, gin.H{"message": "command mapped to capability"})
 }
 
 // GetCapabilityForCommand handles GET /commands/:command/actions/:action.
@@ -278,10 +279,10 @@ func (h *Handler) GetCapabilityForCommand(c *gin.Context) {
 	environment := c.Query("environment")
 	capabilityID, err := h.svc.GetCapabilityForCommand(c.Request.Context(), tenantID, command, action, environment)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.GetCapabilityForCommandResult{CapabilityID: capabilityID})
+	middleware.RespondSuccess(c, models.GetCapabilityForCommandResult{CapabilityID: capabilityID})
 }
 
 // --- Permission check ---
@@ -291,7 +292,7 @@ func (h *Handler) CheckPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.CheckPermissionRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Default to current user if userId not provided.
@@ -300,10 +301,10 @@ func (h *Handler) CheckPermission(c *gin.Context) {
 	}
 	result, err := h.svc.CheckPermission(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Temporary permissions (legacy API) ---
@@ -313,27 +314,27 @@ func (h *Handler) GrantTemporary(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.GrantTemporaryRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if body.TenantID == "" {
 		body.TenantID = tenantID
 	}
 	if body.ExpiresInHours <= 0 {
-		respondBadRequest(c, "invalid duration")
+		middleware.RespondBadRequest(c, "invalid duration")
 		return
 	}
 	if body.ExpiresInHours > 720 {
-		respondBadRequest(c, "duration exceeds limit")
+		middleware.RespondBadRequest(c, "duration exceeds limit")
 		return
 	}
 	body.GrantedBy = c.GetString("user_id")
 	perm, err := h.svc.GrantTemporaryPermission(c.Request.Context(), body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, perm)
+	middleware.RespondCreated(c, perm)
 }
 
 // GetActiveTemporary handles GET /temporary/:userId.
@@ -342,10 +343,10 @@ func (h *Handler) GetActiveTemporary(c *gin.Context) {
 	userID := c.Param("userId")
 	perms, err := h.svc.GetActiveTemporaryPermissions(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, perms)
+	middleware.RespondSuccess(c, perms)
 }
 
 // RevokeTemporary handles DELETE /temporary/:id.
@@ -353,7 +354,7 @@ func (h *Handler) RevokeTemporary(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, "invalid id")
+		middleware.RespondBadRequest(c, "invalid id")
 		return
 	}
 	var body struct {
@@ -362,14 +363,14 @@ func (h *Handler) RevokeTemporary(c *gin.Context) {
 	c.ShouldBindJSON(&body)
 	revoked, err := h.svc.RevokeTemporaryPermission(c.Request.Context(), tenantID, id, c.GetString("user_id"), body.Reason)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if revoked == nil {
-		respondNotFound(c, "temporary permission not found")
+		middleware.RespondNotFound(c, "temporary permission not found")
 		return
 	}
-	respondSuccess(c, revoked)
+	middleware.RespondSuccess(c, revoked)
 }
 
 // --- Permission audit ---
@@ -399,10 +400,10 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 	}
 	logs, err := h.svc.GetAuditLogs(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	middleware.RespondSuccess(c, logs)
 }
 
 // --- Permission request (legacy API) ---
@@ -412,16 +413,16 @@ func (h *Handler) RequestPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.CreatePermissionRequestBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	// Validate capability exists.
 	if _, err := h.svc.Get(c.Request.Context(), tenantID, body.CapabilityID); err != nil {
 		if service.IsNotFound(err) {
-			respondBadRequest(c, "invalid capability")
+			middleware.RespondBadRequest(c, "invalid capability")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	userID := c.GetString("user_id")
@@ -430,10 +431,10 @@ func (h *Handler) RequestPermission(c *gin.Context) {
 	}
 	req, err := h.svc.CreatePermissionRequest(c.Request.Context(), tenantID, userID, body.CapabilityID, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, req)
+	middleware.RespondCreated(c, req)
 }
 
 // GetPermissionRequest handles GET /request/:ticketId.
@@ -441,19 +442,19 @@ func (h *Handler) GetPermissionRequest(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ticketID, err := strconv.Atoi(c.Param("ticketId"))
 	if err != nil {
-		respondBadRequest(c, "invalid ticket id")
+		middleware.RespondBadRequest(c, "invalid ticket id")
 		return
 	}
 	req, err := h.svc.GetPermissionRequestByTicket(c.Request.Context(), tenantID, ticketID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if req == nil {
-		respondNotFound(c, "permission request not found")
+		middleware.RespondNotFound(c, "permission request not found")
 		return
 	}
-	respondSuccess(c, req)
+	middleware.RespondSuccess(c, req)
 }
 
 // ApproveRequest handles POST /request/:ticketId/approve.
@@ -461,7 +462,7 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ticketID, err := strconv.Atoi(c.Param("ticketId"))
 	if err != nil {
-		respondBadRequest(c, "invalid ticket id")
+		middleware.RespondBadRequest(c, "invalid ticket id")
 		return
 	}
 	var body models.ApproveRequestBody
@@ -471,10 +472,10 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 	}
 	result, err := h.svc.ApproveRequest(c.Request.Context(), body.TenantID, ticketID, c.GetString("user_id"), body.ApproverRoles)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // RejectRequest handles POST /request/:ticketId/reject.
@@ -482,17 +483,17 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ticketID, err := strconv.Atoi(c.Param("ticketId"))
 	if err != nil {
-		respondBadRequest(c, "invalid ticket id")
+		middleware.RespondBadRequest(c, "invalid ticket id")
 		return
 	}
 	var body models.RejectRequestBody
 	c.ShouldBindJSON(&body)
 	success, err := h.svc.RejectRequest(c.Request.Context(), tenantID, ticketID, c.GetString("user_id"), body.Reason)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"success": success})
+	middleware.RespondSuccess(c, gin.H{"success": success})
 }
 
 // --- Cleanup ---
@@ -502,10 +503,10 @@ func (h *Handler) CleanupExpired(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.CleanupExpiredTemporaryPermissions(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Simplified permission request API ---
@@ -515,7 +516,7 @@ func (h *Handler) RequestPermissionSimplified(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.RequestPermissionBody
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	userID := c.GetString("user_id")
@@ -524,10 +525,10 @@ func (h *Handler) RequestPermissionSimplified(c *gin.Context) {
 	}
 	req, err := h.svc.RequestPermission(c.Request.Context(), tenantID, body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, req)
+	middleware.RespondCreated(c, req)
 }
 
 // GrantSimplified handles POST /grant.
@@ -535,7 +536,7 @@ func (h *Handler) GrantSimplified(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var body models.GrantSimplifiedRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if body.TenantID == "" {
@@ -544,10 +545,10 @@ func (h *Handler) GrantSimplified(c *gin.Context) {
 	body.GrantorId = c.GetString("user_id")
 	perm, err := h.svc.GrantSimplified(c.Request.Context(), body)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, perm)
+	middleware.RespondCreated(c, perm)
 }
 
 // RevokeSimplified handles DELETE /grant/:id.
@@ -555,19 +556,19 @@ func (h *Handler) RevokeSimplified(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondBadRequest(c, "invalid id")
+		middleware.RespondBadRequest(c, "invalid id")
 		return
 	}
 	revoked, err := h.svc.RevokeSimplified(c.Request.Context(), tenantID, id, c.GetString("user_id"))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if revoked == nil {
-		respondNotFound(c, "permission not found")
+		middleware.RespondNotFound(c, "permission not found")
 		return
 	}
-	respondSuccess(c, revoked)
+	middleware.RespondSuccess(c, revoked)
 }
 
 // --- Effective capabilities ---
@@ -585,10 +586,10 @@ func (h *Handler) GetEffectiveCapabilities(c *gin.Context) {
 	}
 	capabilities, err := h.svc.GetUserEffectiveCapabilities(c.Request.Context(), tenantID, userID, splitQuery(roles))
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.UserEffectiveCapabilities{
+	middleware.RespondSuccess(c, models.UserEffectiveCapabilities{
 		UserID:       userID,
 		Capabilities: capabilities,
 	})
@@ -602,10 +603,10 @@ func (h *Handler) GetUserPermissionRequests(c *gin.Context) {
 	userID := c.Param("userId")
 	reqs, err := h.svc.GetUserPermissionRequests(c.Request.Context(), tenantID, userID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, reqs)
+	middleware.RespondSuccess(c, reqs)
 }
 
 // --- Helpers ---

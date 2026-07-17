@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-sse/models"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Hub defines the service interface needed by the SSE handler.
@@ -70,7 +71,7 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 	logLevel := c.Query("logLevel")
 
 	if pipelineID == "" || runID == "" {
-		respondBadRequest(c, "pipelineId and runId are required")
+		middleware.RespondBadRequest(c, "pipelineId and runId are required")
 		return
 	}
 
@@ -99,7 +100,7 @@ func (h *Handler) StreamStatus(c *gin.Context) {
 	runID := c.Query("runId")
 
 	if pipelineID == "" || runID == "" {
-		respondBadRequest(c, "pipelineId and runId are required")
+		middleware.RespondBadRequest(c, "pipelineId and runId are required")
 		return
 	}
 
@@ -120,16 +121,16 @@ func (h *Handler) StreamStatus(c *gin.Context) {
 func (h *Handler) PublishLog(c *gin.Context) {
 	var req models.PublishLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.hub.PublishLogEvent(c.Request.Context(), tenantID, &req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "log event published"})
+	middleware.RespondSuccess(c, gin.H{"message": "log event published"})
 }
 
 // PublishStatus handles POST /pipelines/sse/publish/status.
@@ -137,22 +138,22 @@ func (h *Handler) PublishLog(c *gin.Context) {
 func (h *Handler) PublishStatus(c *gin.Context) {
 	var req models.PublishStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := c.GetString("tenant_id")
 
 	if err := h.hub.PublishStatusEvent(c.Request.Context(), tenantID, &req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "status event published"})
+	middleware.RespondSuccess(c, gin.H{"message": "status event published"})
 }
 
 // GetStats handles GET /pipelines/sse/stats.
 func (h *Handler) GetStats(c *gin.Context) {
 	stats := h.hub.GetStats()
-	respondSuccess(c, stats)
+	middleware.RespondSuccess(c, stats)
 }
 
 // GetEvents handles GET /pipelines/sse/events (optional, for replay).
@@ -162,7 +163,7 @@ func (h *Handler) GetEvents(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "200")
 
 	if pipelineID == "" || runID == "" {
-		respondBadRequest(c, "pipelineId and runId are required")
+		middleware.RespondBadRequest(c, "pipelineId and runId are required")
 		return
 	}
 
@@ -173,8 +174,8 @@ func (h *Handler) GetEvents(c *gin.Context) {
 
 	events, err := h.hub.ListEvents(c.Request.Context(), pipelineID, runID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, events)
+	middleware.RespondSuccess(c, events)
 }

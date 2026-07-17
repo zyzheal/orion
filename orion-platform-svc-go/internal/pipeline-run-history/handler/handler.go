@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-run-history/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -55,7 +56,7 @@ func (h *Handler) RunHistory(c *gin.Context) {
 	if limitStr != "" {
 		l, err := strconv.Atoi(limitStr)
 		if err != nil || l < 1 || l > 365 {
-			respondBadRequest(c, "limit must be between 1 and 365")
+			middleware.RespondBadRequest(c, "limit must be between 1 and 365")
 			return
 		}
 		limit = l
@@ -64,12 +65,12 @@ func (h *Handler) RunHistory(c *gin.Context) {
 	resp, err := h.svc.GetRunHistory(c.Request.Context(), pipelineID, tenantID, period, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "pipeline not found")
+			middleware.RespondNotFound(c, "pipeline not found")
 			return
 		}
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }

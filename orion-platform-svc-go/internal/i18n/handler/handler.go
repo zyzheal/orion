@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/i18n/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -60,25 +61,25 @@ func (h *Handler) CreateLocale(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateLocaleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	locale, err := h.svc.CreateLocale(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, locale)
+	middleware.RespondCreated(c, locale)
 }
 
 func (h *Handler) ListLocales(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	locales, err := h.svc.ListLocales(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"locales": locales, "total": len(locales)})
+	middleware.RespondSuccess(c, gin.H{"locales": locales, "total": len(locales)})
 }
 
 // ==================== Translation Handlers ====================
@@ -87,30 +88,30 @@ func (h *Handler) SetTranslation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SetTranslationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	translation, err := h.svc.SetTranslation(c.Request.Context(), tenantID, req.LocaleCode, req.Namespace, req.Key, req.Value)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, translation)
+	middleware.RespondCreated(c, translation)
 }
 
 func (h *Handler) SetBulkTranslations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SetBulkTranslationsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	count, err := h.svc.SetBulkTranslations(c.Request.Context(), tenantID, req.LocaleCode, req.Namespace, req.Translations)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"count": count})
+	middleware.RespondSuccess(c, gin.H{"count": count})
 }
 
 func (h *Handler) GetTranslations(c *gin.Context) {
@@ -122,10 +123,10 @@ func (h *Handler) GetTranslations(c *gin.Context) {
 	if namespace != "" {
 		translations, err := h.svc.GetTranslationsByNamespace(ctx, tenantID, localeCode, namespace)
 		if err != nil {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 			return
 		}
-		respondSuccess(c, gin.H{
+		middleware.RespondSuccess(c, gin.H{
 			"localeCode":   localeCode,
 			"namespace":    namespace,
 			"translations": translations,
@@ -135,10 +136,10 @@ func (h *Handler) GetTranslations(c *gin.Context) {
 
 	allTranslations, err := h.svc.GetAllTranslations(ctx, tenantID, localeCode)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"localeCode":   localeCode,
 		"translations": allTranslations,
 	})
@@ -152,12 +153,12 @@ func (h *Handler) DeleteTranslation(c *gin.Context) {
 
 	deleted, err := h.svc.DeleteTranslation(c.Request.Context(), tenantID, localeCode, namespace, key)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "translation not found")
+		middleware.RespondNotFound(c, "translation not found")
 		return
 	}
-	respondSuccess(c, gin.H{"deleted": true})
+	middleware.RespondSuccess(c, gin.H{"deleted": true})
 }

@@ -41,14 +41,15 @@ type OrderListResult struct {
 // ---- Data Sources ----
 
 type DataSource struct {
-	ID             string     `json:"id" db:"id"`
+	ID             string     `json:"-" db:"id"`
 	TenantID       string     `json:"tenant_id" db:"tenant_id"`
 	Name           string     `json:"name" db:"name"`
 	Type           string     `json:"type" db:"source_type"`
 	Host           string     `json:"host" db:"host"`
 	Port           int        `json:"port" db:"port"`
 	Database       string     `json:"database" db:"database_name"`
-	Username       *string    `json:"username,omitempty" db:"username"`
+	Username       *string    `json:"-" db:"username"`
+	Password       *string    `json:"-" db:"password"`
 	Status         string     `json:"status" db:"status"`
 	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`

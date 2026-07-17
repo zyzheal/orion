@@ -219,15 +219,17 @@ func TestPostgreSQLEventStore_DeleteOlderThan(t *testing.T) {
 	store := &mockEventStore{}
 	past := time.Now().UTC().Add(-time.Hour)
 
-	store.Append(context.Background(),
+	// First event is in the past; second is in the future (will not be deleted)
+	store.events = []events.DomainEvent{
 		&MockDomainEvent{aggregateType: "pipeline", aggregateID: "pipe-1", tenantID: "tenant-1", eventType: "pipeline.created", occurredAt: past},
-		&MockDomainEvent{aggregateType: "pipeline", aggregateID: "pipe-1", tenantID: "tenant-1", eventType: "pipeline.activated", occurredAt: time.Now().UTC()},
-	)
+		&MockDomainEvent{aggregateType: "pipeline", aggregateID: "pipe-1", tenantID: "tenant-1", eventType: "pipeline.activated", occurredAt: time.Now().UTC().Add(time.Hour)},
+	}
 
 	deleted, err := store.DeleteOlderThan(context.Background(), "tenant-1", time.Now().UTC())
 	assert.NoError(t, err)
 	assert.Equal(t, int64(1), deleted)
 	assert.Len(t, store.events, 1)
+	assert.Equal(t, "pipeline.activated", store.events[0].EventType())
 }
 
 // ---------------------------------------------------------------------------

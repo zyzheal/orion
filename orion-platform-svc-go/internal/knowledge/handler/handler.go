@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/knowledge/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -95,10 +96,10 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 
 	spaces, err := h.svc.ListSpaces(c.Request.Context(), tenantID, q)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data: spaces,
 		Meta: models.Meta{Total: len(spaces), Page: p, PerPage: pp},
 	})
@@ -108,19 +109,19 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Name == "" {
-		respondBadRequest(c, "name is required")
+		middleware.RespondBadRequest(c, "name is required")
 		return
 	}
 	space, err := h.svc.CreateSpace(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, space)
+	middleware.RespondCreated(c, space)
 }
 
 func (h *Handler) GetSpace(c *gin.Context) {
@@ -128,42 +129,42 @@ func (h *Handler) GetSpace(c *gin.Context) {
 	space, err := h.svc.GetSpace(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "space not found")
+			middleware.RespondNotFound(c, "space not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, space)
+	middleware.RespondSuccess(c, space)
 }
 
 func (h *Handler) UpdateSpace(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	space, err := h.svc.UpdateSpace(c.Request.Context(), id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "space not found")
+			middleware.RespondNotFound(c, "space not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, space)
+	middleware.RespondSuccess(c, space)
 }
 
 func (h *Handler) DeleteSpace(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteSpace(c.Request.Context(), id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "space not found")
+			middleware.RespondNotFound(c, "space not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Status(204)
@@ -206,10 +207,10 @@ func (h *Handler) ListDocs(c *gin.Context) {
 		docs, err = h.svc.ListDocs(c.Request.Context(), tenantID, q)
 	}
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data: docs,
 		Meta: models.Meta{Total: len(docs), Page: p, PerPage: pp, Type: c.Query("type")},
 	})
@@ -219,43 +220,43 @@ func (h *Handler) GetDocTags(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	tags, err := h.svc.GetDocTags(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, tags)
+	middleware.RespondSuccess(c, tags)
 }
 
 func (h *Handler) GetDocToc(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	toc, err := h.svc.GetDocToc(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, toc)
+	middleware.RespondSuccess(c, toc)
 }
 
 func (h *Handler) CreateDoc(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDocumentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Title == "" || req.Content == "" || req.SpaceID == "" {
-		respondBadRequest(c, "title, content, and space_id are required")
+		middleware.RespondBadRequest(c, "title, content, and space_id are required")
 		return
 	}
 	doc, err := h.svc.CreateDoc(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "space not found")
+			middleware.RespondNotFound(c, "space not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, doc)
+	middleware.RespondCreated(c, doc)
 }
 
 func (h *Handler) GetDoc(c *gin.Context) {
@@ -263,42 +264,42 @@ func (h *Handler) GetDoc(c *gin.Context) {
 	doc, err := h.svc.GetDoc(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "document not found")
+			middleware.RespondNotFound(c, "document not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, doc)
+	middleware.RespondSuccess(c, doc)
 }
 
 func (h *Handler) UpdateDoc(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateDocumentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	doc, err := h.svc.UpdateDoc(c.Request.Context(), id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "document not found")
+			middleware.RespondNotFound(c, "document not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, doc)
+	middleware.RespondSuccess(c, doc)
 }
 
 func (h *Handler) DeleteDoc(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.svc.DeleteDoc(c.Request.Context(), id); err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "document not found")
+			middleware.RespondNotFound(c, "document not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Status(204)
@@ -309,13 +310,13 @@ func (h *Handler) GetDocVersions(c *gin.Context) {
 	versions, err := h.svc.GetDocVersions(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "document not found")
+			middleware.RespondNotFound(c, "document not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }
 
 // --- Sync handlers ---
@@ -324,15 +325,15 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.SyncTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	log, err := h.svc.TriggerSync(c.Request.Context(), tenantID, req.Source)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, log)
+	middleware.RespondSuccess(c, log)
 }
 
 func (h *Handler) GetSyncLogs(c *gin.Context) {
@@ -345,10 +346,10 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 	}
 	logs, err := h.svc.GetSyncLogs(c.Request.Context(), tenantID, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, logs)
+	middleware.RespondSuccess(c, logs)
 }
 
 // --- RAG handlers ---
@@ -357,16 +358,16 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RetrieveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Query == "" {
-		respondBadRequest(c, "query is required")
+		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
 	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	resp := models.RetrieveResponse{
@@ -385,23 +386,23 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 			Score:   r.Similarity,
 		}
 	}
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 func (h *Handler) RAGQuery(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RAGQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if req.Query == "" {
-		respondBadRequest(c, "query is required")
+		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
 	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
@@ -451,7 +452,7 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		resp.Answer = "No relevant knowledge sources found for the query."
 	}
 
-	respondSuccess(c, resp)
+	middleware.RespondSuccess(c, resp)
 }
 
 // --- Knowledge Graph handler ---
@@ -466,17 +467,17 @@ func (h *Handler) GetGraph(c *gin.Context) {
 		space, e := h.svc.GetSpace(c.Request.Context(), spaceID)
 		if e != nil {
 			if service.IsNotFound(e) {
-				respondNotFound(c, "space not found")
+				middleware.RespondNotFound(c, "space not found")
 				return
 			}
-			respondInternalError(c, e.Error())
+			middleware.RespondInternalError(c, e.Error())
 			return
 		}
 		spaces = []models.Space{*space}
 	} else {
 		spaces, err = h.svc.ListSpaces(c.Request.Context(), tenantID, models.SpaceListQuery{Limit: 20})
 		if err != nil {
-			respondInternalError(c, err.Error())
+			middleware.RespondInternalError(c, err.Error())
 			return
 		}
 	}
@@ -512,5 +513,5 @@ func (h *Handler) GetGraph(c *gin.Context) {
 		}
 	}
 
-	respondSuccess(c, models.GraphResponse{Nodes: nodes, Edges: edges})
+	middleware.RespondSuccess(c, models.GraphResponse{Nodes: nodes, Edges: edges})
 }

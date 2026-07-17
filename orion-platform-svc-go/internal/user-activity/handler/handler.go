@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/user-activity/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -37,7 +38,7 @@ func (h *Handler) GetActivities(c *gin.Context) {
 
 	// Verify ownership: the user can only access their own activities
 	if userID != currentUserID && userID != tenantID {
-		respondForbidden(c, "Forbidden")
+		middleware.RespondForbidden(c, "Forbidden")
 		return
 	}
 
@@ -46,10 +47,10 @@ func (h *Handler) GetActivities(c *gin.Context) {
 
 	result, err := h.svc.GetActivities(c.Request.Context(), userID, page, pageSize)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{
+	middleware.RespondSuccess(c, gin.H{
 		"data":     result.Data,
 		"total":    result.Total,
 		"page":     result.Page,
@@ -64,16 +65,16 @@ func (h *Handler) GetActivity(c *gin.Context) {
 	currentUserID := c.GetString("user_id")
 
 	if userID != currentUserID {
-		respondForbidden(c, "Forbidden")
+		middleware.RespondForbidden(c, "Forbidden")
 		return
 	}
 
 	a, err := h.svc.GetActivity(c.Request.Context(), userID, activityID)
 	if err != nil {
-		respondNotFound(c, "Activity "+activityID+" not found")
+		middleware.RespondNotFound(c, "Activity "+activityID+" not found")
 		return
 	}
-	respondSuccess(c, gin.H{"activity": a})
+	middleware.RespondSuccess(c, gin.H{"activity": a})
 }
 
 func (h *Handler) DeleteActivity(c *gin.Context) {
@@ -83,21 +84,15 @@ func (h *Handler) DeleteActivity(c *gin.Context) {
 	currentUserID := c.GetString("user_id")
 
 	if userID != currentUserID {
-		respondForbidden(c, "Forbidden")
+		middleware.RespondForbidden(c, "Forbidden")
 		return
 	}
 
 	err := h.svc.DeleteActivity(c.Request.Context(), userID, activityID)
 	if err != nil {
-		respondNotFound(c, err.Error())
+		middleware.RespondNotFound(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "activity deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "activity deleted"})
 }
 
-func respondForbidden(c *gin.Context, message string) {
-	c.AbortWithStatusJSON(403, gin.H{
-		"success": false,
-		"error":   message,
-	})
-}

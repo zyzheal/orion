@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/permission-audit/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -48,25 +49,25 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 
 	result, total, err := h.svc.ListAuditLogs(c.Request.Context(), tenantID, filter)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"data": result, "total": total})
+	middleware.RespondSuccess(c, gin.H{"data": result, "total": total})
 }
 
 func (h *Handler) LogPermission(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.LogPermission(c.Request.Context(), tenantID, &req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetAuditLog(c *gin.Context) {
@@ -74,10 +75,10 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.GetAuditLog(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondNotFound(c, "audit log not found")
+		middleware.RespondNotFound(c, "audit log not found")
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteAuditLog(c *gin.Context) {
@@ -85,12 +86,12 @@ func (h *Handler) DeleteAuditLog(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.DeleteAuditLog(c.Request.Context(), tenantID, id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "audit log not found")
+		middleware.RespondNotFound(c, "audit log not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "audit log deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "audit log deleted"})
 }

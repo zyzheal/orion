@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/cmdb/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -106,15 +107,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateCI(c *gin.Context) {
 	var req models.CreateCIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ci, err := h.svc.Create(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, ci)
+	middleware.RespondCreated(c, ci)
 }
 
 func (h *Handler) GetCI(c *gin.Context) {
@@ -122,13 +123,13 @@ func (h *Handler) GetCI(c *gin.Context) {
 	ci, err := h.svc.Get(c.Request.Context(), id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI not found")
+			middleware.RespondNotFound(c, "CI not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ci)
+	middleware.RespondSuccess(c, ci)
 }
 
 func (h *Handler) GetCIByID(c *gin.Context) {
@@ -141,42 +142,42 @@ func (h *Handler) GetCIByID(c *gin.Context) {
 	ci, err := h.svc.GetByCiId(c.Request.Context(), ciID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI not found")
+			middleware.RespondNotFound(c, "CI not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ci)
+	middleware.RespondSuccess(c, ci)
 }
 
 func (h *Handler) UpdateCI(c *gin.Context) {
 	id := c.Param("id")
 	var req models.UpdateCIRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	ci, err := h.svc.Update(c.Request.Context(), id, &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ci)
+	middleware.RespondSuccess(c, ci)
 }
 
 func (h *Handler) DeleteCI(c *gin.Context) {
 	id := c.Param("id")
 	deleted, err := h.svc.Delete(c.Request.Context(), id)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "CI not found")
+		middleware.RespondNotFound(c, "CI not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "CI deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "CI deleted"})
 }
 
 func (h *Handler) ListCIs(c *gin.Context) {
@@ -187,10 +188,10 @@ func (h *Handler) ListCIs(c *gin.Context) {
 	limit := h.getQueryInt(c.Query("limit"), 20)
 	items, total, err := h.svc.List(c.Request.Context(), ciType, status, tenantID, page, limit)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     page,
@@ -203,65 +204,65 @@ func (h *Handler) ListCIs(c *gin.Context) {
 func (h *Handler) BatchCreate(c *gin.Context) {
 	var req models.BatchCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.BatchCreate(c.Request.Context(), req.Items, tenantID, req.CreatedBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) BatchUpdate(c *gin.Context) {
 	var req models.BatchUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.BatchUpdate(c.Request.Context(), req.Items, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) BatchDelete(c *gin.Context) {
 	var req models.BatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.BatchDelete(c.Request.Context(), req.Items, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) BatchQuery(c *gin.Context) {
 	var req models.BatchQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	items, total, err := h.svc.BatchQuery(c.Request.Context(), &req, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	limit := 20
 	if req.Limit != nil {
 		limit = *req.Limit
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     1,
@@ -277,15 +278,15 @@ func (h *Handler) ExportCI(c *gin.Context) {
 	ci, err := h.svc.ExportCI(c.Request.Context(), id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "CI not found")
+			middleware.RespondNotFound(c, "CI not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Header("Content-Type", "application/json")
 	c.Header("Content-Disposition", "attachment; filename=\"ci-export.json\"")
-	respondSuccess(c, ci)
+	middleware.RespondSuccess(c, ci)
 }
 
 func (h *Handler) ExportAllCIs(c *gin.Context) {
@@ -297,27 +298,27 @@ func (h *Handler) ExportAllCIs(c *gin.Context) {
 	includeArchived := c.Query("includeArchived") == "true"
 	result, err := h.svc.ExportCIs(c.Request.Context(), ciType, status, environment, search, tenantID, includeArchived)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	c.Header("Content-Type", "application/json")
 	c.Header("Content-Disposition", "attachment; filename=\"cmdb-export.json\"")
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ImportCIs(c *gin.Context) {
 	var req models.ImportCIsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.ImportCIs(c.Request.Context(), req.CIs, tenantID, req.SkipDuplicates, req.CreatedBy)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Relation handlers ---
@@ -326,24 +327,24 @@ func (h *Handler) GetRelations(c *gin.Context) {
 	ciID := c.Param("ciId")
 	relations, err := h.svc.GetRelations(c.Request.Context(), ciID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, relations)
+	middleware.RespondSuccess(c, relations)
 }
 
 func (h *Handler) CreateRelation(c *gin.Context) {
 	var req models.CreateRelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	rel, err := h.svc.CreateRelation(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, rel)
+	middleware.RespondCreated(c, rel)
 }
 
 func (h *Handler) DeleteRelation(c *gin.Context) {
@@ -351,14 +352,14 @@ func (h *Handler) DeleteRelation(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	deleted, err := h.svc.DeleteRelation(c.Request.Context(), relationID, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 	if !deleted {
-		respondNotFound(c, "relation not found")
+		middleware.RespondNotFound(c, "relation not found")
 		return
 	}
-	respondSuccess(c, gin.H{"message": "relation deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "relation deleted"})
 }
 
 // --- Version handlers ---
@@ -367,36 +368,36 @@ func (h *Handler) GetVersions(c *gin.Context) {
 	ciID := c.Param("ciId")
 	versions, err := h.svc.GetVersions(c.Request.Context(), ciID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions)
+	middleware.RespondSuccess(c, versions)
 }
 
 func (h *Handler) GetCurrentVersion(c *gin.Context) {
 	ciID := c.Param("ciId")
 	version, err := h.svc.GetCurrentVersion(c.Request.Context(), ciID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, version)
+	middleware.RespondSuccess(c, version)
 }
 
 func (h *Handler) RestoreVersion(c *gin.Context) {
 	ciID := c.Param("ciId")
 	var req models.RestoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	ci, err := h.svc.RestoreToVersion(c.Request.Context(), ciID, req.Version, req.User, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, ci)
+	middleware.RespondSuccess(c, ci)
 }
 
 // --- Topology handlers ---
@@ -414,10 +415,10 @@ func (h *Handler) GetTopology(c *gin.Context) {
 	}
 	result, err := h.svc.GetTopology(c.Request.Context(), ciType, depth, tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetServiceDependencies(c *gin.Context) {
@@ -425,10 +426,10 @@ func (h *Handler) GetServiceDependencies(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.GetServiceDependencies(c.Request.Context(), tenantID, ciID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetImpactAnalysis(c *gin.Context) {
@@ -436,10 +437,10 @@ func (h *Handler) GetImpactAnalysis(c *gin.Context) {
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	result, err := h.svc.GetImpactAnalysis(c.Request.Context(), tenantID, ciID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Health handler ---
@@ -447,10 +448,10 @@ func (h *Handler) GetImpactAnalysis(c *gin.Context) {
 func (h *Handler) Health(c *gin.Context) {
 	status, err := h.svc.Health(c.Request.Context())
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, status)
+	middleware.RespondSuccess(c, status)
 }
 
 // --- Integration (Hosts, K8s, CICD, Execute) handlers ---
@@ -462,10 +463,10 @@ func (h *Handler) ListHosts(c *gin.Context) {
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	items, total, err := h.svc.ListHosts(c.Request.Context(), status, tags, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     offset/limit + 1,
@@ -478,13 +479,13 @@ func (h *Handler) GetHost(c *gin.Context) {
 	host, err := h.svc.GetHost(c.Request.Context(), ciID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, "Host not found")
+			middleware.RespondNotFound(c, "Host not found")
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, host)
+	middleware.RespondSuccess(c, host)
 }
 
 func (h *Handler) ListK8sResources(c *gin.Context) {
@@ -494,10 +495,10 @@ func (h *Handler) ListK8sResources(c *gin.Context) {
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	items, total, err := h.svc.ListK8sResources(c.Request.Context(), kind, namespace, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     offset/limit + 1,
@@ -508,22 +509,22 @@ func (h *Handler) ListK8sResources(c *gin.Context) {
 func (h *Handler) StartK8sSync(c *gin.Context) {
 	var req models.StartK8sSyncRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.StartK8sSync(c.Request.Context(), &req); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "K8s sync started"})
+	middleware.RespondSuccess(c, gin.H{"message": "K8s sync started"})
 }
 
 func (h *Handler) StopK8sSync(c *gin.Context) {
 	if err := h.svc.StopK8sSync(c.Request.Context()); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "K8s sync stopped"})
+	middleware.RespondSuccess(c, gin.H{"message": "K8s sync stopped"})
 }
 
 func (h *Handler) ListCICDResources(c *gin.Context) {
@@ -532,10 +533,10 @@ func (h *Handler) ListCICDResources(c *gin.Context) {
 	offset := h.getQueryInt(c.Query("offset"), 0)
 	items, total, err := h.svc.ListCICDResources(c.Request.Context(), status, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, models.PaginatedResponse{
+	middleware.RespondSuccess(c, models.PaginatedResponse{
 		Data:     items,
 		Total:    total,
 		Page:     offset/limit + 1,
@@ -546,15 +547,15 @@ func (h *Handler) ListCICDResources(c *gin.Context) {
 func (h *Handler) ExecuteScript(c *gin.Context) {
 	var req models.ScriptExecRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.ExecuteScript(c.Request.Context(), &req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Helpers ---

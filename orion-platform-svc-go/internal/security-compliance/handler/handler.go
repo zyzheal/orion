@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/security-compliance/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 type Handler struct {
@@ -93,25 +94,25 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, policies)
+	middleware.RespondSuccess(c, policies)
 }
 
 func (h *Handler) DefinePolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	policy, err := h.svc.DefinePolicy(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, policy)
+	middleware.RespondCreated(c, policy)
 }
 
 // --- Compliance Evaluation ---
@@ -120,19 +121,19 @@ func (h *Handler) EvaluateCompliance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateComplianceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.EvaluateCompliance(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Compliance Report ---
@@ -143,13 +144,13 @@ func (h *Handler) GetComplianceReport(c *gin.Context) {
 	report, err := h.svc.GetComplianceReport(c.Request.Context(), tenantID, policyID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // --- Compliance Score ---
@@ -158,10 +159,10 @@ func (h *Handler) GetComplianceScore(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	score, err := h.svc.GetComplianceScore(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, score)
+	middleware.RespondSuccess(c, score)
 }
 
 // --- Remediation ---
@@ -170,19 +171,19 @@ func (h *Handler) AutoRemediateCompliance(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.RemediationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.AutoRemediateCompliance(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
 
 // --- Audit Plans ---
@@ -193,25 +194,25 @@ func (h *Handler) ListAuditPlans(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	plans, err := h.svc.ListAuditPlans(c.Request.Context(), tenantID, limit, offset)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, plans)
+	middleware.RespondSuccess(c, plans)
 }
 
 func (h *Handler) CreateAuditPlan(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	plan, err := h.svc.CreateAuditPlan(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, plan)
+	middleware.RespondCreated(c, plan)
 }
 
 // --- Audit Execution ---
@@ -221,10 +222,10 @@ func (h *Handler) ExecuteAudit(c *gin.Context) {
 	planID := c.Param("id")
 	execution, err := h.svc.ExecuteAudit(c.Request.Context(), tenantID, planID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, execution)
+	middleware.RespondSuccess(c, execution)
 }
 
 // --- Audit Report ---
@@ -235,13 +236,13 @@ func (h *Handler) GetAuditReport(c *gin.Context) {
 	report, err := h.svc.GetAuditReport(c.Request.Context(), tenantID, executionID)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, report)
+	middleware.RespondSuccess(c, report)
 }
 
 // --- Audit Findings ---
@@ -251,10 +252,10 @@ func (h *Handler) GetAuditFindings(c *gin.Context) {
 	reportID := c.Param("id")
 	findings, err := h.svc.GetAuditFindings(c.Request.Context(), tenantID, reportID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, findings)
+	middleware.RespondSuccess(c, findings)
 }
 
 func (h *Handler) CloseFinding(c *gin.Context) {
@@ -262,14 +263,14 @@ func (h *Handler) CloseFinding(c *gin.Context) {
 	findingID := c.Param("id")
 	var req models.CloseFindingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	if err := h.svc.CloseFinding(c.Request.Context(), tenantID, findingID, req.Reason); err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, gin.H{"message": "finding closed"})
+	middleware.RespondSuccess(c, gin.H{"message": "finding closed"})
 }
 
 // --- Compliance Frameworks ---
@@ -278,10 +279,10 @@ func (h *Handler) GetFrameworks(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	list, err := h.svc.GetFrameworks(c.Request.Context(), tenantID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, list)
+	middleware.RespondSuccess(c, list)
 }
 
 func (h *Handler) GetFramework(c *gin.Context) {
@@ -290,13 +291,13 @@ func (h *Handler) GetFramework(c *gin.Context) {
 	fw, err := h.svc.GetFramework(c.Request.Context(), tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, fw)
+	middleware.RespondSuccess(c, fw)
 }
 
 // --- Evidence Collection ---
@@ -305,19 +306,19 @@ func (h *Handler) CollectEvidence(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectEvidenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	collection, err := h.svc.CollectEvidence(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, collection)
+	middleware.RespondSuccess(c, collection)
 }
 
 func (h *Handler) GetEvidence(c *gin.Context) {
@@ -325,29 +326,29 @@ func (h *Handler) GetEvidence(c *gin.Context) {
 	policyID := c.Param("policyId")
 	evidence, err := h.svc.GetEvidence(c.Request.Context(), tenantID, policyID)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, evidence)
+	middleware.RespondSuccess(c, evidence)
 }
 
 func (h *Handler) GenerateEvidenceCollection(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectEvidenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	collection, err := h.svc.GenerateEvidenceCollection(c.Request.Context(), tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
-			respondNotFound(c, err.Error())
+			middleware.RespondNotFound(c, err.Error())
 			return
 		}
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, collection)
+	middleware.RespondSuccess(c, collection)
 }
 
 // --- Gap Analysis ---
@@ -356,13 +357,13 @@ func (h *Handler) PerformGapAnalysis(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.GapAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondBadRequest(c, err.Error())
+		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	result, err := h.svc.PerformGapAnalysis(c.Request.Context(), tenantID, req)
 	if err != nil {
-		respondInternalError(c, err.Error())
+		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, result)
+	middleware.RespondSuccess(c, result)
 }
