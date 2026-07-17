@@ -4,15 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
+	"strconv"
 	"time"
 
 	"orion/platform-svc-go/internal/digital-twin/models"
-	"orion/platform-svc-go/internal/digital-twin/repository"
-
-	"github.com/jmoiron/sqlx"
-
-	"math/rand"
-	"strconv"
 )
 
 type SimulationState struct {
@@ -34,13 +30,13 @@ type SimulationState struct {
 
 
 type Service struct {
-	repo               *repository.Repository
+	repo               DigitalTwinRepo
 	sandboxStore       map[string]*models.Sandbox
 	recordingStore     map[string]*models.RecordingSession
 	simulationStore    map[string]SimulationState
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo DigitalTwinRepo) *Service {
 	return &Service{
 		repo:            repo,
 		sandboxStore:    make(map[string]*models.Sandbox),
@@ -476,11 +472,4 @@ var (
 
 func IsNotFound(err error) bool {
 	return errors.Is(err, ErrNotFound)
-}
-
-// --- Unused sqlx import guard (db passed for future use) ---
-
-func init() {
-	// Placeholder to suppress unused import warning if sqlx is used directly.
-	_ = sqlx.DB{}
 }

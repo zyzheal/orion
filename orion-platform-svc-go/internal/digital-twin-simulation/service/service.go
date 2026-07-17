@@ -15,13 +15,13 @@ import (
 
 // Service orchestrates Digital Twin simulation business logic.
 type Service struct {
-	repo    *dt_repo.Repository
+	repo    DigitalTwinSimRepo
 	clock   func() int64
 	randSrc *rand.Rand
 }
 
 // NewService constructs the service.
-func NewService(repo *dt_repo.Repository) *Service {
+func NewService(repo DigitalTwinSimRepo) *Service {
 	return &Service{
 		repo:    repo,
 		clock:   func() int64 { return time.Now().Unix() },

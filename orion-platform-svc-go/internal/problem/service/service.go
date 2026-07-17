@@ -18,10 +18,10 @@ var (
 
 // Service orchestrates problem management business logic.
 type Service struct {
-	repo *repository.Repository
+	repo ProblemRepo
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo ProblemRepo) *Service {
 	return &Service{repo: repo}
 }
 

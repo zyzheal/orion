@@ -13,10 +13,10 @@ import (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo WorkflowRepo
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo WorkflowRepo) *Service {
 	return &Service{repo: repo}
 }
 

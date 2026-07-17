@@ -10,14 +10,13 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/tenant/models"
-	"orion/platform-svc-go/internal/tenant/repository"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo TenantRepo
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo TenantRepo) *Service {
 	return &Service{repo: repo}
 }
 

@@ -9,16 +9,15 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/chatops/models"
-	"orion/platform-svc-go/internal/chatops/repository"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo ChatOpsRepo
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo ChatOpsRepo) *Service {
 	return &Service{repo: repo}
 }
 
@@ -898,7 +897,7 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound) || errors.Is(err, ErrNotFound)
+	return errors.Is(err, ErrNotFound)
 }
 
 func ErrNotFoundMsg(id string) error {

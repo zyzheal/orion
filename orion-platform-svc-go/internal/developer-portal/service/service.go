@@ -8,19 +8,16 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/developer-portal/models"
-	"orion/platform-svc-go/internal/developer-portal/repository"
 
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 type Service struct {
-	repo *repository.Repository
-	db   *sqlx.DB
+	repo DeveloperPortalRepo
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
-	return &Service{repo: repo, db: db}
+func NewService(repo DeveloperPortalRepo) *Service {
+	return &Service{repo: repo}
 }
 
 // ---------- DeveloperPortal (legacy CRUD) ----------

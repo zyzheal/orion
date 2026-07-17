@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
-	"orion/platform-svc-go/internal/efficiency/repository"
 
 	"github.com/google/uuid"
 )
@@ -126,7 +125,7 @@ var defaultSpecialties = [][]string{
 
 // Service holds the efficiency business logic.
 type Service struct {
-	repo *repository.Repository
+	repo EfficiencyRepo
 
 	// In-memory caches (fallback / warm data). These are loaded at init and
 	// used for metrics calculation just like the TS source's Map storage.
@@ -158,7 +157,7 @@ type projectPayload struct {
 	Commits     int
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo EfficiencyRepo) *Service {
 	s := &Service{
 		repo:              repo,
 		teamData:          make(map[string]map[string]*teamPayload),

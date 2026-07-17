@@ -9,18 +9,17 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/test-selector/models"
-	"orion/platform-svc-go/internal/test-selector/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo TestSelectorRepo
 	db   *sqlx.DB
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo TestSelectorRepo, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
@@ -65,6 +64,9 @@ func (s *Service) GetTestPlan(ctx context.Context, tenantID, planID string) (*mo
 	res, err := s.repo.GetPRTestResultByPlanID(ctx, tenantID, planID)
 	if err != nil {
 		return nil, err
+	}
+	if res == nil {
+		return nil, nil
 	}
 	var plan models.TestExecutionPlan
 	if err := json.Unmarshal([]byte(res.PlanData), &plan); err != nil {
