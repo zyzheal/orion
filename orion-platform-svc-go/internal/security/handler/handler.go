@@ -12,11 +12,18 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+type Service interface {
+	GetVulnerabilityReport(ctx context.Context, tenantID string, opt models.ListVulnerabilitiesOptions) (*models.VulnerabilityReport, error)
+	ScanDependencies(ctx context.Context, tenantID, projectPath string) (*models.ScanResult, error)
+	CheckVulnerability(ctx context.Context, tenantID, id string) (*models.Vulnerability, error)
+	RemediateVulnerability(ctx context.Context, tenantID, cveID, packageName string, req models.RemediateVulnerabilityRequest) (*models.Vulnerability, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
