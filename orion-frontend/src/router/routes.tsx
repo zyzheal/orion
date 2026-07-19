@@ -1964,6 +1964,44 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
+  // ==================== P0-14: 未注册页面路由补全 (6 pages) ====================
+  // AI Decision
+  {
+    path: '/ai-decision',
+    element: React.lazy(() => import('@/pages/ai-decision/AIDecisionPage')),
+    protected: true,
+  },
+  // AI Decision Explanation
+  {
+    path: '/ai-decision-explanation',
+    element: React.lazy(() => import('@/pages/ai-decision-explanation/ExplanationPage')),
+    protected: true,
+  },
+  // Autonomous Pipeline
+  {
+    path: '/autonomous-pipeline',
+    element: React.lazy(() => import('@/pages/autonomous-pipeline/AutonomousPipelinePage')),
+    protected: true,
+  },
+  // Efficiency (standalone)
+  {
+    path: '/efficiency',
+    element: React.lazy(() => import('@/pages/efficiency/EfficiencyPage')),
+    protected: true,
+  },
+  // Plugin Marketplace
+  {
+    path: '/plugin-marketplace',
+    element: React.lazy(() => import('@/pages/plugin-marketplace/PluginMarketplacePage')),
+    protected: true,
+  },
+  // Config Management (standalone)
+  {
+    path: '/config-mgmt',
+    element: React.lazy(() => import('@/pages/config-mgmt/ConfigMgmtPage')),
+    protected: true,
+  },
+
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用
   // 白名单验证在组件内部完成（SubAppRouteDynamic）
