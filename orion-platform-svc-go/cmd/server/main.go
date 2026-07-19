@@ -465,18 +465,12 @@ import (
 	pe_service "orion/platform-svc-go/internal/pipeline-engine/service"
 
 	// ---- Batch 1: 17 unregistered modules ----
-	aiAgent_handler "orion/platform-svc-go/internal/ai-agent/handler"
-	aiAgent_repo "orion/platform-svc-go/internal/ai-agent/repository"
-	aiAgent_service "orion/platform-svc-go/internal/ai-agent/service"
 	aiAgents_handler "orion/platform-svc-go/internal/ai-agents/handler"
 	aiAgents_repo "orion/platform-svc-go/internal/ai-agents/repository"
 	aiAgents_service "orion/platform-svc-go/internal/ai-agents/service"
 	aiCost_handler "orion/platform-svc-go/internal/ai-cost/handler"
 	aiCost_repo "orion/platform-svc-go/internal/ai-cost/repository"
 	aiCost_service "orion/platform-svc-go/internal/ai-cost/service"
-	aiDecision_handler "orion/platform-svc-go/internal/ai-decision/handler"
-	aiDecision_repo "orion/platform-svc-go/internal/ai-decision/repository"
-	aiDecision_service "orion/platform-svc-go/internal/ai-decision/service"
 	aiGateway_handler "orion/platform-svc-go/internal/ai-gateway/handler"
 	aiGateway_repo "orion/platform-svc-go/internal/ai-gateway/repository"
 	aiGateway_service "orion/platform-svc-go/internal/ai-gateway/service"
@@ -994,7 +988,7 @@ func main() {
 
 	// developer-portal services
 	developerportalRepo := developerportal_repo.NewRepository(db.DB)
-	developerportalSvc := developerportal_service.NewService(developerportalRepo, db.DB)
+	developerportalSvc := developerportal_service.NewService(developerportalRepo)
 	developerportalH := developerportal_handler.NewHandler(developerportalSvc)
 
 	// service-registry services
@@ -1943,10 +1937,8 @@ vectorHandler.RegisterRoutes(rg)
 
 
 	// ---- Batch 1: 17 unregistered module routes ----
-	aiAgentH := aiAgent_handler.NewHandler(aiAgent_service.NewService(aiAgent_repo.NewRepository(db.DB)))
 	aiAgentsH := aiAgents_handler.NewHandler(aiAgents_service.NewService(aiAgents_repo.NewRepository(db.DB)))
 	aiCostH := aiCost_handler.NewHandler(aiCost_service.NewService(aiCost_repo.NewRepository(db.DB)))
-	aiDecisionH := aiDecision_handler.NewHandler(aiDecision_service.NewService(aiDecision_repo.NewRepository(db.DB)))
 	aiGatewayH := aiGateway_handler.NewHandler(aiGateway_service.NewService(aiGateway_repo.NewRepository(db.DB)))
 	aiReviewH := aiReview_handler.NewHandler(aiReview_service.NewService(aiReview_repo.NewRepository(db.DB)))
 	aiSecurityH := aiSecurity_handler.NewHandler(aiSecurity_service.NewService(aiSecurity_repo.NewRepository(db.DB)))
@@ -1961,10 +1953,8 @@ vectorHandler.RegisterRoutes(rg)
 	circuitBreakerH := circuitBreaker_handler.NewHandler(circuitBreaker_service.NewService(circuitBreaker_repo.NewRepository(db.DB)))
 	communityH := community_handler.NewHandler(community_service.NewService(community_repo.NewRepository(db.DB)))
 
-	aiAgentH.RegisterRoutes(rg)
 	aiAgentsH.RegisterRoutes(rg)
 	aiCostH.RegisterRoutes(rg)
-	aiDecisionH.RegisterRoutes(rg)
 	aiGatewayH.RegisterRoutes(rg)
 	aiReviewH.RegisterRoutes(rg)
 	aiSecurityH.RegisterRoutes(rg)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,8 +12,86 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	// --- DeveloperPortal CRUD ---
+	Create(ctx context.Context, tenantID string, req models.CreateDeveloperPortalRequest) (*models.DeveloperPortal, error)
+	Get(ctx context.Context, tenantID, id string) (*models.DeveloperPortal, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateDeveloperPortalRequest) (*models.DeveloperPortal, error)
+	Delete(ctx context.Context, tenantID, id string) error
+
+	// --- Documents ---
+	CreateDocument(ctx context.Context, tenantID, userID string, req models.CreateDocumentRequest) (*models.PortalDocument, error)
+	ListDocuments(ctx context.Context, tenantID string, page, pageSize int) ([]models.PortalDocument, error)
+	GetDocument(ctx context.Context, tenantID, id string) (*models.PortalDocument, error)
+	UpdateDocument(ctx context.Context, tenantID, id string, req models.UpdateDocumentRequest) (*models.PortalDocument, error)
+	DeleteDocument(ctx context.Context, tenantID, id string) error
+	SearchDocuments(ctx context.Context, tenantID string, query string) ([]models.PortalDocument, error)
+	PublishDocument(ctx context.Context, tenantID, id, userID string) (*models.PortalDocument, error)
+	UnpublishDocument(ctx context.Context, tenantID, id, userID string) (*models.PortalDocument, error)
+	GetPopular(ctx context.Context, tenantID string) ([]models.PortalDocument, error)
+	RecordHelpful(ctx context.Context, tenantID, id string, helpful bool) (*models.PortalDocument, error)
+
+	// --- Versions ---
+	CreateNewVersion(ctx context.Context, tenantID, id, version, userID string) (*models.PortalDocument, error)
+	GetDocumentVersions(ctx context.Context, tenantID, id string) ([]models.DocumentVersion, error)
+
+	// --- Review ---
+	SubmitForReview(ctx context.Context, tenantID, id, userID string) (*models.PortalDocument, error)
+	ApproveReview(ctx context.Context, tenantID, id, userID string) (*models.PortalDocument, error)
+	RejectReview(ctx context.Context, tenantID, id, userID string, reason string) (*models.PortalDocument, error)
+
+	// --- Stats / Categories ---
+	GetDocumentStats(ctx context.Context, tenantID string) (*models.DocumentStats, error)
+	GetCategories(ctx context.Context, tenantID string) ([]models.CategoryInfo, error)
+
+	// --- Mock Rules ---
+	CreateMockRule(ctx context.Context, tenantID string, req models.CreateMockRuleRequest) (*models.MockRule, error)
+	ListMockRules(ctx context.Context, tenantID string, filter models.MockRuleFilter) (*models.MockRuleListResult, error)
+	GetMockRule(ctx context.Context, tenantID, id string) (*models.MockRule, error)
+	UpdateMockRule(ctx context.Context, tenantID, id string, req models.UpdateMockRuleRequest) (*models.MockRule, error)
+	DeleteMockRule(ctx context.Context, tenantID, id string) error
+	GetMockRuleStats(ctx context.Context, tenantID string) (*models.MockRuleStats, error)
+	MatchRequest(ctx context.Context, tenantID string, method, path string) (*models.MockSimulateResult, error)
+	ToggleMockRule(ctx context.Context, tenantID, id string) (*models.MockRule, error)
+
+	// --- SDK ---
+	GetSupportedLanguages() []models.SDKLanguage
+	CreateSDKTask(ctx context.Context, tenantID string, req models.CreateSDKTaskRequest) (*models.SDKTask, error)
+	ListSDKTasks(ctx context.Context, tenantID string, filter models.SDKTaskFilter) (*models.SDKTaskListResult, error)
+	GetSDKTaskStats(ctx context.Context, tenantID string) (*models.SDKTaskStats, error)
+	GetSDKTask(ctx context.Context, tenantID, id string) (*models.SDKTask, error)
+	DeleteSDKTask(ctx context.Context, tenantID, id string) error
+	RegenerateTask(ctx context.Context, tenantID, id string) (*models.SDKTask, error)
+
+	// --- Subscriptions ---
+	CreateSubscription(ctx context.Context, tenantID, userID string, req models.CreateSubscriptionRequest) (*models.Subscription, error)
+	ListSubscriptions(ctx context.Context, tenantID string, filter models.SubscriptionFilter) (*models.SubscriptionListResult, error)
+	GetSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	ApproveSubscription(ctx context.Context, tenantID, id, approvedBy string) (*models.Subscription, error)
+	RejectSubscription(ctx context.Context, tenantID, id, approvedBy string, reason string) (*models.Subscription, error)
+	SuspendSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	CancelSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	GetUsageStats(ctx context.Context, tenantID string) (*models.SubscriptionStats, error)
+	GetUsageRecords(ctx context.Context, tenantID, subscriptionID string, filter models.UsageRecordFilter) (*models.UsageRecordListResult, error)
+
+	// --- Playground ---
+	QuickExecute(ctx context.Context, tenantID, userID string, req models.PlaygroundExecuteRequest) (*models.PlaygroundExecuteResult, error)
+	SaveRequest(ctx context.Context, tenantID, userID string, req models.CreatePlaygroundRequestRequest) (*models.PlaygroundRequest, error)
+	ListPlaygroundRequests(ctx context.Context, tenantID, userID string, filter models.PlaygroundRequestFilter) (*models.PlaygroundRequestListResult, error)
+	GetPlaygroundStats(ctx context.Context, tenantID, userID string) (*models.PlaygroundStats, error)
+	GetPlaygroundRequest(ctx context.Context, tenantID, id string) (*models.PlaygroundRequest, error)
+	UpdatePlaygroundRequest(ctx context.Context, tenantID, id string, req models.UpdatePlaygroundRequestRequest) (*models.PlaygroundRequest, error)
+	DeletePlaygroundRequest(ctx context.Context, tenantID, id string) error
+	ExecuteRequest(ctx context.Context, tenantID, id string) (*models.PlaygroundExecuteResult, error)
+	GetResponseHistory(ctx context.Context, tenantID, requestID string, filter models.UsageRecordFilter) (*models.ResponseHistoryListResult, error)
+	ClearHistory(ctx context.Context, tenantID, requestID string) error
+}
+
+// Handler wires Gin routes to the developer-portal service.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

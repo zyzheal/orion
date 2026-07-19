@@ -381,18 +381,18 @@ func mustMarshalJSON(v interface{}) []byte {
 
 // ---- Stats (for compliance report) ----
 
-func (r *Repository) GetPolicyStats(ctx context.Context, tenantID string) (PolicyStats, error) {
+func (r *Repository) GetPolicyStats(ctx context.Context, tenantID string) (*PolicyStats, error) {
 	tenantID = getTenantID(tenantID)
 	var s PolicyStats
 	var err error
 	err = r.db.GetContext(ctx, &s.TotalPolicies,
 		`SELECT COUNT(*) FROM governance_policies WHERE tenant_id=$1`, tenantID)
 	if err != nil {
-		return s, err
+		return &s, err
 	}
 	err = r.db.GetContext(ctx, &s.ActivePolicies,
 		`SELECT COUNT(*) FROM governance_policies WHERE tenant_id=$1 AND status='active'`, tenantID)
-	return s, err
+	return &s, err
 }
 
 type PolicyStats struct {

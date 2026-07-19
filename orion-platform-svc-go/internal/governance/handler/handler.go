@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -14,11 +15,27 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the methods the handler calls on the governance service.
+type Service interface {
+	CreatePolicy(ctx context.Context, req *models.CreatePolicyRequest, tenantID, userID string) (*models.GovernancePolicy, error)
+	GetPolicy(ctx context.Context, id, tenantID string) (*models.GovernancePolicy, error)
+	ListPolicies(ctx context.Context, tenantID string, q *models.PolicyListQuery, offset, limit int) ([]models.GovernancePolicy, int, error)
+	UpdatePolicy(ctx context.Context, id, tenantID string, req *models.UpdatePolicyRequest, userID string) (*models.GovernancePolicy, error)
+	DeletePolicy(ctx context.Context, id, tenantID string, userID string) error
+	EnablePolicy(ctx context.Context, id, tenantID string, userID string) (*models.GovernancePolicy, error)
+	DisablePolicy(ctx context.Context, id, tenantID string, userID string) (*models.GovernancePolicy, error)
+	GetAuditLogs(ctx context.Context, policyID string, offset, limit int) ([]models.GovernanceAuditLog, int, error)
+	CheckCompliance(ctx context.Context, req *models.ComplianceCheckRequest, tenantID string) (*models.ComplianceCheckResponse, error)
+	GetComplianceReport(ctx context.Context, tenantID string, period *models.CompliancePeriod) (*models.ComplianceReport, error)
+	ApplyPolicy(ctx context.Context, id, tenantID string, req *models.ApplyPolicyRequest, userID string) (*models.PolicyApplyResult, error)
+	GetRules(ctx context.Context, tenantID string, offset, limit int) ([]models.PolicyRule, int, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -145,7 +162,7 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 // ---- Enable / Disable handlers ----

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -12,13 +13,26 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	ListDecisions(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.AIDecision, int64, error)
+	RecordDecision(ctx context.Context, tenantID, userID string, req *models.RecordDecisionRequest) (*models.AIDecision, error)
+	GetDecision(ctx context.Context, id, tenantID string) (*models.AIDecision, error)
+	DeleteDecision(ctx context.Context, id, tenantID string) (bool, error)
+	GetExplanation(ctx context.Context, id, tenantID string) (*service.ExplanationResult, error)
+	SubmitFeedback(ctx context.Context, tenantID, userID, decisionID string, req *models.SubmitFeedbackRequest) (*models.AIDecision, error)
+	GetTraces(ctx context.Context, decisionID, tenantID string) ([]models.DecisionTrace, error)
+	GetStats(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error)
+	AnalyzeDecisions(ctx context.Context, tenantID string, req *models.AnalyzeDecisionsRequest) (*models.AnalyzeDecisionsResult, error)
+}
+
 // Handler exposes AI decision endpoints.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
