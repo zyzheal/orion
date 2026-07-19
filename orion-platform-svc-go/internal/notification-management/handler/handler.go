@@ -1,19 +1,29 @@
 package handler
 
 import (
+	"context"
+
 	"orion/go-common/pkg/auth"
+	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/notification-management/models"
-	"orion/platform-svc-go/internal/notification-management/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer (for testability).
+type Service interface {
+	Create(ctx context.Context, tenantID string, req models.CreateNotificationManagementRequest) (*models.NotificationManagement, error)
+	Get(ctx context.Context, tenantID, id string) (*models.NotificationManagement, error)
+	List(ctx context.Context, tenantID string) ([]models.NotificationManagement, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateNotificationManagementRequest) (*models.NotificationManagement, error)
+	Delete(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

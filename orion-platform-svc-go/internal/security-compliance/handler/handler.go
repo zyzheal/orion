@@ -1,88 +1,70 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/security-compliance/models"
 	"orion/platform-svc-go/internal/security-compliance/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.CompliancePolicy, error)
+	DefinePolicy(ctx context.Context, tenantID string, req models.CreatePolicyRequest) (*models.CompliancePolicy, error)
+	EvaluateCompliance(ctx context.Context, tenantID string, req models.EvaluateComplianceRequest) (*models.ComplianceEvaluationResult, error)
+	GetComplianceReport(ctx context.Context, tenantID, policyID string) (*models.ComplianceReport, error)
+	GetComplianceScore(ctx context.Context, tenantID string) (*models.ComplianceScore, error)
+	AutoRemediateCompliance(ctx context.Context, tenantID string, req models.RemediationRequest) (*models.RemediationResult, error)
+	GetFrameworks(ctx context.Context, tenantID string) (*models.FrameworkList, error)
+	GetFramework(ctx context.Context, tenantID, id string) (*models.ComplianceFramework, error)
+	CollectEvidence(ctx context.Context, tenantID string, req models.CollectEvidenceRequest) (*models.EvidenceCollection, error)
+	GetEvidence(ctx context.Context, tenantID, policyID string) ([]models.Evidence, error)
+	GenerateEvidenceCollection(ctx context.Context, tenantID string, req models.CollectEvidenceRequest) (*models.EvidenceCollection, error)
+	PerformGapAnalysis(ctx context.Context, tenantID string, req models.GapAnalysisRequest) (*models.GapAnalysisResult, error)
+	ListAuditPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditPlan, error)
+	CreateAuditPlan(ctx context.Context, tenantID string, req models.CreateAuditPlanRequest) (*models.AuditPlan, error)
+	ExecuteAudit(ctx context.Context, tenantID, planID string) (*models.AuditExecution, error)
+	GetAuditReport(ctx context.Context, tenantID, executionID string) (*models.AuditReport, error)
+	GetAuditFindings(ctx context.Context, tenantID, reportID string) ([]models.AuditFinding, error)
+	CloseFinding(ctx context.Context, tenantID, findingID string, reason string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
 // RegisterRoutes registers all security-compliance endpoints under the given group.
-// Mirrors /api/v1/compliance and /api/v1/audit routes from the TS source (18 endpoints).
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	compliance := rg.Group("/compliance")
 
-	// --- Compliance Policies ---
-	// GET /compliance/policies - List policies
 	compliance.GET("/policies", auth.RequirePermission("security_compliance", "read"), h.ListPolicies)
-	// POST /compliance/policies - Define compliance policy
 	compliance.POST("/policies", auth.RequirePermission("security_compliance", "write"), h.DefinePolicy)
-
-	// --- Compliance Evaluation ---
-	// POST /compliance/evaluate - Evaluate compliance
 	compliance.POST("/evaluate", auth.RequirePermission("security_compliance", "write"), h.EvaluateCompliance)
-
-	// --- Compliance Report ---
-	// GET /compliance/report/:policyId - Get compliance report
 	compliance.GET("/report/:policyId", auth.RequirePermission("security_compliance", "read"), h.GetComplianceReport)
-
-	// --- Compliance Score ---
-	// GET /compliance/score - Get compliance score
 	compliance.GET("/score", auth.RequirePermission("security_compliance", "read"), h.GetComplianceScore)
-
-	// --- Compliance Remediation ---
-	// POST /compliance/remediate - Auto-remediate compliance gaps
 	compliance.POST("/remediate", auth.RequirePermission("security_compliance", "write"), h.AutoRemediateCompliance)
-
-	// --- Compliance Frameworks ---
-	// GET /compliance/frameworks - List supported frameworks
 	compliance.GET("/frameworks", auth.RequirePermission("security_compliance", "read"), h.GetFrameworks)
-	// GET /compliance/frameworks/:id - Get framework details
 	compliance.GET("/frameworks/:id", auth.RequirePermission("security_compliance", "read"), h.GetFramework)
-
-	// --- Evidence Collection ---
-	// POST /compliance/evidence - Collect evidence
 	compliance.POST("/evidence", auth.RequirePermission("security_compliance", "write"), h.CollectEvidence)
-	// GET /compliance/evidence/:policyId - Get evidence for policy
 	compliance.GET("/evidence/:policyId", auth.RequirePermission("security_compliance", "read"), h.GetEvidence)
-	// POST /compliance/evidence/generate - Generate evidence collection
 	compliance.POST("/evidence/generate", auth.RequirePermission("security_compliance", "write"), h.GenerateEvidenceCollection)
-
-	// --- Gap Analysis ---
-	// POST /compliance/gap-analysis - Perform gap analysis
 	compliance.POST("/gap-analysis", auth.RequirePermission("security_compliance", "write"), h.PerformGapAnalysis)
 
-	// --- Audit Plans ---
 	audit := rg.Group("/audit")
-	// GET /audit/plans - List audit plans
 	audit.GET("/plans", auth.RequirePermission("security_compliance", "read"), h.ListAuditPlans)
-	// POST /audit/plans - Create audit plan
 	audit.POST("/plans", auth.RequirePermission("security_compliance", "write"), h.CreateAuditPlan)
-
-	// --- Audit Execution ---
-	// POST /audit/:id/execute - Execute audit
 	audit.POST("/:id/execute", auth.RequirePermission("security_compliance", "write"), h.ExecuteAudit)
-
-	// --- Audit Report ---
-	// GET /audit/:id/report - Get audit report
 	audit.GET("/:id/report", auth.RequirePermission("security_compliance", "read"), h.GetAuditReport)
-
-	// --- Audit Findings ---
-	// GET /audit/:id/findings - Get audit findings
 	audit.GET("/:id/findings", auth.RequirePermission("security_compliance", "read"), h.GetAuditFindings)
-	// POST /audit/findings/:id/close - Close finding
 	audit.POST("/findings/:id/close", auth.RequirePermission("security_compliance", "delete"), h.CloseFinding)
 }
 

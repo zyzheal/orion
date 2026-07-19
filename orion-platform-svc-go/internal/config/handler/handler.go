@@ -1,21 +1,68 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/config/models"
-	"orion/platform-svc-go/internal/config/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer (for testability).
+type Service interface {
+	Create(ctx context.Context, tenantID, userID string, req models.CreateConfigRequest) (*models.Config, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Config, error)
+	List(ctx context.Context, tenantID string, filter models.ConfigFilter) (*models.ListResult[models.Config], error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateConfigRequest) (*models.Config, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	GetVersions(ctx context.Context, tenantID, configID string) ([]models.ConfigVersion, error)
+	Rollback(ctx context.Context, tenantID, configID, version, userID string) (*models.Config, error)
+	Clone(ctx context.Context, tenantID, configID, userID string, req models.CloneConfigRequest) (*models.Config, error)
+	GetAuditTrail(ctx context.Context, tenantID, configID string) ([]models.AuditEntry, error)
+	GetDependencyGraph(ctx context.Context, tenantID, configID string) ([]models.DependencyNode, error)
+	CreateSnapshot(ctx context.Context, tenantID, configID, userID string) (*models.ConfigSnapshot, error)
+	ListSnapshots(ctx context.Context, tenantID, configID string) ([]models.ConfigSnapshot, error)
+	GetSnapshot(ctx context.Context, tenantID, configID, snapshotID string) (*models.ConfigSnapshot, error)
+	RestoreSnapshot(ctx context.Context, tenantID, configID, snapshotID, userID string) (*models.Config, error)
+	DeleteSnapshot(ctx context.Context, tenantID, snapshotID string) error
+	CompareVersions(ctx context.Context, tenantID, configID, versionFrom, versionTo string) (*models.VersionDiffResult, error)
+	EnableGitOps(ctx context.Context, tenantID string, req models.CreateGitOpsRequest) (*models.GitOpsConfig, error)
+	ListGitOpsConfigs(ctx context.Context, tenantID string) ([]models.GitOpsConfig, error)
+	SyncFromGit(ctx context.Context, tenantID, gitOpsConfigID string) (*models.GitOpsSyncStatus, error)
+	DisableGitOps(ctx context.Context, tenantID, gitOpsConfigID string) (*models.GitOpsConfig, error)
+	DetectDrift(ctx context.Context, tenantID string) (any, error)
+	GetSyncStatus(ctx context.Context, tenantID string) ([]models.GitOpsSyncStatus, error)
+	CreateChangeRequest(ctx context.Context, tenantID, userID string, req models.CreateChangeRequestRequest) (*models.ChangeRequest, error)
+	ListChangeRequests(ctx context.Context, tenantID string, status string, page, pageSize int) (*models.ListResult[models.ChangeRequest], error)
+	GetChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error)
+	ApproveChange(ctx context.Context, tenantID, id, approvedBy string) (*models.ChangeRequest, error)
+	RejectChange(ctx context.Context, tenantID, id, approvedBy, reason string) (*models.ChangeRequest, error)
+	CreateTemplate(ctx context.Context, tenantID, userID string, req models.CreateTemplateRequest) (*models.ConfigTemplate, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]models.ConfigTemplate, error)
+	GetTemplate(ctx context.Context, tenantID, id string) (*models.ConfigTemplate, error)
+	UpdateTemplate(ctx context.Context, tenantID, id string, req models.UpdateTemplateRequest) (*models.ConfigTemplate, error)
+	DeleteTemplate(ctx context.Context, tenantID, id string) error
+	CreateTemplateVersion(ctx context.Context, tenantID, templateID, userID string, version string) (*models.ConfigTemplateVersion, error)
+	ListTemplateVersions(ctx context.Context, tenantID, templateID string) ([]models.ConfigTemplateVersion, error)
+	CreateCanary(ctx context.Context, tenantID, userID string, req models.CreateCanaryRequest) (*models.CanaryDeployment, error)
+	PromoteCanary(ctx context.Context, tenantID, id string) (*models.CanaryDeployment, error)
+	RollbackCanary(ctx context.Context, tenantID, id string) (*models.CanaryDeployment, error)
+	CompareEnvironments(ctx context.Context, tenantID, sourceEnv, targetEnv string) (*models.EnvironmentDiffResult, error)
+	CreateWebhook(ctx context.Context, tenantID, userID string, req models.CreateWebhookRequest) (*models.ConfigWebhook, error)
+	ListWebhooks(ctx context.Context, tenantID string) ([]models.ConfigWebhook, error)
+	GetWebhook(ctx context.Context, tenantID, id string) (*models.ConfigWebhook, error)
+	UpdateWebhook(ctx context.Context, tenantID, id string, req models.UpdateWebhookRequest) (*models.ConfigWebhook, error)
+	DeleteWebhook(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

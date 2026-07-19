@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,11 +12,28 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID string, req models.CreateTeamRequest) (*models.Team, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Team, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Team, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateTeamRequest) (*models.Team, error)
+	Delete(ctx context.Context, tenantID, id string) (*service.DeleteResult, error)
+	GetUserTeams(ctx context.Context, userID, tenantID string) ([]models.Team, error)
+	GetMembers(ctx context.Context, teamID, tenantID string) ([]models.TeamMember, error)
+	AddMember(ctx context.Context, teamID, userID, tenantID, role, addedBy string) error
+	RemoveMember(ctx context.Context, teamID, userID, tenantID string) (bool, error)
+	UpdateMemberRole(ctx context.Context, teamID, userID, tenantID, newRole string) error
+	GetRoles(ctx context.Context, teamID, tenantID string) ([]models.TeamRole, error)
+	AssignRole(ctx context.Context, teamID, roleName, tenantID, grantedBy string) error
+	RemoveRole(ctx context.Context, teamID, roleName, tenantID string) (bool, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

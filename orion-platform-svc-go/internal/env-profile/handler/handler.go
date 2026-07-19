@@ -1,19 +1,44 @@
 package handler
 
 import (
+	"context"
+	"errors"
+
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/env-profile/models"
-	"orion/platform-svc-go/internal/env-profile/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Sentinel errors used by the service layer.
+var (
+	ErrNotFound   = errors.New("not found")
+	ErrBadRequest = errors.New("bad request")
+)
+
+// Service defines the contract the handler needs from the service layer (for testability).
+type Service interface {
+	Create(ctx context.Context, tenantID string, req *models.CreateEnvProfileRequest) (*models.EnvProfile, error)
+	Get(ctx context.Context, tenantID, id string) (*models.EnvProfile, error)
+	List(ctx context.Context, tenantID string) ([]models.EnvProfile, error)
+	Update(ctx context.Context, tenantID, id string, req *models.UpdateEnvProfileRequest) (*models.EnvProfile, error)
+	Delete(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+func isNotFound(err error) bool {
+	return errors.Is(err, ErrNotFound)
+}
+
+func isBadRequest(err error) bool {
+	return errors.Is(err, ErrBadRequest)
+}
+
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -46,7 +71,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
 	if err != nil {
-		if service.IsBadRequest(err) {
+		if isBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
@@ -61,7 +86,7 @@ func (h *Handler) Get(c *gin.Context) {
 	id := c.Param("id")
 	result, err := h.svc.Get(c.Request.Context(), tenantID, id)
 	if err != nil {
-		if service.IsNotFound(err) {
+		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-profile not found")
 			return
 		}
@@ -81,11 +106,11 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
 	if err != nil {
-		if service.IsNotFound(err) {
+		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-profile not found")
 			return
 		}
-		if service.IsBadRequest(err) {
+		if isBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
 			return
 		}
@@ -100,7 +125,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	id := c.Param("id")
 	err := h.svc.Delete(c.Request.Context(), tenantID, id)
 	if err != nil {
-		if service.IsNotFound(err) {
+		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-profile not found")
 			return
 		}

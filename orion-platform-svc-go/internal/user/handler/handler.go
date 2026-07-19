@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -11,13 +12,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID, creatorID string, req *models.CreateUserRequest) (*service.CreateUserResponse, error)
+	Authenticate(ctx context.Context, req *models.AuthenticateRequest) (*models.User, error)
+	List(ctx context.Context, tenantID string, filter *models.GetUserFilters, offset, limit int) ([]models.User, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.User, error)
+	Count(ctx context.Context, tenantID string) (int, error)
+	Update(ctx context.Context, tenantID, id string, req *models.UpdateUserRequest) (*models.User, error)
+	ChangePassword(ctx context.Context, tenantID, userID string, req *models.ChangePasswordRequest) error
+	Delete(ctx context.Context, tenantID, id string) error
+}
+
 // Handler exposes HTTP endpoints for user management.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new Handler instance.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

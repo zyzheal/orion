@@ -1,21 +1,38 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/product-line/models"
-	"orion/platform-svc-go/internal/product-line/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID string, req models.CreateProductLineRequest) (*models.ProductLine, error)
+	Get(ctx context.Context, tenantID, id string) (*models.ProductLine, error)
+	GetByName(ctx context.Context, tenantID, name string) (*models.ProductLine, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.ProductLine, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateProductLineRequest) (*models.ProductLine, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Activate(ctx context.Context, tenantID, id string) (*models.ProductLine, error)
+	Suspend(ctx context.Context, tenantID, id string) (*models.ProductLine, error)
+	CreateReleaseTrain(ctx context.Context, tenantID, productLineID string, req models.CreateReleaseTrainRequest) (*models.ReleaseTrain, error)
+	GetReleaseTrains(ctx context.Context, tenantID, productLineID string) ([]models.ReleaseTrain, error)
+	CreateHotfixChannel(ctx context.Context, tenantID, productLineID string, req models.CreateHotfixChannelRequest) (*models.HotfixChannel, error)
+	GetHotfixChannels(ctx context.Context, tenantID, productLineID string) ([]models.HotfixChannel, error)
+	IsHotfixBranch(ctx context.Context, tenantID, productLineID, branchName string) (bool, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

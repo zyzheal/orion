@@ -1,17 +1,27 @@
 package handler
 
 import (
+	"context"
+
+	"orion/platform-svc-go/internal/workflow-dependency/models"
 	"orion/platform-svc-go/internal/workflow-dependency/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	GetGraph(ctx context.Context) (*models.DependencyGraph, error)
+	CheckDefinition(ctx context.Context, definitionID string) (*models.DependencyCheck, error)
+	GetVisualization(ctx context.Context) (*models.VisualizationData, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

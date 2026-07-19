@@ -1,21 +1,29 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/permission-audit/models"
-	"orion/platform-svc-go/internal/permission-audit/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	ListAuditLogs(ctx context.Context, tenantID string, filter *models.AuditLogFilter) ([]models.PermissionAuditLog, int, error)
+	LogPermission(ctx context.Context, tenantID string, req *models.CreateAuditLogRequest, clientIP, userAgent string) (*models.PermissionAuditLog, error)
+	GetAuditLog(ctx context.Context, tenantID, id string) (*models.PermissionAuditLog, error)
+	DeleteAuditLog(ctx context.Context, tenantID, id string) (bool, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

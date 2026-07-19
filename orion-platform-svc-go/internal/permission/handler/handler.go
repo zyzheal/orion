@@ -1,23 +1,33 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/permission/models"
-	"orion/platform-svc-go/internal/permission/service"
 
 	"github.com/gin-gonic/gin"
 )
 
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID, userID string, req *models.CreatePermissionRequest) (*models.Permission, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Permission, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Permission, error)
+	Update(ctx context.Context, tenantID, id string, req *models.UpdatePermissionRequest) (*models.Permission, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Count(ctx context.Context, tenantID string) (int, error)
+}
+
 // Handler exposes HTTP endpoints for permission management.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new Handler instance.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

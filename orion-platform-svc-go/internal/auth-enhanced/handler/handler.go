@@ -1,145 +1,158 @@
 package handler
 
 import (
-        "strconv"
-        "time"
+	"context"
+	"strconv"
+	"time"
 
-        "orion/go-common/pkg/auth"
-        "orion/platform-svc-go/internal/auth-enhanced/models"
-        "orion/platform-svc-go/internal/auth-enhanced/service"
-
-        "github.com/gin-gonic/gin"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/auth-enhanced/models"
+
+	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-        svc *service.Service
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	CreateKey(ctx context.Context, tenantID string, req *models.CreateAuthKeyRequest) (*models.AuthKey, error)
+	GetKey(ctx context.Context, tenantID, id string) (*models.AuthKey, error)
+	ListKeys(ctx context.Context, tenantID string, status *string) ([]models.AuthKey, error)
+	DeactivateKey(ctx context.Context, tenantID, id string) error
+	DeleteKey(ctx context.Context, tenantID, id string) (bool, error)
+	BlacklistToken(ctx context.Context, tenantID string, req *models.CreateBlacklistRequest, expiresAt time.Time) (*models.AuthTokenBlacklist, error)
+	ListBlacklist(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error)
+	DeleteBlacklist(ctx context.Context, tenantID, id string) (bool, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
-        return &Handler{svc: svc}
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-        f := rg.Group("/auth-enhanced")
+	f := rg.Group("/auth-enhanced")
 
-        // Key management
-        f.POST("/keys", auth.RequirePermission("auth-enhanced", "write"), h.CreateKey)
-        f.GET("/keys", auth.RequirePermission("auth-enhanced", "read"), h.ListKeys)
-        f.GET("/keys/:id", auth.RequirePermission("auth-enhanced", "read"), h.GetKey)
-        f.PUT("/keys/:id/deactivate", auth.RequirePermission("auth-enhanced", "write"), h.DeactivateKey)
-        f.DELETE("/keys/:id", auth.RequirePermission("auth-enhanced", "delete"), h.DeleteKey)
+	// Key management
+	f.POST("/keys", auth.RequirePermission("auth-enhanced", "write"), h.CreateKey)
+	f.GET("/keys", auth.RequirePermission("auth-enhanced", "read"), h.ListKeys)
+	f.GET("/keys/:id", auth.RequirePermission("auth-enhanced", "read"), h.GetKey)
+	f.PUT("/keys/:id/deactivate", auth.RequirePermission("auth-enhanced", "write"), h.DeactivateKey)
+	f.DELETE("/keys/:id", auth.RequirePermission("auth-enhanced", "delete"), h.DeleteKey)
 
-        // Token blacklist
-        f.POST("/blacklist", auth.RequirePermission("auth-enhanced", "write"), h.BlacklistToken)
-        f.GET("/blacklist", auth.RequirePermission("auth-enhanced", "read"), h.ListBlacklist)
-        f.DELETE("/blacklist/:id", auth.RequirePermission("auth-enhanced", "delete"), h.DeleteBlacklist)
+	// Token blacklist
+	f.POST("/blacklist", auth.RequirePermission("auth-enhanced", "write"), h.BlacklistToken)
+	f.GET("/blacklist", auth.RequirePermission("auth-enhanced", "read"), h.ListBlacklist)
+	f.DELETE("/blacklist/:id", auth.RequirePermission("auth-enhanced", "delete"), h.DeleteBlacklist)
 }
 
 func (h *Handler) CreateKey(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        var req models.CreateAuthKeyRequest
-        if err := c.ShouldBindJSON(&req); err != nil {
-                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
-                return
-        }
-        result, err := h.svc.CreateKey(c.Request.Context(), tenantID, &req)
-        if err != nil {
-                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
-                return
-        }
-        c.JSON(201, result)
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateAuthKeyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	result, err := h.svc.CreateKey(c.Request.Context(), tenantID, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	c.JSON(201, result)
 }
 
 func (h *Handler) GetKey(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        id := c.Param("id")
-        result, err := h.svc.GetKey(c.Request.Context(), tenantID, id)
-        if err != nil {
-                errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
-                return
-        }
-        c.JSON(200, result)
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	_ = tenantID
+	result, err := h.svc.GetKey(c.Request.Context(), tenantID, id)
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
+		return
+	}
+	c.JSON(200, result)
 }
 
 func (h *Handler) ListKeys(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        status := c.Query("status")
-        keys, err := h.svc.ListKeys(c.Request.Context(), tenantID, &status)
-        if err != nil {
-                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
-                return
-        }
-        errors.WriteSuccess(c, keys)
+	tenantID := c.GetString("tenant_id")
+	status := c.Query("status")
+	keys, err := h.svc.ListKeys(c.Request.Context(), tenantID, &status)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, keys)
 }
 
 func (h *Handler) DeactivateKey(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        id := c.Param("id")
-        if err := h.svc.DeactivateKey(c.Request.Context(), tenantID, id); err != nil {
-                errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
-                return
-        }
-        errors.WriteSuccess(c, gin.H{"message": "key deactivated"})
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	if err := h.svc.DeactivateKey(c.Request.Context(), tenantID, id); err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
+		return
+	}
+errors.WriteSuccess(c, gin.H{"message": "key deactivated"})
 }
 
 func (h *Handler) DeleteKey(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        id := c.Param("id")
-        deleted, err := h.svc.DeleteKey(c.Request.Context(), tenantID, id)
-        if err != nil {
-                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
-                return
-        }
-        if !deleted {
-                errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
-                return
-        }
-        errors.WriteSuccess(c, gin.H{"message": "key deleted"})
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	deleted, err := h.svc.DeleteKey(c.Request.Context(), tenantID, id)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	if !deleted {
+		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"message": "key deleted"})
 }
 
 func (h *Handler) BlacklistToken(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        var req models.CreateBlacklistRequest
-        if err := c.ShouldBindJSON(&req); err != nil {
-                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
-                return
-        }
-        expiresAt := time.Now().UTC().Add(24 * time.Hour)
-        if hours := c.Query("expiresHours"); hours != "" {
-                if h, err := strconv.Atoi(hours); err == nil && h > 0 {
-                        expiresAt = time.Now().UTC().Add(time.Duration(h) * time.Hour)
-                }
-        }
-        result, err := h.svc.BlacklistToken(c.Request.Context(), tenantID, &req, expiresAt)
-        if err != nil {
-                errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
-                return
-        }
-        c.JSON(201, result)
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateBlacklistRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	expiresAt := time.Now().UTC().Add(24 * time.Hour)
+	if hours := c.Query("expiresHours"); hours != "" {
+		if h, err := strconv.Atoi(hours); err == nil && h > 0 {
+			expiresAt = time.Now().UTC().Add(time.Duration(h) * time.Hour)
+		}
+	}
+	result, err := h.svc.BlacklistToken(c.Request.Context(), tenantID, &req, expiresAt)
+	if err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		return
+	}
+	c.JSON(201, result)
 }
 
 func (h *Handler) ListBlacklist(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        tokens, err := h.svc.ListBlacklist(c.Request.Context(), tenantID)
-        if err != nil {
-                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
-                return
-        }
-        errors.WriteSuccess(c, tokens)
+	tenantID := c.GetString("tenant_id")
+	tokens, err := h.svc.ListBlacklist(c.Request.Context(), tenantID)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	errors.WriteSuccess(c, tokens)
 }
 
 func (h *Handler) DeleteBlacklist(c *gin.Context) {
-        tenantID := c.GetString("tenant_id")
-        id := c.Param("id")
-        deleted, err := h.svc.DeleteBlacklist(c.Request.Context(), tenantID, id)
-        if err != nil {
-                errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
-                return
-        }
-        if !deleted {
-                errors.WriteError(c, errors.ErrNotFound, "blacklist entry not found", 404)
-                return
-        }
-        errors.WriteSuccess(c, gin.H{"message": "blacklist entry deleted"})
+	tenantID := c.GetString("tenant_id")
+	id := c.Param("id")
+	deleted, err := h.svc.DeleteBlacklist(c.Request.Context(), tenantID, id)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
+		return
+	}
+	if !deleted {
+		errors.WriteError(c, errors.ErrNotFound, "blacklist entry not found", 404)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"message": "blacklist entry deleted"})
 }

@@ -1,20 +1,29 @@
 package handler
 
 import (
+	"context"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/project/models"
-	"orion/platform-svc-go/internal/project/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID, createdBy string, req *models.CreateProjectRequest) (*models.Project, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Project, error)
+	List(ctx context.Context, tenantID string) ([]models.Project, error)
+	Update(ctx context.Context, tenantID, id, updatedBy string, req *models.UpdateProjectRequest) (*models.Project, error)
+	Delete(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
