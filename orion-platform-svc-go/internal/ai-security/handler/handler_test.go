@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"strings"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -127,7 +129,7 @@ func TestCreate(t *testing.T) {
 	}}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security", nil)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security", strings.NewReader(`{"name":"test"}`))
 	c.Set("tenant_id", "t1")
 	newH(svc).Create(c)
 	if w.Code != http.StatusOK { t.Errorf("Create: got %d", w.Code) }
@@ -140,7 +142,7 @@ func TestUpdate(t *testing.T) {
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Params = gin.Params{gin.Param{Key: "id", Value: "1"}}
-	c.Request = httptest.NewRequest(http.MethodPut, "/api/ai-security/1", nil)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/ai-security/1", bytes.NewBuffer([]byte(`{"name":"test"}`)))
 	c.Set("tenant_id", "t1")
 	newH(svc).Update(c)
 	if w.Code != http.StatusOK { t.Errorf("Update: got %d", w.Code) }
@@ -163,8 +165,8 @@ func TestScanVulnerabilities(t *testing.T) {
 	}}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{gin.Param{Key: "image", Value: "nginx:latest"}}
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security/scan/nginx:latest", nil)
+	c.Params = gin.Params{}
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security/scan/nginx:latest", bytes.NewBuffer([]byte(`{"image":"nginx:latest"}`)))
 	c.Set("tenant_id", "t1")
 	newH(svc).ScanVulnerabilities(c)
 	if w.Code != http.StatusOK { t.Errorf("Scan: got %d", w.Code) }
@@ -201,8 +203,8 @@ func TestFixVulnerability(t *testing.T) {
 	}}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{gin.Param{Key: "image", Value: "nginx:latest"}}
-	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security/fix/nginx:latest", nil)
+	c.Params = gin.Params{}
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/ai-security/fix/nginx:latest", bytes.NewBuffer([]byte(`{"image":"nginx:latest"}`)))
 	c.Set("tenant_id", "t1")
 	newH(svc).FixVulnerability(c)
 	if w.Code != http.StatusOK { t.Errorf("Fix: got %d", w.Code) }
@@ -214,8 +216,8 @@ func TestCheckVulnerability(t *testing.T) {
 	}}
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Params = gin.Params{gin.Param{Key: "cveID", Value: "CVE-2024-1"}}
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/ai-security/check/CVE-2024-1", nil)
+	c.Params = gin.Params{}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/ai-security/vulns/check?cveId=CVE-2024-1", nil)
 	c.Set("tenant_id", "t1")
 	newH(svc).CheckVulnerability(c)
 	if w.Code != http.StatusOK { t.Errorf("Check: got %d", w.Code) }
