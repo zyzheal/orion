@@ -1,21 +1,37 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/efficiency/models"
-	"orion/platform-svc-go/internal/efficiency/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the methods the handler calls on the efficiency service.
+type Service interface {
+	GenerateReport(ctx context.Context, tenantID string, timeWindow models.TimeWindow, windowSize int) (*models.EfficiencyReport, error)
+	GetReportHistory(ctx context.Context, tenantID string, limit int) ([]*models.EfficiencyReport, error)
+	GetTeamMetrics(ctx context.Context, tenantID, teamID string) (*models.TeamMetrics, error)
+	GetProjectMetrics(ctx context.Context, tenantID, projectID string) (*models.ProjectMetrics, error)
+	GetAllTeams(ctx context.Context, tenantID string) []models.TeamInfo
+	ComparePeriods(ctx context.Context, tenantID string, periodA, periodB models.PeriodSpec) (*models.PeriodComparisonResult, error)
+	GetAllDORA(ctx context.Context, tenantID string, deployments []models.DeploymentRecord, pipelines []models.PipelineCompletionRecord, incidents []models.IncidentRecord, timeWindow models.TimeWindow, windowSize int) (*models.AllDORAResult, error)
+	GetDORATrend(ctx context.Context, tenantID string, deployments []models.DeploymentRecord, pipelines []models.PipelineCompletionRecord, incidents []models.IncidentRecord, timeWindow models.TimeWindow, windowSize int) (*models.DORATrendResult, error)
+	GetDashboardData(ctx context.Context, tenantID string, timeWindow models.TimeWindow, windowSize int) *models.DashboardData
+	GetHistoricalSnapshots(ctx context.Context, tenantID string, weeks int) ([]models.HistoricalSnapshotWeek, error)
+	GetBottlenecks(ctx context.Context, tenantID string, timeWindow models.TimeWindow, windowSize int) []models.Bottleneck
+	GetDeveloperProfiles(ctx context.Context, tenantID string) []models.DeveloperProfile
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

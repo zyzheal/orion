@@ -2,8 +2,11 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
+	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/security/models"
@@ -15,6 +18,8 @@ import (
 var (
 	ErrNotFound     = errors.New("vulnerability not found")
 	ErrInvalidInput = errors.New("invalid input")
+	ErrTrivyNotInstalled = errors.New("trivy is not installed or not found in PATH")
+	ErrTrivyScanFailed   = errors.New("trivy scan failed")
 )
 
 // validRemediationActions defines the allowed remediation actions.
@@ -22,6 +27,66 @@ var validRemediationActions = map[models.VulnerabilityStatus]bool{
 	models.VulnerabilityStatusRemediated:    true,
 	models.VulnerabilityStatusIgnored:       true,
 	models.VulnerabilityStatusFalsePositive: true,
+}
+
+// trivyResult represents the top-level Trivy JSON output structure.
+type trivyResult struct {
+	Results []trivyTargetResult `json:"Results"`
+}
+
+// trivyTargetResult represents a single target (e.g., a lockfile) in Trivy output.
+type trivyTargetResult struct {
+	Target          string            `json:"Target"`
+	Vulnerabilities []trivyVulnEntry  `json:"Vulnerabilities"`
+}
+
+// trivyVulnEntry represents a single vulnerability entry from Trivy.
+type trivyVulnEntry struct {
+	VulnerabilityID string `json:"VulnerabilityID"`
+	PkgName         string `json:"PkgName"`
+	InstalledVersion string `json:"InstalledVersion"`
+	FixedVersion    string `json:"FixedVersion"`
+	Title           string `json:"Title"`
+	Description     string `json:"Description"`
+	Severity        string `json:"Severity"`
+}
+
+// severityMap maps Trivy severity strings to the internal model.
+var severityMap = map[string]models.VulnerabilitySeverity{
+	"CRITICAL": models.VulnerabilitySeverityCritical,
+	"HIGH":     models.VulnerabilitySeverityHigh,
+	"MEDIUM":   models.VulnerabilitySeverityMedium,
+	"LOW":      models.VulnerabilitySeverityLow,
+	"INFO":     models.VulnerabilitySeverityInfo,
+}
+
+// mapSeverity converts a Trivy severity string (e.g. "CRITICAL") to the internal model.
+func mapSeverity(s string) models.VulnerabilitySeverity {
+	if v, ok := severityMap[strings.ToUpper(s)]; ok {
+		return v
+	}
+	return models.VulnerabilitySeverityInfo
+}
+
+// detectPackageManager attempts to infer the package manager from the project path.
+// It checks for common lockfiles in the given directory.
+func detectPackageManager(projectPath string) string {
+	// In a real CI runner we would check for go.sum, package-lock.json, etc.
+	// For now, detect by extension or common file presence.
+	parts := strings.Split(projectPath, "/")
+	if len(parts) > 0 {
+		last := strings.ToLower(parts[len(parts)-1])
+		if strings.Contains(last, "go") {
+			return "go"
+		}
+		if strings.Contains(last, "npm") || strings.Contains(last, "node") || strings.Contains(last, "js") {
+			return "npm"
+		}
+		if strings.Contains(last, "python") || strings.Contains(last, "py") || strings.Contains(last, "pip") {
+			return "pip"
+		}
+	}
+	return "unknown"
 }
 
 type Service struct {
@@ -102,22 +167,97 @@ func (s *Service) RemediateVulnerability(ctx context.Context, tenantID, cveID, p
 }
 
 // ScanDependencies triggers a dependency vulnerability scan for the given project path.
-// This is a simplified scan that records the scan metadata and any discovered vulnerabilities.
+// It invokes the Trivy filesystem scanner, parses the JSON output, persists discovered
+// vulnerabilities to the repository, and returns a ScanResult summary.
 func (s *Service) ScanDependencies(ctx context.Context, tenantID, projectPath string) (*models.ScanResult, error) {
-	// In a real implementation this would invoke npm audit / trivy / snyk.
-	// For now we return a scan result with no vulnerabilities (blueprint behavior).
 	if projectPath == "" {
-		projectPath = "unknown"
+		projectPath = "."
 	}
 
+	// Check if trivy is available
+	trivyPath, err := exec.LookPath("trivy")
+	if err != nil {
+		return nil, fmt.Errorf("%w: cannot locate trivy binary", ErrTrivyNotInstalled)
+	}
+
+	// Execute: trivy filesystem --format json --severity CRITICAL,HIGH <projectPath>
+	cmd := exec.CommandContext(ctx, trivyPath, "filesystem",
+		"--format", "json",
+		"--severity", "CRITICAL,HIGH",
+		projectPath,
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		// If there is stderr or exit code, include it for debugging
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("%w: %s: %s", ErrTrivyScanFailed, strings.TrimSpace(string(exitErr.Stderr)), strings.TrimSpace(string(output)))
+		}
+		return nil, fmt.Errorf("%w: %v", ErrTrivyScanFailed, err)
+	}
+
+	// Parse Trivy JSON output
+	var trivyOut trivyResult
+	if err := json.Unmarshal(output, &trivyOut); err != nil {
+		return nil, fmt.Errorf("failed to parse trivy JSON output: %w", err)
+	}
+
+	// Collect unique vulnerabilities to persist
+	seen := make(map[string]bool) // key = "cveID:packageName"
+	var createReqs []models.CreateVulnerabilityRequest
+	totalDeps := 0
+
+	for _, target := range trivyOut.Results {
+		for _, tv := range target.Vulnerabilities {
+			key := tv.VulnerabilityID + ":" + tv.PkgName
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			description := tv.Description
+			if description == "" {
+				description = tv.Title
+			}
+
+			createReqs = append(createReqs, models.CreateVulnerabilityRequest{
+				CVEID:          tv.VulnerabilityID,
+				PackageName:    tv.PkgName,
+				PackageVersion: tv.InstalledVersion,
+				Severity:       mapSeverity(tv.Severity),
+				Description:    description,
+				FixVersion:     tv.FixedVersion,
+			})
+		}
+		// Each target is one lockfile / dependency manifest
+		if len(target.Vulnerabilities) > 0 || target.Target != "" {
+			totalDeps++
+		}
+	}
+
+	// Persist discovered vulnerabilities to the repository
+	persisted, err := s.repo.BatchCreate(ctx, tenantID, createReqs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to persist scan results: %w", err)
+	}
+
+	// Build the response models
+	vulnModels := make([]models.Vulnerability, len(persisted))
+	for i, v := range persisted {
+		vulnModels[i] = v
+	}
+
+	packageManager := detectPackageManager(projectPath)
+
+	scanID := fmt.Sprintf("scan-%s-%d", uuid.New().String(), time.Now().UnixMilli())
+
 	return &models.ScanResult{
-		ScanID:               fmt.Sprintf("scan-%s-%d", uuid.New().String(), time.Now().UnixMilli()),
-		PackageManager:       "npm",
-		TotalDependencies:    0,
-		VulnerabilitiesFound: 0,
-		Vulnerabilities:      []models.Vulnerability{},
+		ScanID:               scanID,
+		PackageManager:       packageManager,
+		TotalDependencies:    totalDeps,
+		VulnerabilitiesFound: len(vulnModels),
+		Vulnerabilities:      vulnModels,
 		ScannedAt:            time.Now().UTC(),
-		Tool:                 "npm-audit",
-		Warning:              fmt.Sprintf("scan requested for project: %s", projectPath),
+		Tool:                 "trivy",
 	}, nil
 }

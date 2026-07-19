@@ -163,7 +163,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.Status(http.StatusNoContent)
+	c.AbortWithStatus(http.StatusNoContent)
 }
 
 func (h *Handler) Split(c *gin.Context) {

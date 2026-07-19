@@ -1,17 +1,28 @@
 package handler
 
 import (
+	"context"
 	"strconv"
-	"orion/platform-svc-go/internal/inception/models"
-	"orion/platform-svc-go/internal/inception/service"
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/inception/models"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct{ svc *service.Service }
-func NewHandler(svc *service.Service) *Handler { return &Handler{svc: svc} }
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	Health(ctx context.Context) (string, error)
+	Status(ctx context.Context, tenantID string) (bool, string, error)
+	CreateAudit(ctx context.Context, tenantID string, req *models.CreateAuditRequest) (*models.SQLAuditHistory, error)
+	ListDatabases(ctx context.Context, tenantID string) ([]string, error)
+	ListAudits(ctx context.Context, tenantID string, offset, limit int) ([]models.SQLAuditHistory, error)
+	CountAudits(ctx context.Context, tenantID string) (int, error)
+}
+
+type Handler struct{ svc Service }
+
+func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// Health (no auth, matches TS: unauthenticated)
@@ -120,4 +131,3 @@ func (h *Handler) History(c *gin.Context) {
 	total, _ := h.svc.CountAudits(c.Request.Context(), tenantID)
 	middleware.RespondSuccess(c, gin.H{"records": items, "total": total})
 }
-

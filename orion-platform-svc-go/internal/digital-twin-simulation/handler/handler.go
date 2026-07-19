@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/digital-twin-simulation/models"
 	dt_service "orion/platform-svc-go/internal/digital-twin-simulation/service"
@@ -9,9 +11,24 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	CreateTwin(ctx context.Context, tenantID string, req models.CreateTwinRequest) (*models.DigitalTwin, error)
+	ListTwins(ctx context.Context, tenantID string, q models.ListQuery) ([]models.DigitalTwin, int64, error)
+	GetTwin(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
+	UpdateTwin(ctx context.Context, tenantID, id string, req models.UpdateTwinRequest) (*models.DigitalTwin, error)
+	DeleteTwin(ctx context.Context, tenantID, id string) error
+	SyncTwin(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
+	GetState(ctx context.Context, twinID string) (*dt_service.TwinStateResponse, error)
+	Simulate(ctx context.Context, tenantID, twinID string, req models.SimulateRequest) (*models.Simulation, error)
+	ListSimulations(ctx context.Context, twinID string, q models.ListQuery) ([]models.Simulation, int64, error)
+	GetComparison(ctx context.Context, twinID string) (*dt_service.TwinComparison, error)
+	Predict(ctx context.Context, twinID string, req models.PredictRequest) (*dt_service.PredictionResult, error)
+}
+
 // Handler wires Gin routes to the Digital Twin simulation service.
 type Handler struct {
-	svc *dt_service.Service
+	svc Service
 }
 
 // NewHandler constructs a handler.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,8 +12,134 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	// --- Commands ---
+	CreateCommand(ctx context.Context, tenantID string, req models.CreateCommandRequest) (*models.ChatOpsCommand, error)
+	GetCommand(ctx context.Context, tenantID, id string) (*models.ChatOpsCommand, error)
+	ListCommands(ctx context.Context, tenantID string, permissionLevel, name *string, limit, offset int) ([]models.ChatOpsCommand, error)
+	UpdateCommand(ctx context.Context, tenantID, id string, req models.UpdateCommandRequest) (*models.ChatOpsCommand, error)
+	DeleteCommand(ctx context.Context, tenantID, id string) error
+	GetCommandHelp(ctx context.Context, tenantID, name string) (*models.ChatOpsCommand, error)
+
+	// --- Execution ---
+	ExecuteCommand(ctx context.Context, tenantID, userID string, req models.ExecuteCommandRequest) (*models.Execution, error)
+	GetExecutionStatus(ctx context.Context, tenantID, id string) (*models.Execution, error)
+	ListExecutions(ctx context.Context, tenantID string, commandID, userID, status *string, limit, offset int) ([]models.Execution, error)
+
+	// --- Recommendations ---
+	GetRecommendations(ctx context.Context, tenantID, userID, currentPage, resourceID string) ([]map[string]interface{}, error)
+
+	// --- Knowledge / Sessions ---
+	GetKnowledgeRecommendations(ctx context.Context, tenantID string, context string, limit int) ([]models.KnowledgeRecommendation, error)
+	GetSessionMessages(ctx context.Context, tenantID, sessionID string, limit int, cursor *string) ([]models.ChatOpsMessage, error)
+	GetAllCommandVersions(ctx context.Context, tenantID string, page, perPage int) (models.CommandVersionResult, error)
+	GetUserAllowedCommands(ctx context.Context, tenantID, userID string) ([]string, error)
+
+	// --- Notifications ---
+	GetNotificationPreference(ctx context.Context, tenantID, userID string) (*models.NotificationPreference, error)
+	UpdateNotificationPreference(ctx context.Context, tenantID, userID string, req models.UpdateNotificationPreferenceRequest) (*models.NotificationPreference, error)
+
+	// --- DND ---
+	GetDNDSettings(ctx context.Context, tenantID, userID string) (*models.DNDSettings, error)
+	UpdateDNDSettings(ctx context.Context, tenantID, userID string, req models.UpdateDNDRequest) (*models.DNDSettings, error)
+	ToggleDND(ctx context.Context, tenantID, userID string, enabled bool) (*models.DNDSettings, error)
+
+	// --- Platform Config ---
+	GetPlatformConfigs(ctx context.Context, tenantID, userID string) ([]models.PlatformConfig, error)
+	UpdatePlatformConfigs(ctx context.Context, tenantID, userID string, req models.UpdatePlatformConfigRequest) ([]models.PlatformConfig, error)
+
+	// --- Alert States ---
+	GetAlertStates(ctx context.Context, tenantID, userID string) ([]models.AlertState, error)
+	MarkAlertRead(ctx context.Context, tenantID, userID, alertID string) error
+	MarkAlertAcknowledged(ctx context.Context, tenantID, userID, alertID string) error
+	MarkAlertDismissed(ctx context.Context, tenantID, userID, alertID string) error
+
+	// --- Question / Command Configs ---
+	GetQuestionConfigs(ctx context.Context, tenantID, userID string) ([]models.QuestionConfig, error)
+	UpdateQuestionConfigs(ctx context.Context, tenantID, userID string, req models.UpdateQuestionConfigsRequest) ([]models.QuestionConfig, error)
+	GetCommandConfigs(ctx context.Context, tenantID, userID string) ([]models.CommandConfig, error)
+	UpdateCommandConfigs(ctx context.Context, tenantID, userID string, req models.UpdateCommandConfigsRequest) ([]models.CommandConfig, error)
+
+	// --- Audit ---
+	ListAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error)
+	GetAuditStats(ctx context.Context, tenantID string) (map[string]interface{}, error)
+	ExportAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) (map[string]interface{}, error)
+
+	// --- Dashboard ---
+	GetDashboardStats(ctx context.Context, tenantID string, req models.DashboardStatsRequest) (*models.DashboardStatsResult, error)
+
+	// --- Health ---
+	HealthCheck(ctx context.Context) (*models.HealthCheckResult, error)
+
+	// --- Receive Message ---
+	ReceiveMessage(ctx context.Context, tenantID, userID string, req models.ReceiveMessageRequest) (map[string]interface{}, error)
+
+	// --- Capability Mappings ---
+	GetAllCapabilityMappings(ctx context.Context, tenantID string, environment *string) ([]models.CapabilityMapping, error)
+	CreateCapabilityMapping(ctx context.Context, tenantID string, req models.CreateCapabilityMappingRequest) (*models.CapabilityMapping, error)
+	UpdateCapabilityMapping(ctx context.Context, tenantID, id string, req models.UpdateCapabilityMappingRequest) (*models.CapabilityMapping, error)
+	DeleteCapabilityMapping(ctx context.Context, tenantID, id string) error
+
+	// --- Approval Configs ---
+	GetAllApprovalConfigs(ctx context.Context, tenantID string) ([]models.ApprovalConfig, error)
+	UpdateApprovalConfigs(ctx context.Context, tenantID string, req models.UpdateApprovalConfigsRequest) ([]models.ApprovalConfig, error)
+	GetApprovalConfigByCapability(ctx context.Context, tenantID, capability string) (*models.ApprovalConfig, error)
+	UpdateApprovalConfig(ctx context.Context, tenantID, capability string, req models.UpdateApprovalConfigRequest) (*models.ApprovalConfig, error)
+
+	// --- Approvers ---
+	GetApprovers(ctx context.Context, tenantID string) ([]models.Approver, error)
+	GetApproverSchedule(ctx context.Context, tenantID string) ([]models.ApproverSchedule, error)
+	UpdateApproverSchedule(ctx context.Context, tenantID string, schedule []models.ApproverSchedule) error
+
+	// --- Global Approval Config ---
+	GetGlobalApprovalConfig(ctx context.Context, tenantID string) (*models.GlobalApprovalConfig, error)
+	UpdateGlobalApprovalConfig(ctx context.Context, tenantID string, config *models.GlobalApprovalConfig) error
+
+	// --- Roles ---
+	GetAllRoles(ctx context.Context, tenantID string) ([]models.PermissionRole, error)
+	CreateRole(ctx context.Context, tenantID string, req models.CreateRoleRequest) (*models.PermissionRole, error)
+	GetRole(ctx context.Context, tenantID, id string) (*models.PermissionRole, error)
+	UpdateRole(ctx context.Context, tenantID, id string, req models.UpdateRoleRequest) (*models.PermissionRole, error)
+	DeleteRole(ctx context.Context, tenantID, id string) error
+
+	// --- Command Permissions ---
+	GetAllCommandPermissions(ctx context.Context, tenantID string) ([]models.CommandPermission, error)
+	CreateCommandPermission(ctx context.Context, tenantID string, req models.CreateCommandPermissionRequest) (*models.CommandPermission, error)
+	UpdateCommandPermission(ctx context.Context, tenantID, id string, req models.UpdateCommandPermissionRequest) (*models.CommandPermission, error)
+	DeleteCommandPermission(ctx context.Context, tenantID, id string) error
+
+	// --- Environment Permissions ---
+	GetAllEnvironmentPermissions(ctx context.Context, tenantID string) ([]models.EnvironmentPermission, error)
+	CreateEnvironmentPermission(ctx context.Context, tenantID string, req models.CreateEnvironmentPermissionRequest) (*models.EnvironmentPermission, error)
+	UpdateEnvironmentPermission(ctx context.Context, tenantID, id string, req models.UpdateEnvironmentPermissionRequest) (*models.EnvironmentPermission, error)
+	DeleteEnvironmentPermission(ctx context.Context, tenantID, id string) error
+
+	// --- Command Versions ---
+	GetVersionsByCommand(ctx context.Context, tenantID, commandID string) ([]models.CommandVersion, error)
+	CreateCommandVersion(ctx context.Context, tenantID string, req models.CreateCommandVersionRequest) (*models.CommandVersion, error)
+	AddTag(ctx context.Context, tenantID, versionID, tagName, createdBy string) error
+	RemoveTag(ctx context.Context, tenantID, versionID, tagName string) error
+	DeleteCommandVersion(ctx context.Context, tenantID, id string) error
+
+	// --- Rate Limits ---
+	GetAllRateLimits(ctx context.Context, tenantID string) ([]models.RateLimit, error)
+	CreateRateLimit(ctx context.Context, tenantID string, req models.CreateRateLimitRequest) (*models.RateLimit, error)
+	UpdateRateLimit(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.RateLimit, error)
+	DeleteRateLimit(ctx context.Context, tenantID, id string) error
+
+	// --- Webhooks ---
+	GetAllWebhooks(ctx context.Context, tenantID string) ([]models.Webhook, error)
+	CreateWebhook(ctx context.Context, tenantID string, req models.CreateWebhookRequest) (*models.Webhook, error)
+	UpdateWebhook(ctx context.Context, tenantID, id string, body map[string]interface{}) (*models.Webhook, error)
+	DeleteWebhook(ctx context.Context, tenantID, id string) error
+	TestWebhook(ctx context.Context, tenantID, id string) (*models.TestWebhookResult, error)
+	GetWebhookLogs(ctx context.Context, tenantID, webhookID string, limit int) ([]map[string]interface{}, error)
+}
+
+// Handler wires Gin routes to the ChatOps service.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

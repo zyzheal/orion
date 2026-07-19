@@ -1833,6 +1833,137 @@ export const routes: AppRoute[] = [
     protected: true,
   } as any,
 
+  // ==================== P0-10: 未注册页面路由补全 (22 pages) ====================
+  // Agent Dashboard
+  {
+    path: '/agent-dashboard',
+    element: React.lazy(() => import('@/pages/AgentDashboard')),
+    protected: true,
+  },
+  // Agent Run Detail
+  {
+    path: '/agent-run-detail/:id',
+    element: React.lazy(() => import('@/pages/AgentRunDetail')),
+    protected: true,
+  },
+  // Chaos Engineering
+  {
+    path: '/chaos-engineering',
+    element: React.lazy(() => import('@/pages/ChaosEngineering')),
+    protected: true,
+  },
+  // Cost Allocation
+  {
+    path: '/cost-allocation',
+    element: React.lazy(() => import('@/pages/CostAllocation')),
+    protected: true,
+  },
+  // Cron Management (enhanced)
+  {
+    path: '/console/cron-management',
+    element: React.lazy(() => import('@/pages/CronManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Diagnostic (standalone layout)
+  {
+    path: '/diagnostic',
+    element: React.lazy(() => import('@/pages/Diagnostic')),
+    protected: true,
+  },
+  // Document Center
+  {
+    path: '/documents-center',
+    element: React.lazy(() => import('@/pages/DocumentCenter')),
+    protected: true,
+  },
+  // Environment Management (standalone)
+  {
+    path: '/environment-management',
+    element: React.lazy(() => import('@/pages/Environments')),
+    protected: true,
+  },
+  // FinOps Dashboard
+  {
+    path: '/finops-dashboard',
+    element: React.lazy(() => import('@/pages/FinOpsDashboard')),
+    protected: true,
+  },
+  // Graph
+  {
+    path: '/graph',
+    element: React.lazy(() => import('@/pages/graph')),
+    protected: true,
+  },
+  // I18n Management
+  {
+    path: '/console/i18n',
+    element: React.lazy(() => import('@/pages/I18nManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Inception
+  {
+    path: '/inception',
+    element: React.lazy(() => import('@/pages/inception')),
+    protected: true,
+  },
+  // Knowledge Base (Pandawiki)
+  {
+    path: '/knowledge',
+    element: React.lazy(() => import('@/pages/pandawiki')),
+    protected: true,
+  },
+  // Knowledge Base (standalone)
+  {
+    path: '/knowledge-base',
+    element: React.lazy(() => import('@/pages/KnowledgeBase')),
+    protected: true,
+  },
+  // Notification Detail
+  {
+    path: '/notifications/:id',
+    element: React.lazy(() => import('@/pages/NotificationDetail')),
+    protected: true,
+  },
+  // Queue Management (standalone)
+  {
+    path: '/queue',
+    element: React.lazy(() => import('@/pages/Queue')),
+    protected: true,
+  },
+  // Runbook Management
+  {
+    path: '/console/runbooks',
+    element: React.lazy(() => import('@/pages/RunbookManagement')),
+    protected: true,
+    requiredPermission: { resource: '*', action: 'manage' },
+  },
+  // Server Error (500)
+  {
+    path: '/500',
+    element: React.lazy(() => import('@/pages/ServerError')),
+    protected: false,
+  },
+  // Service Portal
+  {
+    path: '/service-portal',
+    element: React.lazy(() => import('@/pages/ServicePortal')),
+    protected: true,
+  },
+  // Visor
+  {
+    path: '/visor',
+    element: React.lazy(() => import('@/pages/visor')),
+    protected: true,
+  },
+  // Workflow Designer
+  {
+    path: '/workflow-designer',
+    element: React.lazy(() => import('@/pages/WorkflowDesigner')),
+    protected: true,
+  },
+
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用
   // 白名单验证在组件内部完成（SubAppRouteDynamic）

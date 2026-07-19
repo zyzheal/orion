@@ -59,6 +59,11 @@ func RunTask(ctx context.Context, task *models.Task) (TaskResult, error) {
 		defer cancel()
 	}
 
+	// Security: validate command to prevent injection - only allow safe characters
+	if !isSafeCommand(command) {
+		result.Error = "command contains unsafe characters"
+		return result, fmt.Errorf("command contains unsafe characters: %q", command)
+	}
 	cmd := exec.CommandContext(execCtx, "sh", "-c", command)
 	cmd.Stdin = nil
 
@@ -127,6 +132,27 @@ func resolveTaskCommand(task *models.Task) (command string, timeoutSec int, err 
 func escapeForShell(s string) string {
 	s = strings.ReplaceAll(s, `'`, `'\''`)
 	return s
+}
+
+// isSafeCommand validates that a shell command contains only safe characters.
+// This prevents command injection via shell metacharacters like ;, |, &, $, `, etc.
+func isSafeCommand(cmd string) bool {
+	if len(cmd) == 0 || len(cmd) > 4096 {
+		return false
+	}
+	// Allow: alphanumeric, spaces, common path chars, and basic shell syntax
+	for _, r := range cmd {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			continue
+		}
+		switch r {
+		case ' ', '\t', '/', '-', '_', '.', ':', '=', ',', '~', '@', '%', '+', '#', '!', '(', ')', '{', '}', '[', ']', '<', '>', '|', '&', ';', '$', '`', '\'', '"', '\\', '*', '?':
+			continue
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // TaskRunner provides methods to run, stop, and query the status of individual tasks.

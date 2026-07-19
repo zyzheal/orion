@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,11 +12,31 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the interface used by Handler.
+type Service interface {
+	ListProblems(ctx context.Context, tenantID string, filter *models.ProblemFilter) ([]models.Problem, int, error)
+	GetProblem(ctx context.Context, tenantID, id string) (*models.Problem, error)
+	CreateProblem(ctx context.Context, tenantID string, req *models.CreateProblemRequest) (*models.Problem, error)
+	UpdateProblem(ctx context.Context, tenantID, id string, req *models.UpdateProblemRequest) (*models.Problem, error)
+	DeleteProblem(ctx context.Context, tenantID, id string) error
+	GetStats(ctx context.Context, tenantID string) (*models.ProblemStats, error)
+	LinkIncident(ctx context.Context, tenantID, problemID, incidentID string) (*models.Problem, error)
+	GetIncidentLinks(ctx context.Context, tenantID, problemID string) ([]string, error)
+	LinkChange(ctx context.Context, tenantID, problemID, changeID string) (*models.Problem, error)
+	GetChangeLinks(ctx context.Context, tenantID, problemID string) ([]string, error)
+	ListKnownErrors(ctx context.Context, tenantID string, filter *models.KnownErrorFilter) ([]models.KnownError, int, error)
+	SearchKnownErrors(ctx context.Context, tenantID, query string) ([]models.KnownError, int, error)
+	GetKnownError(ctx context.Context, tenantID, id string) (*models.KnownError, error)
+	CreateKnownError(ctx context.Context, tenantID string, req *models.CreateKnownErrorRequest) (*models.KnownError, error)
+	UpdateKnownError(ctx context.Context, tenantID, id string, req *models.UpdateKnownErrorRequest) (*models.KnownError, error)
+	DeleteKnownError(ctx context.Context, tenantID, id string) error
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

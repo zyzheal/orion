@@ -1,24 +1,41 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
+	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/feature-flag/models"
 	"orion/platform-svc-go/internal/feature-flag/service"
-
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the interface used by Handler.
+type Service interface {
+	Create(ctx context.Context, tenantID, createdBy string, req *models.CreateFlagRequest) (*models.FeatureFlag, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.FeatureFlag, error)
+	GetByKey(ctx context.Context, tenantID, key string) (*models.FeatureFlag, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.FeatureFlag, error)
+	Search(ctx context.Context, tenantID, query string, offset, limit int) ([]models.FeatureFlag, error)
+	Update(ctx context.Context, tenantID, id, updatedBy string, req *models.UpdateFlagRequest) (*models.FeatureFlag, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Count(ctx context.Context, tenantID string) (int, error)
+	SetRolloutPercentage(ctx context.Context, tenantID, id, updatedBy string, percentage int) (*models.FeatureFlag, error)
+	RecordToggle(ctx context.Context, flagID string, oldValue, newValue bool, changedBy, reason string) error
+	EvaluateFlag(ctx context.Context, tenantID string, req *models.EvaluateFlagRequest) (*models.FlagEvaluationResult, error)
+	EvaluateFlags(ctx context.Context, tenantID string, reqs []models.EvaluateFlagRequest) ([]models.FlagEvaluationResult, error)
+	ListToggleHistory(ctx context.Context, flagID string, limit int) ([]models.FlagToggleRecord, error)
+}
+
 // Handler exposes HTTP endpoints for feature flag operations.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new Handler instance.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

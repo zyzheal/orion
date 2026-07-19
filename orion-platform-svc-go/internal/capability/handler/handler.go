@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
@@ -12,8 +13,40 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Capability, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	GetTree(ctx context.Context, tenantID string) ([]models.Capability, error)
+	GrantCapabilityToRole(ctx context.Context, tenantID, capabilityID, roleName, grantedBy string) error
+	RevokeCapabilityFromRole(ctx context.Context, tenantID, capabilityID, roleName string) error
+	GrantCapabilityToUser(ctx context.Context, tenantID, capabilityID, targetUserID, grantedBy string, expiresInHours *int) error
+	RevokeCapabilityFromUser(ctx context.Context, tenantID, capabilityID, targetUserID string) error
+	MapCommandToCapability(ctx context.Context, tenantID, commandName, commandAction, capabilityID, environmentSuffix string) error
+	GetCapabilityForCommand(ctx context.Context, tenantID, command, action, environment string) (*string, error)
+	CheckPermission(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
+	GrantTemporaryPermission(ctx context.Context, req models.GrantTemporaryRequest) (*models.TemporaryPermission, error)
+	GetActiveTemporaryPermissions(ctx context.Context, tenantID, userID string) ([]models.TemporaryPermission, error)
+	RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error)
+	GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error)
+	CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error)
+	GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error)
+	ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error)
+	RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error)
+	CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error)
+	RequestPermission(ctx context.Context, tenantID string, body models.RequestPermissionBody) (*models.PermissionRequest, error)
+	GrantSimplified(ctx context.Context, req models.GrantSimplifiedRequest) (*models.TemporaryPermission, error)
+	RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error)
+	GetUserEffectiveCapabilities(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
+	GetUserPermissionRequests(ctx context.Context, tenantID, userID string) ([]models.PermissionRequest, error)
+}
+
+// Handler wires Gin routes to the capability service.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

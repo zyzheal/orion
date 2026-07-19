@@ -1,19 +1,46 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/federation/models"
-	"orion/platform-svc-go/internal/federation/service"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the interface used by Handler.
+type Service interface {
+	Create(ctx context.Context, tenantID string, req *models.CreateFederatedClusterRequest) (*models.FederatedCluster, error)
+	List(ctx context.Context, tenantID string, offset, limit int) ([]models.FederatedCluster, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.FederatedCluster, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Update(ctx context.Context, tenantID, id string, req *models.UpdateFederatedClusterRequest) (*models.FederatedCluster, error)
+	Count(ctx context.Context, tenantID string) (int, error)
+	CreateFederationConfig(ctx context.Context, tenantID string, req *models.CreateFederationConfigRequest) (*models.FederationConfig, error)
+	GetFederationConfig(ctx context.Context, tenantID, id string) (*models.FederationConfig, error)
+	ListFederationConfigs(ctx context.Context, tenantID string) ([]models.FederationConfig, error)
+	UpdateFederationConfig(ctx context.Context, tenantID, id string, req *models.UpdateFederationConfigRequest) (*models.FederationConfig, error)
+	DeleteFederationConfig(ctx context.Context, tenantID, id string) error
+	RegisterExecutor(ctx context.Context, tenantID string, req *models.CreateExecutorRequest) (*models.Executor, error)
+	ListExecutors(ctx context.Context, tenantID string) ([]models.Executor, error)
+	GetExecutorHealth(ctx context.Context, tenantID, executorID string) (*models.Executor, *models.ExecutorHealth, error)
+	GetExecutorDashboard(ctx context.Context, tenantID string) (*models.ExecutorDashboard, error)
+	ExecutorHeartbeat(ctx context.Context, tenantID, executorID string, req *models.ExecutorHeartbeatRequest) (*models.Executor, *models.ExecutorHealth, error)
+	DeregisterExecutor(ctx context.Context, tenantID, executorID string) (bool, error)
+	DispatchJob(ctx context.Context, tenantID string, req *models.DispatchJobRequest) (*models.DispatchJobResult, error)
+	CreateSchedulingPolicy(ctx context.Context, tenantID string, req *models.CreateSchedulingPolicyRequest) (*models.SchedulingPolicy, error)
+	ListSchedulingPolicies(ctx context.Context, tenantID string) ([]models.SchedulingPolicy, error)
+	ScheduleCrossClusterJob(ctx context.Context, tenantID string, req *models.ScheduleCrossClusterJobRequest) (*models.CrossClusterJob, error)
+	CreateResourcePool(ctx context.Context, tenantID string, req *models.CreateResourcePoolRequest) (*models.ResourcePool, error)
+	GetResourcePoolStatus(ctx context.Context, tenantID, poolID string) (*models.ResourcePool, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 
@@ -62,12 +89,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederationConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateFederationConfig(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -77,7 +104,7 @@ func (h *Handler) CreateFederation(c *gin.Context) {
 func (h *Handler) GetFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -87,7 +114,7 @@ func (h *Handler) GetFederation(c *gin.Context) {
 func (h *Handler) ListFederations(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListFederationConfigs(c.Request.Context(), tenantID)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -97,12 +124,12 @@ func (h *Handler) ListFederations(c *gin.Context) {
 func (h *Handler) UpdateFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederationConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.UpdateFederationConfig(c.Request.Context(), tenantID, c.Param("id"), &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -112,7 +139,7 @@ func (h *Handler) UpdateFederation(c *gin.Context) {
 func (h *Handler) DeleteFederation(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	err := h.svc.DeleteFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -126,12 +153,12 @@ func (h *Handler) DeleteFederation(c *gin.Context) {
 func (h *Handler) RegisterExecutor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExecutorRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.RegisterExecutor(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -141,7 +168,7 @@ func (h *Handler) RegisterExecutor(c *gin.Context) {
 func (h *Handler) ListExecutors(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	items, err := h.svc.ListExecutors(c.Request.Context(), tenantID)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -151,7 +178,7 @@ func (h *Handler) ListExecutors(c *gin.Context) {
 func (h *Handler) GetExecutorHealth(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	e, hlt, err := h.svc.GetExecutorHealth(c.Request.Context(), tenantID, c.Param("executorId"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -161,7 +188,7 @@ func (h *Handler) GetExecutorHealth(c *gin.Context) {
 func (h *Handler) GetExecutorDashboard(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetExecutorDashboard(c.Request.Context(), tenantID)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -171,12 +198,12 @@ func (h *Handler) GetExecutorDashboard(c *gin.Context) {
 func (h *Handler) ExecutorHeartbeat(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ExecutorHeartbeatRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	e, hlt, err := h.svc.ExecutorHeartbeat(c.Request.Context(), tenantID, c.Param("executorId"), &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -186,7 +213,7 @@ func (h *Handler) ExecutorHeartbeat(c *gin.Context) {
 func (h *Handler) DeregisterExecutor(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	ok, err := h.svc.DeregisterExecutor(c.Request.Context(), tenantID, c.Param("executorId"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -196,12 +223,12 @@ func (h *Handler) DeregisterExecutor(c *gin.Context) {
 func (h *Handler) DispatchJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.DispatchJobRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.DispatchJob(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -215,12 +242,12 @@ func (h *Handler) DispatchJob(c *gin.Context) {
 func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSchedulingPolicyRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateSchedulingPolicy(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -231,7 +258,7 @@ func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	_ = tenantID
 	items, err := h.svc.ListSchedulingPolicies(c.Request.Context(), tenantID)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -245,12 +272,12 @@ func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 func (h *Handler) ScheduleCrossClusterJob(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.ScheduleCrossClusterJobRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.ScheduleCrossClusterJob(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -264,12 +291,12 @@ func (h *Handler) ScheduleCrossClusterJob(c *gin.Context) {
 func (h *Handler) CreateResourcePool(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateResourcePoolRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.CreateResourcePool(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -279,7 +306,7 @@ func (h *Handler) CreateResourcePool(c *gin.Context) {
 func (h *Handler) GetResourcePoolStatus(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetResourcePoolStatus(c.Request.Context(), tenantID, c.Param("poolId"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -293,12 +320,12 @@ func (h *Handler) GetResourcePoolStatus(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederatedClusterRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -311,7 +338,7 @@ func (h *Handler) List(c *gin.Context) {
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	_ = ps
 	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -321,7 +348,7 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -331,12 +358,12 @@ func (h *Handler) Get(c *gin.Context) {
 func (h *Handler) Update(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederatedClusterRequest
-	if err := c.ShouldBindJSON(&req); err != nullErr {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -345,7 +372,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 func (h *Handler) Delete(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nullErr {
+	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -355,7 +382,7 @@ func (h *Handler) Delete(c *gin.Context) {
 func (h *Handler) Count(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	count, err := h.svc.Count(c.Request.Context(), tenantID)
-	if err != nullErr {
+	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -363,4 +390,3 @@ func (h *Handler) Count(c *gin.Context) {
 }
 
 // Sentinel error for the handler's error-checking idiom.
-var nullErr = service.NullErr

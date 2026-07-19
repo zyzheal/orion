@@ -206,7 +206,7 @@ type ListFilter struct {
 
 // RecordToggleRequest is the input for recording a flag toggle event.
 type RecordToggleRequest struct {
-	OldValue bool   `json:"old_value" binding:"required"`
-	NewValue bool   `json:"new_value" binding:"required"`
+	OldValue bool   `json:"old_value"`
+	NewValue bool   `json:"new_value"`
 	Reason   string `json:"reason"`
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,13 +12,24 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-// Handler handles HTTP requests for notification endpoints.
-type Handler struct {
-	svc *service.Service
+// Service defines the methods the handler calls on the notification service.
+type Service interface {
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, page int, pageSize int) ([]models.Notification, int, error)
+	GetStats(ctx context.Context, tenantID string) (*models.NotificationStats, error)
+	Create(ctx context.Context, tenantID string, userID string, req *models.CreateNotificationRequest) (*models.Notification, error)
+	Count(ctx context.Context, tenantID string) (int, error)
+	Get(ctx context.Context, tenantID string, id string) (*models.Notification, error)
+	Update(ctx context.Context, tenantID string, id string, req *models.UpdateNotificationRequest) (*models.Notification, error)
+	Delete(ctx context.Context, tenantID string, id string) (bool, error)
+	MarkRead(ctx context.Context, tenantID string, id string) error
+	MarkAllRead(ctx context.Context, tenantID string, userID string) error
 }
 
-// NewHandler creates a new Handler.
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -11,11 +12,27 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	List(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogListResult, error)
+	Get(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, error)
+	Create(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLogEntry, error)
+	VerifySingle(ctx context.Context, tenantID, id string) (*models.AuditLogEntry, bool, error)
+	VerifyChain(ctx context.Context, tenantID string) (*models.ChainVerifyResult, error)
+	GetActions(ctx context.Context, tenantID string) ([]string, error)
+	GetResourceTypes(ctx context.Context, tenantID string) ([]string, error)
+	ComplianceReport(ctx context.Context, tenantID string, framework string) (*models.ComplianceReport, error)
+	CoverageStats(ctx context.Context, tenantID string) (*models.AuditCoverageStats, error)
+	ChainInfo(ctx context.Context, tenantID string) (*models.ChainInfo, error)
+	StorageStats(ctx context.Context, tenantID string) (*models.StorageStats, error)
+	Export(ctx context.Context, tenantID string, q models.AuditLogQuery) (*models.AuditLogExportResult, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

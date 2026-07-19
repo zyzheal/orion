@@ -128,13 +128,16 @@ type ExecutePluginRequest struct {
 }
 
 type ExecutionResult struct {
-	TaskID       string `json:"task_id"`
-	Success      bool   `json:"success"`
-	ExitCode     int    `json:"exit_code"`
-	DurationMs   int    `json:"duration_ms"`
-	ErrorMessage string `json:"error_message,omitempty"`
-	Killed       bool   `json:"killed"`
-	KillReason   string `json:"kill_reason,omitempty"`
+	TaskID       string                 `json:"task_id"`
+	Success      bool                   `json:"success"`
+	ExitCode     int                    `json:"exit_code"`
+	DurationMs   int                    `json:"duration_ms"`
+	Stdout       string                 `json:"stdout,omitempty"`
+	Stderr       string                 `json:"stderr,omitempty"`
+	Output       map[string]interface{} `json:"output,omitempty"`
+	ErrorMessage string                 `json:"error_message,omitempty"`
+	Killed       bool                   `json:"killed"`
+	KillReason   string                 `json:"kill_reason,omitempty"`
 }
 
 // ---------------------------------------------------------------------------

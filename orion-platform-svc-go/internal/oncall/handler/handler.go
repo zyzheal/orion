@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -12,13 +13,33 @@ import (
 	"orion/platform-svc-go/internal/middleware"
 )
 
+// Service defines the methods the handler calls on the service layer.
+type Service interface {
+	List(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error)
+	Get(ctx context.Context, id string) (*models.Schedule, error)
+	Create(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.Schedule, error)
+	Update(ctx context.Context, id string, req *models.UpdateScheduleRequest) (*models.Schedule, error)
+	Delete(ctx context.Context, id string) (bool, error)
+	ListAssignments(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error)
+	GetAssignment(ctx context.Context, id string) (*models.Assignment, error)
+	CreateAssignment(ctx context.Context, req *models.CreateAssignmentRequest) (*models.Assignment, error)
+	UpdateAssignment(ctx context.Context, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error)
+	DeleteAssignment(ctx context.Context, id string) (bool, error)
+	ListOverrides(ctx context.Context, scheduleID *string) ([]models.Override, int, error)
+	GetOverride(ctx context.Context, id string) (*models.Override, error)
+	CreateOverride(ctx context.Context, req *models.CreateOverrideRequest) (*models.Override, error)
+	UpdateOverride(ctx context.Context, id string, req *models.UpdateOverrideRequest) (*models.Override, error)
+	DeleteOverride(ctx context.Context, id string) (bool, error)
+	GetOnCallNow(ctx context.Context, scheduleID string) (*models.CurrentOnCallResult, error)
+}
+
 // Handler handles on-call API routes.
 type Handler struct {
-	svc *service.Service
+	svc Service
 }
 
 // NewHandler creates a new oncall handler.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

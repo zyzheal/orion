@@ -1,6 +1,7 @@
 package handler
 
 import (
+    "context"
     "net/http"
 
     "orion/go-common/pkg/auth"
@@ -11,8 +12,23 @@ import (
     "github.com/gin-gonic/gin"
 )
 
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+    ListFiles(ctx context.Context, tenantID string) ([]string, error)
+    GetCoverage(ctx context.Context, tenantID string) (models.CoverageStats, error)
+    ListTestSuites(ctx context.Context, tenantID string) ([]models.TestSuite, error)
+    GetTestSuite(ctx context.Context, tenantID, id string) (*models.TestSuite, error)
+    CreateTestSuite(ctx context.Context, tenantID string, req models.CreateTestSuiteRequest) (*models.TestSuite, error)
+    UpdateTestSuite(ctx context.Context, tenantID, id string, req models.UpdateTestSuiteRequest) (*models.TestSuite, error)
+    DeleteTestSuite(ctx context.Context, tenantID, id string) error
+    GetImpactAnalysis(ctx context.Context, tenantID, file string) (*models.ImpactAnalysisResult, error)
+    GetRecommendations(ctx context.Context, tenantID string, req models.RecommendationRequest) (*models.TestExecutionPlan, error)
+    GetStats(ctx context.Context, tenantID string) (*models.TestSelectorStats, error)
+    RunTestSuite(ctx context.Context, tenantID, id string) error
+}
+
 type Handler struct {
-    svc *service.Service
+    svc Service
 }
 
 func NewHandler(svc *service.Service) *Handler {

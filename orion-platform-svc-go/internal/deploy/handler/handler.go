@@ -1,21 +1,39 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/deploy/models"
-	"orion/platform-svc-go/internal/deploy/service"
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 )
 
-type Handler struct {
-	svc *service.Service
+// Service defines the contract the handler needs from the service layer.
+type Service interface {
+	Create(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Deployment, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error)
+	GetLatest(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error)
+	Metrics(ctx context.Context, tenantID string) (*models.DeploymentMetrics, error)
+	Rollback(ctx context.Context, tenantID, id string, targetVersion, reason string) (*models.Rollback, error)
+	GetRollbackHistory(ctx context.Context, tenantID, id string) ([]models.Rollback, error)
+	Cancel(ctx context.Context, tenantID, id string) error
+	GetAuditTrail(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
+	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	GenerateReleaseNotes(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
+	GetReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
+	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error
+	GetDeploymentChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
 }
 
-func NewHandler(svc *service.Service) *Handler {
+type Handler struct {
+	svc Service
+}
+
+func NewHandler(svc Service) *Handler {
 	return &Handler{svc: svc}
 }
 

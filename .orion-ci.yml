@@ -22,6 +22,7 @@ trigger:
 # 全局环境变量
 env:
   NODE_VERSION: "22"
+  GO_VERSION: "1.25"
   CI: "true"
 
 # 流水线阶段
@@ -56,6 +57,27 @@ stages:
           npm install --ignore-scripts
           npm run type-check
 
+      # ========== Go lint ==========
+      - name: "Go Vet - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go vet ./...
+
+      - name: "Go Vet - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go vet ./...
+
+      - name: "GolangCI-Lint - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: golangci-lint run ./...
+
+      - name: "GolangCI-Lint - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: golangci-lint run ./...
+
   # ==================== Stage 2: 单元测试 ====================
   - name: "test"
     label: "单元测试"
@@ -75,6 +97,17 @@ stages:
         type: "shell"
         workingDir: "./orion-frontend"
         command: npm run test -- --run
+
+      # ========== Go tests ==========
+      - name: "Go Tests - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go test ./... -count=1 -timeout 120s
+
+      - name: "Go Tests - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go test ./... -count=1 -timeout 120s
 
   # ==================== Stage 3: 集成测试 ====================
   - name: "integration-test"
@@ -135,6 +168,17 @@ stages:
         command: |
           npm install --ignore-scripts
           npm run build
+
+      # ========== Go build ==========
+      - name: "Go Build - Platform Svc Go"
+        type: "shell"
+        workingDir: "./orion-platform-svc-go"
+        command: go build ./...
+
+      - name: "Go Build - Go Common"
+        type: "shell"
+        workingDir: "./orion-go-common"
+        command: go build ./...
 
       - name: "Build Docker Images"
         type: "docker-build"
