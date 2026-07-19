@@ -105,3 +105,21 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	}
 	return nil
 }
+
+func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Record, error) {
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE data_pipelines SET status=$1, updated_at=$2
+		 WHERE id=$3 AND tenant_id=$4`,
+		status, time.Now(), id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if rows == 0 {
+		return nil, ErrNotFound
+	}
+	return r.GetByID(ctx, tenantID, id)
+}

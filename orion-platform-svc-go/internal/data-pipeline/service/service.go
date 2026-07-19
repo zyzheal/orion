@@ -36,29 +36,55 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 }
 
 func (s *Service) RunPipeline(ctx context.Context, tenantID, id string) error {
-	return nil
+	_, err := s.repo.UpdateStatus(ctx, tenantID, id, "running")
+	return err
 }
 
 func (s *Service) GetStatus(ctx context.Context, tenantID, id string) (string, error) {
-	return "running", nil
+	record, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return "", err
+	}
+	return record.Status, nil
 }
 
 func (s *Service) Pause(ctx context.Context, tenantID, id string) error {
-	return nil
+	_, err := s.repo.UpdateStatus(ctx, tenantID, id, "paused")
+	return err
 }
 
 func (s *Service) Resume(ctx context.Context, tenantID, id string) error {
-	return nil
+	_, err := s.repo.UpdateStatus(ctx, tenantID, id, "running")
+	return err
 }
 
 func (s *Service) GetLogs(ctx context.Context, tenantID, id string) ([]string, error) {
+	// Verify pipeline exists and is accessible; logs would be stored in a
+	// separate run-log table (future).
+	_, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return nil, err
+	}
 	return []string{}, nil
 }
 
 func (s *Service) ListSchemas(ctx context.Context, tenantID string) ([]string, error) {
+	// Schemas are managed per-tenant by the DBA / data-platform service; no
+	// direct table in data_pipelines. Return empty for now.
 	return []string{}, nil
 }
 
 func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (map[string]interface{}, error) {
-	return map[string]interface{}{}, nil
+	// Verify pipeline exists; lineage is resolved from config at runtime.
+	pipeline, err := s.repo.GetByID(ctx, tenantID, id)
+	if err != nil {
+		return map[string]interface{}{}, err
+	}
+	// Lineage is derived from the pipeline config; return a thin envelope so
+	// callers don't treat empty-as-absent as an error.
+	return map[string]interface{}{
+		"pipelineId": pipeline.ID,
+		"sources":    []string{},
+		"sinks":      []string{},
+	}, nil
 }
