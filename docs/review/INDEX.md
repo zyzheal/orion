@@ -1,8 +1,8 @@
 # Orion 评审文档索引 v1.1 (2026-07-20)
 
-> **版本**: v1.3 | **数据截至**: 2026-07-20 | **验证方式**: 实际代码扫描 + `go test ./internal/...` (288 pass, 0 fail)
+> **版本**: v1.5 | **数据截至**: 2026-07-20 | **验证方式**: 实际代码扫描 + `go test ./internal/...` (288 pass, 0 fail)
 > v1.0→v1.1 修正: SQL repository 数据(99%→27%), 前端路由数(316→212), 模块数(224→220), 测试结果(34/2→37/3)
-> v1.2→v1.3 更新: P0-12(漏洞扫描image扫描+filesystem双扫描), P0-4(Pipeline→Saga集成), 12/14=86%
+> v1.3→v1.5 更新: P0-14(前端路由97%), P0-2(Read Model已有2模块Pipeline/Approval), 13/14=93%
 
 ## 文档体系概览
 
@@ -99,7 +99,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | # | P0项 | 来源文档 | 当前状态 | 完成度 |
 |:-:|------|---------|---------|:------:|
 | 1 | 188模块无测试 | expert-review-summary | **223/224有测试** | ✅ 100% |
-| 2 | 无Read Model Projection | expert-review-summary | 未开始 | ⬜ 0% |
+| 2 | 无Read Model Projection | expert-review-summary | **Pipeline+Approval已实现** | 🟡 9% |
 | 3 | Saga补偿函数全空壳 | expert-review-summary | **已实现(StepCompensator+StepRegistry)** | ✅ 100% |
 | 4 | Pipeline未接入Saga编排 | expert-review-summary | **PipelineEngine.SagaCoordinator集成** | ✅ 100% |
 | 5 | data-pipeline 50+ stub | expert-review-summary | 已修复 | ✅ 100% |
@@ -113,7 +113,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 13 | 插件无SPI | expert-review-summary | 已修复 | ✅ 100% |
 | 14 | 96页面未注册路由 | expert-review-summary | **236/240已注册** | ✅ 97% |
 
-**P0完成率**: **13/14完成 (93%)** | 0/14进行中 | 1/14未开始 (7%)
+**P0完成率**: **13/14完成 (93%)** | 1/14部分实现 | 0/14未开始
 
 ---
 
