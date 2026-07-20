@@ -1,4 +1,5 @@
 package service
+//go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 
 import (
 	"context"
