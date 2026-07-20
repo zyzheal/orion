@@ -32,12 +32,14 @@ func NewService(repo *repository.Repository) *Service {
 // Publish publishes a new event and returns it.
 func (s *Service) Publish(ctx context.Context, tenantID string, userID string, req *models.PublishRequest) (*models.Event, error) {
 	event := &models.Event{
-		Type:       req.Type,
-		Payload:    req.Payload,
-		Source:     req.Source,
-		TenantID:   tenantID,
-		UserID:     userID,
-		OccurredAt: time.Now().UTC(),
+		Type:          req.Type,
+		Payload:       req.Payload,
+		Source:        req.Source,
+		TenantID:      tenantID,
+		UserID:        userID,
+		CorrelationID: req.CorrelationID,
+		CausationID:   req.CausationID,
+		OccurredAt:    time.Now().UTC(),
 	}
 	if userID == "" {
 		event.UserID = uuid.New().String()

@@ -34,8 +34,8 @@ func (r *Repository) Create(ctx context.Context, event *models.Event) error {
 		event.OccurredAt = event.CreatedAt
 	}
 	_, err := r.db.NamedExecContext(ctx,
-		`INSERT INTO events (id, type, payload, source, tenant_id, user_id, occurred_at, created_at)
-		 VALUES (:id, :type, :payload, :source, :tenantId, :userId, :occurredAt, :createdAt)`,
+		`INSERT INTO events (id, type, payload, source, tenant_id, user_id, correlation_id, causation_id, occurred_at, created_at)
+			 VALUES (:id, :type, :payload, :source, :tenantId, :userId, :correlationId, :causationId, :occurredAt, :createdAt)`,
 		event)
 	return err
 }
