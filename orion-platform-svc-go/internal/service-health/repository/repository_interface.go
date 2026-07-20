@@ -9,8 +9,6 @@ import (
 )
 
 
-import "time"
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateCheck(ctx context.Context, m *models.HealthCheck) error

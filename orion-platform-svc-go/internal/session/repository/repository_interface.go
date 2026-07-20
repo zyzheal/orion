@@ -9,8 +9,6 @@ import (
 )
 
 
-import "time"
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	Create(ctx context.Context, s *models.Session) error

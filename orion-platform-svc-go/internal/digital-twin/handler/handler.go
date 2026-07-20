@@ -160,7 +160,7 @@ func (h *Handler) ListSandboxes(c *gin.Context) {
 }
 
 func (h *Handler) StopSandbox(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopSandbox")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopSandbox")
 	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.StopSandbox(id)
@@ -172,7 +172,7 @@ func (h *Handler) StopSandbox(c *gin.Context) {
 }
 
 func (h *Handler) DestroySandbox(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroySandbox")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroySandbox")
 	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.DestroySandbox(id)
@@ -184,7 +184,7 @@ func (h *Handler) DestroySandbox(c *gin.Context) {
 }
 
 func (h *Handler) SandboxHealth(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SandboxHealth")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SandboxHealth")
 	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.SandboxHealth(id)
@@ -262,7 +262,7 @@ func (h *Handler) ListRecordingSessions(c *gin.Context) {
 }
 
 func (h *Handler) StopRecording(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRecording")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRecording")
 	defer span.End()
 	recordingID := c.Param("recordingId")
 	result := h.svc.StopRecording(recordingID)
@@ -270,7 +270,7 @@ func (h *Handler) StopRecording(c *gin.Context) {
 }
 
 func (h *Handler) PauseRecording(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseRecording")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseRecording")
 	defer span.End()
 	recordingID := c.Param("recordingId")
 	result := h.svc.PauseRecording(recordingID)
@@ -278,7 +278,7 @@ func (h *Handler) PauseRecording(c *gin.Context) {
 }
 
 func (h *Handler) GetRecordingDetail(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingDetail")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingDetail")
 	defer span.End()
 	recordingID := c.Param("recordingId")
 	detail := h.svc.GetRecordingDetail(recordingID)
@@ -286,7 +286,7 @@ func (h *Handler) GetRecordingDetail(c *gin.Context) {
 }
 
 func (h *Handler) GetRecordingRecords(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingRecords")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingRecords")
 	defer span.End()
 	recordingID := c.Param("recordingId")
 	records := h.svc.GetRecordingRecords(recordingID)

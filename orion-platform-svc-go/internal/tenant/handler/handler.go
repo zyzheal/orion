@@ -211,7 +211,7 @@ func (h *Handler) GetCurrent(c *gin.Context) {
 }
 
 func (h *Handler) Context(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Context")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Context")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	result := gin.H{"context": gin.H{"tenant_id": tenantID}}
@@ -372,7 +372,7 @@ func (h *Handler) NamespaceUsage(c *gin.Context) {
 // ==================== Middleware config ====================
 
 func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMiddlewareConfig")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMiddlewareConfig")
 	defer span.End()
 	config := models.MiddlewareConfig{
 		Enabled:        true,
@@ -383,7 +383,7 @@ func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
 }
 
 func (h *Handler) UpdateMiddlewareConfig(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateMiddlewareConfig")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateMiddlewareConfig")
 	defer span.End()
 	var body struct {
 		Enabled        *bool  `json:"enabled"`

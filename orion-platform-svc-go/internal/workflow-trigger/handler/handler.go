@@ -213,7 +213,7 @@ func (h *Handler) Trigger(c *gin.Context) {
 
 // ExecuteWorkflow executes a workflow by definition ID.
 func (h *Handler) ExecuteWorkflow(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteWorkflow")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteWorkflow")
 	defer span.End()
 	tenantID := getTenantID(c)
 	definitionID := c.Param("definitionId")

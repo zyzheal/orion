@@ -293,7 +293,7 @@ func (h *Handler) DebugStep(c *gin.Context) {
 }
 
 func (h *Handler) DebugState(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugState")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugState")
 	defer span.End()
 	runID := c.Param("runId")
 	state := h.svc.GetDebugState(runID)

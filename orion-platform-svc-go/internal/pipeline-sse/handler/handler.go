@@ -68,7 +68,7 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // StreamLogs handles GET /pipelines/sse/logs.
 // It establishes an SSE connection for streaming pipeline log events.
 func (h *Handler) StreamLogs(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamLogs")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamLogs")
 	defer span.End()
 	pipelineID := c.Query("pipelineId")
 	runID := c.Query("runId")
@@ -100,7 +100,7 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 // StreamStatus handles GET /pipelines/sse/status.
 // It establishes an SSE connection for streaming pipeline status events.
 func (h *Handler) StreamStatus(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamStatus")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamStatus")
 	defer span.End()
 	pipelineID := c.Query("pipelineId")
 	runID := c.Query("runId")
@@ -162,7 +162,7 @@ func (h *Handler) PublishStatus(c *gin.Context) {
 
 // GetStats handles GET /pipelines/sse/stats.
 func (h *Handler) GetStats(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
 	stats := h.hub.GetStats()
 	middleware.RespondSuccess(c, stats)

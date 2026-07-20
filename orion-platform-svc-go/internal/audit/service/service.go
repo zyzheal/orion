@@ -17,6 +17,9 @@ import (
 	"orion/platform-svc-go/internal/audit/models"
 	"orion/platform-svc-go/internal/audit/repository"
 )
+// ErrNotFound is an alias for sentinel.NotFound for test compatibility.
+var ErrNotFound = sentinel.NotFound
+
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {

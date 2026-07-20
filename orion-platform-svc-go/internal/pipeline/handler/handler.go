@@ -80,7 +80,7 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelines")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	opt := models.ListPipelinesOptions{}
 	if proj := c.Query("projectId"); proj != "" {
@@ -120,7 +120,7 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePipeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -140,7 +140,7 @@ func (h *Handler) GetPipeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPipeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	pipeline, err := h.svc.GetPipeline(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "pipeline not found")
@@ -153,7 +153,7 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePipeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.UpdatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -173,7 +173,7 @@ func (h *Handler) DeletePipeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePipeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	deleted, err := h.svc.DeletePipeline(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -192,7 +192,7 @@ func (h *Handler) ValidatePipeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidatePipeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreatePipelineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -214,7 +214,7 @@ func (h *Handler) StartRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartRun")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	result, err := h.svc.StartRun(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -227,7 +227,7 @@ func (h *Handler) StopRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRun")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	err := h.svc.StopRun(ctx, tenantID, c.Param("runId"))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -242,7 +242,7 @@ func (h *Handler) BatchStart(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStart")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req struct {
 		PipelineIDs []string `json:"pipelineIds" binding:"required"`
@@ -264,7 +264,7 @@ func (h *Handler) BatchStop(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStop")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req struct {
 		RunIDs []string `json:"runIds" binding:"required"`
@@ -286,7 +286,7 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchDelete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req struct {
 		PipelineIDs []string `json:"pipelineIds" binding:"required"`
@@ -310,7 +310,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	stats, err := h.svc.GetStats(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -323,7 +323,7 @@ func (h *Handler) GetVersions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersions")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	versions, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

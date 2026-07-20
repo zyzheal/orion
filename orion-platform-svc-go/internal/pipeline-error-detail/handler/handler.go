@@ -41,7 +41,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) ErrorDetail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ErrorDetail")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	runID := c.Param("runId")
 
 	detail, err := h.svc.GetErrorDetail(ctx, runID)

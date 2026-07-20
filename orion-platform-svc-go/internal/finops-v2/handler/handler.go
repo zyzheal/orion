@@ -496,7 +496,7 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // --- Cost collection ---
 
 func (h *Handler) CollectCost(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectCost")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectCost")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectCostRequest

@@ -12,6 +12,9 @@ import (
 	"github.com/jmoiron/sqlx"
 	"orion/go-common/pkg/sentinel"
 )
+// ErrNotFound is an alias for sentinel.NotFound for test compatibility.
+var ErrNotFound = sentinel.NotFound
+
 
 type Repository struct {
 	db *sqlx.DB

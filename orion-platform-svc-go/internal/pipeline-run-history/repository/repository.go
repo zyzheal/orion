@@ -1,6 +1,7 @@
 package repository
 
-import (
+import ("errors"
+
 	"context"
 	"database/sql"
 
@@ -8,6 +9,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+// ErrNotFound is a sentinel for not-found errors.
+var ErrNotFound = errors.New("not found")
+
 
 type Repository struct {
 	db *sqlx.DB

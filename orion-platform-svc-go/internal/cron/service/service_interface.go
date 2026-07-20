@@ -23,14 +23,12 @@ type ServiceInterface interface {
 	GetExecutionHistory(ctx context.Context, tenantID, jobID string) ([]models.CronJobExecution, error)
 	GetJob(ctx context.Context, tenantID, id string) (*models.CronJob, error)
 	GetJobs(ctx context.Context, tenantID string) ([]models.CronJob, error)
-	GetRunningJobs([]models.CronJob)
-	GetStatus(ctx context.Context, tenantID string) (map[string]any, error)
+	GetRunningJobs() []models.CronJob
+	GetStatus(ctx context.Context,tenantID string) (map[string]interface{}, error)
 	List(ctx context.Context, tenantID string, limit, offset int) ([]models.CronJob, error)
 	RemoveJob(ctx context.Context, tenantID, id string) error
-	Start
-	Stop
 	Update(ctx context.Context, tenantID, id string, req models.UpdateCronJobRequest) (*models.CronJob, error)
-	UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]any) (*models.CronJob, error)
+	UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CronJob, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

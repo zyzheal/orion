@@ -14,6 +14,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
+// ErrNotFound is an alias for sentinel.NotFound for test compatibility.
+var ErrNotFound = sentinel.NotFound
+
 
 type Repository struct {
 	db *sqlx.DB

@@ -75,7 +75,7 @@ func (h *Handler) CreateIncident(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateIncident")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreateIncidentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -95,7 +95,7 @@ func (h *Handler) GetIncident(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIncident")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	incident, err := h.svc.GetIncident(ctx, tenantID, c.Param("id"))
 	if err != nil {
@@ -111,7 +111,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	q := models.HistoryQuery{
 		AppName:     c.Query("appName"),
@@ -150,7 +150,7 @@ func (h *Handler) GetEffectiveness(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEffectiveness")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	q := models.EffectivenessQuery{
 		AppName:     c.Query("appName"),
@@ -170,7 +170,7 @@ func (h *Handler) GetEffectiveness(c *gin.Context) {
 func (h *Handler) ListStrategies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStrategies")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	strategies, err := h.svc.ListStrategies(ctx)
 	if err != nil {
@@ -186,7 +186,7 @@ func (h *Handler) ListStrategies(c *gin.Context) {
 func (h *Handler) GetStrategy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStrategy")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	strategy, err := h.svc.GetStrategy(ctx, c.Param("id"))
 	if err != nil {
@@ -199,7 +199,7 @@ func (h *Handler) GetStrategy(c *gin.Context) {
 func (h *Handler) ToggleStrategy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleStrategy")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.ToggleStrategyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -221,7 +221,7 @@ func (h *Handler) ToggleStrategy(c *gin.Context) {
 func (h *Handler) RegisterStrategy(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterStrategy")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.RegisterStrategyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -242,7 +242,7 @@ func (h *Handler) RegisterStrategy(c *gin.Context) {
 func (h *Handler) ListApprovals(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListApprovals")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	status := c.Query("status")
 
 	approvals, err := h.svc.ListApprovals(ctx, status)
@@ -259,7 +259,7 @@ func (h *Handler) ListApprovals(c *gin.Context) {
 func (h *Handler) GetApproval(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApproval")
 	defer span.End()
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	approval, err := h.svc.GetApproval(ctx, c.Param("id"))
 	if err != nil {
@@ -273,7 +273,7 @@ func (h *Handler) RespondApproval(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RespondApproval")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.RespondApprovalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

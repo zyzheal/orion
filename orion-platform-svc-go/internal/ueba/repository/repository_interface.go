@@ -9,8 +9,6 @@ import (
 )
 
 
-import "time"
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.UEBAAlert, error)

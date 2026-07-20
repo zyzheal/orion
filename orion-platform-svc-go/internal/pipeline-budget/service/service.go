@@ -17,6 +17,9 @@ import (
 
 	"github.com/google/uuid"
 )
+// ErrNotFound is an alias for sentinel.NotFound for test compatibility.
+var ErrNotFound = sentinel.NotFound
+
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {

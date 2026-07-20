@@ -116,7 +116,7 @@ func (h *Handler) Categories(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Categories")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	cats, err := h.svc.GetCategories(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -130,7 +130,7 @@ func (h *Handler) Search(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -158,7 +158,7 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -189,7 +189,7 @@ func (h *Handler) Create(c *gin.Context) {
 	if authorID == "" {
 		authorID = "system"
 	}
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -210,7 +210,7 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
@@ -224,7 +224,7 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -245,7 +245,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		if err == sql.ErrNoRows {
 			middleware.RespondNotFound(c, "template not found")
@@ -262,7 +262,7 @@ func (h *Handler) Publish(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Publish")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
@@ -276,7 +276,7 @@ func (h *Handler) Deprecate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Deprecate")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
@@ -290,7 +290,7 @@ func (h *Handler) Versions(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Versions")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	q := models.ListQuery{}
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -317,7 +317,7 @@ func (h *Handler) Instantiate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Instantiate")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.InstantiateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -338,7 +338,7 @@ func (h *Handler) Star(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Star")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")
@@ -352,7 +352,7 @@ func (h *Handler) Unstar(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Unstar")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "template not found")

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"strconv"
 
 	"orion/go-common/pkg/auth"
@@ -74,7 +73,7 @@ func (h *Handler) ListEnvironments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEnvironments")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	envs, err := h.svc.ListEnvironments(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -87,7 +86,7 @@ func (h *Handler) CreateEnvironment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateEnvironment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -107,7 +106,7 @@ func (h *Handler) GetEnvironment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEnvironment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	env, err := h.svc.GetEnvironment(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "environment not found")
@@ -120,7 +119,7 @@ func (h *Handler) UpdateEnvironment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateEnvironment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.UpdateEnvironmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -140,7 +139,7 @@ func (h *Handler) DeleteEnvironment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteEnvironment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	deleted, err := h.svc.DeleteEnvironment(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -159,7 +158,7 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuilds")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	opt := models.ListBuildsOptions{}
 	if proj := c.Query("projectId"); proj != "" {
@@ -196,7 +195,7 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 
 	var req models.CreateBuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -216,7 +215,7 @@ func (h *Handler) GetBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	build, err := h.svc.GetBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "build not found")
@@ -229,7 +228,7 @@ func (h *Handler) StartBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	build, err := h.svc.StartBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -242,7 +241,7 @@ func (h *Handler) CancelBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	build, err := h.svc.CancelBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -255,7 +254,7 @@ func (h *Handler) RetryBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetryBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	build, err := h.svc.RetryBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -268,7 +267,7 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBuild")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	deleted, err := h.svc.DeleteBuild(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -285,7 +284,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := middleware.TimeoutContext(c)
+	ctx = middleware.TimeoutContext(c)
 	stats, err := h.svc.GetBuildStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -339,7 +339,7 @@ func (h *Handler) StorageStats(c *gin.Context) {
 }
 
 func (h *Handler) StorageFlush(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StorageFlush")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StorageFlush")
 	defer span.End()
 	// PostgreSQL doesn't need flush — data is already persisted
 	middleware.RespondSuccess(c, gin.H{
@@ -349,7 +349,7 @@ func (h *Handler) StorageFlush(c *gin.Context) {
 }
 
 func (h *Handler) ChainGenesis(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChainGenesis")
+	_ , span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChainGenesis")
 	defer span.End()
 	middleware.RespondSuccess(c, gin.H{
 		"genesisHash": service.GenesisHash,

@@ -9,8 +9,6 @@ import (
 )
 
 
-import "time"
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreateCommandLog(ctx context.Context, log *models.CommandLog) error

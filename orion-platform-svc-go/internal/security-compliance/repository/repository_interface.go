@@ -9,8 +9,6 @@ import (
 )
 
 
-import "time"
-
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
 	CreatePolicy(ctx context.Context, p *models.CompliancePolicy) error
