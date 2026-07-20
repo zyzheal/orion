@@ -33,11 +33,17 @@ func (s *Service) loadAllFromRepo(ctx context.Context) error {
 	return nil
 }
 
-// getCachedData returns the cached deployments and pipeline records for a tenant.
+// getCachedData returns copies of the cached deployments and pipeline records for a tenant.
 func (s *Service) getCachedData(tenantID string) ([]models.DeploymentRecord, []models.PipelineCompletionRecord) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.globalDeployments[tenantID], s.globalPipelines[tenantID]
+	d := s.globalDeployments[tenantID]
+	p := s.globalPipelines[tenantID]
+	dCopy := make([]models.DeploymentRecord, len(d))
+	copy(dCopy, d)
+	pCopy := make([]models.PipelineCompletionRecord, len(p))
+	copy(pCopy, p)
+	return dCopy, pCopy
 }
 
 // saveReportHistory appends a report to the in-memory history.
@@ -84,7 +90,7 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 	}
 	pd, _ := json.Marshal(pipelines)
 	dd, _ := json.Marshal(deployments)
-	return s.repo.CreateTeamData(ctx, &models.TeamData{
+	_ = s.repo.CreateTeamData(ctx, &models.TeamData{
 		ID:        fmt.Sprintf("team-%s-%s", tenantID, teamID),
 		TenantID:  tenantID,
 		Name:      name,
@@ -92,6 +98,7 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 		Pipelines: string(pd),
 		Deployments: string(dd),
 	})
+	return nil
 }
 
 // persistProjectDataAsync asynchronously persists project data to the repository.

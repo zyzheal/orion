@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -93,7 +94,8 @@ func (m *mockEfficiencyRepo) GetTeamData(_ context.Context, tenantID, teamID str
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
-	p, ok := m.teamData[tenantID][teamID]
+	id := fmt.Sprintf("team-%s-%s", tenantID, teamID)
+	p, ok := m.teamData[tenantID][id]
 	if !ok {
 		return nil, sql.ErrNoRows
 	}
@@ -131,7 +133,8 @@ func (m *mockEfficiencyRepo) GetProjectData(_ context.Context, tenantID, project
 	if m.dbErr != nil {
 		return nil, m.dbErr
 	}
-	p, ok := m.projectData[tenantID][projectID]
+	id := fmt.Sprintf("proj-%s-%s", tenantID, projectID)
+	p, ok := m.projectData[tenantID][id]
 	if !ok {
 		return nil, sql.ErrNoRows
 	}

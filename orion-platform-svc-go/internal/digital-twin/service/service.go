@@ -488,5 +488,5 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, sentinel.NotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, ErrNotFound)
 }
