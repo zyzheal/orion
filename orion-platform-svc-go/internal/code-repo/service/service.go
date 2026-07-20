@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/code-repo/models"
 
 	"orion/platform-svc-go/internal/code-repo/repository"
@@ -243,6 +244,7 @@ func (s *Service) RotateWebhookSecret(ctx context.Context, repoID, providedSecre
 // --- Errors ---
 
 var (
+	ErrNotFound       = sentinel.NotFound
 	ErrNotFoundSecret = errors.New("webhook secret not found")
 	ErrInvalidBranch  = errors.New("invalid branch")
 	ErrInvalidPR      = errors.New("invalid pull request")
@@ -251,6 +253,11 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 	ErrInvalidRepo    = errors.New("invalid repository")
 )
+
+// IsNotFound returns true if err indicates a resource was not found.
+func IsNotFound(err error) bool {
+	return errors.Is(err, sentinel.NotFound)
+}
 
 // IsNotFound returns true if the error indicates a resource was not found.
 // ErrNotImplementedMsg creates a not-implemented error.

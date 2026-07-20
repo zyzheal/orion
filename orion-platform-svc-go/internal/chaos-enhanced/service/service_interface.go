@@ -12,7 +12,7 @@ import (
 
 // ServiceInterface defines the interface for the chaos-enhanced service.
 type ServiceInterface interface {
-	AvailableFaultTypes([]string)
+	AvailableFaultTypes() []string
 	CreateExperiment(ctx context.Context, req *models.CreateExperimentRequest, tenantID string) (*models.Experiment, error)
 	FaultConfigTemplate(faultType string) map[string]any
 	GetExperiment(ctx context.Context, id string, tenantID string) (*models.Experiment, error)

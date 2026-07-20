@@ -14,6 +14,8 @@ import (
 
 	"orion/platform-svc-go/internal/digital-twin-simulation/models"
 	dt_repo "orion/platform-svc-go/internal/digital-twin-simulation/repository"
+
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -612,5 +614,5 @@ type PredictionValue struct {
 // --- Sentinel errors ---
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, dt_repo.sentinel.NotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

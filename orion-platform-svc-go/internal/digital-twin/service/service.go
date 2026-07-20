@@ -481,6 +481,7 @@ func ptrTime(t time.Time) *time.Time {
 
 var (
 
+	ErrNotFound       = errors.New("not found")
 	ErrTwinNotFound   = errors.New("twin not found")
 	ErrInvalidInput   = errors.New("invalid input")
 	ErrReplayNotFound = errors.New("replay session not found")

@@ -739,8 +739,9 @@ func TestRegisterRoutes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestErrNotFound_Message(t *testing.T) {
-	if service.ErrNotFound.Error() != "experiment not found" {
-		t.Fatalf("expected ErrNotFound='experiment not found', got %s", service.ErrNotFound.Error())
+	// service.ErrNotFound is sentinel.NotFound with canonical message "not found".
+	if service.ErrNotFound.Error() != "not found" {
+		t.Fatalf("expected ErrNotFound='not found', got %s", service.ErrNotFound.Error())
 	}
 }
 

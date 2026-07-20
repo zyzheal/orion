@@ -42,7 +42,7 @@ type ServiceInterface interface {
 	GetSDKTask(c context.Context, tenantID, id string) (*models.SDKTask, error)
 	GetSDKTaskStats(c context.Context, tenantID string) (*models.SDKTaskStats, error)
 	GetSubscription(c context.Context, tenantID, id string) (*models.Subscription, error)
-	GetSupportedLanguages([]models.SDKLanguage)
+	GetSupportedLanguages() []models.SDKLanguage
 	GetUsageRecords(c context.Context, tenantID, subscriptionID string, filter models.UsageRecordFilter) (*models.UsageRecordListResult, error)
 	GetUsageStats(c context.Context, tenantID string) (*models.SubscriptionStats, error)
 	List(c context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error)

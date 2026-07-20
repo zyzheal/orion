@@ -13,36 +13,6 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
-package handler
-
-import (
-	"context"
-	"strconv"
-
-	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/chatops/models"
-	"orion/platform-svc-go/internal/chatops/service"
-
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
-)
-
-package handler
-
-import (
-	"context"
-	"strconv"
-
-	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/chatops/models"
-	"orion/platform-svc-go/internal/chatops/service"
-
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
-)
-
 // ---- Admin: Capability Mappings ----
 
 func (h *Handler) GetAllCapabilityMappings(c *gin.Context) {

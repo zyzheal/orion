@@ -92,14 +92,6 @@ func percentile(sorted []int64, p int) int64 {
 	return sorted[idx]
 }
 
-func invertTrend(t models.Trend) models.Trend {
-	switch t {
-	case models.TrendUp:
-		return models.TrendDown
-	}
-	return t
-}
-
 func copyTeamInfos(src []models.TeamInfo) []models.TeamInfo {
 	out := make([]models.TeamInfo, len(src))
 	copy(out, src)

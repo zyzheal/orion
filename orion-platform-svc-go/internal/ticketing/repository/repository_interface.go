@@ -5,11 +5,19 @@ package repository
 import (
 	"context"
 	"time"
+
 	"orion/platform-svc-go/internal/ticketing/models"
 )
 
-
-import "time"
+// TicketAssignment is a row returned by GetAssignmentsByTicket.
+type TicketAssignment struct {
+	ID        string    `db:"id"`
+	TicketID  string    `db:"ticket_id"`
+	Assignee  string    `db:"assignee"`
+	AssignedBy string   `db:"assigned_by"`
+	Reason    string    `db:"reason"`
+	CreatedAt time.Time `db:"created_at"`
+}
 
 // RepositoryInterface defines the data access contract.
 type RepositoryInterface interface {
@@ -69,7 +77,7 @@ type RepositoryInterface interface {
 	UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error
 	RecordSLABreach(ctx context.Context, tenantID, ticketID, policyID, btype string) error
 	CreateAssignment(ctx context.Context, tenantID, ticketID, assignee, assignedBy, reason string) error
-	GetAssignmentsByTicket(ctx context.Context, tenantID, ticketID string) ([]struct { ID string `db:"id"` TicketID string `db:"ticket_id"` Assignee string `db:"assignee"` AssignedBy string `db:"assigned_by"` Reason string `db:"reason"` CreatedAt time.Time `db:"created_at"` }, error)
+	GetAssignmentsByTicket(ctx context.Context, tenantID, ticketID string) ([]TicketAssignment, error)
 	CountTicketsByStatus(ctx context.Context, tenantID string) (map[string]int, error)
 	CountTicketsByPriority(ctx context.Context, tenantID string) (map[string]int, error)
 	CountTicketsByCategory(ctx context.Context, tenantID string) (map[string]int, error)

@@ -922,6 +922,8 @@ func (s *Service) CollectSystemMetrics(ctx context.Context, tenantID string, req
 
 // --- Errors ---------------------------------------------------------
 
+var ErrNotFound = errors.New("not found")
+
 func IsNotFound(err error) bool {
 	return errors.Is(err, sentinel.NotFound)
 }

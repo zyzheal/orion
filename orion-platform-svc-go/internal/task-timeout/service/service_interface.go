@@ -13,7 +13,7 @@ import (
 // ServiceInterface defines the interface for the task-timeout service.
 type ServiceInterface interface {
 	CheckNow(ctx context.Context) ([]models.TimeoutTask, error)
-	GetStatus(*models.TimeoutCheckerStatus)
+	GetStatus() *models.TimeoutCheckerStatus
 	GetTimedOutTasks(ctx context.Context) ([]models.TimeoutTask, error)
 	GetTimeouts(ctx context.Context, tenantID string) (*models.TimeoutCheckerStatus, error)
 	SetTimeouts(ctx context.Context, tenantID string, defaultTimeout int, maxTimeout int) error

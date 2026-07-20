@@ -43,6 +43,7 @@ func NewService(repo *notificationRepo.Repository) *Service {
 // --- Errors ---
 
 var (
+	ErrNotFound     = errors.New("not found")
 	ErrInvalidInput = errors.New("invalid input")
 )
 
@@ -159,7 +160,7 @@ func (s *Service) Update(ctx context.Context, tenantID string, id string, req *m
 	}
 	n, err := s.repo.UpdateFields(ctx, id, tenantID, updates)
 	if err != nil {
-		if err == notificationRepo.sentinel.NotFound {
+		if err == sentinel.NotFound {
 			return nil, sentinel.NotFound
 		}
 		return nil, err
@@ -178,7 +179,7 @@ func (s *Service) Delete(ctx context.Context, tenantID string, id string) (bool,
 func (s *Service) MarkRead(ctx context.Context, tenantID string, id string) error {
 	err := s.repo.MarkRead(ctx, id, tenantID)
 	if err != nil {
-		if err == notificationRepo.sentinel.NotFound {
+		if err == sentinel.NotFound {
 			return sentinel.NotFound
 		}
 		return err

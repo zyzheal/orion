@@ -44,6 +44,7 @@ func NewService(repo RepositoryInterface) *Service {
 
 var (
 
+	ErrNotFound       = errors.New("not found")
 	ErrPolicyNotActive = errors.New("policy must be active to apply")
 )
 

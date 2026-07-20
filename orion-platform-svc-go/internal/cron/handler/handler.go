@@ -203,7 +203,7 @@ func (h *Handler) GetExecution(c *gin.Context) {
 }
 
 func (h *Handler) RunningJobs(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunningJobs")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunningJobs")
 	defer span.End()
 	running := h.svc.GetRunningJobs()
 	middleware.RespondSuccess(c, running)
@@ -222,14 +222,14 @@ func (h *Handler) Status(c *gin.Context) {
 }
 
 func (h *Handler) StartScheduler(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartScheduler")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartScheduler")
 	defer span.End()
 	h.svc.Start()
 	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler started"})
 }
 
 func (h *Handler) StopScheduler(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopScheduler")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopScheduler")
 	defer span.End()
 	h.svc.Stop()
 	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler stopped"})

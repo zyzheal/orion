@@ -23,7 +23,12 @@ type ServiceInterface interface {
 	GetReport(ctx context.Context, id string) (*models.Report, error)
 	GetReportBySession(ctx context.Context, sessionID string) (*models.Report, error)
 	GetReportHistory(ctx context.Context, tenantID, sessionID *string) ([]models.Report, int, error)
-	GetStatus(ctx context.Context, tenantID string) (*struct{}, error)
+	GetStatus(ctx context.Context, tenantID string) (*struct {
+		State    string `json:"state"`
+		Sessions int    `json:"sessions"`
+		Reports  int    `json:"reports"`
+		Patterns int    `json:"patterns"`
+	}, error)
 	RecordOutcome(ctx context.Context, tenantID string, req *models.RecordOutcomeRequest) (*models.Outcome, error)
 	SearchPatterns(ctx context.Context, tenantID, category, keyword *string) ([]models.Pattern, int, error)
 	TriggerDiagnostic(ctx context.Context, tenantID string, req *models.CreateSessionRequest) (*models.TriggerResult, error)

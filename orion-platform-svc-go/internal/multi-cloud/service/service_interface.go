@@ -18,7 +18,7 @@ type ServiceInterface interface {
 	CreateSchedulingPolicy(ctx context.Context, tenantID string, input models.SchedulingPolicyInput) (*models.SchedulingPolicy, error)
 	ExecuteMigration(ctx context.Context, tenantID, planID string) (*models.MigrationResult, error)
 	GetCloudStats(ctx context.Context, tenantID string) (*models.CloudStats, error)
-	GetComplianceRules([]models.ComplianceRule)
+	GetComplianceRules() []models.ComplianceRule
 	GetHealthStatus(ctx context.Context, tenantID string) (*models.HealthStatus, error)
 	GetProvider(ctx context.Context, tenantID, id string) (*models.CloudAccount, error)
 	GetProviderCost(ctx context.Context, tenantID, provider string) (*models.CostBreakdown, error)
