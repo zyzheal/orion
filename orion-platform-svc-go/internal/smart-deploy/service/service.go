@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/smart-deploy/models"
+	"golang.org/x/sync/errgroup"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -268,13 +269,22 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 	})
 
 	// Simulate rollback completion
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	ch := make(chan error, 1)
+	eg.Go(func() error {
 		time.Sleep(200 * time.Millisecond)
 		if err := s.repo.SetRollbackCompleted(ctx, tenantID, rollback.ID); err == nil {
 			// Update deployment status to rolled_back
 			_, _ = s.repo.UpdateStatus(ctx, tenantID, deploymentID, models.DeploymentStatusRolledBack)
 		}
+		return nil
+	})
+	go func() {
+		if err := <-ch; err != nil {
+			// log silently or handle
+		}
 	}()
+	_ = eg.Wait()
 
 	return rollback, nil
 }

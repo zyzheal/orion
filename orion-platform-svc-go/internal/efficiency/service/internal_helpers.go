@@ -249,7 +249,9 @@ func (s *Service) persistReportHistoryAsync(ctx context.Context, tenantID string
 	if err != nil {
 		return
 	}
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	ch := make(chan error, 1)
+	eg.Go(func() error {
 		if err := s.repo.CreateReportHistory(ctx, &models.ReportHistoryEntry{
 			TenantID:    tenantID,
 			ReportData:  string(data),
@@ -257,7 +259,14 @@ func (s *Service) persistReportHistoryAsync(ctx context.Context, tenantID string
 		}); err != nil {
 			slog.Error("efficiency: failed to persist report history", "tenantID", tenantID, "error", err)
 		}
+		return nil
+	})
+	go func() {
+		if err := <-ch; err != nil {
+			slog.Error("efficiency: report history goroutine error", "tenantID", tenantID, "error", err)
+		}
 	}()
+	_ = eg.Wait()
 }
 
 func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, name string, members int, pipelines []models.PipelineCompletionRecord, deployments []models.DeploymentRecord) error {
@@ -269,14 +278,23 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 	if perr != nil || derr != nil {
 		return nil
 	}
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	ch := make(chan error, 1)
+	eg.Go(func() error {
 		if err := s.repo.CreateTeamData(ctx, &models.TeamData{
 			ID: teamID, TenantID: tenantID, Name: name, Members: members,
 			Pipelines: string(pdata), Deployments: string(ddata),
 		}); err != nil {
 			slog.Error("efficiency: failed to persist team data", "tenantID", tenantID, "teamID", teamID, "error", err)
 		}
+		return nil
+	})
+	go func() {
+		if err := <-ch; err != nil {
+			slog.Error("efficiency: team data goroutine error", "tenantID", tenantID, "teamID", teamID, "error", err)
+		}
 	}()
+	_ = eg.Wait()
 	return nil
 }
 
@@ -289,14 +307,23 @@ func (s *Service) persistProjectDataAsync(ctx context.Context, tenantID, project
 	if perr != nil || derr != nil {
 		return nil
 	}
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	ch := make(chan error, 1)
+	eg.Go(func() error {
 		if err := s.repo.CreateProjectData(ctx, &models.ProjectData{
 			ID: projectID, TenantID: tenantID, Name: name,
 			Pipelines: string(pdata), Deployments: string(ddata), Commits: commits,
 		}); err != nil {
 			slog.Error("efficiency: failed to persist project data", "tenantID", tenantID, "projectID", projectID, "error", err)
 		}
+		return nil
+	})
+	go func() {
+		if err := <-ch; err != nil {
+			slog.Error("efficiency: project data goroutine error", "tenantID", tenantID, "projectID", projectID, "error", err)
+		}
 	}()
+	_ = eg.Wait()
 	return nil
 }
 
@@ -304,19 +331,28 @@ func (s *Service) persistGlobalDeploymentsAsync(ctx context.Context, tenantID st
 	if s.repo == nil {
 		return nil
 	}
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	grpCh := make(chan error, 1)
+	eg.Go(func() error {
 		if err := s.repo.DeleteGlobalDeploymentsByTenant(ctx, tenantID); err != nil {
 			slog.Error("efficiency: failed to delete global deployments", "tenantID", tenantID, "error", err)
 		}
 		for _, d := range deployments {
-			data, _ := json.Marshal(d)
+			dData, _ := json.Marshal(d)
 			if err := s.repo.CreateGlobalDeployment(ctx, &models.GlobalDeployment{
-				TenantID: tenantID, DeploymentData: string(data), DeployedAt: d.DeployedAt,
+				TenantID: tenantID, DeploymentData: string(dData), DeployedAt: d.DeployedAt,
 			}); err != nil {
 				slog.Error("efficiency: failed to create global deployment", "tenantID", tenantID, "error", err)
 			}
 		}
+		return nil
+	})
+	go func() {
+		if err := <-grpCh; err != nil {
+			slog.Error("efficiency: global deployments goroutine error", "tenantID", tenantID, "error", err)
+		}
 	}()
+	_ = eg.Wait()
 	return nil
 }
 
@@ -324,19 +360,28 @@ func (s *Service) persistGlobalPipelinesAsync(ctx context.Context, tenantID stri
 	if s.repo == nil {
 		return nil
 	}
-	go func() {
+	eg, _ := errgroup.WithContext(ctx)
+	grpCh := make(chan error, 1)
+	eg.Go(func() error {
 		if err := s.repo.DeleteGlobalPipelinesByTenant(ctx, tenantID); err != nil {
 			slog.Error("efficiency: failed to delete global pipelines", "tenantID", tenantID, "error", err)
 		}
 		for _, p := range pipelines {
-			data, _ := json.Marshal(p)
+			pData, _ := json.Marshal(p)
 			if err := s.repo.CreateGlobalPipeline(ctx, &models.GlobalPipeline{
-				TenantID: tenantID, PipelineData: string(data), CompletedAt: p.CompletedAt,
+				TenantID: tenantID, PipelineData: string(pData), CompletedAt: p.CompletedAt,
 			}); err != nil {
 				slog.Error("efficiency: failed to create global pipeline", "tenantID", tenantID, "error", err)
 			}
 		}
+		return nil
+	})
+	go func() {
+		if err := <-grpCh; err != nil {
+			slog.Error("efficiency: global pipelines goroutine error", "tenantID", tenantID, "error", err)
+		}
 	}()
+	_ = eg.Wait()
 	return nil
 }
 

@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"strings"
 
+	"orion/go-common/pkg/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -133,24 +134,12 @@ func (g *SourceGuard) BlockConflicts() gin.HandlerFunc {
 // rejectReadOnly sends a standard 405 response for read-only mode.
 func (g *SourceGuard) rejectReadOnly(c *gin.Context) {
 	c.Header("Allow", "GET, HEAD, OPTIONS")
-	c.JSON(http.StatusMethodNotAllowed, gin.H{
-		"error": gin.H{
-			"code":    http.StatusMethodNotAllowed,
-			"type":    "ReadOnlyViolation",
-			"message": "服务处于只读模式，写入操作被拒绝",
-		},
-	})
+	errors.WriteError(c, errors.ErrForbidden, "服务处于只读模式，写入操作被拒绝", http.StatusMethodNotAllowed)
 }
 
 // rejectConflict sends a standard 409 response for TS/Go write conflict.
 func (g *SourceGuard) rejectConflict(c *gin.Context) {
-	c.JSON(http.StatusConflict, gin.H{
-		"error": gin.H{
-			"code":    http.StatusConflict,
-			"type":    "SourceConflict",
-			"message": "数据冲突：该行最近由 TS 服务修改，Go 服务拒绝覆盖",
-		},
-	})
+	errors.WriteError(c, errors.ErrConflict, "数据冲突：该行最近由 TS 服务修改，Go 服务拒绝覆盖", http.StatusConflict)
 }
 
 // SetConflict marks a context as having detected a source conflict.

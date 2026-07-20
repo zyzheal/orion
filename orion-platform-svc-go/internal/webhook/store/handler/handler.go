@@ -7,7 +7,7 @@ import (
 	"orion/platform-svc-go/internal/webhook/store/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -84,13 +84,15 @@ func (h *Handler) ListByDomain(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateWebhookConfig")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.UpdateConfigEntryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	result, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -99,8 +101,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteWebhookConfig")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
