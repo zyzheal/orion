@@ -17,8 +17,8 @@ export interface SLADefinition {
   business_hours_only: boolean;
   priority?: 'critical' | 'high' | 'medium' | 'low';
   category?: string;
-  escalation_rules?: Record<string, any>;
-  metadata?: Record<string, any>;
+  escalation_rules?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   status: 'active' | 'inactive' | 'archived';
   created_by?: string;
   created_at: string;
@@ -48,7 +48,7 @@ export interface SLABreachEvent {
   sla_tracking_id: string;
   event_type: 'warning' | 'breach' | 'escalation';
   event_time: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   notified_users?: string[];
   created_at: string;
 }
@@ -88,7 +88,7 @@ export const createSLADefinition = async (data: {
   business_hours_only?: boolean;
   priority?: string;
   category?: string;
-  escalation_rules?: Record<string, any>;
+  escalation_rules?: Record<string, unknown>;
 }): Promise<SLADefinition> => {
   const response = await api.post<{ data: SLADefinition }>('/api/v1/sla/definitions', data);
   return response.data.data;

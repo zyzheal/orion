@@ -52,7 +52,7 @@ export function usePermissionActions(resource: string) {
   }, [resource, hasPermission]);
 
   const getActionProps = useMemo(() => {
-    return (action: string, extraProps: Record<string, any> = {}) => {
+    return (action: string, extraProps: Record<string, unknown> = {}) => {
       const allowed = hasPermission(resource, action);
       return {
         ...extraProps,
@@ -67,7 +67,7 @@ export function usePermissionActions(resource: string) {
   }, [resource, hasPermission]);
 
   const getButtonProps = useMemo(() => {
-    return (action: string, extraProps: Record<string, any> = {}) => {
+    return (action: string, extraProps: Record<string, unknown> = {}) => {
       const allowed = hasPermission(resource, action);
       return {
         ...extraProps,

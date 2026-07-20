@@ -304,7 +304,7 @@ export const updateNotificationSettings = async (
       transferRequest: 'transfer_request',
     };
 
-    const backendUpdates: Record<string, any> = {};
+    const backendUpdates: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(settings)) {
       const backendKey = backendMapping[key];
       if (backendKey) {

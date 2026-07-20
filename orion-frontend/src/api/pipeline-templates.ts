@@ -84,7 +84,7 @@ export interface FrontendPipelineTemplate {
   stages: Array<{
     name: string;
     type: string;
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
   }>;
 }
 

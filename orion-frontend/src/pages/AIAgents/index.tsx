@@ -107,7 +107,7 @@ const AIAgentsManagement: React.FC = () => {
     setExecuting(true);
     try {
       const values = form.getFieldsValue();
-      let input: Record<string, any> = {};
+      let input: Record<string, unknown> = {};
       try {
         // 尝试解析 JSON 输入
         if (values.input && typeof values.input === 'string') {

@@ -2,6 +2,7 @@ package handler
 
 import (
         "orion/go-common/pkg/auth"
+        "orion/platform-svc-go/internal/middleware"
         "orion/platform-svc-go/internal/sso-providers/models"
         "orion/platform-svc-go/internal/sso-providers/service"
 
@@ -44,7 +45,7 @@ func (h *Handler) CreateProvider(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(201, result)
+        middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetProvider(c *gin.Context) {
@@ -57,7 +58,7 @@ func (h *Handler) GetProvider(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
-        c.JSON(200, provider)
+        middleware.RespondSuccess(c, provider)
 }
 
 func (h *Handler) ListProviders(c *gin.Context) {
@@ -77,7 +78,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(200, gin.H{"data": providers, "total": total})
+        middleware.RespondPaginated(c, providers, 0, 0, total)
 }
 
 func (h *Handler) UpdateProvider(c *gin.Context) {
@@ -95,7 +96,7 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
-        c.JSON(200, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteProvider(c *gin.Context) {
@@ -125,5 +126,5 @@ func (h *Handler) TestConnection(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
         }
-        c.JSON(200, gin.H{"success": ok, "message": msg})
+        middleware.RespondSuccess(c, gin.H{"success": ok, "message": msg})
 }

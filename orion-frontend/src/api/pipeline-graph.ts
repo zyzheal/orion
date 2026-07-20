@@ -13,7 +13,7 @@ export interface PipelineGraphNode {
   id: string;
   type: string;
   label: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface PipelineGraphEdge {

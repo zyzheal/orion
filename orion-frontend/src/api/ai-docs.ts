@@ -93,7 +93,7 @@ export interface RagRetrieveResponse {
     title: string;
     snippet: string;
     score: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }>;
   total: number;
 }

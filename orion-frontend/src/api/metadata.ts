@@ -10,7 +10,7 @@ export interface CatalogItem {
   type: string;
   owner?: string;
   tags?: string[];
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

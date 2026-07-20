@@ -18,9 +18,9 @@ export interface CatalogService {
   sla_tier?: 'gold' | 'silver' | 'bronze';
   availability_target?: number;
   response_time_target?: number;
-  form_schema?: Record<string, any>;
-  approval_flow?: Record<string, any>;
-  metadata?: Record<string, any>;
+  form_schema?: Record<string, unknown>;
+  approval_flow?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -40,8 +40,8 @@ export interface CatalogRequest {
   approved_at?: string;
   fulfilled_at?: string;
   sla_breach?: boolean;
-  form_data?: Record<string, any>;
-  metadata?: Record<string, any>;
+  form_data?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -78,8 +78,8 @@ export const createCatalogService = async (data: {
   sla_tier?: string;
   availability_target?: number;
   response_time_target?: number;
-  form_schema?: Record<string, any>;
-  approval_flow?: Record<string, any>;
+  form_schema?: Record<string, unknown>;
+  approval_flow?: Record<string, unknown>;
 }): Promise<CatalogService> => {
   const response = await api.post<{ data: CatalogService }>('/api/v1/catalog/services', data);
   return response.data.data;
@@ -120,7 +120,7 @@ export const submitServiceRequest = async (serviceId: string, data: {
   title: string;
   description?: string;
   priority?: string;
-  form_data?: Record<string, any>;
+  form_data?: Record<string, unknown>;
 }): Promise<CatalogRequest> => {
   const response = await api.post<{ data: CatalogRequest }>(`/api/v1/catalog/services/${serviceId}/request`, data);
   return response.data.data;

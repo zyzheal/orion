@@ -48,7 +48,16 @@ export interface TimelineEvent {
   description: string;
   created_by: string;
   created_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ActionItem {
+  id?: string;
+  title: string;
+  assignee?: string;
+  status?: 'open' | 'in_progress' | 'resolved';
+  due_date?: string;
+  description?: string;
 }
 
 export interface Postmortem {
@@ -59,13 +68,23 @@ export interface Postmortem {
   root_cause: string;
   impact_description?: string;
   timeline_summary?: string;
-  action_items?: any[];
+  action_items?: ActionItem[];
   lessons_learned?: string;
   status: 'draft' | 'published' | 'archived';
   created_by: string;
   created_at: string;
   updated_at: string;
   published_at?: string;
+}
+
+export interface EscalationRecord {
+  id: string;
+  incident_id: string;
+  from_level: number;
+  to_level: number;
+  reason: string;
+  escalated_by: string;
+  escalated_at: string;
 }
 
 // ==================== Incident CRUD ====================
@@ -128,13 +147,13 @@ export const assignIncident = async (id: string, commanderId: string): Promise<I
 export const escalateIncident = async (id: string, data: {
   to_level: number;
   reason: string;
-}): Promise<any> => {
-  const response = await api.post<{ data: any }>(`/api/v1/incidents/${id}/escalate`, data);
+}): Promise<EscalationRecord> => {
+  const response = await api.post<{ data: EscalationRecord }>(`/api/v1/incidents/${id}/escalate`, data);
   return response.data.data;
 };
 
-export const getEscalations = async (id: string): Promise<any[]> => {
-  const response = await api.get<{ data: any[] }>(`/api/v1/incidents/${id}/escalations`);
+export const getEscalations = async (id: string): Promise<EscalationRecord[]> => {
+  const response = await api.get<{ data: EscalationRecord[] }>(`/api/v1/incidents/${id}/escalations`);
   return response.data.data;
 };
 
@@ -148,7 +167,7 @@ export const getIncidentTimeline = async (id: string): Promise<TimelineEvent[]> 
 export const addTimelineEvent = async (id: string, data: {
   event_type: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<TimelineEvent> => {
   const response = await api.post<{ data: TimelineEvent }>(`/api/v1/incidents/${id}/timeline`, data);
   return response.data.data;
@@ -167,7 +186,7 @@ export const createPostmortem = async (id: string, data: {
   root_cause: string;
   impact_description?: string;
   timeline_summary?: string;
-  action_items?: any[];
+  action_items?: ActionItem[];
   lessons_learned?: string;
 }): Promise<Postmortem> => {
   const response = await api.post<{ data: Postmortem }>(`/api/v1/incidents/${id}/postmortem`, data);

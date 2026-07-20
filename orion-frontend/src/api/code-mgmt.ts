@@ -51,7 +51,7 @@ export interface WebhookEvent {
   eventType: string;
   repoType: string;
   repoName: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   receivedAt: string;
   status: 'processed' | 'failed';
 }

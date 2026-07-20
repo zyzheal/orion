@@ -13,7 +13,7 @@ export interface AgentProfile {
   name: string;
   role: string;
   description?: string;
-  tools: Array<{ toolName: string; permission: string; config?: Record<string, any> }>;
+  tools: Array<{ toolName: string; permission: string; config?: Record<string, unknown> }>;
   capabilities?: { maxSteps?: number; timeoutSec?: number; retryCount?: number };
   constraints?: { maxTokens?: number; allowedBranches?: string[]; forbiddenOperations?: string[] };
   llmConfig?: { model?: string; temperature?: number; maxTokens?: number };
@@ -26,12 +26,12 @@ export interface AgentRun {
   id: string;
   workflowId?: string;
   triggerEvent: string;
-  triggerPayload: Record<string, any>;
+  triggerPayload: Record<string, unknown>;
   status: 'running' | 'completed' | 'failed' | 'cancelled' | 'waiting_approval';
   currentAgent?: string;
   currentStep: number;
   totalSteps: number;
-  result?: Record<string, any>;
+  result?: Record<string, unknown>;
   startedAt: string;
   completedAt?: string;
   timeoutAt: string;
@@ -43,10 +43,10 @@ export interface AgentDecision {
   agentId: string;
   stepNumber: number;
   action: string;
-  actionInput: Record<string, any>;
-  actionOutput?: Record<string, any>;
+  actionInput: Record<string, unknown>;
+  actionOutput?: Record<string, unknown>;
   reasoning?: string;
-  toolResult?: Record<string, any>;
+  toolResult?: Record<string, unknown>;
   error?: string;
   createdAt: string;
 }
@@ -56,7 +56,7 @@ export interface AgentApproval {
   runId: string;
   agentId: string;
   action: string;
-  actionInput: Record<string, any>;
+  actionInput: Record<string, unknown>;
   reason?: string;
   status: 'pending' | 'approved' | 'rejected';
   approvedBy?: string;
@@ -115,7 +115,7 @@ export function getAgentRunDecisions(runId: string) {
 export interface TriggerAgentRunInput {
   workflowId?: string;
   triggerEvent: string;
-  triggerPayload: Record<string, any>;
+  triggerPayload: Record<string, unknown>;
 }
 
 export function triggerAgentRun(data: TriggerAgentRunInput) {

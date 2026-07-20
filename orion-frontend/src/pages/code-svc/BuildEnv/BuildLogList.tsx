@@ -140,7 +140,7 @@ const BuildLogList: React.FC = () => {
       dataIndex: 'status',
       width: 130,
       render: (value) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, unknown> = {
           streaming: 'running',
           completed: 'success',
           failed: 'failed',

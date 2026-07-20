@@ -11,7 +11,7 @@ export interface PageRegistryEntry {
   path: string;
   component: string;
   protected: boolean;
-  permission: Record<string, any>;
+  permission: Record<string, unknown>;
   hideLayout: boolean;
   microApp: boolean;
   subAppKey: string | null;

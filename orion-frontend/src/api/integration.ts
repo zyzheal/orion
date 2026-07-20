@@ -51,7 +51,7 @@ export const createIntegration = async (data: {
   createdBy?: string;
 }): Promise<Integration> => {
   const response = await api.post<{ integration: Integration }>('/api/v1/integration', data);
-  return (response.data as any).integration ?? response.data;
+  return (response.data as { integration: Integration }).integration ?? response.data;
 };
 
 export const listIntegrations = async (params?: {
@@ -59,12 +59,12 @@ export const listIntegrations = async (params?: {
   provider?: string;
 }): Promise<{ integrations: Integration[]; total: number }> => {
   const response = await api.get<{ integrations: Integration[]; total: number }>('/api/v1/integration', { params });
-  return response.data as any;
+  return response.data;
 };
 
 export const getIntegration = async (id: string): Promise<Integration> => {
   const response = await api.get<{ integration: Integration }>(`/api/v1/integration/${id}`);
-  return (response.data as any).integration ?? response.data;
+  return  (response.data as { integration: Integration }).integration ?? response.data;
 };
 
 export const updateIntegration = async (id: string, data: {
@@ -73,7 +73,7 @@ export const updateIntegration = async (id: string, data: {
   status?: string;
 }): Promise<Integration> => {
   const response = await api.put<{ integration: Integration }>(`/api/v1/integration/${id}`, data);
-  return (response.data as any).integration ?? response.data;
+  return  (response.data as { integration: Integration }).integration ?? response.data;
 };
 
 export const deleteIntegration = async (id: string): Promise<void> => {
@@ -84,14 +84,14 @@ export const deleteIntegration = async (id: string): Promise<void> => {
 
 export const listConnectors = async (): Promise<{ connectors: ConnectorInfo[]; providers: string[] }> => {
   const response = await api.get<{ connectors: ConnectorInfo[]; providers: string[] }>('/api/v1/integration/connectors');
-  return response.data as any;
+  return response.data;
 };
 
 // ==================== Connection & Actions ====================
 
 export const testConnection = async (id: string): Promise<ConnectionTestResult> => {
   const response = await api.post<{ connected: ConnectionTestResult }>(`/api/v1/integration/${id}/test`);
-  return (response.data as any).connected ?? response.data;
+  return  (response.data as { connected: ConnectionTestResult }).connected ?? response.data;
 };
 
 export const executeConnectorAction = async (id: string, data: {
@@ -99,7 +99,7 @@ export const executeConnectorAction = async (id: string, data: {
   params?: Record<string, unknown>;
 }): Promise<Record<string, unknown>> => {
   const response = await api.post<{ result: Record<string, unknown> }>(`/api/v1/integration/${id}/execute`, data);
-  return (response.data as any).result ?? response.data;
+  return  (response.data as { result: Record<string, unknown> }).result ?? response.data;
 };
 
 // ==================== Mappings ====================
@@ -111,7 +111,7 @@ export const createMapping = async (integrationId: string, data: {
   metadata?: Record<string, unknown>;
 }): Promise<ResourceMapping> => {
   const response = await api.post<{ mapping: ResourceMapping }>(`/api/v1/integration/${integrationId}/mappings`, data);
-  return (response.data as any).mapping ?? response.data;
+  return  (response.data as { mapping: ResourceMapping }).mapping ?? response.data;
 };
 
 export const getMappings = async (integrationId: string, params: {
@@ -120,5 +120,5 @@ export const getMappings = async (integrationId: string, params: {
   externalId?: string;
 }): Promise<ResourceMapping> => {
   const response = await api.get<{ mapping: ResourceMapping }>(`/api/v1/integration/${integrationId}/mappings`, { params });
-  return (response.data as any).mapping ?? response.data;
+  return  (response.data as { mapping: ResourceMapping }).mapping ?? response.data;
 };

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/do-not-disturb/models"
 	"orion/platform-svc-go/internal/do-not-disturb/service"
 
@@ -43,7 +44,7 @@ func (h *Handler) Create(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(201, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) Get(c *gin.Context) {
@@ -56,7 +57,7 @@ func (h *Handler) Get(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "dnd schedule not found", 404)
 		return
 	}
-	c.JSON(200, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) Update(c *gin.Context) {
@@ -74,7 +75,7 @@ func (h *Handler) Update(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) IsActive(c *gin.Context) {
@@ -87,5 +88,5 @@ func (h *Handler) IsActive(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"active": active})
+	errors.WriteSuccess(c, gin.H{"active": active})
 }

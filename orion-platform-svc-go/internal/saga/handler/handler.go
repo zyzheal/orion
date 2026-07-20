@@ -197,30 +197,4 @@ func (h *Handler) GetStep(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, step)
 }
-
-// --- response helpers ---
-
-func respondSuccess(c *gin.Context, data interface{}) {
-	_ = json.NewEncoder(c.Writer).Encode(data)
-	c.Status(http.StatusOK)
-}
-
-func respondCreated(c *gin.Context, data interface{}) {
-	errors.WriteCreated(c, data)
-}
-
-func respondBadRequest(c *gin.Context, message string) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": message})
-}
-
-func respondNotFound(c *gin.Context, message string) {
-	c.JSON(http.StatusNotFound, gin.H{"error": message})
-}
-
-func respondConflict(c *gin.Context, message string) {
-	c.JSON(http.StatusConflict, gin.H{"error": message})
-}
-
-func respondInternalError(c *gin.Context, message string) {
-	c.JSON(http.StatusInternalServerError, gin.H{"error": message})
-}
+// No local response helpers — all handlers use middleware.RespondXXX (standardized).

@@ -78,7 +78,7 @@ const statusIconMap: Record<JobStatus, React.ReactNode> = {
   failed: <CloseCircleOutlined />,
 };
 
-const formatPayload = (payload: Record<string, any>): string => {
+const formatPayload = (payload: Record<string, unknown>): string => {
   return JSON.stringify(payload, null, 2);
 };
 
@@ -278,7 +278,7 @@ const QueueManagement: React.FC = () => {
       dataIndex: 'payload',
       key: 'payload',
       ellipsis: true,
-      render: (v: Record<string, any>) => (
+      render: (v: Record<string, unknown>) => (
         <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>
           {JSON.stringify(v).substring(0, 60)}...
         </Text>

@@ -16,7 +16,7 @@ export interface CloudAccount {
   status: 'active' | 'inactive' | 'error' | 'suspended' | 'expired';
   monthly_budget?: number;
   current_spend?: number;
-  tags?: Record<string, any>;
+  tags?: Record<string, unknown>;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -31,7 +31,7 @@ export interface CloudResource {
   resource_name?: string;
   region: string;
   state: string;
-  spec?: Record<string, any>;
+  spec?: Record<string, unknown>;
   monthly_cost?: number;
   tags?: Record<string, string>;
   discovered_at?: string;
@@ -122,7 +122,7 @@ export interface SchedulingPolicy {
   tenantId: string;
   name: string;
   strategy: string;
-  constraints: Record<string, any>;
+  constraints: Record<string, unknown>;
   priority: number;
   enabled: boolean;
   createdAt: string;
@@ -208,7 +208,7 @@ export const multiCloudApi = {
     provider: string;
     region: string;
     credentials_ref: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }) => {
     const response = await apiClient.post('/api/v1/multi-cloud/providers', data);
     return response.data as { success: boolean; data: CloudAccount };
@@ -221,7 +221,7 @@ export const multiCloudApi = {
     name: string;
     region: string;
     monthly_budget: number;
-    tags: Record<string, any>;
+    tags: Record<string, unknown>;
   }>) => {
     const response = await apiClient.put(`/api/v1/multi-cloud/providers/${id}`, data);
     return response.data as { success: boolean; message: string; id: string };
@@ -358,7 +358,7 @@ export const multiCloudApi = {
   createSchedulingPolicy: async (data: {
     name: string;
     strategy: string;
-    constraints?: Record<string, any>;
+    constraints?: Record<string, unknown>;
     priority?: number;
     enabled?: boolean;
   }) => {

@@ -53,7 +53,7 @@ export interface Plugin {
   state: PluginState;
   status?: 'enabled' | 'disabled';
   configSchema: Record<string, PluginConfigField>;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   installedAt?: string;
   updatedAt?: string;
   permissions?: string[];
@@ -93,18 +93,18 @@ export interface PluginListParams {
 
 export interface InstallPluginInput {
   version?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface ConfigurePluginInput {
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface ExecutePluginInput {
   taskId: string;
   pipelineRunId?: string;
   stageId?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   workspace?: {
     rootPath: string;
     files?: Record<string, string>;

@@ -15,7 +15,7 @@ export interface SsoProvider {
   enabled: boolean;
   display_name: string;
   display_icon?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
 }
@@ -26,14 +26,14 @@ export interface CreateSsoProviderInput {
   enabled?: boolean;
   display_name?: string;
   display_icon?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface UpdateSsoProviderInput {
   enabled?: boolean;
   display_name?: string;
   display_icon?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface SsoProviderTestResult {

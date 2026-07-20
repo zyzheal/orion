@@ -18,7 +18,7 @@ export interface Pipeline {
       timeout?: number;
       retryCount?: number;
       dependsOn?: string[];
-      config?: Record<string, any>;
+      config?: Record<string, unknown>;
     }>;
   };
   createdAt: string;
@@ -102,7 +102,7 @@ export interface StageInput {
   dependsOn?: string[];
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 // ---- Pipeline CRUD ----

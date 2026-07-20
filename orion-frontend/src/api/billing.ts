@@ -23,7 +23,7 @@ export interface RecordUsageInput {
   unitPrice: number;
   periodStart: string;
   periodEnd: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface BillingRecord {
@@ -35,7 +35,7 @@ export interface BillingRecord {
   paidAmount: number;
   dueDate?: string;
   paidAt?: string;
-  items?: Record<string, any>;
+  items?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/user-token/models"
 	"orion/platform-svc-go/internal/user-token/service"
@@ -58,7 +59,7 @@ func (h *Handler) CreateToken(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"success": true, "data": resp})
+	middleware.RespondCreated(c, gin.H{"success": true, "data": resp})
 }
 
 func (h *Handler) DeleteToken(c *gin.Context) {

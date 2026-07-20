@@ -255,7 +255,7 @@ export class OrionWebSocketClient {
   /**
    * 发送消息
    */
-  send(data: Record<string, any>): boolean {
+  send(data: Record<string, unknown>): boolean {
     const message = JSON.stringify(data);
 
     if (this.state === 'connected' && this.ws) {

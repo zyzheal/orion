@@ -281,7 +281,7 @@ const RepoDetail: React.FC = () => {
       dataIndex: 'state',
       width: 120,
       render: (value: unknown) => {
-        const statusMap: Record<string, any> = {
+        const statusMap: Record<string, unknown> = {
           open: { status: 'running', label: 'Open' },
           closed: { status: 'cancelled', label: 'Closed' },
           merged: { status: 'success', label: 'Merged' },

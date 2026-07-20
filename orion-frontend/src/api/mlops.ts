@@ -12,7 +12,7 @@ export interface MLExperiment {
   status: 'draft' | 'running' | 'completed' | 'failed';
   modelType?: string;
   metrics?: Record<string, number>;
-  hyperparams?: Record<string, any>;
+  hyperparams?: Record<string, unknown>;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
@@ -47,7 +47,7 @@ export interface TrainingJob {
   id: string;
   experimentId?: string;
   dataset?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   status: 'pending' | 'running' | 'completed' | 'failed';
   logs?: string;
   startedAt?: string;
@@ -74,7 +74,7 @@ export interface MLOpsMetrics {
 
 export function createExperiment(data: {
   name: string; project?: string; modelType?: string;
-  description?: string; hyperparams?: Record<string, any>;
+  description?: string; hyperparams?: Record<string, unknown>;
 }) {
   return api.post('/mlops/experiments', data);
 }
@@ -89,7 +89,7 @@ export function getExperiment(id: string) {
 
 export function updateExperiment(id: string, data: {
   name?: string; project?: string; modelType?: string;
-  description?: string; hyperparams?: Record<string, any>;
+  description?: string; hyperparams?: Record<string, unknown>;
 }) {
   return api.put(`/mlops/experiments/${id}`, data);
 }
@@ -134,7 +134,7 @@ export function updateModelStatus(id: string, status: MLModel['status']) {
 // ==================== Training Jobs ====================
 
 export function createTrainingJob(data: {
-  experimentId?: string; dataset?: string; config?: Record<string, any>;
+  experimentId?: string; dataset?: string; config?: Record<string, unknown>;
 }) {
   return api.post('/mlops/training-jobs', data);
 }

@@ -238,19 +238,32 @@ export const getSavingsMetrics = async (): Promise<SavingsMetrics> => {
 // Reports
 // ============================================================================
 
+export interface FinOpsReport {
+  id: string;
+  name: string;
+  type: 'monthly' | 'quarterly' | 'annual';
+  period: string;
+  tenantId: string;
+  totalCost: number;
+  currency: string;
+  status: 'draft' | 'generated' | 'exported';
+  generatedAt: string;
+  [key: string]: unknown;
+}
+
 /**
  * 获取报告列表
  * GET /api/v1/finops/reports
  */
-export const getReports = async (params?: { tenantId?: string }): Promise<any[]> => {
-  const response = await api.get<ApiResponse<{ reports: any[] }>>('/api/v1/finops/reports', { params });
+export const getReports = async (params?: { tenantId?: string }): Promise<FinOpsReport[]> => {
+  const response = await api.get<ApiResponse<{ reports: FinOpsReport[] }>>('/api/v1/finops/reports', { params });
   return response.data.data.reports;
 };
 
 /**
  * 导出成本报表
  */
-export const exportCostReport = async (params?: Record<string, any>): Promise<Blob> => {
+export const exportCostReport = async (params?: Record<string, unknown>): Promise<Blob> => {
   const response = await api.get('/api/v1/finops/chargeback', {
     params,
     responseType: 'blob',
@@ -350,7 +363,7 @@ export const getCostSummary = async (): Promise<CostSummary> => {
  * Maps breakdown data to old CostByServiceItem format
  */
 export const getCostByService = async (
-  _params?: Record<string, any>
+  _params?: Record<string, unknown>
 ): Promise<CostByServiceItem[]> => {
   try {
     const breakdown = await getCostBreakdown({ dimension: 'category' });

@@ -4,6 +4,7 @@ import (
         "strconv"
 
         "orion/go-common/pkg/auth"
+        "orion/platform-svc-go/internal/middleware"
         "orion/platform-svc-go/internal/channel/models"
         "orion/platform-svc-go/internal/channel/service"
 
@@ -46,7 +47,7 @@ func (h *Handler) CreateChannel(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(201, result)
+        middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetChannel(c *gin.Context) {
@@ -59,7 +60,7 @@ func (h *Handler) GetChannel(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
         }
-        c.JSON(200, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ListChannels(c *gin.Context) {
@@ -85,7 +86,7 @@ func (h *Handler) ListChannels(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(200, gin.H{"data": result, "total": total})
+        middleware.RespondPaginated(c, result, 0, 0, total)
 }
 
 func (h *Handler) UpdateChannel(c *gin.Context) {
@@ -103,7 +104,7 @@ func (h *Handler) UpdateChannel(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
         }
-        c.JSON(200, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteChannel(c *gin.Context) {
@@ -133,5 +134,5 @@ func (h *Handler) GetEnabledByType(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(200, result)
+        middleware.RespondSuccess(c, result)
 }

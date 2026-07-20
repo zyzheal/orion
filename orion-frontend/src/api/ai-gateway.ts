@@ -92,13 +92,13 @@ export interface Rule {
 export interface RuleCondition {
   field: string;
   operator: 'contains' | 'in' | 'equals' | 'greater_than' | 'less_than';
-  value: any;
+  value: string | number | boolean;
 }
 
 export interface RuleAction {
   type: 'set' | 'block' | 'route';
   field: string;
-  value: any;
+  value: string | number | boolean;
 }
 
 // ==================== AI Gateway Execution ====================
@@ -123,8 +123,18 @@ export function getGatewayStatus() {
 
 // ==================== Rule Engine ====================
 
+export interface AIGatewayConfig {
+  enabled: boolean;
+  defaultScenario?: AIScenario;
+  timeoutMs?: number;
+  maxRetries?: number;
+  fallbackEnabled?: boolean;
+  auditEnabled?: boolean;
+  [key: string]: unknown;
+}
+
 export function getRules() {
-  return api.get<{ rules: any }>('/api/v1/ai-gateway/rules');
+  return api.get<{ rules: RuleSet[] }>('/api/v1/ai-gateway/rules');
 }
 
 export function getEngineStatus() {
@@ -134,9 +144,9 @@ export function getEngineStatus() {
 // ==================== Configuration ====================
 
 export function getConfig() {
-  return api.get<{ config: any }>('/api/v1/ai-gateway/config');
+  return api.get<{ config: AIGatewayConfig }>('/api/v1/ai-gateway/config');
 }
 
-export function updateConfig(config: any) {
+export function updateConfig(config: Partial<AIGatewayConfig>) {
   return api.put('/api/v1/ai-gateway/config', config);
 }

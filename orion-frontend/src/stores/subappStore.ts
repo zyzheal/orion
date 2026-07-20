@@ -40,8 +40,8 @@ export interface SubAppConfigHistory {
   id: string;
   subapp_key: string;
   action: 'created' | 'updated' | 'deleted' | 'status_changed';
-  old_value: Record<string, any> | null;
-  new_value: Record<string, any> | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
   changed_by: string | null;
   change_summary: string | null;
   created_at: string;

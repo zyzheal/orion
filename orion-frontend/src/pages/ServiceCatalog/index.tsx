@@ -186,7 +186,7 @@ const ServiceCatalog: React.FC = () => {
   const loadServices = useCallback(async () => {
     setServicesLoading(true);
     try {
-      const params: Record<string, any> = { limit: 100, offset: 0 };
+      const params: Record<string, unknown> = { limit: 100, offset: 0 };
       if (serviceCategoryFilter) params.category = serviceCategoryFilter;
       if (serviceStatusFilter) params.status = serviceStatusFilter;
       const res = await getCatalogServices(params);
@@ -201,7 +201,7 @@ const ServiceCatalog: React.FC = () => {
   const loadRequests = useCallback(async () => {
     setRequestsLoading(true);
     try {
-      const params: Record<string, any> = { limit: 100, offset: 0 };
+      const params: Record<string, unknown> = { limit: 100, offset: 0 };
       if (requestStatusFilter) params.status = requestStatusFilter;
       const res = await getServiceRequests(params);
       setRequests(res.data || []);

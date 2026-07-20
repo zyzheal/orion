@@ -161,8 +161,8 @@ export interface RightSizingRecommendation {
   id: string;
   resourceId: string;
   resourceType: string;
-  currentSpec: Record<string, any>;
-  recommendedSpec: Record<string, any>;
+  currentSpec: Record<string, unknown>;
+  recommendedSpec: Record<string, unknown>;
   currentCost: number;
   estimatedCost: number;
   estimatedSavings: number;

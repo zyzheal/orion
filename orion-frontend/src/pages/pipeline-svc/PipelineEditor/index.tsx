@@ -53,7 +53,7 @@ export interface StageConfig {
   timeout?: number;
   retryCount?: number;
   dependsOn?: string[];
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   cache?: CacheConfig;
   artifacts?: ArtifactConfig;
   position?: { x: number; y: number };

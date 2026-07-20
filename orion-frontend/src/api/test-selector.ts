@@ -52,15 +52,32 @@ export async function getTestCoverage() {
   return api.get<Record<string, number>>('/api/v1/test-selector/coverage');
 }
 
+export interface FlakyTest {
+  id: string;
+  name: string;
+  suite: string;
+  failRate: number;
+  lastRunAt: string;
+}
+
+export interface TestHistoryEntry {
+  id: string;
+  timestamp: string;
+  total: number;
+  passed: number;
+  failed: number;
+  duration: number;
+}
+
 // GET /api/v1/test-selector/flaky - 获取抖动测试
 export async function getFlakyTests(threshold?: number) {
   const params = threshold ? `?threshold=${threshold}` : '';
-  return api.get<{ flakyTests: any[]; threshold: number }>(`/api/v1/test-selector/flaky${params}`);
+  return api.get<{ flakyTests: FlakyTest[]; threshold: number }>(`/api/v1/test-selector/flaky${params}`);
 }
 
 // GET /api/v1/test-selector/history - 获取测试历史
 export async function getTestHistory() {
-  return api.get<any[]>('/api/v1/test-selector/history');
+  return api.get<TestHistoryEntry[]>('/api/v1/test-selector/history');
 }
 
 // 兼容旧接口

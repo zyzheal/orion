@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/sso/models"
 	"orion/platform-svc-go/internal/sso/service"
 
@@ -110,7 +111,7 @@ result, total, err := h.svc.ListProviders(ctx, tenantID, q)
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": result, "total": total})
+	middleware.RespondPaginated(c, result, 0, 0, total)
 }
 
 func (h *Handler) UpdateProvider(c *gin.Context) {

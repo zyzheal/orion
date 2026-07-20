@@ -110,7 +110,7 @@ const SERVICE_STATUS_CONFIG: Record<string, { color: string; label: string }> = 
 // Helper: Render dynamic form fields based on service form_schema
 // ============================================================================
 
-function renderDynamicFields(schema: Record<string, any>, form: Form.FormInstance) {
+function renderDynamicFields(schema: Record<string, unknown>, form: Form.FormInstance) {
   if (!schema || typeof schema !== 'object') return null;
 
   const fields = schema.fields || schema;
@@ -225,7 +225,7 @@ const ServicePortal: React.FC = () => {
   const loadServices = useCallback(async () => {
     setCatalogLoading(true);
     try {
-      const params: Record<string, any> = { limit: 100, offset: 0 };
+      const params: Record<string, unknown> = { limit: 100, offset: 0 };
       if (selectedCategory) params.category_id = selectedCategory;
       const res = await getCatalogServices(params);
       setServices(res.data || []);
@@ -239,7 +239,7 @@ const ServicePortal: React.FC = () => {
   const loadTickets = useCallback(async () => {
     setTicketsLoading(true);
     try {
-      const params: Record<string, any> = { limit: 50, offset: 0 };
+      const params: Record<string, unknown> = { limit: 50, offset: 0 };
       if (ticketStatusFilter) params.status = ticketStatusFilter;
       const res = await getMyTickets(params);
       setTickets(res.data || []);

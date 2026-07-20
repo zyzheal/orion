@@ -61,7 +61,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading, onExecut
       dataIndex: 'input',
       key: 'input',
       ellipsis: true,
-      render: (input: Record<string, any>) =>
+      render: (input: Record<string, unknown>) =>
         input ? (
           <Text code style={{ fontSize: 11 }}>
             {JSON.stringify(input).slice(0, 100)}
@@ -76,7 +76,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ logs, loading, onExecut
       dataIndex: 'output',
       key: 'output',
       ellipsis: true,
-      render: (output: Record<string, any>) =>
+      render: (output: Record<string, unknown>) =>
         output ? (
           <Text code style={{ fontSize: 11 }}>
             {JSON.stringify(output).slice(0, 100)}

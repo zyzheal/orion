@@ -31,7 +31,7 @@ export interface Span {
   end_time: string;
   duration_ms: number;
   status: 'ok' | 'error' | 'unset';
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   tenant_id?: string;
 }
 

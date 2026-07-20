@@ -14,7 +14,7 @@ export interface UserActivity {
   action: string;
   resourceType: string;
   resourceId: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
   createdAt: string;

@@ -27,15 +27,15 @@ export interface AgentInfo {
 export interface AuditLogEntry {
   timestamp: string;
   action: string;
-  input?: Record<string, any>;
-  output?: Record<string, any>;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
   error?: string;
   duration?: number;
 }
 
 export interface AgentExecutionResult {
   success: boolean;
-  output?: Record<string, any>;
+  output?: Record<string, unknown>;
   error?: string;
   duration?: number;
 }
@@ -54,6 +54,6 @@ export const aiAgentApi = {
     api.get<AuditLogEntry[]>(`/api/v1/ai-agents/${id}/audit-logs`, { params: { limit } }),
 
   // 执行 Agent
-  execute: (id: string, input: Record<string, any>) =>
+  execute: (id: string, input: Record<string, unknown>) =>
     api.post<AgentExecutionResult>(`/api/v1/ai-agents/${id}/execute`, input),
 };

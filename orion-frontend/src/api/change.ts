@@ -33,7 +33,7 @@ export interface ChangeRequest {
   related_incidents?: string[];
   related_problems?: string[];
   affected_services?: string[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_by?: string;
   created_at: string;
   updated_at: string;
@@ -66,7 +66,7 @@ export interface ChangeTimelineEvent {
   event_type: string;
   description: string;
   created_by?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -157,7 +157,7 @@ export const getChangeTimeline = async (changeRequestId: string): Promise<Change
 export const addChangeTimelineEvent = async (changeRequestId: string, data: {
   event_type: string;
   description: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<ChangeTimelineEvent> => {
   const response = await api.post<{ data: ChangeTimelineEvent }>(`/api/v1/changes/requests/${changeRequestId}/timeline`, data);
   return response.data.data;

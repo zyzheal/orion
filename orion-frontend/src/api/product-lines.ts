@@ -106,7 +106,7 @@ export interface ReleaseTrain {
   approvalRequired?: boolean;
   approvers?: string[];
   preChecks?: Array<{ name: string; type: string; required?: boolean }>;
-  postActions?: Array<{ name: string; type: string; config?: Record<string, any> }>;
+  postActions?: Array<{ name: string; type: string; config?: Record<string, unknown> }>;
   status: {
     lastRun?: string;
     nextRun?: string;
@@ -126,7 +126,7 @@ export interface ReleaseTrainInput {
   approvalRequired?: boolean;
   approvers?: string[];
   preChecks?: Array<{ name: string; type: string; required?: boolean }>;
-  postActions?: Array<{ name: string; type: string; config?: Record<string, any> }>;
+  postActions?: Array<{ name: string; type: string; config?: Record<string, unknown> }>;
 }
 
 export interface HotfixChannel {

@@ -137,7 +137,7 @@ export interface TenantEntity {
   name: string;
   display_name: string | null;
   status: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -145,7 +145,7 @@ export interface TenantEntity {
 export interface CreateTenantRequest {
   name: string;
   display_name?: string;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
   autoAllocateNamespace?: boolean;
   initialNamespaceCount?: number;
   customQuota?: {
@@ -179,7 +179,7 @@ export function getTenant(id: string) {
 }
 
 export function createTenant(input: CreateTenantRequest) {
-  return api.post<TenantEntity & { allocatedNamespaces?: any[]; message?: string }>('/api/v1/tenant', input);
+  return api.post<TenantEntity & { allocatedNamespaces?: NamespacePoolEntry[]; message?: string }>('/api/v1/tenant', input);
 }
 
 export function updateTenant(id: string, input: Partial<CreateTenantRequest>) {
@@ -241,7 +241,7 @@ export function getTenantStats(tenantId?: number) {
   return api.get<{
     stats: {
       tenantId: number;
-      quotaUsage: any;
+      quotaUsage: Record<string, unknown>;
       namespaceCount: number;
     };
   }>('/api/v1/tenant/count', {

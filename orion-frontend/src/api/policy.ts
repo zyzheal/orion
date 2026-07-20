@@ -28,7 +28,7 @@ export interface PolicyEvaluation {
   resourceId?: string;
   resourceType?: string;
   result: 'allow' | 'deny' | 'error';
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   evaluatedAt: string;
 }
 
@@ -135,7 +135,7 @@ export const evaluatePolicy = async (data: {
   policyId: string;
   resourceId?: string;
   resourceType?: string;
-  input?: Record<string, any>;
+  input?: Record<string, unknown>;
 }): Promise<PolicyEvaluation> => {
   const response = await api.post<{ data: PolicyEvaluation }>('/api/v1/policies/evaluate-policy', data);
   return response.data.data;
@@ -170,7 +170,7 @@ export const listEvaluations = async (params?: {
 
 export const evaluateGate = async (gateId: string, data?: {
   runId?: string;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }): Promise<PolicyEvaluation> => {
   const response = await api.post<{ data: PolicyEvaluation }>(`/api/v1/policies/gate/${gateId}/evaluate`, data);
   return response.data.data;

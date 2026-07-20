@@ -59,7 +59,7 @@ export interface RiskEvent {
 export interface RiskAssessmentInput {
   targetType: 'deployment' | 'change' | 'pipeline' | 'infrastructure';
   targetId: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface RiskFilters {
@@ -72,7 +72,7 @@ export interface RiskFilters {
 
 // ==================== Risk Assessment ====================
 
-export function assessDeploymentRisk(deploymentId: string, params?: Record<string, any>) {
+export function assessDeploymentRisk(deploymentId: string, params?: Record<string, unknown>) {
   return api.post<RiskAssessment>('/api/v1/risk/assess/deployment', { deploymentId, ...params });
 }
 
@@ -104,14 +104,23 @@ export function getHealthCheckHistory() {
   return api.get<{ checks: HealthCheckResult[] }>('/api/v1/risk/health-check/history');
 }
 
+export interface RiskReport {
+  id: string;
+  assessmentId: string;
+  type: string;
+  generatedAt: string;
+  summary: string;
+  [key: string]: unknown;
+}
+
 // ==================== Risk Reports ====================
 
 export function generateRiskReport(assessmentId: string) {
-  return api.post<{ report: any }>(`/api/v1/risk/reports/generate/${assessmentId}`);
+  return api.post<{ report: RiskReport }>(`/api/v1/risk/reports/generate/${assessmentId}`);
 }
 
 export function getRiskReports() {
-  return api.get<{ reports: any[] }>('/api/v1/risk/reports');
+  return api.get<{ reports: RiskReport[] }>('/api/v1/risk/reports');
 }
 
 // ==================== Risk Events ====================

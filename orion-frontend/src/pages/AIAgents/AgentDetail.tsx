@@ -71,7 +71,7 @@ const AgentDetail: React.FC<AgentDetailProps> = ({ agent }) => {
         <>
           <Divider orientation="left">工具列表</Divider>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: spacing.sm }}>
-            {config.tools.map((tool: string | Record<string, any>, index: number) => {
+            {config.tools.map((tool: string | Record<string, unknown>, index: number) => {
               const toolName = typeof tool === 'string' ? tool : tool.toolName || tool.name || `tool-${index}`;
               return (
                 <Tag key={index} color="geekblue">

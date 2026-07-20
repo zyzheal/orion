@@ -601,7 +601,7 @@ const ChangeManagement: React.FC = () => {
     if (!editCabId) return;
     try {
       const values = await cabForm.validateFields();
-      const payload: Record<string, any> = { ...values };
+      const payload: Record<string, unknown> = { ...values };
       if (values.scheduled_at?.toISOString) {
         payload.scheduled_at = values.scheduled_at.toISOString();
       }

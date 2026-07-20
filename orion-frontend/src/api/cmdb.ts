@@ -20,7 +20,7 @@ export interface CIItem {
   owner?: string;
   environment?: string;
   tags: string[];
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -41,7 +41,7 @@ export interface TopologyNode {
   status: string;
   x?: number;
   y?: number;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export interface TopologyEdge {
@@ -94,7 +94,7 @@ export interface CreateCIInput {
   owner?: string;
   environment?: string;
   tags?: string[];
-  attributes?: Record<string, any>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface UpdateCIInput {
@@ -103,7 +103,7 @@ export interface UpdateCIInput {
   owner?: string;
   environment?: string;
   tags?: string[];
-  attributes?: Record<string, any>;
+  attributes?: Record<string, unknown>;
 }
 
 export interface ListCIsParams {

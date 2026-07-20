@@ -3,6 +3,7 @@ package handler
 import (
 
         "orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
         "orion/platform-svc-go/internal/auth-mfa/models"
         "orion/platform-svc-go/internal/auth-mfa/service"
 
@@ -53,7 +54,7 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(201, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListDevices(c *gin.Context) {
@@ -79,7 +80,7 @@ func (h *Handler) GetDevice(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
-	c.JSON(200, device)
+	middleware.RespondSuccess(c, device)
 }
 
 func (h *Handler) ActivateDevice(c *gin.Context) {
@@ -138,7 +139,7 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"valid": valid})
+	errors.WriteSuccess(c, gin.H{"valid": valid})
 }
 
 func (h *Handler) GenerateBackupCodes(c *gin.Context) {
@@ -151,5 +152,5 @@ func (h *Handler) GenerateBackupCodes(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"codes": codes})
+	errors.WriteSuccess(c, gin.H{"codes": codes})
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
         "orion/go-common/pkg/auth"
+        "orion/platform-svc-go/internal/middleware"
         "orion/platform-svc-go/internal/sso-unified/models"
         "orion/platform-svc-go/internal/sso-unified/service"
 
@@ -43,7 +44,7 @@ func (h *Handler) CreateConfig(c *gin.Context) {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
         }
-        c.JSON(201, result)
+        middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListConfigs(c *gin.Context) {
@@ -68,7 +69,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
         }
-        c.JSON(200, config)
+        middleware.RespondSuccess(c, config)
 }
 
 func (h *Handler) UpdateConfig(c *gin.Context) {
@@ -86,7 +87,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
                 errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
         }
-        c.JSON(200, result)
+        middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) DeleteConfig(c *gin.Context) {

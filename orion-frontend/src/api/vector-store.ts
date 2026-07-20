@@ -9,7 +9,7 @@ import { api } from './client';
 export interface VectorDocument {
   id: string;
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   collection: string;
   dimensions: number;
   status: 'active' | 'processing' | 'failed';
@@ -34,7 +34,7 @@ export interface SearchHit {
   id: string;
   content: string;
   score: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   collection: string;
 }
 
@@ -48,14 +48,14 @@ export interface VectorStats {
 export interface AddDocumentInput {
   content: string;
   collection?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface SearchInput {
   query: string;
   collection?: string;
   topK?: number;
-  filter?: Record<string, any>;
+  filter?: Record<string, unknown>;
 }
 
 export interface CreateCollectionInput {

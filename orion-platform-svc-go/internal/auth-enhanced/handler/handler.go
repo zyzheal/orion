@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/auth-enhanced/models"
+	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
@@ -64,7 +65,7 @@ func (h *Handler) CreateKey(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(201, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) GetKey(c *gin.Context) {
@@ -78,7 +79,7 @@ func (h *Handler) GetKey(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
 	}
-	c.JSON(200, result)
+	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) ListKeys(c *gin.Context) {
@@ -91,7 +92,7 @@ func (h *Handler) ListKeys(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, keys)
+	middleware.RespondSuccess(c, keys)
 }
 
 func (h *Handler) DeactivateKey(c *gin.Context) {
@@ -103,7 +104,7 @@ func (h *Handler) DeactivateKey(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
 	}
-errors.WriteSuccess(c, gin.H{"message": "key deactivated"})
+middleware.RespondSuccess(c, gin.H{"message": "key deactivated"})
 }
 
 func (h *Handler) DeleteKey(c *gin.Context) {
@@ -120,7 +121,7 @@ func (h *Handler) DeleteKey(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "key deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "key deleted"})
 }
 
 func (h *Handler) BlacklistToken(c *gin.Context) {
@@ -143,7 +144,7 @@ func (h *Handler) BlacklistToken(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	c.JSON(201, result)
+	middleware.RespondCreated(c, result)
 }
 
 func (h *Handler) ListBlacklist(c *gin.Context) {
@@ -155,7 +156,7 @@ func (h *Handler) ListBlacklist(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	errors.WriteSuccess(c, tokens)
+	middleware.RespondSuccess(c, tokens)
 }
 
 func (h *Handler) DeleteBlacklist(c *gin.Context) {
@@ -172,5 +173,5 @@ func (h *Handler) DeleteBlacklist(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "blacklist entry not found", 404)
 		return
 	}
-	errors.WriteSuccess(c, gin.H{"message": "blacklist entry deleted"})
+	middleware.RespondSuccess(c, gin.H{"message": "blacklist entry deleted"})
 }

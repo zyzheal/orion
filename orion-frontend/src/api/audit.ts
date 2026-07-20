@@ -10,7 +10,7 @@ export interface AuditLogEntry {
   action: string;
   userId: string;
   tenantId?: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   resourceType?: string;
   resourceId?: string;
   ipAddress?: string;
@@ -61,7 +61,7 @@ export interface IntegrityIssue {
   type: 'CHAIN_BREAK' | 'STORAGE_TAMPERING' | 'MISSING_ENTRIES' | 'VERIFICATION_FAILED';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   message: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 export interface StorageStats {
@@ -98,7 +98,7 @@ export function createAuditLog(data: {
   action: string;
   userId: string;
   tenantId?: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   resourceType?: string;
   resourceId?: string;
 }) {

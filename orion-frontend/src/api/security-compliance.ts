@@ -16,7 +16,7 @@ export interface CompliancePolicy {
   framework?: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   enabled?: boolean;
-  rules?: Record<string, any>;
+  rules?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -26,7 +26,7 @@ export interface ComplianceEvaluation {
   resourceId?: string;
   resourceType?: string;
   result: 'compliant' | 'non-compliant' | 'partial';
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   evaluatedAt: string;
 }
 
@@ -107,7 +107,7 @@ export interface Evidence {
   policyId: string;
   type: string;
   source: string;
-  content: Record<string, any>;
+  content: Record<string, unknown>;
   collectedAt: string;
 }
 
@@ -127,7 +127,7 @@ export const defineCompliancePolicy = async (data: {
   framework?: string;
   severity?: string;
   enabled?: boolean;
-  rules?: Record<string, any>;
+  rules?: Record<string, unknown>;
 }): Promise<CompliancePolicy> => {
   const response = await api.post<{ data: CompliancePolicy }>('/api/v1/compliance/policies', data);
   return response.data.data;
@@ -251,7 +251,7 @@ export const collectEvidence = async (data: {
   policyId: string;
   type: string;
   source: string;
-  content?: Record<string, any>;
+  content?: Record<string, unknown>;
 }): Promise<Evidence> => {
   const response = await api.post<{ data: Evidence }>('/api/v1/compliance/evidence', data);
   return response.data.data;

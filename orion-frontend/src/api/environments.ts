@@ -23,7 +23,7 @@ export interface Environment {
   type: EnvironmentType;
   cluster?: string;
   namespace?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   status: EnvironmentStatus;
   created_at?: string;
   updated_at?: string;
@@ -35,7 +35,7 @@ export interface CreateEnvironmentInput {
   type: EnvironmentType;
   cluster?: string;
   namespace?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 export interface UpdateEnvironmentInput {
@@ -43,7 +43,7 @@ export interface UpdateEnvironmentInput {
   type?: EnvironmentType;
   cluster?: string;
   namespace?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   status?: EnvironmentStatus;
 }
 

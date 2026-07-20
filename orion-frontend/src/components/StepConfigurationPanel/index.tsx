@@ -4,7 +4,7 @@ import { colors, spacing } from '@/tokens';
 
 export interface StepConfigurationPanelProps {
   plugin: { name: string; version: string; tier: string; trust: string } | null;
-  onSave: (config: Record<string, any>) => void;
+  onSave: (config: Record<string, unknown>) => void;
   onDelete: () => void;
   onCancel: () => void;
 }

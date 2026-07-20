@@ -22,8 +22,8 @@ export interface ServiceItem {
   name: string;
   description: string;
   status: 'active' | 'inactive';
-  form_schema?: Record<string, any>;
-  metadata?: Record<string, any>;
+  form_schema?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
   created_at: string;
 }
 
@@ -37,7 +37,7 @@ export interface SelfServiceTicket {
   description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'approved' | 'in_progress' | 'fulfilled' | 'rejected' | 'cancelled';
-  form_data?: Record<string, any>;
+  form_data?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   cancelled_at?: string;
@@ -48,7 +48,7 @@ export interface CreateSelfServiceTicketPayload {
   title: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
-  form_data?: Record<string, any>;
+  form_data?: Record<string, unknown>;
 }
 
 // ==================== Catalog ====================

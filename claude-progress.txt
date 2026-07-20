@@ -4461,3 +4461,67 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 - `go vet ./internal/middleware/security.go` ✅ PASS
 - 全项目 `go build ./cmd/server/` 存在预存错误（ratelimit.go, cron service, repository interface 等），与本次修改无关
 - Commit: f1d6752e
+
+## 2026-07-20: Phase 5.2+5.3 — Migration Number Gap Fill + tenant_id UUID Unification
+
+### Phase 5.2 — Migration Number Gaps
+
+**Analysis of gaps in migration sequence (previously 002-238):**
+- `001`: single gap at start (original migration removed during framework unification)
+- `201-203`: 3 gaps between 002-200 series and 204+ series
+- `207-230`: 24 consecutive gaps in the mid-series (largest gap)
+- `233`: single gap near end (between 232 and 234)
+
+**Solution**: Created 29 placeholder files (`*_reserved_placeholder.sql`)
+- Each contains only `SELECT 1;` (no-op, safe for migration runner)
+- Comment explains the file is reserved for historical compatibility
+- Sequence now fully continuous: **001-239, zero gaps**
+
+### Phase 5.3 — tenant_id Type Unification
+
+**Scan results** (171 tables with VARCHAR tenant_id):
+- `VARCHAR(36)`: 168 tables (081-200, 231-234, 237 series)
+- `VARCHAR(255)`: 3 tables (002 pipeline_runs/stages/tasks, 234 ai_gateway_requests, 237 data_pipelines)
+- Already `UUID`: ~249 other column definitions (not counted here, already correct)
+
+**Solution**: Created `239_unify_tenant_id_to_uuid.sql`
+- 171 idempotent ALTER TABLE statements using `DO $$` blocks
+- Pattern: `ALTER TABLE <table> ALTER COLUMN tenant_id TYPE UUID USING tenant_id::UUID`
+- Guard: `IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '<table>' AND column_name = 'tenant_id' AND data_type != 'uuid')`
+- Safe: works for UUID-valued VARCHAR data; no-op if already UUID
+
+### Verification
+
+- Migration file count: 297 files (268 original + 29 placeholders)
+- Sequence completeness: 001-239 (continuous)
+- Conversion statements: 171 (all VARCHAR(36)/VARCHAR(255) tenant_id columns covered)
+- Commit: 5d87dd3c
+
+### Next Steps (if any)
+
+- Phase 5.2+5.3 is complete
+- tenant_id conversion migration (239) should be applied in a non-production environment first to verify the `::UUID` cast works with existing data
+
+---
+
+## 2026-07-20: Phase 1.1 — 批量提取 Service Interface
+
+### 概述
+批量检查 `orion-platform-svc-go/internal/*/service/` 下所有模块的 Service Interface 覆盖情况。
+
+### 检查结果
+- 214 个顶层模块：214/214 已有 `service_interface.go`（100%）
+- 1 个嵌套模块（webhook/store）：之前缺失，已补充
+- **总计：215/215 service.go 均有匹配 service_interface.go**
+
+### 新增文件
+| 模块 | 路径 | 方法数 |
+|------|------|--------|
+| webhook/store | `internal/webhook/store/service/service_interface.go` | 6（Create, Get, ListByDomain, ListAll, Update, Delete） |
+
+### 构建状态
+- 新增文件语法正确（gofmt 通过）
+- 构建失败是 repository 包的已有问题（未使用 `errors` import），非本接口引入
+
+### 下一步
+- Phase 1.2: 批量审计所有 service_interface.go 是否与对应 service.go 的方法签名完全一致（过时接口检测）

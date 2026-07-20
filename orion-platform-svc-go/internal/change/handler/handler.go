@@ -4,11 +4,11 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/change/models"
 	"orion/platform-svc-go/internal/change/service"
 
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
@@ -164,7 +164,7 @@ func (h *Handler) DeleteChangeRequest(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(http.StatusNoContent, nil)
+	middleware.RespondNoContent(c)
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {

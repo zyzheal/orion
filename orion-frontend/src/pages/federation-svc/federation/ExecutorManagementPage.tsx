@@ -48,7 +48,7 @@ interface ExecutorInfo {
   max_concurrent_jobs: number;
   last_heartbeat: string | null;
   registered_at: string;
-  labels: Record<string, any>;
+  labels: Record<string, unknown>;
 }
 
 interface ExecutorHealth {

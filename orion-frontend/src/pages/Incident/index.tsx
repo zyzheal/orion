@@ -202,7 +202,7 @@ const IncidentManagement: React.FC = () => {
   const loadIncidents = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, any> = {
+      const params: Record<string, unknown> = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
       };

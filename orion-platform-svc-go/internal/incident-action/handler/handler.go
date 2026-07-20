@@ -2,6 +2,7 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/incident-action/models"
 	"orion/platform-svc-go/internal/incident-action/service"
 
@@ -95,5 +96,5 @@ func (h *Handler) Delete(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-	c.JSON(200, gin.H{"data": "deleted"})
+	middleware.RespondSuccess(c, gin.H{"data": "deleted"})
 }

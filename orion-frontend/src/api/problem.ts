@@ -23,7 +23,7 @@ export interface Problem {
   created_by?: string;
   resolved_at?: string;
   closed_at?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -75,7 +75,7 @@ export const createProblem = async (data: {
   severity: string;
   category?: string;
   assignedTo?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }): Promise<Problem> => {
   const response = await api.post<{ data: Problem }>('/api/v1/problems', data);
   return response.data.data;

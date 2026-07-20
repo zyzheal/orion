@@ -12,7 +12,7 @@ export interface QueueJob {
   id: string;
   tenant_id: string;
   queue: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
   status: JobStatus;
   attempts: number;
   created_at: string;
@@ -20,7 +20,7 @@ export interface QueueJob {
 
 export interface EnqueueInput {
   tenantId: string;
-  payload: Record<string, any>;
+  payload: Record<string, unknown>;
 }
 
 export interface DequeueInput {

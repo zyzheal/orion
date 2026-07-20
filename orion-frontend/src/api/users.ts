@@ -16,7 +16,7 @@ export interface User {
   status: string;
   last_login_at: string | null;
   last_login_ip: string | null;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -39,7 +39,7 @@ export interface UpdateUserInput {
   avatar_url?: string;
   role?: string;
   status?: string;
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export interface ChangePasswordInput {
