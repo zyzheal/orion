@@ -76,5 +76,5 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, sentinel.NotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

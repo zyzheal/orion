@@ -213,14 +213,14 @@ func (h *Handler) GetExperimentRecovery(c *gin.Context) {
 // --- Fault Library handlers ---
 
 func (h *Handler) ListFaults(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFaults")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFaults")
 	defer span.End()
 	faults := h.svc.AvailableFaultTypes()
 	middleware.RespondSuccess(c, faults)
 }
 
 func (h *Handler) GetConfigTemplate(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfigTemplate")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfigTemplate")
 	defer span.End()
 	faultType := c.Param("type")
 	template := h.svc.FaultConfigTemplate(faultType)

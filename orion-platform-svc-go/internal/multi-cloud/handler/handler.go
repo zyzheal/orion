@@ -381,7 +381,7 @@ func (h *Handler) RunComplianceCheck(c *gin.Context) {
 }
 
 func (h *Handler) GetComplianceRules(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceRules")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceRules")
 	defer span.End()
 	rules := h.svc.GetComplianceRules()
 	middleware.RespondSuccess(c, rules)

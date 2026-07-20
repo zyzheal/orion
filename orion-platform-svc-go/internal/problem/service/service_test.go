@@ -295,7 +295,7 @@ func TestServiceErrors(t *testing.T) {
 		err error
 		msg string
 	}{
-		{ErrNotFound, "problem not found"},
+		{ErrNotFound, "not found"},
 		{ErrBadRequest, "bad request"},
 		{ErrStatusLocked, "status cannot be changed"},
 	}

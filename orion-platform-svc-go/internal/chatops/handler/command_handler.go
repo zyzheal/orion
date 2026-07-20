@@ -208,7 +208,7 @@ func (h *Handler) GetSessionMessages(c *gin.Context) {
 // ---- SSE Stream ----
 
 func (h *Handler) StreamRecommendations(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamRecommendations")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamRecommendations")
 	defer span.End()
 	// Basic placeholder: return empty recommendations stream
 	middleware.RespondSuccess(c, gin.H{"stream": "connected", "recommendations": []string{}})

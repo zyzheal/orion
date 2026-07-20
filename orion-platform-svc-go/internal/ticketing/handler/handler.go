@@ -200,21 +200,21 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 
 // CreateTicketFromAlert mirrors /tickets/from-alert: creates a ticket sourced from an alert.
 func (h *Handler) CreateTicketFromAlert(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromAlert")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromAlert")
 	defer span.End()
-	ticketID := c.Param("id")
-	_ = ticketID
 	h.createTicketWithSource(c, "alert")
 }
 
 // CreateTicketFromIncident mirrors /tickets/from-incident: creates a ticket sourced from an incident.
 func (h *Handler) CreateTicketFromIncident(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromIncident")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromIncident")
 	defer span.End()
 	h.createTicketWithSource(c, "incident")
 }
 
 func (h *Handler) createTicketWithSource(c *gin.Context, source string) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketWithSource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

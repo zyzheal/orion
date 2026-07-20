@@ -655,7 +655,7 @@ func (h *Handler) MockSimulate(c *gin.Context) {
 // ----- SDK -----
 
 func (h *Handler) SDKLanguages(c *gin.Context) {
-	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SDKLanguages")
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SDKLanguages")
 	defer span.End()
 	languages := h.svc.GetSupportedLanguages()
 	middleware.RespondSuccess(c, languages)

@@ -43,13 +43,13 @@ func NewService(repo *notificationRepo.Repository) *Service {
 // --- Errors ---
 
 var (
-	ErrNotFound     = errors.New("not found")
+	ErrNotFound     = sentinel.NotFound
 	ErrInvalidInput = errors.New("invalid input")
 )
 
 // IsNotFound returns true if the error indicates a not-found condition.
 func IsNotFound(err error) bool {
-	return errors.Is(err, sentinel.NotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, ErrNotFound)
 }
 
 // --- Create ---
