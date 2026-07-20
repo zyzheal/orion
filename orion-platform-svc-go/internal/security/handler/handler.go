@@ -63,7 +63,7 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVulnerabilities")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	opt := models.ListVulnerabilitiesOptions{}
 	if severity := c.Query("severity"); severity != "" {
@@ -108,7 +108,7 @@ func (h *Handler) TriggerScan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerScan")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var req models.ScanVulnerabilitiesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -130,7 +130,7 @@ func (h *Handler) TriggerImageScan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerImageScan")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var req models.ScanVulnerabilitiesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -156,7 +156,7 @@ func (h *Handler) GetVulnerability(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVulnerability")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	vuln, err := h.svc.CheckVulnerability(ctx, tenantID, id)
@@ -183,7 +183,7 @@ func (h *Handler) Remediate(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Remediate")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	var req models.RemediateVulnerabilityRequest

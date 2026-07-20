@@ -59,7 +59,7 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	var req models.CreateDeploymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -79,7 +79,7 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	deployment, err := h.svc.GetDeployment(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, "deployment not found")
@@ -92,7 +92,7 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployments")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	_ = ctx
 	opt := models.ListDeploymentsOptions{}
 	if appName := c.Query("appName"); appName != "" {
@@ -144,7 +144,7 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	deployment, err := h.svc.GetLatestDeployment(ctx, tenantID, c.Param("appName"), c.Param("environment"))
 	if err != nil {
 		middleware.RespondNotFound(c, "no deployments found for this app and environment")
@@ -159,7 +159,7 @@ func (h *Handler) CancelDeployment(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	var req struct {
 		CancelledBy string `json:"cancelledBy" binding:"required"`
 	}
@@ -189,7 +189,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	var req models.CreateRollbackRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, "missing required fields: reason, triggeredBy")
@@ -209,7 +209,7 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	rollbacks, err := h.svc.GetRollbackHistory(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -227,7 +227,7 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	metrics, err := h.svc.GetMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -242,7 +242,7 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	entries, err := h.svc.GetAuditTrail(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

@@ -96,7 +96,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) GetScenarios(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetScenarios")
 	defer span.End()
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	scenarios, err := h.svc.GetScenarios(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -110,7 +110,7 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExperiments")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var q models.ListQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -141,7 +141,7 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 	if userID == "" {
 		userID = "system"
 	}
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -162,7 +162,7 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	exp, err := h.svc.GetExperiment(ctx, tenantID, id)
@@ -178,7 +178,7 @@ func (h *Handler) UpdateExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	var req models.UpdateExperimentRequest
@@ -205,7 +205,7 @@ func (h *Handler) DeleteExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	err := h.svc.DeleteExperiment(ctx, tenantID, id)
@@ -225,7 +225,7 @@ func (h *Handler) StartExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	exp, err := h.svc.StartExperiment(ctx, tenantID, id)
@@ -241,7 +241,7 @@ func (h *Handler) StopExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	exp, err := h.svc.StopExperiment(ctx, tenantID, id)
@@ -257,7 +257,7 @@ func (h *Handler) PauseExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	exp, err := h.svc.PauseExperiment(ctx, tenantID, id)
@@ -273,7 +273,7 @@ func (h *Handler) ResumeExperiment(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResumeExperiment")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	exp, err := h.svc.ResumeExperiment(ctx, tenantID, id)
@@ -289,7 +289,7 @@ func (h *Handler) GetResults(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResults")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	var q models.ListQuery
@@ -314,7 +314,7 @@ func (h *Handler) GetLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	id := c.Param("id")
 
 	var q models.ListQuery
@@ -343,7 +343,7 @@ func (h *Handler) ScheduleExperiment(c *gin.Context) {
 	if userID == "" {
 		userID = "system"
 	}
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var req models.ScheduleExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -24,6 +24,49 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ---------------------------------------------------------------------------
+// requestTimeout wraps the Gin request context with a deadline so that every
+// downstream service/repository call carries a cancellation signal.
+//
+// Default timeout is 30s; clients can override via X-Request-Timeout header.
+// Mirrors orion-platform-svc-go/internal/middleware/timeout.go.
+// ---------------------------------------------------------------------------
+
+const (
+	defaultRequestTimeout = 30 * time.Second
+	timeoutKey            = "request_timeout_ctx"
+)
+
+func requestTimeout() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var timeout time.Duration = defaultRequestTimeout
+		if raw := c.GetHeader("X-Request-Timeout"); raw != "" {
+			if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+				timeout = time.Duration(v) * time.Second
+			}
+		}
+
+		parent := c.Request.Context()
+		ctx, cancel := context.WithTimeout(parent, timeout)
+		defer cancel()
+
+		c.Set(timeoutKey, ctx)
+		c.Request = c.Request.WithContext(ctx)
+		c.Next()
+	}
+}
+
+// requestTimeoutContext returns the timeout-wrapped context from Gin context,
+// or falls back to c.Request.Context() if no timeout middleware is installed.
+func requestTimeoutContext(c *gin.Context) context.Context {
+	if v, ok := c.Get(timeoutKey); ok {
+		if ctx, ok := v.(context.Context); ok {
+			return ctx
+		}
+	}
+	return c.Request.Context()
+}
+
 func getEnv(key, defaultValue string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -83,6 +126,9 @@ func main() {
 	r.Use(errors.ErrorRecovery(nil))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(nil))
+	// Request timeout: wraps context with deadline so every downstream call
+	// carries a cancellation signal. Mirrors cmd/server/main.go.
+	r.Use(requestTimeout())
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 
 	// Auth middleware

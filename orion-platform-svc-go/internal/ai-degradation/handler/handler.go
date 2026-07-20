@@ -98,7 +98,7 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	config, err := h.svc.CreateConfig(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -113,7 +113,7 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfig")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	config, err := h.svc.GetConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -128,7 +128,7 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListConfigs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	req := models.ListConfigsQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -151,7 +151,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateConfig")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	var req models.UpdateDegradationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -171,7 +171,7 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteConfig")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	err := h.svc.DeleteConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
@@ -187,7 +187,7 @@ func (h *Handler) EnableConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableConfig")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	config, err := h.svc.EnableConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
@@ -202,7 +202,7 @@ func (h *Handler) DisableConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableConfig")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	config, err := h.svc.DisableConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
@@ -217,7 +217,7 @@ func (h *Handler) TriggerDegradation(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerDegradation")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	var req models.TriggerDegradationRequest
 	_ = c.ShouldBindJSON(&req) // optional body
@@ -239,7 +239,7 @@ func (h *Handler) RecoverService(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecoverService")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	config, err := h.svc.RecoverService(ctx, tenantID, c.Param("id"))
 	if err != nil {
@@ -254,7 +254,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHistory")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	req := models.ListHistoryQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -277,7 +277,7 @@ func (h *Handler) GetGlobalStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGlobalStatus")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 
 	status, err := h.svc.GetGlobalStatus(ctx, tenantID)
 	if err != nil {

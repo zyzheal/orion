@@ -74,7 +74,7 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 		return
 	}
 
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	run, err := h.engine.Execute(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -89,7 +89,7 @@ func (h *Handler) GetRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRun")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	run, err := h.engine.GetRun(ctx, tenantID, c.Param("runId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -103,7 +103,7 @@ func (h *Handler) ListRuns(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRuns")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	req := models.ListRunsQuery{}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -126,7 +126,7 @@ func (h *Handler) GetStages(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStages")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	stages, err := h.engine.GetStages(ctx, tenantID, c.Param("runId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -140,7 +140,7 @@ func (h *Handler) GetTasks(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTasks")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	tasks, err := h.engine.GetTasks(ctx, tenantID, c.Param("stageId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
@@ -154,7 +154,7 @@ func (h *Handler) CancelRun(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelRun")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := context.Background()
+	ctx := middleware.TimeoutContext(c)
 	var req models.CancelRunRequest
 	_ = c.ShouldBindJSON(&req) // optional
 

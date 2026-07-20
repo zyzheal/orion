@@ -195,14 +195,14 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = ((response.data as any)?.data ?? response.data) as any;
+        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: (execData as any).result?.output || `命令 ${command} 执行完成`,
+          content: (execData as { result?: { output?: string } })?.result?.output || `命令 ${command} 执行完成`,
           timestamp: new Date(),
-          status: (execData as any).status === 'completed' ? 'success' : 'failed',
-          actions: extractActionsFromResult(execData),
+          status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
+          actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
         };
 
         // TE-11: 函数式更新，基于当前 state 追加
@@ -245,14 +245,14 @@ export const useChatOpsStore = create<ChatOpsState>()(
           channel: 'chatops-panel',
         });
 
-        const execData = ((response.data as any)?.data ?? response.data) as any;
+        const execData = (response.data as { data?: { result?: { output?: string }; status?: string; actions?: ExtendedAction[] } })?.data ?? response.data;
         const aiMsg: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: (execData as any).result?.output || `操作 ${command} 执行完成`,
+          content: (execData as { result?: { output?: string } })?.result?.output || `操作 ${command} 执行完成`,
           timestamp: new Date(),
-          status: (execData as any).status === 'completed' ? 'success' : 'failed',
-          actions: extractActionsFromResult(execData),
+          status: (execData as { status?: string }).status === 'completed' ? 'success' : 'failed',
+          actions: extractActionsFromResult(execData as { actions?: ExtendedAction[] }),
         };
 
         set((state) => ({
@@ -291,7 +291,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
         const response = await fetchRecommendations({});
         const recs = (response.data as RecommendationListResponse)?.data?.recommendations || [];
         set({
-          recommendations: recs as any,
+          recommendations: recs,
           unreadAlerts: recs.filter(
             (r: { severity?: string }) => r.severity === 'critical' || r.severity === 'warning'
           ).length,
@@ -316,7 +316,7 @@ export const useChatOpsStore = create<ChatOpsState>()(
           limit: 50,
           cursor: state.nextCursor ?? undefined,
         });
-        const data = (response.data as { data?: Array<{ id: string; role: 'user' | 'assistant' | 'system'; content: string; timestamp: Date; actions?: ExtendedAction[]; status?: 'success' | 'failed' | 'running' }> }) ?? {};
+        const data = (response.data as { data?: ChatMessage[] }) ?? {};
         const newMsgs = data.data ?? [];
         const hasMore = (response.data as { hasMore?: boolean })?.hasMore ?? false;
         const nextCursor = (response.data as { nextCursor?: string | null })?.nextCursor ?? null;

@@ -1656,6 +1656,10 @@ func main() {
 	r.Use(errors.ErrorRecovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
+	// Request timeout: wraps context with deadline so every downstream call
+	// carries a cancellation signal. Placed before Tracing so the span
+	// inherits the deadline.
+	r.Use(middleware.Timeout(middleware.DefaultTimeoutConfig()))
 	r.Use(platmw.Tracing(platmw.TracingConfig{
 		ServiceName: "orion-platform-svc",
 	}))

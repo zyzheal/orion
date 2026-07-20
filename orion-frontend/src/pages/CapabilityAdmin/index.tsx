@@ -30,7 +30,12 @@ import {
   AuditOutlined,
   SendOutlined,
 } from '@ant-design/icons';
-import { capabilityApi } from '@/api/capability';
+import {
+  capabilityApi,
+  type Capability,
+  type TemporaryPermission,
+  type CapabilityAuditLog,
+} from '@/api/capability';
 import { spacing } from '@/tokens';
 
 const { TextArea } = Input;
@@ -52,20 +57,20 @@ const RISK_LABELS = {
 
 export const CapabilityAdmin: React.FC = () => {
   const [loading, setLoading] = useState(false);
-  const [capabilities, setCapabilities] = useState<any[]>([]);
-  const [selectedCapability, setSelectedCapability] = useState<any>(null);
+  const [capabilities, setCapabilities] = useState<Capability[]>([]);
+  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'create' | 'edit'>('create');
   const [form] = Form.useForm();
 
   // Temporary permissions state
-  const [tempPerms, setTempPerms] = useState<any[]>([]);
+  const [tempPerms, setTempPerms] = useState<TemporaryPermission[]>([]);
   const [tempPermLoading, setTempPermLoading] = useState(false);
   const [tempPermModalVisible, setTempPermModalVisible] = useState(false);
   const [tempPermForm] = Form.useForm();
 
   // Audit log state
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<CapabilityAuditLog[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditTotal, setAuditTotal] = useState(0);
   const [auditPage, setAuditPage] = useState(1);
@@ -79,7 +84,7 @@ export const CapabilityAdmin: React.FC = () => {
     setLoading(true);
     try {
       const result = await capabilityApi.list();
-      setCapabilities((result.data || []) as any[]);
+      setCapabilities((result.data as unknown as Capability[]) || []);
     } catch (error) {
       message.error('加载能力列表失败');
     } finally {
@@ -93,7 +98,7 @@ export const CapabilityAdmin: React.FC = () => {
     try {
       // 这里用当前用户ID，实际应从 auth store 获取
       const result = await capabilityApi.getUserTemporaryPermissions('current-user');
-      setTempPerms((result.data || []) as any[]);
+      setTempPerms((result.data as unknown as TemporaryPermission[]) || []);
     } catch (error) {
       // 静默失败，可能还没有临时权限
     } finally {
@@ -106,8 +111,9 @@ export const CapabilityAdmin: React.FC = () => {
     setAuditLoading(true);
     try {
       const result = await capabilityApi.getAuditLogs({ limit: 20, offset: (page - 1) * 20 });
-      setAuditLogs((result.data as any)?.logs || []);
-      setAuditTotal((result.data as any)?.total || 0);
+      const payload = result.data as { logs?: CapabilityAuditLog[]; total?: number } | null;
+      setAuditLogs(payload?.logs || []);
+      setAuditTotal(payload?.total || 0);
       setAuditPage(page);
     } catch (error) {
       message.error('加载审计日志失败');
@@ -132,7 +138,7 @@ export const CapabilityAdmin: React.FC = () => {
   };
 
   // Edit capability
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: Capability) => {
     setModalType('edit');
     setSelectedCapability(record);
     form.setFieldsValue(record);
@@ -140,7 +146,7 @@ export const CapabilityAdmin: React.FC = () => {
   };
 
   // Delete capability
-  const handleDelete = async (record: any) => {
+  const handleDelete = async (record: Capability) => {
     Modal.confirm({
       title: '确认删除',
       content: `确定要删除能力 "${record.name}" 吗？`,
@@ -169,8 +175,8 @@ export const CapabilityAdmin: React.FC = () => {
       }
       setModalVisible(false);
       loadCapabilities();
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
+    } catch (error: unknown) {
+      message.error((error as Error).message || '操作失败');
     }
   };
 
@@ -182,8 +188,8 @@ export const CapabilityAdmin: React.FC = () => {
       message.success('临时权限已授予');
       setTempPermModalVisible(false);
       loadTempPerms();
-    } catch (error: any) {
-      message.error(error.message || '授予失败');
+    } catch (error: unknown) {
+      message.error((error as Error).message || '授予失败');
     }
   };
 
@@ -193,8 +199,8 @@ export const CapabilityAdmin: React.FC = () => {
       await capabilityApi.revokeTemporary(id, '手动撤销');
       message.success('临时权限已撤销');
       loadTempPerms();
-    } catch (error: any) {
-      message.error(error.message || '撤销失败');
+    } catch (error: unknown) {
+      message.error((error as Error).message || '撤销失败');
     }
   };
 
@@ -205,8 +211,8 @@ export const CapabilityAdmin: React.FC = () => {
       await capabilityApi.requestPermission(values);
       message.success('权限申请已提交，等待审批');
       setRequestModalVisible(false);
-    } catch (error: any) {
-      message.error(error.message || '申请失败');
+    } catch (error: unknown) {
+      message.error((error as Error).message || '申请失败');
     }
   };
 
@@ -214,11 +220,12 @@ export const CapabilityAdmin: React.FC = () => {
   const handleCleanup = async () => {
     try {
       const result = await capabilityApi.cleanup();
-      message.success(`清理完成，共清理 ${(result.data as any)?.cleaned || 0} 条过期权限`);
+      const payload = result.data as { cleaned?: number } | null;
+      message.success(`清理完成，共清理 ${payload?.cleaned || 0} 条过期权限`);
       loadTempPerms();
       loadAuditLogs();
-    } catch (error: any) {
-      message.error(error.message || '清理失败');
+    } catch (error: unknown) {
+      message.error((error as Error).message || '清理失败');
     }
   };
 
@@ -266,7 +273,7 @@ export const CapabilityAdmin: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 150,
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: Capability) => (
         <Space>
           <Button
             type="link"
@@ -328,7 +335,7 @@ export const CapabilityAdmin: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: TemporaryPermission) => (
         !record.revoked_at && (
           <Popconfirm
             title="确认撤销"

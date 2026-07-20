@@ -101,7 +101,7 @@ const MultiCloudPage: React.FC = () => {
   const [syncing, setSyncing] = useState<string | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [costModalOpen, setCostModalOpen] = useState(false);
-  const [costComparison, setCostComparison] = useState<any[]>([]);
+  const [costComparison, setCostComparison] = useState<CostComparison[]>([]);
   const [costLoading, setCostLoading] = useState(false);
   const [form] = Form.useForm();
   const [costForm] = Form.useForm();
@@ -119,16 +119,16 @@ const MultiCloudPage: React.FC = () => {
         multiCloudApi.getResourceStatistics(),
       ]);
       if (accountsRes.status === 'fulfilled') {
-        const data = accountsRes.value as any;
-        setAccounts(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
+        const data = accountsRes.value as { data?: CloudAccount[] };
+        setAccounts(Array.isArray(data?.data) ? data.data : []);
       }
       if (resourcesRes.status === 'fulfilled') {
-        const data = resourcesRes.value as any;
-        setResources(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
+        const data = resourcesRes.value as { data?: CloudResource[] };
+        setResources(Array.isArray(data?.data) ? data.data : []);
       }
       if (statsRes.status === 'fulfilled') {
-        const data = statsRes.value as any;
-        setStatistics(data?.data ?? data ?? null);
+        const data = statsRes.value as { data?: ResourceStatistics };
+        setStatistics(data?.data ?? null);
       }
     } catch (error: unknown) {
       message.error(`加载多云数据失败: ${(error as Error).message}`);
@@ -137,7 +137,7 @@ const MultiCloudPage: React.FC = () => {
     }
   };
 
-  const handleCreate = async (values: any) => {
+  const handleCreate = async (values: { name: string; provider: string; region: string; credentials_ref?: string }) => {
     try {
       await multiCloudApi.registerCloudAccount({
         provider: values.provider,
@@ -170,7 +170,7 @@ const MultiCloudPage: React.FC = () => {
     }
   };
 
-  const handleCostCompare = async (values: any) => {
+  const handleCostCompare = async (values: { vm_count: number; vm_type: string; storage_gb: number; bandwidth_gb_month: number }) => {
     setCostLoading(true);
     try {
       const res = await multiCloudApi.compareCloudCosts({
@@ -179,8 +179,7 @@ const MultiCloudPage: React.FC = () => {
         storage_gb: values.storage_gb,
         bandwidth_gb_month: values.bandwidth_gb_month,
       });
-      const data = (res as any)?.data ?? res;
-      setCostComparison(Array.isArray(data) ? data : []);
+      setCostComparison((res.data as CostComparison[]) || []);
     } catch (error: unknown) {
       message.error(`成本对比失败: ${(error as Error).message}`);
     } finally {
@@ -194,7 +193,7 @@ const MultiCloudPage: React.FC = () => {
     active: accounts.filter((a) => a.status === 'active').length,
     error: accounts.filter((a) => a.status === 'error').length,
     resources: resources.length,
-    providers: new Set(accounts.map(a => (a as any).provider || a.credential_type)).size,
+    providers: new Set(accounts.map(a => a.provider_id || a.credential_type)).size,
     regions: new Set(accounts.map(a => a.region)).size,
   }), [accounts, resources]);
 
@@ -207,7 +206,7 @@ const MultiCloudPage: React.FC = () => {
       // Fallback to accounts data
       const providerCounts: Record<string, number> = {};
       accounts.forEach(a => {
-        const p = (a as any).provider || a.credential_type || 'unknown';
+        const p = a.provider_id || a.credential_type || 'unknown';
         providerCounts[p] = (providerCounts[p] || 0) + 1;
       });
       const fallbackEntries = Object.entries(providerCounts);
@@ -256,14 +255,14 @@ const MultiCloudPage: React.FC = () => {
       dataIndex: 'account_name',
       key: 'account_name',
       width: 160,
-      render: (v: string, record: any) => v || record.name || '-',
+      render: (v: string, record: CloudAccount) => v || record.name || '-',
     },
     {
       title: '云厂商',
       key: 'provider',
       width: 120,
-      render: (_: unknown, record: any) => {
-        const provider = record.provider_id || record.credential_type || record.provider || 'unknown';
+      render: (_: unknown, record: CloudAccount) => {
+        const provider = record.provider_id || record.credential_type || 'unknown';
         return <Tag color={providerTypeColor[provider] || 'default'}>{providerLabelMap[provider] || provider}</Tag>;
       },
     },
@@ -279,8 +278,8 @@ const MultiCloudPage: React.FC = () => {
       title: '资源数',
       key: 'resourceCount',
       width: 80,
-      render: (_: unknown, record: any) => {
-        const accountId = record.account_id || record.id;
+      render: (_: unknown, record: CloudAccount) => {
+        const accountId = record.account_id;
         return resources.filter((r) => r.account_id === accountId || r.account_id === accountId).length;
       },
     },
@@ -288,7 +287,7 @@ const MultiCloudPage: React.FC = () => {
       title: '月度费用',
       key: 'cost',
       width: 100,
-      render: (_: unknown, record: any) => {
+      render: (_: unknown, record: CloudAccount) => {
         const cost = record.current_spend ?? 0;
         return cost > 0 ? `$${cost.toFixed(2)}` : '-';
       },
@@ -297,14 +296,14 @@ const MultiCloudPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 120,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: CloudAccount) => (
         <Space>
           <Tooltip title="同步资源">
             <Button
               type="link"
               size="small"
-              icon={<SyncOutlined spin={syncing === (record.account_id || record.id)} />}
-              onClick={() => handleSync(record.account_id || record.id)}
+              icon={<SyncOutlined spin={syncing === record.account_id} />}
+              onClick={() => handleSync(record.account_id)}
               disabled={syncing !== null}
             />
           </Tooltip>
@@ -322,7 +321,7 @@ const MultiCloudPage: React.FC = () => {
 
   // Resource columns
   const resourceColumns = [
-    { title: '名称', dataIndex: 'resource_name', key: 'resource_name', width: 160, render: (v: string, r: any) => v || r.name || '-' },
+    { title: '名称', dataIndex: 'resource_name', key: 'resource_name', width: 160, render: (v: string, r: CloudResource) => v || r.resource_name || '-' },
     {
       title: '类型',
       dataIndex: 'resource_type',
@@ -595,7 +594,7 @@ const MultiCloudPage: React.FC = () => {
         <Table
           columns={accountColumns}
           dataSource={accounts}
-          rowKey={(r: any) => r.id || r.account_id}
+          rowKey="account_id"
           loading={loading}
           pagination={{ pageSize: 10 }}
           size="middle"

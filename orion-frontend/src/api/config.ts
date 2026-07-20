@@ -7,7 +7,7 @@ import { api } from './client';
 export interface ConfigItem {
   id: string;
   key: string;
-  value: any;
+  value: unknown;
   version: number;
   environment: string;
   category: string;
@@ -25,7 +25,7 @@ export interface ConfigItem {
 
 export interface ConfigVersion {
   version: number;
-  value: any;
+  value: unknown;
   changedBy: string;
   changedAt: string;
   changeReason?: string;
@@ -58,16 +58,16 @@ export interface Approval {
 }
 
 export interface ConfigDiff {
-  oldValue: any;
-  newValue: any;
+  oldValue: unknown;
+  newValue: unknown;
   changes: ConfigChange[];
 }
 
 export interface ConfigChange {
   path: string;
   operation: 'add' | 'remove' | 'update';
-  oldValue?: any;
-  newValue?: any;
+  oldValue?: unknown;
+  newValue?: unknown;
 }
 
 export interface ConfigFilters {
@@ -93,7 +93,7 @@ export function getConfig(id: string) {
 
 export function createConfig(data: {
   key: string;
-  value: any;
+  value: unknown;
   environment: string;
   category: string;
   description?: string;
@@ -102,7 +102,7 @@ export function createConfig(data: {
   return api.post<ConfigItem>('/api/v1/config/configs', data);
 }
 
-export function updateConfig(id: string, data: { value: any; changeReason?: string }) {
+export function updateConfig(id: string, data: { value: unknown; changeReason?: string }) {
   return api.put<ConfigItem>(`/api/v1/config/configs/${id}`, data);
 }
 
@@ -207,8 +207,8 @@ export function getDiffReport(configId?: string) {
 export interface DriftItem {
   key: string;
   environment: string;
-  localValue: any;
-  remoteValue: any;
+  localValue: unknown;
+  remoteValue: unknown;
   change: ConfigChange;
 }
 
@@ -231,7 +231,7 @@ export function compareConfigs(id: string, version1: number, version2: number) {
   });
 }
 
-export function diffConfigWithCurrent(id: string, newValue: any) {
+export function diffConfigWithCurrent(id: string, newValue: unknown) {
   // Backend uses /diff/:sourceEnv/:targetEnv for env comparison
   return api.post<ConfigDiff>(`/api/v1/config/configs/${id}/versions/diff`, { newValue });
 }

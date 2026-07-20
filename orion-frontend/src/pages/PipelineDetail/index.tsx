@@ -70,6 +70,45 @@ interface TaskOutput {
   propagatedTo: string[];
 }
 
+// Pipeline display types — used for rendering run detail data
+
+export interface PipelineStep {
+  name: string;
+  status: string;
+  duration?: number;
+  logs?: string[];
+}
+
+export interface PipelineStage {
+  id?: string;
+  name: string;
+  status: string;
+  type?: string;
+  duration?: number;
+  steps?: PipelineStep[];
+  logs?: string[];
+  startTime?: string;
+  endTime?: string;
+  dependsOn?: string[];
+}
+
+export interface PipelineDisplay {
+  id: string;
+  name: string;
+  status: string;
+  runNumber: number;
+  branch: string;
+  commit?: string;
+  author?: string;
+  trigger: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number | string;
+  stages: PipelineStage[];
+}
+
+export type StageFilterFn = (s: PipelineStage) => boolean;
+
 // TaskOutputs: backend API not yet available (requires /v1/pipeline-runs/:runId/outputs)
 
 /**
@@ -199,8 +238,10 @@ function extractList<T = unknown>(response: unknown): T[] {
 
   // 后端列表格式: { data: [...], total: N }
   if (Array.isArray(backendResponse)) return backendResponse;
-  if (Array.isArray((backendResponse as any)?.runs)) return (backendResponse as any).runs;
-  if (Array.isArray((backendResponse as any)?.items)) return (backendResponse as any).items;
+  const runs = (backendResponse as Record<string, unknown>)?.runs;
+  if (Array.isArray(runs)) return runs as T[];
+  const items = (backendResponse as Record<string, unknown>)?.items;
+  if (Array.isArray(items)) return items as T[];
   return [];
 }
 
@@ -212,7 +253,7 @@ const PipelineDetail: React.FC = () => {
   const [retryingStageId, setRetryingStageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [pipeline, setPipeline] = useState<any>(null);
+  const [pipeline, setPipeline] = useState<PipelineDisplay | null>(null);
   const [runs, setRuns] = useState<PipelineRunSummary[]>([]);
   const [runsLoading, setRunsLoading] = useState(false);
 
@@ -233,8 +274,8 @@ const PipelineDetail: React.FC = () => {
       }
 
       // Fetch latest runs for this pipeline
-      let latestRun: any = null;
-      let runStages: any[] = [];
+      let latestRun: PipelineRunSummary | null = null;
+      let runStages: PipelineStage[] = [];
       let runsCount = 0;
       try {
         const runsRes = await getPipelineRuns(pid);
@@ -251,9 +292,9 @@ const PipelineDetail: React.FC = () => {
             const runDetailRes = await getPipelineRunDetail(latestRun.id);
             const runDetail = extractData(runDetailRes);
 
-            const rawStagesArr = (runDetail as any)?.stages || [];
-            const rawTasks = (runDetail as any)?.tasks || [];
-            const runInfo = (runDetail as any)?.run || {};
+            const rawStagesArr = (runDetail as Record<string, unknown>)?.stages as unknown as PipelineStage[] || [];
+            const rawTasks = (runDetail as Record<string, unknown>)?.tasks as unknown as PipelineStep[] || [];
+            const runInfo = (runDetail as Record<string, unknown>)?.run as Record<string, unknown> || {};
 
             // Fallback: if stages are empty, try the dedicated stages endpoint
             let stagesToProcess = rawStagesArr;
@@ -261,7 +302,7 @@ const PipelineDetail: React.FC = () => {
               try {
                 const stagesRes = await getPipelineRunStages(latestRun.id);
                 const stagesData = extractData(stagesRes);
-                const fallbackStages = (stagesData as any)?.data ?? (stagesData as any)?.stages ?? stagesData ?? [];
+                const fallbackStages = (stagesData as { data?: unknown[]; stages?: unknown[] })?.data ?? (stagesData as { stages?: unknown[] })?.stages ?? stagesData ?? [];
                 stagesToProcess = Array.isArray(fallbackStages) ? fallbackStages : [];
               } catch (stagesErr) {
                 console.error('[PipelineDetail] Dedicated stages endpoint failed:', stagesErr);
@@ -269,17 +310,17 @@ const PipelineDetail: React.FC = () => {
             }
 
             // Merge tasks into stages as steps
-            runStages = stagesToProcess.map((stage: any) => {
-              const stageTasks = rawTasks.filter((t: any) => t.stageId === stage.id || t.stageName === stage.name);
+            runStages = stagesToProcess.map((stage: PipelineStage) => {
+              const stageTasks = rawTasks.filter((t: PipelineStep) => t.stageId === stage.id || t.stageName === stage.name);
               const durationSec = stage.durationMs ? parseInt(stage.durationMs) / 1000 : undefined;
               return {
                 ...stage,
                 duration: durationSec,
-                steps: stageTasks.map((t: any) => ({
+                steps: stageTasks.map((t: PipelineStep) => ({
                   ...t,
                   duration: t.durationMs ? parseInt(t.durationMs) / 1000 : undefined,
                 })),
-                logs: stageTasks.flatMap((t: any) => t.logs || []),
+                logs: stageTasks.flatMap((t: PipelineStep) => t.logs || []),
               };
             });
 
@@ -325,7 +366,7 @@ const PipelineDetail: React.FC = () => {
 
   // Calculate progress percentage
   const totalStages = pipeline?.stages?.length || 0;
-  const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
+  const completedStages = pipeline?.stages?.filter((s: PipelineStage) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   // Format duration — handles both seconds (number) and durationMs (string)
