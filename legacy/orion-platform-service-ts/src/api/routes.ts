@@ -163,6 +163,7 @@ import visorExecRoutes from './visor-exec-routes';
 import terminalAuditRoutes from './terminal-audit-routes';
 import monitoringRoutes from './monitoring-routes';
 import dbaRoutes from './dba-routes';
+import databaseDevOpsRoutes from './database-devops-routes';
 import billingRoutes from './billing-routes';
 import problemRoutes from './problem-routes';
 
@@ -529,6 +530,8 @@ export default async function apiRoutes(app: FastifyInstance, options: ApiRoutes
   // 注册 DBA API 路由 (Phase 4 - Database DevOps)
 // [ARCHIVED] dba — migrated to Go, TS route retained for backward compatibility
   await registerWithRoleGuard(app, dbaRoutes, '/dba', { database: options.database });
+  // 注册 Database DevOps API 路由 (SQL Audit, Slow Query, Sensitive Data, Schema Change)
+  await registerWithRoleGuard(app, databaseDevOpsRoutes, '/database-devops', { database: options.database });
   // 注册 Billing API 路由 (Phase 4 - Quota & Billing)
   await registerWithRoleGuard(app, billingRoutes, '/billing', { database: options.database });
   // Register self-healing API routes (TASK-702) - PostgreSQL backed
