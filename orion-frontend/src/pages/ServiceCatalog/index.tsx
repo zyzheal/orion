@@ -206,8 +206,8 @@ const ServiceCatalog: React.FC = () => {
       if (requestStatusFilter) params.status = requestStatusFilter;
       const res = await getServiceRequests(params);
       setRequests(res.data || []);
-    } catch (err: any) {
-      message.error(`加载服务请求失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      message.error(`加载服务请求失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setRequestsLoading(false);
     }
@@ -284,9 +284,9 @@ const ServiceCatalog: React.FC = () => {
       setServiceModalOpen(false);
       loadServices();
       loadStats();
-    } catch (err: any) {
-      if (err.errorFields) return; // form validation error
-      message.error(`操作失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation error
+      message.error(`操作失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
@@ -303,8 +303,8 @@ const ServiceCatalog: React.FC = () => {
       }
       loadServices();
       loadStats();
-    } catch (err: any) {
-      message.error(`删除失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      message.error(`删除失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
@@ -319,8 +319,8 @@ const ServiceCatalog: React.FC = () => {
       const detail = await getCatalogService(record.id);
       setSelectedService(detail);
       setActiveTab('service-detail');
-    } catch (err: any) {
-      message.error(`加载服务详情失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      message.error(`加载服务详情失败: ${err instanceof Error ? err.message : '未知错误'}`);
     }
   };
 
@@ -345,9 +345,9 @@ const ServiceCatalog: React.FC = () => {
       setRequestModalOpen(false);
       loadRequests();
       loadStats();
-    } catch (err: any) {
-      if (err.errorFields) return;
-      message.error(`提交失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
+      message.error(`提交失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
@@ -358,8 +358,8 @@ const ServiceCatalog: React.FC = () => {
       const detail = await getServiceRequest(record.id);
       setSelectedRequest(detail);
       setActiveTab('request-detail');
-    } catch (err: any) {
-      message.error(`加载请求详情失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      message.error(`加载请求详情失败: ${err instanceof Error ? err.message : '未知错误'}`);
     }
   };
 
@@ -378,8 +378,8 @@ const ServiceCatalog: React.FC = () => {
       }
       loadRequests();
       loadStats();
-    } catch (err: any) {
-      message.error(`操作失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      message.error(`操作失败: ${err instanceof Error ? err.message : '未知错误'}`);
     } finally {
       setActionLoading(null);
     }
