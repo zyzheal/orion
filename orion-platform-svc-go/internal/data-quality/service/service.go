@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/data-quality/models"
 	"orion/platform-svc-go/internal/data-quality/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -28,7 +29,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -41,7 +42,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -57,7 +58,7 @@ func (s *Service) ListRules(ctx context.Context, tenantID string, filter *models
 func (s *Service) GetRule(ctx context.Context, tenantID, id string) (*models.Rule, error) {
 	rule, err := s.repo.GetRuleByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return rule, nil
 }
@@ -133,7 +134,7 @@ func (s *Service) UpdateRule(ctx context.Context, tenantID, id string, req *mode
 	}
 	updated, err := s.repo.UpdateRule(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -144,7 +145,7 @@ func (s *Service) DeleteRule(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -157,7 +158,7 @@ func (s *Service) CreateScanResult(ctx context.Context, tenantID string, req *mo
 	}
 	_, err := s.GetRule(ctx, tenantID, req.RuleID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	failed := req.FailedRecords
 	passed := req.PassedRecords
@@ -203,7 +204,7 @@ func (s *Service) ListAlerts(ctx context.Context, tenantID string, status *strin
 func (s *Service) GetAlert(ctx context.Context, tenantID, id string) (*models.Alert, error) {
 	alert, err := s.repo.GetAlertByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return alert, nil
 }
@@ -214,7 +215,7 @@ func (s *Service) CreateAlert(ctx context.Context, tenantID string, req *models.
 	}
 	_, err := s.GetRule(ctx, tenantID, req.RuleID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	alert := &models.Alert{
 		TenantID:     tenantID,
@@ -251,7 +252,7 @@ func (s *Service) UpdateAlert(ctx context.Context, tenantID, id string, req *mod
 	}
 	updated, err := s.repo.UpdateAlert(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -262,7 +263,7 @@ func (s *Service) DeleteAlert(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

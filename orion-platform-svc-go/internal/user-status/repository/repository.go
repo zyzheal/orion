@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("status not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -41,7 +40,7 @@ func (r *Repository) GetByUserID(ctx context.Context, tenantID, userID string) (
 	var s models.UserStatus
 	err := r.db.GetContext(ctx, &s, "SELECT * FROM user_statuses WHERE user_id=$1 AND tenant_id=$2", userID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &s, err
 }
@@ -53,7 +52,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, userID string, status
 		"UPDATE user_statuses SET status=$1, message=$2, set_at=$3 WHERE user_id=$4 AND tenant_id=$5 RETURNING *",
 		status, message, now, userID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &s, err
 }

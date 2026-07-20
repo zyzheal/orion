@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/approval/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -396,14 +397,10 @@ func (s *Service) RejectGate(ctx context.Context, tenantID, runID, stageID strin
 
 // --- Errors ---
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func ErrNotFoundApproval(id string) error {
-	return fmt.Errorf("approval %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("approval %q not found: %w", id, sentinel.NotFound)
 }

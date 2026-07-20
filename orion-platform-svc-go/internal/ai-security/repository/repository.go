@@ -8,9 +8,9 @@ import (
 	"orion/platform-svc-go/internal/ai-security/models"
 
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-var ErrNotFound = errors.New("ai-security record not found")
 var ErrVulnerabilityEngine = errors.New("vulnerability scanning engine unavailable")
 var ErrNoFixAvailable = errors.New("no fix available for CVE")
 
@@ -34,7 +34,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var record models.Record
 	err := r.db.GetContext(ctx, &record, "SELECT * FROM ai_securitys WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &record, err
 }
@@ -46,7 +46,7 @@ func (r *Repository) Create(ctx context.Context, tenantID string, req models.Cre
 		tenantID, req.Name, req.Status, req.Config,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &record, err
 }
@@ -58,7 +58,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 		req.Name, req.Status, req.Config, id, tenantID,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &record, err
 }
@@ -73,7 +73,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -93,7 +93,7 @@ func (r *Repository) FindVulnerabilities(ctx context.Context, tenantID string, i
 
 // GetVulnerability retrieves the details for a single CVE by ID.
 func (r *Repository) GetVulnerability(ctx context.Context, tenantID, cveID string) (*models.Vulnerability, error) {
-	return nil, ErrNotFound
+	return nil, sentinel.NotFound
 }
 
 // ListVulnerabilities lists previously recorded vulnerabilities for a tenant,

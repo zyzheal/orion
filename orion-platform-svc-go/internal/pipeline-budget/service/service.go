@@ -12,6 +12,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-budget/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -42,8 +43,7 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-// ErrNotFound is returned when a budget config or alert cannot be located.
-var ErrNotFound = errors.New("pipeline budget not found")
+// sentinel.NotFound is returned when a budget config or alert cannot be located.
 
 // ---------------------------------------------------------------------------
 // Budget CRUD
@@ -151,7 +151,7 @@ func (s *Service) UpsertBudget(ctx context.Context, tenantID, pipelineID string,
 func (s *Service) GetBudgetUsage(ctx context.Context, tenantID, pipelineID string) (*models.BudgetUsage, error) {
 	budget, err := s.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	var period models.BudgetPeriod
@@ -226,7 +226,7 @@ func (s *Service) GetBudgetUsage(ctx context.Context, tenantID, pipelineID strin
 func (s *Service) GetAlerts(ctx context.Context, tenantID, pipelineID string) ([]models.BudgetAlert, error) {
 	budget, err := s.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	var alerts []models.BudgetAlert
 	if err := json.Unmarshal([]byte(budget.Alerts), &alerts); err != nil {
@@ -242,7 +242,7 @@ func (s *Service) GetAlerts(ctx context.Context, tenantID, pipelineID string) ([
 func (s *Service) CreateAlert(ctx context.Context, tenantID, pipelineID string, req *models.CreateAlertRequest) (*models.BudgetAlert, error) {
 	budget, err := s.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	now := unixSec()
 
@@ -286,7 +286,7 @@ func (s *Service) CreateAlert(ctx context.Context, tenantID, pipelineID string, 
 func (s *Service) UpdateAlert(ctx context.Context, tenantID, pipelineID, alertID string, req *models.UpdateAlertRequest) (*models.BudgetAlert, error) {
 	budget, err := s.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	var alerts []models.BudgetAlert
 	if err := json.Unmarshal([]byte(budget.Alerts), &alerts); err != nil {
@@ -338,7 +338,7 @@ func (s *Service) UpdateAlert(ctx context.Context, tenantID, pipelineID, alertID
 func (s *Service) DeleteAlert(ctx context.Context, tenantID, pipelineID, alertID string) error {
 	budget, err := s.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	var alerts []models.BudgetAlert
 	if err := json.Unmarshal([]byte(budget.Alerts), &alerts); err != nil {

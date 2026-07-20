@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/contract/models"
 	"orion/platform-svc-go/internal/contract/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -23,7 +24,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -36,7 +37,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -52,7 +53,7 @@ func (s *Service) ListContracts(ctx context.Context, tenantID string, filter *mo
 func (s *Service) GetContract(ctx context.Context, tenantID, id string) (*models.Contract, error) {
 	c, err := s.repo.GetContractByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return c, nil
 }
@@ -97,7 +98,7 @@ func (s *Service) UpdateContract(ctx context.Context, tenantID, id string, req *
 	}
 	updated, err := s.repo.UpdateContract(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -108,7 +109,7 @@ func (s *Service) DeleteContract(ctx context.Context, tenantID, id string) error
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -121,7 +122,7 @@ func (s *Service) CreateEndpoint(ctx context.Context, tenantID string, contractI
 	}
 	_, err := s.GetContract(ctx, tenantID, contractID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	method := strings.ToUpper(req.Method)
 	authRequired := false
@@ -153,7 +154,7 @@ func (s *Service) DeleteEndpoint(ctx context.Context, tenantID, contractID, id s
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

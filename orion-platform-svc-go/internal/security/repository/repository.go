@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("vulnerability not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -57,7 +56,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &v, `SELECT * FROM vulnerabilities WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -70,7 +69,7 @@ func (r *Repository) GetByCVEID(ctx context.Context, tenantID, cveID string) (*m
 	err := r.db.GetContext(ctx, &v, `SELECT * FROM vulnerabilities WHERE cve_id=$1 AND tenant_id=$2 ORDER BY created_at DESC LIMIT 1`, cveID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -83,7 +82,7 @@ func (r *Repository) GetByCVEIDAndPackage(ctx context.Context, tenantID, cveID, 
 	err := r.db.GetContext(ctx, &v, `SELECT * FROM vulnerabilities WHERE cve_id=$1 AND package_name=$2 AND tenant_id=$3`, cveID, packageName, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, stat
 		string(status), now, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

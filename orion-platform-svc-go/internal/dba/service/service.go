@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/dba/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -226,7 +227,7 @@ func (s *Service) UpdateAuditRule(ctx context.Context, id string, req models.Upd
 func (s *Service) ExecuteDirectQuery(ctx context.Context, tenantID, userID string, req models.DirectQueryRequest) (*models.DirectQueryResponse, error) {
 	ds, err := s.repo.GetDataSource(ctx, req.DataSourceID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			rec := newExecutionRecord(ctx, tenantID, userID, req.DataSourceID, "", req.SQL, "error", "Data source not found", 0, nil)
 			return &models.DirectQueryResponse{
 				Success:         false,

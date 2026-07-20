@@ -13,10 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
+
 	ErrConfigDisabled = errors.New("config disabled")
 )
 
@@ -185,7 +186,7 @@ func (r *Repository) DeleteConfig(ctx context.Context, tenantID, configID string
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

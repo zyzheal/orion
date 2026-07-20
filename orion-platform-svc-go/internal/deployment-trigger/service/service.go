@@ -9,6 +9,7 @@ import (
 
 	"orion/platform-svc-go/internal/deployment-trigger/models"
 	"orion/platform-svc-go/internal/deployment-trigger/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -24,7 +25,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound             = errors.New("deployment trigger not found")
+
 	ErrDisabled             = errors.New("deployment trigger is disabled")
 	ErrInvalidCron          = errors.New("invalid cron expression")
 	ErrInvalidTagPattern    = errors.New("invalid tag pattern")
@@ -50,8 +51,8 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 // Get retrieves a trigger by id.
 func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.DeploymentTrigger, error) {
 	trg, err := s.repo.GetByID(ctx, tenantID, id)
-	if err != nil && err == repository.ErrNotFound {
-		return nil, ErrNotFound
+	if err != nil && err == sentinel.NotFound {
+		return nil, sentinel.NotFound
 	}
 	return trg, err
 }
@@ -76,7 +77,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }
@@ -84,8 +85,8 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 // Execute records an execution attempt for a trigger.
 func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.TriggerExecution, error) {
 	trg, err := s.repo.GetByID(ctx, tenantID, id)
-	if err != nil && err == repository.ErrNotFound {
-		return nil, ErrNotFound
+	if err != nil && err == sentinel.NotFound {
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, id string) (*models.Tri
 func (s *Service) GetExecutions(ctx context.Context, tenantID, id string, limit int) ([]models.TriggerExecution, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.GetExecutions(ctx, id, tenantID, limit)
 }

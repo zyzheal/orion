@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/gateway-dynamic/models"
 	"orion/platform-svc-go/internal/gateway-dynamic/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -94,7 +95,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req models.Up
 		return nil, err
 	}
 	if !exists {
-		return nil, repository.ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	// Build a map of fields to update. Only set fields that are non-nil.

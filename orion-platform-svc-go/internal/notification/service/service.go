@@ -13,6 +13,7 @@ import (
 	notificationRepo "orion/platform-svc-go/internal/notification/repository"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -41,13 +42,13 @@ func NewService(repo *notificationRepo.Repository) *Service {
 // --- Errors ---
 
 var (
-	ErrNotFound     = errors.New("notification not found")
+
 	ErrInvalidInput = errors.New("invalid input")
 )
 
 // IsNotFound returns true if the error indicates a not-found condition.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 // --- Create ---
@@ -133,7 +134,7 @@ func (s *Service) Get(ctx context.Context, tenantID string, id string) (*models.
 	n, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -158,8 +159,8 @@ func (s *Service) Update(ctx context.Context, tenantID string, id string, req *m
 	}
 	n, err := s.repo.UpdateFields(ctx, id, tenantID, updates)
 	if err != nil {
-		if err == notificationRepo.ErrNotFound {
-			return nil, ErrNotFound
+		if err == notificationRepo.sentinel.NotFound {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -177,8 +178,8 @@ func (s *Service) Delete(ctx context.Context, tenantID string, id string) (bool,
 func (s *Service) MarkRead(ctx context.Context, tenantID string, id string) error {
 	err := s.repo.MarkRead(ctx, id, tenantID)
 	if err != nil {
-		if err == notificationRepo.ErrNotFound {
-			return ErrNotFound
+		if err == notificationRepo.sentinel.NotFound {
+			return sentinel.NotFound
 		}
 		return err
 	}

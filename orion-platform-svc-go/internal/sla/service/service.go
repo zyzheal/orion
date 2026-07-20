@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/sla/models"
 	"orion/platform-svc-go/internal/sla/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -79,7 +80,7 @@ func (s *Service) GetDefinition(ctx context.Context, tenantID, id string) (*mode
 	d, err := s.repo.GetDefinitionByID(ctx, tenantID, id)
 	if err != nil {
 		if repository.IsNotFound(err) {
-			return nil, fmt.Errorf("definition %q not found: %w", id, repository.ErrNotFound)
+			return nil, fmt.Errorf("definition %q not found: %w", id, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -152,7 +153,7 @@ func (s *Service) StartTracking(ctx context.Context, tenantID string, req models
 	_, err := s.repo.GetDefinitionByID(ctx, tenantID, req.DefinitionID)
 	if err != nil {
 		if repository.IsNotFound(err) {
-			return nil, fmt.Errorf("sla definition %q not found: %w", req.DefinitionID, repository.ErrNotFound)
+			return nil, fmt.Errorf("sla definition %q not found: %w", req.DefinitionID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -175,7 +176,7 @@ func (s *Service) GetTracking(ctx context.Context, tenantID, id string) (*models
 	t, err := s.repo.GetTrackingByID(ctx, tenantID, id)
 	if err != nil {
 		if repository.IsNotFound(err) {
-			return nil, fmt.Errorf("tracking %q not found: %w", id, repository.ErrNotFound)
+			return nil, fmt.Errorf("tracking %q not found: %w", id, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -307,7 +308,7 @@ func IsNotFound(err error) bool {
 }
 
 func ErrNotFoundSlaEntity(id string) error {
-	return fmt.Errorf("sla entity %q not found: %w", id, repository.ErrNotFound)
+	return fmt.Errorf("sla entity %q not found: %w", id, sentinel.NotFound)
 }
 
 func (s *Service) UpdateTracking(ctx context.Context, tenantID, id string, req models.UpdateTrackingRequest) (*models.SLATracking, error) {

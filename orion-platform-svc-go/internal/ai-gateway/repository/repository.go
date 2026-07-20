@@ -9,9 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("gateway request not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -33,7 +32,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var resp models.GatewayResponse
 	err := r.db.GetContext(ctx, &resp, "SELECT * FROM ai_gateway_requests WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &resp, err
 }

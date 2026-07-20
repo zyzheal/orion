@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/event-trigger/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -19,10 +20,6 @@ type RepositoryInterface interface {
 	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.EventTrigger, error)
 	Update(ctx context.Context, t *models.EventTrigger) error
 }
-
-var (
-	ErrNotFound = errors.New("not found")
-)
 
 // Service provides business logic for event triggers.
 type Service struct {
@@ -58,7 +55,7 @@ func (s *Service) Create(ctx context.Context, tenantID, userID string, req *mode
 func (s *Service) GetByID(ctx context.Context, tenantID, id string) (*models.EventTrigger, error) {
 	t, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: trigger %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: trigger %s", sentinel.NotFound, id)
 	}
 	return t, nil
 }
@@ -77,7 +74,7 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateTriggerRequest) (*models.EventTrigger, error) {
 	existing, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: trigger %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: trigger %s", sentinel.NotFound, id)
 	}
 
 	// Apply non-empty request fields over existing values.

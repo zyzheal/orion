@@ -16,7 +16,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("gateway request not found")
+
 	ErrBadRequest = errors.New("invalid request")
 )
 

@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound indicates the requested resource does not exist.
-var ErrNotFound = errors.New("not found")
+// sentinel.NotFound indicates the requested resource does not exist.
 
 // Repository provides data access for notifications.
 type Repository struct {
@@ -143,7 +143,7 @@ func (r *Repository) MarkRead(ctx context.Context, id string, tenantID string) e
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -176,7 +176,7 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Not
 // UpdateFields performs a partial update using a map of column names to values.
 func (r *Repository) UpdateFields(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Notification, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -196,7 +196,7 @@ func (r *Repository) UpdateFields(ctx context.Context, id string, tenantID strin
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, id, tenantID)
 }

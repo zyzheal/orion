@@ -8,9 +8,8 @@ import (
     "orion/platform-svc-go/internal/capacity/models"
 
     "github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("capacity not found")
 
 type Repository struct {
     db *sqlx.DB
@@ -30,19 +29,19 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
     var record models.Record
     err := r.db.GetContext(ctx, &record, "SELECT * FROM capacitys WHERE id=$1 AND tenant_id=$2", id, tenantID)
     if errors.Is(err, sql.ErrNoRows) {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     return &record, err
 }
 
 func (r *Repository) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
-    return nil, ErrNotFound
+    return nil, sentinel.NotFound
 }
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
-    return nil, ErrNotFound
+    return nil, sentinel.NotFound
 }
 
 func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
-    return ErrNotFound
+    return sentinel.NotFound
 }

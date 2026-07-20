@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("channel not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -39,7 +38,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var channel models.NotificationChannel
 	err := r.db.GetContext(ctx, &channel, `SELECT * FROM notification_channels WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &channel, nil
 }
@@ -79,7 +78,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.C
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.NotificationChannel, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	setClauses := make([]string, 0, len(updates))
 	args := make([]interface{}, 0, len(updates)+2)

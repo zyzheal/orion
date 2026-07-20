@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/iac/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -521,12 +522,8 @@ func (s *Service) DeleteModule(ctx context.Context, tenantID, id string) error {
 
 // --- Errors ---
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || (err != nil && contains(err, "not found"))
+	return errors.Is(err, sentinel.NotFound) || (err != nil && contains(err, "not found"))
 }
 
 func contains(err error, s string) bool {

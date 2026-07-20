@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -29,7 +30,6 @@ type Service struct {
 	repo RepositoryInterface
 }
 
-var ErrNotFound = errors.New("user not found")
 var ErrInvalidPassword = errors.New("invalid password")
 
 // NewService creates a new Service instance.
@@ -192,7 +192,7 @@ func (s *Service) ChangePassword(ctx context.Context, tenantID, userID string, r
 
 	user, err := s.repo.GetByID(ctx, tenantID, userID)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword)); err != nil {
@@ -210,7 +210,7 @@ func (s *Service) ChangePassword(ctx context.Context, tenantID, userID string, r
 // Delete removes a user by id.
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	if _, err := s.repo.GetByID(ctx, tenantID, id); err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }

@@ -10,10 +10,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrDuplicate  = errors.New("duplicate record")
 )
 

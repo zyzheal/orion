@@ -12,6 +12,7 @@ import (
 
 	"orion/platform-svc-go/internal/audit/models"
 	"orion/platform-svc-go/internal/audit/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -596,11 +597,11 @@ func (s *Service) CoverageStats(ctx context.Context, tenantID string) (*models.A
 
 // Known sentinel errors used by handlers for status-code routing.
 var (
-	ErrNotFound      = errors.New("not found")
+
 	ErrInvalidFormat = errors.New("invalid format")
 )
 
 // IsNotFound returns true if the error indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

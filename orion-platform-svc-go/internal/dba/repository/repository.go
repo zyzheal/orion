@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -21,8 +22,7 @@ func NewRepository(db *sqlx.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// ErrNotFound is returned when a resource is not found.
-var ErrNotFound = errors.New("dba resource not found")
+// sentinel.NotFound is returned when a resource is not found.
 
 // ---- SQL Orders ----
 
@@ -43,7 +43,7 @@ func (r *Repository) GetOrder(ctx context.Context, id string) (*models.SqlOrder,
 		`SELECT * FROM dba_sql_orders WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (r *Repository) UpdateOrderStatus(ctx context.Context, id, status string, a
 	err := r.db.GetContext(ctx, &o, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func (r *Repository) GetDataSource(ctx context.Context, id string) (*models.Data
 		`SELECT * FROM dba_data_sources WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (r *Repository) DeleteDataSource(ctx context.Context, id string) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -204,7 +204,7 @@ func (r *Repository) GetAuditRule(ctx context.Context, id string) (*models.Audit
 		`SELECT * FROM dba_audit_rules WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

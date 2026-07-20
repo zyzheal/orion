@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/vector/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -17,8 +18,6 @@ type RepositoryInterface interface {
 	SearchVectors(ctx context.Context, tenantID, storeID string, vec []float64, limit int) ([]models.SearchResult, error)
 	UpsertVector(ctx context.Context, tenantID, storeID string, vec []float64, meta map[string]string) error
 }
-
-var ErrNotFound = errors.New("vector store not found")
 
 type Service struct {
 	repo RepositoryInterface
@@ -62,7 +61,7 @@ func (s *Service) CreateStore(ctx context.Context, tenantID string, req models.C
 func (s *Service) DeleteStore(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetStore(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.DeleteStore(ctx, tenantID, id)
 }
@@ -70,7 +69,7 @@ func (s *Service) DeleteStore(ctx context.Context, tenantID, id string) error {
 func (s *Service) UpsertVectors(ctx context.Context, tenantID, storeID string, req models.UpsertVectorsRequest) error {
 	_, err := s.repo.GetStore(ctx, tenantID, storeID)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.UpsertVector(ctx, tenantID, storeID, req.Vector, req.Metadata)
 }

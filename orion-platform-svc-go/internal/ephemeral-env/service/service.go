@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ephemeral-env/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -19,8 +20,6 @@ type RepositoryInterface interface {
 	ListEnvs(ctx context.Context, tenantID string, limit, offset int) ([]models.EphemeralEnv, error)
 	UpdateEnv(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
-
-var ErrNotFound = errors.New("ephemeral env not found")
 
 type Service struct {
 	repo RepositoryInterface

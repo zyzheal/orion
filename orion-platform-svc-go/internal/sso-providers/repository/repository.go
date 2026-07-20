@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("sso provider not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -37,7 +36,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var provider models.SSOProvider
 	err := r.db.GetContext(ctx, &provider, `SELECT * FROM sso_providers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &provider, nil
 }
@@ -73,7 +72,7 @@ func (r *Repository) List(ctx context.Context, tenantID string, filter *models.S
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.SSOProvider, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	setClauses := make([]string, 0, len(updates))

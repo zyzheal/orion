@@ -9,9 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("efficiency record not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -89,7 +88,7 @@ func (r *Repository) GetTeamData(ctx context.Context, tenantID, teamID string) (
 	err := r.db.GetContext(ctx, &t,
 		`SELECT * FROM efficiency_team_data WHERE tenant_id=$1 AND id=$2`, tenantID, teamID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &t, err
 }
@@ -118,7 +117,7 @@ func (r *Repository) GetProjectData(ctx context.Context, tenantID, projectID str
 	err := r.db.GetContext(ctx, &p,
 		`SELECT * FROM efficiency_project_data WHERE tenant_id=$1 AND id=$2`, tenantID, projectID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &p, err
 }

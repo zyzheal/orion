@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -56,7 +57,7 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, err.Error())
 			return
 		}
@@ -92,7 +93,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 	result, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, err.Error())
 			return
 		}
@@ -107,7 +108,7 @@ func (h *Handler) Delete(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, err.Error())
 			return
 		}
@@ -131,7 +132,7 @@ func (h *Handler) GetExecutions(c *gin.Context) {
 	}
 	results, err := h.svc.GetExecutions(ctx, tenantID, c.Param("id"), limit)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, err.Error())
 			return
 		}
@@ -151,7 +152,7 @@ func (h *Handler) Execute(c *gin.Context) {
 	result, err := h.svc.Execute(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		switch err {
-		case service.ErrNotFound:
+		case sentinel.NotFound:
 			middleware.RespondNotFound(c, err.Error())
 		case service.ErrDisabled:
 			errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)

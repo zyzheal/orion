@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -80,7 +79,7 @@ func (r *Repository) ListWindows(ctx context.Context, tenantID string, environme
 
 func (r *Repository) UpdateWindow(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.DeployWindow, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -100,7 +99,7 @@ func (r *Repository) UpdateWindow(ctx context.Context, id string, tenantID strin
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetWindowByID(ctx, id, tenantID)
 }
@@ -164,7 +163,7 @@ func (r *Repository) GetProgressiveDeploy(ctx context.Context, id string, tenant
 
 func (r *Repository) UpdateProgressiveDeploy(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ProgressiveDeploy, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -184,7 +183,7 @@ func (r *Repository) UpdateProgressiveDeploy(ctx context.Context, id string, ten
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetProgressiveDeploy(ctx, id, tenantID)
 }
@@ -237,7 +236,7 @@ func (r *Repository) ListEmergencyDeploys(ctx context.Context, tenantID string, 
 
 func (r *Repository) UpdateEmergencyDeploy(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.EmergencyDeploy, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -260,5 +259,5 @@ func (r *Repository) UpdateEmergencyDeploy(ctx context.Context, id string, tenan
 
 // IsNotFound returns true for database not-found errors.
 func IsNotFound(err error) bool {
-	return err == sql.ErrNoRows || errors.Is(err, ErrNotFound)
+	return err == sql.ErrNoRows || errors.Is(err, sentinel.NotFound)
 }

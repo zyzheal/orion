@@ -15,6 +15,7 @@ import (
 
 	"orion/platform-svc-go/internal/governance/models"
 	"orion/platform-svc-go/internal/governance/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -42,12 +43,12 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 var (
-	ErrNotFound        = errors.New("governance resource not found")
+
 	ErrPolicyNotActive = errors.New("policy must be active to apply")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound) || errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 // ---- Policies ----
@@ -73,7 +74,7 @@ func (s *Service) CreatePolicy(ctx context.Context, req *models.CreatePolicyRequ
 func (s *Service) GetPolicy(ctx context.Context, id, tenantID string) (*models.GovernancePolicy, error) {
 	p, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return p, nil
 }
@@ -85,7 +86,7 @@ func (s *Service) ListPolicies(ctx context.Context, tenantID string, q *models.P
 func (s *Service) UpdatePolicy(ctx context.Context, id, tenantID string, req *models.UpdatePolicyRequest, userID string) (*models.GovernancePolicy, error) {
 	existing, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	updates := map[string]interface{}{}
@@ -120,7 +121,7 @@ func (s *Service) UpdatePolicy(ctx context.Context, id, tenantID string, req *mo
 
 	p, err := s.repo.UpdatePolicy(ctx, id, tenantID, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	// Audit: update
 	s.repo.CreateAuditLog(ctx, id, &repository.AuditLogCreateReq{
@@ -138,7 +139,7 @@ func (s *Service) UpdatePolicy(ctx context.Context, id, tenantID string, req *mo
 func (s *Service) DeletePolicy(ctx context.Context, id, tenantID string, userID string) error {
 	existing, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	// Audit: delete
 	s.repo.CreateAuditLog(ctx, id, &repository.AuditLogCreateReq{
@@ -158,11 +159,11 @@ func (s *Service) DeletePolicy(ctx context.Context, id, tenantID string, userID 
 func (s *Service) EnablePolicy(ctx context.Context, id, tenantID string, userID string) (*models.GovernancePolicy, error) {
 	p, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	p, err = s.repo.UpdatePolicyStatus(ctx, id, tenantID, models.PolicyStatusActive)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	s.repo.CreateAuditLog(ctx, id, &repository.AuditLogCreateReq{
 		Action:       "enable",
@@ -179,11 +180,11 @@ func (s *Service) EnablePolicy(ctx context.Context, id, tenantID string, userID 
 func (s *Service) DisablePolicy(ctx context.Context, id, tenantID string, userID string) (*models.GovernancePolicy, error) {
 	p, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	p, err = s.repo.UpdatePolicyStatus(ctx, id, tenantID, models.PolicyStatusPaused)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	s.repo.CreateAuditLog(ctx, id, &repository.AuditLogCreateReq{
 		Action:       "disable",
@@ -351,7 +352,7 @@ func (s *Service) GetComplianceReport(ctx context.Context, tenantID string, peri
 func (s *Service) ApplyPolicy(ctx context.Context, id, tenantID string, req *models.ApplyPolicyRequest, userID string) (*models.PolicyApplyResult, error) {
 	p, err := s.repo.GetPolicy(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if p.Status != models.PolicyStatusActive {
 		return nil, ErrPolicyNotActive

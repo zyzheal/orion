@@ -13,9 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -960,7 +959,7 @@ func (r *Repository) TestWebhook(ctx context.Context, tenantID, webhookID string
 	err := r.db.GetContext(ctx, &m,
 		`SELECT * FROM chatops_webhooks WHERE id=$1 AND tenant_id=$2`, webhookID, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &models.TestWebhookResult{
 		Success: true,

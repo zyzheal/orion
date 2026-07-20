@@ -16,6 +16,7 @@ import (
 	"orion/platform-svc-go/internal/secret/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -60,12 +61,11 @@ func NewServiceWithKey(repo RepositoryInterface, key string) *Service {
 	}
 }
 
-// ErrNotFound is returned when a secret cannot be located.
-var ErrNotFound = errors.New("secret not found")
+// sentinel.NotFound is returned when a secret cannot be located.
 
 // IsNotFound checks if an error is a not-found error.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 // SecretListItem is the metadata-only view of a secret (value excluded).
@@ -141,7 +141,7 @@ func (s *Service) List(ctx context.Context, tenantID string, filter *models.List
 func (s *Service) Get(ctx context.Context, id string) (*SecretListItem, error) {
 	sec, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return toSecretListItem(sec, maskedValue), nil
 }
@@ -150,7 +150,7 @@ func (s *Service) Get(ctx context.Context, id string) (*SecretListItem, error) {
 func (s *Service) GetByName(ctx context.Context, tenantID, name, scope string) (*SecretListItem, error) {
 	sec, err := s.repo.GetByTenantAndName(ctx, tenantID, name, scope)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return toSecretListItem(sec, maskedValue), nil
 }
@@ -159,10 +159,10 @@ func (s *Service) GetByName(ctx context.Context, tenantID, name, scope string) (
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateSecretRequest) (*SecretListItem, error) {
 	sec, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if sec.TenantID != tenantID {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if req.Value != nil {
@@ -183,7 +183,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 
 	updated, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return toSecretListItem(updated, maskedValue), nil
 }
@@ -192,10 +192,10 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	sec, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	if sec.TenantID != tenantID {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, id)
 }
@@ -230,7 +230,7 @@ func (s *Service) Resolve(ctx context.Context, tenantID string, req *models.Reso
 func (s *Service) GetReferences(ctx context.Context, id string) (*models.Secret, error) {
 	sec, err := s.repo.GetByID(ctx, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return sec, nil
 }
@@ -239,8 +239,8 @@ func (s *Service) GetReferences(ctx context.Context, id string) (*models.Secret,
 func (s *Service) getSecretValue(ctx context.Context, tenantID, name string) (*SecretValue, error) {
 	sec, err := s.repo.GetByTenantAndName(ctx, tenantID, name, "")
 	if err != nil {
-		if errors.Is(err, ErrNotFound) || IsNotFound(err) {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) || IsNotFound(err) {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

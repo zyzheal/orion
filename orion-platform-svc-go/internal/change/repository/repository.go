@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -370,14 +371,14 @@ func (r *Repository) AddCABDecision(ctx context.Context, tenantID, cabID, change
 // --- Errors ---
 
 var (
-	ErrNotFound      = errors.New("change not found")
+
 	ErrRFCNotFound   = errors.New("rfc not found")
 	ErrCABNotFound   = errors.New("cab meeting not found")
 	ErrInvalidStatus = errors.New("invalid status")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, sql.ErrNoRows)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sql.ErrNoRows)
 }
 
 // --- Helpers ---

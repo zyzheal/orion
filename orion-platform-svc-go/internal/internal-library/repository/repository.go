@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -43,7 +44,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM internal_libraries WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("library not found: %w", ErrNotFound)
+			return nil, fmt.Errorf("library not found: %w", sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (r *Repository) GetByName(ctx context.Context, tenantID, name string) (*mod
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM internal_libraries WHERE name=$1 AND tenant_id=$2`, name, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("library not found: %w", ErrNotFound)
+			return nil, fmt.Errorf("library not found: %w", sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -121,7 +122,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return nil, fmt.Errorf("library not found: %w", ErrNotFound)
+		return nil, fmt.Errorf("library not found: %w", sentinel.NotFound)
 	}
 	return r.GetByID(ctx, tenantID, id)
 }
@@ -148,7 +149,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return fmt.Errorf("library not found: %w", ErrNotFound)
+		return fmt.Errorf("library not found: %w", sentinel.NotFound)
 	}
 	return nil
 }
@@ -188,7 +189,7 @@ func (r *Repository) GetVersion(ctx context.Context, libraryID, version string) 
 	err := r.db.GetContext(ctx, &v, `SELECT * FROM library_versions WHERE library_id=$1 AND version=$2`, libraryID, version)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("version not found: %w", ErrNotFound)
+			return nil, fmt.Errorf("version not found: %w", sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -285,8 +286,6 @@ func (r *Repository) CheckDependencies(ctx context.Context, repoName string) ([]
 // Errors
 // ---------------------------------------------------------------------------
 
-var ErrNotFound = errors.New("not found")
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

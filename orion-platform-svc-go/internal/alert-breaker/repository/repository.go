@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("alert breaker not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -40,7 +39,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var a models.AlertBreaker
 	err := r.db.GetContext(ctx, &a, `SELECT * FROM alert_breakers WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &a, nil
 }
@@ -58,7 +57,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.AlertB
 
 func (r *Repository) Update(ctx context.Context, tenantID, id string, fields map[string]interface{}) (*models.AlertBreaker, error) {
 	if len(fields) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	setClauses := make([]string, 0, len(fields)+1)
 	args := make([]interface{}, 0, len(fields)+3)
@@ -81,7 +80,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, fields map
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, tenantID, id)
 }

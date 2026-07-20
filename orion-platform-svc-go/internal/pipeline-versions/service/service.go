@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-versions/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -24,7 +25,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound         = errors.New("version not found")
+
 	ErrBadRequest       = errors.New("bad request")
 	ErrLocked           = errors.New("version locked")
 	ErrAlreadyPublished = errors.New("version already published")
@@ -55,7 +56,7 @@ func NewService(repo Repository) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -121,7 +122,7 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, pipelineID string
 func (s *Service) GetVersion(ctx context.Context, tenantID, versionID string) (*models.Version, error) {
 	v, err := s.repo.GetVersion(ctx, tenantID, versionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return v, nil
 }
@@ -140,7 +141,7 @@ func (s *Service) UpdateVersion(ctx context.Context, tenantID, versionID string,
 
 	v, err := s.repo.GetVersion(ctx, tenantID, versionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if v.Status == models.StatusPublished {
@@ -175,7 +176,7 @@ func (s *Service) UpdateVersion(ctx context.Context, tenantID, versionID string,
 
 	updated, err := s.repo.UpdateVersion(ctx, tenantID, versionID, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -186,7 +187,7 @@ func (s *Service) DeleteVersion(ctx context.Context, tenantID, versionID string)
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -196,7 +197,7 @@ func (s *Service) DeleteVersion(ctx context.Context, tenantID, versionID string)
 func (s *Service) PublishVersion(ctx context.Context, tenantID, versionID string, req *models.PublishVersionRequest) (*models.Version, error) {
 	v, err := s.repo.GetVersion(ctx, tenantID, versionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if v.Status == models.StatusPublished {
@@ -220,7 +221,7 @@ func (s *Service) PublishVersion(ctx context.Context, tenantID, versionID string
 	}
 	updated, err := s.repo.GetVersion(ctx, tenantID, versionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -229,7 +230,7 @@ func (s *Service) PublishVersion(ctx context.Context, tenantID, versionID string
 
 func (s *Service) DeprecateVersion(ctx context.Context, tenantID, versionID string) (*models.Version, error) {
 	if _, err := s.repo.GetVersion(ctx, tenantID, versionID); err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if err := s.repo.SetStatusDeprecated(ctx, tenantID, versionID); err != nil {
@@ -237,7 +238,7 @@ func (s *Service) DeprecateVersion(ctx context.Context, tenantID, versionID stri
 	}
 	updated, err := s.repo.GetVersion(ctx, tenantID, versionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -273,11 +274,11 @@ func (s *Service) CompareVersions(ctx context.Context, tenantID string, req *mod
 
 	from, err := s.repo.GetVersion(ctx, tenantID, req.FromVersionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	to, err := s.repo.GetVersion(ctx, tenantID, req.ToVersionID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	includeConfig := true

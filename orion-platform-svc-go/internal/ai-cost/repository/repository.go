@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("cost record not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -34,7 +33,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var record models.CostRecord
 	err := r.db.GetContext(ctx, &record, "SELECT * FROM ai_cost_records WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &record, err
 }

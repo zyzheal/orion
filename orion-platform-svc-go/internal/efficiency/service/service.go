@@ -14,6 +14,7 @@ import (
 	"orion/platform-svc-go/internal/efficiency/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -36,12 +37,12 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("record not found")
+
 	ErrBadRequest = errors.New("bad request")
 	ErrLocked     = errors.New("locked")
 )
 
-func IsNotFound(err error) bool   { return errors.Is(err, ErrNotFound) }
+func IsNotFound(err error) bool   { return errors.Is(err, sentinel.NotFound) }
 func IsBadRequest(err error) bool { return errors.Is(err, ErrBadRequest) }
 func IsLocked(err error) bool     { return errors.Is(err, ErrLocked) }
 

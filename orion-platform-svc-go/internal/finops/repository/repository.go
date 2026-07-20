@@ -14,9 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 // validEntityType checks if the entity type is allowed.
 func validEntityType(t models.CostEntityType) bool {
@@ -881,7 +880,7 @@ func (r *Repository) GetCostRecordsForForecast(ctx context.Context, tenantID str
 
 func buildUpdateSet(updates map[string]interface{}) (string, []interface{}, error) {
 	if len(updates) == 0 {
-		return "", nil, ErrNotFound
+		return "", nil, sentinel.NotFound
 	}
 	setClauses := []string{}
 	args := []interface{}{}

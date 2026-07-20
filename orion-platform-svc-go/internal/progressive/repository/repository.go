@@ -13,10 +13,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound indicates a requested resource could not be found.
-var ErrNotFound = errors.New("progressive deployment not found")
+// sentinel.NotFound indicates a requested resource could not be found.
 
 // ErrStageNotFound indicates a requested stage could not be found.
 var ErrStageNotFound = errors.New("rollout stage not found")
@@ -122,7 +122,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &d,
 		`SELECT * FROM progressive_deployments WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &d, nil
 }

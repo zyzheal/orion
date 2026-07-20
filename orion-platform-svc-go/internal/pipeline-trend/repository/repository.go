@@ -9,9 +9,8 @@ import (
 	"orion/platform-svc-go/internal/pipeline-trend/models"
 
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB

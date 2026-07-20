@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -55,7 +54,7 @@ func (r *Repository) ListTemplates(ctx context.Context, tenantID string) ([]mode
 
 func (r *Repository) UpdateTemplate(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PipelineTemplate, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -79,7 +78,7 @@ func (r *Repository) UpdateTemplate(ctx context.Context, id string, tenantID str
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetTemplateByID(ctx, id, tenantID)
 }

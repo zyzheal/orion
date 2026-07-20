@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("supply chain record not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -216,4 +215,3 @@ func (r *Repository) GetSignatureCountForArtifact(ctx context.Context, artifactI
 		`SELECT COUNT(*) FROM artifact_signatures WHERE artifact_id = $1`, artifactID)
 	return count, err
 }
-

@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("SLO not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -52,7 +51,7 @@ func (r *Repository) GetSLO(ctx context.Context, tenantID, id string) (*models.S
 	var slo models.SLODefinition
 	err := r.db.GetContext(ctx, &slo, `SELECT * FROM slo_definitions WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &slo, nil
 }
@@ -151,7 +150,7 @@ func (r *Repository) GetLatestErrorBudget(ctx context.Context, sloID, tenantID s
 		ORDER BY period_start DESC LIMIT 1
 	`, sloID, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &eb, nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/data-lineage/models"
 	"orion/platform-svc-go/internal/data-lineage/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -24,7 +25,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -37,7 +38,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -53,7 +54,7 @@ func (s *Service) ListLineages(ctx context.Context, tenantID string, status *str
 func (s *Service) GetLineage(ctx context.Context, tenantID, id string) (*models.Lineage, error) {
 	l, err := s.repo.GetLineageByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return l, nil
 }
@@ -93,7 +94,7 @@ func (s *Service) UpdateLineage(ctx context.Context, tenantID, id string, req *m
 	}
 	updated, err := s.repo.UpdateLineage(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -104,7 +105,7 @@ func (s *Service) DeleteLineage(ctx context.Context, tenantID, id string) error 
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -117,7 +118,7 @@ func (s *Service) CreateNode(ctx context.Context, tenantID string, lineageID str
 	}
 	_, err := s.GetLineage(ctx, tenantID, lineageID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	node := &models.Node{
 		LineageID:  lineageID,
@@ -143,7 +144,7 @@ func (s *Service) CreateRelationship(ctx context.Context, tenantID string, linea
 	}
 	_, err := s.GetLineage(ctx, tenantID, lineageID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	rel := &models.Relationship{
 		LineageID:    lineageID,

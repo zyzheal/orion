@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 // PipelineDefinition is the database model for the pipeline_definitions table.
 type PipelineDefinition struct {

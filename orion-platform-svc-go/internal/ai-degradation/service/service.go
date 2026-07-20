@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/ai-degradation/models"
 	"orion/platform-svc-go/internal/ai-degradation/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -29,8 +30,6 @@ type RepositoryInterface interface {
 	UpdateConfigTriggered(ctx context.Context, tenantID, configID string, triggeredAt int64) error
 	UpdateHistoryRecovered(ctx context.Context, tenantID, historyID string, recoveredAt int64) error
 }
-
-var ErrNotFound = errors.New("degradation config not found")
 
 // DegradationService exposes the methods the handler expects.
 type DegradationService struct {

@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/artifact-lifecycle/models"
 	"orion/platform-svc-go/internal/artifact-lifecycle/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -22,7 +23,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound      = errors.New("artifact lifecycle not found")
+
 	ErrAlreadyExists = errors.New("artifact lifecycle already exists")
 )
 
@@ -36,7 +37,7 @@ func NewService(repo RepositoryInterface) *Service {
 
 func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateArtifactLifecycleRequest) (*models.ArtifactLifecycle, error) {
 	_, err := s.repo.GetByArtifactID(ctx, tenantID, req.ArtifactID)
-	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+	if err != nil && !errors.Is(err, sentinel.NotFound) {
 		return nil, err
 	}
 	if err == nil {
@@ -77,7 +78,7 @@ func (s *Service) List(ctx context.Context, tenantID string, limit, offset int) 
 func (s *Service) AdvanceStage(ctx context.Context, tenantID, id string, req models.AdvanceStageRequest) (*models.ArtifactLifecycle, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates := map[string]interface{}{
 		"stage": req.Stage,
@@ -91,7 +92,7 @@ func (s *Service) AdvanceStage(ctx context.Context, tenantID, id string, req mod
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }
@@ -103,7 +104,7 @@ func (s *Service) GetStageHistory(ctx context.Context, tenantID, artifactID stri
 func (s *Service) Archive(ctx context.Context, tenantID, id string) (*models.ArtifactLifecycle, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if err := s.repo.Archive(ctx, tenantID, id); err != nil {
 		return nil, err
@@ -112,5 +113,5 @@ func (s *Service) Archive(ctx context.Context, tenantID, id string) (*models.Art
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }

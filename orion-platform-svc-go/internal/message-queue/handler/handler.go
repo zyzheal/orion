@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

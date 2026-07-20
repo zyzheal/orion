@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/permission-audit/models"
 	"orion/platform-svc-go/internal/permission-audit/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -17,7 +18,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = repository.ErrNotFound
+	ErrNotFound   = sentinel.NotFound
 	ErrBadRequest = errors.New("bad request")
 )
 

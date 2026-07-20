@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/monitoring/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -919,16 +920,12 @@ func (s *Service) CollectSystemMetrics(ctx context.Context, tenantID string, req
 
 // --- Errors ---------------------------------------------------------
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func ErrNotFoundResource(name string) error {
-	return fmt.Errorf("%s not found: %w", name, ErrNotFound)
+	return fmt.Errorf("%s not found: %w", name, sentinel.NotFound)
 }
 
 // --- Package-level constants ----------------------------------------

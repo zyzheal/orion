@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/build/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -27,7 +28,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound     = errors.New("not found")
+
 	ErrInvalidInput = errors.New("invalid input")
 	ErrInvalidState = errors.New("invalid state")
 )

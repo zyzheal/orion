@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("token not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -52,7 +51,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 		`SELECT * FROM user_tokens WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -67,7 +66,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

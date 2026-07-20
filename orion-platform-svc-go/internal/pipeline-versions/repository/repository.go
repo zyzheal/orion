@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("pipeline version not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -48,7 +47,7 @@ func (r *Repository) GetVersion(ctx context.Context, tenantID, id string) (*mode
 	err := r.db.GetContext(ctx, &v,
 		`SELECT * FROM pipeline_versions WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &v, err
 }
@@ -81,7 +80,7 @@ func (r *Repository) ListVersions(ctx context.Context, tenantID, pipelineID stri
 // UpdateVersion applies partial updates to a version.
 func (r *Repository) UpdateVersion(ctx context.Context, tenantID, id string, updates map[string]any) (*models.Version, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	clauses, args, i := buildUpdateClauses(updates)
 	args = append(args, id, tenantID)

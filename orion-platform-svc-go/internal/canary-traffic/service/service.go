@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/canary-traffic/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -17,7 +18,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound       = errors.New("canary traffic not found")
+
 	ErrInvalidWeights = errors.New("control_weight + canary_weight must not exceed 100")
 )
 
@@ -65,7 +66,7 @@ func (s *Service) Create(ctx context.Context, req *models.CreateRequest, tenantI
 func (s *Service) Get(ctx context.Context, id, tenantID string) (*models.CanaryTraffic, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return cb, nil
 }
@@ -84,7 +85,7 @@ func (s *Service) List(ctx context.Context, tenantID string) ([]models.CanaryTra
 func (s *Service) Update(ctx context.Context, id, tenantID string, req *models.UpdateRequest) (*models.CanaryTraffic, error) {
 	_, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	attrs := make(map[string]interface{})
 	if req.Name != nil {
@@ -121,7 +122,7 @@ func (s *Service) Delete(ctx context.Context, id, tenantID string) (bool, error)
 func (s *Service) AdjustWeight(ctx context.Context, id, tenantID string, canaryWeight int) (*models.CanaryTraffic, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if canaryWeight < 0 || canaryWeight > 100 {
 		return nil, errors.New("canary_weight must be between 0 and 100")
@@ -140,7 +141,7 @@ func (s *Service) AdjustWeight(ctx context.Context, id, tenantID string, canaryW
 func (s *Service) GetTrafficSplit(ctx context.Context, id, tenantID string) (*models.TrafficSplit, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &models.TrafficSplit{
 		ControlWeight: cb.ControlWeight,

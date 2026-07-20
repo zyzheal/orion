@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -165,8 +166,6 @@ func (r *Repository) UpdateReplaySession(ctx context.Context, id, status string)
 
 // --- Sentinel errors ---
 
-var ErrNotFound = errors.New("not found")
-
 func ErrNotFoundMsg(msg string) error {
-	return fmt.Errorf("%s: %w", msg, ErrNotFound)
+	return fmt.Errorf("%s: %w", msg, sentinel.NotFound)
 }

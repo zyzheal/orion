@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/user-token/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -15,8 +16,6 @@ type RepositoryInterface interface {
 	Delete(ctx context.Context, tenantID, id string) error
 	ListByUserID(ctx context.Context, tenantID, userID string) ([]models.Token, error)
 }
-
-var ErrForbidden = errors.New("forbidden")
 
 type Service struct {
 	repo RepositoryInterface

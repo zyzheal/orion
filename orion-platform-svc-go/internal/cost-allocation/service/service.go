@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/cost-allocation/models"
 	"orion/platform-svc-go/internal/cost-allocation/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -97,7 +98,7 @@ func (s *Service) DeleteAllocation(ctx context.Context, tenantID, id string) (bo
 func (s *Service) CreateRule(ctx context.Context, tenantID string, req models.CreateRuleRequest) (*models.Rule, error) {
 	_, err := s.repo.GetAllocationByID(ctx, tenantID, req.AllocationID)
 	if err != nil {
-		return nil, repository.ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	rule := &models.Rule{
 		AllocationID:   req.AllocationID,

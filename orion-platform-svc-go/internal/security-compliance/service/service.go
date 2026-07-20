@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/security-compliance/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -68,7 +69,7 @@ func (s *Service) GetPolicy(ctx context.Context, tenantID, id string) (*models.C
 func (s *Service) EvaluateCompliance(ctx context.Context, tenantID string, req models.EvaluateComplianceRequest) (*models.ComplianceEvaluationResult, error) {
 	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, ErrNotFound)
+			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -154,7 +155,7 @@ func (s *Service) GetComplianceReport(ctx context.Context, tenantID, policyID st
 	if err != nil {
 		if IsNotFound(err) {
 			// Create a default report if none exists
-			return nil, fmt.Errorf("report for policy %q not found: %w", policyID, ErrNotFound)
+			return nil, fmt.Errorf("report for policy %q not found: %w", policyID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -187,7 +188,7 @@ func (s *Service) GetComplianceScore(ctx context.Context, tenantID string) (*mod
 func (s *Service) AutoRemediateCompliance(ctx context.Context, tenantID string, req models.RemediationRequest) (*models.RemediationResult, error) {
 	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, ErrNotFound)
+			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -307,7 +308,7 @@ func (s *Service) GetAuditReport(ctx context.Context, tenantID, executionID stri
 	report, err := s.repo.GetAuditReport(ctx, tenantID, executionID)
 	if err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("audit report for execution %q not found: %w", executionID, ErrNotFound)
+			return nil, fmt.Errorf("audit report for execution %q not found: %w", executionID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -341,7 +342,7 @@ func (s *Service) GetFramework(ctx context.Context, tenantID, id string) (*model
 	f, err := s.repo.GetFramework(ctx, tenantID, id)
 	if err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("framework %q not found: %w", id, ErrNotFound)
+			return nil, fmt.Errorf("framework %q not found: %w", id, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -353,7 +354,7 @@ func (s *Service) GetFramework(ctx context.Context, tenantID, id string) (*model
 func (s *Service) CollectEvidence(ctx context.Context, tenantID string, req models.CollectEvidenceRequest) (*models.EvidenceCollection, error) {
 	if _, err := s.GetPolicy(ctx, tenantID, req.PolicyID); err != nil {
 		if IsNotFound(err) {
-			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, ErrNotFound)
+			return nil, fmt.Errorf("policy %q not found: %w", req.PolicyID, sentinel.NotFound)
 		}
 		return nil, err
 	}
@@ -473,11 +474,11 @@ func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req m
 // --- Errors ---
 
 var (
-	ErrNotFound        = errors.New("not found")
+
 	ErrPolicyNotExists = errors.New("policy does not exist")
 	ErrPlanNotExists   = errors.New("audit plan does not exist")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

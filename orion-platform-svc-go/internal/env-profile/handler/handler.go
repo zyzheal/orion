@@ -10,11 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 // Sentinel errors used by the service layer.
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -28,7 +29,7 @@ type Service interface {
 }
 
 func isNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func isBadRequest(err error) bool {

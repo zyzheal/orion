@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/circuit-breaker/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -23,7 +24,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound = errors.New("circuit breaker not found")
+
 	ErrDisabled = errors.New("circuit breaker is disabled")
 )
 
@@ -67,7 +68,7 @@ func (s *Service) Create(ctx context.Context, req *models.CreateRequest, tenantI
 func (s *Service) Get(ctx context.Context, id, tenantID string) (*models.CircuitBreaker, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return cb, nil
 }
@@ -89,7 +90,7 @@ func (s *Service) Update(ctx context.Context, id, tenantID string, req *models.U
 	// Verify existence first
 	_, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	attrs := make(map[string]interface{})
 	if req.Name != nil {
@@ -125,7 +126,7 @@ func (s *Service) Delete(ctx context.Context, id, tenantID string) (bool, error)
 func (s *Service) RecordSuccess(ctx context.Context, id, tenantID string, responseTimeMs int) (*models.CircuitBreaker, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if !cb.Enabled {
 		return cb, ErrDisabled
@@ -149,7 +150,7 @@ func (s *Service) RecordSuccess(ctx context.Context, id, tenantID string, respon
 func (s *Service) RecordFailure(ctx context.Context, id, tenantID string, errMsg string) (*models.CircuitBreaker, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if !cb.Enabled {
 		return cb, ErrDisabled
@@ -176,7 +177,7 @@ func (s *Service) RecordFailure(ctx context.Context, id, tenantID string, errMsg
 func (s *Service) Evaluate(ctx context.Context, id, tenantID string) (*models.StateResponse, error) {
 	cb, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if !cb.Enabled {

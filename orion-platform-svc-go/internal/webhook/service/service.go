@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/webhook/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -110,7 +111,7 @@ func (s *Service) List(ctx context.Context, tenantID string, filter *models.List
 func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Webhook, error) {
 	w, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return nil, ErrWebhookNotFound
 		}
 		return nil, err
@@ -122,7 +123,7 @@ func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Webhook
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateWebhookRequest) (*models.Webhook, error) {
 	existing, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return nil, ErrWebhookNotFound
 		}
 		return nil, err
@@ -191,7 +192,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	updated.LastTriggeredAt = existing.LastTriggeredAt
 
 	if err := s.repo.Update(ctx, updated); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return nil, ErrWebhookNotFound
 		}
 		return nil, err
@@ -203,7 +204,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	err := s.repo.Delete(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return ErrWebhookNotFound
 		}
 		return err
@@ -259,7 +260,7 @@ func SignPayload(payload []byte, secret string) string {
 func (s *Service) Trigger(ctx context.Context, tenantID, id string) error {
 	w, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return ErrWebhookNotFound
 		}
 		return err
@@ -337,7 +338,7 @@ func (s *Service) TriggerByEvent(ctx context.Context, tenantID, eventType string
 func (s *Service) RotateSecret(ctx context.Context, tenantID, id string) (string, error) {
 	_, err := s.repo.GetByID(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			return "", ErrWebhookNotFound
 		}
 		return "", err

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/knowledge/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -214,14 +215,14 @@ func (s *Service) Retrieve(ctx context.Context, tenantID string, query string, r
 // --- Errors ---
 
 var (
-	ErrNotFound         = errors.New("not found")
+
 	ErrSpaceNotFound    = errors.New("space not found")
 	ErrDocumentNotFound = errors.New("document not found")
 )
 
 func IsNotFound(err error) bool {
 	return err == sql.ErrNoRows ||
-		errors.Is(err, ErrNotFound) ||
+		errors.Is(err, sentinel.NotFound) ||
 		errors.Is(err, ErrSpaceNotFound) ||
 		errors.Is(err, ErrDocumentNotFound)
 }

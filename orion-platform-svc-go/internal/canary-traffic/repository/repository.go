@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("canary traffic not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -84,7 +83,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 	err := r.db.GetContext(ctx, &cb,
 		`SELECT * FROM canary_traffic WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &cb, nil
 }

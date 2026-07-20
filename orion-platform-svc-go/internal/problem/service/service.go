@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/problem/models"
 	"orion/platform-svc-go/internal/problem/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -31,7 +32,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound     = errors.New("problem not found")
+
 	ErrBadRequest   = errors.New("bad request")
 	ErrStatusLocked = errors.New("status cannot be changed")
 )
@@ -45,9 +46,9 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-// IsNotFound returns true if err is ErrNotFound or repo.ErrNotFound.
+// IsNotFound returns true if err is sentinel.NotFound or repo.sentinel.NotFound.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 // IsBadRequest returns true if err is ErrBadRequest.
@@ -66,8 +67,8 @@ func (s *Service) ListProblems(ctx context.Context, tenantID string, filter *mod
 func (s *Service) GetProblem(ctx context.Context, tenantID, id string) (*models.Problem, error) {
 	problem, err := s.repo.GetProblemByID(ctx, id, tenantID)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) || strings.Contains(err.Error(), "no rows in result") {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) || strings.Contains(err.Error(), "no rows in result") {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -151,8 +152,8 @@ func (s *Service) UpdateProblem(ctx context.Context, tenantID, id string, req *m
 
 	updated, err := s.repo.UpdateProblem(ctx, id, tenantID, updates)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -166,7 +167,7 @@ func (s *Service) DeleteProblem(ctx context.Context, tenantID, id string) error 
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -190,7 +191,7 @@ func (s *Service) CreateKnownError(ctx context.Context, tenantID string, req *mo
 	// Verify the problem belongs to this tenant
 	_, err := s.GetProblem(ctx, tenantID, req.ProblemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	ke := &models.KnownError{
@@ -215,15 +216,15 @@ func (s *Service) CreateKnownError(ctx context.Context, tenantID string, req *mo
 func (s *Service) GetKnownError(ctx context.Context, tenantID, id string) (*models.KnownError, error) {
 	ke, err := s.repo.GetKnownErrorByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) || strings.Contains(err.Error(), "no rows in result") {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) || strings.Contains(err.Error(), "no rows in result") {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
 	// Verify the related problem belongs to this tenant
 	_, err = s.GetProblem(ctx, tenantID, ke.ProblemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return ke, nil
 }
@@ -250,7 +251,7 @@ func (s *Service) UpdateKnownError(ctx context.Context, tenantID, id string, req
 	// Verify ownership via tenant
 	ke, err := s.GetKnownError(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	updates := make(map[string]interface{})
@@ -282,15 +283,15 @@ func (s *Service) UpdateKnownError(ctx context.Context, tenantID, id string, req
 
 	updated, err := s.repo.UpdateKnownError(ctx, id, updates)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
 	// Re-verify tenant ownership after update
 	_, err = s.GetProblem(ctx, tenantID, updated.ProblemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -300,14 +301,14 @@ func (s *Service) DeleteKnownError(ctx context.Context, tenantID, id string) err
 	// Verify ownership first
 	_, err := s.GetKnownError(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	deleted, err := s.repo.DeleteKnownError(ctx, id)
 	if err != nil {
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -322,7 +323,7 @@ func (s *Service) LinkIncident(ctx context.Context, tenantID, problemID, inciden
 	// Verify problem belongs to tenant
 	_, err := s.GetProblem(ctx, tenantID, problemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.LinkIncidentWithTenant(ctx, problemID, incidentID, tenantID)
 }
@@ -331,7 +332,7 @@ func (s *Service) LinkIncident(ctx context.Context, tenantID, problemID, inciden
 func (s *Service) GetIncidentLinks(ctx context.Context, tenantID, problemID string) ([]string, error) {
 	_, err := s.GetProblem(ctx, tenantID, problemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.GetIncidentLinks(ctx, problemID)
 }
@@ -343,7 +344,7 @@ func (s *Service) LinkChange(ctx context.Context, tenantID, problemID, changeID 
 	}
 	_, err := s.GetProblem(ctx, tenantID, problemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.LinkChangeWithTenant(ctx, problemID, changeID, tenantID)
 }
@@ -352,7 +353,7 @@ func (s *Service) LinkChange(ctx context.Context, tenantID, problemID, changeID 
 func (s *Service) GetChangeLinks(ctx context.Context, tenantID, problemID string) ([]string, error) {
 	_, err := s.GetProblem(ctx, tenantID, problemID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.GetChangeLinks(ctx, problemID)
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/artifact/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -33,7 +34,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound      = errors.New("artifact not found")
+
 	ErrAlreadyExists = errors.New("artifact already exists")
 	ErrInvalidStatus = errors.New("invalid status")
 	ErrNotAvailable  = errors.New("artifact not available")
@@ -187,7 +188,7 @@ func (s *Service) GetCurrentStage(ctx context.Context, tenantID, id string) (*st
 		return nil, err
 	}
 	if stage == "" {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &stage, nil
 }
@@ -246,10 +247,10 @@ func (s *Service) GetNamespaces(ctx context.Context, tenantID string) ([]models.
 
 // IsNotFound returns true if the error indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 // ErrNotFoundArtifact returns a not-found error for a given artifact ID.
 func ErrNotFoundArtifact(id string) error {
-	return fmt.Errorf("artifact %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("artifact %q not found: %w", id, sentinel.NotFound)
 }

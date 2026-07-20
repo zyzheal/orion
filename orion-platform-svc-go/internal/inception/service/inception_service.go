@@ -10,10 +10,11 @@ import (
 	"orion/platform-svc-go/internal/inception/repository"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 var (
-	ErrNotFound                = errors.New("not found")
+
 	ErrBlacklisted             = errors.New("sql blocked by blacklist")
 	ErrInvalidStatus           = errors.New("invalid status transition")
 	ErrInceptionProjectNotFound = errors.New("project not found")
@@ -97,7 +98,7 @@ func (s *Service) ListAuditsByStatus(ctx context.Context, tenantID, status strin
 func (s *Service) GetAuditByID(ctx context.Context, tenantID, id string) (*models.SQLAuditHistory, error) {
 	a, err := s.repo.GetAuditByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: audit %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: audit %s", sentinel.NotFound, id)
 	}
 	return a, nil
 }
@@ -165,7 +166,7 @@ func (s *Service) ListBlacklists(ctx context.Context, tenantID string, offset, l
 func (s *Service) GetBlacklistByID(ctx context.Context, id string) (*models.SQLBlacklist, error) {
 	b, err := s.repo.GetBlacklistByID(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: blacklist %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: blacklist %s", sentinel.NotFound, id)
 	}
 	return b, nil
 }
@@ -230,7 +231,7 @@ func (s *Service) UpsertConfig(ctx context.Context, tenantID string, req *models
 func (s *Service) GetConfigByTenant(ctx context.Context, tenantID string) (*models.InceptionConfig, error) {
 	c, err := s.repo.GetConfigByTenant(ctx, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: config for tenant %s", ErrNotFound, tenantID)
+		return nil, fmt.Errorf("%w: config for tenant %s", sentinel.NotFound, tenantID)
 	}
 	return c, nil
 }
@@ -297,7 +298,7 @@ func (s *Service) ListReports(ctx context.Context, tenantID string, offset, limi
 func (s *Service) GetReportByID(ctx context.Context, tenantID, id string) (*models.AuditReport, error) {
 	rpt, err := s.repo.GetReportByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("%w: report %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: report %s", sentinel.NotFound, id)
 	}
 	return rpt, nil
 }

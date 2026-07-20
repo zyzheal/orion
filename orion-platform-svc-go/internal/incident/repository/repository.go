@@ -11,10 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-)
-
-var (
-	ErrNotFound = errors.New("not found")
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {

@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("circuit breaker not found")
 
 // Repository provides data access for the circuit-breaker module.
 type Repository struct {
@@ -75,7 +74,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 		`SELECT * FROM circuit_breakers WHERE id=$1 AND tenant_id=$2 AND deleted_at IS NULL`, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -99,7 +98,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Circui
 // Update patches a circuit breaker's fields. Map keys are DB column names.
 func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.CircuitBreaker, error) {
 	if len(attrs) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	attrs["updated_at"] = time.Now().UTC()
 
@@ -124,7 +123,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, id, tenantID)
 }

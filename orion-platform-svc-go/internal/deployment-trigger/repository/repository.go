@@ -11,10 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-)
-
-var (
-	ErrNotFound = errors.New("deployment trigger not found")
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -90,7 +87,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &e,
 		"SELECT * FROM deployment_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err
@@ -191,7 +188,7 @@ func (r *Repository) GetLatestExecution(ctx context.Context, triggerID, tenantID
 		"SELECT * FROM trigger_executions WHERE trigger_id = $1 AND tenant_id = $2 ORDER BY triggered_at DESC LIMIT 1",
 		triggerID, tenantID)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err

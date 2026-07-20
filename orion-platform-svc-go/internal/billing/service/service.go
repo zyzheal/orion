@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/billing/models"
 	"orion/platform-svc-go/internal/billing/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -33,7 +34,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -46,7 +47,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -62,7 +63,7 @@ func (s *Service) ListAccounts(ctx context.Context, tenantID string, status *str
 func (s *Service) GetAccount(ctx context.Context, tenantID, id string) (*models.Account, error) {
 	account, err := s.repo.GetAccountByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return account, nil
 }
@@ -122,7 +123,7 @@ func (s *Service) UpdateAccount(ctx context.Context, tenantID, id string, req *m
 	}
 	updated, err := s.repo.UpdateAccount(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -133,7 +134,7 @@ func (s *Service) DeleteAccount(ctx context.Context, tenantID, id string) error 
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -147,7 +148,7 @@ func (s *Service) ListInvoices(ctx context.Context, tenantID string, filter *mod
 func (s *Service) GetInvoice(ctx context.Context, tenantID, id string) (*models.Invoice, error) {
 	invoice, err := s.repo.GetInvoiceByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return invoice, nil
 }
@@ -176,7 +177,7 @@ func (s *Service) CreateInvoice(ctx context.Context, tenantID string, req *model
 func (s *Service) UpdateInvoice(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Invoice, error) {
 	updated, err := s.repo.UpdateInvoice(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -187,7 +188,7 @@ func (s *Service) DeleteInvoice(ctx context.Context, tenantID, id string) error 
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -201,7 +202,7 @@ func (s *Service) CreateLineItem(ctx context.Context, tenantID string, req *mode
 	// Verify invoice belongs to tenant
 	_, err := s.GetInvoice(ctx, tenantID, req.InvoiceID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	quantity := 1.0
 	if req.Quantity > 0 {
@@ -234,7 +235,7 @@ func (s *Service) ListSubscriptions(ctx context.Context, tenantID string, status
 func (s *Service) GetSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error) {
 	sub, err := s.repo.GetSubscriptionByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return sub, nil
 }
@@ -276,7 +277,7 @@ func (s *Service) UpdateSubscription(ctx context.Context, tenantID, id string, r
 	}
 	updated, err := s.repo.UpdateSubscription(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -287,7 +288,7 @@ func (s *Service) DeleteSubscription(ctx context.Context, tenantID, id string) e
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

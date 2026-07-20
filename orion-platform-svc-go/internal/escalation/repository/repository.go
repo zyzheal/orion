@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("escalation rule not found")
 
 // Repository provides PostgreSQL-backed persistence for escalation rules.
 type Repository struct {
@@ -49,7 +48,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &rule,
 		`SELECT * FROM escalation_policy WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err

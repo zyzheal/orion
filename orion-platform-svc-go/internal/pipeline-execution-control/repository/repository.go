@@ -9,9 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -73,7 +72,7 @@ func (r *Repository) DeleteCheckpoint(ctx context.Context, id string, tenantID s
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -101,7 +100,7 @@ func (r *Repository) UpdateRunStatus(ctx context.Context, id string, tenantID st
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

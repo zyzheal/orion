@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -117,7 +118,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 	item, err := h.svc.UpdateStatus(ctx, tenantID, id, models.ApkStatus(req.Status), req.ErrorMsg)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}

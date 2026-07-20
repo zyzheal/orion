@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/tracing/models"
 	"orion/platform-svc-go/internal/tracing/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -48,7 +49,7 @@ func (s *Service) SearchTraces(ctx context.Context, tenantID string, req *models
 
 func (s *Service) UpsertSamplingConfig(ctx context.Context, tenantID string, req *models.UpsertSamplingRequest) (*models.TraceSamplingConfig, error) {
 	existing, err := s.repo.UpsertSamplingConfig(ctx, tenantID, req.ServiceName, req.SampleRate, req.MaxSpansPerSec, req.Enabled)
-	if err == repository.ErrNotFound {
+	if err == sentinel.NotFound {
 		now := time.Now().UTC()
 		config := &models.TraceSamplingConfig{
 			TenantID:       tenantID,

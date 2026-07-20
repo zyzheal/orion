@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -79,7 +78,7 @@ func (r *Repository) ListRules(ctx context.Context, tenantID string, filter *mod
 
 func (r *Repository) UpdateRule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Rule, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	clauses := []string{}
@@ -174,7 +173,7 @@ func (r *Repository) ListAlerts(ctx context.Context, tenantID string, status *st
 
 func (r *Repository) UpdateAlert(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Alert, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	clauses := []string{}

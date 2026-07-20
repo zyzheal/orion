@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("trigger not found")
 
 // Repository provides PostgreSQL access for workflow triggers.
 type Repository struct {
@@ -47,7 +46,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 	err := r.db.GetContext(ctx, &m, "SELECT * FROM workflow_triggers WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -97,7 +96,7 @@ func (r *Repository) Delete(ctx context.Context, id, tenantID string) error {
 	}
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/code-repo/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -239,7 +240,7 @@ func (s *Service) RotateWebhookSecret(ctx context.Context, repoID, providedSecre
 // --- Errors ---
 
 var (
-	ErrNotFound       = errors.New("not found")
+
 	ErrNotFoundSecret = errors.New("webhook secret not found")
 	ErrInvalidBranch  = errors.New("invalid branch")
 	ErrInvalidPR      = errors.New("invalid pull request")
@@ -250,11 +251,6 @@ var (
 )
 
 // IsNotFound returns true if the error indicates a resource was not found.
-func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotFoundSecret) ||
-		errors.Is(err, ErrInvalidPR) || errors.Is(err, ErrInvalidRepo)
-}
-
 // ErrNotImplementedMsg creates a not-implemented error.
 func ErrNotImplementedMsg(action string) error {
 	return fmt.Errorf("%s: %w", action, ErrNotImplemented)

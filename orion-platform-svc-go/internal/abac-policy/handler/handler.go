@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -99,7 +100,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 	}
 	result, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, "policy not found")
 			return
 		}

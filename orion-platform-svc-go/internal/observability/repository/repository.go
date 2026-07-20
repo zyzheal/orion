@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -43,7 +42,7 @@ func (r *Repository) GetMetric(ctx context.Context, tenantID, name string) (*mod
 	err := r.db.GetContext(ctx, &m,
 		"SELECT * FROM observability_metrics WHERE tenant_id=$1 AND name=$2 ORDER BY timestamp DESC LIMIT 1", tenantID, name)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &m, err
 }

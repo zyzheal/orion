@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/chaos/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -118,7 +119,7 @@ func (s *Service) RunExperiment(ctx context.Context, tenantID, id string, req mo
 	// Verify experiment exists
 	experiment, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("experiment not found: %w", ErrNotFound)
+		return nil, fmt.Errorf("experiment not found: %w", sentinel.NotFound)
 	}
 	_ = experiment // experiment is validated
 
@@ -908,10 +909,6 @@ func uuid() string {
 
 // --- Errors ---
 
-var (
-	ErrNotFound = errors.New("experiment not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

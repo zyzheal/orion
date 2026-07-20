@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -71,7 +70,7 @@ func (r *Repository) ListAllocations(ctx context.Context, tenantID string, filte
 
 func (r *Repository) UpdateAllocation(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Allocation, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -90,7 +89,7 @@ func (r *Repository) UpdateAllocation(ctx context.Context, tenantID, id string, 
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetAllocationByID(ctx, tenantID, id)
 }
@@ -185,7 +184,7 @@ func (r *Repository) ListReports(ctx context.Context, tenantID string, filter *m
 
 func (r *Repository) UpdateReport(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Report, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -204,7 +203,7 @@ func (r *Repository) UpdateReport(ctx context.Context, tenantID, id string, upda
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetReportByID(ctx, tenantID, id)
 }

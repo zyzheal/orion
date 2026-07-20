@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/security/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -27,7 +28,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound          = errors.New("vulnerability not found")
+
 	ErrInvalidInput      = errors.New("invalid input")
 	ErrTrivyNotInstalled = errors.New("trivy is not installed or not found in PATH")
 	ErrTrivyScanFailed   = errors.New("trivy scan failed")
@@ -140,7 +141,7 @@ func (s *Service) CheckVulnerability(ctx context.Context, tenantID, id string) (
 	if err == nil {
 		return vuln, nil
 	}
-	if !errors.Is(err, repository.ErrNotFound) {
+	if !errors.Is(err, sentinel.NotFound) {
 		return nil, err
 	}
 
@@ -164,8 +165,8 @@ func (s *Service) RemediateVulnerability(ctx context.Context, tenantID, cveID, p
 		vuln, err = s.repo.GetByCVEID(ctx, tenantID, cveID)
 	}
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, ErrNotFound
+		if errors.Is(err, sentinel.NotFound) {
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

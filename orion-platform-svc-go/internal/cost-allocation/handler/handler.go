@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes the cost-allocation module's HTTP endpoints.
@@ -114,7 +115,7 @@ func (h *Handler) UpdateAllocation(c *gin.Context) {
 	}
 	result, err := h.svc.UpdateAllocation(ctx, tenantID, id, req)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			middleware.RespondNotFound(c, "allocation not found")
 			return
 		}

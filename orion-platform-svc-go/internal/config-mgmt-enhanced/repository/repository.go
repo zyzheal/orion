@@ -12,9 +12,8 @@ import (
 
     "github.com/google/uuid"
     "github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
     db *sqlx.DB
@@ -55,7 +54,7 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]models.Config
 
 func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigMgmt, error) {
     if len(attrs) == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     attrs["updated_at"] = time.Now().UTC()
     set := make([]string, 0, len(attrs))
@@ -76,7 +75,7 @@ func (r *Repository) Update(ctx context.Context, id, tenantID string, attrs map[
     }
     n, _ := result.RowsAffected()
     if n == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     return r.GetByID(ctx, id, tenantID)
 }
@@ -170,7 +169,7 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, fi
 
 func (r *Repository) UpdateChangeRequest(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ChangeRequest, error) {
     if len(attrs) == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     attrs["updated_at"] = time.Now().UTC()
     set := make([]string, 0, len(attrs))
@@ -191,7 +190,7 @@ func (r *Repository) UpdateChangeRequest(ctx context.Context, id, tenantID strin
     }
     n, _ := result.RowsAffected()
     if n == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     return r.GetChangeRequest(ctx, id, tenantID)
 }
@@ -285,7 +284,7 @@ func (r *Repository) GetDriftReport(ctx context.Context, id, tenantID string) (*
 
 func (r *Repository) UpdateDriftReport(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.DriftReport, error) {
     if len(attrs) == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     attrs["updated_at"] = time.Now().UTC()
     set := make([]string, 0, len(attrs))
@@ -306,7 +305,7 @@ func (r *Repository) UpdateDriftReport(ctx context.Context, id, tenantID string,
     }
     n, _ := result.RowsAffected()
     if n == 0 {
-        return nil, ErrNotFound
+        return nil, sentinel.NotFound
     }
     return r.GetDriftReport(ctx, id, tenantID)
 }

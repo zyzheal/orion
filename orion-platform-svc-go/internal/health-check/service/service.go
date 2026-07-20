@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/health-check/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -27,7 +28,7 @@ var validCheckTypes = map[string]bool{
 }
 
 var (
-	ErrNotFound         = errors.New("health check not found")
+
 	ErrInvalidCheckType = errors.New("invalid check type")
 )
 
@@ -71,7 +72,7 @@ func (s *Service) ExecuteCheck(ctx context.Context, tenantID, id string, req mod
 		return nil, err
 	}
 	if hc == nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	timeout := 5000

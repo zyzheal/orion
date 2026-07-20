@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/capability/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -495,7 +496,7 @@ func (s *Service) ApproveRequest(ctx context.Context, tenantID string, ticketID 
 		return nil, err
 	}
 	if pr == nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if pr.Status != "pending" {
 		return nil, errors.New("request is not in pending status")
@@ -645,7 +646,7 @@ func (s *Service) recordAudit(ctx context.Context, tenantID, action, userID, tar
 
 // Known sentinel errors used by handlers for status-code routing.
 var (
-	ErrNotFound                 = errors.New("not found")
+
 	ErrParentNotFound           = errors.New("parent not found")
 	ErrInvalidRiskLevel         = errors.New("invalid risk level")
 	ErrRoleNotFound             = errors.New("role not found")
@@ -658,10 +659,10 @@ var (
 
 // IsNotFound returns true if the error indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, ErrCapabilityNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, ErrCapabilityNotFound)
 }
 
 // ErrNotFoundCapability returns a not-found error for a given capability ID.
 func ErrNotFoundCapability(id string) error {
-	return fmt.Errorf("capability %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("capability %q not found: %w", id, sentinel.NotFound)
 }

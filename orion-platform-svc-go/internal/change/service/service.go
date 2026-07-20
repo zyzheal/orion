@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/change/models"
 	"orion/platform-svc-go/internal/change/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -274,10 +275,10 @@ func (s *Service) AddCABDecision(ctx context.Context, tenantID, cabID string, re
 // --- Errors ---
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrChangeNotFound = fmt.Errorf("change request not found: %w", ErrNotFound)
+
+	ErrChangeNotFound = fmt.Errorf("change request not found: %w", sentinel.NotFound)
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || repository.IsNotFound(err)
+	return errors.Is(err, sentinel.NotFound) || repository.IsNotFound(err)
 }

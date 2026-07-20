@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-audit-log/models"
 	"orion/platform-svc-go/internal/pipeline-audit-log/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -124,5 +125,5 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound) || errors.Is(err, ErrRunNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, ErrRunNotFound)
 }

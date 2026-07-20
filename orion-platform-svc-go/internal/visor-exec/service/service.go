@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/visor-exec/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -55,12 +56,12 @@ func NewService(repo RepositoryInterface) *Service {
 // --- Errors ---
 
 var (
-	ErrNotFound  = errors.New("not found")
+
 	ErrInvalidID = errors.New("invalid id")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 // --- Command Execution ---
@@ -123,7 +124,7 @@ func (s *Service) GetCommandLogByID(ctx context.Context, id string) (*models.Com
 	log, err := s.repo.GetCommandLogByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -183,7 +184,7 @@ func (s *Service) GetTemplateByID(ctx context.Context, id string) (*models.Templ
 	tmpl, err := s.repo.GetTemplateByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -267,7 +268,7 @@ func (s *Service) GetCronJobByID(ctx context.Context, id string) (*models.CronJo
 	job, err := s.repo.GetCronJobByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -435,7 +436,7 @@ func (s *Service) GetUploadTaskByID(ctx context.Context, id string) (*models.Upl
 	task, err := s.repo.GetUploadTaskByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

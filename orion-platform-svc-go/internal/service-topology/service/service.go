@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/service-topology/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -23,8 +24,6 @@ type RepositoryInterface interface {
 	RemoveEdge(ctx context.Context, tenantID, source, target string) error
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ServiceTopology, error)
 }
-
-var ErrNotFound = errors.New("service topology not found")
 
 type Service struct {
 	repo RepositoryInterface

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/runbook/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -18,8 +19,6 @@ type RepositoryInterface interface {
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Runbook, error)
 	UpdateExecutionStatus(ctx context.Context, tenantID, executionID string, status string) error
 }
-
-var ErrNotFound = errors.New("runbook not found")
 
 type Service struct {
 	repo RepositoryInterface
@@ -100,7 +99,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 func (s *Service) CreateExecution(ctx context.Context, tenantID, runbookID string, req models.CreateRunbookExecutionRequest) (*models.RunbookExecution, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, runbookID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	ex := &models.RunbookExecution{
 		RunbookID:  runbookID,

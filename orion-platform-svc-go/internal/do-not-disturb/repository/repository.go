@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("dnd schedule not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -46,7 +45,7 @@ func (r *Repository) GetByUser(ctx context.Context, tenantID, userID string) (*m
 
 func (r *Repository) Update(ctx context.Context, tenantID, userID string, updates map[string]interface{}) (*models.DoNotDisturb, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	setClauses := make([]string, 0, len(updates))
 	args := make([]interface{}, 0, len(updates)+2)

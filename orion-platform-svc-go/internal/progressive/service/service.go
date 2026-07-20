@@ -9,6 +9,7 @@ import (
 
 	"orion/platform-svc-go/internal/progressive/models"
 	"orion/platform-svc-go/internal/progressive/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -42,7 +43,7 @@ func NewService(repo RepositoryInterface) *Service {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrNotFound          = errors.New("progressive deployment not found")
+
 	ErrBadRequest        = errors.New("bad request")
 	ErrInvalidStrategy   = errors.New("invalid strategy: must be canary, blue_green, or rolling")
 	ErrInvalidState      = errors.New("invalid state transition")
@@ -52,7 +53,7 @@ var (
 
 // IsNotFound returns true if the error indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound) || errors.Is(err, repository.ErrStageNotFound) || errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, repository.ErrStageNotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 // IsBadRequest returns true if the error indicates a bad request.
@@ -112,7 +113,7 @@ func (s *Service) Create(ctx context.Context, tenantID string, req models.Create
 func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.ProgressiveDeployment, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return d, nil
 }
@@ -128,7 +129,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req models.Up
 	// Verify the deployment exists first
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	updates := make(map[string]interface{})
@@ -178,7 +179,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req models.Up
 
 	d, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return d, nil
 }
@@ -188,13 +189,13 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	// Only allow deletion when not in an active rollout
 	d, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	if d.Status == models.StatusRolloutInProgress || d.Status == models.StatusPaused {
 		return ErrInvalidState
 	}
 	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -208,7 +209,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 func (s *Service) StartRollout(ctx context.Context, tenantID, deploymentID string) (*models.ProgressiveDeployment, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.Status != models.StatusPending && d.Status != models.StatusRolledBack {
@@ -249,7 +250,7 @@ func (s *Service) CompleteStage(ctx context.Context, tenantID, deploymentID stri
 
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.Status != models.StatusRolloutInProgress {
@@ -300,7 +301,7 @@ func (s *Service) CompleteStage(ctx context.Context, tenantID, deploymentID stri
 	// Check if deployment is fully completed
 	d, err = s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.CurrentStage >= d.TotalStages {
@@ -325,7 +326,7 @@ func (s *Service) CompleteStage(ctx context.Context, tenantID, deploymentID stri
 func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, reason string) (*models.ProgressiveDeployment, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.Status != models.StatusRolloutInProgress && d.Status != models.StatusPaused {
@@ -339,7 +340,7 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 func (s *Service) Pause(ctx context.Context, tenantID, deploymentID string) (*models.ProgressiveDeployment, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.Status != models.StatusRolloutInProgress {
@@ -356,7 +357,7 @@ func (s *Service) Pause(ctx context.Context, tenantID, deploymentID string) (*mo
 func (s *Service) Resume(ctx context.Context, tenantID, deploymentID string) (*models.ProgressiveDeployment, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if d.Status != models.StatusPaused {
@@ -373,7 +374,7 @@ func (s *Service) Resume(ctx context.Context, tenantID, deploymentID string) (*m
 func (s *Service) GetProgress(ctx context.Context, tenantID, deploymentID string) (*models.DeploymentProgress, error) {
 	d, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	percentage := 0.0
@@ -406,7 +407,7 @@ func (s *Service) GetProgress(ctx context.Context, tenantID, deploymentID string
 func (s *Service) GetStages(ctx context.Context, tenantID, deploymentID string) ([]models.RolloutStage, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return s.repo.GetStages(ctx, tenantID, deploymentID)
 }

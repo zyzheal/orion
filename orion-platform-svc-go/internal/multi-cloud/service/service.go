@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/multi-cloud/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -592,10 +593,6 @@ func (s *Service) ExecuteMigration(ctx context.Context, tenantID, planID string)
 
 // --- Errors ---
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

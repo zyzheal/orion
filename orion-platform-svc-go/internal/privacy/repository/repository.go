@@ -10,9 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/privacy/models"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("privacy config not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -51,7 +50,7 @@ func (r *Repository) GetConfig(ctx context.Context, tenantID string) (*models.Pr
 		`SELECT * FROM privacy_config WHERE tenant_id = $1`, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

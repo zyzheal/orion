@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -127,7 +128,7 @@ func (h *Handler) RecordSuccess(c *gin.Context) {
 	_ = c.ShouldBindJSON(&req) // optional body
 	_, err := h.svc.RecordSuccess(ctx, id, tenantID, req.ResponseTimeMs)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}
@@ -153,7 +154,7 @@ func (h *Handler) RecordFailure(c *gin.Context) {
 	}
 	_, err := h.svc.RecordFailure(ctx, id, tenantID, req.ErrorMsg)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}
@@ -174,7 +175,7 @@ func (h *Handler) GetState(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	resp, err := h.svc.Evaluate(ctx, id, tenantID)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}

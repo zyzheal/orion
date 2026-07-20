@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/ueba/models"
 	"orion/platform-svc-go/internal/ueba/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -102,5 +103,5 @@ func (s *Service) DetectAnomaly(ctx context.Context, tenantID string, req *model
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

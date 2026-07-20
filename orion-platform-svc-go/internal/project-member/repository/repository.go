@@ -11,9 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/project-member/models"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("project member not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -70,14 +69,14 @@ func (r *Repository) Create(ctx context.Context, tenantID string, m *models.Proj
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.ProjectMember, error) {
 	var m models.ProjectMember
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM project_members WHERE id = $1 AND tenant_id = $2`, id, tenantID)
-	if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
+	if errors.Is(err, sql.ErrNoRows) { return nil, sentinel.NotFound }
 	return &m, err
 }
 
 func (r *Repository) GetByProjectUser(ctx context.Context, tenantID, projectID, userID string) (*models.ProjectMember, error) {
 	var m models.ProjectMember
 	err := r.db.GetContext(ctx, &m, `SELECT * FROM project_members WHERE tenant_id=$1 AND project_id=$2 AND user_id=$3`, tenantID, projectID, userID)
-	if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
+	if errors.Is(err, sql.ErrNoRows) { return nil, sentinel.NotFound }
 	return &m, err
 }
 

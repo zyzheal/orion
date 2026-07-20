@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/build-env/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -239,7 +240,7 @@ func (s *Service) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipeli
 // --- Errors ---
 
 var (
-	ErrNotFound           = errors.New("not found")
+
 	ErrInvalidConfigID    = errors.New("invalid config id")
 	ErrInvalidLogID       = errors.New("invalid log id")
 	ErrConflict           = errors.New("conflict")
@@ -247,7 +248,7 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func IsInvalidID(err error) bool {

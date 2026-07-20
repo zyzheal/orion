@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound is returned when a query matches no rows.
-var ErrNotFound = errors.New("not found")
+// sentinel.NotFound is returned when a query matches no rows.
 
 // Repository provides PostgreSQL-backed storage for events.
 type Repository struct {

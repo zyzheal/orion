@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("workflow task not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -129,7 +128,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, id string, tenantID strin
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -143,7 +142,7 @@ func (r *Repository) Claim(ctx context.Context, id string, tenantID string, assi
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -176,12 +175,12 @@ func (r *Repository) Complete(ctx context.Context, id string, tenantID string, c
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
 
 // IsNotFound returns true for database not-found errors.
 func IsNotFound(err error) bool {
-	return err == sql.ErrNoRows || errors.Is(err, ErrNotFound)
+	return err == sql.ErrNoRows || errors.Is(err, sentinel.NotFound)
 }

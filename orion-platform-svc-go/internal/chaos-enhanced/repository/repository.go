@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -80,7 +79,7 @@ func (r *Repository) ListExperiments(ctx context.Context, tenantID string, statu
 
 func (r *Repository) UpdateExperiment(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Experiment, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -101,7 +100,7 @@ func (r *Repository) UpdateExperiment(ctx context.Context, id string, tenantID s
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetExperiment(ctx, id, tenantID)
 }
@@ -123,5 +122,5 @@ func (r *Repository) CreateFaultInjection(ctx context.Context, fi *models.FaultI
 
 // IsNotFound returns true for database not-found errors.
 func IsNotFound(err error) bool {
-	return err == sql.ErrNoRows || errors.Is(err, ErrNotFound)
+	return err == sql.ErrNoRows || errors.Is(err, sentinel.NotFound)
 }

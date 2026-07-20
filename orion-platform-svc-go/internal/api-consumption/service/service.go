@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/api-consumption/models"
 	"orion/platform-svc-go/internal/api-consumption/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -22,7 +23,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -35,7 +36,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -81,7 +82,7 @@ func (s *Service) ListLimits(ctx context.Context, tenantID string) ([]models.Lim
 func (s *Service) GetLimit(ctx context.Context, tenantID, id string) (*models.Limit, error) {
 	limit, err := s.repo.GetLimitByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return limit, nil
 }
@@ -139,7 +140,7 @@ func (s *Service) UpdateLimit(ctx context.Context, tenantID, id string, req *mod
 	}
 	updated, err := s.repo.UpdateLimit(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -150,7 +151,7 @@ func (s *Service) DeleteLimit(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

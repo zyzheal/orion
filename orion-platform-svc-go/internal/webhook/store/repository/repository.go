@@ -12,10 +12,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound is returned when a requested config entry is not found.
-var ErrNotFound = errors.New("config entry not found")
+// sentinel.NotFound is returned when a requested config entry is not found.
 
 // Repository provides CRUD operations for domain-scoped config entries.
 type Repository struct {
@@ -45,7 +45,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	err := r.db.GetContext(ctx, &e,
 		`SELECT * FROM webhook_config WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

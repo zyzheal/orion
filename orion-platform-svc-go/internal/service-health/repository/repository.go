@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound is returned when a health check is not found within a tenant.
-var ErrNotFound = errors.New("service-health check not found")
+// sentinel.NotFound is returned when a health check is not found within a tenant.
 
 // Repository provides data access for the service_health_checks and
 // service_health_results tables.
@@ -178,7 +178,7 @@ func (r *Repository) GetSummary(ctx context.Context, tenantID, serviceName strin
 		models.StatusUP, cutoff, tenantID, serviceName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

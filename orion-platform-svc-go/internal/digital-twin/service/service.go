@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/digital-twin/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -477,12 +478,12 @@ func ptrTime(t time.Time) *time.Time {
 // --- Sentinel errors ---
 
 var (
-	ErrNotFound       = errors.New("not found")
+
 	ErrTwinNotFound   = errors.New("twin not found")
 	ErrInvalidInput   = errors.New("invalid input")
 	ErrReplayNotFound = errors.New("replay session not found")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

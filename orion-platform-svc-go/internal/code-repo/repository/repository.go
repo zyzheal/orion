@@ -15,6 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -477,11 +478,7 @@ func WebhookSecretMaskedResponse(s *models.WebhookSecret) *models.WebhookSecretR
 
 // --- Errors ---
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 // IsNotFound returns true if err indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

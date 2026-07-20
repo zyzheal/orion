@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("profile not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -38,14 +37,14 @@ func (r *Repository) GetByUserID(ctx context.Context, tenantID, userID string) (
 	var p models.UserProfile
 	err := r.db.GetContext(ctx, &p, "SELECT * FROM user_profiles WHERE user_id=$1 AND tenant_id=$2", userID, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &p, err
 }
 
 func (r *Repository) Update(ctx context.Context, tenantID, userID string, attrs map[string]interface{}) (*models.UserProfile, error) {
 	if len(attrs) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	setParts := make([]string, 0, len(attrs))
 	args := make([]interface{}, 0, len(attrs)+2)
@@ -60,7 +59,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, userID string, attrs 
 	var p models.UserProfile
 	err := r.db.GetContext(ctx, &p, query, args...)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &p, err
 }

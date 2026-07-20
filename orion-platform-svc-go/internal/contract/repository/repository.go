@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -74,7 +73,7 @@ func (r *Repository) ListContracts(ctx context.Context, tenantID string, filter 
 
 func (r *Repository) UpdateContract(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Contract, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	clauses := []string{}

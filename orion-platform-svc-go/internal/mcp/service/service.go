@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/mcp/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -18,8 +19,6 @@ type RepositoryInterface interface {
 	SoftDeleteServer(ctx context.Context, tenantID, id string) error
 	UpdateServer(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
-
-var ErrNotFound = errors.New("MCP resource not found")
 
 type Service struct {
 	repo RepositoryInterface

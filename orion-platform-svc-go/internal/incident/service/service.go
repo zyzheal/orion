@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/incident/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -532,7 +533,7 @@ func (s *Service) GetKnowledgeRecommendations(ctx context.Context, tenantID, inc
 
 // IsNotFound returns true if the error indicates a resource was not found.
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound) || errors.Is(err, ErrIncidentNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, ErrIncidentNotFound)
 }
 
 // IsStateConflict returns true if the error indicates a state conflict.

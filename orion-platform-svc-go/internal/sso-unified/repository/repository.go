@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("sso config not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -37,7 +36,7 @@ func (r *Repository) GetByProvider(ctx context.Context, tenantID, provider strin
 	var config models.SSOConfig
 	err := r.db.GetContext(ctx, &config, `SELECT * FROM sso_configs WHERE tenant_id = $1 AND provider = $2`, tenantID, provider)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &config, nil
 }
@@ -50,7 +49,7 @@ func (r *Repository) GetAll(ctx context.Context, tenantID string) ([]models.SSOC
 
 func (r *Repository) Update(ctx context.Context, tenantID, provider string, updates map[string]interface{}) (*models.SSOConfig, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	setClauses := make([]string, 0, len(updates))

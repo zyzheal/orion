@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/escalation/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -18,10 +19,6 @@ type RepositoryInterface interface {
 	RecordEvent(ctx context.Context, ruleID, message string) (*models.TriggerEvent, error)
 	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
-
-var (
-	ErrNotFound = errors.New("escalation rule not found")
-)
 
 type Service struct {
 	repo RepositoryInterface
@@ -73,7 +70,7 @@ func (s *Service) DeleteRule(ctx context.Context, tenantID, id string) error {
 func (s *Service) TriggerRule(ctx context.Context, tenantID, id string, req models.TriggerRequest) (*models.TriggerEvent, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	event, err := s.repo.RecordEvent(ctx, id, req.Message)
 	if err != nil {

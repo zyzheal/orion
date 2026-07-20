@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/api-governance/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -34,12 +35,8 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-var (
-	ErrNotFound = errors.New("resource not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 // getTenantID extracts tenant ID from context string.
@@ -59,7 +56,7 @@ func (s *Service) CreateContract(ctx context.Context, req *models.CreateContract
 func (s *Service) GetContract(ctx context.Context, id string, tenantID string) (*models.Contract, error) {
 	c, err := s.repo.GetContract(ctx, id, getTenantID(tenantID))
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return c, nil
 }
@@ -74,7 +71,7 @@ func (s *Service) EvaluateContract(ctx context.Context, id string, tenantID stri
 	// Evaluate always returns compliance=true with static checks.
 	c, err := s.GetContract(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return c, nil
 }
@@ -82,7 +79,7 @@ func (s *Service) EvaluateContract(ctx context.Context, id string, tenantID stri
 func (s *Service) VerifyContract(ctx context.Context, id string, req *models.VerifyRequest, tenantID string) (*models.VerifyResult, error) {
 	c, err := s.GetContract(ctx, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	// Parse response schema and check fields
@@ -167,7 +164,7 @@ func (s *Service) DeprecateVersion(ctx context.Context, id string, req *models.D
 	}
 	v, err := s.repo.UpdateVersion(ctx, id, getTenantID(tenantID), updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return v, nil
 }
@@ -175,7 +172,7 @@ func (s *Service) DeprecateVersion(ctx context.Context, id string, req *models.D
 func (s *Service) RetireVersion(ctx context.Context, id string, tenantID string) (*models.Version, error) {
 	v, err := s.repo.GetVersion(ctx, id, getTenantID(tenantID))
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if v.Status != "deprecated" {
 		return nil, errors.New("only deprecated versions can be retired")
@@ -186,7 +183,7 @@ func (s *Service) RetireVersion(ctx context.Context, id string, tenantID string)
 	}
 	v, err = s.repo.UpdateVersion(ctx, id, getTenantID(tenantID), updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return v, nil
 }

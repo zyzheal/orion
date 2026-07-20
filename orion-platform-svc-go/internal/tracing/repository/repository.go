@@ -9,9 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -102,7 +101,7 @@ func (r *Repository) UpsertSamplingConfig(ctx context.Context, tenantID, service
 		}
 		return &config, nil
 	}
-	return nil, ErrNotFound
+	return nil, sentinel.NotFound
 }
 
 func (r *Repository) GetAllSamplingConfigs(ctx context.Context, tenantID string) ([]models.TraceSamplingConfig, error) {
@@ -124,7 +123,7 @@ func (r *Repository) GetOtelConfig(ctx context.Context, tenantID, id string) (*m
 	var config models.OtelCollectorConfig
 	err := r.db.GetContext(ctx, &config, `SELECT * FROM otel_collector_configs WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &config, nil
 }

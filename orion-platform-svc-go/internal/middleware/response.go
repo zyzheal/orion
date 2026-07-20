@@ -8,6 +8,7 @@ import (
 	"orion/go-common/pkg/errors"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RespondSuccess writes a 200 JSON success response.

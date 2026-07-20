@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -106,7 +105,7 @@ func (r *Repository) ListLimits(ctx context.Context, tenantID string) ([]models.
 
 func (r *Repository) UpdateLimit(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Limit, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	clauses := []string{}
 	args := []interface{}{}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/smart-deploy/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -26,7 +27,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound     = errors.New("not found")
+
 	ErrInvalidInput = errors.New("invalid input")
 	ErrInvalidState = errors.New("invalid state")
 )
@@ -250,7 +251,7 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 	// Verify deployment exists
 	_, err := s.repo.GetByID(ctx, tenantID, deploymentID)
 	if err != nil {
-		return nil, fmt.Errorf("%w: deployment not found", ErrNotFound)
+		return nil, fmt.Errorf("%w: deployment not found", sentinel.NotFound)
 	}
 
 	rollback, err := s.repo.CreateRollback(ctx, tenantID, req, deploymentID)

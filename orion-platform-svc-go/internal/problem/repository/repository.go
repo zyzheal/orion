@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -128,7 +127,7 @@ func (r *Repository) ListProblems(ctx context.Context, tenantID string, filter *
 
 func (r *Repository) UpdateProblem(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Problem, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -148,7 +147,7 @@ func (r *Repository) UpdateProblem(ctx context.Context, id string, tenantID stri
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetProblemByID(ctx, id, tenantID)
 }
@@ -313,7 +312,7 @@ func (r *Repository) SearchKnownErrors(ctx context.Context, query string, tenant
 
 func (r *Repository) UpdateKnownError(ctx context.Context, id string, updates map[string]interface{}) (*models.KnownError, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	setClauses := []string{}
 	args := []interface{}{}
@@ -332,7 +331,7 @@ func (r *Repository) UpdateKnownError(ctx context.Context, id string, updates ma
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetKnownErrorByID(ctx, id)
 }

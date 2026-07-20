@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("abac policy not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -40,7 +39,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 		SELECT * FROM abac_policies WHERE id = $1 AND tenant_id = $2
 	`, id, tenantID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &policy, nil
 }
@@ -96,7 +95,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, name, stat
 	}
 
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	setClauses := make([]string, 0, len(updates))
@@ -118,7 +117,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, name, stat
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	return r.GetByID(ctx, tenantID, id)

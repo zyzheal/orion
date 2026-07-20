@@ -12,10 +12,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound is returned when a requested webhook or delivery is not found.
-var ErrNotFound = errors.New("not found")
+// sentinel.NotFound is returned when a requested webhook or delivery is not found.
 
 // Repository provides CRUD operations for webhooks and deliveries.
 type Repository struct {
@@ -49,7 +49,7 @@ func (r *Repository) GetByID(ctx context.Context, id, tenantID string) (*models.
 		`SELECT * FROM webhooks WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (r *Repository) Update(ctx context.Context, w *models.Webhook) error {
 	updates["updated_at"] = w.UpdatedAt
 
 	if len(updates) == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 
 	setClauses := []string{}
@@ -156,7 +156,7 @@ func (r *Repository) Update(ctx context.Context, w *models.Webhook) error {
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -170,7 +170,7 @@ func (r *Repository) Delete(ctx context.Context, id, tenantID string) error {
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

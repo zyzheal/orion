@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -79,7 +80,7 @@ func (h *Handler) Get(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}
@@ -101,7 +102,7 @@ func (h *Handler) Update(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.Update(ctx, id, tenantID, &req)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}
@@ -140,7 +141,7 @@ func (h *Handler) AdjustWeight(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	entity, err := h.svc.AdjustWeight(ctx, id, tenantID, req.CanaryWeight)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}
@@ -161,7 +162,7 @@ func (h *Handler) GetTrafficSplit(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	split, err := h.svc.GetTrafficSplit(ctx, id, tenantID)
 	if err != nil {
-		if err == service.ErrNotFound {
+		if err == sentinel.NotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 			return
 		}

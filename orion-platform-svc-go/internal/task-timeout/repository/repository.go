@@ -10,10 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound indicates a task was not found.
-var ErrNotFound = errors.New("task not found")
+// sentinel.NotFound indicates a task was not found.
 
 // Repository provides data access for the task-timeout checker.
 type Repository struct {
@@ -90,7 +90,7 @@ func (r *Repository) GetTaskByID(ctx context.Context, tenantID, id string) (*mod
 		id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

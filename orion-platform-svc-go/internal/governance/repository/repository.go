@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("governance resource not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -225,7 +224,7 @@ func (r *Repository) DeletePolicy(ctx context.Context, id, tenantID string) erro
 	}
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -59,7 +58,7 @@ func (r *Repository) ListAccounts(ctx context.Context, tenantID string, status *
 
 func (r *Repository) UpdateAccount(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Account, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -78,7 +77,7 @@ func (r *Repository) UpdateAccount(ctx context.Context, tenantID, id string, upd
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetAccountByID(ctx, tenantID, id)
 }
@@ -179,7 +178,7 @@ func (r *Repository) ListInvoices(ctx context.Context, tenantID string, filter *
 
 func (r *Repository) UpdateInvoice(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Invoice, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -198,7 +197,7 @@ func (r *Repository) UpdateInvoice(ctx context.Context, tenantID, id string, upd
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetInvoiceByID(ctx, tenantID, id)
 }
@@ -271,7 +270,7 @@ func (r *Repository) ListSubscriptions(ctx context.Context, tenantID string, sta
 
 func (r *Repository) UpdateSubscription(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Subscription, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -290,7 +289,7 @@ func (r *Repository) UpdateSubscription(ctx context.Context, tenantID, id string
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetSubscriptionByID(ctx, tenantID, id)
 }

@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -61,7 +60,7 @@ func (r *Repository) ListLineages(ctx context.Context, tenantID string, status *
 
 func (r *Repository) UpdateLineage(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Lineage, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	clauses := []string{}
@@ -80,7 +79,7 @@ func (r *Repository) UpdateLineage(ctx context.Context, tenantID, id string, upd
 		return nil, err
 	}
 	if n, _ := result.RowsAffected(); n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetLineageByID(ctx, tenantID, id)
 }

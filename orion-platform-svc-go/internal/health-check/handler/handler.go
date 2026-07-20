@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 var validCheckTypes = map[string]bool{
@@ -143,7 +144,7 @@ func (h *Handler) ExecuteCheck(c *gin.Context) {
 
 	result, err := h.svc.ExecuteCheck(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
-		if errors.Is(err, service.ErrNotFound) {
+		if errors.Is(err, sentinel.NotFound) {
 			middleware.RespondNotFound(c, "health check not found")
 		} else {
 			middleware.RespondInternalError(c, err.Error())

@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"orion/platform-svc-go/internal/ai-review/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -16,8 +16,6 @@ type RepositoryInterface interface {
 	List(ctx context.Context, tenantID string, q models.ListReviewsQuery) ([]models.ReviewRequest, error)
 	UpdateStatus(ctx context.Context, tenantID, id string, status string) error
 }
-
-var ErrNotFound = errors.New("review not found")
 
 type Service struct {
 	repo RepositoryInterface
@@ -59,7 +57,7 @@ func (s *Service) List(ctx context.Context, tenantID string, q models.ListReview
 func (s *Service) Approve(ctx context.Context, tenantID, id string) (*models.ReviewRequest, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("review not found: %w", ErrNotFound)
+		return nil, fmt.Errorf("review not found: %w", sentinel.NotFound)
 	}
 	if err := s.repo.UpdateStatus(ctx, tenantID, id, "approved"); err != nil {
 		return nil, err
@@ -70,7 +68,7 @@ func (s *Service) Approve(ctx context.Context, tenantID, id string) (*models.Rev
 func (s *Service) Reject(ctx context.Context, tenantID, id string) (*models.ReviewRequest, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, fmt.Errorf("review not found: %w", ErrNotFound)
+		return nil, fmt.Errorf("review not found: %w", sentinel.NotFound)
 	}
 	if err := s.repo.UpdateStatus(ctx, tenantID, id, "rejected"); err != nil {
 		return nil, err

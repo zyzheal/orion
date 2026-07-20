@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"orion/go-common/pkg/sentinel"
 )
 
 func main() {
@@ -131,7 +132,7 @@ func main() {
 		repoRefCount := strings.Count(newContent, "repository.")
 		// Also check if any return type uses repository.XXX
 		repoTypeRef := strings.Contains(newContent, "repository.TicketSLATracking") ||
-			strings.Contains(newContent, "repository.ErrNotFound") ||
+			strings.Contains(newContent, "sentinel.NotFound") ||
 			strings.Contains(newContent, "repository.AuditLogCreateReq") ||
 			strings.Contains(newContent, "repository.PolicyStats") ||
 			strings.Contains(newContent, "repository.ErrNotFoundMsg") ||

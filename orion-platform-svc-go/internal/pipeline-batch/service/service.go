@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"orion/platform-svc-go/internal/pipeline-batch/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -193,7 +194,7 @@ var (
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func IsInvalidStatus(err error) bool {

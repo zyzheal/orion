@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/chatops/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -976,14 +977,10 @@ func (s *Service) GetSessionMessages(ctx context.Context, tenantID, sessionID st
 
 // ---- Errors ----
 
-var (
-	ErrNotFound = errors.New("not found")
-)
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func ErrNotFoundMsg(id string) error {
-	return fmt.Errorf("resource %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("resource %q not found: %w", id, sentinel.NotFound)
 }

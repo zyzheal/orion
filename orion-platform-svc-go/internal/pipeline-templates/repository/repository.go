@@ -14,9 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("template not found")
 
 // Repository provides PostgreSQL CRUD for pipeline templates.
 type Repository struct {
@@ -59,7 +58,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 		"SELECT * FROM pipeline_templates WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

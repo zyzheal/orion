@@ -15,6 +15,7 @@ import (
 
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -1486,18 +1487,18 @@ func (s *Service) ExecuteRule(ctx context.Context, tenantID string, ruleID strin
 // --- Errors ---
 
 var (
-	ErrNotFound      = errors.New("not found")
+
 	ErrTicketNotOpen = errors.New("ticket not open")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func ErrNotFoundTicket(id string) error {
-	return fmt.Errorf("ticket %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("ticket %q not found: %w", id, sentinel.NotFound)
 }
 
 func ErrNotFoundRule(id string) error {
-	return fmt.Errorf("automation rule %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("automation rule %q not found: %w", id, sentinel.NotFound)
 }

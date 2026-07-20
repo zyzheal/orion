@@ -11,10 +11,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
-// ErrNotFound is returned when a record does not exist.
-var ErrNotFound = errors.New("resilience-score record not found")
+// sentinel.NotFound is returned when a record does not exist.
 
 type Repository struct {
 	db *sqlx.DB

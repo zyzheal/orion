@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/terminal-audit/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -14,8 +15,6 @@ type RepositoryInterface interface {
 	GetStats(ctx context.Context, tenantID string) (*models.AuditStats, error)
 	List(ctx context.Context, tenantID string, q models.AuditQuery) ([]models.TerminalAuditLog, error)
 }
-
-var ErrNotFound = errors.New("terminal audit not found")
 
 type Service struct {
 	repo RepositoryInterface

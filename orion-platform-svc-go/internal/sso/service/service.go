@@ -6,6 +6,7 @@ import (
 
 	"orion/platform-svc-go/internal/sso/models"
 	"orion/platform-svc-go/internal/sso/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -84,7 +85,7 @@ func (s *Service) HandleCallback(ctx context.Context, tenantID string, state str
 	}
 	now := time.Now().UTC()
 	if sess.ExpiresAt.Before(now) {
-		return nil, repository.ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates := map[string]interface{}{
 		"user_id": userID,

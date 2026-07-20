@@ -13,9 +13,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("self-healing record not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -58,7 +57,7 @@ func (r *Repository) GetStrategy(ctx context.Context, id string) (*models.Healin
 	err := r.db.GetContext(ctx, &s, `SELECT * FROM self_healing_strategies WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -130,7 +129,7 @@ func (r *Repository) GetIncident(ctx context.Context, tenantID, id string) (*mod
 	err := r.db.GetContext(ctx, &i, `SELECT * FROM self_healing_incidents WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -139,7 +138,7 @@ func (r *Repository) GetIncident(ctx context.Context, tenantID, id string) (*mod
 
 func (r *Repository) UpdateIncident(ctx context.Context, id string, updates map[string]interface{}) (*models.HealingIncident, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	setParts := make([]string, 0, len(updates))
@@ -157,7 +156,7 @@ func (r *Repository) UpdateIncident(ctx context.Context, id string, updates map[
 	err := r.db.GetContext(ctx, &i, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -315,7 +314,7 @@ func (r *Repository) GetApprovalRequest(ctx context.Context, id string) (*models
 	err := r.db.GetContext(ctx, &a, `SELECT * FROM self_healing_approvals WHERE id=$1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -336,7 +335,7 @@ func (r *Repository) ListApprovalRequests(ctx context.Context, status string) ([
 
 func (r *Repository) UpdateApprovalRequest(ctx context.Context, id string, updates map[string]interface{}) (*models.ApprovalRequest, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	setParts := make([]string, 0, len(updates))
@@ -354,7 +353,7 @@ func (r *Repository) UpdateApprovalRequest(ctx context.Context, id string, updat
 	err := r.db.GetContext(ctx, &a, query, args...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -383,7 +382,7 @@ func (r *Repository) GetIncidentByApprovalID(ctx context.Context, tenantID, appr
 	`, approvalID, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

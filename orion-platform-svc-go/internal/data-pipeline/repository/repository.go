@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("data-pipeline not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -32,7 +31,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 	var record models.Record
 	err := r.db.GetContext(ctx, &record, "SELECT * FROM data_pipelines WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &record, err
 }
@@ -86,7 +85,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, req models
 		return nil, err
 	}
 	if rows == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, tenantID, id)
 }
@@ -101,7 +100,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if rows == 0 {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }
@@ -119,7 +118,7 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id, status stri
 		return nil, err
 	}
 	if rows == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetByID(ctx, tenantID, id)
 }

@@ -7,6 +7,7 @@ import (
 
 	"orion/platform-svc-go/internal/decision-explanation/models"
 	"orion/platform-svc-go/internal/decision-explanation/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -19,7 +20,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("not found")
+
 	ErrBadRequest = errors.New("bad request")
 )
 
@@ -32,7 +33,7 @@ func NewService(repo RepositoryInterface) *Service {
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }
 
 func IsBadRequest(err error) bool {
@@ -56,7 +57,7 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.DecisionExplanation, error) {
 	item, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return item, nil
 }
@@ -75,7 +76,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 	}
 	updated, err := s.repo.Update(ctx, tenantID, id, updates)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return updated, nil
 }
@@ -86,7 +87,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 		return err
 	}
 	if !deleted {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

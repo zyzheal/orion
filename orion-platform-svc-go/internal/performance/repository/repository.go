@@ -10,9 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -59,7 +58,7 @@ func (r *Repository) GetBaselineByID(ctx context.Context, id string, tenantID st
 		`SELECT id, tenant_id, service_name, metric, threshold, window_days, status, created_at
 		 FROM performance_baselines WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return &b, err
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"orion/platform-svc-go/internal/apk-upload-history/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -20,7 +21,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound        = errors.New("apk upload record not found")
+
 	ErrBadRequest      = errors.New("invalid request parameters")
 	ErrInvalidChecksum = errors.New("invalid checksum format")
 )
@@ -70,7 +71,7 @@ func (s *Service) CreateRecord(ctx context.Context, tenantID string, record *mod
 func (s *Service) UpdateStatus(ctx context.Context, tenantID, id string, status models.ApkStatus, errMsg string) (*models.ApkUploadRecord, error) {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	if !isValidStatus(status) {
 		return nil, ErrBadRequest

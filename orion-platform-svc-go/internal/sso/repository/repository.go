@@ -12,9 +12,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -45,7 +44,7 @@ func (r *Repository) GetProvider(ctx context.Context, tenantID, id string) (*mod
 		`SELECT * FROM sso_config WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -143,7 +142,7 @@ func (r *Repository) GetSession(ctx context.Context, tenantID, id string) (*mode
 		`SELECT * FROM sso_session WHERE id=$1 AND tenant_id=$2`, id, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}
@@ -156,7 +155,7 @@ func (r *Repository) GetSessionByState(ctx context.Context, tenantID, state stri
 		`SELECT * FROM sso_session WHERE state=$1 AND tenant_id=$2`, state, tenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, sentinel.NotFound
 		}
 		return nil, err
 	}

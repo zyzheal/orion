@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"orion/platform-svc-go/internal/cmdb/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -469,16 +470,16 @@ func (s *Service) ExecuteScript(ctx context.Context, req *models.ScriptExecReque
 // --- Errors ---
 
 var (
-	ErrNotFound        = errors.New("CI not found")
+
 	ErrVersionNotFound = errors.New("version not found")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func ErrNotFoundCI(id string) error {
-	return fmt.Errorf("CI %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("CI %q not found: %w", id, sentinel.NotFound)
 }
 
 // --- Helpers ---

@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/change-request/models"
 	"orion/platform-svc-go/internal/change-request/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -123,7 +124,7 @@ func (s *Service) UpdateRequest(ctx context.Context, id string, tenantID string,
 	}
 	cr, err := s.repo.UpdateRequest(ctx, id, tenantID, updates)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			return nil, ErrRequestNotFound
 		}
 		return nil, err

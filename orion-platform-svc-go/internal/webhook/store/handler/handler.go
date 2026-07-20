@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/webhook/store/service"
 
 	"github.com/gin-gonic/gin"
+	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes HTTP endpoints for the unified webhook config store.

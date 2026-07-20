@@ -9,6 +9,7 @@ import (
 
 	"orion/platform-svc-go/internal/disaster-recovery/models"
 	"orion/platform-svc-go/internal/disaster-recovery/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -25,7 +26,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound      = errors.New("disaster plan not found")
+
 	ErrAlreadyExists = errors.New("disaster plan already exists")
 )
 
@@ -72,7 +73,7 @@ func (s *Service) ListPlans(ctx context.Context, tenantID string, limit, offset 
 func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req models.UpdateDisasterPlanRequest) (*models.DisasterPlan, error) {
 	_, err := s.repo.GetPlan(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates := make(map[string]interface{})
 	if req.Name != nil {
@@ -93,7 +94,7 @@ func (s *Service) UpdatePlan(ctx context.Context, tenantID, id string, req model
 func (s *Service) RunPlan(ctx context.Context, tenantID, planID string) (*models.RecoveryRun, error) {
 	_, err := s.repo.GetPlan(ctx, tenantID, planID)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	now := time.Now().UTC()
 	run := &models.RecoveryRun{
@@ -116,5 +117,5 @@ func (s *Service) ListRuns(ctx context.Context, tenantID, planID string) ([]mode
 }
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound) || errors.Is(err, repository.ErrNotFound)
+	return errors.Is(err, sentinel.NotFound) || errors.Is(err, sentinel.NotFound)
 }

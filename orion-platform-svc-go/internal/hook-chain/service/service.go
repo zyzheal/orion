@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/hook-chain/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -26,8 +27,7 @@ type Service struct {
 	repo RepositoryInterface
 }
 
-// ErrNotFound is returned when a hook cannot be located.
-var ErrNotFound = errors.New("hook not found")
+// sentinel.NotFound is returned when a hook cannot be located.
 
 // NewService creates a new Service instance.
 func NewService(repo RepositoryInterface) *Service {
@@ -70,7 +70,7 @@ func (s *Service) Create(ctx context.Context, tenantID, userID string, req *mode
 func (s *Service) GetByID(ctx context.Context, tenantID, id string) (*models.Hook, error) {
 	hook, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return hook, nil
 }
@@ -97,7 +97,7 @@ func (s *Service) Count(ctx context.Context, tenantID string) (int, error) {
 func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateHookRequest) (*models.Hook, error) {
 	existing, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 
 	if req.Name != "" {
@@ -129,7 +129,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 // Delete removes a hook by id.
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	if err := s.repo.Delete(ctx, tenantID, id); err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return nil
 }

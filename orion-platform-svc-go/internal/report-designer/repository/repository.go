@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -312,8 +313,6 @@ func (r *Repository) ListExecutions(ctx context.Context, reportID string, tenant
 
 // --- Errors ---
 
-var ErrNotFound = errors.New("report not found")
-
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }

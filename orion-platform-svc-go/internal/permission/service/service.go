@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/permission/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -25,8 +26,6 @@ type RepositoryInterface interface {
 type Service struct {
 	repo RepositoryInterface
 }
-
-var ErrNotFound = errors.New("permission not found")
 
 // NewService creates a new Service instance.
 func NewService(repo RepositoryInterface) *Service {
@@ -108,7 +107,7 @@ func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.U
 func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }

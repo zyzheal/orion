@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -253,7 +254,7 @@ func ParseMetadata(raw json.RawMessage) *models.RouteMetadata {
 }
 
 var (
-	ErrNotFound   = errors.New("route not found")
+
 	ErrDuplicate  = errors.New("route already exists")
 	ErrNoRows     = sql.ErrNoRows
 )

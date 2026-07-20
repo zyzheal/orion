@@ -8,6 +8,7 @@ import (
 
 	"orion/platform-svc-go/internal/ai-cost/models"
 	"orion/platform-svc-go/internal/ai-cost/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -22,7 +23,7 @@ type RepositoryInterface interface {
 }
 
 var (
-	ErrNotFound   = errors.New("cost record not found")
+
 	ErrBadRequest = errors.New("invalid request")
 )
 

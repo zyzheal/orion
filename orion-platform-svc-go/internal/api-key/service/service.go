@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/api-key/models"
 
 	"github.com/google/uuid"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -31,9 +32,8 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-// ErrNotFound is returned when an API key cannot be located or the caller
+// sentinel.NotFound is returned when an API key cannot be located or the caller
 // lacks permission to view it.
-var ErrNotFound = errors.New("API key not found")
 
 // CreateAPIKeyResponse includes the plaintext key returned once at creation.
 type CreateAPIKeyResponse struct {
@@ -103,7 +103,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, userID, id string) error
 		return err
 	}
 	if key.UserID != userID {
-		return ErrNotFound
+		return sentinel.NotFound
 	}
 	return s.repo.Delete(ctx, tenantID, id)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"orion/platform-svc-go/internal/workflow/repository"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -111,7 +112,7 @@ func (s *Service) Update(ctx context.Context, id string, req *models.UpdateWorkf
 	}
 	wf, err := s.repo.Update(ctx, id, tenantID, updates)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			return nil, ErrWorkflowNotFound
 		}
 		return nil, err
@@ -126,7 +127,7 @@ func (s *Service) Delete(ctx context.Context, id string, tenantID string) (bool,
 func (s *Service) Pause(ctx context.Context, id string, tenantID string) (*models.Workflow, error) {
 	wf, err := s.repo.SetEnabled(ctx, id, tenantID, false)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			return nil, ErrWorkflowNotFound
 		}
 		return nil, err
@@ -137,7 +138,7 @@ func (s *Service) Pause(ctx context.Context, id string, tenantID string) (*model
 func (s *Service) Resume(ctx context.Context, id string, tenantID string) (*models.Workflow, error) {
 	wf, err := s.repo.SetEnabled(ctx, id, tenantID, true)
 	if err != nil {
-		if err == repository.ErrNotFound {
+		if err == sentinel.NotFound {
 			return nil, ErrWorkflowNotFound
 		}
 		return nil, err

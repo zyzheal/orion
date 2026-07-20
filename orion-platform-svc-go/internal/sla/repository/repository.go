@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -178,7 +179,6 @@ func (r *Repository) ListTracking(ctx context.Context, tenantID string, q models
 	}
 	return items, total, nil
 }
-
 
 func (r *Repository) UpdateTracking(ctx context.Context, tenantID, id string, updates map[string]interface{}) error {
 	if len(updates) == 0 {
@@ -384,13 +384,11 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Sta
 // --- Not found error helpers ---
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
-var ErrNotFound = errors.New("not found")
-
 func ErrNotFoundSLA(id string) error {
-	return fmt.Errorf("sla %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("sla %q not found: %w", id, sentinel.NotFound)
 }
 
 // --- Helper ---

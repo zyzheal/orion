@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/internal-library/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -359,14 +360,14 @@ func determineUpgradeType(current, target string) string {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrNotFound          = errors.New("not found")
+
 	ErrVersionExists     = errors.New("version already exists")
 	ErrAlreadyDeprecated = errors.New("already deprecated")
 	ErrAlreadyActive     = errors.New("already active")
 )
 
 func IsNotFound(err error) bool {
-	return errors.Is(err, ErrNotFound)
+	return errors.Is(err, sentinel.NotFound)
 }
 
 func IsVersionExists(err error) bool {

@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Service interface {
@@ -208,7 +209,7 @@ func (h *Handler) Remediate(c *gin.Context) {
 	vuln, err := h.svc.RemediateVulnerability(ctx, tenantID, cveID, packageName, req)
 	if err != nil {
 		switch {
-		case err.Error() == service.ErrNotFound.Error():
+		case err.Error() == sentinel.NotFound.Error():
 			middleware.RespondNotFound(c, "vulnerability not found")
 		case err.Error() == service.ErrInvalidInput.Error() || len(err.Error()) > len(service.ErrInvalidInput.Error()) && err.Error()[:len(service.ErrInvalidInput.Error())] == service.ErrInvalidInput.Error():
 			middleware.RespondBadRequest(c, err.Error())

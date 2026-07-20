@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/project-member/service"
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/trace"
+	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct { svc *service.Service }

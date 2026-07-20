@@ -11,9 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/go-common/pkg/sentinel"
 )
-
-var ErrNotFound = errors.New("not found")
 
 type Repository struct {
 	db *sqlx.DB
@@ -78,7 +77,7 @@ func (r *Repository) ListPhaseGroups(ctx context.Context, tenantID string, pipel
 
 func (r *Repository) UpdatePhaseGroup(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PhaseGroup, error) {
 	if len(updates) == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	updates["updated_at"] = time.Now().UTC()
 	setClauses := []string{}
@@ -98,7 +97,7 @@ func (r *Repository) UpdatePhaseGroup(ctx context.Context, id string, tenantID s
 	}
 	n, _ := result.RowsAffected()
 	if n == 0 {
-		return nil, ErrNotFound
+		return nil, sentinel.NotFound
 	}
 	return r.GetPhaseGroupByID(ctx, id, tenantID)
 }

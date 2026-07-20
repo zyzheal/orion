@@ -13,6 +13,7 @@ import (
 
 	"orion/platform-svc-go/internal/policy/engine"
 	"orion/platform-svc-go/internal/policy/models"
+	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -553,12 +554,12 @@ func IsNotFound(err error) bool {
 // --- Errors ---
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrPolicyNotFound = fmt.Errorf("policy not found: %w", ErrNotFound)
+
+	ErrPolicyNotFound = fmt.Errorf("policy not found: %w", sentinel.NotFound)
 	ErrInvalidState   = errors.New("invalid state")
 	ErrValidation     = errors.New("validation error")
 )
 
 func ErrNotFoundPolicy(id string) error {
-	return fmt.Errorf("policy %q not found: %w", id, ErrNotFound)
+	return fmt.Errorf("policy %q not found: %w", id, sentinel.NotFound)
 }
