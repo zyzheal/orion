@@ -29,6 +29,14 @@ type mockSecurityService struct {
 	remedErr   error
 }
 
+func (m *mockSecurityService) ScanImage(_ context.Context, _ string, _ string) (*models.ScanResult, error) {
+	return &models.ScanResult{
+		ScanID:               "scan-img-mock",
+		PackageManager:       "docker",
+		VulnerabilitiesFound: 0,
+	}, nil
+}
+
 func (m *mockSecurityService) GetVulnerabilityReport(_ context.Context, _ string, _ models.ListVulnerabilitiesOptions) (*models.VulnerabilityReport, error) {
 	return m.report, m.reportErr
 }

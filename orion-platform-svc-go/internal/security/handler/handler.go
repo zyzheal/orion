@@ -14,6 +14,7 @@ import (
 
 type Service interface {
 	GetVulnerabilityReport(ctx context.Context, tenantID string, opt models.ListVulnerabilitiesOptions) (*models.VulnerabilityReport, error)
+	ScanImage(ctx context.Context, tenantID, imagePath string) (*models.ScanResult, error)
 	ScanDependencies(ctx context.Context, tenantID, projectPath string) (*models.ScanResult, error)
 	CheckVulnerability(ctx context.Context, tenantID, id string) (*models.Vulnerability, error)
 	RemediateVulnerability(ctx context.Context, tenantID, cveID, packageName string, req models.RemediateVulnerabilityRequest) (*models.Vulnerability, error)
@@ -39,6 +40,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/scan",
 		auth.RequirePermission("security", "write"),
 		h.TriggerScan)
+
+	// POST /api/v1/security/vulnerabilities/scan-image — trigger Docker image vulnerability scan
+	r.POST("/scan-image",
+		auth.RequirePermission("security", "write"),
+		h.TriggerImageScan)
 
 	// GET /api/v1/security/vulnerabilities/:id — get specific vulnerability details
 	r.GET("/:id",
@@ -106,6 +112,30 @@ func (h *Handler) TriggerScan(c *gin.Context) {
 	}
 
 	result, err := h.svc.ScanDependencies(ctx, tenantID, req.ProjectPath)
+	if err != nil {
+		middleware.RespondInternalError(c, err.Error())
+		return
+	}
+
+	middleware.RespondCreated(c, result)
+}
+
+// TriggerImageScan triggers a Docker image vulnerability scan using Trivy.
+func (h *Handler) TriggerImageScan(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
+	ctx := context.Background()
+
+	var req models.ScanVulnerabilitiesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		middleware.RespondBadRequest(c, err.Error())
+		return
+	}
+	if req.ProjectPath == "" {
+		middleware.RespondBadRequest(c, "missing required field: projectPath (image name/ID)")
+		return
+	}
+
+	result, err := h.svc.ScanImage(ctx, tenantID, req.ProjectPath)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

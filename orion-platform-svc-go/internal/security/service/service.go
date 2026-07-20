@@ -261,3 +261,82 @@ func (s *Service) ScanDependencies(ctx context.Context, tenantID, projectPath st
 		Tool:                 "trivy",
 	}, nil
 }
+
+// ScanImage scans a Docker image for vulnerabilities using Trivy.
+// It parses the JSON output and persists discovered vulnerabilities.
+func (s *Service) ScanImage(ctx context.Context, tenantID, imagePath string) (*models.ScanResult, error) {
+	if imagePath == "" {
+		return nil, ErrInvalidInput
+	}
+
+	trivyPath, err := exec.LookPath("trivy")
+	if err != nil {
+		return nil, fmt.Errorf("%w: cannot locate trivy binary", ErrTrivyNotInstalled)
+	}
+
+	// Execute: trivy image --format json --severity CRITICAL,HIGH <image>
+	cmd := exec.CommandContext(ctx, trivyPath, "image",
+		"--format", "json",
+		"--severity", "CRITICAL,HIGH",
+		imagePath,
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("%w: %s: %s", ErrTrivyScanFailed, strings.TrimSpace(string(exitErr.Stderr)), strings.TrimSpace(string(output)))
+		}
+		return nil, fmt.Errorf("%w: %v", ErrTrivyScanFailed, err)
+	}
+
+	var trivyOut trivyResult
+	if err := json.Unmarshal(output, &trivyOut); err != nil {
+		return nil, fmt.Errorf("failed to parse trivy JSON output: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	var createReqs []models.CreateVulnerabilityRequest
+
+	for _, target := range trivyOut.Results {
+		for _, tv := range target.Vulnerabilities {
+			key := tv.VulnerabilityID + ":" + tv.PkgName
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			description := tv.Description
+			if description == "" {
+				description = tv.Title
+			}
+			createReqs = append(createReqs, models.CreateVulnerabilityRequest{
+				CVEID:          tv.VulnerabilityID,
+				PackageName:    tv.PkgName,
+				PackageVersion: tv.InstalledVersion,
+				Severity:       mapSeverity(tv.Severity),
+				Description:    description,
+				FixVersion:     tv.FixedVersion,
+			})
+		}
+	}
+
+	persisted, err := s.repo.BatchCreate(ctx, tenantID, createReqs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to persist scan results: %w", err)
+	}
+
+	vulnModels := make([]models.Vulnerability, len(persisted))
+	for i, v := range persisted {
+		vulnModels[i] = v
+	}
+
+	scanID := fmt.Sprintf("scan-img-%s-%d", uuid.New().String(), time.Now().UnixMilli())
+	return &models.ScanResult{
+		ScanID:               scanID,
+		PackageManager:       "docker",
+		TotalDependencies:    len(trivyOut.Results),
+		VulnerabilitiesFound: len(vulnModels),
+		Vulnerabilities:      vulnModels,
+		ScannedAt:            time.Now().UTC(),
+		Tool:                 "trivy",
+	}, nil
+}

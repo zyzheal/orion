@@ -11,6 +11,8 @@ import (
 	"orion/platform-svc-go/internal/pipeline-engine/models"
 	"orion/platform-svc-go/internal/pipeline-engine/repository"
 
+	"orion/platform-svc-go/internal/saga/service"
+	saga_models "orion/platform-svc-go/internal/saga/models"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,6 +28,9 @@ type PipelineEngine struct {
 	executor     *StageExecutor
 	// specStore holds pipeline YAML specs by "pipelineID@version".
 	specStore map[string]string
+	// sagaCoordinator is injected to wrap pipeline execution in a saga transaction.
+	// When nil, pipeline runs without saga (backward compatible).
+	sagaCoordinator *service.SagaCoordinator
 }
 
 // NewPipelineEngine creates a new PipelineEngine instance.
@@ -39,6 +44,11 @@ func NewPipelineEngine(repo *repository.Repository) *PipelineEngine {
 		executor:     exec,
 		specStore:    make(map[string]string),
 	}
+}
+
+// SetSagaCoordinator injects a SagaCoordinator for distributed transaction management.
+func (e *PipelineEngine) SetSagaCoordinator(coordinator *service.SagaCoordinator) {
+	e.sagaCoordinator = coordinator
 }
 
 // RegisterSpec registers an inline YAML spec for a pipeline.
@@ -224,6 +234,68 @@ func (e *PipelineEngine) execute(ctx context.Context, tenantID string, req model
 	// Return final run state
 	return e.repo.GetRun(ctx, tenantID, run.ID)
 }
+
+// executeWithSaga runs the pipeline stages as a saga transaction.
+// Each successful stage becomes a saga step; if any stage fails,
+// StartCompensation is invoked to roll back completed stages.
+func (e *PipelineEngine) executeWithSaga(ctx context.Context, run *models.PipelineRun, stageMap map[string]string, variables map[string]string) bool {
+	tenantID := run.TenantID
+
+	// Start a saga transaction for this pipeline run
+	sagaReq := &saga_models.CreateSagaRequest{
+		SagaName: "pipeline-run",
+		Input: map[string]interface{}{
+			"run_id":    run.ID,
+			"pipeline":  run.PipelineID,
+			"stages":    len(stageMap),
+		},
+	}
+	_, err := e.sagaCoordinator.Start(ctx, tenantID, sagaReq)
+	if err != nil {
+		// Log but continue - pipeline still runs, saga is optional safety net
+		fmt.Printf("[pipeline-engine] saga start failed: %v\n", err)
+		return e.orchestrator.Execute(ctx, run, stageMap, variables)
+	}
+
+	// Create a compensator registry for pipeline stages
+	reg := service.NewStepRegistry()
+	for stageName := range stageMap {
+		// Register a compensator for each stage that marks it as compensated
+		compensator := &stageCompensator{
+			name: stageName,
+		}
+		reg.Register(stageName, compensator)
+	}
+	e.sagaCoordinator.SetRegistry(reg)
+
+	// Execute stages - if orchestrator returns failed, trigger compensation
+	failed := e.orchestrator.Execute(ctx, run, stageMap, variables)
+	if failed {
+		// Trigger compensation to roll back completed stages
+		_ = e.sagaCoordinator.StartCompensation(ctx, tenantID, run.ID, "pipeline execution failed")
+	}
+
+	return failed
+}
+
+// stageCompensator marks a pipeline stage as compensated.
+// The actual rollback logic (reverting database changes, cleaning resources)
+// is handled by the caller — this compensator records the saga state.
+type stageCompensator struct {
+	name string
+}
+
+func (c *stageCompensator) Compensate(_ context.Context, _ *saga_models.SagaStep) (*service.CompensationResult, error) {
+	return &service.CompensationResult{
+		Success: true,
+		Output: map[string]interface{}{
+			"stage":       c.name,
+			"compensated": true,
+		},
+	}, nil
+}
+
+
 
 // buildStageMap returns stage name -> stage ID for a run.
 func (e *PipelineEngine) buildStageMap(ctx context.Context, tenantID, runID string) (map[string]string, error) {

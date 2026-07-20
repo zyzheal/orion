@@ -12,7 +12,7 @@ func TestService_NilRepo(t *testing.T) {
 }
 
 func TestIsReadOnlySQL_Select(t *testing.T) {
-	if !isReadOnlySQL("SELECT 1") {
+	if !isReadOnlySQL("select 1") {
 		t.Fatal("expected SELECT to be read-only")
 	}
 	if isReadOnlySQL("INSERT INTO t VALUES (1)") {
