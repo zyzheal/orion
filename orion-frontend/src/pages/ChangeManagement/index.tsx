@@ -267,11 +267,17 @@ const ChangeManagement: React.FC = () => {
   const loadChanges = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { limit: pageSize, offset: (page - 1) * pageSize };
+      const params: {
+        status?: string;
+        type?: string;
+        priority?: string;
+        limit: number;
+        offset: number;
+      } = { limit: pageSize, offset: (page - 1) * pageSize };
       if (filterStatus) params.status = filterStatus;
       if (filterType) params.type = filterType;
       if (filterPriority) params.priority = filterPriority;
-      const res = await getChangeRequests(params as any);
+      const res = await getChangeRequests(params);
       setChanges(Array.isArray(res.data) ? res.data : []);
       setTotal(res.total || 0);
     } catch {
@@ -352,8 +358,8 @@ const ChangeManagement: React.FC = () => {
       createForm.resetFields();
       loadChanges();
       loadStats();
-    } catch (err: any) {
-      if (err?.errorFields) return; // form validation
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return; // form validation
       message.error('创建变更请求失败');
     } finally {
       setCreateSubmitting(false);
@@ -383,8 +389,8 @@ const ChangeManagement: React.FC = () => {
       const updated = await getChangeRequest(selectedChange.id);
       setSelectedChange(updated);
       loadChanges();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新变更请求失败');
     } finally {
       setEditSubmitting(false);
@@ -465,8 +471,8 @@ const ChangeManagement: React.FC = () => {
       loadTimeline(selectedChange.id);
       loadChanges();
       loadStats();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('状态变更失败');
     }
   };
@@ -507,8 +513,8 @@ const ChangeManagement: React.FC = () => {
       setAddEventModalOpen(false);
       eventForm.resetFields();
       loadTimeline(selectedChange.id);
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('添加时间线事件失败');
     }
   };
@@ -526,8 +532,8 @@ const ChangeManagement: React.FC = () => {
       rfcForm.resetFields();
       setEditRfcId(null);
       loadRfcs();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('创建 RFC 失败');
     }
   };
@@ -542,8 +548,8 @@ const ChangeManagement: React.FC = () => {
       rfcForm.resetFields();
       setEditRfcId(null);
       loadRfcs();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新 RFC 失败');
     }
   };
@@ -591,8 +597,8 @@ const ChangeManagement: React.FC = () => {
       cabForm.resetFields();
       setEditCabId(null);
       loadCabMeetings();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('创建 CAB 会议失败');
     }
   };
@@ -614,8 +620,8 @@ const ChangeManagement: React.FC = () => {
       cabForm.resetFields();
       setEditCabId(null);
       loadCabMeetings();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('更新 CAB 会议失败');
     }
   };
@@ -658,8 +664,8 @@ const ChangeManagement: React.FC = () => {
       const updated = await getCABMeeting(selectedCab.id);
       setSelectedCab(updated);
       loadCabMeetings();
-    } catch (err: any) {
-      if (err?.errorFields) return;
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'errorFields' in err) return;
       message.error('添加决策记录失败');
     }
   };
