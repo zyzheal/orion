@@ -52,14 +52,23 @@ var _ Coordinator = (*SagaCoordinator)(nil)
 
 // SagaCoordinator coordinates saga execution with compensation support.
 type SagaCoordinator struct {
-	repo    Repository
-	timeout time.Duration
+	repo     Repository
+	registry *StepRegistry
+	timeout  time.Duration
 }
 
 func NewSagaCoordinator(repo Repository) *SagaCoordinator {
 	return &SagaCoordinator{
-		repo:    repo,
-		timeout: 3600 * time.Second,
+		repo:     repo,
+		registry: NewStepRegistry(),
+		timeout:  3600 * time.Second,
+	}
+}
+
+// SetRegistry sets the step compensator registry.
+func (c *SagaCoordinator) SetRegistry(registry *StepRegistry) {
+	if registry != nil {
+		c.registry = registry
 	}
 }
 
@@ -193,6 +202,9 @@ func (c *SagaCoordinator) ExecuteAll(ctx context.Context, tenantID, txID string)
 }
 
 // StartCompensation initiates compensation for a failed saga.
+// It iterates completed steps in reverse order, executing each step's
+// registered compensator. If a compensator is not registered for a step,
+// it is logged in the step's output and marked compensated (no-op).
 func (c *SagaCoordinator) StartCompensation(ctx context.Context, tenantID, txID string, reason string) error {
 	tx, err := c.repo.GetTransaction(ctx, tenantID, txID)
 	if err != nil {
@@ -210,13 +222,22 @@ func (c *SagaCoordinator) StartCompensation(ctx context.Context, tenantID, txID 
 		return err
 	}
 
-	// Reverse order for compensation
+	// Reverse order for compensation: compensate most recent first
 	for i := len(steps) - 1; i >= 0; i-- {
 		step := &steps[i]
-		if step.Status == models.SagaStepStatusCompleted {
-			now := unixNow()
-			_ = c.repo.UpdateStepCompensation(ctx, tenantID, step.ID, models.SagaStepStatusCompensating, ptrInt64(now))
-			// Placeholder: in production this calls the step's compensate function
+		if step.Status != models.SagaStepStatusCompleted {
+			continue
+		}
+		now := unixNow()
+		_ = c.repo.UpdateStepCompensation(ctx, tenantID, step.ID, models.SagaStepStatusCompensating, ptrInt64(now))
+
+		// Execute the compensator (if registered)
+		result, _ := c.registry.CompensateStep(ctx, step)
+		if result == nil || !result.Success {
+			// Mark as compensation failed
+			_ = c.repo.UpdateStepCompensation(ctx, tenantID, step.ID, models.SagaStepStatusCompensationFailed, ptrInt64(now))
+		} else {
+			// Mark as compensated
 			_ = c.repo.UpdateStepCompensation(ctx, tenantID, step.ID, models.SagaStepStatusCompensated, ptrInt64(now))
 		}
 	}
