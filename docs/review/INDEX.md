@@ -1,8 +1,8 @@
-# Orion 评审文档索引 v1.1 (2026-07-20)
+# Orion 评审文档索引 v2.2 (2026-07-20)
 
-> **版本**: v2.1 | **数据截至**: 2026-07-20 | **验证方式**: `go test ./internal/...` (269 pass, 0 fail)
+> **版本**: v2.2 | **数据截至**: 2026-07-20 | **验证方式**: `go test ./internal/...` (269 pass, 0 fail)
 > v1.0→v1.1 修正: SQL repository 数据(99%→27%), 前端路由数(316→212), 模块数(224→220), 测试结果(34/2→37/3)
-> v2.0→v2.1 更新: P1-4(18/18模块repo_interface), P1-8(auth-enhanced service_test), 前端路由320, tests 269包
+> v2.1→v2.2 更新: P1-2(DomainEvent追踪字段), P1-9(SAST/DAST CI), 4/15 P1完成 P1-4(18/18模块repo_interface), P1-8(auth-enhanced service_test), 前端路由320, tests 269包
 
 ## 文档体系概览
 
@@ -125,14 +125,14 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | # | P1项 | 状态 | 完成度 |
 |:-:|------|:----:|:------:|
 | 1 | 两套 Saga 实现重叠 | ✅ 统一至SagaCoordinator | ✅ |
-| 2 | DomainEvent 缺 CorrelationID/CausationID | ⬜ 未开始 | 0% |
+| 2 | DomainEvent 缺 CorrelationID/CausationID | **✅ Event+PublishRequest 已加** | ✅ |
 | 3 | 微前端子应用间通信协议 | ⬜ 未开始 | 0% |
 | 4 | 217模块无 Repository Interface | **18/18核心模块已完成** | 🟡 8% |
 | 5 | 157 repository 仍用 map 存储 | ⬜ 未开始 | 0% |
 | 6 | Design Token 使用率低 | ⬜ 未开始 | 0% |
 | 7 | 39% API 客户端未使用 | ⬜ 未开始 | 0% |
 | 8 | auth-enhanced 无测试 | **✅ 已加 service_test** | ✅ |
-| 9 | 无 SAST/DAST 扫描阶段 | ⬜ 未开始 | 0% |
+| 9 | 无 SAST/DAST 扫描阶段 | **✅ Trivy+Semgrep+依赖扫描** | ✅ |
 | 10 | 无 Data Catalog 模块 | ⬜ 未开始 | 0% |
 | 11 | 数据质量无执行引擎 | ⬜ 未开始 | 0% |
 | 12 | AI 决策引擎无实际执行 | ⬜ 未开始 | 0% |
@@ -140,23 +140,25 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 14 | webhook 无重试/死信队列 | ⬜ 未开始 | 0% |
 | 15 | 缺少 API 版本管理策略 | ⬜ 未开始 | 0% |
 
-**P1完成率**: 2/15 (13%) — P1-4 和 P1-8 进行中
+**P1完成率**: **4/15 (27%)** — P1-2/4/8/9 完成
 
 
 ---
 
 ## 下一步工作（P1 剩余项优先级排序）
 
+> P1-2 (CorrelationID/CausationID)、P1-9 (SAST/DAST CI)、P1-4 (repo_interface)、P1-8 (auth-enhanced service_test) 已完成。
+
 | 优先级 | 项 | 预估工时 | 备注 |
 |:------:|------|:--------:|------|
-| 1 | **P1-9: SAST/DAST 安全扫描阶段** | 0.5d | CI 集成 Trivy/Semgrep |
-| 2 | **P1-2: DomainEvent 补 CorrelationID/CausationID** | 0.5d | 事件溯源链路追踪 |
-| 3 | **P1-5: map→PostgreSQL 迁移 (157 repos)** | 5-10d | 需分批次进行 |
-| 4 | **P1-12/13: AI 决策引擎 + AI 网关实际执行** | 3-5d | 需 LLM provider 对接 |
-| 5 | **P1-14: webhook 重试/死信队列** | 1d | 可复用 go-common sse |
-| 6 | **P1-10: Data Catalog 模块** | 2-3d | 需设计 schema |
-| 7 | **P1-6/7: Design Token + API 客户端清理** | 2-3d | 前端重构 |
-| 8 | **P1-3: 微前端子应用间通信协议** | 1d | 需确定通信方案 |
+| 1 | **P1-5: map→PostgreSQL 迁移 (157 repos)** | 5-10d | 需分批次进行 |
+| 2 | **P1-12/13: AI 决策引擎 + AI 网关实际执行** | 3-5d | 需 LLM provider 对接 |
+| 3 | **P1-14: webhook 重试/死信队列** | 1d | 可复用 go-common sse |
+| 4 | **P1-10: Data Catalog 模块** | 2-3d | 需设计 schema |
+| 5 | **P1-11: 数据质量执行引擎** | 1-2d | 与 P1-10 可协同 |
+| 6 | **P1-6/7: Design Token + API 客户端清理** | 2-3d | 前端重构 |
+| 7 | **P1-3: 微前端子应用间通信协议** | 1d | 需确定通信方案 |
+| 8 | **P1-15: API 版本管理策略** | 0.5-1d | 文档+网关路由 |
 
 **综合评分演进**: C+ → A (269 tests pass, 14/14 P0 complete)
 
@@ -171,7 +173,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | final-30-dimension-audit | Jul 19 19:03 | Agent E | 基于expert-review |
 
 **注意**: 5个Agent并行生成，无共享上下文，导致P0定义和统计数据不一致。
-本INDEX.md v1.1（2026-07-20）作为统一索引，修正了v1.0的所有数字不一致和结构性误读（SQL repository 99%→27%, 前端路由316→212）。
+本INDEX.md v2.2（2026-07-20）作为统一索引，修正了v1.0的所有数字不一致和结构性误读（SQL repository 99%→27%, 前端路由316→212），并同步了P1修复进度（4/15完成: P1-2/4/8/9）。
 
 ---
 
