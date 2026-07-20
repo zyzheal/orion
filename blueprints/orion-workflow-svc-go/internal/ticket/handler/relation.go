@@ -45,7 +45,7 @@ func (h *RelationHandler) GetRelations(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, relations, "count": len(relations))
+	respondSuccess(c, gin.H{"data": relations, "count": len(relations)})
 }
 
 // FindRelatedTickets GET /api/v1/tickets/:id/related
@@ -58,7 +58,7 @@ func (h *RelationHandler) FindRelatedTickets(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, related, "count": len(related))
+	respondSuccess(c, gin.H{"data": related, "count": len(related)})
 }
 
 // DetectDuplicates GET /api/v1/tickets/:id/duplicates
@@ -70,7 +70,7 @@ func (h *RelationHandler) DetectDuplicates(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, duplicates, "count": len(duplicates))
+	respondSuccess(c, gin.H{"data": duplicates, "count": len(duplicates)})
 }
 
 // CorrelateRootCause POST /api/v1/tickets/correlate

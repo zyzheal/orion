@@ -42,7 +42,7 @@ func (h *DispatchHandler) ListEngineers(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, engineers, "count": len(engineers))
+	respondSuccess(c, gin.H{"data": engineers, "count": len(engineers)})
 }
 
 // GetEngineer GET /api/v1/tickets/dispatch/engineers/:id
@@ -139,7 +139,7 @@ func (h *DispatchHandler) GetDispatchQueueEntries(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, entries, "count": len(entries))
+	respondSuccess(c, gin.H{"data": entries, "count": len(entries)})
 }
 
 // AddDispatchRule POST /api/v1/tickets/dispatch/rules
@@ -173,7 +173,7 @@ func (h *DispatchHandler) GetDispatchRules(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, rules, "count": len(rules))
+	respondSuccess(c, gin.H{"data": rules, "count": len(rules)})
 }
 
 // RemoveDispatchRule DELETE /api/v1/tickets/dispatch/rules/:ruleId

@@ -35,7 +35,7 @@ func (h *QueueHandler) GetSLAQueueEntries(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, entries, "count": len(entries))
+	respondSuccess(c, gin.H{"data": entries, "count": len(entries)})
 }
 
 // GetSLAAlerts GET /api/v1/tickets/dispatch/queue/sla-alerts
@@ -55,7 +55,7 @@ func (h *QueueHandler) GetSLAAlerts(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, alerts, "count": len(alerts))
+	respondSuccess(c, gin.H{"data": alerts, "count": len(alerts)})
 }
 
 // ReprioritizeQueue POST /api/v1/tickets/dispatch/queue/reprioritize

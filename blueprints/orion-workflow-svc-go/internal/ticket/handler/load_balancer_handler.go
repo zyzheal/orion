@@ -33,7 +33,7 @@ func (h *LoadBalancerHandler) GetReassignmentSuggestions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, suggestions, "count": len(suggestions))
+	respondSuccess(c, gin.H{"data": suggestions, "count": len(suggestions)})
 }
 
 // GetTeamCapacity GET /api/v1/tickets/dispatch/balancing/team/:team/capacity
@@ -63,5 +63,5 @@ func (h *LoadBalancerHandler) GetAvailableEngineers(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, engineers, "count": len(engineers))
+	respondSuccess(c, gin.H{"data": engineers, "count": len(engineers)})
 }

@@ -72,7 +72,7 @@ func (h *ToolHandler) ListTools(c *gin.Context) {
 		respondInternalError(c, "internal error")
 		return
 	}
-	respondSuccess(c, tools, "total": total)
+	respondSuccess(c, gin.H{"data": tools, "total": total})
 }
 
 func (h *ToolHandler) UpdateTool(c *gin.Context) {
@@ -305,7 +305,7 @@ func (h *ToolHandler) MarketSearch(c *gin.Context) {
 		respondInternalError(c, "internal error")
 		return
 	}
-	respondSuccess(c, tools, "total": total)
+	respondSuccess(c, gin.H{"data": tools, "total": total})
 }
 
 // RegisterRoutes registers all tool routes on the given gin group.

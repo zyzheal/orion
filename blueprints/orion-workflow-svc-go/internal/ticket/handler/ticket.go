@@ -42,9 +42,7 @@ func (h *TicketHandler) ListTickets(c *gin.Context) {
 		return
 	}
 
-	respondSuccess(c, tickets,
-		"total": total,
-		"page":  q.Page,)
+	respondSuccess(c, gin.H{"data": tickets, "total": total, "page": q.Page})
 }
 
 // GetTicket GET /api/v1/tickets/:id

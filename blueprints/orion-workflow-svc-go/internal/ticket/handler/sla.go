@@ -61,5 +61,5 @@ func (h *SLAHandler) CheckSLABreaches(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, breaches, "count": len(breaches))
+	respondSuccess(c, gin.H{"data": breaches, "count": len(breaches)})
 }

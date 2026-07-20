@@ -217,7 +217,7 @@ func (h *AnalyticsHandler) GetTransferHistory(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, history, "count": len(history))
+	respondSuccess(c, gin.H{"data": history, "count": len(history)})
 }
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats

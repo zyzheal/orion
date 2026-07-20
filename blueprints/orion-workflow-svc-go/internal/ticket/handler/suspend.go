@@ -71,7 +71,7 @@ func (h *SuspendHandler) ListSuspensions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, records, "count": len(records))
+	respondSuccess(c, gin.H{"data": records, "count": len(records)})
 }
 
 // GetSuspend GET /api/v1/tickets/suspend/:id
@@ -91,7 +91,7 @@ func (h *SuspendHandler) GetEngineerSuspensions(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, records, "count": len(records))
+	respondSuccess(c, gin.H{"data": records, "count": len(records)})
 }
 
 // GetEngineerSuspendImpact GET /api/v1/tickets/suspend/engineer/:engineerId/impact

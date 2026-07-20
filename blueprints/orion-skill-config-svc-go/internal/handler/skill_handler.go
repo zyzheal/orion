@@ -322,7 +322,7 @@ func (h *SkillHandler) ListExecutions(c *gin.Context) {
 		respondNotFound(c, "skill not found")
 		return
 	}
-	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
 }
 
 // ListAllExecutions returns all executions (admin).
@@ -342,7 +342,7 @@ func (h *SkillHandler) ListAllExecutions(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
 }
 
 // SubmitForReview submits a skill for review.
@@ -420,7 +420,7 @@ func (h *SkillHandler) PendingReview(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
 }
 
 // GetAuditLog returns audit log for a skill.
@@ -434,7 +434,7 @@ func (h *SkillHandler) GetAuditLog(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
 }
 
 // GetAllAuditLogs returns global audit log (admin).
@@ -452,5 +452,5 @@ func (h *SkillHandler) GetAllAuditLogs(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, items, "total": total, "page": page, "total_pages": totalPages)
+	respondSuccess(c, gin.H{"data": items, "total": total, "page": page, "total_pages": totalPages})
 }

@@ -22,7 +22,7 @@ func (h *RecommendationHandler) GetRecommendations(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, recs, "count": len(recs))
+	respondSuccess(c, gin.H{"data": recs, "count": len(recs)})
 }
 
 func (h *RecommendationHandler) RegisterRoutes(rg *gin.RouterGroup) {

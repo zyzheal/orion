@@ -32,7 +32,7 @@ func (h *Handler) GetPendingForUser(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, results, "count": len(results))
+	respondSuccess(c, gin.H{"data": results, "count": len(results)})
 }
 
 // GetStats returns aggregate approval statistics.

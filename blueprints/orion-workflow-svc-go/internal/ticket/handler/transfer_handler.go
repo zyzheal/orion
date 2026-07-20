@@ -47,7 +47,7 @@ func (h *TransferHandler) CheckAutoTransfer(c *gin.Context) {
 		return
 	}
 
-	respondSuccess(c, transfers, "count": len(transfers))
+	respondSuccess(c, gin.H{"data": transfers, "count": len(transfers)})
 }
 
 // TransferDueToSuspend POST /api/v1/tickets/transfer/suspend/:suspendId
@@ -58,7 +58,7 @@ func (h *TransferHandler) TransferDueToSuspend(c *gin.Context) {
 		return
 	}
 
-	respondSuccess(c, transfers, "count": len(transfers))
+	respondSuccess(c, gin.H{"data": transfers, "count": len(transfers)})
 }
 
 // GetTransferHistory GET /api/v1/tickets/transfer/:ticketId/history
@@ -68,7 +68,7 @@ func (h *TransferHandler) GetTransferHistory(c *gin.Context) {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	respondSuccess(c, history, "count": len(history))
+	respondSuccess(c, gin.H{"data": history, "count": len(history)})
 }
 
 // GetTransferStats GET /api/v1/tickets/transfer/stats
