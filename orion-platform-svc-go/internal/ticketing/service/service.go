@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
+	"orion/platform-svc-go/internal/ticketing/repository"
 )
 
 // validTransitions mirrors the TS TicketWorkflowService state machine matrix.
@@ -31,10 +32,10 @@ var defaultSLATargets = map[string]models.SLATarget{
 }
 
 type Service struct {
-	repo ticketRepo
+	repo *repository.Repository
 }
 
-func NewService(repo ticketRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

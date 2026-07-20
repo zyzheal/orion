@@ -14,11 +14,11 @@ import (
 
 // Service provides business logic for notifications.
 type Service struct {
-	repo NotificationRepo
+	repo *notificationRepo.Repository
 }
 
 // NewService creates a new Service.
-func NewService(repo NotificationRepo) *Service {
+func NewService(repo *notificationRepo.Repository) *Service {
 	return &Service{repo: repo}
 }
 

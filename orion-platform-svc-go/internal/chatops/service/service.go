@@ -9,15 +9,16 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/chatops/models"
+	"orion/platform-svc-go/internal/chatops/repository"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo ChatOpsRepo
+	repo *repository.Repository
 }
 
-func NewService(repo ChatOpsRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

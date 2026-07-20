@@ -8,15 +8,16 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/developer-portal/models"
+	"orion/platform-svc-go/internal/developer-portal/repository"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo DeveloperPortalRepo
+	repo *repository.Repository
 }
 
-func NewService(repo DeveloperPortalRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

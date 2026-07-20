@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/digital-twin/models"
+	"orion/platform-svc-go/internal/digital-twin/repository"
 )
 
 type SimulationState struct {
@@ -30,13 +31,13 @@ type SimulationState struct {
 
 
 type Service struct {
-	repo               DigitalTwinRepo
+	repo *repository.Repository
 	sandboxStore       map[string]*models.Sandbox
 	recordingStore     map[string]*models.RecordingSession
 	simulationStore    map[string]SimulationState
 }
 
-func NewService(repo DigitalTwinRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{
 		repo:            repo,
 		sandboxStore:    make(map[string]*models.Sandbox),

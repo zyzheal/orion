@@ -17,10 +17,10 @@ import (
 // Service provides pipeline graph operations: YAML <-> JSON conversion,
 // graph building from saved pipelines, and YAML validation.
 type Service struct {
-	repo PipelineGraphRepo
+	repo *repository.Repository
 }
 
-func NewService(repo PipelineGraphRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

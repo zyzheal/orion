@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/monitoring/models"
+	"orion/platform-svc-go/internal/monitoring/repository"
 )
 
 // Service provides the monitoring business-logic layer.
@@ -17,10 +18,10 @@ import (
 // rule-evaluation, escalation, anomaly-detection, dashboard-aggregation and
 // system-metrics-collecting engines.
 type Service struct {
-	repo MonitoringRepo
+	repo *repository.Repository
 }
 
-func NewService(repo MonitoringRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

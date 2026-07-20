@@ -29,11 +29,11 @@ func IsNotFound(err error) bool {
 
 // Service implements webhook business logic.
 type Service struct {
-	repo WebhookRepo
+	repo *repository.Repository
 }
 
 // NewService creates a new Service.
-func NewService(repo WebhookRepo) *Service {
+func NewService(repo *repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 

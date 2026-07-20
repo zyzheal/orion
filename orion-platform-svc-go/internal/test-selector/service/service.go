@@ -9,17 +9,18 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/test-selector/models"
+	"orion/platform-svc-go/internal/test-selector/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type Service struct {
-	repo TestSelectorRepo
+	repo *repository.Repository
 	db   *sqlx.DB
 }
 
-func NewService(repo TestSelectorRepo, db *sqlx.DB) *Service {
+func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
