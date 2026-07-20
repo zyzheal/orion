@@ -433,8 +433,3 @@ func medianOf(durations []int64) float64 {
 	}
 	return float64(durations[mid])
 }
-
-func init() {
-	// Export utility functions for reuse in other packages.
-	_ = medianOf
-}

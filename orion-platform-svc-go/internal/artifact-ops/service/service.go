@@ -163,7 +163,3 @@ func (s *Service) Cleanup(ctx context.Context, tenantID string) (map[string]any,
 	return map[string]any{"message": "cleanup completed", "deleted": 0}, nil
 }
 
-func init() {
-	// noop
-	_ = uuid.NewString
-}
