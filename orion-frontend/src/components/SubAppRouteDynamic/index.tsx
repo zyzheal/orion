@@ -1,4 +1,3 @@
-// @ts-nocheck - @orion-mf/core 类型声明待完善
 /**
  * SubAppRouteDynamic - 动态子应用路由组件
  *
