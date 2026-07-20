@@ -6,16 +6,24 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/user-activity/models"
-	"orion/platform-svc-go/internal/user-activity/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateActivity(ctx context.Context, a *models.UserActivity) error
+	DeleteActivity(ctx context.Context, userID, activityID string) error
+	GetActivities(ctx context.Context, userID string, limit, offset int) ([]models.UserActivity, error)
+	GetActivityByID(ctx context.Context, userID, activityID string) (*models.UserActivity, error)
+	GetActivityCount(ctx context.Context, userID string) (int, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

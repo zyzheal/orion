@@ -9,16 +9,30 @@ import (
 	"orion/platform-svc-go/internal/data-lineage/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateLineage(ctx context.Context, lineage *models.Lineage) error
+	CreateNode(ctx context.Context, node *models.Node) error
+	CreateRelationship(ctx context.Context, rel *models.Relationship) error
+	DeleteLineage(ctx context.Context, tenantID, id string) (bool, error)
+	GetLineageByID(ctx context.Context, tenantID, id string) (*models.Lineage, error)
+	GetStats(ctx context.Context, tenantID string) (*models.LineageStats, error)
+	ListLineages(ctx context.Context, tenantID string, status *string) ([]models.Lineage, error)
+	ListNodesByLineage(ctx context.Context, tenantID, lineageID string) ([]models.Node, error)
+	ListRelationshipsByLineage(ctx context.Context, tenantID, lineageID string) ([]models.Relationship, error)
+	UpdateLineage(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Lineage, error)
+}
+
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -49,8 +63,8 @@ func (s *Service) CreateLineage(ctx context.Context, tenantID string, req *model
 		return nil, ErrBadRequest
 	}
 	lineage := &models.Lineage{
-		TenantID:  tenantID,
-		Name:      req.Name,
+		TenantID:    tenantID,
+		Name:        req.Name,
 		Description: req.Description,
 	}
 	if err := s.repo.CreateLineage(ctx, lineage); err != nil {
@@ -106,9 +120,9 @@ func (s *Service) CreateNode(ctx context.Context, tenantID string, lineageID str
 		return nil, ErrNotFound
 	}
 	node := &models.Node{
-		LineageID: lineageID,
-		Name:      req.Name,
-		Type:      req.Type,
+		LineageID:  lineageID,
+		Name:       req.Name,
+		Type:       req.Type,
 		Properties: req.Properties,
 	}
 	if err := s.repo.CreateNode(ctx, node); err != nil {
@@ -132,11 +146,11 @@ func (s *Service) CreateRelationship(ctx context.Context, tenantID string, linea
 		return nil, ErrNotFound
 	}
 	rel := &models.Relationship{
-		LineageID: lineageID,
+		LineageID:    lineageID,
 		SourceNodeID: req.SourceNodeID,
 		TargetNodeID: req.TargetNodeID,
-		Type:      req.Type,
-		Description: req.Description,
+		Type:         req.Type,
+		Description:  req.Description,
 	}
 	if err := s.repo.CreateRelationship(ctx, rel); err != nil {
 		return nil, err

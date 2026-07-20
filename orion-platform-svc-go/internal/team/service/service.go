@@ -7,14 +7,32 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/team/models"
-	"orion/platform-svc-go/internal/team/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddMember(ctx context.Context, m *models.TeamMember) error
+	AssignRole(ctx context.Context, teamID, roleName string, grantedBy *string) error
+	Create(ctx context.Context, m *models.Team) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Team, error)
+	GetBySlug(ctx context.Context, tenantID, slug string) (*models.Team, error)
+	GetMembers(ctx context.Context, teamID string) ([]models.TeamMember, error)
+	GetOrphanedChildrenCount(ctx context.Context, tenantID, parentID string) (int64, error)
+	GetRoles(ctx context.Context, teamID string) ([]models.TeamRole, error)
+	GetUserTeams(ctx context.Context, userID, tenantID string) ([]models.Team, error)
+	List(ctx context.Context, tenantID string, typeFilter *string, limit, offset int) ([]models.Team, error)
+	RemoveMember(ctx context.Context, teamID, userID string) (bool, error)
+	RemoveRole(ctx context.Context, teamID, roleName string) (bool, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateMemberRole(ctx context.Context, teamID, userID, newRole string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

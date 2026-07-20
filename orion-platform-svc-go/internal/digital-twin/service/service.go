@@ -9,8 +9,21 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/digital-twin/models"
-	"orion/platform-svc-go/internal/digital-twin/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateReplaySession(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error)
+	CreateSnapshot(ctx context.Context, twinID, name string) (*models.Snapshot, error)
+	CreateTrafficRecord(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error)
+	CreateTwin(ctx context.Context, tenantID string, req models.CreateDigitalTwinRequest) (*models.DigitalTwin, error)
+	FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
+	FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error)
+	FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error)
+	FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error)
+	FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
+	UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error)
+}
 
 type SimulationState struct {
 	TwinID           string    `json:"twin_id"`
@@ -29,15 +42,14 @@ type SimulationState struct {
 	LastSync         time.Time `json:"last_sync"`
 }
 
-
 type Service struct {
-	repo *repository.Repository
-	sandboxStore       map[string]*models.Sandbox
-	recordingStore     map[string]*models.RecordingSession
-	simulationStore    map[string]SimulationState
+	repo            RepositoryInterface
+	sandboxStore    map[string]*models.Sandbox
+	recordingStore  map[string]*models.RecordingSession
+	simulationStore map[string]SimulationState
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:            repo,
 		sandboxStore:    make(map[string]*models.Sandbox),
@@ -74,10 +86,10 @@ func (s *Service) GetTwinState(ctx context.Context, tenantID, twinID string) (*T
 	inbound := int(float64(simulated.latency)*0.8) + rand.Intn(20)
 	outbound := int(float64(simulated.latency)*0.4) + rand.Intn(10)
 	return &TwinState{
-		TwinID:     twinID,
-		Status:     simulated.state,
-		Replicas:   3,
-		CPUUsage:   int(cpuUsage),
+		TwinID:      twinID,
+		Status:      simulated.state,
+		Replicas:    3,
+		CPUUsage:    int(cpuUsage),
 		MemoryUsage: int(memUsage),
 		NetworkIO: NetworkIO{
 			Inbound:  strconv.Itoa(inbound) + "MB/s",
@@ -225,12 +237,12 @@ func (s *Service) ReplayTraffic(ctx context.Context, twinID string) (*ReplayTraf
 	count := rand.Intn(1000)
 	duration := fmt.Sprintf("%ds", rand.Intn(60))
 	record, err := s.repo.CreateTrafficRecord(ctx, models.CreateTrafficRecordInput{
-		TwinID:      twinID,
-		Type:        "replay",
-		StartedAt:   time.Now().UTC(),
-		CompletedAt: ptrTime(time.Now().UTC()),
+		TwinID:       twinID,
+		Type:         "replay",
+		StartedAt:    time.Now().UTC(),
+		CompletedAt:  ptrTime(time.Now().UTC()),
 		RequestCount: count,
-		Duration:    duration,
+		Duration:     duration,
 	})
 	if err != nil {
 		return nil, err
@@ -245,11 +257,11 @@ func (s *Service) ReplayTraffic(ctx context.Context, twinID string) (*ReplayTraf
 // StartReplay creates a replay session (managed by repository).
 func (s *Service) StartReplay(ctx context.Context, twinID string, req models.CreateReplayStartRequest) (*models.ReplaySession, error) {
 	return s.repo.CreateReplaySession(ctx, models.CreateReplaySessionInput{
-		TwinID:              twinID,
-		RecordingSessionID:  req.RecordingSessionId,
-		SandboxEndpoint:     req.SandboxEndpoint,
-		Status:              "running",
-		StartedAt:           time.Now().UTC(),
+		TwinID:             twinID,
+		RecordingSessionID: req.RecordingSessionId,
+		SandboxEndpoint:    req.SandboxEndpoint,
+		Status:             "running",
+		StartedAt:          time.Now().UTC(),
 	})
 }
 
@@ -312,8 +324,8 @@ func (s *Service) GetReplayReport(ctx context.Context, replayID string) (*Replay
 		matchRate = fmt.Sprintf("%.1f%%", float64(session.MatchedRequests)/float64(session.TotalRequests)*100)
 	}
 	return &ReplayReport{
-		ReplayID:  session.ID,
-		Status:    session.Status,
+		ReplayID: session.ID,
+		Status:   session.Status,
 		Summary: ReplaySummary{
 			TotalRequests:     session.TotalRequests,
 			CompletedRequests: session.CompletedRequests,
@@ -465,10 +477,10 @@ func ptrTime(t time.Time) *time.Time {
 // --- Sentinel errors ---
 
 var (
-	ErrNotFound         = errors.New("not found")
-	ErrTwinNotFound     = errors.New("twin not found")
-	ErrInvalidInput     = errors.New("invalid input")
-	ErrReplayNotFound   = errors.New("replay session not found")
+	ErrNotFound       = errors.New("not found")
+	ErrTwinNotFound   = errors.New("twin not found")
+	ErrInvalidInput   = errors.New("invalid input")
+	ErrReplayNotFound = errors.New("replay session not found")
 )
 
 func IsNotFound(err error) bool {

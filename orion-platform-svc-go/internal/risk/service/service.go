@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/risk/models"
-	"orion/platform-svc-go/internal/risk/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.Risk) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Risk, error)
+	List(ctx context.Context, tenantID string) ([]models.Risk, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Risk, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

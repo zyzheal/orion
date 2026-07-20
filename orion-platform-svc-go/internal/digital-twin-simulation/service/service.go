@@ -13,15 +13,30 @@ import (
 	dt_repo "orion/platform-svc-go/internal/digital-twin-simulation/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateSimulation(ctx context.Context, tenantID string, sim models.Simulation) (*models.Simulation, error)
+	CreateState(ctx context.Context, state models.TwinState) (*models.TwinState, error)
+	CreateTwin(ctx context.Context, tenantID string, req models.CreateTwinRequest) (*models.DigitalTwin, error)
+	DeleteTwin(ctx context.Context, tenantID, id string) error
+	FindTwinByID(ctx context.Context, tenantID, id string) (*models.DigitalTwin, error)
+	GetLatestState(ctx context.Context, twinID string) (*models.TwinState, error)
+	ListSimulations(ctx context.Context, twinID string, q models.ListQuery) ([]models.Simulation, int64, error)
+	ListTwins(ctx context.Context, tenantID string, q models.ListQuery) ([]models.DigitalTwin, int64, error)
+	UpdateSimulation(ctx context.Context, id string, status string, endTime *int64, duration *int64, results models.JSON) (*models.Simulation, error)
+	UpdateTwin(ctx context.Context, tenantID, id string, req models.UpdateTwinRequest) (*models.DigitalTwin, error)
+	UpdateTwinStatusAndSync(ctx context.Context, tenantID, id string, status string, lastSync *int64, updatedAt int64) (*models.DigitalTwin, error)
+}
+
 // Service orchestrates Digital Twin simulation business logic.
 type Service struct {
-	repo *dt_repo.Repository
+	repo    RepositoryInterface
 	clock   func() int64
 	randSrc *rand.Rand
 }
 
 // NewService constructs the service.
-func NewService(repo *dt_repo.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:    repo,
 		clock:   func() int64 { return time.Now().Unix() },
@@ -167,16 +182,16 @@ func (s *Service) Simulate(ctx context.Context, tenantID, twinID string, req mod
 		dur = &d
 	}
 	sim := models.Simulation{
-		ID:         "sim_" + strconv.FormatInt(s.clock(), 10) + "_" + strconv.Itoa(s.randSrc.Intn(10000)),
-		TenantID:   tenantID,
-		TwinID:     twinID,
-		Type:       req.Type,
-		Name:       req.Name,
+		ID:          "sim_" + strconv.FormatInt(s.clock(), 10) + "_" + strconv.Itoa(s.randSrc.Intn(10000)),
+		TenantID:    tenantID,
+		TwinID:      twinID,
+		Type:        req.Type,
+		Name:        req.Name,
 		Description: req.Description,
-		Parameters: paramsJSON,
-		Status:     models.SimulationStatusRunning,
-		StartTime:  now,
-		Duration:   dur,
+		Parameters:  paramsJSON,
+		Status:      models.SimulationStatusRunning,
+		StartTime:   now,
+		Duration:    dur,
 	}
 	simPtr, err := s.repo.CreateSimulation(ctx, tenantID, sim)
 	if err != nil {
@@ -351,13 +366,13 @@ func (s *Service) generateState(twinID string) models.TwinState {
 	errorRate := s.randSrc.Float64() * 0.05
 	availability := 0.99 + s.randSrc.Float64()*0.01
 	return models.TwinState{
-		TwinID:    twinID,
-		Timestamp: s.clock(),
-		Status:    models.TwinStatusActive,
+		TwinID:       twinID,
+		Timestamp:    s.clock(),
+		Status:       models.TwinStatusActive,
 		Resources:    models.JSON([]byte(fmt.Sprintf(`{"cpu":%.1f,"memory":%.1f,"storage":%.1f,"network":%.1f}`, cpu, mem, storage, network))),
 		Performance:  models.JSON([]byte(fmt.Sprintf(`{"throughput":%.1f,"latency":%.1f,"errorRate":%.4f,"availability":%.4f}`, throughput, latency, errorRate, availability))),
 		Dependencies: models.JSON([]byte(`[{"name":"database","health":"healthy"},{"name":"cache","health":"healthy"},{"name":"api-gateway","health":"healthy"}]`)),
-		Events:      models.JSON([]byte("[]")),
+		Events:       models.JSON([]byte("[]")),
 	}
 }
 
@@ -474,13 +489,13 @@ func parseJSONFloatMap(j models.JSON) map[string]float64 {
 // --- Response types ---
 
 type TwinStateResponse struct {
-	TwinID       string         `json:"twinId"`
-	Timestamp    int64          `json:"timestamp"`
-	Status       string         `json:"status"`
+	TwinID       string             `json:"twinId"`
+	Timestamp    int64              `json:"timestamp"`
+	Status       string             `json:"status"`
 	Resources    map[string]float64 `json:"resources"`
 	Performance  map[string]float64 `json:"performance"`
-	Dependencies []Dependency   `json:"dependencies"`
-	Events       []Event        `json:"events"`
+	Dependencies []Dependency       `json:"dependencies"`
+	Events       []Event            `json:"events"`
 }
 
 type Dependency struct {
@@ -500,22 +515,22 @@ func twinStateToResponse(st *models.TwinState) *TwinStateResponse {
 	var events []Event
 	_ = json.Unmarshal(st.Events, &events)
 	return &TwinStateResponse{
-		TwinID:      st.TwinID,
-		Timestamp:   st.Timestamp,
-		Status:      st.Status,
-		Resources:   parseJSONFloatMap(st.Resources),
-		Performance: parseJSONFloatMap(st.Performance),
+		TwinID:       st.TwinID,
+		Timestamp:    st.Timestamp,
+		Status:       st.Status,
+		Resources:    parseJSONFloatMap(st.Resources),
+		Performance:  parseJSONFloatMap(st.Performance),
 		Dependencies: deps,
-		Events:      events,
+		Events:       events,
 	}
 }
 
 type SimulationResult struct {
-	Success         bool             `json:"success"`
-	Metrics         []SimResultMetric `json:"metrics"`
-	Insights        []string         `json:"insights"`
-	Risks           []SimResultRisk  `json:"risks"`
-	Recommendations []string         `json:"recommendations"`
+	Success         bool               `json:"success"`
+	Metrics         []SimResultMetric  `json:"metrics"`
+	Insights        []string           `json:"insights"`
+	Risks           []SimResultRisk    `json:"risks"`
+	Recommendations []string           `json:"recommendations"`
 	Visualizations  []SimVisualization `json:"visualizations"`
 }
 
@@ -550,12 +565,12 @@ type TwinComparison struct {
 }
 
 type ComparisonMetric struct {
-	Name        string  `json:"name"`
-	RealValue   float64 `json:"realValue"`
-	TwinValue   float64 `json:"twinValue"`
-	Deviation   float64 `json:"deviation"`
-	Accuracy    float64 `json:"accuracy"`
-	Unit        string  `json:"unit"`
+	Name      string  `json:"name"`
+	RealValue float64 `json:"realValue"`
+	TwinValue float64 `json:"twinValue"`
+	Deviation float64 `json:"deviation"`
+	Accuracy  float64 `json:"accuracy"`
+	Unit      string  `json:"unit"`
 }
 
 type Discrepancy struct {

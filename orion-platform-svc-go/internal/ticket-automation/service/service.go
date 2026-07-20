@@ -4,15 +4,23 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/ticket-automation/models"
-	"orion/platform-svc-go/internal/ticket-automation/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	List(ctx context.Context, tenantID string) ([]models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)
+}
 
 // Service handles ticket automation business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

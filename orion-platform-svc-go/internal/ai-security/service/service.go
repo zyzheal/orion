@@ -9,6 +9,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CheckVulnerability(ctx context.Context, tenantID, cveID string) (*models.CheckVulnerabilityResult, error)
+	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	FindVulnerabilities(ctx context.Context, tenantID string, image string) (*models.ScanVulnerabilitiesResult, error)
+	FixVulnerability(ctx context.Context, tenantID, image string, cveIDs []string) (*models.FixVulnerabilityResult, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
+	GetVulnerability(ctx context.Context, tenantID, cveID string) (*models.Vulnerability, error)
+	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	ListVulnerabilities(ctx context.Context, tenantID string) ([]models.Vulnerability, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+}
+
 // BLUEPRINT STATUS: Core CRUD operations are implemented via repository.
 // Vulnerability scanning (ScanVulnerabilities, CheckVulnerability) is a
 // service-layer orchestrator over the repository's FindVulnerabilities /
@@ -16,7 +30,7 @@ import (
 // responses. Security-specific functions (ListPolicies, BlockAccess, GetRiskScore)
 // are stubs awaiting the AI security engine (prompt injection / PII / content safety).
 
-// Repo is the subset of repository.Repository consumed by Service.
+// Repo is the subset of RepositoryInterface consumed by Service.
 type Repo interface {
 	List(ctx context.Context, tenantID string) ([]models.Record, error)
 	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
@@ -32,7 +46,6 @@ type Repo interface {
 
 type Service struct {
 	repo Repo
-
 }
 
 func NewService(repo Repo) *Service {

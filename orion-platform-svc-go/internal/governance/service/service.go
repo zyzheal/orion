@@ -14,16 +14,32 @@ import (
 	"orion/platform-svc-go/internal/governance/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAuditLog(ctx context.Context, policyID string, req *repository.AuditLogCreateReq) (*models.GovernanceAuditLog, error)
+	CreatePolicy(ctx context.Context, req *models.CreatePolicyRequest, tenantID, createdBy string) (*models.GovernancePolicy, error)
+	DeletePolicy(ctx context.Context, id, tenantID string) error
+	GetAuditLogs(ctx context.Context, policyID string, offset, limit int) ([]models.GovernanceAuditLog, int, error)
+	GetPolicy(ctx context.Context, id, tenantID string) (*models.GovernancePolicy, error)
+	GetPolicyStats(ctx context.Context, tenantID string) (*repository.PolicyStats, error)
+	IncrementApplyCount(ctx context.Context, id, tenantID string) error
+	IncrementViolationCount(ctx context.Context, id, tenantID string) error
+	ListPoliciesPaginated(ctx context.Context, tenantID string, q *models.PolicyListQuery, offset, limit int) ([]models.GovernancePolicy, int, error)
+	ListRules(ctx context.Context, tenantID string, offset, limit int) ([]models.PolicyRule, int, error)
+	UpdatePolicy(ctx context.Context, id, tenantID string, updates map[string]interface{}) (*models.GovernancePolicy, error)
+	UpdatePolicyStatus(ctx context.Context, id, tenantID, status string) (*models.GovernancePolicy, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
 var (
-	ErrNotFound   = errors.New("governance resource not found")
+	ErrNotFound        = errors.New("governance resource not found")
 	ErrPolicyNotActive = errors.New("policy must be active to apply")
 )
 
@@ -308,11 +324,11 @@ func (s *Service) GetComplianceReport(ctx context.Context, tenantID string, peri
 	}
 
 	report := &models.ComplianceReport{
-		ID:              "report_" + fmt.Sprintf("%d", time.Now().UnixMilli()),
-		Timestamp:       time.Now().UTC().Format(time.RFC3339),
-		Period:          models.CompliancePeriod{Start: periodStart.Format(time.RFC3339), End: periodEnd.Format(time.RFC3339)},
-		OverallScore:    overallScore,
-		OverallStatus:   overallStatus,
+		ID:            "report_" + fmt.Sprintf("%d", time.Now().UnixMilli()),
+		Timestamp:     time.Now().UTC().Format(time.RFC3339),
+		Period:        models.CompliancePeriod{Start: periodStart.Format(time.RFC3339), End: periodEnd.Format(time.RFC3339)},
+		OverallScore:  overallScore,
+		OverallStatus: overallStatus,
 		Summary: models.ComplianceSummary{
 			TotalPolicies:      stats.TotalPolicies,
 			ActivePolicies:     stats.ActivePolicies,

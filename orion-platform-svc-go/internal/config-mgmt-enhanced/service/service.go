@@ -3,14 +3,29 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/config-mgmt-enhanced/models"
-	"orion/platform-svc-go/internal/config-mgmt-enhanced/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, entity *models.ConfigMgmt) error
+	Delete(ctx context.Context, id, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id, tenantID string) (*models.ConfigMgmt, error)
+	List(ctx context.Context, tenantID string) ([]models.ConfigMgmt, error)
+	Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ConfigMgmt, error)
+	AddChangeHistory(ctx context.Context, h *models.ChangeHistory) error
+	UpdateChangeRequest(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.ChangeRequest, error)
+	GetChangeRequest(ctx context.Context, id, tenantID string) (*models.ChangeRequest, error)
+	UpdateDriftReport(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.DriftReport, error)
+	GetDriftReport(ctx context.Context, id, tenantID string) (*models.DriftReport, error)
+	CreateDriftReport(ctx context.Context, dr *models.DriftReport) error
+	GetChangeHistory(ctx context.Context, changeRequestID, tenantID string) ([]models.ChangeHistory, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

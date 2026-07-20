@@ -10,10 +10,18 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-budget/models"
-	"orion/platform-svc-go/internal/pipeline-budget/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AppendHistory(ctx context.Context, h *models.BudgetHistoryRecord) error
+	CountHistory(ctx context.Context, tenantID, pipelineID string) (int, error)
+	GetByPipelineID(ctx context.Context, tenantID, pipelineID string) (*models.BudgetConfig, error)
+	ListHistory(ctx context.Context, tenantID, pipelineID string, offset, limit int) ([]models.BudgetHistoryRecord, error)
+	Upsert(ctx context.Context, b *models.BudgetConfig) error
+}
 
 // Repository defines the persistence contract for pipeline budgets.
 type Repository interface {
@@ -30,7 +38,7 @@ type Service struct {
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -239,14 +247,14 @@ func (s *Service) CreateAlert(ctx context.Context, tenantID, pipelineID string, 
 	now := unixSec()
 
 	alert := models.BudgetAlert{
-		ID:         "alert_" + uuid.New().String(),
-		Name:       req.Name,
-		Threshold:  req.Threshold,
-		Severity:   req.Severity,
-		Channels:   stringJSONArray(req.Channels),
-		Enabled:    true,
-		CreatedAt:  &now,
-		UpdatedAt:  &now,
+		ID:        "alert_" + uuid.New().String(),
+		Name:      req.Name,
+		Threshold: req.Threshold,
+		Severity:  req.Severity,
+		Channels:  stringJSONArray(req.Channels),
+		Enabled:   true,
+		CreatedAt: &now,
+		UpdatedAt: &now,
 	}
 	if req.Enabled != nil {
 		alert.Enabled = *req.Enabled

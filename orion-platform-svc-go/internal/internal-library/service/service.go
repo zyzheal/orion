@@ -9,14 +9,37 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/internal-library/models"
-	"orion/platform-svc-go/internal/internal-library/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddDependent(ctx context.Context, d *models.LibraryDependent) error
+	CheckDependencies(ctx context.Context, repoName string) ([]models.DependencyCheckResult, error)
+	Create(ctx context.Context, m *models.InternalLibrary) error
+	CreateVersion(ctx context.Context, v *models.LibraryVersion) error
+	Delete(ctx context.Context, tenantID, id string) error
+	DeprecateVersion(ctx context.Context, libraryID, version, reason, migrationGuide string, eolDate *time.Time) (*models.LibraryVersion, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.InternalLibrary, error)
+	GetByName(ctx context.Context, tenantID, name string) (*models.InternalLibrary, error)
+	GetVersion(ctx context.Context, libraryID, version string) (*models.LibraryVersion, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.InternalLibrary, error)
+	ListByLanguage(ctx context.Context, tenantID, language string, limit, offset int) ([]models.InternalLibrary, error)
+	ListByOwner(ctx context.Context, tenantID, owner string, limit, offset int) ([]models.InternalLibrary, error)
+	ListDependents(ctx context.Context, libraryID string) ([]models.LibraryDependent, error)
+	ListVersions(ctx context.Context, libraryID string) ([]models.LibraryVersion, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.InternalLibrary, error)
+	UpdateDependentVersion(ctx context.Context, libraryID, repoName, newVersion string, upgradeAvailable bool, upgradeType string) error
+	UpdateDependentsStats(ctx context.Context, libraryID string, totalRepos, totalTeams, usingLatest, needingUpgrade int) error
+	UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.InternalLibrary, error)
+	UpdateVersionFields(ctx context.Context, libraryID string, currentVersion string, stableVersion string) error
+	VersionExists(ctx context.Context, libraryID, version string) (bool, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -26,13 +49,13 @@ func NewService(repo *repository.Repository) *Service {
 
 func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateInternalLibraryRequest) (*models.InternalLibrary, error) {
 	m := &models.InternalLibrary{
-		TenantID: tenantID,
-		Name:     req.Name,
-		DisplayName: req.DisplayName,
-		Description: req.Description,
-		Language: req.Language,
-		Owner:       req.Owner,
-		Repository:  req.Repository,
+		TenantID:      tenantID,
+		Name:          req.Name,
+		DisplayName:   req.DisplayName,
+		Description:   req.Description,
+		Language:      req.Language,
+		Owner:         req.Owner,
+		Repository:    req.Repository,
 		Documentation: req.Documentation,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
@@ -215,10 +238,10 @@ func (s *Service) AddDependent(ctx context.Context, libraryID string, req models
 	}
 
 	d := &models.LibraryDependent{
-		LibraryID:    libraryID,
-		RepoName:     req.RepoName,
-		TeamName:     req.TeamName,
-		CurrentVersion: req.Version,
+		LibraryID:        libraryID,
+		RepoName:         req.RepoName,
+		TeamName:         req.TeamName,
+		CurrentVersion:   req.Version,
 		UpgradeAvailable: false,
 	}
 
@@ -290,9 +313,9 @@ func (s *Service) UpdateStats(ctx context.Context, libraryID string) (*models.Up
 	}
 
 	return &models.UpdateStatsResult{
-		TotalRepos:       totalRepos,
-		TotalTeams:       totalTeams,
-		ReposUsingLatest: usingLatest,
+		TotalRepos:          totalRepos,
+		TotalTeams:          totalTeams,
+		ReposUsingLatest:    usingLatest,
 		ReposNeedingUpgrade: needingUpgrade,
 	}, nil
 }
@@ -336,10 +359,10 @@ func determineUpgradeType(current, target string) string {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrNotFound           = errors.New("not found")
-	ErrVersionExists      = errors.New("version already exists")
-	ErrAlreadyDeprecated  = errors.New("already deprecated")
-	ErrAlreadyActive      = errors.New("already active")
+	ErrNotFound          = errors.New("not found")
+	ErrVersionExists     = errors.New("version already exists")
+	ErrAlreadyDeprecated = errors.New("already deprecated")
+	ErrAlreadyActive     = errors.New("already active")
 )
 
 func IsNotFound(err error) bool {

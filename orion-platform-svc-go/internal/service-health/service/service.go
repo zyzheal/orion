@@ -6,16 +6,31 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/service-health/models"
-	"orion/platform-svc-go/internal/service-health/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateCheck(ctx context.Context, m *models.HealthCheck) error
+	DeleteCheck(ctx context.Context, tenantID, id string) error
+	GetAllSummaries(ctx context.Context, tenantID string) ([]models.HealthSummary, error)
+	GetCheckByID(ctx context.Context, tenantID, id string) (*models.HealthCheck, error)
+	GetCheckByIDWithoutTenant(ctx context.Context, id string) (*models.HealthCheck, error)
+	GetDegradedServices(ctx context.Context, tenantID string, thresholdUptime float64) ([]models.HealthSummary, error)
+	GetRecentResults(ctx context.Context, checkID string, limit int) ([]models.HealthResult, error)
+	GetSummary(ctx context.Context, tenantID, serviceName string) (*models.HealthSummary, error)
+	ListChecks(ctx context.Context, tenantID string) ([]models.HealthCheck, error)
+	RecordResult(ctx context.Context, checkID string, status models.LastStatus, responseTimeMs int64, errMsg string, checkedAt time.Time) error
+	UpdateCheck(ctx context.Context, tenantID, id string, m *models.HealthCheck) (*models.HealthCheck, error)
+	UpdateLastStatus(ctx context.Context, id string, status models.LastStatus, consecutiveFailures int, checkedAt time.Time) error
+}
 
 // Service wraps the service-health repository and adds business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service backed by the given repository.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

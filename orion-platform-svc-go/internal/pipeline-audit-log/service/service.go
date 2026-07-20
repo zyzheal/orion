@@ -9,11 +9,20 @@ import (
 	"orion/platform-svc-go/internal/pipeline-audit-log/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CleanupExpired(ctx context.Context, tenantID string, retentionDays int) (int64, error)
+	GetRunAuditTrail(ctx context.Context, tenantID, runID string, limit int) (*models.AuditTrailResponse, error)
+	Query(ctx context.Context, q models.AuditLogQuery) ([]models.AuditLog, int, error)
+	Record(ctx context.Context, log *models.AuditLog) error
+	RecordBatch(ctx context.Context, logs []*models.AuditLog) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -110,7 +119,7 @@ func toAuditLog(req *models.AuditLogRequest, tenantID string) *models.AuditLog {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrEmptyBatch = errors.New("batch logs array is required")
+	ErrEmptyBatch  = errors.New("batch logs array is required")
 	ErrRunNotFound = errors.New("pipeline run not found")
 )
 

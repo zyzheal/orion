@@ -2,19 +2,39 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-	"database/sql"
 
 	"orion/platform-svc-go/internal/serverless/models"
-	"orion/platform-svc-go/internal/serverless/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateDeployment(ctx context.Context, d *models.Deployment) error
+	CreateFunction(ctx context.Context, f *models.Function) error
+	CreateFunctionLog(ctx context.Context, l *models.FunctionLog) error
+	CreateTrigger(ctx context.Context, t *models.Trigger) error
+	DeleteFunction(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteTrigger(ctx context.Context, tenantID, id string) (bool, error)
+	EvaluateAutoScaling(ctx context.Context, tenantID string) ([]models.AutoScalingRecommendation, error)
+	FunctionExists(ctx context.Context, tenantID, functionID string) (bool, error)
+	GetAggregateMetrics(ctx context.Context, tenantID string) (*models.AggregateMetrics, error)
+	GetFunction(ctx context.Context, tenantID, id string) (*models.Function, error)
+	GetFunctionLogs(ctx context.Context, tenantID, functionID string, q models.GetFunctionLogsQuery) ([]models.FunctionLog, error)
+	GetFunctionMetrics(ctx context.Context, tenantID, functionID string) (*models.FunctionMetric, error)
+	GetTrigger(ctx context.Context, tenantID, id string) (*models.Trigger, error)
+	ListDeployments(ctx context.Context, tenantID, functionID string) ([]models.Deployment, error)
+	ListFunctions(ctx context.Context, tenantID string, q models.ListFunctionsQuery, limit, offset int) ([]models.Function, error)
+	ListTriggers(ctx context.Context, tenantID string, q models.ListTriggersQuery) ([]models.Trigger, error)
+	UpdateFunction(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -161,9 +181,9 @@ func (s *Service) Invoke(ctx context.Context, tenantID, functionID string, paylo
 	}
 	// Simulate invocation result
 	result := &models.InvokeResult{
-		Success:     true,
-		Output:      fmt.Sprintf("OK: %s invoked", f.Name),
-		DurationMs:  42,
+		Success:    true,
+		Output:     fmt.Sprintf("OK: %s invoked", f.Name),
+		DurationMs: 42,
 	}
 	// Log the invocation
 	s.repo.CreateFunctionLog(ctx, &models.FunctionLog{

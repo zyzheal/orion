@@ -9,11 +9,23 @@ import (
 	"orion/platform-svc-go/internal/gateway-dynamic/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.GatewayRoute) error
+	Delete(ctx context.Context, tenantID, id string) error
+	Exists(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.GatewayRoute, error)
+	GetStats(ctx context.Context, tenantID string) (*models.RouteStats, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.GatewayRoute, error)
+	ListWithFilter(ctx context.Context, tenantID string, enabled *bool, q string, limit, offset int) ([]models.GatewayRoute, int, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -209,29 +221,29 @@ func ToRouteResponse(r *models.GatewayRoute) map[string]interface{} {
 	meta := repository.ParseMetadata(r.Metadata)
 
 	resp := map[string]interface{}{
-		"id":          r.ID,
-		"tenant_id":   r.TenantID,
-		"path":        r.Path,
-		"method":      methods[0],
-		"methods":     methods,
-		"target_service": ExtractServiceName(r.UpstreamURL),
-		"target_url":    r.UpstreamURL,
-		"description":   meta.Description,
-		"enabled":     r.Enabled,
-		"auth_required": meta.AuthRequired,
-		"allowed_roles": meta.AllowedRoles,
+		"id":              r.ID,
+		"tenant_id":       r.TenantID,
+		"path":            r.Path,
+		"method":          methods[0],
+		"methods":         methods,
+		"target_service":  ExtractServiceName(r.UpstreamURL),
+		"target_url":      r.UpstreamURL,
+		"description":     meta.Description,
+		"enabled":         r.Enabled,
+		"auth_required":   meta.AuthRequired,
+		"allowed_roles":   meta.AllowedRoles,
 		"allowed_tenants": meta.AllowedTenants,
-		"rate_limit":    meta.RateLimit,
-		"timeout_ms":    meta.TimeoutMs,
-		"retry_policy":  meta.RetryPolicy,
-		"created_by":    r.CreatedBy,
-		"updated_by":    r.UpdatedBy,
-		"created_at":    r.CreatedAt.Format("2006-01-02T15:04:05.999Z"),
-		"updated_at":    r.UpdatedAt.Format("2006-01-02T15:04:05.999Z"),
+		"rate_limit":      meta.RateLimit,
+		"timeout_ms":      meta.TimeoutMs,
+		"retry_policy":    meta.RetryPolicy,
+		"created_by":      r.CreatedBy,
+		"updated_by":      r.UpdatedBy,
+		"created_at":      r.CreatedAt.Format("2006-01-02T15:04:05.999Z"),
+		"updated_at":      r.UpdatedAt.Format("2006-01-02T15:04:05.999Z"),
 		"last_request_at": meta.LastRequestAt,
-		"request_count":  meta.RequestCount,
-		"error_rate":     meta.ErrorRate,
-		"priority":       r.Priority,
+		"request_count":   meta.RequestCount,
+		"error_rate":      meta.ErrorRate,
+		"priority":        r.Priority,
 	}
 	return resp
 }

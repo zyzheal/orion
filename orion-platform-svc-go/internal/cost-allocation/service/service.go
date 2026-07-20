@@ -8,11 +8,28 @@ import (
 	"orion/platform-svc-go/internal/cost-allocation/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAllocation(ctx context.Context, a *models.Allocation) error
+	CreateReport(ctx context.Context, report *models.Report) error
+	CreateRule(ctx context.Context, rule *models.Rule) error
+	DeleteAllocation(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteReport(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteRule(ctx context.Context, tenantID, ruleID string) (bool, error)
+	GetAllocationByID(ctx context.Context, tenantID, id string) (*models.Allocation, error)
+	GetReportByID(ctx context.Context, tenantID, id string) (*models.Report, error)
+	ListAllocations(ctx context.Context, tenantID string, filter *models.AllocationFilter) ([]models.Allocation, error)
+	ListReports(ctx context.Context, tenantID string, filter *models.ReportFilter) ([]models.Report, error)
+	ListRulesByAllocation(ctx context.Context, tenantID, allocationID string) ([]models.Rule, error)
+	UpdateAllocation(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Allocation, error)
+	UpdateReport(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Report, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -140,11 +157,11 @@ func (s *Service) ListReports(ctx context.Context, tenantID string, filter *mode
 func (s *Service) CompleteReport(ctx context.Context, tenantID, id string, totalCost, allocatedCost float64, resultData string) (*models.Report, error) {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":        "completed",
-		"total_cost":    totalCost,
+		"status":         "completed",
+		"total_cost":     totalCost,
 		"allocated_cost": allocatedCost,
-		"result_data":   resultData,
-		"completed_at":  now,
+		"result_data":    resultData,
+		"completed_at":   now,
 	}
 	return s.repo.UpdateReport(ctx, tenantID, id, updates)
 }
@@ -152,9 +169,9 @@ func (s *Service) CompleteReport(ctx context.Context, tenantID, id string, total
 func (s *Service) FailReport(ctx context.Context, tenantID, id string, errMsg string) (*models.Report, error) {
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":       "failed",
+		"status":        "failed",
 		"error_message": errMsg,
-		"completed_at": now,
+		"completed_at":  now,
 	}
 	return s.repo.UpdateReport(ctx, tenantID, id, updates)
 }

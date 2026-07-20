@@ -5,16 +5,26 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/vector/models"
-	"orion/platform-svc-go/internal/vector/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateStore(ctx context.Context, m *models.VectorStore) error
+	DeleteStore(ctx context.Context, tenantID, id string) error
+	DeleteVectors(ctx context.Context, tenantID, storeID string, ids []string) (int, error)
+	GetStore(ctx context.Context, tenantID, id string) (*models.VectorStore, error)
+	ListStores(ctx context.Context, tenantID string, limit, offset int) ([]models.VectorStore, error)
+	SearchVectors(ctx context.Context, tenantID, storeID string, vec []float64, limit int) ([]models.SearchResult, error)
+	UpsertVector(ctx context.Context, tenantID, storeID string, vec []float64, meta map[string]string) error
+}
 
 var ErrNotFound = errors.New("vector store not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -4,14 +4,27 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/service-catalog/models"
-	"orion/platform-svc-go/internal/service-catalog/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.ServiceCatalog) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ServiceCatalog, error)
+	List(ctx context.Context, tenantID string) ([]models.ServiceCatalog, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ServiceCatalog, error)
+	UpdateRequestStatus(ctx context.Context, tenantID, id string, newStatus string, comment string, assignedTo *string, by string) (*models.ServiceRequest, error)
+	GetRequestTimeline(ctx context.Context, tenantID, requestID string) ([]models.TimelineEntry, error)
+	GetSLABreaches(ctx context.Context, tenantID string, serviceFilter string, from int64, limit int) ([]models.SLABreach, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+
+
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -9,16 +9,25 @@ import (
 	"orion/platform-svc-go/internal/env-profile/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, item *models.EnvProfile) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.EnvProfile, error)
+	List(ctx context.Context, tenantID string) ([]models.EnvProfile, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.EnvProfile, error)
+}
+
 var (
 	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

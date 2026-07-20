@@ -11,20 +11,38 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
-	"orion/platform-svc-go/internal/efficiency/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateGlobalDeployment(ctx context.Context, d *models.GlobalDeployment) error
+	CreateGlobalPipeline(ctx context.Context, p *models.GlobalPipeline) error
+	CreateProjectData(ctx context.Context, p *models.ProjectData) error
+	CreateReportHistory(ctx context.Context, entry *models.ReportHistoryEntry) error
+	CreateSnapshot(ctx context.Context, s *models.MetricSnapshot) error
+	CreateTeamData(ctx context.Context, t *models.TeamData) error
+	DeleteGlobalDeploymentsByTenant(ctx context.Context, tenantID string) error
+	DeleteGlobalPipelinesByTenant(ctx context.Context, tenantID string) error
+	ListGlobalDeployments(ctx context.Context, tenantID string) ([]models.GlobalDeployment, error)
+	ListGlobalPipelines(ctx context.Context, tenantID string) ([]models.GlobalPipeline, error)
+	ListProjectData(ctx context.Context, tenantID string) ([]models.ProjectData, error)
+	ListReportHistory(ctx context.Context, tenantID string, limit int) ([]models.ReportHistoryEntry, error)
+	ListSnapshotsByTenant(ctx context.Context, tenantID string, limit int) ([]models.MetricSnapshot, error)
+	ListTeamData(ctx context.Context, tenantID string) ([]models.TeamData, error)
+	PruneOldSnapshots(ctx context.Context, tenantID string, keep int) error
+}
+
 var (
-	ErrNotFound    = errors.New("record not found")
-	ErrBadRequest  = errors.New("bad request")
-	ErrLocked      = errors.New("locked")
+	ErrNotFound   = errors.New("record not found")
+	ErrBadRequest = errors.New("bad request")
+	ErrLocked     = errors.New("locked")
 )
 
-func IsNotFound(err error) bool { return errors.Is(err, ErrNotFound) }
+func IsNotFound(err error) bool   { return errors.Is(err, ErrNotFound) }
 func IsBadRequest(err error) bool { return errors.Is(err, ErrBadRequest) }
-func IsLocked(err error) bool { return errors.Is(err, ErrLocked) }
+func IsLocked(err error) bool     { return errors.Is(err, ErrLocked) }
 
 // defaultTargetHours defines the DORA targets used by DORACalculator.
 const (
@@ -37,12 +55,12 @@ const (
 // doraThresholds matches the TS DORA_THRESHOLDS.
 var doraThresholds = struct {
 	deploymentFrequency struct {
-		onDemand  float64
-		daily     float64
-		weekly    float64
-		monthly   float64
+		onDemand float64
+		daily    float64
+		weekly   float64
+		monthly  float64
 	}
-	leadTimeMs      struct {
+	leadTimeMs struct {
 		elite  int64
 		high   int64
 		medium int64
@@ -59,10 +77,10 @@ var doraThresholds = struct {
 	}
 }{
 	deploymentFrequency: struct {
-		onDemand  float64
-		daily     float64
-		weekly    float64
-		monthly   float64
+		onDemand float64
+		daily    float64
+		weekly   float64
+		monthly  float64
 	}{
 		onDemand: 1.0,
 		daily:    1.0 / 7,
@@ -126,7 +144,7 @@ var defaultSpecialties = [][]string{
 
 // Service holds the efficiency business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 
 	// In-memory caches (fallback / warm data). These are loaded at init and
 	// used for metrics calculation just like the TS source's Map storage.
@@ -158,7 +176,7 @@ type projectPayload struct {
 	Commits     int
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	s := &Service{
 		repo:              repo,
 		teamData:          make(map[string]map[string]*teamPayload),
@@ -251,7 +269,7 @@ func (s *Service) GetTeamMetrics(_context context.Context, tenantID, teamID stri
 
 	if payload == nil {
 		return &models.TeamMetrics{
-			TeamID:  teamID,
+			TeamID:   teamID,
 			TeamName: fmt.Sprintf("Team %s", teamID),
 			TenantID: tenantID,
 		}, nil
@@ -403,10 +421,10 @@ func (s *Service) ComparePeriods(_context context.Context, tenantID string, peri
 	metricsB := s.computePeriodMetrics(pipelineRecords, deployments, periodB.Start, periodB.End, periodB)
 
 	changes := models.PeriodChanges{
-		PipelineRuns:     s.computeChangePercent(float64(metricsA.PipelineRuns), float64(metricsB.PipelineRuns)),
-		SuccessRate:      s.computeChangePercent(metricsA.SuccessRate, metricsB.SuccessRate),
-		AverageBuildTime: s.computeChangePercent(float64(metricsA.AverageBuildTimeMs), float64(metricsB.AverageBuildTimeMs)),
-		Deployments:      s.computeChangePercent(float64(metricsA.Deployments), float64(metricsB.Deployments)),
+		PipelineRuns:      s.computeChangePercent(float64(metricsA.PipelineRuns), float64(metricsB.PipelineRuns)),
+		SuccessRate:       s.computeChangePercent(metricsA.SuccessRate, metricsB.SuccessRate),
+		AverageBuildTime:  s.computeChangePercent(float64(metricsA.AverageBuildTimeMs), float64(metricsB.AverageBuildTimeMs)),
+		Deployments:       s.computeChangePercent(float64(metricsA.Deployments), float64(metricsB.Deployments)),
 		ChangeFailureRate: s.computeChangePercent(metricsA.ChangeFailureRate, metricsB.ChangeFailureRate),
 	}
 
@@ -560,13 +578,13 @@ func (s *Service) GetDORATrend(ctx context.Context, tenantID string, deployments
 	previousStart := now.Add(-2 * windowMs)
 
 	prevDeployments := filterSlice(deployments, func(d models.DeploymentRecord) bool {
-return !d.DeployedAt.Before(previousStart) && d.DeployedAt.Before(previousEnd)
+		return !d.DeployedAt.Before(previousStart) && d.DeployedAt.Before(previousEnd)
 	})
 	prevPipelines := filterSlice(pipelines, func(p models.PipelineCompletionRecord) bool {
-return !p.CompletedAt.Before(previousStart) && p.CompletedAt.Before(previousEnd)
+		return !p.CompletedAt.Before(previousStart) && p.CompletedAt.Before(previousEnd)
 	})
 	prevIncidents := filterSlice(incidents, func(i models.IncidentRecord) bool {
-return !i.DetectedAt.Before(previousStart) && i.DetectedAt.Before(previousEnd)
+		return !i.DetectedAt.Before(previousStart) && i.DetectedAt.Before(previousEnd)
 	})
 
 	previous, err := s.GetAllDORA(ctx, tenantID, prevDeployments, prevPipelines, prevIncidents, timeWindow, windowSize)
@@ -620,7 +638,7 @@ func (s *Service) GetHistoricalSnapshots(ctx context.Context, tenantID string, w
 
 		var weekSnapshot *models.MetricSnapshot
 		for _, snap := range history {
-if !snap.CapturedAt.Before(weekStart) && snap.CapturedAt.Before(weekEnd) {
+			if !snap.CapturedAt.Before(weekStart) && snap.CapturedAt.Before(weekEnd) {
 				weekSnapshot = &snap
 				break
 			}
@@ -656,11 +674,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 		freq := dora.DeploymentFrequency.DeploymentsPerDay
 		if freq < 1 {
 			bottlenecks = append(bottlenecks, models.Bottleneck{
-				ID:          fmt.Sprintf("bn-%03d", idx),
-				Category:    "部署频率",
-				Description: fmt.Sprintf("发布频率较低，当前 %.2f 次/天，建议提升到每天至少 1 次", freq),
-				Impact:      models.ImpactHigh,
-				Metric:      "deployments per day",
+				ID:           fmt.Sprintf("bn-%03d", idx),
+				Category:     "部署频率",
+				Description:  fmt.Sprintf("发布频率较低，当前 %.2f 次/天，建议提升到每天至少 1 次", freq),
+				Impact:       models.ImpactHigh,
+				Metric:       "deployments per day",
 				CurrentValue: fmt.Sprintf("%.2f", freq),
 				TargetValue:  ">= 1",
 				Suggestion:   "实施自动化部署流水线，减少手动审批环节",
@@ -668,11 +686,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 			idx++
 		} else if freq < 3 {
 			bottlenecks = append(bottlenecks, models.Bottleneck{
-				ID:          fmt.Sprintf("bn-%03d", idx),
-				Category:    "部署频率",
-				Description: fmt.Sprintf("发布频率中等，当前 %.2f 次/天，Elite 级别为每天多次", freq),
-				Impact:      models.ImpactMedium,
-				Metric:      "deployments per day",
+				ID:           fmt.Sprintf("bn-%03d", idx),
+				Category:     "部署频率",
+				Description:  fmt.Sprintf("发布频率中等，当前 %.2f 次/天，Elite 级别为每天多次", freq),
+				Impact:       models.ImpactMedium,
+				Metric:       "deployments per day",
 				CurrentValue: fmt.Sprintf("%.2f", freq),
 				TargetValue:  ">= 3",
 				Suggestion:   "增加部署自动化程度，缩短部署周期",
@@ -690,11 +708,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 				impact = models.ImpactHigh
 			}
 			bottlenecks = append(bottlenecks, models.Bottleneck{
-				ID:          fmt.Sprintf("bn-%03d", idx),
-				Category:    "变更前置时间",
-				Description: fmt.Sprintf("变更前置时间较长，平均 %d 小时，建议缩短至 24 小时以内", leadHours),
-				Impact:      impact,
-				Metric:      "lead time (hours)",
+				ID:           fmt.Sprintf("bn-%03d", idx),
+				Category:     "变更前置时间",
+				Description:  fmt.Sprintf("变更前置时间较长，平均 %d 小时，建议缩短至 24 小时以内", leadHours),
+				Impact:       impact,
+				Metric:       "lead time (hours)",
 				CurrentValue: fmt.Sprintf("%dh", leadHours),
 				TargetValue:  "< 24h",
 				Suggestion:   "采用小批量提交，减少代码合并冲突，实施持续集成",
@@ -709,11 +727,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 				impact = models.ImpactHigh
 			}
 			bottlenecks = append(bottlenecks, models.Bottleneck{
-				ID:          fmt.Sprintf("bn-%03d", idx),
-				Category:    "变更失败率",
-				Description: fmt.Sprintf("变更失败率偏高 %.1f%%，建议控制在 5%% 以内", failureRate),
-				Impact:      impact,
-				Metric:      "change failure rate",
+				ID:           fmt.Sprintf("bn-%03d", idx),
+				Category:     "变更失败率",
+				Description:  fmt.Sprintf("变更失败率偏高 %.1f%%，建议控制在 5%% 以内", failureRate),
+				Impact:       impact,
+				Metric:       "change failure rate",
 				CurrentValue: fmt.Sprintf("%.1f%%", failureRate),
 				TargetValue:  "< 5%%",
 				Suggestion:   "加强代码评审，增加自动化测试覆盖，实施渐进式发布",
@@ -731,11 +749,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 				impact = models.ImpactHigh
 			}
 			bottlenecks = append(bottlenecks, models.Bottleneck{
-				ID:          fmt.Sprintf("bn-%03d", idx),
-				Category:    "服务恢复时间",
-				Description: fmt.Sprintf("平均恢复时间 %d 小时，建议控制在 1 小时以内", mttrHours),
-				Impact:      impact,
-				Metric:      "MTTR (hours)",
+				ID:           fmt.Sprintf("bn-%03d", idx),
+				Category:     "服务恢复时间",
+				Description:  fmt.Sprintf("平均恢复时间 %d 小时，建议控制在 1 小时以内", mttrHours),
+				Impact:       impact,
+				Metric:       "MTTR (hours)",
 				CurrentValue: fmt.Sprintf("%dh", mttrHours),
 				TargetValue:  "< 1h",
 				Suggestion:   "建立自动化故障检测和回滚机制，完善应急预案",
@@ -746,11 +764,11 @@ func (s *Service) GetBottlenecks(_context context.Context, tenantID string, time
 
 	if len(bottlenecks) == 0 {
 		bottlenecks = append(bottlenecks, models.Bottleneck{
-			ID:          "bn-ok",
-			Category:    "整体健康",
-			Description: "当前 DORA 指标表现良好，无明显瓶颈",
-			Impact:      models.ImpactLow,
-			Metric:      "overall health",
+			ID:           "bn-ok",
+			Category:     "整体健康",
+			Description:  "当前 DORA 指标表现良好，无明显瓶颈",
+			Impact:       models.ImpactLow,
+			Metric:       "overall health",
 			CurrentValue: "healthy",
 			TargetValue:  "elite",
 			Suggestion:   "继续保持当前实践，关注持续改进机会",
@@ -807,7 +825,7 @@ func (s *Service) calculateDoraReport(tenantID string, pipelines []models.Pipeli
 
 func (s *Service) calculateDeploymentFrequency(deployments []models.DeploymentRecord, wc models.TimeWindowConfig) models.DeploymentFrequency {
 	windowDepls := filterSlice(deployments, func(d models.DeploymentRecord) bool {
-return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
+		return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
 	})
 	successful := countBy(windowDepls, func(d models.DeploymentRecord) bool { return d.Status == "success" })
 	failed := countBy(windowDepls, func(d models.DeploymentRecord) bool { return d.Status == "failed" })
@@ -844,7 +862,7 @@ func (s *Service) calculateLeadTimeForChanges(pipelines []models.PipelineComplet
 
 	// Fallback: pipeline duration
 	windowRecords := filterSlice(pipelines, func(p models.PipelineCompletionRecord) bool {
-return p.Status == "success" && !p.CompletedAt.Before(wc.Start) && !p.CompletedAt.After(wc.End)
+		return p.Status == "success" && !p.CompletedAt.Before(wc.Start) && !p.CompletedAt.After(wc.End)
 	})
 	leadTimes := make([]int64, 0, len(windowRecords))
 	for _, p := range windowRecords {
@@ -862,7 +880,7 @@ return p.Status == "success" && !p.CompletedAt.Before(wc.Start) && !p.CompletedA
 
 func (s *Service) calculateChangeFailureRate(deployments []models.DeploymentRecord, wc models.TimeWindowConfig) models.ChangeFailureRate {
 	windowDepls := filterSlice(deployments, func(d models.DeploymentRecord) bool {
-return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
+		return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
 	})
 	failed := filterSlice(windowDepls, func(d models.DeploymentRecord) bool {
 		return d.Status == "failed" || d.Status == "rolled_back"
@@ -903,7 +921,7 @@ func (s *Service) calculateMeanTimeToRecovery(deployments []models.DeploymentRec
 				times = append(times, *i.RecoveryTimeMs)
 			}
 			totalIncidents := countBy(incidents, func(i models.IncidentRecord) bool {
-return !i.DetectedAt.Before(wc.Start) && !i.DetectedAt.After(wc.End)
+				return !i.DetectedAt.Before(wc.Start) && !i.DetectedAt.After(wc.End)
 			})
 			return s.buildMTTRFromValues(times, totalIncidents, len(resolved), wc, "incidents_table")
 		}
@@ -911,7 +929,7 @@ return !i.DetectedAt.Before(wc.Start) && !i.DetectedAt.After(wc.End)
 
 	windowIncidents := filterSlice(deployments, func(d models.DeploymentRecord) bool {
 		return (d.Status == "failed" || d.Status == "rolled_back") &&
-				!d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
+			!d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
 	})
 	recovered := filterSlice(windowIncidents, func(d models.DeploymentRecord) bool { return d.RecoveryTimeMs != nil })
 	if len(windowIncidents) == 0 {
@@ -932,14 +950,14 @@ func (s *Service) buildLeadTimeFromValues(leadTimes []int64, wc models.TimeWindo
 	sort.Slice(leadTimes, func(i, j int) bool { return leadTimes[i] < leadTimes[j] })
 	avg := sumInt64(leadTimes) / int64(len(leadTimes))
 	return models.LeadTimeForChanges{
-		Window:             wc,
-		TotalChanges:       len(leadTimes),
-		AverageLeadTimeMs:  avg,
-		MedianLeadTimeMs:   percentile(leadTimes, 50),
-		P90LeadTimeMs:      percentile(leadTimes, 90),
-		P99LeadTimeMs:      percentile(leadTimes, 99),
-		LeadTimeLevel:      s.evaluateLeadTime(avg),
-		CalculationMethod:  method,
+		Window:            wc,
+		TotalChanges:      len(leadTimes),
+		AverageLeadTimeMs: avg,
+		MedianLeadTimeMs:  percentile(leadTimes, 50),
+		P90LeadTimeMs:     percentile(leadTimes, 90),
+		P99LeadTimeMs:     percentile(leadTimes, 99),
+		LeadTimeLevel:     s.evaluateLeadTime(avg),
+		CalculationMethod: method,
 	}
 }
 
@@ -1060,10 +1078,10 @@ func (s *Service) standardizeDeploymentFrequency(_context context.Context, tenan
 func (s *Service) standardizeLeadTime(_context context.Context, tenantID string, lc models.LeadTimeForChanges, wc models.TimeWindowConfig) models.DORAMetricResult {
 	leadHours := float64(lc.AverageLeadTimeMs) / 3_600_000
 	s.saveSnapshot(_context, tenantID, wc.Window, models.MetricSnapshot{
-		TenantID:        tenantID,
-		LeadTimeMs:      lc.AverageLeadTimeMs,
+		TenantID:          tenantID,
+		LeadTimeMs:        lc.AverageLeadTimeMs,
 		ChangeFailureRate: 0,
-		MTTRMs:          0,
+		MTTRMs:            0,
 	})
 	target := targetLeadTimeHours
 	trend := s.getTrend(_context, tenantID, "leadTimeMs")
@@ -1192,7 +1210,7 @@ func (s *Service) getTrend(_context context.Context, tenantID string, metricKey 
 
 func (s *Service) computePeriodMetrics(pipelines []models.PipelineCompletionRecord, deployments []models.DeploymentRecord, _start, _end time.Time, period models.PeriodSpec) models.PeriodMetrics {
 	windowPipelines := filterSlice(pipelines, func(p models.PipelineCompletionRecord) bool {
-return !p.CompletedAt.Before(period.Start) && !p.CompletedAt.After(period.End)
+		return !p.CompletedAt.Before(period.Start) && !p.CompletedAt.After(period.End)
 	})
 	successful := countBy(windowPipelines, func(p models.PipelineCompletionRecord) bool { return p.Status == "success" })
 	successRate := 0.0
@@ -1207,7 +1225,7 @@ return !p.CompletedAt.Before(period.Start) && !p.CompletedAt.After(period.End)
 	}
 
 	windowDeployments := filterSlice(deployments, func(d models.DeploymentRecord) bool {
-return !d.DeployedAt.Before(period.Start) && !d.DeployedAt.After(period.End)
+		return !d.DeployedAt.Before(period.Start) && !d.DeployedAt.After(period.End)
 	})
 	failedDeps := countBy(windowDeployments, func(d models.DeploymentRecord) bool {
 		return d.Status == "failed" || d.Status == "rolled_back"
@@ -1460,13 +1478,13 @@ func countBy[T any](slice []T, fn func(T) bool) int {
 
 func filterPipelinesByWindow(pipelines []models.PipelineCompletionRecord, wc models.TimeWindowConfig) []models.PipelineCompletionRecord {
 	return filterSlice(pipelines, func(p models.PipelineCompletionRecord) bool {
-return !p.CompletedAt.Before(wc.Start) && !p.CompletedAt.After(wc.End)
+		return !p.CompletedAt.Before(wc.Start) && !p.CompletedAt.After(wc.End)
 	})
 }
 
 func filterDeploymentsByWindow(deployments []models.DeploymentRecord, wc models.TimeWindowConfig) []models.DeploymentRecord {
 	return filterSlice(deployments, func(d models.DeploymentRecord) bool {
-return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
+		return !d.DeployedAt.Before(wc.Start) && !d.DeployedAt.After(wc.End)
 	})
 }
 
@@ -1483,7 +1501,7 @@ func getWindowDurationMs(window models.TimeWindow, size int) time.Duration {
 	dayMs := int64(24 * 60 * 60 * 1000)
 	switch window {
 	case models.TimeWindowDay:
-		return time.Duration(dayMs * int64(size)) * time.Millisecond
+		return time.Duration(dayMs*int64(size)) * time.Millisecond
 	case models.TimeWindowWeek:
 		return time.Duration(dayMs*7*int64(size)) * time.Millisecond
 	case models.TimeWindowMonth:

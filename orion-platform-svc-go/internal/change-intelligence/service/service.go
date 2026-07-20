@@ -9,16 +9,25 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/change-intelligence/models"
-	"orion/platform-svc-go/internal/change-intelligence/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAnalysis(ctx context.Context, a *models.ChangeAnalysis) error
+	GetAnalysisByID(ctx context.Context, id string, tenantID string) (*models.ChangeAnalysis, error)
+	GetBlastRadiusByAnalysisID(ctx context.Context, analysisID string) ([]models.BlastRadiusItem, error)
+	ListAnalyses(ctx context.Context, tenantID string) ([]models.ChangeAnalysis, error)
+	SaveBlastRadius(ctx context.Context, analysisID string, items []models.BlastRadiusItem) error
+	SaveRiskFactors(ctx context.Context, analysisID string, factors []models.RiskFactor) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -11,10 +11,22 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/webhook/models"
-	"orion/platform-svc-go/internal/webhook/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/webhook/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, w *models.Webhook) error
+	CreateDelivery(ctx context.Context, d *models.WebhookDelivery) error
+	Delete(ctx context.Context, id, tenantID string) error
+	GetByID(ctx context.Context, id, tenantID string) (*models.Webhook, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit, offset int) ([]models.Webhook, error)
+	ListByWebhook(ctx context.Context, webhookID string, limit, offset int) ([]models.WebhookDelivery, error)
+	Update(ctx context.Context, w *models.Webhook) error
+}
 
 // Sentinel errors for the webhook service.
 var (
@@ -29,11 +41,11 @@ func IsNotFound(err error) bool {
 
 // Service implements webhook business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -52,19 +64,19 @@ func (s *Service) Create(ctx context.Context, tenantID, userID string, req *mode
 	}
 
 	w := &models.Webhook{
-		TenantID:    tenantID,
-		UserID:      userID,
-		Name:        req.Name,
-		URL:         req.URL,
-		Method:      method,
-		EventType:   req.EventType,
-		Secret:      secret,
-		Headers:     req.Headers,
-		BodyTemplate: req.BodyTemplate,
-		Enabled:     req.Enabled,
-		MaxRetries:  req.MaxRetries,
-		RetryInterval: req.RetryInterval,
-		Timeout:     req.Timeout,
+		TenantID:           tenantID,
+		UserID:             userID,
+		Name:               req.Name,
+		URL:                req.URL,
+		Method:             method,
+		EventType:          req.EventType,
+		Secret:             secret,
+		Headers:            req.Headers,
+		BodyTemplate:       req.BodyTemplate,
+		Enabled:            req.Enabled,
+		MaxRetries:         req.MaxRetries,
+		RetryInterval:      req.RetryInterval,
+		Timeout:            req.Timeout,
 		LastDeliveryStatus: "pending",
 	}
 
@@ -258,11 +270,11 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string) error {
 
 	now := time.Now().UTC()
 	delivery := &models.WebhookDelivery{
-		WebhookID:  id,
-		URL:        w.URL,
-		Status:     "triggered",
-		Attempt:    1,
-		CreatedAt:  now,
+		WebhookID:   id,
+		URL:         w.URL,
+		Status:      "triggered",
+		Attempt:     1,
+		CreatedAt:   now,
 		TriggeredAt: &now,
 	}
 	if err := s.repo.CreateDelivery(ctx, delivery); err != nil {
@@ -271,9 +283,9 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string) error {
 
 	// Update last_triggered_at on the webhook.
 	updates := &models.Webhook{
-		ID:                id,
-		TenantID:          tenantID,
-		LastTriggeredAt:   &now,
+		ID:                 id,
+		TenantID:           tenantID,
+		LastTriggeredAt:    &now,
 		LastDeliveryStatus: "triggered",
 	}
 	if err := s.repo.Update(ctx, updates); err != nil {
@@ -298,20 +310,20 @@ func (s *Service) TriggerByEvent(ctx context.Context, tenantID, eventType string
 	for _, w := range webhooks {
 		now := time.Now().UTC()
 		delivery := &models.WebhookDelivery{
-			WebhookID:  w.ID,
-			URL:        w.URL,
-			Status:     "triggered",
-			Attempt:    1,
-			CreatedAt:  now,
+			WebhookID:   w.ID,
+			URL:         w.URL,
+			Status:      "triggered",
+			Attempt:     1,
+			CreatedAt:   now,
 			TriggeredAt: &now,
 		}
 		if err := s.repo.CreateDelivery(ctx, delivery); err != nil {
 			return err
 		}
 		updates := &models.Webhook{
-			ID:                w.ID,
-			TenantID:          tenantID,
-			LastTriggeredAt:   &now,
+			ID:                 w.ID,
+			TenantID:           tenantID,
+			LastTriggeredAt:    &now,
 			LastDeliveryStatus: "triggered",
 		}
 		if err := s.repo.Update(ctx, updates); err != nil {

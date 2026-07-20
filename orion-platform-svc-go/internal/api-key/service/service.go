@@ -9,18 +9,25 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/api-key/models"
-	"orion/platform-svc-go/internal/api-key/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, key *models.APIKey) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.APIKey, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.APIKey, error)
+}
+
 // Service coordinates business logic for API key management.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

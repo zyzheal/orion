@@ -8,8 +8,22 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/smart-deploy/models"
-	"orion/platform-svc-go/internal/smart-deploy/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error)
+	CreateAuditEntry(ctx context.Context, tenantID string, entry models.AuditEntry) error
+	CreateRollback(ctx context.Context, tenantID string, req models.CreateRollbackRequest, deploymentID string) (*models.Rollback, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Deployment, error)
+	GetLatest(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error)
+	GetMetrics(ctx context.Context, tenantID string) (*models.DeploymentMetrics, error)
+	List(ctx context.Context, tenantID string, opt models.ListDeploymentsOptions) ([]models.Deployment, int, error)
+	ListAuditEntries(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
+	ListRollbacks(ctx context.Context, tenantID, deploymentID string) ([]models.Rollback, error)
+	SetRollbackCompleted(ctx context.Context, tenantID, id string) error
+	UpdateStatus(ctx context.Context, tenantID, id string, status models.DeploymentStatus) (*models.Deployment, error)
+}
 
 var (
 	ErrNotFound     = errors.New("not found")
@@ -19,12 +33,12 @@ var (
 
 // validEnvironments is the set of accepted deployment environments.
 var validEnvironments = map[string]bool{
-	"dev":           true,
-	"staging":       true,
-	"prod":          true,
-	"development":   true,
-	"production":    true,
-	"pre-prod":      true,
+	"dev":         true,
+	"staging":     true,
+	"prod":        true,
+	"development": true,
+	"production":  true,
+	"pre-prod":    true,
 }
 
 // validStrategies is the set of accepted deployment strategies.
@@ -36,10 +50,10 @@ var validStrategies = map[string]bool{
 }
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

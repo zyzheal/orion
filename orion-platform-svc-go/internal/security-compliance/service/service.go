@@ -8,14 +8,35 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/security-compliance/models"
-	"orion/platform-svc-go/internal/security-compliance/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CloseFinding(ctx context.Context, tenantID, id string, reason string) error
+	CollectEvidence(ctx context.Context, evidence *models.Evidence) error
+	CreateAuditExecution(ctx context.Context, exec *models.AuditExecution) error
+	CreateAuditPlan(ctx context.Context, plan *models.AuditPlan) error
+	CreateAuditReport(ctx context.Context, report *models.AuditReport) error
+	CreatePolicy(ctx context.Context, p *models.CompliancePolicy) error
+	GetAuditFindings(ctx context.Context, tenantID, reportID string) ([]models.AuditFinding, error)
+	GetAuditReport(ctx context.Context, tenantID, executionID string) (*models.AuditReport, error)
+	GetEvidence(ctx context.Context, tenantID, policyID string) ([]models.Evidence, error)
+	GetFramework(ctx context.Context, tenantID, id string) (*models.ComplianceFramework, error)
+	GetLatestScore(ctx context.Context, tenantID string) (*models.ComplianceScore, error)
+	GetPolicy(ctx context.Context, tenantID, id string) (*models.CompliancePolicy, error)
+	GetReportByPolicy(ctx context.Context, tenantID, policyID string) (*models.ComplianceReport, error)
+	InsertEvaluation(ctx context.Context, tenantID string, result *models.ComplianceEvaluationResult) error
+	InsertGapAnalysis(ctx context.Context, tenantID string, result *models.GapAnalysisResult) error
+	ListAuditPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.AuditPlan, error)
+	ListFrameworks(ctx context.Context, tenantID string) ([]models.ComplianceFramework, error)
+	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.CompliancePolicy, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -190,8 +211,8 @@ func (s *Service) AutoRemediateCompliance(ctx context.Context, tenantID string, 
 
 	// Collapse the outcomes into the response shape.
 	rem := &models.RemediationResult{
-		Applied: make([]string, 0),
-		Skipped: make([]string, 0),
+		Applied:  make([]string, 0),
+		Skipped:  make([]string, 0),
 		Failures: make([]string, 0),
 	}
 	for _, o := range outcomes {
@@ -269,9 +290,9 @@ func (s *Service) ExecuteAudit(ctx context.Context, tenantID, planID string) (*m
 	}
 	// Create audit report
 	report := &models.AuditReport{
-		ExecutionID:  exec.ID,
-		TenantID:     tenantID,
-		Summary:      `{"summary":"audit completed successfully"}`,
+		ExecutionID:   exec.ID,
+		TenantID:      tenantID,
+		Summary:       `{"summary":"audit completed successfully"}`,
 		FindingsCount: 0,
 	}
 	if err := s.repo.CreateAuditReport(ctx, report); err != nil {
@@ -452,7 +473,7 @@ func (s *Service) PerformGapAnalysis(ctx context.Context, tenantID string, req m
 // --- Errors ---
 
 var (
-	ErrNotFound     = errors.New("not found")
+	ErrNotFound        = errors.New("not found")
 	ErrPolicyNotExists = errors.New("policy does not exist")
 	ErrPlanNotExists   = errors.New("audit plan does not exist")
 )

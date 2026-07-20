@@ -10,11 +10,28 @@ import (
 	"orion/platform-svc-go/internal/infrastructure/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateConnector(ctx context.Context, m *models.Connector) error
+	CreateNetworkPolicy(ctx context.Context, tenantID string, m *models.SandboxNetworkPolicy) error
+	CreateSandbox(ctx context.Context, tenantID string, m *models.SandboxInfo) error
+	DeleteConnector(ctx context.Context, tenantID, id string) error
+	GetConnector(ctx context.Context, tenantID, id string) (*models.Connector, error)
+	GetHealthMetrics(ctx context.Context, tenantID, connectorID string) (*models.HealthMetrics, error)
+	GetSandbox(ctx context.Context, tenantID, id string) (*models.SandboxInfo, error)
+	ListAllHealthMetrics(ctx context.Context, tenantID string) ([]models.HealthMetrics, error)
+	ListConnectors(ctx context.Context, tenantID string, limit, offset int) ([]models.Connector, error)
+	ListNetworkPolicies(ctx context.Context, tenantID string) ([]models.SandboxNetworkPolicy, error)
+	ListSandboxes(ctx context.Context, tenantID string, limit, offset int) ([]models.SandboxInfo, error)
+	UpdateConnectorStatus(ctx context.Context, tenantID, id string, status models.ConnectorStatus) error
+	UpdateSandboxStatus(ctx context.Context, tenantID, id string, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -140,9 +157,9 @@ func (s *Service) CreateSandbox(ctx context.Context, tenantID string, req models
 	}
 
 	sb := &models.SandboxInfo{
-		Name:             req.Name,
-		Namespace:        req.Namespace,
-		NetworkPolicyID:  policy.ID,
+		Name:            req.Name,
+		Namespace:       req.Namespace,
+		NetworkPolicyID: policy.ID,
 	}
 	if err := s.repo.CreateSandbox(ctx, tenantID, sb); err != nil {
 		return nil, err
@@ -191,10 +208,10 @@ func (s *Service) AllowTraffic(ctx context.Context, tenantID string, req models.
 	if policy == nil {
 		portsJSON, _ := json.Marshal(req.Ports)
 		policy = &models.SandboxNetworkPolicy{
-			SandboxID: req.FromEnv,
-			Name:      fmt.Sprintf("allow-%s-to-%s", req.FromEnv, req.ToEnv),
-			Namespace: req.FromEnv,
-			Labels:    string([]byte(`{"app":"` + req.FromEnv + `"}`)),
+			SandboxID:   req.FromEnv,
+			Name:        fmt.Sprintf("allow-%s-to-%s", req.FromEnv, req.ToEnv),
+			Namespace:   req.FromEnv,
+			Labels:      string([]byte(`{"app":"` + req.FromEnv + `"}`)),
 			Annotations: string([]byte(`{"orion.io/traffic-allow":"to-` + req.ToEnv + `"}`)),
 			EgressRules: string([]byte(fmt.Sprintf(`[{"name":"allow-%s-to-%s","ports":%s,"allow":true,"namespaceSelector":{"namespace":"%s"}]`, req.FromEnv, req.ToEnv, string(portsJSON), req.ToEnv))),
 		}
@@ -236,8 +253,8 @@ func (s *Service) ConfigureDnsIsolation(ctx context.Context, tenantID string, re
 	}
 
 	dnsAnnotations := map[string]string{
-		"orion.io/isolation":         "true",
-		"orion.io/dns-isolation":     "enforced",
+		"orion.io/isolation":           "true",
+		"orion.io/dns-isolation":       "enforced",
 		"orion.io/dns-allowed-domains": "",
 	}
 	dnsAnnotations["orion.io/dns-allowed-domains"] = ""
@@ -254,11 +271,11 @@ func (s *Service) ConfigureDnsIsolation(ctx context.Context, tenantID string, re
 
 	if policy == nil {
 		policy = &models.SandboxNetworkPolicy{
-			SandboxID:   sandboxID,
-			Name:        fmt.Sprintf("dns-policy-%s", sandboxID),
-			Namespace:   fmt.Sprintf("sandbox-%s", sandboxID),
-			Labels:      string([]byte(fmt.Sprintf(`{"app":"%s"}`, sandboxID))),
-			Annotations: "",
+			SandboxID:    sandboxID,
+			Name:         fmt.Sprintf("dns-policy-%s", sandboxID),
+			Namespace:    fmt.Sprintf("sandbox-%s", sandboxID),
+			Labels:       string([]byte(fmt.Sprintf(`{"app":"%s"}`, sandboxID))),
+			Annotations:  "",
 			IngressRules: string([]byte(`[{"name":"deny-all-ingress","podSelector":{},"allow":false}]`)),
 			EgressRules:  string([]byte(`[{"name":"deny-all-egress","podSelector":{},"allow":false}]`)),
 		}
@@ -294,10 +311,10 @@ func (s *Service) ConfigureEgressTraffic(ctx context.Context, tenantID string, r
 
 	if policy == nil {
 		policy = &models.SandboxNetworkPolicy{
-			SandboxID:   sandboxID,
-			Name:        fmt.Sprintf("egress-policy-%s", sandboxID),
-			Namespace:   fmt.Sprintf("sandbox-%s", sandboxID),
-			Labels:      string([]byte(fmt.Sprintf(`{"app":"%s"}`, sandboxID))),
+			SandboxID:    sandboxID,
+			Name:         fmt.Sprintf("egress-policy-%s", sandboxID),
+			Namespace:    fmt.Sprintf("sandbox-%s", sandboxID),
+			Labels:       string([]byte(fmt.Sprintf(`{"app":"%s"}`, sandboxID))),
 			IngressRules: string([]byte(`[{"name":"deny-all-ingress","podSelector":{},"allow":false}]`)),
 		}
 		annJSON, _ := json.Marshal(egressAnnotations)
@@ -338,4 +355,3 @@ func (s *Service) ListNetworkPolicies(ctx context.Context, tenantID string) ([]m
 func IsNotFound(err error) bool {
 	return repository.IsNotFound(err)
 }
-

@@ -8,13 +8,23 @@ import (
 	"orion/platform-svc-go/internal/service-registry/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Deregister(ctx context.Context, tenantID, serviceID string) error
+	FindByServiceID(ctx context.Context, tenantID, serviceID string) (*models.ServiceRegistry, error)
+	GetByInternalID(ctx context.Context, tenantID, id string) (*models.ServiceRegistry, error)
+	List(ctx context.Context, tenantID string, f *repository.ListFilters) ([]models.ServiceRegistry, error)
+	RecordHeartbeat(ctx context.Context, tenantID, serviceID string) error
+	Register(ctx context.Context, tenantID, serviceID, serviceName, serviceURL, protocol, version string, metadata models.JSONB) (*models.ServiceRegistry, error)
+}
+
 // Service orchestrates business logic for the service registry.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a Service backed by the given Repository.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

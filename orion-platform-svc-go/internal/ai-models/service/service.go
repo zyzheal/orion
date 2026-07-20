@@ -8,28 +8,48 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ai-models/models"
-	"orion/platform-svc-go/internal/ai-models/repository"
 
 	"go.uber.org/zap"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountVersions(ctx context.Context, tenantID, modelID string) (int, error)
+	CreateCanary(ctx context.Context, c *models.CanaryConfig) error
+	CreateModel(ctx context.Context, m *models.AIModel) error
+	CreateVersion(ctx context.Context, v *models.ModelVersion) error
+	DeleteModel(ctx context.Context, tenantID, modelID string) error
+	GetCanary(ctx context.Context, tenantID, modelID string) (*models.CanaryConfig, error)
+	GetModel(ctx context.Context, tenantID, modelID string) (*models.AIModel, error)
+	GetVersion(ctx context.Context, tenantID, modelID, versionID string) (*models.ModelVersion, error)
+	GetVersionsByModel(ctx context.Context, tenantID, modelID string) ([]models.ModelVersion, error)
+	ListModels(ctx context.Context, tenantID string, q models.ListModelsQuery) ([]models.AIModel, int, error)
+	ListVersions(ctx context.Context, tenantID, modelID string, q models.ListVersionsQuery) ([]models.ModelVersion, int, error)
+	ModelExists(ctx context.Context, tenantID, name string) (bool, error)
+	UpdateCanary(ctx context.Context, tenantID, modelID string, enabled bool, status models.CanaryStatus) error
+	UpdateModel(ctx context.Context, tenantID, modelID string, displayName *string, description *string, tagsJSON, metadataJSON string) (*models.AIModel, error)
+	UpdateModelCurrentVersion(ctx context.Context, tenantID, modelID, version string, status models.ModelStatus) error
+	UpdateVersion(ctx context.Context, tenantID, versionID string, environment models.Environment, status models.ModelStatus, promotedAt *int64, promotedBy *string) error
+	UpdateVersionDeprecated(ctx context.Context, tenantID, versionID string, deprecatedAt *int64) error
+}
+
 var (
-	ErrModelNotFound        = errors.New("model not found")
-	ErrVersionNotFound      = errors.New("version not found")
-	ErrNoVersionToRollback  = errors.New("no previous version available for rollback")
-	ErrNoProductionVersion  = errors.New("no previous production version found")
-	ErrModelAlreadyExists   = errors.New("model name already exists")
-	ErrCanaryNotFound       = errors.New("canary configuration not found")
+	ErrModelNotFound       = errors.New("model not found")
+	ErrVersionNotFound     = errors.New("version not found")
+	ErrNoVersionToRollback = errors.New("no previous version available for rollback")
+	ErrNoProductionVersion = errors.New("no previous production version found")
+	ErrModelAlreadyExists  = errors.New("model name already exists")
+	ErrCanaryNotFound      = errors.New("canary configuration not found")
 )
 
 // Service handles business logic for AI model management.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	log  *zap.Logger
 }
 
 // NewService creates a new Service.
-func NewService(repo *repository.Repository, log *zap.Logger) *Service {
+func NewService(repo RepositoryInterface, log *zap.Logger) *Service {
 	return &Service{repo: repo, log: log}
 }
 

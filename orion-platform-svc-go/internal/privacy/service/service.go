@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/privacy/models"
-	"orion/platform-svc-go/internal/privacy/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	DeleteConfig(ctx context.Context, tenantID string) error
+	GetConfig(ctx context.Context, tenantID string) (*models.PrivacyConfig, error)
+	ListComplianceStatus(ctx context.Context) ([]models.ComplianceStatus, error)
+	UpdateConfig(ctx context.Context, tenantID string, updates map[string]interface{}) (*models.PrivacyConfig, error)
+	UpsertConfig(ctx context.Context, tenantID string, cfg *models.PrivacyConfig) (*models.PrivacyConfig, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

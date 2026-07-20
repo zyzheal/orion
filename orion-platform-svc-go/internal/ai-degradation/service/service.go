@@ -10,14 +10,34 @@ import (
 	"orion/platform-svc-go/internal/ai-degradation/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountActiveConfigs(ctx context.Context, tenantID string) (int, error)
+	CountTotalConfigs(ctx context.Context, tenantID string) (int, error)
+	CreateConfig(ctx context.Context, config *models.DegradationConfig) error
+	CreateHistory(ctx context.Context, history *models.DegradationHistory) error
+	DeleteConfig(ctx context.Context, tenantID, configID string) error
+	GetConfig(ctx context.Context, tenantID, configID string) (*models.DegradationConfig, error)
+	GetHistoryList(ctx context.Context, tenantID, configID string, q models.ListHistoryQuery) (*models.HistoryListResponse, error)
+	GetServiceSummary(ctx context.Context, tenantID string) ([]repository.ServiceSummary, error)
+	ListConfigs(ctx context.Context, tenantID string, q models.ListConfigsQuery) (*models.ConfigListResponse, error)
+	UpdateConfig(ctx context.Context, tenantID, configID string,
+		name *string, description *string, triggers *string, actions *string,
+		recovery *string, metadata *string) (*models.DegradationConfig, error)
+	UpdateConfigRecovered(ctx context.Context, tenantID, configID string) error
+	UpdateConfigStatus(ctx context.Context, tenantID, configID string, enabled bool, status models.DegradationStatus) (*models.DegradationConfig, error)
+	UpdateConfigTriggered(ctx context.Context, tenantID, configID string, triggeredAt int64) error
+	UpdateHistoryRecovered(ctx context.Context, tenantID, historyID string, recoveredAt int64) error
+}
+
 var ErrNotFound = errors.New("degradation config not found")
 
 // DegradationService exposes the methods the handler expects.
 type DegradationService struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *DegradationService {
+func NewService(repo RepositoryInterface) *DegradationService {
 	return &DegradationService{repo: repo}
 }
 
@@ -111,12 +131,12 @@ func (s *DegradationService) TriggerDegradation(ctx context.Context, tenantID, c
 		return nil, err
 	}
 	history := &models.DegradationHistory{
-		ConfigID:      configID,
-		TenantID:      tenantID,
-		TriggeredAt:   now,
-		TriggerType:   models.ConditionManual,
-		TriggerValue:  1.0,
-		Status:        models.HistoryStatusTriggered,
+		ConfigID:     configID,
+		TenantID:     tenantID,
+		TriggeredAt:  now,
+		TriggerType:  models.ConditionManual,
+		TriggerValue: 1.0,
+		Status:       models.HistoryStatusTriggered,
 	}
 	duration := int64(0)
 	if req.Duration != nil {

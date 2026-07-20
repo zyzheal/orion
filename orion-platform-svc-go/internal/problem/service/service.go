@@ -10,6 +10,26 @@ import (
 	"orion/platform-svc-go/internal/problem/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateKnownError(ctx context.Context, ke *models.KnownError) error
+	CreateProblem(ctx context.Context, problem *models.Problem) error
+	DeleteKnownError(ctx context.Context, id string) (bool, error)
+	DeleteProblem(ctx context.Context, id string, tenantID string) (bool, error)
+	GetChangeLinks(ctx context.Context, problemID string) ([]string, error)
+	GetIncidentLinks(ctx context.Context, problemID string) ([]string, error)
+	GetKnownErrorByID(ctx context.Context, id string) (*models.KnownError, error)
+	GetProblemByID(ctx context.Context, id string, tenantID string) (*models.Problem, error)
+	GetStats(ctx context.Context, tenantID string) (*models.ProblemStats, error)
+	LinkChangeWithTenant(ctx context.Context, problemID, changeID, tenantID string) (*models.Problem, error)
+	LinkIncidentWithTenant(ctx context.Context, problemID, incidentID, tenantID string) (*models.Problem, error)
+	ListKnownErrors(ctx context.Context, tenantID string, filter *models.KnownErrorFilter) ([]models.KnownError, int, error)
+	ListProblems(ctx context.Context, tenantID string, filter *models.ProblemFilter) ([]models.Problem, int, error)
+	SearchKnownErrors(ctx context.Context, query string, tenantID string) ([]models.KnownError, int, error)
+	UpdateKnownError(ctx context.Context, id string, updates map[string]interface{}) (*models.KnownError, error)
+	UpdateProblem(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Problem, error)
+}
+
 var (
 	ErrNotFound     = errors.New("problem not found")
 	ErrBadRequest   = errors.New("bad request")
@@ -18,10 +38,10 @@ var (
 
 // Service orchestrates problem management business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

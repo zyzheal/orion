@@ -7,21 +7,30 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/hook-chain/models"
-	"orion/platform-svc-go/internal/hook-chain/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, hook *models.Hook) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Hook, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Hook, error)
+	Update(ctx context.Context, hook *models.Hook) error
+}
+
 // Service coordinates business logic for hook management.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // ErrNotFound is returned when a hook cannot be located.
 var ErrNotFound = errors.New("hook not found")
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

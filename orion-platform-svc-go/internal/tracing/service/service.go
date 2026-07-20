@@ -8,11 +8,25 @@ import (
 	"orion/platform-svc-go/internal/tracing/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateOtelConfig(ctx context.Context, config *models.OtelCollectorConfig) error
+	CreateSamplingConfig(ctx context.Context, config *models.TraceSamplingConfig) error
+	DeleteOtelConfig(ctx context.Context, tenantID, id string) error
+	GetAllSamplingConfigs(ctx context.Context, tenantID string) ([]models.TraceSamplingConfig, error)
+	GetOtelConfig(ctx context.Context, tenantID, id string) (*models.OtelCollectorConfig, error)
+	GetOtelConfigs(ctx context.Context, tenantID string, configType string) ([]models.OtelCollectorConfig, error)
+	GetTrace(ctx context.Context, tenantID, traceID string) ([]models.TraceSpan, error)
+	SearchTraces(ctx context.Context, tenantID string, req *models.TraceSearchRequest) ([]models.TraceSpan, error)
+	UpdateOtelConfig(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpsertSamplingConfig(ctx context.Context, tenantID, serviceName string, sampleRate float64, maxSpansPerSec int, enabled bool) (*models.TraceSamplingConfig, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

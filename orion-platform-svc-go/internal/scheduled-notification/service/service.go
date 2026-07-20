@@ -7,16 +7,27 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/scheduled-notification/models"
-	"orion/platform-svc-go/internal/scheduled-notification/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, s *models.ScheduledNotification) error
+	CreateLog(ctx context.Context, log *models.ExecutionLog) error
+	Delete(ctx context.Context, id string, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.ScheduledNotification, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit, offset int) ([]models.ScheduledNotification, error)
+	ListLogsBySchedule(ctx context.Context, scheduleID string) ([]models.ExecutionLog, error)
+	UpdateFields(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ScheduledNotification, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

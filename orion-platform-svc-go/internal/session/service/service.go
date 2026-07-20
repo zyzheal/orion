@@ -7,10 +7,21 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/session/models"
-	"orion/platform-svc-go/internal/session/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, s *models.Session) error
+	Delete(ctx context.Context, tenantID, id string) error
+	DeleteByUserID(ctx context.Context, tenantID, userID string) (int64, error)
+	DeleteExpired(ctx context.Context, tenantID string, now time.Time) (int64, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Session, error)
+	GetByToken(ctx context.Context, tenantID, token string) (*models.Session, error)
+	List(ctx context.Context, tenantID string, userID *string, offset, limit int) ([]models.Session, error)
+	UpdateLastActive(ctx context.Context, id, tenantID string, lastActiveAt time.Time) error
+}
 
 var (
 	ErrSessionNotFound = errors.New("session not found")
@@ -20,12 +31,12 @@ var (
 
 // Service implements the session management business logic.
 type Service struct {
-	repo    *repository.Repository
+	repo    RepositoryInterface
 	timeout time.Duration
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository, timeout time.Duration) *Service {
+func NewService(repo RepositoryInterface, timeout time.Duration) *Service {
 	return &Service{repo: repo, timeout: timeout}
 }
 

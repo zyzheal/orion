@@ -9,16 +9,28 @@ import (
 	"orion/platform-svc-go/internal/api-consumption/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateConsumption(ctx context.Context, cons *models.Consumption) error
+	CreateLimit(ctx context.Context, limit *models.Limit) error
+	DeleteLimit(ctx context.Context, tenantID, id string) (bool, error)
+	GetLimitByID(ctx context.Context, tenantID, id string) (*models.Limit, error)
+	GetStats(ctx context.Context, tenantID string) (*models.ConsumptionStats, error)
+	ListConsumptions(ctx context.Context, tenantID string, filter *models.ConsumptionFilter) ([]models.Consumption, error)
+	ListLimits(ctx context.Context, tenantID string) ([]models.Limit, error)
+	UpdateLimit(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Limit, error)
+}
+
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

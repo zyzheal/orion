@@ -10,10 +10,27 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/self-healing/models"
-	"orion/platform-svc-go/internal/self-healing/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateIncident(ctx context.Context, tenantID string, req models.CreateIncidentRequest) (*models.HealingIncident, error)
+	CreateStrategy(ctx context.Context, s *models.HealingStrategy) error
+	GetApprovalRequest(ctx context.Context, id string) (*models.ApprovalRequest, error)
+	GetIncident(ctx context.Context, tenantID, id string) (*models.HealingIncident, error)
+	GetIncidentByApprovalID(ctx context.Context, tenantID, approvalID string) (*models.HealingIncident, error)
+	GetStrategy(ctx context.Context, id string) (*models.HealingStrategy, error)
+	ListApprovalRequests(ctx context.Context, status string) ([]models.ApprovalRequest, error)
+	ListForEffectiveness(ctx context.Context, tenantID string, q models.EffectivenessQuery) ([]models.HealingIncident, error)
+	ListIncidents(ctx context.Context, tenantID string, q models.HistoryQuery) ([]models.HealingIncident, int, error)
+	ListStrategies(ctx context.Context) ([]models.HealingStrategy, error)
+	MarkExpiredApprovals(ctx context.Context) (int64, error)
+	ToggleStrategy(ctx context.Context, id string, enabled bool) error
+	UpdateApprovalRequest(ctx context.Context, id string, updates map[string]interface{}) (*models.ApprovalRequest, error)
+	UpdateIncident(ctx context.Context, id string, updates map[string]interface{}) (*models.HealingIncident, error)
+}
 
 var (
 	ErrInvalidType     = errors.New("invalid incident type")
@@ -58,7 +75,7 @@ var metricToType = map[string]models.IncidentType{
 
 // Service provides the business logic layer.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	opts Options
 }
 
@@ -68,7 +85,7 @@ type Options struct {
 }
 
 // NewService constructs a new Service.
-func NewService(repo *repository.Repository, opts Options) *Service {
+func NewService(repo RepositoryInterface, opts Options) *Service {
 	if opts.ApprovalExpirationMin <= 0 {
 		opts.ApprovalExpirationMin = 5
 	}
@@ -297,10 +314,10 @@ func (s *Service) RespondApproval(ctx context.Context, tenantID, approvalID stri
 	}
 
 	updates := map[string]interface{}{
-		"status":        status,
-		"approved_by":   req.RespondedBy,
+		"status":          status,
+		"approved_by":     req.RespondedBy,
 		"approval_reason": req.Reason,
-		"responded_at":  &now,
+		"responded_at":    &now,
 	}
 	_, err = s.repo.UpdateApprovalRequest(ctx, approvalID, updates)
 	if err != nil {
@@ -328,10 +345,10 @@ func (s *Service) RespondApproval(ctx context.Context, tenantID, approvalID stri
 	}
 
 	return s.repo.UpdateIncident(ctx, incident.ID, map[string]interface{}{
-		"status":         string(incidentStatus),
+		"status":          string(incidentStatus),
 		"approval_status": approvalStatus,
-		"error":          errMsg,
-		"completed_at":   completedAt,
+		"error":           errMsg,
+		"completed_at":    completedAt,
 	})
 }
 

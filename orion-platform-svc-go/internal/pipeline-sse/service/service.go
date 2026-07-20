@@ -31,7 +31,7 @@ type SSEHub struct {
 func NewSSEHub(repo Repository) *SSEHub {
 	return &SSEHub{
 		connections: make(map[string]*models.SSEConnection),
-		repo:       repo,
+		repo:        repo,
 	}
 }
 

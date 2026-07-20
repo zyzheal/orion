@@ -10,16 +10,27 @@ import (
 	"orion/platform-svc-go/internal/ai-cost/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, record *models.CostRecord) (*models.CostRecord, error)
+	DeleteByID(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.CostRecord, error)
+	GetDailyCosts(ctx context.Context, tenantID string, since time.Time) ([]repository.DailyCost, error)
+	GetSummary(ctx context.Context, tenantID string, f models.CostFilter) (*models.CostSummary, error)
+	GetTopModelsByCost(ctx context.Context, tenantID string, limit int) ([]repository.ModelCost, error)
+	List(ctx context.Context, tenantID string, f models.CostFilter) ([]models.CostRecord, error)
+}
+
 var (
-	ErrNotFound  = errors.New("cost record not found")
+	ErrNotFound   = errors.New("cost record not found")
 	ErrBadRequest = errors.New("invalid request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

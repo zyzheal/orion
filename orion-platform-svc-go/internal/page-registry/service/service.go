@@ -5,14 +5,26 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/page-registry/models"
-	"orion/platform-svc-go/internal/page-registry/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.PageRegistry) error
+	Delete(ctx context.Context, tenantID, path string) error
+	GetAll(ctx context.Context, tenantID string) ([]models.PageRegistry, error)
+	GetByPath(ctx context.Context, tenantID, path string) (*models.PageRegistry, error)
+	GetEnabled(ctx context.Context, tenantID string) ([]models.PageRegistry, error)
+	GetHistory(ctx context.Context, tenantID, path string) ([]models.PageRegistryHistory, error)
+	PathExists(ctx context.Context, tenantID, path string) (bool, error)
+	ToggleStatus(ctx context.Context, tenantID, path string) (*models.PageRegistry, error)
+	Update(ctx context.Context, tenantID, path string, updates map[string]interface{}) (*models.PageRegistry, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -28,23 +40,23 @@ func (s *Service) Create(ctx context.Context, tenantID string, req models.Create
 	}
 
 	m := &models.PageRegistry{
-		TenantID:  tenantID,
-		Path:      req.Path,
-		Component: req.Component,
-		Protected: req.Protected,
+		TenantID:   tenantID,
+		Path:       req.Path,
+		Component:  req.Component,
+		Protected:  req.Protected,
 		Permission: req.Permission,
 		HideLayout: req.HideLayout,
-		MicroApp:  req.MicroApp,
-		SubAppKey: req.SubAppKey,
-		MenuKey:   req.MenuKey,
-		MenuLabel: req.MenuLabel,
-		MenuIcon:  req.MenuIcon,
-		Hidden:    req.Hidden,
+		MicroApp:   req.MicroApp,
+		SubAppKey:  req.SubAppKey,
+		MenuKey:    req.MenuKey,
+		MenuLabel:  req.MenuLabel,
+		MenuIcon:   req.MenuIcon,
+		Hidden:     req.Hidden,
 		RedirectTo: req.RedirectTo,
-		Title:     req.Title,
+		Title:      req.Title,
 		Breadcrumb: req.Breadcrumb,
-		SortOrder: req.SortOrder,
-		Status:    defaultStatus(req.Status),
+		SortOrder:  req.SortOrder,
+		Status:     defaultStatus(req.Status),
 	}
 
 	if err := s.repo.Create(ctx, m); err != nil {

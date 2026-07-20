@@ -8,16 +8,25 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/notification-template/models"
-	"orion/platform-svc-go/internal/notification-template/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, tpl *models.NotificationTemplate) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.NotificationTemplate, error)
+	List(ctx context.Context, tenantID string, filter models.ListFilter, limit, offset int) ([]models.NotificationTemplate, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.NotificationTemplate, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

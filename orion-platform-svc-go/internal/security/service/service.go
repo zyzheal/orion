@@ -10,14 +10,25 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/security/models"
-	"orion/platform-svc-go/internal/security/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/security/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	BatchCreate(ctx context.Context, tenantID string, vulns []models.CreateVulnerabilityRequest) ([]models.Vulnerability, error)
+	GetByCVEID(ctx context.Context, tenantID, cveID string) (*models.Vulnerability, error)
+	GetByCVEIDAndPackage(ctx context.Context, tenantID, cveID, packageName string) (*models.Vulnerability, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Vulnerability, error)
+	GetScanStats(ctx context.Context, tenantID string) (*models.VulnerabilityReport, error)
+	List(ctx context.Context, tenantID string, opt models.ListVulnerabilitiesOptions) ([]models.Vulnerability, int, error)
+	UpdateStatus(ctx context.Context, tenantID, id string, status models.VulnerabilityStatus) (*models.Vulnerability, error)
+}
+
 var (
-	ErrNotFound     = errors.New("vulnerability not found")
-	ErrInvalidInput = errors.New("invalid input")
+	ErrNotFound          = errors.New("vulnerability not found")
+	ErrInvalidInput      = errors.New("invalid input")
 	ErrTrivyNotInstalled = errors.New("trivy is not installed or not found in PATH")
 	ErrTrivyScanFailed   = errors.New("trivy scan failed")
 )
@@ -36,19 +47,19 @@ type trivyResult struct {
 
 // trivyTargetResult represents a single target (e.g., a lockfile) in Trivy output.
 type trivyTargetResult struct {
-	Target          string            `json:"Target"`
-	Vulnerabilities []trivyVulnEntry  `json:"Vulnerabilities"`
+	Target          string           `json:"Target"`
+	Vulnerabilities []trivyVulnEntry `json:"Vulnerabilities"`
 }
 
 // trivyVulnEntry represents a single vulnerability entry from Trivy.
 type trivyVulnEntry struct {
-	VulnerabilityID string `json:"VulnerabilityID"`
-	PkgName         string `json:"PkgName"`
+	VulnerabilityID  string `json:"VulnerabilityID"`
+	PkgName          string `json:"PkgName"`
 	InstalledVersion string `json:"InstalledVersion"`
-	FixedVersion    string `json:"FixedVersion"`
-	Title           string `json:"Title"`
-	Description     string `json:"Description"`
-	Severity        string `json:"Severity"`
+	FixedVersion     string `json:"FixedVersion"`
+	Title            string `json:"Title"`
+	Description      string `json:"Description"`
+	Severity         string `json:"Severity"`
 }
 
 // severityMap maps Trivy severity strings to the internal model.
@@ -90,10 +101,10 @@ func detectPackageManager(projectPath string) string {
 }
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

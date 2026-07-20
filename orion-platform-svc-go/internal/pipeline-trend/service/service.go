@@ -6,16 +6,21 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/pipeline-trend/models"
-	"orion/platform-svc-go/internal/pipeline-trend/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (map[string][]models.TrendEntry, error)
+	GetRunHistoryTrend(ctx context.Context, pipelineID, period, granularity string) ([]models.TrendEntry, error)
+}
 
 // Sentinel errors.
 var (
-	ErrTrendNotFound     = errors.New("pipeline trend data not found")
-	ErrInvalidPeriod     = errors.New("invalid period; must be '7d', '30d', or '90d'")
+	ErrTrendNotFound      = errors.New("pipeline trend data not found")
+	ErrInvalidPeriod      = errors.New("invalid period; must be '7d', '30d', or '90d'")
 	ErrInvalidGranularity = errors.New("invalid granularity; must be 'hour', 'day', or 'week'")
-	ErrNoPipelineIDs     = errors.New("pipelineIds is required")
-	ErrTooManyPipelines  = errors.New("pipelineIds exceeds maximum of 20")
+	ErrNoPipelineIDs      = errors.New("pipelineIds is required")
+	ErrTooManyPipelines   = errors.New("pipelineIds exceeds maximum of 20")
 )
 
 // IsNotFound returns true if the error is a not-found sentinel.
@@ -31,11 +36,11 @@ var validGranularities = map[string]bool{"hour": true, "day": true, "week": true
 
 // Service implements pipeline-trend business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -7,14 +7,45 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/finops-v2/models"
-	"orion/platform-svc-go/internal/finops-v2/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CheckBudgetAlerts(ctx context.Context, tenantID string) ([]models.BudgetAlert, error)
+	CreateBudget(ctx context.Context, budget *models.Budget) (int, error)
+	DeleteBudget(ctx context.Context, tenantID, id string) error
+	DeleteRecommendation(ctx context.Context, tenantID string, id string) error
+	DetectUnusedResources(ctx context.Context, tenantID string) ([]models.Recommendation, error)
+	EstimateSavings(ctx context.Context, tenantID string) (*models.SavingsEstimate, error)
+	ForecastBudget(ctx context.Context, tenantID, id string) (*models.BudgetForecastResponse, error)
+	GetAlertTriggers(ctx context.Context) ([]models.AlertTrigger, error)
+	GetBudget(ctx context.Context, tenantID, id string) (*models.Budget, error)
+	GetBudgetStatus(ctx context.Context, tenantID, id string) (*models.BudgetStatusResponse, error)
+	GetChargebackReport(ctx context.Context, tenantID string) ([]models.ChargebackEntry, error)
+	GetCostBreakdown(ctx context.Context, tenantID, dimension string) ([]models.CostBreakdownItem, error)
+	GetCostByEntity(ctx context.Context, tenantID, entityType, entityID string) ([]models.CostEntry, error)
+	GetCostSummary(ctx context.Context, tenantID, period string) (*models.CostSummary, error)
+	GetEntityCostTrend(ctx context.Context, tenantID, entityType, entityID, period string) ([]models.CostTrendPoint, error)
+	GetROIHistory(ctx context.Context, tenantID string) ([]models.ROIEntry, error)
+	GetROISummary(ctx context.Context, tenantID string) (*models.ROISummary, error)
+	GetRegisteredProviders(ctx context.Context) ([]string, error)
+	GetReportHistory(ctx context.Context, tenantID string) ([]models.Report, error)
+	GetRightSizingRecommendations(ctx context.Context, tenantID string) ([]models.Recommendation, error)
+	GetSchedule(ctx context.Context, provider string) (*models.CollectionSchedule, error)
+	HealthCheckAlways(ctx context.Context) (bool, error)
+	ListBudgets(ctx context.Context, tenantID string, limit, offset int) ([]models.Budget, error)
+	ListRecommendations(ctx context.Context, tenantID string, limit, offset int) ([]models.Recommendation, error)
+	SetSchedule(ctx context.Context, provider, cronExpression string, enabled bool) error
+	TrackCost(ctx context.Context, e *models.CostEntry) (int, error)
+	UpdateBudget(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateRecommendationStatus(ctx context.Context, tenantID string, id string, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -312,8 +343,8 @@ func (s *Service) GetMetrics(ctx context.Context, tenantID string) (*models.FinO
 	roi, _ := s.GetROISummary(ctx, tenantID)
 	savings, _ := s.EstimateSavings(ctx, tenantID)
 	return &models.FinOpsMetricsResponse{
-		CostMetrics:  *summary,
-		ROIMetrics:   *roi,
+		CostMetrics:    *summary,
+		ROIMetrics:     *roi,
 		SavingsMetrics: *savings,
 	}, nil
 }

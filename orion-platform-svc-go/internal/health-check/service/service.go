@@ -8,8 +8,16 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/health-check/models"
-	"orion/platform-svc-go/internal/health-check/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req models.CreateHealthCheckRequest) (string, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	Get(ctx context.Context, tenantID, id string) (*models.HealthCheck, error)
+	List(ctx context.Context, tenantID string) ([]models.HealthCheck, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateHealthCheckRequest) error
+}
 
 var validCheckTypes = map[string]bool{
 	"endpoint":   true,
@@ -24,10 +32,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

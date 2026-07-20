@@ -5,14 +5,27 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/sprint/models"
-	"orion/platform-svc-go/internal/sprint/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddTicket(ctx context.Context, st *models.SprintTicket) error
+	Create(ctx context.Context, m *models.Sprint) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetBoard(ctx context.Context, tenantID, sprintID string) (*models.SprintBoard, error)
+	GetBurndownData(ctx context.Context, tenantID, sprintID string) (*models.BurndownData, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Sprint, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Sprint, error)
+	RemoveTicket(ctx context.Context, tenantID, sprintID, ticketID string) error
+	ReorderTickets(ctx context.Context, tenantID, sprintID string, orders []models.TicketOrder) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

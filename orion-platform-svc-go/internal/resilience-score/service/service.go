@@ -10,10 +10,23 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/resilience-score/models"
-	"orion/platform-svc-go/internal/resilience-score/repository"
 
 	"github.com/jmoiron/sqlx"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateBenchmark(ctx context.Context, tenantID string, b *models.ResilienceBenchmark) error
+	CreateHistory(ctx context.Context, tenantID string, h *models.ResilienceHistory) error
+	EnsureRecommendations(ctx context.Context, tenantID string) error
+	GetBenchmark(ctx context.Context, tenantID, id string) (*models.ResilienceBenchmark, error)
+	GetRecentHistory(ctx context.Context, tenantID string, limit int) ([]models.ResilienceHistory, error)
+	GetServiceScore(ctx context.Context, tenantID, serviceName string) (*models.ServiceResilienceScore, error)
+	ListHistory(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ResilienceHistory, int, error)
+	ListRecommendations(ctx context.Context, tenantID string, q models.ListQuery, priority, component string) ([]models.ResilienceRecommendation, int, error)
+	ListServiceScores(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ServiceResilienceScore, int, error)
+	UpsertServiceScore(ctx context.Context, tenantID string, s *models.ServiceResilienceScore) error
+}
 
 // Repository defines the storage interface used by Service.
 type Repository interface {
@@ -29,7 +42,7 @@ type Repository interface {
 	GetBenchmark(ctx context.Context, tenantID, id string) (*models.ResilienceBenchmark, error)
 }
 
-var _ Repository = (*repository.Repository)(nil)
+var _ Repository = (RepositoryInterface)(nil)
 
 type Service struct {
 	repo Repository
@@ -37,7 +50,7 @@ type Service struct {
 	rng  *rand.Rand
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{
 		repo: repo,
 		db:   db,

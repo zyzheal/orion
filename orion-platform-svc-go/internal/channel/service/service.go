@@ -3,14 +3,23 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/channel/models"
-	"orion/platform-svc-go/internal/channel/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, channel *models.NotificationChannel) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error)
+	List(ctx context.Context, tenantID string, filter *models.ChannelFilter) ([]models.NotificationChannel, int, error)
+	ListEnabledByType(ctx context.Context, tenantID, channelType string) ([]models.NotificationChannel, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.NotificationChannel, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

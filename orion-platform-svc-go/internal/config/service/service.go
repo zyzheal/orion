@@ -9,11 +9,53 @@ import (
 	"orion/platform-svc-go/internal/config/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, c *models.Config) error
+	CreateAuditEntry(ctx context.Context, a *models.AuditEntry) error
+	CreateCanary(ctx context.Context, m *models.CanaryDeployment) error
+	CreateChangeRequest(ctx context.Context, m *models.ChangeRequest) error
+	CreateGitOps(ctx context.Context, m *models.GitOpsConfig) error
+	CreateSnapshot(ctx context.Context, s *models.ConfigSnapshot) error
+	CreateTemplate(ctx context.Context, t *models.ConfigTemplate) error
+	CreateTemplateVersion(ctx context.Context, v *models.ConfigTemplateVersion) error
+	CreateWebhook(ctx context.Context, m *models.ConfigWebhook) error
+	DeleteSnapshot(ctx context.Context, tenantID, id string) error
+	DeleteTemplate(ctx context.Context, tenantID, id string) error
+	DeleteWebhook(ctx context.Context, tenantID, id string) error
+	GetAuditTrail(ctx context.Context, configID string, limit int) ([]models.AuditEntry, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Config, error)
+	GetCanary(ctx context.Context, tenantID, id string) (*models.CanaryDeployment, error)
+	GetChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error)
+	GetGitOpsConfig(ctx context.Context, tenantID, id string) (*models.GitOpsConfig, error)
+	GetSnapshot(ctx context.Context, tenantID, snapshotID string) (*models.ConfigSnapshot, error)
+	GetSyncStatus(ctx context.Context, tenantID string, limit int) ([]models.GitOpsSyncStatus, error)
+	GetTemplate(ctx context.Context, tenantID, id string) (*models.ConfigTemplate, error)
+	GetVersion(ctx context.Context, configID, version string) (*models.ConfigVersion, error)
+	GetVersions(ctx context.Context, configID string) ([]models.ConfigVersion, error)
+	GetWebhook(ctx context.Context, tenantID, id string) (*models.ConfigWebhook, error)
+	List(ctx context.Context, tenantID string, filter repository.ConfigFilter) ([]models.Config, int, error)
+	ListChangeRequests(ctx context.Context, tenantID string, status string, limit, offset int) ([]models.ChangeRequest, int, error)
+	ListGitOpsConfigs(ctx context.Context, tenantID string) ([]models.GitOpsConfig, error)
+	ListSnapshots(ctx context.Context, tenantID, configID string) ([]models.ConfigSnapshot, error)
+	ListTemplateVersions(ctx context.Context, templateID string) ([]models.ConfigTemplateVersion, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]models.ConfigTemplate, error)
+	ListWebhooks(ctx context.Context, tenantID string) ([]models.ConfigWebhook, error)
+	RecordSyncStatus(ctx context.Context, s *models.GitOpsSyncStatus) error
+	SoftDelete(ctx context.Context, tenantID, id string) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]any) error
+	UpdateCanaryStatus(ctx context.Context, tenantID, id string, status string) error
+	UpdateChangeRequestStatus(ctx context.Context, tenantID, id string, status string, approvedBy string, reason string) error
+	UpdateGitOpsStatus(ctx context.Context, tenantID, id string, status string) error
+	UpdateTemplate(ctx context.Context, tenantID string, t *models.ConfigTemplate) error
+	UpdateWebhook(ctx context.Context, tenantID string, m *models.ConfigWebhook) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -406,9 +448,9 @@ func (s *Service) CreateSnapshot(ctx context.Context, tenantID, configID, userID
 		return nil, errors.New("config not found")
 	}
 	snapshot := &models.ConfigSnapshot{
-		TenantID: tenantID,
-		ConfigID: configID,
-		Data:     cfg,
+		TenantID:  tenantID,
+		ConfigID:  configID,
+		Data:      cfg,
 		CreatedBy: userID,
 	}
 	if err := s.repo.CreateSnapshot(ctx, snapshot); err != nil {
@@ -450,9 +492,9 @@ func (s *Service) RestoreSnapshot(ctx context.Context, tenantID, configID, snaps
 	}
 	// Save current state as a backup snapshot
 	backup := &models.ConfigSnapshot{
-		TenantID: tenantID,
-		ConfigID: configID,
-		Data:     c,
+		TenantID:  tenantID,
+		ConfigID:  configID,
+		Data:      c,
 		CreatedBy: userID,
 	}
 	if err := s.repo.CreateSnapshot(ctx, backup); err != nil {
@@ -576,4 +618,3 @@ func (s *Service) DeleteWebhook(ctx context.Context, tenantID, id string) error 
 func (s *Service) getTime() time.Time {
 	return time.Now().UTC()
 }
-

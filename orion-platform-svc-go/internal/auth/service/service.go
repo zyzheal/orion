@@ -289,14 +289,14 @@ func (s *Service) GetProfile(ctx context.Context, tenantID, userID string) (*mod
 	}
 
 	return &models.MeResponse{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
-		FullName: user.FullName,
-		Role:     user.Role,
-		Status:   user.Status,
-		Avatar:   buildAvatarURL(user.Username),
-		Tenants:  tenants,
+		ID:              user.ID,
+		Username:        user.Username,
+		Email:           user.Email,
+		FullName:        user.FullName,
+		Role:            user.Role,
+		Status:          user.Status,
+		Avatar:          buildAvatarURL(user.Username),
+		Tenants:         tenants,
 		CurrentTenantID: currentTenantID,
 	}, nil
 }

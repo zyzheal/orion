@@ -10,14 +10,48 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/tenant/models"
-	"orion/platform-svc-go/internal/tenant/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddTenantUser(ctx context.Context, tenantID, userID, role string) error
+	AllocateNamespace(ctx context.Context, tenantID int, nsName string, purpose string) error
+	CountTenantAdmins(ctx context.Context, tenantID string) (int, error)
+	CreateInvite(ctx context.Context, tenantID, email, role, inviteCode, invitedBy string, expiresAt string) (*map[string]any, error)
+	CreateTenant(ctx context.Context, name string, displayName *string, settingsJSON string, status string) (*int, error)
+	DeleteTenant(ctx context.Context, id string) error
+	GetActiveAlerts(ctx context.Context, tenantID string, limit int) ([]map[string]any, error)
+	GetAlertResourceCounts(ctx context.Context, tenantID string) ([]map[string]any, error)
+	GetAlertStatusCounts(ctx context.Context, tenantID string) ([]map[string]any, error)
+	GetInviteByCode(ctx context.Context, code string) (*map[string]any, error)
+	GetPendingInvite(ctx context.Context, tenantID, email string) (*map[string]any, error)
+	GetQuota(ctx context.Context, tenantID int, tenantIDStr string) (*map[string]any, error)
+	GetTenantByRow(ctx context.Context, tenantID string) (*map[string]any, error)
+	GetTenantNamespaces(ctx context.Context, tenantID string) ([]map[string]any, error)
+	GetTenantQuotaAlerts(ctx context.Context, tenantID string, status *string, limit, offset int) ([]map[string]any, int, error)
+	GetTenantRow(ctx context.Context, id string) (*map[string]any, error)
+	GetTenantUserByEmail(ctx context.Context, tenantID, email string) (bool, error)
+	GetUserTenants(ctx context.Context, userID string) ([]map[string]any, error)
+	ListTenantUsers(ctx context.Context, tenantID string) ([]map[string]any, error)
+	ListTenants(ctx context.Context, status *string, limit, offset int) ([]map[string]any, int, error)
+	MigrateUserToTenant(ctx context.Context, newTenantID int, userID string) error
+	MoveNamespaces(ctx context.Context, newTenantID int, nsName string, oldTenantID int) error
+	MovePipeline(ctx context.Context, newTenantID int, pipelineID string, oldTenantID int) error
+	NamespaceCount(ctx context.Context, tenantID string) (int, error)
+	PoolStatus(ctx context.Context) (*map[string]any, error)
+	ReleaseNamespace(ctx context.Context, nsName string) error
+	RemoveTenantUser(ctx context.Context, tenantID, userID string) error
+	TenantCount(ctx context.Context, status *string) (int, error)
+	UpdateInviteStatus(ctx context.Context, status, userID string, id string) error
+	UpdateTenant(ctx context.Context, id string, name *string, displayName *string, status *string, settingsJSON string) error
+	UserIsTenantMember(ctx context.Context, tenantID, userID string) (bool, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -387,13 +421,13 @@ func (s *Service) InviteUser(ctx context.Context, tenantID string, req models.In
 	}
 
 	return &models.InviteResponse{
-		ID:           intVal((*invite)["id"]),
-		InviteCode:   (*invite)["invite_code"].(string),
-		Email:        (*invite)["email"].(string),
-		Role:         (*invite)["role"].(string),
-		Status:       (*invite)["status"].(string),
-		TenantName:   fmt.Sprintf("%v", tName),
-		Message:      msg,
+		ID:         intVal((*invite)["id"]),
+		InviteCode: (*invite)["invite_code"].(string),
+		Email:      (*invite)["email"].(string),
+		Role:       (*invite)["role"].(string),
+		Status:     (*invite)["status"].(string),
+		TenantName: fmt.Sprintf("%v", tName),
+		Message:    msg,
 	}, nil
 }
 
@@ -434,9 +468,9 @@ func (s *Service) AcceptInvite(ctx context.Context, code, userID, userEmail stri
 	result := make(map[string]any)
 	result["message"] = "Invitation accepted successfully"
 	result["tenant"] = map[string]any{
-		"id":       (*inv)["tenant_id"],
-		"name":     (*inv)["tenant_name"],
-		"role":     role,
+		"id":   (*inv)["tenant_id"],
+		"name": (*inv)["tenant_name"],
+		"role": role,
 	}
 	return &result, nil
 }
@@ -561,17 +595,17 @@ func (s *Service) GetCurrentTenant(ctx context.Context, tenantID string) (*map[s
 
 func defaultQuota(tenantIDStr string) *models.TenantQuota {
 	return &models.TenantQuota{
-		TenantID:              0,
-		MaxPipelines:          100,
-		MaxPipelineRunsPerDay: 1000,
-		MaxConcurrentRuns:     10,
-		MaxTasksPerPipeline:   50,
-		MaxRunners:            5,
-		MaxCpuCores:           16,
-		MaxMemoryGb:           32,
-		MaxStorageGb:          100,
-		MaxNamespaces:         10,
-		ApiRateLimit:          1000,
+		TenantID:                  0,
+		MaxPipelines:              100,
+		MaxPipelineRunsPerDay:     1000,
+		MaxConcurrentRuns:         10,
+		MaxTasksPerPipeline:       50,
+		MaxRunners:                5,
+		MaxCpuCores:               16,
+		MaxMemoryGb:               32,
+		MaxStorageGb:              100,
+		MaxNamespaces:             10,
+		ApiRateLimit:              1000,
 		ApiRateLimitWindowSeconds: 60,
 	}
 }
@@ -674,10 +708,10 @@ func mapToDetail(m map[string]any) models.NamespaceUsageDetail {
 
 // Errors
 var (
-	ErrTenantNotFound     = errors.New("tenant not found")
-	ErrInvitePending      = errors.New("pending invitation already exists")
-	ErrUserAlreadyMember  = errors.New("user is already a member of this tenant")
-	ErrInviteNotFound     = errors.New("invalid invitation code")
-	ErrInviteExpired      = errors.New("invitation has expired")
-	ErrSelfRemoval        = errors.New("cannot remove yourself from the tenant")
+	ErrTenantNotFound    = errors.New("tenant not found")
+	ErrInvitePending     = errors.New("pending invitation already exists")
+	ErrUserAlreadyMember = errors.New("user is already a member of this tenant")
+	ErrInviteNotFound    = errors.New("invalid invitation code")
+	ErrInviteExpired     = errors.New("invitation has expired")
+	ErrSelfRemoval       = errors.New("cannot remove yourself from the tenant")
 )

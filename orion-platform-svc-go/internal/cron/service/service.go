@@ -6,19 +6,33 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/cron/models"
-	"orion/platform-svc-go/internal/cron/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.CronJob) error
+	CreateExecution(ctx context.Context, m *models.CronJobExecution) error
+	Delete(ctx context.Context, tenantID, id string) error
+	Disable(ctx context.Context, tenantID, id string) error
+	Enable(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.CronJob, error)
+	GetExecutionByID(ctx context.Context, tenantID, executionID string) (*models.CronJobExecution, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.CronJob, error)
+	ListExecutions(ctx context.Context, tenantID, jobID string, limit, offset int) ([]models.CronJobExecution, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdatePartial(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	// In-memory scheduler state for running status / execution tracking.
 	mu          sync.RWMutex
-	running     map[string]*models.CronJob   // jobID -> running job
+	running     map[string]*models.CronJob // jobID -> running job
 	execHistory []models.CronJobExecution
 	enabled     bool
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:        repo,
 		running:     make(map[string]*models.CronJob),

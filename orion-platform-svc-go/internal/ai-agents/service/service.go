@@ -12,11 +12,26 @@ import (
 	"orion/platform-svc-go/internal/ai-agents/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string, filter *repository.ListFilter) (int64, error)
+	CreateAgent(ctx context.Context, a *models.AIAgent) error
+	CreateAuditLog(ctx context.Context, log *models.AgentAuditLog) error
+	Delete(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteAuditLogs(ctx context.Context, agentID string, tenantID string) error
+	GetAgentStats(ctx context.Context, tenantID string) (*models.AgentStats, error)
+	GetAuditLogs(ctx context.Context, agentID string, tenantID string, limit int) ([]models.AgentAuditLog, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.AIAgent, error)
+	List(ctx context.Context, tenantID string, filter *repository.ListFilter) ([]models.AIAgent, error)
+	UpdateAgent(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.AIAgent, error)
+	UpdateAgentStatus(ctx context.Context, id string, tenantID string, status models.AgentStatus) (*models.AIAgent, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -249,10 +264,10 @@ func (s *Service) ExecuteAgent(ctx context.Context, agentID string, tenantID str
 
 	// Persist audit log
 	contextMap := map[string]interface{}{
-		"traceId":   req.TraceID,
-		"userId":    req.UserID,
-		"tenantId":  tenantID,
-		"metadata":  req.Metadata,
+		"traceId":  req.TraceID,
+		"userId":   req.UserID,
+		"tenantId": tenantID,
+		"metadata": req.Metadata,
 	}
 	inputJSON, _ := json.Marshal(req.Input)
 	outputJSON, _ := json.Marshal(result)

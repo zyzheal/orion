@@ -79,3 +79,4 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM service-catalog WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	return err
 }
+

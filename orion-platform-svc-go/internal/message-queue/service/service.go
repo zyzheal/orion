@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/message-queue/models"
-	"orion/platform-svc-go/internal/message-queue/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.MessageQueue) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.MessageQueue, error)
+	List(ctx context.Context, tenantID string) ([]models.MessageQueue, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.MessageQueue, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

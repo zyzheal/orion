@@ -8,16 +8,64 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/developer-portal/models"
-	"orion/platform-svc-go/internal/developer-portal/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	ClearHistory(ctx context.Context, tenantID, requestID string) error
+	Create(ctx context.Context, m *models.DeveloperPortal) error
+	CreateDocument(ctx context.Context, doc *models.PortalDocument) error
+	CreateDocumentVersion(ctx context.Context, v *models.DocumentVersion) error
+	CreateMockRule(ctx context.Context, rule *models.MockRule) error
+	CreatePlaygroundRequest(ctx context.Context, preq *models.PlaygroundRequest) error
+	CreateSDKTask(ctx context.Context, task *models.SDKTask) error
+	CreateSubscription(ctx context.Context, sub *models.Subscription) error
+	Delete(ctx context.Context, tenantID, id string) error
+	DeleteDocument(ctx context.Context, tenantID, id string) error
+	DeleteMockRule(ctx context.Context, tenantID, id string) error
+	DeletePlaygroundRequest(ctx context.Context, tenantID, id string) error
+	DeleteSDKTask(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.DeveloperPortal, error)
+	GetCategories(ctx context.Context, tenantID string) ([]models.CategoryInfo, error)
+	GetDocumentByID(ctx context.Context, tenantID, id string) (*models.PortalDocument, error)
+	GetDocumentStats(ctx context.Context, tenantID string) (*models.DocumentStats, error)
+	GetDocumentVersions(ctx context.Context, documentID string) ([]models.DocumentVersion, error)
+	GetMockRuleByID(ctx context.Context, tenantID, id string) (*models.MockRule, error)
+	GetMockRuleStats(ctx context.Context, tenantID string) (*models.MockRuleStats, error)
+	GetPlaygroundRequestByID(ctx context.Context, tenantID, id string) (*models.PlaygroundRequest, error)
+	GetPlaygroundStats(ctx context.Context, tenantID, userID string) (*models.PlaygroundStats, error)
+	GetPopularDocuments(ctx context.Context, tenantID string) ([]models.PortalDocument, error)
+	GetResponseHistory(ctx context.Context, tenantID, requestID string, filter models.UsageRecordFilter) ([]models.ResponseHistoryEntry, int, error)
+	GetSDKTaskByID(ctx context.Context, tenantID, id string) (*models.SDKTask, error)
+	GetSDKTaskStats(ctx context.Context, tenantID string) (*models.SDKTaskStats, error)
+	GetSubscriptionByID(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	GetSubscriptionByUserAndAPI(ctx context.Context, tenantID, userID, apiName string) (*models.Subscription, error)
+	GetSubscriptionStats(ctx context.Context, tenantID string) (*models.SubscriptionStats, error)
+	GetUsageRecords(ctx context.Context, tenantID, subscriptionID string, filter models.UsageRecordFilter) ([]models.UsageRecord, int, error)
+	IncrementViews(ctx context.Context, tenantID, id string) error
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error)
+	ListDocuments(ctx context.Context, tenantID string, page, pageSize int) ([]models.PortalDocument, error)
+	ListMockRules(ctx context.Context, tenantID string, filter models.MockRuleFilter) ([]models.MockRule, int, error)
+	ListPlaygroundRequests(ctx context.Context, tenantID, userID string, filter models.PlaygroundRequestFilter) ([]models.PlaygroundRequest, int, error)
+	ListSDKTasks(ctx context.Context, tenantID string, filter models.SDKTaskFilter) ([]models.SDKTask, int, error)
+	ListSubscriptions(ctx context.Context, tenantID string, filter models.SubscriptionFilter) ([]models.Subscription, int, error)
+	RecordHelpful(ctx context.Context, tenantID, id string, helpful bool) (*models.PortalDocument, error)
+	SearchDocuments(ctx context.Context, tenantID, query string) ([]models.PortalDocument, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]any) error
+	UpdateDocument(ctx context.Context, tenantID string, doc *models.PortalDocument) error
+	UpdateMockRule(ctx context.Context, tenantID string, rule *models.MockRule) error
+	UpdatePlaygroundRequest(ctx context.Context, tenantID string, preq *models.PlaygroundRequest) error
+	UpdateSDKTask(ctx context.Context, tenantID string, task *models.SDKTask) error
+	UpdateSubscription(ctx context.Context, tenantID string, sub *models.Subscription) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -58,13 +106,13 @@ func (s *Service) Delete(c context.Context, tenantID, id string) error {
 
 func (s *Service) CreateDocument(c context.Context, tenantID, userID string, req models.CreateDocumentRequest) (*models.PortalDocument, error) {
 	doc := &models.PortalDocument{
-		ID:       uuid.New().String(),
-		TenantID: tenantID,
-		Title:    req.Title,
-		Category: req.Category,
-		Content:  req.Content,
-		Status:   "draft",
-		Version:  "1.0",
+		ID:        uuid.New().String(),
+		TenantID:  tenantID,
+		Title:     req.Title,
+		Category:  req.Category,
+		Content:   req.Content,
+		Status:    "draft",
+		Version:   "1.0",
 		CreatedBy: userID,
 	}
 	if err := s.repo.CreateDocument(c, doc); err != nil {
@@ -154,11 +202,11 @@ func (s *Service) CreateNewVersion(c context.Context, tenantID, id, version, use
 	}
 	// Save old version as a version record
 	ver := &models.DocumentVersion{
-		ID:        uuid.New().String(),
+		ID:         uuid.New().String(),
 		DocumentID: id,
-		Version:   doc.Version,
-		Content:   doc.Content,
-		CreatedBy: userID,
+		Version:    doc.Version,
+		Content:    doc.Content,
+		CreatedBy:  userID,
 	}
 	if err := s.repo.CreateDocumentVersion(c, ver); err != nil {
 		return nil, err
@@ -419,15 +467,15 @@ func (s *Service) CreateSubscription(c context.Context, tenantID, userID string,
 		return existing, nil
 	}
 	sub := &models.Subscription{
-		ID:         uuid.New().String(),
-		TenantID:   tenantID,
-		UserID:     userID,
-		APIName:    req.APIName,
-		PlanName:   req.PlanName,
-		QuotaPerDay: safeDeref(req.QuotaPerDay),
+		ID:            uuid.New().String(),
+		TenantID:      tenantID,
+		UserID:        userID,
+		APIName:       req.APIName,
+		PlanName:      req.PlanName,
+		QuotaPerDay:   safeDeref(req.QuotaPerDay),
 		QuotaPerMonth: safeDeref(req.QuotaPerMonth),
-		Reason:     req.Reason,
-		Status:     "pending",
+		Reason:        req.Reason,
+		Status:        "pending",
 	}
 	if err := s.repo.CreateSubscription(c, sub); err != nil {
 		return nil, err

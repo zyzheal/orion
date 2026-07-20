@@ -14,13 +14,24 @@ import (
 	"orion/platform-svc-go/internal/audit/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req models.AuditLogCreateRequest) (*models.AuditLog, error)
+	Export(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error)
+	GetActions(ctx context.Context, tenantID string) ([]string, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.AuditLog, error)
+	GetResourceTypes(ctx context.Context, tenantID string) ([]string, error)
+	List(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, int, error)
+	VerifyChain(ctx context.Context, tenantID string) (int, bool, error)
+}
+
 // Service provides business logic for the audit module.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service backed by the given Repository interface.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -222,7 +233,7 @@ func (s *Service) Export(ctx context.Context, tenantID string, q models.AuditLog
 
 // complianceControl is an internal definition of one compliance control.
 type complianceControl struct {
-	ID          string   // SOC2: CC1–CC6; ISO27001: A.12.x …
+	ID          string // SOC2: CC1–CC6; ISO27001: A.12.x …
 	Name        string
 	Category    string   // SOC2 trust service category / ISO27001 domain
 	Actions     []string // audit action types that provide evidence for this control
@@ -518,19 +529,18 @@ func (s *Service) ComplianceReport(ctx context.Context, tenantID string, framewo
 		return controlResults[i].ID < controlResults[j].ID
 	})
 
-
 	return &models.ComplianceReport{
-		ReportType:     strings.ToUpper(framework),
-		PeriodStart:    periodStart.Format(time.RFC3339),
-		PeriodEnd:      periodEnd.Format(time.RFC3339),
-		GeneratedAt:    now.Format(time.RFC3339),
-		Score:          overallScore,
-		Rating:         rating,
-		TotalControls:  totalControls,
-		PassedControls: compliant,
-		FailedControls: nonCompliant + partial,
-		Findings:       findings,
-		Controls:       controlResults,
+		ReportType:      strings.ToUpper(framework),
+		PeriodStart:     periodStart.Format(time.RFC3339),
+		PeriodEnd:       periodEnd.Format(time.RFC3339),
+		GeneratedAt:     now.Format(time.RFC3339),
+		Score:           overallScore,
+		Rating:          rating,
+		TotalControls:   totalControls,
+		PassedControls:  compliant,
+		FailedControls:  nonCompliant + partial,
+		Findings:        findings,
+		Controls:        controlResults,
 		Recommendations: recommendations,
 	}, nil
 }

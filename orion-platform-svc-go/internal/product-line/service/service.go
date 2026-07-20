@@ -7,14 +7,29 @@ import (
 	"strings"
 
 	"orion/platform-svc-go/internal/product-line/models"
-	"orion/platform-svc-go/internal/product-line/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.ProductLine) error
+	CreateHotfixChannel(ctx context.Context, tenantID string, hc *models.HotfixChannel) error
+	CreateReleaseTrain(ctx context.Context, tenantID string, rt *models.ReleaseTrain) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ProductLine, error)
+	GetByName(ctx context.Context, tenantID, name string) (*models.ProductLine, error)
+	GetEnabledHotfixChannel(ctx context.Context, tenantID, productLineID string) (*models.HotfixChannel, error)
+	GetHotfixChannels(ctx context.Context, tenantID, productLineID string) ([]models.HotfixChannel, error)
+	GetReleaseTrains(ctx context.Context, tenantID, productLineID string) ([]models.ReleaseTrain, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.ProductLine, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdatePhase(ctx context.Context, tenantID, id string, phase models.Phase) (*models.ProductLine, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

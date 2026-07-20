@@ -10,11 +10,33 @@ import (
 	"orion/platform-svc-go/internal/report-designer/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateDatasource(ctx context.Context, ds *models.ReportDatasource) error
+	CreateExecution(ctx context.Context, e *models.ReportExecution) error
+	CreateReport(ctx context.Context, report *models.ReportDefinition) error
+	CreateSchedule(ctx context.Context, s *models.ReportSchedule) error
+	DeleteDatasource(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteReport(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteSchedule(ctx context.Context, id string, tenantID string) (bool, error)
+	GetDatasourceByID(ctx context.Context, id string, tenantID string) (*models.ReportDatasource, error)
+	GetReportByID(ctx context.Context, id string, tenantID string) (*models.ReportDefinition, error)
+	GetScheduleByID(ctx context.Context, id string, tenantID string) (*models.ReportSchedule, error)
+	ListDatasources(ctx context.Context, tenantID string) ([]models.ReportDatasource, error)
+	ListExecutions(ctx context.Context, reportID string, tenantID string, limit int) ([]models.ReportExecution, error)
+	ListReports(ctx context.Context, req *models.ListReportsRequest, tenantID string) ([]models.ReportDefinition, int, error)
+	ListSchedules(ctx context.Context, reportID string, tenantID string) ([]models.ReportSchedule, error)
+	UpdateDatasource(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ReportDatasource, error)
+	UpdateExecutionStatus(ctx context.Context, id string, tenantID string, status string, outputPath *string, errorMessage *string) error
+	UpdateReport(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ReportDefinition, error)
+	UpdateSchedule(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ReportSchedule, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -36,17 +58,17 @@ func (s *Service) CreateReport(ctx context.Context, req *models.CreateReportRequ
 	}
 
 	report := &models.ReportDefinition{
-		Name:             req.Name,
-		Description:      req.Description,
-		Category:         req.Category,
-		Layout:           req.Layout,
-		Components:       req.Components,
+		Name:               req.Name,
+		Description:        req.Description,
+		Category:           req.Category,
+		Layout:             req.Layout,
+		Components:         req.Components,
 		DatasourceBindings: req.DatasourceBindings,
-		TemplateID:       req.TemplateID,
-		Status:           "draft",
-		Enabled:          true,
-		TenantID:         tenantID,
-		CreatedBy:        createdBy,
+		TemplateID:         req.TemplateID,
+		Status:             "draft",
+		Enabled:            true,
+		TenantID:           tenantID,
+		CreatedBy:          createdBy,
 	}
 	if req.Enabled != nil {
 		report.Enabled = *req.Enabled
@@ -248,10 +270,10 @@ func (s *Service) ExecuteReport(ctx context.Context, reportID string, tenantID s
 	}
 
 	execution := &models.ReportExecution{
-		ReportID:   reportID,
-		Status:     "running",
-		TenantID:   tenantID,
-		CreatedBy:  &user,
+		ReportID:  reportID,
+		Status:    "running",
+		TenantID:  tenantID,
+		CreatedBy: &user,
 	}
 	if err := s.repo.CreateExecution(ctx, execution); err != nil {
 		return nil, err
@@ -281,9 +303,9 @@ func (s *Service) PreviewReport(ctx context.Context, reportID string, tenantID s
 
 	// Scaffold preview result
 	return &models.PreviewReportResult{
-		ReportID: reportID,
-		Data:     req.Parameters,
+		ReportID:   reportID,
+		Data:       req.Parameters,
 		Components: map[string]interface{}{},
-		Message:  "preview generated successfully",
+		Message:    "preview generated successfully",
 	}, nil
 }

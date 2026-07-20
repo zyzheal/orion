@@ -11,18 +11,38 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/alert/models"
-	"orion/platform-svc-go/internal/alert/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddKnownIssue(ctx context.Context, ki *models.KnownIssue) error
+	AddMaintenanceWindow(ctx context.Context, mw *models.MaintenanceWindow) error
+	CreateAlert(ctx context.Context, a *models.Alert) error
+	DeleteAlert(ctx context.Context, tenantID, id string) error
+	ExpireMaintenanceWindows(ctx context.Context, tenantID string) error
+	GetActiveGroups(ctx context.Context, tenantID string) ([]models.AlertGroup, error)
+	GetActiveMaintenanceWindows(ctx context.Context, tenantID string) ([]models.MaintenanceWindow, error)
+	GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error)
+	GetKnownIssueByPattern(ctx context.Context, tenantID, pattern string) (*models.KnownIssue, error)
+	GetOpenKnownIssues(ctx context.Context, tenantID string) ([]models.KnownIssue, error)
+	GetStats(ctx context.Context, tenantID string) (*models.DedupStats, error)
+	GetSuppressionStats(ctx context.Context, tenantID string) (*models.SuppressionStats, error)
+	GetTopology(ctx context.Context, tenantID string) (*models.Topology, error)
+	ListAlerts(ctx context.Context, tenantID string, severity, status string, limit int) ([]models.Alert, int, error)
+	SetTopology(ctx context.Context, tenantID string, nodes, edges any) (*models.Topology, error)
+	UpdateAlert(ctx context.Context, a *models.Alert) error
+	UpdateNodeHealth(ctx context.Context, tenantID string, node models.NodeHealth) error
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	db   *sqlx.DB
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
@@ -102,8 +122,8 @@ func (s *Service) Ingest(ctx context.Context, tenantID string, req models.Ingest
 		statusOut = "updated"
 	}
 	return &models.IngestResponse{
-		Status:     statusOut,
-		Alert:      *alert,
+		Status:      statusOut,
+		Alert:       *alert,
 		IsDuplicate: isDuplicate,
 	}, nil
 }
@@ -158,10 +178,10 @@ func (s *Service) Correlate(ctx context.Context, tenantID string, alerts []model
 		}
 		if len(ids) > 1 {
 			correlatedGroups = append(correlatedGroups, models.CorrelatedGroup{
-				GroupID:      uuid.New().String(),
-				AlertIDs:     ids,
-				CommonRoot:   true,
-				Similarity:   1.0,
+				GroupID:    uuid.New().String(),
+				AlertIDs:   ids,
+				CommonRoot: true,
+				Similarity: 1.0,
 			})
 		}
 	}
@@ -175,7 +195,7 @@ func (s *Service) Correlate(ctx context.Context, tenantID string, alerts []model
 	}
 
 	return &models.CorrelationAnalysis{
-		RootCauses:      rootCauses,
+		RootCauses:       rootCauses,
 		CorrelatedGroups: correlatedGroups,
 		TopologyUpdate: models.TopologyUpdate{
 			NodeCount: len(alerts),
@@ -317,13 +337,13 @@ func (s *Service) ListAlerts(ctx context.Context, tenantID string, severity, sta
 
 // UpdateAlertRequest holds the updatable fields for PUT /alert/:id.
 type UpdateAlertRequest struct {
-	Severity   string                 `json:"severity"`
-	Status     string                 `json:"status"`
-	SourceName string                 `json:"sourceName"`
-	Labels     map[string]string      `json:"labels"`
-	Annotations map[string]string     `json:"annotations"`
-	Value      float64                `json:"value"`
-	Threshold  float64                `json:"threshold"`
+	Severity    string            `json:"severity"`
+	Status      string            `json:"status"`
+	SourceName  string            `json:"sourceName"`
+	Labels      map[string]string `json:"labels"`
+	Annotations map[string]string `json:"annotations"`
+	Value       float64           `json:"value"`
+	Threshold   float64           `json:"threshold"`
 }
 
 // UpdateAlert applies partial updates to an existing alert.

@@ -11,19 +11,31 @@ import (
 	"orion/platform-svc-go/internal/deployment-trigger/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req *models.CreateTriggerRequest) (*models.DeploymentTrigger, error)
+	CreateExecution(ctx context.Context, ex *models.TriggerExecution) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.DeploymentTrigger, error)
+	GetExecutions(ctx context.Context, triggerID, tenantID string, limit int) ([]models.TriggerExecution, error)
+	GetLatestExecution(ctx context.Context, triggerID, tenantID string) (*models.TriggerExecution, error)
+	List(ctx context.Context, tenantID string) ([]models.DeploymentTrigger, error)
+	Update(ctx context.Context, tenantID, id string, req *models.UpdateTriggerRequest) (*models.DeploymentTrigger, error)
+}
+
 var (
-	ErrNotFound         = errors.New("deployment trigger not found")
-	ErrDisabled         = errors.New("deployment trigger is disabled")
-	ErrInvalidCron      = errors.New("invalid cron expression")
-	ErrInvalidTagPattern  = errors.New("invalid tag pattern")
+	ErrNotFound             = errors.New("deployment trigger not found")
+	ErrDisabled             = errors.New("deployment trigger is disabled")
+	ErrInvalidCron          = errors.New("invalid cron expression")
+	ErrInvalidTagPattern    = errors.New("invalid tag pattern")
 	ErrInvalidBranchPattern = errors.New("invalid branch pattern")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

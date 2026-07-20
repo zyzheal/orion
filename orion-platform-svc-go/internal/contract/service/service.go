@@ -9,16 +9,29 @@ import (
 	"orion/platform-svc-go/internal/contract/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateContract(ctx context.Context, contract *models.Contract) error
+	CreateEndpoint(ctx context.Context, endpoint *models.Endpoint) error
+	DeleteContract(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteEndpoint(ctx context.Context, tenantID, contractID, id string) (bool, error)
+	GetContractByID(ctx context.Context, tenantID, id string) (*models.Contract, error)
+	GetStats(ctx context.Context, tenantID string) (*models.ContractStats, error)
+	ListContracts(ctx context.Context, tenantID string, filter *models.ContractFilter) ([]models.Contract, error)
+	ListEndpointsByContract(ctx context.Context, tenantID, contractID string) ([]models.Endpoint, error)
+	UpdateContract(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Contract, error)
+}
+
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -116,13 +129,13 @@ func (s *Service) CreateEndpoint(ctx context.Context, tenantID string, contractI
 		authRequired = *req.AuthRequired
 	}
 	endpoint := &models.Endpoint{
-		ContractID:   contractID,
-		Path:         req.Path,
-		Method:       method,
-		Summary:      req.Summary,
-		RequestSchema: req.RequestSchema,
+		ContractID:     contractID,
+		Path:           req.Path,
+		Method:         method,
+		Summary:        req.Summary,
+		RequestSchema:  req.RequestSchema,
 		ResponseSchema: req.ResponseSchema,
-		AuthRequired:  authRequired,
+		AuthRequired:   authRequired,
 	}
 	if err := s.repo.CreateEndpoint(ctx, endpoint); err != nil {
 		return nil, err

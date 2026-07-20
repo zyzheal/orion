@@ -3,14 +3,21 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/do-not-disturb/models"
-	"orion/platform-svc-go/internal/do-not-disturb/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, dnd *models.DoNotDisturb) error
+	GetByUser(ctx context.Context, tenantID, userID string) (*models.DoNotDisturb, error)
+	IsDNDActive(ctx context.Context, tenantID, userID string) (bool, error)
+	Update(ctx context.Context, tenantID, userID string, updates map[string]interface{}) (*models.DoNotDisturb, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

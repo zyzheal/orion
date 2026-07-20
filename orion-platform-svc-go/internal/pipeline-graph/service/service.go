@@ -14,13 +14,18 @@ import (
 	"orion/platform-svc-go/internal/pipeline-graph/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetPipelineByID(ctx context.Context, id string) (*repository.PipelineDefinition, error)
+}
+
 // Service provides pipeline graph operations: YAML <-> JSON conversion,
 // graph building from saved pipelines, and YAML validation.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -77,12 +82,12 @@ type rawStep struct {
 }
 
 type rawSpec struct {
-	APIVersion string            `yaml:"apiVersion"`
-	Kind       string            `yaml:"kind"`
-	Metadata   *rawMetadata      `yaml:"metadata"`
-	Spec       *rawPipelineSpec  `yaml:"spec"`
-	Stages     []rawStage        `yaml:"stages"`      // flat format
-	Name       string            `yaml:"name"`         // flat format
+	APIVersion string           `yaml:"apiVersion"`
+	Kind       string           `yaml:"kind"`
+	Metadata   *rawMetadata     `yaml:"metadata"`
+	Spec       *rawPipelineSpec `yaml:"spec"`
+	Stages     []rawStage       `yaml:"stages"` // flat format
+	Name       string           `yaml:"name"`   // flat format
 }
 
 type rawMetadata struct {

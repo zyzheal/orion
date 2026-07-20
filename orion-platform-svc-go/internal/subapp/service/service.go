@@ -10,8 +10,20 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/subapp/models"
-	"orion/platform-svc-go/internal/subapp/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddHistory(ctx context.Context, h *models.SubAppConfigHistory) error
+	Create(ctx context.Context, m *models.SubApp) error
+	Delete(ctx context.Context, tenantID, key string) error
+	GetAll(ctx context.Context, tenantID string) ([]models.SubApp, error)
+	GetByKey(ctx context.Context, tenantID, key string) (*models.SubApp, error)
+	GetEnabled(ctx context.Context, tenantID string) ([]models.SubApp, error)
+	GetHistory(ctx context.Context, tenantID, key string) ([]models.SubAppConfigHistory, error)
+	ToggleStatus(ctx context.Context, tenantID, key string) (*models.SubApp, error)
+	Update(ctx context.Context, m *models.SubApp) error
+}
 
 var (
 	ErrSubAppNotFound     = errors.New("sub-app not found")
@@ -25,10 +37,10 @@ func IsNotFound(err error) bool {
 }
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -300,24 +312,24 @@ func derefString(p *string) string {
 
 func (s *Service) toRecord(m *models.SubApp) models.JSONB {
 	return models.JSONB{
-		"id":            m.ID,
-		"name":          m.Name,
-		"key":           m.Key,
-		"version":       m.Version,
-		"entry_dev":     m.EntryDev,
-		"entry_prod":    m.EntryProd,
-		"routes":        m.Routes,
-		"permissions":   m.Permissions,
-		"keep_alive":    m.KeepAlive,
-		"preload":       m.Preload,
-		"description":   derefString(m.Description),
-		"icon":          derefString(m.Icon),
-		"api_domain":    derefString(m.APIDomain),
-		"status":        string(m.Status),
-		"sort_order":    m.SortOrder,
-		"created_by":    derefString(m.CreatedBy),
-		"created_at":    m.CreatedAt.Format(time.RFC3339),
-		"updated_at":    m.UpdatedAt.Format(time.RFC3339),
+		"id":          m.ID,
+		"name":        m.Name,
+		"key":         m.Key,
+		"version":     m.Version,
+		"entry_dev":   m.EntryDev,
+		"entry_prod":  m.EntryProd,
+		"routes":      m.Routes,
+		"permissions": m.Permissions,
+		"keep_alive":  m.KeepAlive,
+		"preload":     m.Preload,
+		"description": derefString(m.Description),
+		"icon":        derefString(m.Icon),
+		"api_domain":  derefString(m.APIDomain),
+		"status":      string(m.Status),
+		"sort_order":  m.SortOrder,
+		"created_by":  derefString(m.CreatedBy),
+		"created_at":  m.CreatedAt.Format(time.RFC3339),
+		"updated_at":  m.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

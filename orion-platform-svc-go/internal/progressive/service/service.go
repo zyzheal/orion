@@ -11,13 +11,29 @@ import (
 	"orion/platform-svc-go/internal/progressive/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, d *models.ProgressiveDeployment) error
+	CreateStage(ctx context.Context, tenantID, deploymentID string, s *models.RolloutStage) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ProgressiveDeployment, error)
+	GetStage(ctx context.Context, tenantID, deploymentID string, stageNumber int) (*models.RolloutStage, error)
+	GetStages(ctx context.Context, tenantID, deploymentID string) ([]models.RolloutStage, error)
+	IncrementStage(ctx context.Context, tenantID, id string) error
+	List(ctx context.Context, tenantID string) ([]models.ProgressiveDeployment, int, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateStageStatus(ctx context.Context, tenantID, deploymentID string, stageNumber int,
+		status models.StageStatus, metrics map[string]string, errStr string) error
+	UpdateStatus(ctx context.Context, tenantID, id string, status models.DeploymentStatus) error
+}
+
 // Service provides business logic for the progressive deployment module.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service backed by the given Repository.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -26,11 +42,11 @@ func NewService(repo *repository.Repository) *Service {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrNotFound        = errors.New("progressive deployment not found")
-	ErrBadRequest      = errors.New("bad request")
-	ErrInvalidStrategy = errors.New("invalid strategy: must be canary, blue_green, or rolling")
-	ErrInvalidState    = errors.New("invalid state transition")
-	ErrStageFailed     = errors.New("stage failed, initiating rollback")
+	ErrNotFound          = errors.New("progressive deployment not found")
+	ErrBadRequest        = errors.New("bad request")
+	ErrInvalidStrategy   = errors.New("invalid strategy: must be canary, blue_green, or rolling")
+	ErrInvalidState      = errors.New("invalid state transition")
+	ErrStageFailed       = errors.New("stage failed, initiating rollback")
 	ErrThresholdExceeded = errors.New("error rate exceeds rollback threshold")
 )
 
@@ -75,15 +91,15 @@ func (s *Service) Create(ctx context.Context, tenantID string, req models.Create
 	}
 
 	d := &models.ProgressiveDeployment{
-		Name:                     req.Name,
-		ServiceName:              req.ServiceName,
-		Strategy:                 req.Strategy,
-		TotalStages:              req.TotalStages,
-		CurrentStage:             0,
-		Status:                   models.StatusPending,
-		HealthCheckEndpoint:      req.HealthCheckEndpoint,
-		HealthCheckIntervalSec:   interval,
-		RollbackThreshold:        threshold,
+		Name:                   req.Name,
+		ServiceName:            req.ServiceName,
+		Strategy:               req.Strategy,
+		TotalStages:            req.TotalStages,
+		CurrentStage:           0,
+		Status:                 models.StatusPending,
+		HealthCheckEndpoint:    req.HealthCheckEndpoint,
+		HealthCheckIntervalSec: interval,
+		RollbackThreshold:      threshold,
 	}
 
 	if err := s.repo.Create(ctx, tenantID, d); err != nil {
@@ -208,10 +224,10 @@ func (s *Service) StartRollout(ctx context.Context, tenantID, deploymentID strin
 	d.UpdatedAt = now
 
 	if err := s.repo.Update(ctx, tenantID, deploymentID, map[string]interface{}{
-		"status":        string(models.StatusRolloutInProgress),
-		"current_stage": 0,
+		"status":          string(models.StatusRolloutInProgress),
+		"current_stage":   0,
 		"rollback_reason": "",
-		"rollback_at":    nil,
+		"rollback_at":     nil,
 	}); err != nil {
 		return nil, err
 	}
@@ -362,7 +378,7 @@ func (s *Service) GetProgress(ctx context.Context, tenantID, deploymentID string
 
 	percentage := 0.0
 	if d.TotalStages > 0 {
-		percentage = math.Round(float64(d.CurrentStage)/float64(d.TotalStages)*100.0)
+		percentage = math.Round(float64(d.CurrentStage) / float64(d.TotalStages) * 100.0)
 	}
 
 	progress := &models.DeploymentProgress{
@@ -402,7 +418,7 @@ func (s *Service) GetStages(ctx context.Context, tenantID, deploymentID string) 
 func (s *Service) rollbackDeployment(ctx context.Context, tenantID, deploymentID string, reason string) (*models.ProgressiveDeployment, error) {
 	now := time.Now().UTC()
 	if err := s.repo.Update(ctx, tenantID, deploymentID, map[string]interface{}{
-		"status":        string(models.StatusRolledBack),
+		"status":          string(models.StatusRolledBack),
 		"rollback_reason": reason,
 		"rollback_at":     &now,
 	}); err != nil {

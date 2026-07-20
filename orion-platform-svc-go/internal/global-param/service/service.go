@@ -9,16 +9,25 @@ import (
 	"orion/platform-svc-go/internal/global-param/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, item *models.GlobalParam) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.GlobalParam, error)
+	List(ctx context.Context, tenantID string) ([]models.GlobalParam, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.GlobalParam, error)
+}
+
 var (
 	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

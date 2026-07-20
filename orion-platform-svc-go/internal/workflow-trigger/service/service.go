@@ -5,18 +5,28 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/workflow-trigger/models"
-	"orion/platform-svc-go/internal/workflow-trigger/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string, filter *models.ListFilter) (int, error)
+	Create(ctx context.Context, t *models.WorkflowTrigger) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.WorkflowTrigger, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.WorkflowTrigger, error)
+	SetEnabled(ctx context.Context, tenantID, id string, enabled bool) error
+	Update(ctx context.Context, t *models.WorkflowTrigger) error
+}
+
 // Service implements the workflow trigger business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -138,12 +148,12 @@ func (s *Service) Trigger(ctx context.Context, tenantID, id string, payload map[
 	// Create a trigger log entry recording this execution.
 	// In a full implementation, this would also trigger the actual workflow execution.
 	logEntry := &models.TriggerLog{
-		ID:        uuid.New().String(),
-		TriggerID: trigger.ID,
+		ID:         uuid.New().String(),
+		TriggerID:  trigger.ID,
 		WorkflowID: trigger.WorkflowID,
-		TenantID:  tenantID,
-		Status:    "triggered",
-		CreatedAt: time.Now(),
+		TenantID:   tenantID,
+		Status:     "triggered",
+		CreatedAt:  time.Now(),
 	}
 
 	// Log entry is created; actual workflow execution would be dispatched here.

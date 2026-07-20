@@ -9,14 +9,33 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/chaos/models"
-	"orion/platform-svc-go/internal/chaos/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.Experiment) error
+	CreateInjection(ctx context.Context, rec *models.InjectionRecord) error
+	CreateRecovery(ctx context.Context, rec *models.RecoveryRecord) error
+	CreateRun(ctx context.Context, run *models.ExperimentRun) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Experiment, error)
+	GetRun(ctx context.Context, tenantID, runID string) (*models.ExperimentRun, error)
+	List(ctx context.Context, tenantID string, status string, limit, offset int) ([]models.Experiment, error)
+	ListInjectionsByExperiment(ctx context.Context, tenantID, experimentID string) ([]models.InjectionRecord, error)
+	ListRecoveriesByExperiment(ctx context.Context, tenantID, experimentID string) ([]models.RecoveryRecord, error)
+	ListRunning(ctx context.Context, tenantID string) ([]models.Experiment, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateInjectionStatus(ctx context.Context, tenantID, injectionID, status string) error
+	UpdateRecoveryStatus(ctx context.Context, tenantID, experimentID, status, message string) error
+	UpdateRunStatus(ctx context.Context, tenantID, runID, status string) error
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -343,7 +362,7 @@ func (s *Service) RecoverExperiment(ctx context.Context, tenantID, experimentID 
 		TenantID:     tenantID,
 		ExperimentID: experimentID,
 		Status:       "recovering",
-		Message:      fmt.Sprintf("reversing %d active injection(s) for experiment %s",
+		Message: fmt.Sprintf("reversing %d active injection(s) for experiment %s",
 			len(activeInjections), experimentID),
 	}
 	if err := s.repo.CreateRecovery(ctx, recovery); err != nil {
@@ -652,17 +671,17 @@ func (s *Service) recordInjection(ctx context.Context, tenantID, experimentID, i
 // --- Default constants ---
 
 const (
-	cpuSpikeDefaultCore      float64 = 0.8
+	cpuSpikeDefaultCore       float64 = 0.8
 	memoryLeakDefaultRateMBps float64 = 100
 	networkLatencyDefaultMS   float64 = 500
 	defaultDuration           string  = "30s"
 )
 
 var (
-	ErrEmptyTarget            = errors.New("target must not be empty")
-	ErrExperimentNotFound     = errors.New("experiment not found")
-	ErrNoActiveInjection      = errors.New("no active injection to recover")
-	ErrInvalidConfig          = errors.New("invalid injection config")
+	ErrEmptyTarget             = errors.New("target must not be empty")
+	ErrExperimentNotFound      = errors.New("experiment not found")
+	ErrNoActiveInjection       = errors.New("no active injection to recover")
+	ErrInvalidConfig           = errors.New("invalid injection config")
 	ErrEmptyServiceEnvironment = errors.New("service_id and environment must not be empty")
 )
 

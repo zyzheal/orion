@@ -8,16 +8,29 @@ import (
 	"orion/platform-svc-go/internal/artifact-lifecycle/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Archive(ctx context.Context, tenantID, id string) error
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, lc *models.ArtifactLifecycle) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByArtifactID(ctx context.Context, tenantID, artifactID string) (*models.ArtifactLifecycle, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.ArtifactLifecycle, error)
+	GetStageHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactLifecycle, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.ArtifactLifecycle, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
+
 var (
-	ErrNotFound     = errors.New("artifact lifecycle not found")
+	ErrNotFound      = errors.New("artifact lifecycle not found")
 	ErrAlreadyExists = errors.New("artifact lifecycle already exists")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -1,7 +1,6 @@
 package service
 
 import (
-
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -14,14 +13,39 @@ import (
 
 	"orion/platform-svc-go/internal/policy/engine"
 	"orion/platform-svc-go/internal/policy/models"
-	"orion/platform-svc-go/internal/policy/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountExemptions(ctx context.Context, tenantID string) (int, error)
+	CreateBundle(ctx context.Context, b *models.PolicyBundle) error
+	CreateEvaluation(ctx context.Context, e *models.PolicyEvaluation) error
+	CreateExemption(ctx context.Context, e *models.Exemption) error
+	CreateOverride(ctx context.Context, o *models.PolicyOverride) error
+	CreatePolicy(ctx context.Context, m *models.Policy) error
+	DeletePolicy(ctx context.Context, tenantID, id string) error
+	GetBundle(ctx context.Context, tenantID, id string) (*models.PolicyBundle, error)
+	GetExemption(ctx context.Context, tenantID, id string) (*models.Exemption, error)
+	GetPolicy(ctx context.Context, tenantID, id string) (*models.Policy, error)
+	GetViolation(ctx context.Context, tenantID, id string) (*models.Violation, error)
+	ListBundles(ctx context.Context, tenantID string) ([]models.PolicyBundle, error)
+	ListEvaluationHistory(ctx context.Context, tenantID, policyID string, limit, offset int) ([]models.PolicyEvaluation, error)
+	ListEvaluations(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyEvaluation, error)
+	ListExemptions(ctx context.Context, tenantID string, status models.ExemptionStatus, policyID string, limit, offset int) ([]models.Exemption, error)
+	ListOverrides(ctx context.Context, tenantID string, limit, offset int) ([]models.PolicyOverride, error)
+	ListPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.Policy, error)
+	ListViolations(ctx context.Context, tenantID string, limit, offset int) ([]models.Violation, error)
+	TogglePolicy(ctx context.Context, tenantID, id string, enabled bool) (*models.Policy, error)
+	UpdateExemption(ctx context.Context, tenantID, id string, status models.ExemptionStatus, reviewer, note string) error
+	UpdatePolicy(ctx context.Context, tenantID, id string, m *models.Policy) error
+	UpdateViolationStatus(ctx context.Context, tenantID, id string, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -529,10 +553,10 @@ func IsNotFound(err error) bool {
 // --- Errors ---
 
 var (
-	ErrNotFound        = errors.New("not found")
-	ErrPolicyNotFound  = fmt.Errorf("policy not found: %w", ErrNotFound)
-	ErrInvalidState    = errors.New("invalid state")
-	ErrValidation      = errors.New("validation error")
+	ErrNotFound       = errors.New("not found")
+	ErrPolicyNotFound = fmt.Errorf("policy not found: %w", ErrNotFound)
+	ErrInvalidState   = errors.New("invalid state")
+	ErrValidation     = errors.New("validation error")
 )
 
 func ErrNotFoundPolicy(id string) error {

@@ -7,20 +7,29 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/permission/models"
-	"orion/platform-svc-go/internal/permission/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, p *models.Permission) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Permission, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Permission, error)
+	Update(ctx context.Context, p *models.Permission) error
+}
+
 // Service provides permission management business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 var ErrNotFound = errors.New("permission not found")
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -38,7 +47,7 @@ func (s *Service) Create(ctx context.Context, tenantID, userID string, req *mode
 
 	now := time.Now()
 	p := &models.Permission{
-		ID: uuid.New().String(),
+		ID:   uuid.New().String(),
 		Name: req.Name, Code: req.Code, Resource: req.Resource,
 		Action: req.Action, Desc: req.Desc,
 		TenantID: tenantID, UserID: userID,

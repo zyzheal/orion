@@ -8,16 +8,25 @@ import (
 	"strconv"
 
 	"orion/platform-svc-go/internal/auth-mfa/models"
-	"orion/platform-svc-go/internal/auth-mfa/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, device *models.MFADevice) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetActiveDevice(ctx context.Context, tenantID, userID string) (*models.MFADevice, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.MFADevice, error)
+	ListByUser(ctx context.Context, tenantID, userID string) ([]models.MFADevice, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

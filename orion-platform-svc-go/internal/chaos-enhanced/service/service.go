@@ -7,14 +7,22 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/chaos-enhanced/models"
-	"orion/platform-svc-go/internal/chaos-enhanced/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateExperiment(ctx context.Context, e *models.Experiment) error
+	CreateFaultInjection(ctx context.Context, fi *models.FaultInjection) error
+	GetExperiment(ctx context.Context, id string, tenantID string) (*models.Experiment, error)
+	ListExperiments(ctx context.Context, tenantID string, status *string, environmentID *string) ([]models.Experiment, error)
+	UpdateExperiment(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Experiment, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -7,16 +7,24 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-execution-control/models"
-	"orion/platform-svc-go/internal/pipeline-execution-control/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateLog(ctx context.Context, log *models.ExecutionControlLog) error
+	GetRunByID(ctx context.Context, id string, tenantID string) (*models.Run, error)
+	ListCheckpoints(ctx context.Context, runID string, tenantID string) ([]models.Checkpoint, error)
+	ListLogsByRunID(ctx context.Context, runID string, tenantID string) ([]models.ExecutionControlLog, error)
+	UpdateRunStatus(ctx context.Context, id string, tenantID string, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -200,8 +208,8 @@ func (s *Service) GetPauseResumeLogs(ctx context.Context, runID string, tenantID
 // --- Errors ---
 
 var (
-	ErrRunNotFound    = errors.New("pipeline run not found")
-	ErrInvalidStatus  = errors.New("invalid run status for requested action")
+	ErrRunNotFound   = errors.New("pipeline run not found")
+	ErrInvalidStatus = errors.New("invalid run status for requested action")
 )
 
 func IsNotFound(err error) bool {

@@ -8,16 +8,24 @@ import (
 	"orion/platform-svc-go/internal/permission-audit/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, log *models.PermissionAuditLog) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.PermissionAuditLog, error)
+	List(ctx context.Context, tenantID string, filter *models.AuditLogFilter) ([]models.PermissionAuditLog, int, error)
+}
+
 var (
-	ErrNotFound  = repository.ErrNotFound
+	ErrNotFound   = repository.ErrNotFound
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

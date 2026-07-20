@@ -10,11 +10,26 @@ import (
 	"orion/platform-svc-go/internal/ci-type/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateType(ctx context.Context, t *models.CIType) error
+	CreateVersion(ctx context.Context, v *models.CITypeVersion) error
+	DeleteType(ctx context.Context, id string, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.CIType, error)
+	GetNextVersion(ctx context.Context, ciTypeID string) (string, error)
+	GetVersion(ctx context.Context, versionID string, ciTypeID string, tenantID string) (*models.CITypeVersion, error)
+	List(ctx context.Context, tenantID string, filter *repository.ListFilter) ([]models.CIType, error)
+	ListAttributes(ctx context.Context, ciTypeID string, tenantID string) ([]models.CIAttribute, error)
+	ListVersions(ctx context.Context, ciTypeID string, tenantID string) ([]models.CITypeVersion, error)
+	UpdateType(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.CIType, error)
+	UpsertAttributes(ctx context.Context, ciTypeID string, tenantID string, attrs []models.CIAttribute) ([]models.CIAttribute, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -44,8 +59,8 @@ func (s *Service) GetTypeWithSchema(ctx context.Context, id string, tenantID str
 		return nil, err
 	}
 	return &models.TypeWithSchema{
-		CIType:   *t,
-		Schema:   attrs,
+		CIType: *t,
+		Schema: attrs,
 	}, nil
 }
 

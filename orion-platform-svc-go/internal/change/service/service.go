@@ -10,11 +10,33 @@ import (
 	"orion/platform-svc-go/internal/change/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddCABDecision(ctx context.Context, tenantID, cabID, changeRequestID, decision, notes string) (*models.CABDecision, error)
+	CreateCABMeeting(ctx context.Context, tenantID string, meeting *models.CABMeeting) error
+	CreateChangeRequest(ctx context.Context, m *models.ChangeRequest) error
+	CreateRFC(ctx context.Context, tenantID string, rfc *models.RFC) error
+	CreateTimelineEvent(ctx context.Context, event *models.TimelineEvent) error
+	DeleteChangeRequest(ctx context.Context, tenantID, id string) error
+	GetCABMeeting(ctx context.Context, tenantID, id string) (*models.CABMeeting, error)
+	GetChangeRequest(ctx context.Context, tenantID, id string) (*models.ChangeRequest, error)
+	GetRFC(ctx context.Context, tenantID, id string) (*models.RFC, error)
+	GetStats(ctx context.Context, tenantID string) (*models.ChangeStats, error)
+	ListCABMeetings(ctx context.Context, tenantID string, q models.CABMeetingListQuery) (*models.ListResult[models.CABMeeting], error)
+	ListChangeRequests(ctx context.Context, tenantID string, q models.ChangeRequestListQuery) (*models.ListResult[models.ChangeRequest], error)
+	ListRFCs(ctx context.Context, tenantID string, limit, offset int) (*models.ListResult[models.RFC], error)
+	ListTimelineEvents(ctx context.Context, tenantID, changeRequestID string, limit, offset int) ([]models.TimelineEvent, error)
+	UpdateCABMeeting(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CABMeeting, error)
+	UpdateChangeRequest(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ChangeRequest, error)
+	UpdateRFC(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.RFC, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status, reason string) (*models.ChangeRequest, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

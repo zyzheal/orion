@@ -12,16 +12,35 @@ import (
 	_ "github.com/lib/pq"
 
 	"orion/platform-svc-go/internal/dba/models"
-	"orion/platform-svc-go/internal/dba/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/dba/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAuditRule(ctx context.Context, rule *models.AuditRule) error
+	CreateDataSource(ctx context.Context, ds *models.DataSource) error
+	CreateOrder(ctx context.Context, o *models.SqlOrder) error
+	DeleteDataSource(ctx context.Context, id string) error
+	GetDataSource(ctx context.Context, id string) (*models.DataSource, error)
+	GetOrder(ctx context.Context, id string) (*models.SqlOrder, error)
+	InsertQueryExecutionLog(ctx context.Context, rec *models.QueryExecutionRecord) error
+	ListAuditRules(ctx context.Context, tenantID string) ([]models.AuditRule, error)
+	ListDataSources(ctx context.Context, tenantID string) ([]models.DataSource, error)
+	ListOrders(ctx context.Context, tenantID, status string, page, limit int) ([]models.SqlOrder, int, error)
+	ListQueryLogs(ctx context.Context, tenantID string, q models.QueryLogQuery) ([]models.QueryExecutionRecord, int, error)
+	UpdateAuditRule(ctx context.Context, id string, updates map[string]interface{}) (*models.AuditRule, error)
+	UpdateDataSource(ctx context.Context, id string, updates map[string]interface{}) (*models.DataSource, error)
+	UpdateDataSourceStatus(ctx context.Context, id, status string) error
+	UpdateOrderStatus(ctx context.Context, id, status string, approvedBy *string, result *string) (*models.SqlOrder, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

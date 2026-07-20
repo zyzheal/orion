@@ -12,11 +12,27 @@ import (
 	"orion/platform-svc-go/internal/ai-decisions/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string, filter *repository.ListFilter) (int64, error)
+	CreateDecision(ctx context.Context, d *models.AIDecision) error
+	CreateFeedback(ctx context.Context, fb *models.DecisionFeedback) error
+	CreateTraces(ctx context.Context, traces []*models.DecisionTrace) error
+	Delete(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteFeedbacks(ctx context.Context, decisionID string, tenantID string) error
+	DeleteTraces(ctx context.Context, decisionID string, tenantID string) error
+	GetByID(ctx context.Context, id string, tenantID string) (*models.AIDecision, error)
+	GetStats(ctx context.Context, tenantID string, dateRange *models.DateRange) (*models.DecisionStats, error)
+	GetTraces(ctx context.Context, decisionID string, tenantID string) ([]models.DecisionTrace, error)
+	List(ctx context.Context, tenantID string, filter *repository.ListFilter) ([]models.AIDecision, error)
+	UpdateDecisionStatus(ctx context.Context, id string, tenantID string, status models.DecisionStatus, executedAt *int64) (*models.AIDecision, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -260,11 +276,11 @@ func (s *Service) SubmitFeedback(ctx context.Context, tenantID, userID, decision
 	}
 
 	fb := &models.DecisionFeedback{
-		TenantID:   tenantID,
-		DecisionID: decisionID,
-		Type:       req.Type,
-		CreatedBy:  userID,
-		CreatedAt:  time.Now().Unix(),
+		TenantID:     tenantID,
+		DecisionID:   decisionID,
+		Type:         req.Type,
+		CreatedBy:    userID,
+		CreatedAt:    time.Now().Unix(),
 		ActualImpact: sql.NullString{String: actualImpactJSON, Valid: actualImpactJSON != ""},
 	}
 	if req.Comment != nil {

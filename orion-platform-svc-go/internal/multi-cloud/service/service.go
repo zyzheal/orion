@@ -9,14 +9,34 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/multi-cloud/models"
-	"orion/platform-svc-go/internal/multi-cloud/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AggregateCosts(ctx context.Context, tenantID string) (*models.CloudStats, error)
+	CreateAccount(ctx context.Context, account *models.CloudAccount) error
+	CreateMigrationPlan(ctx context.Context, plan *models.MigrationPlan) error
+	CreatePolicy(ctx context.Context, policy *models.SchedulingPolicy) error
+	DeleteAccount(ctx context.Context, tenantID, id string) (bool, error)
+	GetAccountByID(ctx context.Context, tenantID, id string) (*models.CloudAccount, error)
+	GetMigrationPlanByID(ctx context.Context, tenantID, id string) (*models.MigrationPlan, error)
+	GetPolicyByID(ctx context.Context, tenantID, id string) (*models.SchedulingPolicy, error)
+	GetResourceStatistics(ctx context.Context, tenantID string) (*models.ResourceStatistics, error)
+	GetSchedulingHistory(ctx context.Context, tenantID string) ([]models.ScheduleDecision, error)
+	InsertSchedulingHistory(ctx context.Context, tenantID string, decision models.ScheduleDecision, policyID string) error
+	ListAccounts(ctx context.Context, tenantID string) ([]models.CloudAccount, error)
+	ListPolicies(ctx context.Context, tenantID string) ([]models.SchedulingPolicy, error)
+	ListResources(ctx context.Context, tenantID string) ([]models.CloudResource, error)
+	ListResourcesByAccount(ctx context.Context, tenantID, accountID string) ([]models.CloudResource, error)
+	UpdateAccount(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.CloudAccount, error)
+	UpdateMigrationPlanStatus(ctx context.Context, tenantID, id, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -25,13 +45,13 @@ func NewService(repo *repository.Repository) *Service {
 // AddCloudAccount adds a new cloud account.
 func (s *Service) AddCloudAccount(ctx context.Context, tenantID string, input models.CloudAccountInput) (*models.CloudAccount, error) {
 	account := &models.CloudAccount{
-		TenantID:      tenantID,
-		AccountName:   input.Name,
+		TenantID:       tenantID,
+		AccountName:    input.Name,
 		CredentialType: input.Provider,
 		CredentialRef:  input.CredentialsRef,
-		Region:        input.Region,
-		Status:        "active",
-		CreatedBy:     tenantID,
+		Region:         input.Region,
+		Status:         "active",
+		CreatedBy:      tenantID,
 	}
 	if err := s.repo.CreateAccount(ctx, account); err != nil {
 		return nil, fmt.Errorf("failed to create cloud account: %w", err)
@@ -308,8 +328,8 @@ func (s *Service) SyncResources(ctx context.Context, tenantID, accountID string)
 func (s *Service) RunComplianceCheck(ctx context.Context, tenantID string, categories []string) (*models.ComplianceReport, error) {
 	rules := s.GetComplianceRules()
 	report := &models.ComplianceReport{
-		TotalRules:  len(rules),
-		CheckedAt:   time.Now().UTC(),
+		TotalRules: len(rules),
+		CheckedAt:  time.Now().UTC(),
 	}
 	for _, rule := range rules {
 		if len(categories) > 0 {

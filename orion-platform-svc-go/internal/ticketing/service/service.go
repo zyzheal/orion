@@ -14,6 +14,65 @@ import (
 	"orion/platform-svc-go/internal/ticketing/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddDispatchRule(ctx context.Context, tenantID string, req models.AddDispatchRuleRequest) (*models.DispatchRule, error)
+	AddRelation(ctx context.Context, tenantID, ticketID, relatedID, relType string) (*models.TicketRelation, error)
+	AddWorkflowHistory(ctx context.Context, tenantID, ticketID, action, fromState, toState, userID, comment string) error
+	AssignTicket(ctx context.Context, tenantID, id string, assigneeID string) error
+	CountTickets(ctx context.Context, tenantID string) (int, error)
+	CountTicketsByCategory(ctx context.Context, tenantID string) (map[string]int, error)
+	CountTicketsByPriority(ctx context.Context, tenantID string) (map[string]int, error)
+	CountTicketsByStatus(ctx context.Context, tenantID string) (map[string]int, error)
+	CreateAssignment(ctx context.Context, tenantID, ticketID, assignee, assignedBy, reason string) error
+	CreateAssignmentRule(ctx context.Context, tenantID string, req models.CreateAssignmentRuleRequest) (*models.AssignmentRule, error)
+	CreateAutomationRule(ctx context.Context, tenantID string, req models.CreateAutomationRuleRequest) (*models.AutomationRule, error)
+	CreateSLAPolicy(ctx context.Context, tenantID string, req models.CreateSLAPolicyRequest) (*models.SLAPolicy, error)
+	CreateSLATarget(ctx context.Context, tenantID string, req models.CreateSLATargetRequest) (*models.SLATarget, error)
+	CreateSuspend(ctx context.Context, tenantID string, req models.CreateSuspendRequest) (*models.Suspend, error)
+	CreateTicket(ctx context.Context, t *models.Ticket) error
+	DeleteAssignmentRule(ctx context.Context, tenantID string, id int) error
+	DeleteAutomationRule(ctx context.Context, tenantID string, ruleID int) error
+	DeleteSLAPolicy(ctx context.Context, tenantID string, policyID int) error
+	DeleteTicket(ctx context.Context, tenantID, id string) error
+	DetectDuplicates(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
+	FindRelatedTickets(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
+	GetDispatchQueueEntries(ctx context.Context, tenantID string) ([]models.QueueEntry, error)
+	GetDispatchQueueStatus(ctx context.Context, tenantID string) (*models.QueueStatus, error)
+	GetDispatchWeights(ctx context.Context, tenantID string) (map[string]int, error)
+	GetEngineer(ctx context.Context, tenantID, id string) (*models.DispatchEngineer, error)
+	GetEngineerSuspensions(ctx context.Context, tenantID, engineerID string) ([]models.Suspend, error)
+	GetRelations(ctx context.Context, tenantID, ticketID string) ([]models.TicketRelation, error)
+	GetSLABreaches(ctx context.Context, tenantID string) ([]models.SLABreach, error)
+	GetSLACompliance(ctx context.Context, tenantID string, policyID int) (*models.ComplianceResult, error)
+	GetSLAPolicy(ctx context.Context, tenantID string, policyID int) (*models.SLAPolicy, error)
+	GetSLATracking(ctx context.Context, tenantID, ticketID string) (*repository.TicketSLATracking, error)
+	GetSuspend(ctx context.Context, tenantID, id string) (*models.Suspend, error)
+	GetTicket(ctx context.Context, tenantID, id string) (*models.Ticket, error)
+	GetTicketSLAStatus(ctx context.Context, tenantID, ticketID string) (*models.TicketSLAStatus, error)
+	GetTransferHistory(ctx context.Context, tenantID, ticketID string) ([]models.TransferHistoryEntry, error)
+	GetTransferStats(ctx context.Context, tenantID string) (*models.TransferStats, error)
+	GetWorkflowHistory(ctx context.Context, tenantID, ticketID string) ([]models.WorkflowHistoryEntry, error)
+	IsServiceActive(ctx context.Context, tenantID string) (bool, error)
+	ListAssignmentRules(ctx context.Context, tenantID string) ([]models.AssignmentRule, error)
+	ListAutomationRules(ctx context.Context, tenantID string) ([]models.AutomationRule, error)
+	ListDispatchRules(ctx context.Context, tenantID string) ([]models.DispatchRule, error)
+	ListEngineers(ctx context.Context, tenantID string) ([]models.DispatchEngineer, error)
+	ListSLAPolicies(ctx context.Context, tenantID string) ([]models.SLAPolicy, error)
+	ListSuspensions(ctx context.Context, tenantID string) ([]models.Suspend, error)
+	ListTickets(ctx context.Context, tenantID string, q models.TicketListQuery) ([]models.Ticket, error)
+	RegisterEngineer(ctx context.Context, tenantID string, req models.RegisterEngineerRequest) (*models.DispatchEngineer, error)
+	SetServiceActive(ctx context.Context, tenantID string, active bool) error
+	TransferTicket(ctx context.Context, tenantID, ticketID, fromUserID, toUserID, reason string) error
+	UpdateAutomationRule(ctx context.Context, tenantID string, ruleID int, updates map[string]interface{}) error
+	UpdateDispatchWeights(ctx context.Context, tenantID string, weights map[string]int) error
+	UpdateSLAPolicy(ctx context.Context, tenantID string, policyID int, updates map[string]interface{}) error
+	UpdateSLATracking(ctx context.Context, ticketID string, updates map[string]interface{}) error
+	UpdateSuspendStatus(ctx context.Context, tenantID, id string, status string) error
+	UpdateTicket(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpsertSLATracking(ctx context.Context, tenantID, ticketID, priority string, targetResolutionMs int64) (*repository.TicketSLATracking, error)
+}
+
 // validTransitions mirrors the TS TicketWorkflowService state machine matrix.
 var validTransitions = map[string][]string{
 	"open":        {"assigned", "closed"},
@@ -32,10 +91,10 @@ var defaultSLATargets = map[string]models.SLATarget{
 }
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -315,10 +374,10 @@ func (s *Service) GetTicketSLA(ctx context.Context, tenantID, ticketID string) (
 	resolutionDue := t.CreatedAt.Add(time.Duration(policyHrs) * time.Hour)
 	now := time.Now().UTC()
 	status := &models.TicketSLAStatus{
-		TicketID:      ticketID,
-		ResolutionOK:  now.Before(resolutionDue),
-		ResponseOK:    true,
-		Breached:      tracking.Breached,
+		TicketID:     ticketID,
+		ResolutionOK: now.Before(resolutionDue),
+		ResponseOK:   true,
+		Breached:     tracking.Breached,
 	}
 	status.ResolutionDue = resolutionDue.Format(time.RFC3339)
 	status.ResponseDue = t.CreatedAt.Add(1 * time.Hour).Format(time.RFC3339)
@@ -699,10 +758,10 @@ func (s *Service) GetLoadBalanceReport(ctx context.Context, tenantID string) (*m
 		names = append(names, e.Name)
 		loads[e.Name] = e.CurrentLoad
 		if e.CurrentLoad > maxLoad {
-				maxLoad = e.CurrentLoad
+			maxLoad = e.CurrentLoad
 		}
 		if e.CurrentLoad < minLoad {
-				minLoad = e.CurrentLoad
+			minLoad = e.CurrentLoad
 		}
 	}
 	var avg float64
@@ -821,15 +880,15 @@ func (s *Service) GetTimeToAssignmentStats(ctx context.Context, tenantID string)
 		return &models.TimeToAssignmentStats{}, nil
 	}
 	sort.Float64s(mins)
-	p95Idx := int(math.Ceil(0.95*float64(len(mins)))-1)
+	p95Idx := int(math.Ceil(0.95*float64(len(mins))) - 1)
 	if p95Idx >= len(mins) {
 		p95Idx = len(mins) - 1
 	}
 	return &models.TimeToAssignmentStats{
-		AvgMinutes:  average(mins),
-		MedianMins:  median(mins),
-		P95Minutes:  mins[p95Idx],
-		MaxMinutes:  mins[len(mins)-1],
+		AvgMinutes: average(mins),
+		MedianMins: median(mins),
+		P95Minutes: mins[p95Idx],
+		MaxMinutes: mins[len(mins)-1],
 	}, nil
 }
 
@@ -1034,9 +1093,9 @@ func (s *Service) GetManagerDashboard(ctx context.Context, tenantID string) (*mo
 		}
 	}
 	return &models.ManagerDashboard{
-		TeamLoad:      teamLoad,
+		TeamLoad:       teamLoad,
 		OverdueTickets: overdue,
-		NewThisWeek:   newThisWeek,
+		NewThisWeek:    newThisWeek,
 	}, nil
 }
 
@@ -1064,10 +1123,10 @@ func (s *Service) GetEngineerDashboard(ctx context.Context, tenantID, engineerID
 		}
 	}
 	return &models.EngineerDashboard{
-		EngineerID:          engineerID,
-		MyTickets:          myTickets,
-		OpenTickets:        openTickets,
-		UpcomingDeadlines:  upcoming,
+		EngineerID:        engineerID,
+		MyTickets:         myTickets,
+		OpenTickets:       openTickets,
+		UpcomingDeadlines: upcoming,
 	}, nil
 }
 
@@ -1424,7 +1483,7 @@ func (s *Service) ExecuteRule(ctx context.Context, tenantID string, ruleID strin
 // --- Errors ---
 
 var (
-	ErrNotFound     = errors.New("not found")
+	ErrNotFound      = errors.New("not found")
 	ErrTicketNotOpen = errors.New("ticket not open")
 )
 

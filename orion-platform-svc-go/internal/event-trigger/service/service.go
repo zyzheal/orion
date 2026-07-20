@@ -6,10 +6,19 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/event-trigger/models"
-	"orion/platform-svc-go/internal/event-trigger/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, t *models.EventTrigger) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.EventTrigger, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.EventTrigger, error)
+	Update(ctx context.Context, t *models.EventTrigger) error
+}
 
 var (
 	ErrNotFound = errors.New("not found")
@@ -17,11 +26,11 @@ var (
 
 // Service provides business logic for event triggers.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

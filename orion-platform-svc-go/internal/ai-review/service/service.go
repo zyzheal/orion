@@ -6,16 +6,24 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/ai-review/models"
-	"orion/platform-svc-go/internal/ai-review/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string, q models.ListReviewsQuery) (int, error)
+	Create(ctx context.Context, m *models.ReviewRequest) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ReviewRequest, error)
+	List(ctx context.Context, tenantID string, q models.ListReviewsQuery) ([]models.ReviewRequest, error)
+	UpdateStatus(ctx context.Context, tenantID, id string, status string) error
+}
 
 var ErrNotFound = errors.New("review not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

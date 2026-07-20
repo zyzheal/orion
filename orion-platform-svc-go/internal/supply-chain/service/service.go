@@ -4,14 +4,30 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/supply-chain/models"
-	"orion/platform-svc-go/internal/supply-chain/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateSBOM(ctx context.Context, sbom *models.SBOM) error
+	CreateSignature(ctx context.Context, sig *models.ArtifactSignature) error
+	CreateSupplyChainReport(ctx context.Context, report *models.SupplyChainReport) error
+	GetDependencyGraph(ctx context.Context, tenantID, packageName, packageVersion string) (*models.DependencyGraph, error)
+	GetSBOM(ctx context.Context, tenantID, sbomID string) (*models.SBOM, error)
+	GetSBOMCountForPipeline(ctx context.Context, tenantID, pipelineID string) (int, error)
+	GetSignature(ctx context.Context, artifactID, signature string) (*models.ArtifactSignature, error)
+	GetSignatureCountForArtifact(ctx context.Context, artifactID string) (int, error)
+	GetSupplyChainReport(ctx context.Context, tenantID, pipelineID string) (*models.SupplyChainReport, error)
+	GetVulnerabilitiesForComponent(ctx context.Context, name, version string) ([]models.Vulnerability, error)
+	InsertDependencyGraph(ctx context.Context, tenantID, packageName, packageVersion string, directDeps, transitiveDeps, vulnerablePaths []byte, depth int) error
+	ListSBOMs(ctx context.Context, tenantID string, q models.ListSBOMsQuery) ([]models.SBOM, error)
+	VerifySignature(ctx context.Context, artifactID, signature string, verified bool) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -73,13 +89,13 @@ func (s *Service) GenerateSupplyChainReport(ctx context.Context, tenantID, pipel
 	sigCount, _ := s.repo.GetSignatureCountForArtifact(ctx, artifactID)
 
 	report := &models.SupplyChainReport{
-		TenantID:          tenantID,
-		PipelineID:        pipelineID,
-		ArtifactID:        &artifactID,
-		SBOMCount:         sbomCount,
-		SignatureCount:    sigCount,
-		ComplianceStatus:  "passed",
-		RiskScore:         0,
+		TenantID:         tenantID,
+		PipelineID:       pipelineID,
+		ArtifactID:       &artifactID,
+		SBOMCount:        sbomCount,
+		SignatureCount:   sigCount,
+		ComplianceStatus: "passed",
+		RiskScore:        0,
 		VulnerabilitySummary: models.VulnerabilitySummary{
 			Critical: 0,
 			High:     0,

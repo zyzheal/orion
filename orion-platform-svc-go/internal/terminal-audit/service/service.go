@@ -5,16 +5,23 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/terminal-audit/models"
-	"orion/platform-svc-go/internal/terminal-audit/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	DeleteBatch(ctx context.Context, tenantID string, ids []string) (int, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.TerminalAuditLog, error)
+	GetStats(ctx context.Context, tenantID string) (*models.AuditStats, error)
+	List(ctx context.Context, tenantID string, q models.AuditQuery) ([]models.TerminalAuditLog, error)
+}
 
 var ErrNotFound = errors.New("terminal audit not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

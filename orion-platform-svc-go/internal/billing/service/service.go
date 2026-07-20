@@ -10,16 +10,38 @@ import (
 	"orion/platform-svc-go/internal/billing/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAccount(ctx context.Context, account *models.Account) error
+	CreateInvoice(ctx context.Context, invoice *models.Invoice) error
+	CreateLineItem(ctx context.Context, item *models.LineItem) error
+	CreateSubscription(ctx context.Context, sub *models.Subscription) error
+	DeleteAccount(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteInvoice(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteSubscription(ctx context.Context, tenantID, id string) (bool, error)
+	GetAccountByID(ctx context.Context, tenantID, id string) (*models.Account, error)
+	GetBillingStats(ctx context.Context, tenantID string) (*models.BillingStats, error)
+	GetInvoiceByID(ctx context.Context, tenantID, id string) (*models.Invoice, error)
+	GetSubscriptionByID(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	ListAccounts(ctx context.Context, tenantID string, status *string) ([]models.Account, error)
+	ListInvoices(ctx context.Context, tenantID string, filter *models.InvoiceFilter) ([]models.Invoice, int, error)
+	ListLineItemsByInvoice(ctx context.Context, tenantID, invoiceID string) ([]models.LineItem, error)
+	ListSubscriptions(ctx context.Context, tenantID string, status *string) ([]models.Subscription, error)
+	UpdateAccount(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Account, error)
+	UpdateInvoice(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Invoice, error)
+	UpdateSubscription(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Subscription, error)
+}
+
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -227,12 +249,12 @@ func (s *Service) CreateSubscription(ctx context.Context, tenantID string, req *
 	}
 	now := time.Now().UTC()
 	sub := &models.Subscription{
-		TenantID:    tenantID,
-		PlanName:    req.PlanName,
-		Amount:      req.Amount,
-		Interval:    interval,
-		Status:      "active",
-		StartedAt:   &now,
+		TenantID:  tenantID,
+		PlanName:  req.PlanName,
+		Amount:    req.Amount,
+		Interval:  interval,
+		Status:    "active",
+		StartedAt: &now,
 	}
 	if err := s.repo.CreateSubscription(ctx, sub); err != nil {
 		return nil, err

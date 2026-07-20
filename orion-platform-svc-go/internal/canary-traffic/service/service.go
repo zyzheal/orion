@@ -5,19 +5,27 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/canary-traffic/models"
-	"orion/platform-svc-go/internal/canary-traffic/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, cb *models.CanaryTraffic) error
+	Delete(ctx context.Context, id, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id, tenantID string) (*models.CanaryTraffic, error)
+	List(ctx context.Context, tenantID string) ([]models.CanaryTraffic, error)
+	Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.CanaryTraffic, error)
+}
+
 var (
-	ErrNotFound      = errors.New("canary traffic not found")
+	ErrNotFound       = errors.New("canary traffic not found")
 	ErrInvalidWeights = errors.New("control_weight + canary_weight must not exceed 100")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

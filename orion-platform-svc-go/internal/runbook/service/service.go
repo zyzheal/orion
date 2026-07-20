@@ -5,16 +5,27 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/runbook/models"
-	"orion/platform-svc-go/internal/runbook/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, m *models.Runbook) error
+	CreateExecution(ctx context.Context, tenantID string, ex *models.RunbookExecution) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Runbook, error)
+	List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Runbook, int, error)
+	ListExecutions(ctx context.Context, tenantID, runbookID string, limit int) ([]models.RunbookExecution, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Runbook, error)
+	UpdateExecutionStatus(ctx context.Context, tenantID, executionID string, status string) error
+}
 
 var ErrNotFound = errors.New("runbook not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

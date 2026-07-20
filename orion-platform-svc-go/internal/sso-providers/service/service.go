@@ -3,14 +3,22 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/sso-providers/models"
-	"orion/platform-svc-go/internal/sso-providers/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, provider *models.SSOProvider) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.SSOProvider, error)
+	List(ctx context.Context, tenantID string, filter *models.SSOProviderFilter) ([]models.SSOProvider, int, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.SSOProvider, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

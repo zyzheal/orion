@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/abac-policy/models"
-	"orion/platform-svc-go/internal/abac-policy/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, policy *models.ABACPolicy) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.ABACPolicy, error)
+	List(ctx context.Context, tenantID string, filter *models.ABACPolicyFilter) ([]models.ABACPolicy, int, error)
+	Update(ctx context.Context, tenantID, id string, name, status *string, conditions map[string]string) (*models.ABACPolicy, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

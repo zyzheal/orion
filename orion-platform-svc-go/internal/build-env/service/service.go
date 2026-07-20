@@ -10,15 +10,40 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/build-env/models"
-	"orion/platform-svc-go/internal/build-env/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error)
+	AssessCacheHealth(ctx context.Context, tenantID string, cacheID string) (*models.CacheHealth, error)
+	CreateBuild(ctx context.Context, m *models.Build) error
+	CreateBuildImage(ctx context.Context, m *models.BuildImage) error
+	CreateCacheConfig(ctx context.Context, tenantID string, name string, level string, status string, cacheDir string, ttlHours int) (*models.BuildCacheConfig, error)
+	DeleteBuild(ctx context.Context, tenantID, id string) error
+	DeleteBuildImage(ctx context.Context, tenantID, id string) error
+	DeleteCacheConfig(ctx context.Context, tenantID string, id int) error
+	GetBuild(ctx context.Context, tenantID, id string) (*models.Build, error)
+	GetBuildImage(ctx context.Context, tenantID, id string) (*models.BuildImage, error)
+	GetBuildLog(ctx context.Context, tenantID string, id int) (*models.BuildLog, error)
+	GetCacheConfig(ctx context.Context, tenantID string, id int) (*models.BuildCacheConfig, error)
+	GetCacheDashboard(ctx context.Context, tenantID string) (*models.CacheDashboard, error)
+	GetCacheMetrics(ctx context.Context, tenantID string, cacheID string) (*models.CacheMetrics, error)
+	ListBuildImages(ctx context.Context, tenantID string, limit, offset int) ([]models.BuildImage, error)
+	ListBuildLogs(ctx context.Context, tenantID string, limit, offset int) ([]models.BuildLog, error)
+	ListBuilds(ctx context.Context, tenantID string, limit, offset int) ([]models.Build, error)
+	ListCacheConfigs(ctx context.Context, tenantID, level, status string, limit, offset int) ([]models.BuildCacheConfig, error)
+	RecordCacheEvent(ctx context.Context, tenantID, cacheID, eventType string, latencySavedMs *float64) error
+	UpdateBuild(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateBuildImage(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateCacheConfig(ctx context.Context, tenantID string, id int, updates map[string]interface{}) (*models.BuildCacheConfig, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	db   *sql.DB
 }
 
-func NewService(repo *repository.Repository, db *sql.DB) *Service {
+func NewService(repo RepositoryInterface, db *sql.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
@@ -214,10 +239,10 @@ func (s *Service) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipeli
 // --- Errors ---
 
 var (
-	ErrNotFound          = errors.New("not found")
-	ErrInvalidConfigID   = errors.New("invalid config id")
-	ErrInvalidLogID      = errors.New("invalid log id")
-	ErrConflict          = errors.New("conflict")
+	ErrNotFound           = errors.New("not found")
+	ErrInvalidConfigID    = errors.New("invalid config id")
+	ErrInvalidLogID       = errors.New("invalid log id")
+	ErrConflict           = errors.New("conflict")
 	ErrServiceUnavailable = errors.New("service unavailable")
 )
 

@@ -358,14 +358,14 @@ func (r *Repository) CountTotalConfigs(ctx context.Context, tenantID string) (in
 }
 
 // GetServiceSummary returns aggregated status per service.
-type serviceSummary struct {
+type ServiceSummary struct {
 	ServiceName        string `db:"service_name"`
 	ActiveDegradations int    `db:"active_degradations"`
 	LastIncident       *int64 `db:"last_incident"`
 }
 
-func (r *Repository) GetServiceSummary(ctx context.Context, tenantID string) ([]serviceSummary, error) {
-	summaries := make([]serviceSummary, 0)
+func (r *Repository) GetServiceSummary(ctx context.Context, tenantID string) ([]ServiceSummary, error) {
+	summaries := make([]ServiceSummary, 0)
 	serviceNames := make([]string, 0)
 	err := r.db.SelectContext(ctx, &serviceNames,
 		`SELECT DISTINCT service_name FROM ai_degradation_configs WHERE tenant_id=$1`, tenantID)
@@ -374,7 +374,7 @@ func (r *Repository) GetServiceSummary(ctx context.Context, tenantID string) ([]
 	}
 
 	for _, name := range serviceNames {
-		var ss serviceSummary
+		var ss ServiceSummary
 		err := r.db.GetContext(ctx, &ss,
 			`SELECT service_name,
 				COUNT(*) FILTER (WHERE status=$2) AS active_degradations,

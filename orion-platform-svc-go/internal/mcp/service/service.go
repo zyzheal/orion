@@ -5,16 +5,27 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/mcp/models"
-	"orion/platform-svc-go/internal/mcp/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountServers(ctx context.Context, tenantID string, q models.ListMCPServersQuery) (int, error)
+	CountTools(ctx context.Context, q models.ListMCPToolsQuery) (int, error)
+	CreateServer(ctx context.Context, m *models.MCPServer) error
+	GetServer(ctx context.Context, tenantID, id string) (*models.MCPServer, error)
+	ListServers(ctx context.Context, tenantID string, q models.ListMCPServersQuery) ([]models.MCPServer, error)
+	ListTools(ctx context.Context, q models.ListMCPToolsQuery) ([]models.MCPTool, error)
+	SoftDeleteServer(ctx context.Context, tenantID, id string) error
+	UpdateServer(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 var ErrNotFound = errors.New("MCP resource not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

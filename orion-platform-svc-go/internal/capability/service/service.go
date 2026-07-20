@@ -8,14 +8,48 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/capability/models"
-	"orion/platform-svc-go/internal/capability/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	ApprovePermissionRequest(ctx context.Context, ticketID int, approverID string) error
+	CheckPermission(ctx context.Context, tenantID, capabilityID, userID string, userRoles []string) (bool, string, error)
+	CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, m *models.Capability) error
+	CreatePermissionRequest(ctx context.Context, tenantID string, userID, capabilityID, reason string, durationHours int, envSuffix *string) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetActiveTempExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error)
+	GetActiveTemporaryPermissions(ctx context.Context, tenantID, userId string) ([]models.TemporaryPermission, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Capability, error)
+	GetCapabilityIDForCommand(ctx context.Context, tenantID, command, action, env string) (string, error)
+	GetPermissionRequestByID(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error)
+	GetTemporaryPermissionByID(ctx context.Context, tenantID string, id int) (*models.TemporaryPermission, error)
+	GetUserGrantExpiry(ctx context.Context, tenantID, capabilityID, userID string) (*time.Time, error)
+	GetUserPermissionRequests(ctx context.Context, tenantID, userId string) ([]models.PermissionRequest, error)
+	GrantCapabilityToRole(ctx context.Context, tenantID string, capabilityID, roleName string) error
+	GrantCapabilityToUser(ctx context.Context, tenantID string, capabilityID, userId, grantedBy string, expiresInHours *int) error
+	GrantTemporaryPermission(ctx context.Context, tenantID string, userID, capabilityID, grantedBy string, envSuffix *string, expiresInHours int) error
+	InsertAuditLog(ctx context.Context, tenantID, action, userID, targetType, targetID, details string) error
+	InsertCommandMapping(ctx context.Context, tenantID string, capID string, cmdName, cmdAction string, envSuffix *string) error
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
+	ListAuditLogs(ctx context.Context, tenantID string, q *models.AuditLogQuery) ([]map[string]interface{}, error)
+	ListByCategory(ctx context.Context, tenantID, category string, limit, offset int) ([]models.Capability, error)
+	ListByParent(ctx context.Context, tenantID, parentCapabilityID string) ([]models.Capability, error)
+	ListCapabilityIDsByRole(ctx context.Context, tenantID, role string) ([]string, error)
+	ListCapabilityIDsByUser(ctx context.Context, tenantID, userID string) ([]string, error)
+	ListRoot(ctx context.Context, tenantID string) ([]models.Capability, error)
+	RejectPermissionRequest(ctx context.Context, ticketID int, rejecterID string, reason *string) error
+	RevokeCapabilityFromRole(ctx context.Context, tenantID string, capabilityID, roleName string) error
+	RevokeCapabilityFromUser(ctx context.Context, tenantID string, capabilityID, userId string) error
+	RevokeTemporaryPermissionByID(ctx context.Context, id int, byUserID string) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -307,14 +341,14 @@ func (s *Service) GetAuditLogs(ctx context.Context, tenantID string, q models.Au
 // mapRowToAuditLog converts a raw map row from ListAuditLogs into an AuditLog struct.
 func mapRowToAuditLog(r map[string]interface{}) models.AuditLog {
 	return models.AuditLog{
-		ID:        toInt64(r["id"]),
-		TenantID:  toString(r["tenant_id"]),
-		Action:    toString(r["action"]),
-		UserID:    toString(r["user_id"]),
+		ID:         toInt64(r["id"]),
+		TenantID:   toString(r["tenant_id"]),
+		Action:     toString(r["action"]),
+		UserID:     toString(r["user_id"]),
 		TargetType: toString(r["target_type"]),
-		TargetID:  toString(r["target_id"]),
-		Details:   toString(r["details"]),
-		CreatedAt: toTime(r["created_at"]),
+		TargetID:   toString(r["target_id"]),
+		Details:    toString(r["details"]),
+		CreatedAt:  toTime(r["created_at"]),
 	}
 }
 
@@ -611,15 +645,15 @@ func (s *Service) recordAudit(ctx context.Context, tenantID, action, userID, tar
 
 // Known sentinel errors used by handlers for status-code routing.
 var (
-	ErrNotFound          = errors.New("not found")
-	ErrParentNotFound    = errors.New("parent not found")
-	ErrInvalidRiskLevel  = errors.New("invalid risk level")
-	ErrRoleNotFound      = errors.New("role not found")
-	ErrInvalidDuration   = errors.New("invalid duration")
-	ErrDurationExceedsLimit = errors.New("duration exceeds limit")
-	ErrHasChildren       = errors.New("has children")
+	ErrNotFound                 = errors.New("not found")
+	ErrParentNotFound           = errors.New("parent not found")
+	ErrInvalidRiskLevel         = errors.New("invalid risk level")
+	ErrRoleNotFound             = errors.New("role not found")
+	ErrInvalidDuration          = errors.New("invalid duration")
+	ErrDurationExceedsLimit     = errors.New("duration exceeds limit")
+	ErrHasChildren              = errors.New("has children")
 	ErrInsufficientApprovalRole = errors.New("insufficient approval role")
-	ErrCapabilityNotFound = errors.New("capability not found")
+	ErrCapabilityNotFound       = errors.New("capability not found")
 )
 
 // IsNotFound returns true if the error indicates a resource was not found.

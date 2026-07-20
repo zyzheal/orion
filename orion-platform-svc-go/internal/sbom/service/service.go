@@ -10,10 +10,28 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/sbom/models"
-	"orion/platform-svc-go/internal/sbom/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountComponentsByLicense(ctx context.Context, sbomID string, tenantID string, licenseID string) (int, error)
+	CountComponentsBySBOM(ctx context.Context, sbomID string, tenantID string) (int, error)
+	CreateAttestation(ctx context.Context, att *models.SBOMAttestation) error
+	CreateComponent(ctx context.Context, comp *models.SBOMComponent) error
+	CreateSBOM(ctx context.Context, sbom *models.SBOMDocument) error
+	CreateVulnerability(ctx context.Context, vuln *models.Vulnerability) error
+	DeleteSBOM(ctx context.Context, id string, tenantID string) (bool, error)
+	DistinctLicenses(ctx context.Context, sbomID string, tenantID string) ([]models.SBOMComponent, error)
+	GetSBOM(ctx context.Context, id string, tenantID string) (*models.SBOMDocument, error)
+	ListAttestations(ctx context.Context, sbomID string, tenantID string) ([]models.SBOMAttestation, error)
+	ListComponents(ctx context.Context, sbomID string, tenantID string, offset, limit int) ([]models.SBOMComponent, int, error)
+	ListSBOMs(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.SBOMDocument, int, error)
+	ListVulnerabilities(ctx context.Context, sbomID string, tenantID string, severity *string, offset, limit int) ([]models.Vulnerability, int, error)
+	UpdateSBOMCounts(ctx context.Context, id string, tenantID string, compCount, vulnCount, licCount int) error
+	UpdateSBOMStatus(ctx context.Context, id string, tenantID string, status string) (*models.SBOMDocument, error)
+}
 
 // Repository defines the persistence contract for SBOM data.
 type Repository interface {
@@ -38,7 +56,7 @@ type Service struct {
 	repo Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -295,16 +313,16 @@ func (s *Service) CompareSBOMs(ctx context.Context, fromID, toID, tenantID strin
 	summary := fmt.Sprintf("SBOM 比较: 新增 %d 个组件，移除 %d 个组件，更新 %d 个组件", len(added), len(removed), len(updated))
 
 	return &models.SBOMComparison{
-		ID:            "compare_" + uuid.New().String(),
-		FromSBOMID:    fromID,
-		ToSBOMID:      toID,
-		AddedComponents:    toJSONArray(added),
-		RemovedComponents:  toJSONArray(removed),
-		UpdatedComponents:  toJSONArray(updated),
-		NewVulnerabilities: "[]",
+		ID:                   "compare_" + uuid.New().String(),
+		FromSBOMID:           fromID,
+		ToSBOMID:             toID,
+		AddedComponents:      toJSONArray(added),
+		RemovedComponents:    toJSONArray(removed),
+		UpdatedComponents:    toJSONArray(updated),
+		NewVulnerabilities:   "[]",
 		FixedVulnerabilities: "[]",
-		LicenseChanges:     "[]",
-		Summary:            summary,
+		LicenseChanges:       "[]",
+		Summary:              summary,
 	}, nil
 }
 
@@ -331,17 +349,17 @@ func (s *Service) generateMockComponents(ctx context.Context, tenantID string, s
 	for i := 0; i < count; i++ {
 		pkg := packages[i%len(packages)]
 		comp := &models.SBOMComponent{
-			SBOMID:        sbomID,
-			Name:          pkg.name,
-			Version:       pkg.version,
-			Type:          "library",
-			Purl:          stringPtr(fmt.Sprintf("pkg:npm/%s@%s", pkg.name, pkg.version)),
-			Hash:          fmt.Sprintf(`{"algorithm":"sha256","value":"hash_%d"}`, i),
-			LicenseID:     pkg.license,
-			LicenseName:   pkg.license,
-			LicenseType:   getLicenseType(pkg.license),
-			Dependencies:  "[]",
-			Properties:    "{}",
+			SBOMID:       sbomID,
+			Name:         pkg.name,
+			Version:      pkg.version,
+			Type:         "library",
+			Purl:         stringPtr(fmt.Sprintf("pkg:npm/%s@%s", pkg.name, pkg.version)),
+			Hash:         fmt.Sprintf(`{"algorithm":"sha256","value":"hash_%d"}`, i),
+			LicenseID:    pkg.license,
+			LicenseName:  pkg.license,
+			LicenseType:  getLicenseType(pkg.license),
+			Dependencies: "[]",
+			Properties:   "{}",
 		}
 		_ = s.repo.CreateComponent(ctx, comp)
 	}
@@ -376,18 +394,18 @@ func (s *Service) generateMockVulnerabilities(ctx context.Context, tenantID stri
 	for i := 0; i < n; i++ {
 		v := vulns[rand.Intn(len(vulns))]
 		vuln := &models.Vulnerability{
-			SBOMID:          sbomID,
-			ComponentID:     comps[i].ID,
-			ComponentName:   comps[i].Name,
-			CVEID:           v.cveID,
-			Severity:        v.severity,
-			CVSSScore:       v.cvss,
-			Description:     fmt.Sprintf("安全漏洞 %s", v.cveID),
+			SBOMID:           sbomID,
+			ComponentID:      comps[i].ID,
+			ComponentName:    comps[i].Name,
+			CVEID:            v.cveID,
+			Severity:         v.severity,
+			CVSSScore:        v.cvss,
+			Description:      fmt.Sprintf("安全漏洞 %s", v.cveID),
 			AffectedVersions: comps[i].Version,
-			References:      fmt.Sprintf("[\"https://nvd.nist.gov/vuln/detail/%s\"]", v.cveID),
-			Status:          models.VulnStatusOpen,
-			PublishedAt:     time.Now().UTC(),
-			DiscoveredAt:    time.Now().UTC(),
+			References:       fmt.Sprintf("[\"https://nvd.nist.gov/vuln/detail/%s\"]", v.cveID),
+			Status:           models.VulnStatusOpen,
+			PublishedAt:      time.Now().UTC(),
+			DiscoveredAt:     time.Now().UTC(),
 		}
 		_ = s.repo.CreateVulnerability(ctx, vuln)
 		vulnCount++

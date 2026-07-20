@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/event-trigger-registry/models"
-	"orion/platform-svc-go/internal/event-trigger-registry/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.WorkflowTrigger) error
+	Delete(ctx context.Context, id, tenantID string) error
+	FindAll(ctx context.Context, tenantID string) ([]models.WorkflowTrigger, int, error)
+	GetByID(ctx context.Context, id, tenantID string) (*models.WorkflowTrigger, error)
+	Update(ctx context.Context, m *models.WorkflowTrigger) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

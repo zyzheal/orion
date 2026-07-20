@@ -11,16 +11,29 @@ import (
 	"orion/platform-svc-go/internal/disaster-recovery/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountPlans(ctx context.Context, tenantID string) (int, error)
+	CreatePlan(ctx context.Context, p *models.DisasterPlan) error
+	CreateRun(ctx context.Context, run *models.RecoveryRun) error
+	GetPlan(ctx context.Context, tenantID, id string) (*models.DisasterPlan, error)
+	GetRun(ctx context.Context, tenantID, planID, runID string) (*models.RecoveryRun, error)
+	ListPlans(ctx context.Context, tenantID string, limit, offset int) ([]models.DisasterPlan, error)
+	ListRuns(ctx context.Context, tenantID, planID string) ([]models.RecoveryRun, error)
+	UpdatePlan(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdatePlanLastRun(ctx context.Context, tenantID, id string, lastRun time.Time) error
+}
+
 var (
-	ErrNotFound     = errors.New("disaster plan not found")
+	ErrNotFound      = errors.New("disaster plan not found")
 	ErrAlreadyExists = errors.New("disaster plan already exists")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -8,6 +8,12 @@ import (
 	"orion/platform-svc-go/internal/pipeline-run-history/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountRunHistory(ctx context.Context, pipelineID string, tenantID string) (int, error)
+	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, error)
+}
+
 // Repository defines the data access contract needed by Service.
 type Repository interface {
 	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) ([]models.RunHistoryEntry, error)

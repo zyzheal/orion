@@ -4,14 +4,23 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/data-pipeline/models"
-	"orion/platform-svc-go/internal/data-pipeline/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
+	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Record, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

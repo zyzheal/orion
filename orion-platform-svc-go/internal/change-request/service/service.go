@@ -10,11 +10,27 @@ import (
 	"orion/platform-svc-go/internal/change-request/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateExecution(ctx context.Context, execution *models.ExecutionStep) error
+	CreateRequest(ctx context.Context, req *models.ChangeRequest) error
+	DeleteRequest(ctx context.Context, id string, tenantID string) (bool, error)
+	GetApproval(ctx context.Context, approvalID string, requestID string, tenantID string) (*models.ChangeApproval, error)
+	GetApprovalChain(ctx context.Context, requestID string, tenantID string) ([]models.ChangeApproval, error)
+	GetExecutionProgress(ctx context.Context, requestID string, tenantID string) ([]models.ExecutionStep, error)
+	GetRequestByID(ctx context.Context, id string, tenantID string) (*models.ChangeRequest, error)
+	ListRequests(ctx context.Context, tenantID string, filters *models.ListChangeRequestRequest) ([]models.ChangeRequest, error)
+	UpdateApprovalDecision(ctx context.Context, approvalID string, tenantID string, decision string, comments *string) (*models.ChangeApproval, error)
+	UpdateExecutionStep(ctx context.Context, stepID string, tenantID string, status string, result map[string]any, startedAt *time.Time, completedAt *time.Time) (*models.ExecutionStep, error)
+	UpdateRequest(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ChangeRequest, error)
+	UpdateRequestStatus(ctx context.Context, id string, tenantID string, status string) (*models.ChangeRequest, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -268,9 +284,9 @@ func (s *Service) UpdateExecutionStep(ctx context.Context, stepID string, tenant
 // --- Errors ---
 
 var (
-	ErrRequestNotFound   = errors.New("change request not found")
-	ErrApprovalNotFound  = errors.New("approval not found")
-	ErrStateConflict     = errors.New("state conflict")
+	ErrRequestNotFound  = errors.New("change request not found")
+	ErrApprovalNotFound = errors.New("approval not found")
+	ErrStateConflict    = errors.New("state conflict")
 )
 
 func IsNotFound(err error) bool {

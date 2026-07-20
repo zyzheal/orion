@@ -8,11 +8,24 @@ import (
 	"orion/platform-svc-go/internal/compliance/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateReport(ctx context.Context, report *models.ComplianceReport) error
+	CreateSchedule(ctx context.Context, schedule *models.ComplianceSchedule) error
+	DeleteReport(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteSchedule(ctx context.Context, id string, tenantID string) (bool, error)
+	GetReportByID(ctx context.Context, id string, tenantID string) (*models.ComplianceReport, error)
+	GetScheduleByID(ctx context.Context, id string, tenantID string) (*models.ComplianceSchedule, error)
+	ListReports(ctx context.Context, tenantID string, framework *string) ([]models.ComplianceReport, error)
+	ListSchedules(ctx context.Context, tenantID string) ([]models.ComplianceSchedule, error)
+	UpdateReport(ctx context.Context, report *models.ComplianceReport, tenantID string) (*models.ComplianceReport, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

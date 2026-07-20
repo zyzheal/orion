@@ -10,16 +10,33 @@ import (
 	"orion/platform-svc-go/internal/data-quality/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAlert(ctx context.Context, alert *models.Alert) error
+	CreateRule(ctx context.Context, rule *models.Rule) error
+	CreateScanResult(ctx context.Context, result *models.ScanResult) error
+	DeleteAlert(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteRule(ctx context.Context, tenantID, id string) (bool, error)
+	GetAlertByID(ctx context.Context, tenantID, id string) (*models.Alert, error)
+	GetRuleByID(ctx context.Context, tenantID, id string) (*models.Rule, error)
+	GetStats(ctx context.Context, tenantID string) (*models.QualityStats, error)
+	ListAlerts(ctx context.Context, tenantID string, status *string) ([]models.Alert, error)
+	ListRules(ctx context.Context, tenantID string, filter *models.RuleFilter) ([]models.Rule, error)
+	ListScanResults(ctx context.Context, tenantID, ruleID string, status *string) ([]models.ScanResult, error)
+	UpdateAlert(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Alert, error)
+	UpdateRule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Rule, error)
+}
+
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound   = errors.New("not found")
 	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

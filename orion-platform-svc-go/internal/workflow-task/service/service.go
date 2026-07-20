@@ -6,14 +6,22 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/workflow-task/models"
-	"orion/platform-svc-go/internal/workflow-task/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Claim(ctx context.Context, id string, tenantID string, assigneeID string, comment *string) error
+	Complete(ctx context.Context, id string, tenantID string, comment *string, formData *string) error
+	Count(ctx context.Context, tenantID string, filter *models.ListFilter) (int, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.WorkflowTask, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter) ([]models.WorkflowTask, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -86,10 +94,10 @@ func (s *Service) Complete(ctx context.Context, id string, tenantID string, comm
 
 // Errors
 var (
-	ErrTaskNotFound        = errors.New("workflow task not found")
-	ErrTaskInvalidStatus   = errors.New("workflow task is not in pending status")
+	ErrTaskNotFound         = errors.New("workflow task not found")
+	ErrTaskInvalidStatus    = errors.New("workflow task is not in pending status")
 	ErrTaskAlreadyCompleted = errors.New("workflow task is already completed")
-	ErrTaskCancelled       = errors.New("workflow task has been cancelled")
+	ErrTaskCancelled        = errors.New("workflow task has been cancelled")
 )
 
 // IsNotFound returns true if the error indicates a not-found condition.

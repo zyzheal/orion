@@ -7,14 +7,35 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/approval/models"
-	"orion/platform-svc-go/internal/approval/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateApprovalGate(ctx context.Context, m *models.ApprovalGate) error
+	CreateApprovalHistory(ctx context.Context, m *models.ApprovalHistory) error
+	CreateApprovalLevel(ctx context.Context, m *models.ApprovalLevel) error
+	CreateApprovalRequest(ctx context.Context, m *models.ApprovalRequest) error
+	CreateTemplate(ctx context.Context, m *models.ApprovalTemplate) error
+	DeleteApprovalRequest(ctx context.Context, tenantID, id string) error
+	GetApprovalRequest(ctx context.Context, tenantID, id string) (*models.ApprovalRequest, error)
+	GetGateByStage(ctx context.Context, tenantID, runID, stageID string) (*models.ApprovalGate, error)
+	GetStatistics(ctx context.Context, tenantID string) (models.ApprovalStatistics, error)
+	GetTemplate(ctx context.Context, tenantID, id string) (*models.ApprovalTemplate, error)
+	ListApprovalRequests(ctx context.Context, tenantID, approvalType, status string, limit, offset int) ([]models.ApprovalRequest, error)
+	ListGatesByRun(ctx context.Context, tenantID, runID string) ([]models.ApprovalGate, error)
+	ListHistoryByApproval(ctx context.Context, tenantID, approvalID string) ([]models.ApprovalHistory, error)
+	ListMyPending(ctx context.Context, tenantID, userID string) ([]models.ApprovalRequest, error)
+	ListPending(ctx context.Context, tenantID string) ([]models.ApprovalRequest, error)
+	ListTemplates(ctx context.Context, tenantID string, limit, offset int) ([]models.ApprovalTemplate, error)
+	UpdateApprovalRequest(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateTemplate(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -23,14 +44,14 @@ func NewService(repo *repository.Repository) *Service {
 func (s *Service) CreateApprovalRequest(ctx context.Context, tenantID, userID, userName string, req models.CreateApprovalRequest) (*models.ApprovalRequest, error) {
 	status := "pending"
 	m := &models.ApprovalRequest{
-		TenantID:   tenantID,
-		Type:       req.Type,
-		Status:     status,
-		Title:      req.Title,
-		Description: req.Description,
-		ReqByID:    userID,
-		ReqByName:  userName,
-		TemplateID: req.TemplateID,
+		TenantID:     tenantID,
+		Type:         req.Type,
+		Status:       status,
+		Title:        req.Title,
+		Description:  req.Description,
+		ReqByID:      userID,
+		ReqByName:    userName,
+		TemplateID:   req.TemplateID,
 		CurrentLevel: 1,
 		TotalLevels:  req.Levels,
 	}
@@ -266,13 +287,13 @@ func (s *Service) GetMyPendingApprovals(ctx context.Context, tenantID, userID st
 
 func (s *Service) RequestEmergencyApproval(ctx context.Context, tenantID, userID, userName string, req models.EmergencyApprovalRequest) (*models.ApprovalRequest, error) {
 	m := &models.ApprovalRequest{
-		TenantID:    tenantID,
-		Type:        "emergency",
-		Status:      "pending",
-		Title:       req.Title,
-		Description: req.Description,
-		ReqByID:     userID,
-		ReqByName:   userName,
+		TenantID:     tenantID,
+		Type:         "emergency",
+		Status:       "pending",
+		Title:        req.Title,
+		Description:  req.Description,
+		ReqByID:      userID,
+		ReqByName:    userName,
 		CurrentLevel: 1,
 		TotalLevels:  1,
 	}

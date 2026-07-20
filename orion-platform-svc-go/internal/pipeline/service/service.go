@@ -7,8 +7,18 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline/models"
-	"orion/platform-svc-go/internal/pipeline/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, req models.CreatePipelineRequest) (*models.Pipeline, error)
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Pipeline, error)
+	GetStats(ctx context.Context, tenantID, pipelineID string) (*models.PipelineStats, error)
+	GetVersions(ctx context.Context, tenantID, pipelineID string) ([]models.PipelineVersion, error)
+	List(ctx context.Context, tenantID string, opt models.ListPipelinesOptions) ([]models.Pipeline, int, error)
+	Update(ctx context.Context, tenantID, id string, req models.UpdatePipelineRequest) (*models.Pipeline, error)
+}
 
 var (
 	ErrNotFound     = errors.New("pipeline not found")
@@ -17,10 +27,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -150,7 +160,7 @@ func (s *Service) BatchDelete(ctx context.Context, tenantID string, pipelineIDs 
 		if err != nil {
 			results = append(results, models.BatchDeleteResult{
 				PipelineID: pid,
-                Deleted:    false,
+				Deleted:    false,
 				Error:      err.Error(),
 			})
 			continue

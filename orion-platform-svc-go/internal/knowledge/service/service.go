@@ -7,14 +7,34 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/knowledge/models"
-	"orion/platform-svc-go/internal/knowledge/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateDoc(ctx context.Context, doc *models.Document) error
+	CreateSpace(ctx context.Context, space *models.Space) error
+	CreateSyncLog(ctx context.Context, log *models.SyncLog) error
+	DeleteDoc(ctx context.Context, id string) error
+	DeleteDocsBySpace(ctx context.Context, spaceID string) error
+	DeleteSpace(ctx context.Context, id string) error
+	GetDocByID(ctx context.Context, id string) (*models.Document, error)
+	GetDocTags(ctx context.Context, tenantID string) ([]string, error)
+	GetDocVersions(ctx context.Context, docID string) ([]models.DocVersion, error)
+	GetSpaceByID(ctx context.Context, id string) (*models.Space, error)
+	GetSyncLogs(ctx context.Context, tenantID string, limit int) ([]models.SyncLog, error)
+	ListDocs(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
+	ListDocsByType(ctx context.Context, tenantID string, q models.DocListQuery) ([]models.Document, error)
+	ListSpaces(ctx context.Context, tenantID string, q models.SpaceListQuery) ([]models.Space, error)
+	Retrieve(ctx context.Context, tenantID string, query string, spaceID string, topK *int) ([]models.RAGRetrieveResult, error)
+	UpdateDoc(ctx context.Context, id string, updates map[string]interface{}) error
+	UpdateSpace(ctx context.Context, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -194,8 +214,8 @@ func (s *Service) Retrieve(ctx context.Context, tenantID string, query string, r
 // --- Errors ---
 
 var (
-	ErrNotFound        = errors.New("not found")
-	ErrSpaceNotFound   = errors.New("space not found")
+	ErrNotFound         = errors.New("not found")
+	ErrSpaceNotFound    = errors.New("space not found")
 	ErrDocumentNotFound = errors.New("document not found")
 )
 

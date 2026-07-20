@@ -7,17 +7,29 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-batch/models"
-	"orion/platform-svc-go/internal/pipeline-batch/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/pipeline-batch/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreatePhaseGroup(ctx context.Context, group *models.PhaseGroup) error
+	DeletePhaseGroup(ctx context.Context, id string, tenantID string) (bool, error)
+	GetBatchRunByID(ctx context.Context, batchID string, tenantID string) (*models.BatchRun, error)
+	GetPhaseGroupByID(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error)
+	ListBatchRuns(ctx context.Context, phaseGroupID string, tenantID string) ([]models.BatchRun, error)
+	ListPhaseGroups(ctx context.Context, tenantID string, pipelineID *string, status *string, limit *int, offset *int) ([]models.PhaseGroup, error)
+	UpdateBatchRun(ctx context.Context, batchID string, tenantID string, status string, result string) (*models.BatchRun, error)
+	UpdatePhaseGroup(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PhaseGroup, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -197,6 +209,5 @@ func newUUID() string {
 func nowTimestamp() time.Time {
 	return time.Now().UTC()
 }
-
 
 var _ *sqlx.DB

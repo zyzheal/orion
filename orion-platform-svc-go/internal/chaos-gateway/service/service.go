@@ -7,17 +7,30 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/chaos-gateway/models"
-	"orion/platform-svc-go/internal/chaos-gateway/repository"
 
 	"github.com/google/uuid"
 )
 
-// Service implements the business logic for chaos experiments.
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateExperiment(ctx context.Context, exp *models.ChaosExperiment) error
+	CreateLog(ctx context.Context, log *models.ExperimentLog) error
+	CreateResult(ctx context.Context, res *models.ExperimentResult) error
+	DeleteExperiment(ctx context.Context, tenantID, id string) error
+	GetExperiment(ctx context.Context, tenantID, id string) (*models.ChaosExperiment, error)
+	ListExperiments(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ChaosExperiment, int, error)
+	ListLogs(ctx context.Context, tenantID, experimentID string, limit, offset int) ([]models.ExperimentLog, int, error)
+	ListResults(ctx context.Context, tenantID, experimentID string, limit, offset int) ([]models.ExperimentResult, int, error)
+	UpdateStatus(ctx context.Context, tenantID, id string, status models.ExperimentStatus, completedAt *int64) error
+	UpdateExperiment(ctx context.Context, tenantID, id string, patch func(*models.ChaosExperiment)) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+// Service implements the business logic for chaos experiments.
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

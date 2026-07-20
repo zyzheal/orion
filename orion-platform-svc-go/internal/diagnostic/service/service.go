@@ -8,16 +8,35 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/diagnostic/models"
-	"orion/platform-svc-go/internal/diagnostic/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountPatterns(ctx context.Context, tenantID string) (int, error)
+	CountReports(ctx context.Context, tenantID string) (int, error)
+	CountSessions(ctx context.Context, tenantID string) (int, error)
+	CreatePattern(ctx context.Context, pattern *models.Pattern) error
+	CreateReport(ctx context.Context, report *models.Report) error
+	CreateSession(ctx context.Context, session *models.Session) error
+	CreateSymptom(ctx context.Context, symptom *models.Symptom) error
+	GetPatternByID(ctx context.Context, id string) (*models.Pattern, error)
+	GetReportByID(ctx context.Context, id string) (*models.Report, error)
+	GetReportBySession(ctx context.Context, sessionID string) (*models.Report, error)
+	GetSessionByID(ctx context.Context, id string) (*models.Session, error)
+	ListPatterns(ctx context.Context, tenantID, category, keyword *string) ([]models.Pattern, error)
+	ListReports(ctx context.Context, tenantID, sessionID *string) ([]models.Report, error)
+	ListSessions(ctx context.Context, tenantID string, status, triggerType, triggerID *string) ([]models.Session, error)
+	ListSymptomsBySession(ctx context.Context, sessionID string) ([]models.Symptom, error)
+	UpdateSessionStatus(ctx context.Context, id string, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -294,13 +313,13 @@ func (s *Service) RecordOutcome(ctx context.Context, tenantID string, req *model
 		return nil, err
 	}
 	outcome := &models.Outcome{
-		ID:             uuid.New().String(),
-		SessionID:      req.SessionID,
-		PatternID:      req.PatternID,
-		Confirmed:      req.Confirmed,
+		ID:              uuid.New().String(),
+		SessionID:       req.SessionID,
+		PatternID:       req.PatternID,
+		Confirmed:       req.Confirmed,
 		ActualRootCause: req.ActualRootCause,
-		FixTimeMs:      req.FixTimeMs,
-		CreatedAt:      time.Now().UTC(),
+		FixTimeMs:       req.FixTimeMs,
+		CreatedAt:       time.Now().UTC(),
 	}
 	return outcome, nil
 }
@@ -308,10 +327,10 @@ func (s *Service) RecordOutcome(ctx context.Context, tenantID string, req *model
 // --- Status ---
 
 func (s *Service) GetStatus(ctx context.Context, tenantID string) (*struct {
-	State     string `json:"state"`
-	Sessions  int    `json:"sessions"`
-	Reports   int    `json:"reports"`
-	Patterns  int    `json:"patterns"`
+	State    string `json:"state"`
+	Sessions int    `json:"sessions"`
+	Reports  int    `json:"reports"`
+	Patterns int    `json:"patterns"`
 }, error) {
 	pcs, _ := s.repo.CountPatterns(ctx, tenantID)
 	scs, _ := s.repo.CountSessions(ctx, tenantID)

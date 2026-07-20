@@ -8,16 +8,27 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/finops/models"
-	"orion/platform-svc-go/internal/finops/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateBudgetGuard(ctx context.Context, guard *models.BudgetGuard) error
+	DeleteBudgetGuard(ctx context.Context, id string, tenantID string) (bool, error)
+	GetBudgetGuard(ctx context.Context, id string, tenantID string) (*models.BudgetGuard, error)
+	GetCostByService(ctx context.Context, tenantID string, service string) (*models.CostItem, error)
+	GetCostTrend(ctx context.Context, tenantID string, days int) ([]models.TrendPoint, error)
+	ListAnomalies(ctx context.Context, tenantID string, severity *string, timeWindow *models.TimeWindow) ([]models.Anomaly, error)
+	ListBudgetGuards(ctx context.Context, tenantID string) ([]models.BudgetGuard, error)
+	ListCostItems(ctx context.Context, tenantID string, service *string) ([]models.CostItem, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -169,8 +180,8 @@ func (s *Service) DetectAnomalies(ctx context.Context, tenantID string, days *in
 	}
 
 	return &models.AnomalyDetectionResult{
-		Anomalies: anomalies,
-		Count:     len(anomalies),
+		Anomalies:  anomalies,
+		Count:      len(anomalies),
 		TimeWindow: *tw,
 	}, nil
 }
@@ -189,8 +200,8 @@ func (s *Service) GetCostTrend(ctx context.Context, tenantID string, days int) (
 		points = []models.TrendPoint{}
 	}
 	return &models.CostTrendResult{
-		Points:  points,
-		Days:    days,
+		Points:   points,
+		Days:     days,
 		TenantID: tenantID,
 	}, nil
 }
@@ -236,14 +247,14 @@ func (s *Service) GetOptimizationSuggestions(ctx context.Context, tenantID strin
 			continue
 		}
 		suggestions = append(suggestions, models.OptimizationSuggestion{
-            ID: uuid.New().String(),
-			TenantID:     tenantID,
-			Service:      ci.Service,
-			Category:     "right-sizing",
-			Description:  fmt.Sprintf("Right-size service %s to save ~%.2f", ci.Service, sav),
+			ID:               uuid.New().String(),
+			TenantID:         tenantID,
+			Service:          ci.Service,
+			Category:         "right-sizing",
+			Description:      fmt.Sprintf("Right-size service %s to save ~%.2f", ci.Service, sav),
 			PotentialSavings: sav,
-			Status:       "open",
-			CreatedAt:    time.Now().UTC(),
+			Status:           "open",
+			CreatedAt:        time.Now().UTC(),
 		})
 	}
 	return suggestions, nil
@@ -319,14 +330,14 @@ func (s *Service) GetServiceOptimizationSuggestions(ctx context.Context, tenantI
 	for _, ci := range items {
 		sav := ci.Cost * 0.1
 		suggestions = append(suggestions, models.OptimizationSuggestion{
-            ID: uuid.New().String(),
-			TenantID:     tenantID,
-			Service:      ci.Service,
-			Category:     entityType,
-			Description:  fmt.Sprintf("Optimize %s (%s) to save ~%.2f", ci.Service, ci.Currency, sav),
+			ID:               uuid.New().String(),
+			TenantID:         tenantID,
+			Service:          ci.Service,
+			Category:         entityType,
+			Description:      fmt.Sprintf("Optimize %s (%s) to save ~%.2f", ci.Service, ci.Currency, sav),
 			PotentialSavings: sav,
-			Status:       "open",
-			CreatedAt:    time.Now().UTC(),
+			Status:           "open",
+			CreatedAt:        time.Now().UTC(),
 		})
 	}
 	return suggestions, nil

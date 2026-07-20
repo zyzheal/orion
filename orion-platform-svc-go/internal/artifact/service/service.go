@@ -7,8 +7,30 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/artifact/models"
-	"orion/platform-svc-go/internal/artifact/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddTags(ctx context.Context, artifactID string, tags []string) error
+	Count(ctx context.Context, tenantID string, q models.ListArtifactsQuery) (int, error)
+	Create(ctx context.Context, m *models.Artifact) error
+	CreatePromotion(ctx context.Context, p *models.ArtifactPromotion) error
+	ExistsByNamespaceNameVersion(ctx context.Context, tenantID, namespace, name, version string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Artifact, error)
+	GetCurrentStage(ctx context.Context, tenantID, id string) (string, error)
+	GetDownloadHistory(ctx context.Context, artifactID string) ([]models.ArtifactDownload, error)
+	GetNamespaces(ctx context.Context, tenantID string) ([]models.NamespaceStat, error)
+	GetPromotionHistory(ctx context.Context, tenantID, id string) ([]models.ArtifactPromotion, error)
+	GetStats(ctx context.Context, tenantID string) (*models.ArtifactStats, error)
+	GetTags(ctx context.Context, artifactID string) ([]string, error)
+	GetTypeStats(ctx context.Context, tenantID string) ([]models.ArtifactTypeStat, error)
+	List(ctx context.Context, tenantID string, q models.ListArtifactsQuery) ([]models.Artifact, error)
+	RecordDownload(ctx context.Context, artifactID string, req models.DownloadArtifactRequest) error
+	RemoveTags(ctx context.Context, artifactID string, tags []string) error
+	Search(ctx context.Context, tenantID string, query string, limit, offset int) ([]models.Artifact, error)
+	SoftDelete(ctx context.Context, tenantID, id string) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 var (
 	ErrNotFound      = errors.New("artifact not found")
@@ -18,10 +40,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

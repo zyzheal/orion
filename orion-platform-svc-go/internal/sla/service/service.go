@@ -9,11 +9,33 @@ import (
 	"orion/platform-svc-go/internal/sla/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateBreachEvent(ctx context.Context, e *models.SLABreachEvent) error
+	CreateDefinition(ctx context.Context, d *models.SLADefinition) error
+	CreateTracking(ctx context.Context, t *models.SLATracking) error
+	DeleteDefinition(ctx context.Context, tenantID, id string) error
+	DetectBreaches(ctx context.Context, tenantID string) (int, int, error)
+	GetBreachEventsByTracking(ctx context.Context, trackingID string) ([]models.SLABreachEvent, error)
+	GetDefinitionByID(ctx context.Context, tenantID, id string) (*models.SLADefinition, error)
+	GetStats(ctx context.Context, tenantID string) (*models.StatsResult, error)
+	GetTrackingByID(ctx context.Context, tenantID, id string) (*models.SLATracking, error)
+	ListBreachEvents(ctx context.Context, tenantID string, limit, offset int) ([]models.SLABreachEvent, int, error)
+	ListDefinitions(ctx context.Context, tenantID string, q models.DefinitionListQuery) ([]models.SLADefinition, int, error)
+	ListTracking(ctx context.Context, tenantID string, q models.TrackingListQuery) ([]models.SLATracking, int, error)
+	MarkBreached(ctx context.Context, tenantID, id, details string) error
+	MarkMet(ctx context.Context, tenantID, id string) error
+	PauseTracking(ctx context.Context, tenantID, id, reason string) error
+	ResumeTracking(ctx context.Context, tenantID, id string) error
+	UpdateDefinition(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateTracking(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -28,17 +50,17 @@ func (s *Service) CreateDefinition(ctx context.Context, tenantID string, req mod
 	}
 
 	def := &models.SLADefinition{
-		TenantID: tenantID,
-		Name: req.Name,
-		Description: req.Description,
-		Type: req.Type,
-		TargetValue: req.TargetValue,
-		TargetUnit: req.TargetUnit,
-		Priority: req.Priority,
-		Category: req.Category,
+		TenantID:        tenantID,
+		Name:            req.Name,
+		Description:     req.Description,
+		Type:            req.Type,
+		TargetValue:     req.TargetValue,
+		TargetUnit:      req.TargetUnit,
+		Priority:        req.Priority,
+		Category:        req.Category,
 		EscalationRules: req.EscalationRules,
-		Metadata: req.Metadata,
-		CreatedBy: tenantID, // caller ID not available in repo; will be overridden
+		Metadata:        req.Metadata,
+		CreatedBy:       tenantID, // caller ID not available in repo; will be overridden
 	}
 	if req.BusinessHoursOnly != nil {
 		def.BusinessHoursOnly = req.BusinessHoursOnly
@@ -71,7 +93,7 @@ func (s *Service) ListDefinitions(ctx context.Context, tenantID string, q models
 	}
 	return &models.DefinitionListResult{
 		Definitions: items,
-		Total: total,
+		Total:       total,
 	}, nil
 }
 
@@ -136,12 +158,12 @@ func (s *Service) StartTracking(ctx context.Context, tenantID string, req models
 	}
 
 	tracking := &models.SLATracking{
-		TenantID: tenantID,
+		TenantID:     tenantID,
 		DefinitionID: req.DefinitionID,
-		EntityType: req.EntityType,
-		EntityID: req.EntityID,
-		TargetTime: req.TargetTime,
-		Notes: req.Notes,
+		EntityType:   req.EntityType,
+		EntityID:     req.EntityID,
+		TargetTime:   req.TargetTime,
+		Notes:        req.Notes,
 	}
 	if err := s.repo.CreateTracking(ctx, tracking); err != nil {
 		return nil, err
@@ -167,7 +189,7 @@ func (s *Service) ListTracking(ctx context.Context, tenantID string, q models.Tr
 	}
 	return &models.TrackingListResult{
 		Trackings: items,
-		Total: total,
+		Total:     total,
 	}, nil
 }
 
@@ -198,8 +220,8 @@ func (s *Service) MarkBreached(ctx context.Context, tenantID, trackingID, detail
 	}
 	// Create a breach event
 	event := &models.SLABreachEvent{
-		TenantID: tenantID,
-		TrackingID: trackingID,
+		TenantID:      tenantID,
+		TrackingID:    trackingID,
 		BreachDetails: details,
 	}
 	_ = s.repo.CreateBreachEvent(ctx, event)
@@ -251,7 +273,7 @@ func (s *Service) ListBreachEvents(ctx context.Context, tenantID string, limit, 
 	}
 	return &models.BreachListResult{
 		Events: events,
-		Total: total,
+		Total:  total,
 	}, nil
 }
 
@@ -264,7 +286,7 @@ func (s *Service) DetectBreaches(ctx context.Context, tenantID string) (*models.
 	}
 	return &models.DetectionResult{
 		Detected: updated,
-		Updated: created,
+		Updated:  created,
 	}, nil
 }
 

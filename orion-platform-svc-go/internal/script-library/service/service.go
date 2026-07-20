@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/script-library/models"
-	"orion/platform-svc-go/internal/script-library/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.ScriptLibrary) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.ScriptLibrary, error)
+	List(ctx context.Context, tenantID string) ([]models.ScriptLibrary, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ScriptLibrary, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

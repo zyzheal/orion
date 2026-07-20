@@ -9,11 +9,32 @@ import (
 	"orion/platform-svc-go/internal/oncall/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAssignment(ctx context.Context, a *models.Assignment) error
+	CreateOverride(ctx context.Context, o *models.Override) error
+	CreateSchedule(ctx context.Context, s *models.Schedule) error
+	DeleteAssignment(ctx context.Context, id string) (bool, error)
+	DeleteOverride(ctx context.Context, id string) (bool, error)
+	DeleteSchedule(ctx context.Context, id string) (bool, error)
+	GetActiveOverrides(ctx context.Context, scheduleID string, now time.Time) ([]models.Override, error)
+	GetAssignment(ctx context.Context, id string) (*models.Assignment, error)
+	GetOverride(ctx context.Context, id string) (*models.Override, error)
+	GetSchedule(ctx context.Context, id string) (*models.Schedule, error)
+	GetScheduleAssignments(ctx context.Context, scheduleID string, now time.Time) ([]models.Assignment, error)
+	ListAssignments(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error)
+	ListOverrides(ctx context.Context, scheduleID *string) ([]models.Override, int, error)
+	ListSchedules(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error)
+	UpdateAssignment(ctx context.Context, id string, updates map[string]interface{}) (*models.Assignment, error)
+	UpdateOverride(ctx context.Context, id string, updates map[string]interface{}) (*models.Override, error)
+	UpdateSchedule(ctx context.Context, id string, updates map[string]interface{}) (*models.Schedule, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -21,11 +42,11 @@ func NewService(repo *repository.Repository) *Service {
 
 func (s *Service) Create(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.Schedule, error) {
 	schedule := &models.Schedule{
-		TenantID:    tenantID,
-		Name:        req.Name,
-		Timezone:    "UTC",
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Timezone:     "UTC",
 		RotationType: "daily",
-		Status:      "active",
+		Status:       "active",
 	}
 	if req.Timezone != "" {
 		schedule.Timezone = req.Timezone
@@ -246,12 +267,12 @@ func (s *Service) GetOnCallNow(ctx context.Context, scheduleID string) (*models.
 	if len(overrides) > 0 {
 		o := overrides[0]
 		return &models.CurrentOnCallResult{
-			ScheduleID:  o.ScheduleID,
-			AssigneeID:  o.AssigneeID,
+			ScheduleID:   o.ScheduleID,
+			AssigneeID:   o.AssigneeID,
 			AssigneeName: o.AssigneeName,
-			Role:        "override",
-			StartTime:   o.StartTime,
-			EndTime:     o.EndTime,
+			Role:         "override",
+			StartTime:    o.StartTime,
+			EndTime:      o.EndTime,
 		}, nil
 	}
 
@@ -266,12 +287,12 @@ func (s *Service) GetOnCallNow(ctx context.Context, scheduleID string) (*models.
 
 	a := assignments[0]
 	return &models.CurrentOnCallResult{
-		ScheduleID:  a.ScheduleID,
-		AssigneeID:  a.AssigneeID,
+		ScheduleID:   a.ScheduleID,
+		AssigneeID:   a.AssigneeID,
 		AssigneeName: a.AssigneeName,
-		Role:        a.Role,
-		StartTime:   a.StartTime,
-		EndTime:     a.EndTime,
+		Role:         a.Role,
+		StartTime:    a.StartTime,
+		EndTime:      a.EndTime,
 	}, nil
 }
 

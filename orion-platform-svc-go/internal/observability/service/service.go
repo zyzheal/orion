@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/observability/models"
-	"orion/platform-svc-go/internal/observability/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAlertRule(ctx context.Context, tenantID string, rule *models.AlertRule) (*models.AlertRule, error)
+	CreateMetric(ctx context.Context, tenantID string, m *models.Metric) (*models.Metric, error)
+	GetMetric(ctx context.Context, tenantID, name string) (*models.Metric, error)
+	ListAlertRules(ctx context.Context, tenantID string) ([]models.AlertRule, error)
+	ListMetrics(ctx context.Context, tenantID string, q models.MetricQuery) ([]models.Metric, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

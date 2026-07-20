@@ -160,7 +160,7 @@ const UserCapabilityMapping: React.FC = () => {
         category: c.category,
         riskLevel: (c.risk_level || 1) as 1 | 2 | 3 | 4,
         requiresApproval: c.requires_approval ?? false,
-      }));
+      })));
 
       // 加载所有用户的覆盖
       const allOverrides: UserCapabilityOverride[] = [];

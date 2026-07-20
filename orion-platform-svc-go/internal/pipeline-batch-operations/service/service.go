@@ -9,15 +9,23 @@ import (
 	"orion/platform-svc-go/internal/pipeline-batch-operations/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	FinalizeOperationRequest(ctx context.Context, id string, tenantID string) error
+	RecordBatchDelete(ctx context.Context, req *models.BatchDeleteRequest, tenantID string) (string, error)
+	RecordBatchStart(ctx context.Context, req *models.BatchStartRequest, tenantID string) (string, error)
+	RecordBatchStop(ctx context.Context, req *models.BatchStopRequest, tenantID string) (string, error)
+}
+
 // MaxBatchSize is the maximum number of items allowed in a batch operation.
 const MaxBatchSize = 50
 
 // Service coordinates batch pipeline operations.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

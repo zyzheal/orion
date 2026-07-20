@@ -11,11 +11,23 @@ import (
 	"orion/platform-svc-go/internal/pipeline-version/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountVersionsByPipeline(ctx context.Context, pipelineID string, tenantID string) (int, error)
+	CreateVersion(ctx context.Context, v *models.PipelineVersion) error
+	GetVersionByID(ctx context.Context, id string, tenantID string) (*models.PipelineVersion, error)
+	GetVersionByPipelineAndVersion(ctx context.Context, pipelineID string, version string, tenantID string) (*models.PipelineVersion, error)
+	ListVersionsByPipeline(ctx context.Context, pipelineID string, tenantID string) ([]models.PipelineVersion, error)
+	UnsetAllBaselines(ctx context.Context, pipelineID string, tenantID string) error
+	UpdateBaseline(ctx context.Context, id string, tenantID string, isBaseline bool) (*models.PipelineVersion, error)
+	UpdateTags(ctx context.Context, id string, tenantID string, tags string) (*models.PipelineVersion, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

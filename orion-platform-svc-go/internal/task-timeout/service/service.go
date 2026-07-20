@@ -7,36 +7,40 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/task-timeout/models"
-	"orion/platform-svc-go/internal/task-timeout/repository"
 
 	"go.uber.org/zap"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetTimedOutTasks(ctx context.Context) ([]models.TimeoutTask, error)
+}
 
 // ErrTimeoutCheckerNotAvailable indicates the service could not perform a check.
 var ErrTimeoutCheckerNotAvailable = errors.New("task timeout checker not available")
 
 // Config holds the runtime tuning for the TaskTimeoutChecker.
 type Config struct {
-	CheckIntervalMs   int64
-	FirstRemindHours  int
-	EscalateHours     int
-	AutoCompleteHours int
+	CheckIntervalMs      int64
+	FirstRemindHours     int
+	EscalateHours        int
+	AutoCompleteHours    int
 	DefaultTimeoutAction models.TimeoutAction
 }
 
 // Service is the business-logic layer for task-timeout checking.
 type Service struct {
-	repo     *repository.Repository
-	config   Config
-	running  bool
-	mu       sync.Mutex
-	lastCheckAt *time.Time
+	repo         RepositoryInterface
+	config       Config
+	running      bool
+	mu           sync.Mutex
+	lastCheckAt  *time.Time
 	totalChecked int64
-	logger   *zap.Logger
+	logger       *zap.Logger
 }
 
 // NewService creates a new Service backed by the given repository and config.
-func NewService(repo *repository.Repository, config Config, logger *zap.Logger) *Service {
+func NewService(repo RepositoryInterface, config Config, logger *zap.Logger) *Service {
 	return &Service{
 		repo:    repo,
 		config:  config,
@@ -105,14 +109,14 @@ func (s *Service) GetStatus() *models.TimeoutCheckerStatus {
 	defer s.mu.Unlock()
 
 	status := &models.TimeoutCheckerStatus{
-		IsRunning:           s.running,
-		CheckIntervalMs:     s.config.CheckIntervalMs,
-		FirstRemindHours:    s.config.FirstRemindHours,
-		EscalateHours:       s.config.EscalateHours,
-		AutoCompleteHours:   s.config.AutoCompleteHours,
+		IsRunning:            s.running,
+		CheckIntervalMs:      s.config.CheckIntervalMs,
+		FirstRemindHours:     s.config.FirstRemindHours,
+		EscalateHours:        s.config.EscalateHours,
+		AutoCompleteHours:    s.config.AutoCompleteHours,
 		DefaultTimeoutAction: s.config.DefaultTimeoutAction,
-		LastCheckAt:         s.lastCheckAt,
-		TotalChecked:        s.totalChecked,
+		LastCheckAt:          s.lastCheckAt,
+		TotalChecked:         s.totalChecked,
 	}
 	return status
 }

@@ -14,32 +14,45 @@ import (
 	"strings"
 
 	"orion/platform-svc-go/internal/secret/models"
-	"orion/platform-svc-go/internal/secret/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, s *models.Secret) error
+	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*models.Secret, error)
+	GetByTenantAndName(ctx context.Context, tenantID, name, scope string) (*models.Secret, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter) ([]models.Secret, error)
+	UpdateDescription(ctx context.Context, id string, description string) error
+	UpdateValue(ctx context.Context, id string, encryptedValue []byte) error
+}
 
 // maskedValue is shown in list/get responses instead of the real secret.
 const maskedValue = "***"
 
 // Service coordinates business logic for secret management, including AES-256-GCM encryption.
 type Service struct {
-	repo          *repository.Repository
+	repo          RepositoryInterface
 	encryptionKey []byte
 	secretRefRe   *regexp.Regexp
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
-		repo:          repo,
-		encryptionKey: func() []byte { h := sha256.Sum256([]byte("orion-dev-fallback-key-do-not-use-in-production")); return h[:] }(),
-		secretRefRe:   regexp.MustCompile(`\$\{secrets\.([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]*))?\}`),
+		repo: repo,
+		encryptionKey: func() []byte {
+			h := sha256.Sum256([]byte("orion-dev-fallback-key-do-not-use-in-production"))
+			return h[:]
+		}(),
+		secretRefRe: regexp.MustCompile(`\$\{secrets\.([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]*))?\}`),
 	}
 }
 
 // NewServiceWithKey creates a Service with a custom encryption key.
-func NewServiceWithKey(repo *repository.Repository, key string) *Service {
+func NewServiceWithKey(repo RepositoryInterface, key string) *Service {
 	return &Service{
 		repo:          repo,
 		encryptionKey: deriveKey(key),

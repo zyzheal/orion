@@ -8,16 +8,32 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/deploy-enhanced/models"
-	"orion/platform-svc-go/internal/deploy-enhanced/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CheckWindowActive(ctx context.Context, tenantID string, environmentID string) (bool, error)
+	CreateEmergencyDeploy(ctx context.Context, ed *models.EmergencyDeploy) error
+	CreateProgressiveDeploy(ctx context.Context, pd *models.ProgressiveDeploy) error
+	CreateWindow(ctx context.Context, w *models.DeployWindow) error
+	DeleteWindow(ctx context.Context, id string, tenantID string) (bool, error)
+	GetEmergencyDeploy(ctx context.Context, id string, tenantID string) (*models.EmergencyDeploy, error)
+	GetProgressiveDeploy(ctx context.Context, id string, tenantID string) (*models.ProgressiveDeploy, error)
+	GetWindowByID(ctx context.Context, id string, tenantID string) (*models.DeployWindow, error)
+	ListEmergencyDeploys(ctx context.Context, tenantID string, status *string) ([]models.EmergencyDeploy, error)
+	ListWindows(ctx context.Context, tenantID string, environmentID *string, status *string) ([]models.DeployWindow, error)
+	UpdateEmergencyDeploy(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.EmergencyDeploy, error)
+	UpdateProgressiveDeploy(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.ProgressiveDeploy, error)
+	UpdateWindow(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.DeployWindow, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -111,7 +127,13 @@ func (s *Service) CheckWindow(ctx context.Context, id string, tenantID string) (
 	return &models.WindowCheckResult{
 		IsActive: active,
 		Window:   w,
-		Reason:   func() string { if active { return "current time is within the deploy window" } else { return "current time is outside the deploy window" } }(),
+		Reason: func() string {
+			if active {
+				return "current time is within the deploy window"
+			} else {
+				return "current time is outside the deploy window"
+			}
+		}(),
 	}, nil
 }
 
@@ -126,10 +148,10 @@ func (s *Service) CreateProgressiveDeploy(ctx context.Context, deploymentID stri
 		return nil, err
 	}
 	pd := &models.ProgressiveDeploy{
-		TenantID:      tenantID,
-		DeploymentID:  deploymentID,
-		Strategy:      "gradual",
-		Stages:        string(stagesJSON),
+		TenantID:        tenantID,
+		DeploymentID:    deploymentID,
+		Strategy:        "gradual",
+		Stages:          string(stagesJSON),
 		RollbackEnabled: true,
 	}
 	if err := s.repo.CreateProgressiveDeploy(ctx, pd); err != nil {
@@ -193,8 +215,8 @@ func (s *Service) RollbackStage(ctx context.Context, id string, stageID string, 
 		return nil, errors.New("rollback is not enabled for this progressive deploy")
 	}
 	updates := map[string]interface{}{
-		"status":         "rolled_back",
-		"rollback_stage": stageID,
+		"status":          "rolled_back",
+		"rollback_stage":  stageID,
 		"rollback_reason": reason,
 	}
 	return s.repo.UpdateProgressiveDeploy(ctx, id, tenantID, updates)
@@ -258,7 +280,7 @@ func (s *Service) CompleteEmergencyDeploy(ctx context.Context, id string, postMo
 	}
 	now := time.Now().UTC()
 	updates := map[string]interface{}{
-		"status":     "completed",
+		"status":      "completed",
 		"executed_at": now,
 	}
 	if postMortem != nil {
@@ -298,9 +320,9 @@ func (s *Service) GetEmergencyDeploy(ctx context.Context, id string, tenantID st
 // --- Errors ---
 
 var (
-	ErrWindowNotFound       = errors.New("deploy window not found")
-	ErrProgressiveNotFound  = errors.New("progressive deploy not found")
-	ErrEmergencyNotFound    = errors.New("emergency deploy not found")
+	ErrWindowNotFound         = errors.New("deploy window not found")
+	ErrProgressiveNotFound    = errors.New("progressive deploy not found")
+	ErrEmergencyNotFound      = errors.New("emergency deploy not found")
 	ErrEmergencyInvalidStatus = errors.New("invalid status for emergency deploy")
 )
 

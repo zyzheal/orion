@@ -8,10 +8,19 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/pipeline-template/models"
-	"orion/platform-svc-go/internal/pipeline-template/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreatePipelineFromTemplate(ctx context.Context, tenantID string, templateID string, name string) (*models.InstantiatedPipeline, error)
+	CreateTemplate(ctx context.Context, template *models.PipelineTemplate) error
+	DeleteTemplate(ctx context.Context, id string, tenantID string) (bool, error)
+	GetTemplateByID(ctx context.Context, id string, tenantID string) (*models.PipelineTemplate, error)
+	ListTemplates(ctx context.Context, tenantID string) ([]models.PipelineTemplate, error)
+	UpdateTemplate(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.PipelineTemplate, error)
+}
 
 type Repository interface {
 	ListTemplates(ctx context.Context, tenantID string) ([]models.PipelineTemplate, error)
@@ -26,7 +35,7 @@ type Service struct {
 	repo Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

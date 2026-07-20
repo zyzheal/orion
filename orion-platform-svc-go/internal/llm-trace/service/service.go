@@ -11,15 +11,27 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/llm-trace/models"
-	"orion/platform-svc-go/internal/llm-trace/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountTracesByTenant(ctx context.Context, tenantID string, q *models.ListTracesQuery) (int64, error)
+	CreateTrace(ctx context.Context, t *models.LLMTrace) error
+	GetCustomPricing(ctx context.Context, modelID string) (*models.ModelPricing, error)
+	GetDailyStats(ctx context.Context, tenantID, dateStr string) (*models.DailyStats, error)
+	GetTrace(ctx context.Context, traceID, tenantID string) (*models.LLMTrace, error)
+	GetTrackingAccuracy(ctx context.Context, tenantID string) (*models.TrackingAccuracy, error)
+	ListTracesByTenant(ctx context.Context, tenantID string, q *models.ListTracesQuery) ([]models.LLMTrace, error)
+	ListTracesByTenantAndDateRange(ctx context.Context, tenantID string, start, end *time.Time) ([]models.LLMTrace, error)
+	UpdateTrace(ctx context.Context, traceID, tenantID string, fields map[string]interface{}) error
+}
+
 type Service struct {
-	repo    *repository.Repository
+	repo     RepositoryInterface
 	currency string
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:     repo,
 		currency: "CNY",
@@ -88,18 +100,18 @@ func (s *Service) CreateTrace(ctx context.Context, tenantID, userID string, req 
 	promptHash := s.hashContent(req.PromptContent)
 
 	t := &models.LLMTrace{
-		TenantID:       tenantID,
-		ModelID:        req.ModelID,
-		PromptContent:  sql.NullString{String: req.PromptContent, Valid: true},
-		PromptHash:     promptHash,
-		InputTokens:    0,
-		OutputTokens:   0,
-		TotalTokens:    0,
-		InputCost:      0,
-		OutputCost:     0,
-		TotalCost:      0,
-		Currency:       s.currency,
-		Status:         models.TraceStatusPending,
+		TenantID:      tenantID,
+		ModelID:       req.ModelID,
+		PromptContent: sql.NullString{String: req.PromptContent, Valid: true},
+		PromptHash:    promptHash,
+		InputTokens:   0,
+		OutputTokens:  0,
+		TotalTokens:   0,
+		InputCost:     0,
+		OutputCost:    0,
+		TotalCost:     0,
+		Currency:      s.currency,
+		Status:        models.TraceStatusPending,
 	}
 
 	if userID != "" {
@@ -159,17 +171,17 @@ func (s *Service) CompleteTrace(ctx context.Context, traceID, tenantID string, r
 
 	// Update the trace
 	updateFields := map[string]interface{}{
-		"output_content":      req.OutputContent,
-		"output_hash":         outputHash,
-		"input_tokens":        req.InputTokens,
-		"output_tokens":       req.OutputTokens,
-		"total_tokens":        req.InputTokens + req.OutputTokens,
-		"input_cost":          inputCost,
-		"output_cost":         outputCost,
-		"total_cost":          totalCost,
-		"status":              string(status),
+		"output_content":       req.OutputContent,
+		"output_hash":          outputHash,
+		"input_tokens":         req.InputTokens,
+		"output_tokens":        req.OutputTokens,
+		"total_tokens":         req.InputTokens + req.OutputTokens,
+		"input_cost":           inputCost,
+		"output_cost":          outputCost,
+		"total_cost":           totalCost,
+		"status":               string(status),
 		"request_completed_at": completedAt,
-		"duration_ms":         durationMs,
+		"duration_ms":          durationMs,
 	}
 	if req.ErrorMessage != "" {
 		updateFields["error_message"] = req.ErrorMessage

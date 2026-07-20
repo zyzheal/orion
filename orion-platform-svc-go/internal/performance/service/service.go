@@ -9,11 +9,26 @@ import (
 	"orion/platform-svc-go/internal/performance/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateBaseline(ctx context.Context, tenantID string, b *models.Baseline) (*models.Baseline, error)
+	DetectRegression(ctx context.Context, tenantID string, req *models.DetectRegressionRequest) (*models.RegressionResult, error)
+	GetBaselineByID(ctx context.Context, id string, tenantID string) (*models.Baseline, error)
+	GetBottlenecks(ctx context.Context, tenantID string, profileID string) ([]models.Bottleneck, error)
+	GetEvaluationHistory(ctx context.Context, baselineID string, tenantID string) ([]models.Evaluation, error)
+	GetSuggestions(ctx context.Context, tenantID string, serviceName string) ([]models.Suggestion, error)
+	GetTestResults(ctx context.Context, tenantID string, serviceName string) ([]models.Baseline, error)
+	ListBaselines(ctx context.Context, tenantID string) ([]models.Baseline, error)
+	ProfileService(ctx context.Context, tenantID string, serviceName string) (*models.Profile, error)
+	RecordEvaluation(ctx context.Context, tenantID string, baselineID string, value float64, status string) error
+	RecordTestResult(ctx context.Context, tenantID string, req *models.TestResultRequest) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -58,8 +73,8 @@ func (s *Service) EvaluatePerformance(ctx context.Context, tenantID string, req 
 	}
 	err = s.repo.RecordEvaluation(ctx, tenantID, "", req.Value, status)
 	return &models.Evaluation{
-		Value:   req.Value,
-		Status:  status,
+		Value:  req.Value,
+		Status: status,
 	}, err
 }
 

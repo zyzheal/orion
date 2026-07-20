@@ -12,6 +12,19 @@ import (
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, n *models.Notification) error
+	Delete(ctx context.Context, id string, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.Notification, error)
+	GetStats(ctx context.Context, tenantID string) (*models.NotificationStats, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, limit int, offset int) ([]models.Notification, error)
+	MarkAllRead(ctx context.Context, tenantID string, userID string) error
+	MarkRead(ctx context.Context, id string, tenantID string) error
+	UpdateFields(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Notification, error)
+}
+
 // Service provides business logic for notifications.
 type Service struct {
 	repo *notificationRepo.Repository
@@ -25,7 +38,7 @@ func NewService(repo *notificationRepo.Repository) *Service {
 // --- Errors ---
 
 var (
-	ErrNotFound    = errors.New("notification not found")
+	ErrNotFound     = errors.New("notification not found")
 	ErrInvalidInput = errors.New("invalid input")
 )
 

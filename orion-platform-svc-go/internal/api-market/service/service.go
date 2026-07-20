@@ -10,16 +10,33 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/api-market/models"
-	"orion/platform-svc-go/internal/api-market/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAPIKey(ctx context.Context, key *models.APIKey) error
+	CreateDeveloperApp(ctx context.Context, app *models.DeveloperApp) error
+	CreateProduct(ctx context.Context, product *models.Product) error
+	CreateSubscription(ctx context.Context, sub *models.Subscription) error
+	DeleteProduct(ctx context.Context, id string, tenantID string) (bool, error)
+	GetAPIKeyByCredentials(ctx context.Context, tenantID string, clientID string, keyHash string) (*models.APIKey, error)
+	GetAppByID(ctx context.Context, id string, tenantID string) (*models.DeveloperApp, error)
+	GetProductByID(ctx context.Context, id string, tenantID string) (*models.Product, error)
+	GetSubscription(ctx context.Context, appID string, productID string, tenantID string) (*models.Subscription, error)
+	ListAPIKeysByApp(ctx context.Context, appID string, tenantID string) ([]models.APIKey, error)
+	ListAppsByDeveloper(ctx context.Context, tenantID string, developerID string) ([]models.DeveloperApp, error)
+	ListProducts(ctx context.Context, tenantID string) ([]models.Product, error)
+	ListSubscriptionsByApp(ctx context.Context, appID string, tenantID string) ([]models.Subscription, error)
+	UpdateProductStatus(ctx context.Context, id string, tenantID string, status string) (*models.Product, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -243,9 +260,9 @@ func (s *Service) Subscribe(ctx context.Context, req *models.SubscribeRequest, t
 		quota = *req.QuotaPerDay
 	}
 	sub := &models.Subscription{
-		AppID:      req.AppID,
-		ProductID:  req.ProductID,
-		Plan:       req.Plan,
+		AppID:       req.AppID,
+		ProductID:   req.ProductID,
+		Plan:        req.Plan,
 		QuotaPerDay: &quota,
 	}
 	return s.repo.CreateSubscription(ctx, sub)

@@ -27,12 +27,12 @@ type Service struct {
 
 func NewService() *Service {
 	return &Service{
-		skills:    make(map[string]*models.Skill),
-		versions:  make(map[string][]*models.SkillVersion),
-		ratings:   make(map[string][]int),
-		instances: make(map[string]*models.SkillInstance),
+		skills:     make(map[string]*models.Skill),
+		versions:   make(map[string][]*models.SkillVersion),
+		ratings:    make(map[string][]int),
+		instances:  make(map[string]*models.SkillInstance),
 		executions: make(map[string]*models.SkillExecution),
-		reviews:   make(map[string]*models.SkillReview),
+		reviews:    make(map[string]*models.SkillReview),
 	}
 }
 
@@ -80,17 +80,17 @@ func (s *Service) CreateSkill(ctx context.Context, tenantID string, req models.C
 	id := uuid.New().String()
 	now := time.Now().UTC()
 	skill := &models.Skill{
-		ID:          id,
-		TenantID:    tenantID,
-		Name:        req.Name,
-		Description: req.Description,
-		Category:    req.Category,
-		Status:      "draft",
+		ID:           id,
+		TenantID:     tenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Category:     req.Category,
+		Status:       "draft",
 		InstallCount: 0,
 		AvgRating:    0,
 		RatingCount:  0,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 	s.skills[id] = skill
 	s.appendAuditLog(skill, "create", tenantID, "")
@@ -225,7 +225,7 @@ func (s *Service) GetRatingStats(ctx context.Context, tenantID, skillID string) 
 	ratingList := s.ratings[skillID]
 	stats := make(map[string]int)
 	for _, r := range ratingList {
-	stats[fmt.Sprintf("%d", r)]++
+		stats[fmt.Sprintf("%d", r)]++
 	}
 	result := make(map[string]any)
 	result["avg_rating"] = skill.AvgRating
@@ -357,13 +357,13 @@ func (s *Service) ExecuteSkill(ctx context.Context, tenantID, skillID, userID st
 	id := uuid.New().String()
 	now := time.Now().UTC()
 	execution := &models.SkillExecution{
-		ID:        id,
-		SkillID:   skillID,
-		TenantID:  tenantID,
-		UserID:    userID,
-		Status:    "completed",
+		ID:         id,
+		SkillID:    skillID,
+		TenantID:   tenantID,
+		UserID:     userID,
+		Status:     "completed",
 		DurationMs: 120,
-		CreatedAt: now,
+		CreatedAt:  now,
 	}
 	s.executions[id] = execution
 	s.appendAuditLog(&models.Skill{ID: skillID, TenantID: tenantID}, "execute", tenantID, userID)

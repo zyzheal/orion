@@ -7,22 +7,28 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/eventbus/models"
-	"orion/platform-svc-go/internal/eventbus/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, event *models.Event) error
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Event, error)
+}
 
 // ErrEventNotFound indicates no event matched the query.
 var ErrEventNotFound = errors.New("event not found")
 
 // Service provides business logic for the event bus.
 type Service struct {
-	repo    *repository.Repository
+	repo    RepositoryInterface
 	busConn *busConn
 }
 
 // NewService creates a new event bus service.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{
 		repo:    repo,
 		busConn: newBusConn(),

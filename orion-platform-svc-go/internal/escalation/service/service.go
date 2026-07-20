@@ -5,18 +5,29 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/escalation/models"
-	"orion/platform-svc-go/internal/escalation/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, rule *models.EscalationRule) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.EscalationRule, error)
+	GetEventHistory(ctx context.Context, ruleID string) ([]models.TriggerEvent, error)
+	GetStats(ctx context.Context, tenantID string) (*models.EscalationStats, error)
+	List(ctx context.Context, tenantID string, q models.ListRulesQuery) ([]models.EscalationRule, error)
+	RecordEvent(ctx context.Context, ruleID, message string) (*models.TriggerEvent, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 var (
 	ErrNotFound = errors.New("escalation rule not found")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

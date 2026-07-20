@@ -10,10 +10,23 @@ import (
 	"orion/platform-svc-go/internal/pipeline-versions/models"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	ClearDefaultForPipeline(ctx context.Context, tenantID, pipelineID string) error
+	CreateVersion(ctx context.Context, v *models.Version) error
+	DeleteVersion(ctx context.Context, tenantID, id string) (bool, error)
+	GetVersion(ctx context.Context, tenantID, id string) (*models.Version, error)
+	ListPublishedVersions(ctx context.Context, tenantID, pipelineID string) ([]models.Version, error)
+	ListVersions(ctx context.Context, tenantID, pipelineID string, q *models.ListQuery) (*models.VersionListResult, error)
+	SetStatusDeprecated(ctx context.Context, tenantID, id string) error
+	SetStatusPublished(ctx context.Context, tenantID, id string, publishedAt time.Time, isDefault bool) error
+	UpdateVersion(ctx context.Context, tenantID, id string, updates map[string]any) (*models.Version, error)
+}
+
 var (
-	ErrNotFound  = errors.New("version not found")
-	ErrBadRequest = errors.New("bad request")
-	ErrLocked    = errors.New("version locked")
+	ErrNotFound         = errors.New("version not found")
+	ErrBadRequest       = errors.New("bad request")
+	ErrLocked           = errors.New("version locked")
 	ErrAlreadyPublished = errors.New("version already published")
 	ErrNoRollbackTarget = errors.New("no rollback target")
 )
@@ -36,7 +49,7 @@ type Service struct {
 }
 
 // NewService creates a new Service instance.
-// It accepts *repository.Repository but stores it as the Repository interface.
+// It accepts RepositoryInterface but stores it as the Repository interface.
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
@@ -85,17 +98,17 @@ func (s *Service) CreateVersion(ctx context.Context, tenantID, pipelineID string
 	}
 
 	v := &models.Version{
-		TenantID:      tenantID,
-		PipelineID:    pipelineID,
-		VersionNum:    versionNum,
-		Name:          req.Name,
-		Description:   req.Description,
-		Config:        req.Config,
-		Status:        models.StatusDraft,
-		IsDefault:     false,
-		CreatedBy:     createdBy,
-		ChangeLog:     req.ChangeLog,
-		Tags:          tags,
+		TenantID:        tenantID,
+		PipelineID:      pipelineID,
+		VersionNum:      versionNum,
+		Name:            req.Name,
+		Description:     req.Description,
+		Config:          req.Config,
+		Status:          models.StatusDraft,
+		IsDefault:       false,
+		CreatedBy:       createdBy,
+		ChangeLog:       req.ChangeLog,
+		Tags:            tags,
 		ParentVersionID: req.BaseVersionID,
 	}
 
@@ -275,10 +288,10 @@ func (s *Service) CompareVersions(ctx context.Context, tenantID string, req *mod
 	diff := calculateDiff(from.Config, to.Config, includeConfig)
 
 	return &models.CompareResult{
-		From:    *from,
-		To:      *to,
-		Diff:    diff,
-		Fields:  buildDiffKeys(diff),
+		From:   *from,
+		To:     *to,
+		Diff:   diff,
+		Fields: buildDiffKeys(diff),
 	}, nil
 }
 

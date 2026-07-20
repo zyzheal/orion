@@ -7,16 +7,22 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/user-token/models"
-	"orion/platform-svc-go/internal/user-token/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID, userID string, name string, expiresAt *time.Time) (*models.Token, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	ListByUserID(ctx context.Context, tenantID, userID string) ([]models.Token, error)
+}
 
 var ErrForbidden = errors.New("forbidden")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

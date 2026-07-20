@@ -6,8 +6,21 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/circuit-breaker/models"
-	"orion/platform-svc-go/internal/circuit-breaker/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, cb *models.CircuitBreaker) error
+	Delete(ctx context.Context, id, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id, tenantID string) (*models.CircuitBreaker, error)
+	GetRecentEvents(ctx context.Context, cbID, tenantID string, limit int) ([]models.CircuitEvent, error)
+	IncrementFailures(ctx context.Context, cbID, tenantID string) (int, error)
+	List(ctx context.Context, tenantID string) ([]models.CircuitBreaker, error)
+	ListOpen(ctx context.Context, tenantID string) ([]models.CircuitBreaker, error)
+	ResetFailures(ctx context.Context, cbID, tenantID string) error
+	Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.CircuitBreaker, error)
+	UpdateState(ctx context.Context, cbID, tenantID, newState, reason string) error
+}
 
 var (
 	ErrNotFound = errors.New("circuit breaker not found")
@@ -15,10 +28,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

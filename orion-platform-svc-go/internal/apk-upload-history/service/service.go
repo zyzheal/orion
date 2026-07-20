@@ -6,20 +6,30 @@ import (
 	"strings"
 
 	"orion/platform-svc-go/internal/apk-upload-history/models"
-	"orion/platform-svc-go/internal/apk-upload-history/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, m *models.ApkUploadRecord) error
+	ExistsByVersion(ctx context.Context, tenantID, market, packageName, version string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.ApkUploadRecord, error)
+	List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.ApkUploadRecord, int, error)
+	RecentFailures(ctx context.Context, tenantID string, limit int) ([]models.ApkUploadRecord, error)
+	Stats(ctx context.Context, tenantID string) (*models.ApkUploadStats, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ApkUploadRecord, error)
+}
+
 var (
-	ErrNotFound     = errors.New("apk upload record not found")
-	ErrBadRequest   = errors.New("invalid request parameters")
+	ErrNotFound        = errors.New("apk upload record not found")
+	ErrBadRequest      = errors.New("invalid request parameters")
 	ErrInvalidChecksum = errors.New("invalid checksum format")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -82,7 +92,7 @@ func (s *Service) CheckDuplicate(ctx context.Context, tenantID, market, packageN
 
 func isValidStatus(status models.ApkStatus) bool {
 	switch status {
-	 case models.StatusUploaded, models.StatusFailed, models.StatusPending:
+	case models.StatusUploaded, models.StatusFailed, models.StatusPending:
 		return true
 	}
 	return false

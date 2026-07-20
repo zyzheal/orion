@@ -11,9 +11,14 @@ import (
 	"orion/platform-svc-go/internal/pipeline-error-detail/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetRunDetail(ctx context.Context, runID string) (*repository.RunDetail, error)
+}
+
 var (
-	ErrInvalidRun = errors.New("runId is required")
-	ErrNotFailed  = errors.New("error detail is only available for failed or cancelled runs")
+	ErrInvalidRun  = errors.New("runId is required")
+	ErrNotFailed   = errors.New("error detail is only available for failed or cancelled runs")
 	ErrRunNotFound = errors.New("pipeline run not found")
 )
 
@@ -173,9 +178,9 @@ func collectErrors(stages []repository.StageRecord, tasks []repository.TaskRecor
 // --- Classifier ---
 
 type classifierRule struct {
-	pattern  *regexp.Regexp
-	tp       string
-	strategy string
+	pattern    *regexp.Regexp
+	tp         string
+	strategy   string
 	confidence float64
 }
 
@@ -321,14 +326,14 @@ func (s *Service) GetErrorDetail(ctx context.Context, runID string) (*models.Pip
 	category, severity, message, fix := mapToFrontendCategory(errorMessage, classification.Type)
 
 	return &models.PipelineErrorDetail{
-		ErrorType:              category,
-		Severity:               severity,
-		HumanReadableMessage:   message,
-		SuggestedFix:           fix,
-		RawError:               errorMessage,
-		StageName:              primaryError.stageName,
-		Timestamp:              primaryError.timestamp,
-		Classification:         classification,
+		ErrorType:            category,
+		Severity:             severity,
+		HumanReadableMessage: message,
+		SuggestedFix:         fix,
+		RawError:             errorMessage,
+		StageName:            primaryError.stageName,
+		Timestamp:            primaryError.timestamp,
+		Classification:       classification,
 	}, nil
 }
 

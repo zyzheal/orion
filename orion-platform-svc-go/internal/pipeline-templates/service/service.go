@@ -8,10 +8,26 @@ import (
 	"strings"
 
 	"orion/platform-svc-go/internal/pipeline-templates/models"
-	"orion/platform-svc-go/internal/pipeline-templates/repository"
 
 	"github.com/google/uuid"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CategoryCounts(ctx context.Context, tenantID string) (map[string]int, error)
+	Create(ctx context.Context, m *models.PipelineTemplate) error
+	CreateVersion(ctx context.Context, v *models.TemplateVersion) error
+	DecrementStarCount(ctx context.Context, tenantID, id string) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	IncrementStarCount(ctx context.Context, tenantID, id string) error
+	IncrementUsageCount(ctx context.Context, tenantID, id string) error
+	List(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error)
+	ListVersions(ctx context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error)
+	SetStatus(ctx context.Context, tenantID, id string, status models.TemplateStatus, publishedAt *int64) (*models.PipelineTemplate, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.PipelineTemplate, error)
+	DeleteVersionsByTemplateID(ctx context.Context, templateID string) error
+}
 
 var ErrTemplateNotPublished = errors.New("template must be published before instantiation")
 var ErrValidation = errors.New("validation error")
@@ -37,7 +53,7 @@ type Service struct {
 	repo Repository
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

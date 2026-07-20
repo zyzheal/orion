@@ -7,12 +7,21 @@ import (
 	"orion/platform-svc-go/internal/queue/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.Queue) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Queue, error)
+	List(ctx context.Context, tenantID string) ([]models.Queue, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Queue, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	jobs *repository.JobRepository
 }
 
-func NewService(repo *repository.Repository, jobs *repository.JobRepository) *Service {
+func NewService(repo RepositoryInterface, jobs *repository.JobRepository) *Service {
 	return &Service{repo: repo, jobs: jobs}
 }
 

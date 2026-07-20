@@ -6,19 +6,25 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ai-gateway/models"
-	"orion/platform-svc-go/internal/ai-gateway/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, resp *models.GatewayResponse) (*models.GatewayResponse, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.GatewayResponse, error)
+	List(ctx context.Context, tenantID string, q models.ListQuery) ([]models.GatewayResponse, int, error)
+}
+
 var (
-	ErrNotFound  = errors.New("gateway request not found")
+	ErrNotFound   = errors.New("gateway request not found")
 	ErrBadRequest = errors.New("invalid request")
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -31,10 +37,10 @@ func (s *Service) RecordRequest(ctx context.Context, tenantID string, req *model
 		return nil, ErrBadRequest
 	}
 	resp := &models.GatewayResponse{
-		Model:      req.Model,
-		Provider:   req.Provider,
-		Input:      req.Input,
-		CreatedAt:  time.Now().UTC(),
+		Model:     req.Model,
+		Provider:  req.Provider,
+		Input:     req.Input,
+		CreatedAt: time.Now().UTC(),
 	}
 	return s.repo.Create(ctx, tenantID, resp)
 }

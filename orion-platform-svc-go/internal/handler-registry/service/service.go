@@ -5,14 +5,28 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/handler-registry/models"
-	"orion/platform-svc-go/internal/handler-registry/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, m *models.HandlerRegistry) error
+	CreateEntry(ctx context.Context, entry *models.HandlerRegistryEntry) error
+	Delete(ctx context.Context, tenantID, id string) error
+	DeleteEntry(ctx context.Context, tenantID, domain, name string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.HandlerRegistry, error)
+	GetDomains(ctx context.Context, tenantID string) ([]string, error)
+	GetEntry(ctx context.Context, tenantID, domain, name string) (*models.HandlerRegistryEntry, error)
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.HandlerRegistry, error)
+	ListEntries(ctx context.Context, tenantID string, opts models.ListHandlerRegistryOptions) ([]models.HandlerRegistryEntry, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdateEntryStatus(ctx context.Context, tenantID, domain, name, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -57,7 +71,7 @@ func (s *Service) Delete(ctx context.Context, tenantID, id string) error {
 // HealthCheck returns the health status of the handler registry service.
 func (s *Service) HealthCheck(ctx context.Context) (map[string]interface{}, error) {
 	return map[string]interface{}{
-		"status": "ok",
+		"status":  "ok",
 		"service": "handler-registry",
 	}, nil
 }
@@ -126,10 +140,10 @@ func (s *Service) Invoke(ctx context.Context, tenantID, domain, name string, pay
 	}
 	// Invoke the handler (placeholder: returns payload echo for now)
 	return map[string]interface{}{
-		"domain": domain,
-		"name": name,
+		"domain":  domain,
+		"name":    name,
 		"payload": payload,
-		"status": "invoked",
+		"status":  "invoked",
 	}, nil
 }
 

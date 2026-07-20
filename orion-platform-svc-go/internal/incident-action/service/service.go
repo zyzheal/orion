@@ -4,15 +4,23 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/incident-action/models"
-	"orion/platform-svc-go/internal/incident-action/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	List(ctx context.Context, tenantID string) ([]models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)
+}
 
 // Service handles incident action business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

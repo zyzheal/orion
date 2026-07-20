@@ -5,8 +5,27 @@ import (
 	"fmt"
 
 	"orion/platform-svc-go/internal/deploy/models"
-	"orion/platform-svc-go/internal/deploy/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CompleteDeployment(ctx context.Context, tenantID, id, status string) error
+	Create(ctx context.Context, m *models.Deployment) error
+	CreateAuditEntry(ctx context.Context, deploymentID, action, userID, details string) error
+	CreateReleaseNote(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
+	CreateRollback(ctx context.Context, tenantID, deploymentID, fromVersion, toVersion, reason string) (*models.Rollback, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Deployment, error)
+	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	LatestByApp(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error)
+	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error
+	List(ctx context.Context, tenantID string, limit, offset int) ([]models.Deployment, error)
+	ListAuditEntries(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
+	ListChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	ListReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
+	ListRollbacks(ctx context.Context, tenantID, deploymentID string) ([]models.Rollback, error)
+	Metrics(ctx context.Context, tenantID string) (*models.DeploymentMetrics, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) error
+}
 
 // Errors
 var (
@@ -16,10 +35,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

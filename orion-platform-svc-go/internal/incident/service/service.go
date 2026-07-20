@@ -9,10 +9,35 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/incident/models"
-	"orion/platform-svc-go/internal/incident/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/incident/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddTimelineEvent(ctx context.Context, tenantID, incidentID string, req models.AddTimelineEventRequest, metadataJSON string) error
+	ArchivePostmortem(ctx context.Context, tenantID, incidentID string) (*models.PostmortemRecord, error)
+	AssignCommander(ctx context.Context, tenantID, id, commanderID string) error
+	CheckSlaBreach(ctx context.Context, tenantID, incidentID string) (*models.SlaCheckResult, error)
+	Create(ctx context.Context, tenantID string, m *models.Incident) error
+	CreatePostmortem(ctx context.Context, tenantID, incidentID string, pm *models.PostmortemRecord) error
+	Delete(ctx context.Context, tenantID, id string) error
+	Escalate(ctx context.Context, tenantID, incidentID string, fromLevel, toLevel int, reason, escalatedBy string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Incident, error)
+	GetEscalations(ctx context.Context, tenantID, incidentID string) ([]models.EscalationRecord, error)
+	GetKnowledgeRecommendations(ctx context.Context, tenantID, incidentID string, limit int) ([]models.KnowledgeRecommendation, error)
+	GetPostmortem(ctx context.Context, tenantID, incidentID string) (*models.PostmortemRecord, error)
+	GetStats(ctx context.Context, tenantID string) (*models.IncidentStats, error)
+	GetTimeline(ctx context.Context, tenantID, incidentID string, q models.TimelineQuery) ([]models.TimelineEvent, error)
+	List(ctx context.Context, tenantID string, q models.IncidentListQuery) (*models.IncidentListResult, error)
+	MarkSlaBreach(ctx context.Context, tenantID, incidentID string) error
+	PostmortemExists(ctx context.Context, tenantID, incidentID string) (bool, error)
+	PublishPostmortem(ctx context.Context, tenantID, incidentID string, reviewedBy *string) (*models.PostmortemRecord, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdatePostmortem(ctx context.Context, tenantID, incidentID string, updates map[string]interface{}) (*models.PostmortemRecord, error)
+	UpdateStatus(ctx context.Context, tenantID, id, newStatus, actorID, reason string) error
+}
 
 // ErrIncidentNotFound wraps ErrNotFound for incident-specific lookups.
 var ErrIncidentNotFound = errors.New("incident not found")
@@ -28,10 +53,10 @@ var ErrAlreadyExists = errors.New("already exists")
 
 // Service orchestrates incident business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -96,19 +121,19 @@ func (s *Service) Create(ctx context.Context, tenantID string, req models.Create
 	}
 
 	m := &models.Incident{
-		Title:            req.Title,
-		Description:      req.Description,
-		Type:             req.Type,
-		Severity:         req.Severity,
-		Priority:         priority,
-		Status:           "open",
-		Impact:           impact,
-		Urgency:          urgency,
-		AffectedServices: string(affectedJSON),
-		Tags:             string(tagsJSON),
-		Environment:      req.Environment,
-		Service:          req.Service,
-		SlaBreach:        false,
+		Title:              req.Title,
+		Description:        req.Description,
+		Type:               req.Type,
+		Severity:           req.Severity,
+		Priority:           priority,
+		Status:             "open",
+		Impact:             impact,
+		Urgency:            urgency,
+		AffectedServices:   string(affectedJSON),
+		Tags:               string(tagsJSON),
+		Environment:        req.Environment,
+		Service:            req.Service,
+		SlaBreach:          false,
 		PostmortemRequired: postRequired,
 	}
 

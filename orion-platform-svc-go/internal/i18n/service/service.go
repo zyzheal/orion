@@ -4,14 +4,24 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/i18n/models"
-	"orion/platform-svc-go/internal/i18n/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateLocale(ctx context.Context, locale *models.Locale) error
+	DeleteTranslation(ctx context.Context, tenantID, localeCode, namespace, key string) (bool, error)
+	GetAllTranslations(ctx context.Context, tenantID, localeCode string) (map[string]map[string]string, error)
+	GetTranslationsByNamespace(ctx context.Context, tenantID, localeCode, namespace string) (map[string]string, error)
+	ListLocales(ctx context.Context, tenantID string) ([]models.Locale, error)
+	SetBulkTranslations(ctx context.Context, tenantID, localeCode, namespace string, kv map[string]string) (int, error)
+	SetTranslation(ctx context.Context, t *models.Translation) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

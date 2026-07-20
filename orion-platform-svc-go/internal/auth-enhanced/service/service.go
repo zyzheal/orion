@@ -6,14 +6,26 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/auth-enhanced/models"
-	"orion/platform-svc-go/internal/auth-enhanced/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateBlacklist(ctx context.Context, bl *models.AuthTokenBlacklist) error
+	CreateKey(ctx context.Context, key *models.AuthKey) error
+	DeleteBlacklist(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteKey(ctx context.Context, tenantID, id string) (bool, error)
+	GetKeyByID(ctx context.Context, tenantID, id string) (*models.AuthKey, error)
+	IsBlacklisted(ctx context.Context, tenantID, tokenID string) (bool, error)
+	ListBlacklist(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error)
+	ListKeys(ctx context.Context, tenantID string, status *string) ([]models.AuthKey, error)
+	UpdateKeyStatus(ctx context.Context, tenantID, id, status string) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -9,11 +9,22 @@ import (
 	"orion/platform-svc-go/internal/ueba/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.UEBAAlert, error)
+	GetAlertByID(ctx context.Context, id, tenantID string) (*models.UEBAAlert, error)
+	GetProfile(ctx context.Context, tenantID, entityID string) (*models.UEBAProfile, error)
+	ListAlerts(ctx context.Context, tenantID string, q models.ListAlertsQuery) ([]models.UEBAAlert, error)
+	ListProfiles(ctx context.Context, tenantID string) ([]models.UEBAProfile, error)
+	SaveProfile(ctx context.Context, tenantID, userID, entityType, entityID, profileData string) error
+	UpdateAlertStatus(ctx context.Context, id, tenantID, status string, reviewedAt *time.Time) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

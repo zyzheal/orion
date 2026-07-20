@@ -6,16 +6,27 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ephemeral-env/models"
-	"orion/platform-svc-go/internal/ephemeral-env/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountEnvs(ctx context.Context, tenantID string) (int, error)
+	CreateEnv(ctx context.Context, env *models.EphemeralEnv) error
+	CreateEnvLog(ctx context.Context, log *models.EnvLog) error
+	DeleteEnv(ctx context.Context, tenantID, id string) error
+	GetEnv(ctx context.Context, tenantID, id string) (*models.EphemeralEnv, error)
+	GetEnvLogs(ctx context.Context, tenantID, envID string, limit int) ([]models.EnvLog, error)
+	ListEnvs(ctx context.Context, tenantID string, limit, offset int) ([]models.EphemeralEnv, error)
+	UpdateEnv(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 var ErrNotFound = errors.New("ephemeral env not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

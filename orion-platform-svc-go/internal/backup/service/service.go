@@ -7,16 +7,34 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/backup/models"
-	"orion/platform-svc-go/internal/backup/repository"
 
 	"github.com/google/uuid"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateJob(ctx context.Context, job *models.BackupJob) error
+	CreatePlan(ctx context.Context, plan *models.BackupPlan) error
+	CreateRecoveryPlan(ctx context.Context, plan *models.RecoveryPlan) error
+	CreateRestore(ctx context.Context, restore *models.Restore) error
+	DeletePlan(ctx context.Context, id string, tenantID string) (bool, error)
+	DeleteRecoveryPlan(ctx context.Context, id string, tenantID string) (bool, error)
+	GetJobByID(ctx context.Context, id string, tenantID string) (*models.BackupJob, error)
+	GetPlanByID(ctx context.Context, id string, tenantID string) (*models.BackupPlan, error)
+	GetRecoveryPlanByID(ctx context.Context, id string, tenantID string) (*models.RecoveryPlan, error)
+	ListJobs(ctx context.Context, tenantID string, status *string) ([]models.BackupJob, error)
+	ListPlans(ctx context.Context, tenantID string) ([]models.BackupPlan, error)
+	ListRecoveryPlans(ctx context.Context, tenantID string) ([]models.RecoveryPlan, error)
+	UpdatePlan(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.BackupPlan, error)
+	UpdateRecoveryPlan(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.RecoveryPlan, error)
+	VerifyBackup(ctx context.Context, jobID string, tenantID string) (*models.BackupJob, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

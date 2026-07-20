@@ -10,18 +10,68 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/monitoring/models"
-	"orion/platform-svc-go/internal/monitoring/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AcknowledgeAlert(ctx context.Context, tenantID, id, ackBy string, comment string) error
+	CountAlertsBySeverity(ctx context.Context, tenantID string) ([]models.Alert, error)
+	CountAnomaliesByMetric(ctx context.Context, tenantID string) ([]struct {
+		Metric   string  `db:"metric"`
+		Count    int     `db:"count"`
+		AvgScore float64 `db:"avg_score"`
+	}, error)
+	CountAnomaliesBySeverity(ctx context.Context, tenantID string) ([]struct {
+		Severity string `db:"severity"`
+		Count    int    `db:"count"`
+	}, error)
+	CountAnomaliesLast24h(ctx context.Context, tenantID string) (int, error)
+	CreateAlert(ctx context.Context, alert *models.Alert) error
+	CreateAnomaly(ctx context.Context, a *models.Anomaly) error
+	CreateChannel(ctx context.Context, ch *models.NotificationChannel) error
+	CreateEscalationPolicy(ctx context.Context, ep *models.EscalationPolicy) error
+	CreateMetric(ctx context.Context, m *models.Metric) error
+	CreateNotificationRecord(ctx context.Context, nr *models.NotificationRecord) error
+	CreateRule(ctx context.Context, rule *models.AlertRule) error
+	CreateWidgetConfig(ctx context.Context, w *models.WidgetConfig) error
+	DeleteRule(ctx context.Context, tenantID, id string) error
+	GetAlert(ctx context.Context, tenantID, id string) (*models.Alert, error)
+	GetChannel(ctx context.Context, tenantID, id string) (*models.NotificationChannel, error)
+	GetMetricSeries(ctx context.Context, tenantID, name string, since, until *time.Time, limit int) ([]models.MetricSeriesPoint, error)
+	GetMetricSummary(ctx context.Context, tenantID, name string, since, until *time.Time) (*models.MetricSummary, error)
+	GetRule(ctx context.Context, tenantID, id string) (*models.AlertRule, error)
+	GetServiceStatus(ctx context.Context, tenantID string) (string, error)
+	ListActiveAlerts(ctx context.Context, tenantID string, limit, offset int) ([]models.Alert, error)
+	ListAlerts(ctx context.Context, tenantID string, limit, offset int) ([]models.Alert, error)
+	ListAnomalies(ctx context.Context, tenantID string, limit, offset int) ([]models.Anomaly, error)
+	ListChannels(ctx context.Context, tenantID string, limit, offset int) ([]models.NotificationChannel, error)
+	ListEscalationPolicies(ctx context.Context, tenantID string, limit, offset int) ([]models.EscalationPolicy, error)
+	ListMetrics(ctx context.Context, tenantID string, limit, offset int) ([]models.Metric, error)
+	ListNotificationRecords(ctx context.Context, tenantID string, limit, offset int) ([]models.NotificationRecord, error)
+	ListRules(ctx context.Context, tenantID string, limit, offset int) ([]models.AlertRule, error)
+	ListWidgetConfigs(ctx context.Context, tenantID string, limit, offset int) ([]models.WidgetConfig, error)
+	PingContext(ctx context.Context) error
+	RecordMetric(ctx context.Context, tenantID string, req models.RecordMetricRequest) error
+	ResolveAlert(ctx context.Context, tenantID, id string, comment string) error
+	RuleAlertCounts(ctx context.Context, tenantID string) ([]models.RuleAlertCounts, error)
+	SetServiceStatus(ctx context.Context, tenantID, status string) error
+	SuppressRule(ctx context.Context, tenantID, id string, reason string, durationH *int) error
+	ToggleChannel(ctx context.Context, tenantID, id string, enabled bool) error
+	ToggleRule(ctx context.Context, tenantID, id string, enabled bool) error
+	UnsuppressRule(ctx context.Context, tenantID, id string) error
+	UpdateAlertStatus(ctx context.Context, tenantID, id, severity, status string) error
+	UpdateRule(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
+
 // Service provides the monitoring business-logic layer.
-// It delegates persistence to repository.Repository and implements the
+// It delegates persistence to RepositoryInterface and implements the
 // rule-evaluation, escalation, anomaly-detection, dashboard-aggregation and
 // system-metrics-collecting engines.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -361,7 +411,7 @@ func (s *Service) GetAlerts(ctx context.Context, tenantID string, limit, offset 
 	return s.repo.ListAlerts(ctx, tenantID, limit, offset)
 }
 
-func (s *Service) GetActiveAlerts(ctx context.Context, tenantID string, limit,offset int) ([]models.Alert, error) {
+func (s *Service) GetActiveAlerts(ctx context.Context, tenantID string, limit, offset int) ([]models.Alert, error) {
 	return s.repo.ListActiveAlerts(ctx, tenantID, limit, offset)
 }
 
@@ -386,9 +436,9 @@ func (s *Service) ResolveAlert(ctx context.Context, tenantID, id string, comment
 // EscalateAlert escalates a firing or acknowledged alert.
 //
 // Escalation steps:
-//   1. Upgrade severity (info -> warning -> critical).
-//   2. Reset the alert to "firing" so it re-notifies the on-call.
-//   3. Persist a notification record carrying the escalation comment for audit.
+//  1. Upgrade severity (info -> warning -> critical).
+//  2. Reset the alert to "firing" so it re-notifies the on-call.
+//  3. Persist a notification record carrying the escalation comment for audit.
 //
 // Returns the updated alert.
 func (s *Service) EscalateAlert(ctx context.Context, tenantID, id string, comment string) (*models.Alert, error) {
@@ -650,10 +700,10 @@ func (s *Service) GetAggregatedMetrics(ctx context.Context, tenantID string) (*m
 // the z-score method (|z| > 3) and persists newly detected anomalies.
 //
 // The algorithm:
-//   1. Fetch the last 30 data points for each enabled metric.
-//   2. Compute mean and standard deviation.
-//   3. For the most recent point, compute the z-score.
-//   4. If |z| > 3, classify severity and create an anomaly record.
+//  1. Fetch the last 30 data points for each enabled metric.
+//  2. Compute mean and standard deviation.
+//  3. For the most recent point, compute the z-score.
+//  4. If |z| > 3, classify severity and create an anomaly record.
 //
 // Returns persisted anomalies ordered by detection time.
 func (s *Service) DetectAnomalies(ctx context.Context, tenantID string, limit, offset int) ([]models.Anomaly, error) {
@@ -855,15 +905,15 @@ func (s *Service) CollectSystemMetrics(ctx context.Context, tenantID string, req
 	}
 
 	return &models.SystemMetrics{
-		Timestamp:   time.Now().UTC(),
-		Host:        hostname,
-		CPU:         cpu,
-		Memory:      float64(mem.HeapAlloc) / 1024 / 1024,
-		Disk:        disk,
-		Goroutines:  runtime.NumGoroutine(),
-		UptimeSec:   float64(time.Since(runtimeMetricsStartTime).Seconds()),
-		HTTPReqs:    0, // populated by gateway metrics when available
-		Errors:      0, // populated by gateway metrics when available
+		Timestamp:  time.Now().UTC(),
+		Host:       hostname,
+		CPU:        cpu,
+		Memory:     float64(mem.HeapAlloc) / 1024 / 1024,
+		Disk:       disk,
+		Goroutines: runtime.NumGoroutine(),
+		UptimeSec:  float64(time.Since(runtimeMetricsStartTime).Seconds()),
+		HTTPReqs:   0, // populated by gateway metrics when available
+		Errors:     0, // populated by gateway metrics when available
 	}, nil
 }
 

@@ -7,21 +7,26 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/workflow-dependency/models"
-	"orion/platform-svc-go/internal/workflow-dependency/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetAllWorkflows(ctx context.Context) ([]models.WorkflowDefinitionRow, error)
+	GetWorkflowByID(ctx context.Context, id string) (*models.WorkflowDefinitionRow, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
 // nodeInfo holds parsed sub-workflow references from a definition node.
 type nodeInfo struct {
-	Type           string `json:"type"`
-	Config         config `json:"config"`
+	Type   string `json:"type"`
+	Config config `json:"config"`
 }
 
 type config struct {

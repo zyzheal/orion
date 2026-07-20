@@ -5,16 +5,32 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/service-topology/models"
-	"orion/platform-svc-go/internal/service-topology/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddEdge(ctx context.Context, tenantID, source, target string, relType models.RelationType) error
+	Create(ctx context.Context, tenantID string, m *models.ServiceTopology) error
+	Delete(ctx context.Context, tenantID, id string) error
+	DetectCycles(ctx context.Context, tenantID string) ([][]string, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.ServiceTopology, error)
+	GetByServiceName(ctx context.Context, tenantID, serviceName string) (*models.ServiceTopology, error)
+	GetDownstreamDependents(ctx context.Context, tenantID, serviceName string) ([]string, error)
+	GetEdges(ctx context.Context, tenantID, serviceName string) ([]models.TopologyEdge, error)
+	GetTopologyStats(ctx context.Context, tenantID string) (*models.TopologyStats, error)
+	GetUpstreamDependencies(ctx context.Context, tenantID, serviceName string) ([]string, error)
+	List(ctx context.Context, tenantID string) ([]models.ServiceTopology, error)
+	RemoveEdge(ctx context.Context, tenantID, source, target string) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.ServiceTopology, error)
+}
 
 var ErrNotFound = errors.New("service topology not found")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

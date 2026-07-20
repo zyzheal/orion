@@ -7,8 +7,24 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/build/models"
-	"orion/platform-svc-go/internal/build/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CompleteBuild(ctx context.Context, tenantID, id string, status models.BuildStatus, errMsg string) (*models.Build, error)
+	Create(ctx context.Context, tenantID string, req models.CreateBuildRequest) (*models.Build, error)
+	CreateEnvironment(ctx context.Context, tenantID string, req models.CreateEnvironmentRequest) (*models.BuildEnvironment, error)
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteEnvironment(ctx context.Context, tenantID, id string) (bool, error)
+	GetBuildStats(ctx context.Context, tenantID string) (*models.BuildStats, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Build, error)
+	GetByPipelineRun(ctx context.Context, tenantID, pipelineRunID string) (*models.Build, error)
+	GetEnvironment(ctx context.Context, tenantID, id string) (*models.BuildEnvironment, error)
+	List(ctx context.Context, tenantID string, opt models.ListBuildsOptions) ([]models.Build, int, error)
+	ListEnvironments(ctx context.Context, tenantID string) ([]models.BuildEnvironment, error)
+	StartBuild(ctx context.Context, tenantID, id string) (*models.Build, error)
+	UpdateEnvironment(ctx context.Context, tenantID, id string, req models.UpdateEnvironmentRequest) (*models.BuildEnvironment, error)
+}
 
 var (
 	ErrNotFound     = errors.New("not found")
@@ -17,10 +33,10 @@ var (
 )
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

@@ -8,14 +8,23 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/tenant-gateway/models"
-	"orion/platform-svc-go/internal/tenant-gateway/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, tenant *models.Tenant) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Tenant, error)
+	GetByName(ctx context.Context, tenantID, name string) (*models.Tenant, error)
+	List(ctx context.Context, tenantID string, q models.ListQuery) (*models.TenantListResponse, error)
+	SoftDelete(ctx context.Context, tenantID, id string) error
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -191,8 +200,8 @@ func ptr(v models.TenantStatus) *models.TenantStatus {
 // --- Errors ---
 
 var (
-	ErrNotFoundTenantBase   = errors.New("tenant not found")
-	ErrAlreadyExistsBase   = errors.New("tenant name already exists")
+	ErrNotFoundTenantBase    = errors.New("tenant not found")
+	ErrAlreadyExistsBase     = errors.New("tenant name already exists")
 	ErrInvalidAdjustmentType = errors.New("invalid adjustment type")
 )
 

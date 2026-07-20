@@ -6,16 +6,22 @@ import (
 	"sort"
 
 	"orion/platform-svc-go/internal/module/models"
-	"orion/platform-svc-go/internal/module/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	GetByID(ctx context.Context, tenantID, id string) (*models.Module, error)
+	List(ctx context.Context, tenantID string) ([]models.Module, error)
+	UpdateStatus(ctx context.Context, tenantID, id string, enabled bool, status string) (*models.Module, error)
+}
 
 var ErrCoreModule = errors.New("core module cannot be disabled")
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

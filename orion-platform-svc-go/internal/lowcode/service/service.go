@@ -9,14 +9,31 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/lowcode/models"
-	"orion/platform-svc-go/internal/lowcode/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/lowcode/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CountFlows(ctx context.Context, tenantID string, filter *models.ListFlowFilters) (int, error)
+	CreateFlow(ctx context.Context, flow *models.LowcodeFlow) error
+	CreateInstance(ctx context.Context, inst *models.LowcodeInstance) error
+	CreateTemplate(ctx context.Context, tmpl *models.LowcodeTemplate) error
+	CreateVersionSnapshot(ctx context.Context, snap *models.VersionSnapshot) error
+	DeleteFlow(ctx context.Context, tenantID, id string) error
+	GetFlowByID(ctx context.Context, tenantID, id string) (*models.LowcodeFlow, error)
+	GetTemplateByID(ctx context.Context, id string) (*models.LowcodeTemplate, error)
+	IncrementTemplateUsage(ctx context.Context, id string) error
+	ListFlows(ctx context.Context, tenantID string, filter *models.ListFlowFilters, offset, limit int) ([]models.LowcodeFlow, error)
+	ListTemplates(ctx context.Context) ([]models.LowcodeTemplate, error)
+	ListVersionSnapshots(ctx context.Context, workflowID string) ([]models.VersionSnapshot, error)
+	UpdateFlow(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 // Service provides lowcode business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 var (
@@ -26,7 +43,7 @@ var (
 )
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -187,18 +204,18 @@ func (s *Service) ExecuteFlow(ctx context.Context, tenantID, userID, flowID stri
 
 	now := time.Now()
 	inst := &models.LowcodeInstance{
-		ID:                  uuid.New().String(),
-		TenantID:            tenantID,
-		WorkflowID:          flowID,
+		ID:                   uuid.New().String(),
+		TenantID:             tenantID,
+		WorkflowID:           flowID,
 		WorkflowDefinitionID: flowID,
-		Status:              "running",
-		Variables:           flow.Nodes,
-		Input:               input,
-		Output:              "",
-		CurrentNodeID:       "",
-		TriggeredBy:         userID,
-		StartedAt:           &now,
-		CreatedAt:           now,
+		Status:               "running",
+		Variables:            flow.Nodes,
+		Input:                input,
+		Output:               "",
+		CurrentNodeID:        "",
+		TriggeredBy:          userID,
+		StartedAt:            &now,
+		CreatedAt:            now,
 	}
 
 	if err := s.repo.CreateInstance(ctx, inst); err != nil {

@@ -7,23 +7,33 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/role/models"
-	"orion/platform-svc-go/internal/role/repository"
 
 	"github.com/google/uuid"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, role *models.Role) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.Role, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.Role, error)
+	Update(ctx context.Context, role *models.Role) error
+	UpdatePermissions(ctx context.Context, tenantID, id string, permissions models.Permissions) error
+}
+
 var (
-	ErrRoleNotFound    = errors.New("role not found")
-	ErrDuplicateName   = errors.New("role with this name already exists")
+	ErrRoleNotFound  = errors.New("role not found")
+	ErrDuplicateName = errors.New("role with this name already exists")
 )
 
 // Service implements the role business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

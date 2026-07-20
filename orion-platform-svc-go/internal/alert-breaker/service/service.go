@@ -4,14 +4,22 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/alert-breaker/models"
-	"orion/platform-svc-go/internal/alert-breaker/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, a *models.AlertBreaker) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.AlertBreaker, error)
+	List(ctx context.Context, tenantID string) ([]models.AlertBreaker, int, error)
+	Update(ctx context.Context, tenantID, id string, fields map[string]interface{}) (*models.AlertBreaker, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

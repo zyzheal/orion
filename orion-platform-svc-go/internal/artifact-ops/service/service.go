@@ -5,18 +5,31 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/artifact-ops/models"
-	"orion/platform-svc-go/internal/artifact-ops/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateOperation(ctx context.Context, op *models.ArtifactOperation) error
+	CreatePolicy(ctx context.Context, policy *models.RetentionPolicy) error
+	CreateScan(ctx context.Context, scan *models.ArtifactScan) error
+	DeletePolicy(ctx context.Context, tenantID, id string) error
+	GetArtifactStats(ctx context.Context, tenantID, artifactID string) (*models.ArtifactStats, error)
+	GetPolicyByID(ctx context.Context, tenantID, id string) (*models.RetentionPolicy, error)
+	GetScanReportByID(ctx context.Context, tenantID, id string) (*models.ScanReport, error)
+	GetScanReportsByArtifact(ctx context.Context, tenantID, artifactID string) ([]models.ScanReport, error)
+	ListOperationsByArtifact(ctx context.Context, tenantID, artifactID string, limit, offset int) ([]models.ArtifactOperation, error)
+	ListPolicies(ctx context.Context, tenantID string) ([]models.RetentionPolicy, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	db   *sqlx.DB
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 

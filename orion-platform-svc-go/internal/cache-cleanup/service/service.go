@@ -3,14 +3,22 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/cache-cleanup/models"
-	"orion/platform-svc-go/internal/cache-cleanup/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, entity *models.CacheCleanup) error
+	Delete(ctx context.Context, id, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id, tenantID string) (*models.CacheCleanup, error)
+	List(ctx context.Context, tenantID string) ([]models.CacheCleanup, error)
+	Update(ctx context.Context, id, tenantID string, attrs map[string]interface{}) (*models.CacheCleanup, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

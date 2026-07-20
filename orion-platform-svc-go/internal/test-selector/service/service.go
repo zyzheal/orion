@@ -9,18 +9,39 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/test-selector/models"
-	"orion/platform-svc-go/internal/test-selector/repository"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreatePRTestResult(ctx context.Context, res *models.PRTestResult) error
+	CreateTestExecutionRecord(ctx context.Context, rec *models.TestExecutionRecord) error
+	DeleteCodeMappingsByTenant(ctx context.Context, tenantID string) error
+	DeleteExecutionHistoryByTenant(ctx context.Context, tenantID string) error
+	DeleteTestCasesByTenant(ctx context.Context, tenantID string) error
+	DeleteTestSuite(ctx context.Context, tenantID, id string) error
+	DeleteTestSuitesByTenant(ctx context.Context, tenantID string) error
+	GetAllTestStats(ctx context.Context, tenantID string) ([]*models.TestHistoryStats, error)
+	GetCoverageStats(ctx context.Context, tenantID string) (models.CoverageStats, error)
+	GetFlakyTests(ctx context.Context, tenantID string, threshold float64) ([]string, error)
+	GetPRTestResultByPRID(ctx context.Context, tenantID, prID string) (*models.PRTestResult, error)
+	GetPRTestResultByPlanID(ctx context.Context, tenantID, planID string) (*models.PRTestResult, error)
+	GetTestStats(ctx context.Context, tenantID, testID string) (*models.TestHistoryStats, error)
+	GetTestsForSourceFile(ctx context.Context, tenantID, sourceFile string) ([]string, error)
+	ListTestCases(ctx context.Context, tenantID string) ([]models.TestCase, error)
+	ListTestCasesByFlakyScore(ctx context.Context, tenantID string, threshold float64) ([]models.TestCase, error)
+	ListTestCasesBySuite(ctx context.Context, tenantID, suiteID string) ([]models.TestCase, error)
+	ListTestSuites(ctx context.Context, tenantID string) ([]models.TestSuite, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	db   *sqlx.DB
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
@@ -327,8 +348,8 @@ func (s *Service) analyzeImpact(ctx context.Context, tenantID string, changedFil
 	}
 
 	return &models.ImpactAnalysisResult{
-		Impacts:              impacts,
-		AllAffectedTestIDs:   allIDs,
+		Impacts:                impacts,
+		AllAffectedTestIDs:     allIDs,
 		TotalEstimatedDuration: totalDuration,
 	}, nil
 }

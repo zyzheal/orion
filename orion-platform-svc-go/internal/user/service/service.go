@@ -7,33 +7,44 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/user/models"
-	"orion/platform-svc-go/internal/user/repository"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, user *models.User) error
+	Delete(ctx context.Context, tenantID, id string) error
+	GetByID(ctx context.Context, tenantID, id string) (*models.User, error)
+	GetByUsername(ctx context.Context, username string) (*models.User, error)
+	List(ctx context.Context, tenantID string, filter *models.GetUserFilters, offset, limit int) ([]models.User, error)
+	Update(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+	UpdatePassword(ctx context.Context, id string, newPasswordHash string) error
+}
+
 // Service provides user management business logic.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 var ErrNotFound = errors.New("user not found")
 var ErrInvalidPassword = errors.New("invalid password")
 
 // NewService creates a new Service instance.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
 // CreateUserResponse contains the result of user creation.
 type CreateUserResponse struct {
-	ID       string    `json:"id"`
-	Username string    `json:"username"`
-	Email    string    `json:"email"`
-	FullName string    `json:"full_name"`
-	Role     string    `json:"role"`
-	Status   string    `json:"status"`
+	ID        string    `json:"id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	FullName  string    `json:"full_name"`
+	Role      string    `json:"role"`
+	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -56,14 +67,14 @@ func (s *Service) Create(ctx context.Context, tenantID, creatorID string, req *m
 
 	now := time.Now()
 	u := &models.User{
-		ID:       uuid.New().String(),
-		TenantID: tenantID,
-		Username: req.Username,
-		Email:    req.Email,
-		FullName: req.FullName,
-		Role:     req.Role,
-		Status:   "active",
-		Password: string(hashed),
+		ID:        uuid.New().String(),
+		TenantID:  tenantID,
+		Username:  req.Username,
+		Email:     req.Email,
+		FullName:  req.FullName,
+		Role:      req.Role,
+		Status:    "active",
+		Password:  string(hashed),
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

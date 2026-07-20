@@ -8,8 +8,28 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/iac/models"
-	"orion/platform-svc-go/internal/iac/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateModule(ctx context.Context, m *models.WorkspaceModule) error
+	CreatePlan(ctx context.Context, p *models.Plan) error
+	CreateTableIfNotExists(ctx context.Context) error
+	CreateWorkspace(ctx context.Context, w *models.Workspace) error
+	DeleteModule(ctx context.Context, tenantID, id string) error
+	GetModuleByID(ctx context.Context, tenantID, id string) (*models.WorkspaceModule, error)
+	GetPlan(ctx context.Context, tenantID, planID string) (*models.Plan, error)
+	GetStateVersion(ctx context.Context, tenantID, workspaceID, versionID string) (*models.StateVersion, error)
+	GetWorkspace(ctx context.Context, tenantID, id string) (*models.Workspace, error)
+	ImportResource(ctx context.Context, rsrc *models.Resource) error
+	ListModules(ctx context.Context, tenantID string) ([]models.WorkspaceModule, error)
+	ListPlansByWorkspace(ctx context.Context, tenantID, workspaceID string) ([]models.Plan, error)
+	ListResources(ctx context.Context, tenantID, workspaceID string) ([]models.Resource, error)
+	ListStateVersions(ctx context.Context, tenantID, workspaceID string) ([]models.StateVersion, error)
+	ListWorkspaces(ctx context.Context, tenantID string, limit, offset int) ([]models.Workspace, error)
+	UpdatePlan(ctx context.Context, tenantID, planID string, status string, added, changed, destroyed int) error
+	UpdateWorkspace(ctx context.Context, tenantID, id string, updates map[string]interface{}) error
+}
 
 // terraformPlanCommand describes a Terraform plan invocation.
 // In production this is serialized and sent to a dedicated runner; here it
@@ -40,10 +60,10 @@ func (c *terraformApplyCommand) String() string {
 }
 
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -220,9 +240,9 @@ func (s *Service) ApplyPlan(ctx context.Context, tenantID, workspaceID string, r
 		now := time.Now().UTC()
 		_ = s.repo.UpdatePlan(ctx, tenantID, plan.ID, "failed", 0, 0, 0)
 		summary := &models.PlanSummary{
-			PlanID:    plan.ID,
-			Status:    "failed",
-			CreatedAt: plan.CreatedAt.Format(time.RFC3339),
+			PlanID:     plan.ID,
+			Status:     "failed",
+			CreatedAt:  plan.CreatedAt.Format(time.RFC3339),
 			FinishedAt: now.Format(time.RFC3339),
 		}
 		return summary, err

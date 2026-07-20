@@ -3,14 +3,22 @@ package service
 import (
 	"context"
 	"orion/platform-svc-go/internal/canary-analysis/models"
-	"orion/platform-svc-go/internal/canary-analysis/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Create(ctx context.Context, entity *models.Analysis) error
+	Delete(ctx context.Context, tenantID, id string) (bool, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Analysis, error)
+	List(ctx context.Context, tenantID string) ([]models.Analysis, error)
+	Update(ctx context.Context, tenantID, id string, attrs map[string]interface{}) (*models.Analysis, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 

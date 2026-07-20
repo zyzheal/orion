@@ -14,20 +14,33 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/workflow-webhook/models"
-	"orion/platform-svc-go/internal/workflow-webhook/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/workflow-webhook/repository"
 )
+
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string) (int, error)
+	Create(ctx context.Context, t *models.WebhookTrigger) error
+	CreateLog(ctx context.Context, log *models.WebhookTriggerLog) error
+	Delete(ctx context.Context, tenantID, id string) error
+	FindByWebhookPath(ctx context.Context, webhookPath string) (*models.WebhookTrigger, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.WebhookTrigger, error)
+	List(ctx context.Context, tenantID string, filter *models.ListFilter, offset, limit int) ([]models.WebhookTrigger, error)
+	ListLogs(ctx context.Context, triggerID string, offset, limit int) ([]models.WebhookTriggerLog, error)
+	Update(ctx context.Context, t *models.WebhookTrigger) error
+}
 
 // ---------------------------------------------------------------------------
 // Sentinel errors
 // ---------------------------------------------------------------------------
 
 var (
-	ErrWebhookNotFound   = errors.New("webhook trigger not found")
-	ErrWebhookDisabled   = errors.New("webhook trigger is disabled")
-	ErrInvalidSignature  = errors.New("invalid webhook signature")
-	ErrExpiredTimestamp  = errors.New("webhook timestamp expired")
+	ErrWebhookNotFound  = errors.New("webhook trigger not found")
+	ErrWebhookDisabled  = errors.New("webhook trigger is disabled")
+	ErrInvalidSignature = errors.New("invalid webhook signature")
+	ErrExpiredTimestamp = errors.New("webhook timestamp expired")
 )
 
 // MaxTimestampAge is the maximum allowed age for a webhook timestamp (5 minutes).
@@ -35,10 +48,10 @@ const MaxTimestampAge = 5 * time.Minute
 
 // Status constants for trigger logs.
 const (
-	StatusPending   = "pending"
-	StatusRunning   = "running"
-	StatusSuccess   = "success"
-	StatusFailed    = "failed"
+	StatusPending = "pending"
+	StatusRunning = "running"
+	StatusSuccess = "success"
+	StatusFailed  = "failed"
 )
 
 // ---------------------------------------------------------------------------
@@ -47,11 +60,11 @@ const (
 
 // Service provides business logic for workflow webhooks.
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 }
 
 // NewService creates a new Service.
-func NewService(repo *repository.Repository) *Service {
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -206,14 +219,14 @@ func (s *Service) Create(ctx context.Context, tenantID, userID string, req *mode
 	}
 
 	t := &models.WebhookTrigger{
-		ID:             uuid.New().String(),
-		TenantID:       tenantID,
-		WorkflowID:     req.WorkflowID,
-		Name:           req.Name,
-		WebhookPath:    req.WebhookPath,
-		WebhookSecret:  secret,
+		ID:              uuid.New().String(),
+		TenantID:        tenantID,
+		WorkflowID:      req.WorkflowID,
+		Name:            req.Name,
+		WebhookPath:     req.WebhookPath,
+		WebhookSecret:   secret,
 		TriggerStrategy: strategy,
-		Enabled:        req.Enabled,
+		Enabled:         req.Enabled,
 	}
 
 	// Use a placeholder user UUID for the created_by UserID if needed; we store tenant

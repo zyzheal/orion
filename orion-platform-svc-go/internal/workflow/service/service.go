@@ -7,16 +7,31 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/workflow/models"
-	"orion/platform-svc-go/internal/workflow/repository"
 
 	"github.com/google/uuid"
+	"orion/platform-svc-go/internal/workflow/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	Count(ctx context.Context, tenantID string, status *string) (int, error)
+	CountExecutionsByWorkflowID(ctx context.Context, workflowID string, tenantID string) (int, error)
+	Create(ctx context.Context, wf *models.Workflow) error
+	CreateExecution(ctx context.Context, exec *models.WorkflowExecution) error
+	Delete(ctx context.Context, id string, tenantID string) (bool, error)
+	GetByID(ctx context.Context, id string, tenantID string) (*models.Workflow, error)
+	GetExecutionByID(ctx context.Context, id string, tenantID string) (*models.WorkflowExecution, error)
+	List(ctx context.Context, tenantID string, status *string, limit, offset int) ([]models.Workflow, error)
+	ListExecutionsByWorkflowID(ctx context.Context, workflowID string, tenantID string, limit, offset int) ([]models.WorkflowExecution, error)
+	SetEnabled(ctx context.Context, id string, tenantID string, enabled bool) (*models.Workflow, error)
+	Update(ctx context.Context, id string, tenantID string, updates map[string]interface{}) (*models.Workflow, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
@@ -147,12 +162,12 @@ func (s *Service) Execute(ctx context.Context, workflowID string, tenantID strin
 
 	now := time.Now().UTC()
 	exec := &models.WorkflowExecution{
-		WorkflowID:          workflowID,
+		WorkflowID:           workflowID,
 		WorkflowDefinitionID: wf.ID,
-		Status:              "running",
-		Input:               initialInput,
-		TriggeredBy:         triggeredBy,
-		StartedAt:           &now,
+		Status:               "running",
+		Input:                initialInput,
+		TriggeredBy:          triggeredBy,
+		StartedAt:            &now,
 	}
 	if exec.Input == "" {
 		exec.Input = "{}"

@@ -9,17 +9,44 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/code-repo/models"
-	"orion/platform-svc-go/internal/code-repo/repository"
 
 	"github.com/jmoiron/sqlx"
+	"orion/platform-svc-go/internal/code-repo/repository"
 )
 
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	AddComment(ctx context.Context, adapterID, repoID, prID, userID, username, body, path, commitSHA string, line int) (*models.Comment, error)
+	AddReview(ctx context.Context, adapterID, repoID, prID, userID, username, state, body string) (*models.Review, error)
+	ClosePullRequest(ctx context.Context, adapterID, repoID, prID string) error
+	CreateBranch(ctx context.Context, adapterID, repoID, name string) error
+	CreatePullRequest(ctx context.Context, adapterID, repoID string, req models.CreatePullRequestRequest) (*models.PullRequest, error)
+	DeleteBranch(ctx context.Context, adapterID, repoID, name string) error
+	GetCommit(ctx context.Context, adapterID, repoID, sha string) (*models.Commit, error)
+	GetFileDiff(ctx context.Context, adapterID, repoID, base, head, path string) ([]models.FileDiff, error)
+	GetPullRequest(ctx context.Context, adapterID, repoID, prID string) (*models.PullRequest, error)
+	GetRepository(ctx context.Context, adapterID, repoID string) (*models.CodeRepo, error)
+	GetWebhookSecret(ctx context.Context, repoID string) (*models.WebhookSecret, error)
+	ListAdapters(ctx context.Context) ([]models.CodeRepoAdapter, error)
+	ListBranches(ctx context.Context, adapterID, repoID string) ([]models.Branch, error)
+	ListCodeOwners(ctx context.Context, repoID string) ([]models.CodeOwner, error)
+	ListComments(ctx context.Context, adapterID, repoID, prID string) ([]models.Comment, error)
+	ListCommits(ctx context.Context, adapterID, repoID string, limit, offset int) ([]models.Commit, error)
+	ListPullRequests(ctx context.Context, adapterID, repoID string, state *string) ([]models.PullRequest, error)
+	ListRepositories(ctx context.Context, adapterID string) ([]models.CodeRepo, error)
+	ListReviews(ctx context.Context, adapterID, repoID, prID string) ([]models.Review, error)
+	ListWebhookLogs(ctx context.Context, limit, offset int) ([]map[string]interface{}, error)
+	MergePullRequest(ctx context.Context, adapterID, repoID, prID string) error
+	UpdatePullRequest(ctx context.Context, adapterID, repoID, prID string, updates map[string]interface{}) (*models.PullRequest, error)
+	UpsertWebhookSecret(ctx context.Context, repoID, secret string) (*models.WebhookSecret, error)
+}
+
 type Service struct {
-	repo *repository.Repository
+	repo RepositoryInterface
 	db   *sqlx.DB
 }
 
-func NewService(repo *repository.Repository, db *sqlx.DB) *Service {
+func NewService(repo RepositoryInterface, db *sqlx.DB) *Service {
 	return &Service{repo: repo, db: db}
 }
 
@@ -212,14 +239,14 @@ func (s *Service) RotateWebhookSecret(ctx context.Context, repoID, providedSecre
 // --- Errors ---
 
 var (
-	ErrNotFound        = errors.New("not found")
-	ErrNotFoundSecret  = errors.New("webhook secret not found")
-	ErrInvalidBranch   = errors.New("invalid branch")
-	ErrInvalidPR       = errors.New("invalid pull request")
-	ErrInvalidRef      = errors.New("invalid ref")
-	ErrInvalidSecret   = errors.New("invalid secret")
-	ErrNotImplemented  = errors.New("not implemented")
-	ErrInvalidRepo     = errors.New("invalid repository")
+	ErrNotFound       = errors.New("not found")
+	ErrNotFoundSecret = errors.New("webhook secret not found")
+	ErrInvalidBranch  = errors.New("invalid branch")
+	ErrInvalidPR      = errors.New("invalid pull request")
+	ErrInvalidRef     = errors.New("invalid ref")
+	ErrInvalidSecret  = errors.New("invalid secret")
+	ErrNotImplemented = errors.New("not implemented")
+	ErrInvalidRepo    = errors.New("invalid repository")
 )
 
 // IsNotFound returns true if the error indicates a resource was not found.

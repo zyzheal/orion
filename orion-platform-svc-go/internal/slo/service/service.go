@@ -4,14 +4,27 @@ import (
 	"context"
 
 	"orion/platform-svc-go/internal/slo/models"
-	"orion/platform-svc-go/internal/slo/repository"
 )
 
-type Service struct {
-	repo *repository.Repository
+// RepositoryInterface defines the repository methods used by the service.
+type RepositoryInterface interface {
+	CreateSLO(ctx context.Context, slo *models.SLODefinition) error
+	DeleteSLO(ctx context.Context, tenantID, id string) error
+	GetDashboard(ctx context.Context, tenantID string) ([]models.SLODefinition, error)
+	GetErrorBudgetHistory(ctx context.Context, sloID, tenantID string, limit int) ([]models.ErrorBudget, error)
+	GetLatestErrorBudget(ctx context.Context, sloID, tenantID string) (*models.ErrorBudget, error)
+	GetSLIHistory(ctx context.Context, sloID, tenantID string, limit int) ([]models.SLIMeasurement, error)
+	GetSLO(ctx context.Context, tenantID, id string) (*models.SLODefinition, error)
+	ListSLOs(ctx context.Context, tenantID string, sloType string, enabled *bool) ([]models.SLODefinition, error)
+	RecordSLI(ctx context.Context, m *models.SLIMeasurement) error
+	UpdateSLO(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.SLODefinition, error)
 }
 
-func NewService(repo *repository.Repository) *Service {
+type Service struct {
+	repo RepositoryInterface
+}
+
+func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
