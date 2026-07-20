@@ -1660,6 +1660,11 @@ func main() {
 		ServiceName: "orion-platform-svc",
 	}))
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
+	r.Use(platmw.SecurityHeaders())
+
+	// Rate limiting: 100 req/min per IP default, tighter limits on auth
+	// endpoints to mitigate brute-force (20/min login, 10/min register).
+	r.Use(platmw.RateLimit(platmw.DefaultRateLimitConfig()))
 
 	// Dual-write conflict prevention (P0-2): tag writes + block TS conflicts
 	sourceGuard := sourceguard.NewSourceGuard()
