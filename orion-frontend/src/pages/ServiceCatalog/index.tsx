@@ -70,6 +70,7 @@ import {
   getCatalogStats,
 } from '@/api/service-catalog';
 import Table from '@/components/Table';
+import type { TableColumn } from '@/components/Table';
 import { colors, spacing, componentRadius, shadows } from '@/tokens';
 import dayjs from 'dayjs';
 
@@ -762,7 +763,7 @@ const ServiceCatalog: React.FC = () => {
           <Descriptions column={{ xs: 1, sm: 2, md: 2 }} bordered size="small">
             <Descriptions.Item label="服务名称">{selectedService.name}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Badge status={statusCfg.color as any} text={statusCfg.label} />
+              <Badge status={statusCfg.color as 'success' | 'processing' | 'default' | 'error' | 'warning'} text={statusCfg.label} />
             </Descriptions.Item>
             <Descriptions.Item label="分类">{selectedService.category || '-'}</Descriptions.Item>
             <Descriptions.Item label="SLA 等级">
@@ -810,7 +811,7 @@ const ServiceCatalog: React.FC = () => {
   // Tab 3: Service Requests Table
   // ============================================================================
 
-  const requestColumns = [
+  const requestColumns: TableColumn<CatalogRequest>[] = [
     {
       title: '请求标题',
       dataIndex: 'title',
@@ -856,7 +857,7 @@ const ServiceCatalog: React.FC = () => {
       width: 100,
       render: (value: string) => {
         const cfg = REQUEST_STATUS_CONFIG[value] || { color: 'default', label: value };
-        return <Badge status={cfg.color as any} text={cfg.label} />;
+        return <Badge status={cfg.color as 'success' | 'processing' | 'default' | 'error' | 'warning'} text={cfg.label} />;
       },
     },
     {
@@ -888,7 +889,7 @@ const ServiceCatalog: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 200,
-      render: (_: any, record: CatalogRequest) => {
+      render: (_: unknown, record: CatalogRequest) => {
         const transitions = STATUS_TRANSITIONS[record.status] || [];
         const canCancel = !['fulfilled', 'rejected', 'cancelled'].includes(record.status);
 
@@ -992,7 +993,7 @@ const ServiceCatalog: React.FC = () => {
 
       {/* Requests table */}
       <Table
-        columns={requestColumns as any}
+        columns={requestColumns as TableColumn<CatalogRequest>[]}
         dataSource={requests}
         rowKey="id"
         loading={requestsLoading}
@@ -1118,9 +1119,8 @@ const ServiceCatalog: React.FC = () => {
           <Descriptions column={{ xs: 1, sm: 2, md: 2 }} bordered size="small">
             <Descriptions.Item label="请求标题">{selectedRequest.title}</Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Badge status={statusCfg.color as any} text={statusCfg.label} />
+              <Badge status={statusCfg.color as 'success' | 'processing' | 'default' | 'error' | 'warning'} text={statusCfg.label} />
             </Descriptions.Item>
-            <Descriptions.Item label="优先级">
               <Tag color={priorityCfg.color} style={{ margin: 0 }}>
                 {priorityCfg.label}
               </Tag>
