@@ -281,5 +281,5 @@ func (h *WorkflowHandler) ApplyTemplate(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, def, "message": "template applied")
+	respondCreated(c, gin.H{"data": def, "message": "template applied"})
 }
