@@ -10,6 +10,7 @@ import (
 // --- Errors ---
 
 var (
+	ErrNotFound      = sentinel.NotFound
 	ErrTicketNotOpen = errors.New("ticket not open")
 )
 
