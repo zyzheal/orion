@@ -9,7 +9,7 @@ import (
 	"orion/platform-svc-go/internal/chaos-gateway/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Handler exposes HTTP endpoints for chaos experiments.

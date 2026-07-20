@@ -7,7 +7,7 @@ import (
 	"orion/platform-svc-go/internal/smart-deploy/service"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 type Handler struct {
 	svc *service.Service

@@ -8,7 +8,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 

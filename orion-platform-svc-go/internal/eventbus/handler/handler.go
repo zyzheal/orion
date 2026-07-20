@@ -11,7 +11,7 @@ import (
 	"orion/platform-svc-go/internal/eventbus/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Handler provides HTTP route handlers for the event bus.

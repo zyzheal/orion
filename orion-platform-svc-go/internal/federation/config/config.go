@@ -54,4 +54,5 @@ func requireEnv(key string) string {
 		return v
 	}
 	log.Fatal("required environment variable not set: " + key)
+	return ""
 }

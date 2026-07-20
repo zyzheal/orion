@@ -9,7 +9,7 @@ import (
     "orion/platform-svc-go/internal/event-trigger-registry/service"
 
     "github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -34,7 +34,6 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTriggers")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     triggers, err := h.svc.ListTriggers(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -47,7 +46,6 @@ func (h *Handler) GetTrigger(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrigger")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     trigger, err := h.svc.GetTrigger(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "trigger not found", http.StatusNotFound)
@@ -60,7 +58,6 @@ func (h *Handler) CreateTrigger(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTrigger")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     var req models.CreateTriggerRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -78,7 +75,6 @@ func (h *Handler) UpdateTrigger(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTrigger")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     var req models.CreateTriggerRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -96,7 +92,6 @@ func (h *Handler) DeleteTrigger(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTrigger")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     err := h.svc.DeleteTrigger(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

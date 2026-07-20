@@ -10,7 +10,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-version/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 

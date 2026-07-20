@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // ---------------------------------------------------------------------------
@@ -127,7 +127,6 @@ func (h *Handler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Create a real workflow instance via the workflow engine.
-	ctx := ctx
 	if h.workflowSvc == nil {
 		// Workflow service not wired — log the event but respond with pending.
 		middleware.RespondSuccess(c, models.WebhookResponse{

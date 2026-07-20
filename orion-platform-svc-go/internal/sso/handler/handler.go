@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -35,7 +35,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreateProvider(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProvider")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var provider models.SSOProvider
 	if err := c.ShouldBindJSON(&provider); err != nil {
@@ -53,7 +52,6 @@ result, err := h.svc.CreateProvider(ctx, tenantID, &provider)
 func (h *Handler) GetProvider(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProvider")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 result, err := h.svc.GetProvider(ctx, tenantID, id)
@@ -67,7 +65,6 @@ result, err := h.svc.GetProvider(ctx, tenantID, id)
 func (h *Handler) HandleCallback(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HandleCallback")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	_ = c.Param("id")
 	state := c.Query("state")
@@ -83,7 +80,6 @@ func (h *Handler) HandleCallback(c *gin.Context) {
 func (h *Handler) InitiateLogin(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InitiateLogin")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.SSOLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -101,7 +97,6 @@ func (h *Handler) InitiateLogin(c *gin.Context) {
 func (h *Handler) ListProviders(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProviders")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -117,7 +112,6 @@ result, total, err := h.svc.ListProviders(ctx, tenantID, q)
 func (h *Handler) UpdateProvider(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateProvider")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var updates map[string]interface{}

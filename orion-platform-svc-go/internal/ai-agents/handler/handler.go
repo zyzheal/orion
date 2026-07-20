@@ -10,7 +10,7 @@ import (
 	"orion/platform-svc-go/internal/ai-agents/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Handler exposes AI agents endpoints.
@@ -341,7 +341,6 @@ func (h *Handler) GetStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := ctx
 	stats, err := h.svc.GetAgentStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())

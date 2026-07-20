@@ -8,7 +8,7 @@ import (
     "orion/platform-svc-go/internal/task-timeout/service"
 
     "github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -29,7 +29,6 @@ func (h *Handler) GetTimeouts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeouts")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     timeouts, err := h.svc.GetTimeouts(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -42,7 +41,6 @@ func (h *Handler) SetTimeouts(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetTimeouts")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     var req struct {
         DefaultTimeout int `json:"defaultTimeout" binding:"required"`
         MaxTimeout     int `json:"maxTimeout"`

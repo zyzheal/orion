@@ -58,6 +58,7 @@ func requireEnv(key string) string {
 		return v
 	}
 	log.Fatal("required environment variable not set: " + key)
+	return ""
 }
 
 func getEnvBool(key string, defaultValue bool) bool {

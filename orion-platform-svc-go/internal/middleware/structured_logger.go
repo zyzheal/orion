@@ -114,7 +114,7 @@ func StdLogger() gin.HandlerFunc {
 		// writes to stdout; this produces a single JSON line per request.
 		// We deliberately use fmt.Sprintf + newline so that log aggregation tools
 		// (fluentd, vector, Loki) parse it as a single structured record.
-		record, _ := formatLogRecord(logEntry)
+		record, ok := formatLogRecord(logEntry)
 		// Write the structured log line to stdout (gin's default writer).
 		// gin.DefaultWriter points to os.Stdout by default.
 		fmt.Fprintf(gin.DefaultWriter, "%s\n", record)
@@ -170,7 +170,7 @@ func StdLoggerWithLevel(minStatus int) gin.HandlerFunc {
 			"user_agent": c.Request.UserAgent(),
 		}
 
-		record, _ := formatLogRecord(logEntry)
+		record, ok := formatLogRecord(logEntry)
 		if !ok {
 			record = fmt.Sprintf("structlog entry failed to serialize: %v", logEntry)
 		}

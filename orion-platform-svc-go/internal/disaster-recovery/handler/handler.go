@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -33,7 +33,6 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) CreatePlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePlan")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDisasterPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -51,7 +50,6 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 func (h *Handler) GetPlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlan")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetPlan(ctx, tenantID, id)
@@ -65,7 +63,6 @@ func (h *Handler) GetPlan(c *gin.Context) {
 func (h *Handler) ListPlans(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPlans")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -80,7 +77,6 @@ func (h *Handler) ListPlans(c *gin.Context) {
 func (h *Handler) UpdatePlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePlan")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateDisasterPlanRequest
@@ -99,7 +95,6 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 func (h *Handler) RunPlan(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunPlan")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	planID := c.Param("id")
 	result, err := h.svc.RunPlan(ctx, tenantID, planID)
@@ -113,7 +108,6 @@ func (h *Handler) RunPlan(c *gin.Context) {
 func (h *Handler) ListRuns(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRuns")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	planID := c.Param("id")
 	result, err := h.svc.ListRuns(ctx, tenantID, planID)

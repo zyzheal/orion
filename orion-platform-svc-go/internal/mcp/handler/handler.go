@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -34,7 +34,6 @@ r.GET("/tools", auth.RequirePermission("mcp", "read"), h.ListTools)
 func (h *Handler) CreateServer(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateServer")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateMCPServerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -52,7 +51,6 @@ func (h *Handler) CreateServer(c *gin.Context) {
 func (h *Handler) DeleteServer(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteServer")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteServer(ctx, tenantID, id); err != nil {
@@ -65,7 +63,6 @@ func (h *Handler) DeleteServer(c *gin.Context) {
 func (h *Handler) GetServer(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServer")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetServer(ctx, tenantID, id)
@@ -79,7 +76,6 @@ errors.WriteSuccess(c, result)
 func (h *Handler) ListServers(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListServers")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -95,7 +91,6 @@ result, err := h.svc.ListServers(ctx, tenantID, q)
 func (h *Handler) ListTools(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTools")
 	defer span.End()
-	ctx := ctx
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
@@ -110,7 +105,6 @@ q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
 func (h *Handler) UpdateServer(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateServer")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateMCPServerRequest

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -130,7 +130,6 @@ func (h *Handler) GetTranslations(c *gin.Context) {
 	localeCode := c.Param("localeCode")
 	namespace := c.Query("namespace")
 
-	ctx := ctx
 	if namespace != "" {
 		translations, err := h.svc.GetTranslationsByNamespace(ctx, tenantID, localeCode, namespace)
 		if err != nil {

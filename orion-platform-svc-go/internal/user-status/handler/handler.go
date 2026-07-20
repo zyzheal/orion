@@ -9,7 +9,7 @@ import (
 	"orion/platform-svc-go/internal/user-status/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -34,7 +34,6 @@ func (h *Handler) GetMyStatus(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	ctx := ctx
 	s, err := h.svc.GetStatus(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "status not found", http.StatusNotFound)
@@ -47,7 +46,6 @@ func (h *Handler) GetStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatus")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	s, err := h.svc.GetStatus(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "status not found", http.StatusNotFound)
@@ -61,7 +59,6 @@ func (h *Handler) SetMyStatus(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	ctx := ctx
 	var req models.SetStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -79,7 +76,6 @@ func (h *Handler) ListOnline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOnline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	statuses, err := h.svc.ListByStatus(ctx, tenantID, "online")
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -35,7 +35,6 @@ r.GET("", auth.RequirePermission("ephemeral-env", "read"), h.ListEnvs)
 func (h *Handler) CreateEnv(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateEnv")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEphemeralEnvRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,7 +52,6 @@ func (h *Handler) CreateEnv(c *gin.Context) {
 func (h *Handler) DeleteEnv(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteEnv")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteEnv(ctx, tenantID, id); err != nil {
@@ -66,7 +64,6 @@ func (h *Handler) DeleteEnv(c *gin.Context) {
 func (h *Handler) DestroyEnv(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroyEnv")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 result, err := h.svc.DestroyEnv(ctx, tenantID, id)
@@ -80,7 +77,6 @@ errors.WriteSuccess(c, result)
 func (h *Handler) ExtendTTL(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExtendTTL")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ExtendTTLRequest
@@ -99,7 +95,6 @@ func (h *Handler) ExtendTTL(c *gin.Context) {
 func (h *Handler) GetEnv(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEnv")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetEnv(ctx, tenantID, id)
@@ -113,7 +108,6 @@ func (h *Handler) GetEnv(c *gin.Context) {
 func (h *Handler) GetLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLogs")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	envID := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
@@ -128,7 +122,6 @@ func (h *Handler) GetLogs(c *gin.Context) {
 func (h *Handler) ListEnvs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEnvs")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))

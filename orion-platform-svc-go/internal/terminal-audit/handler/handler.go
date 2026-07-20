@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -32,7 +32,6 @@ r.PUT("/search", auth.RequirePermission("terminal-audit", "read"), h.SearchAudit
 func (h *Handler) DeleteBatch(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBatch")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var ids []string
 	if err := c.ShouldBindJSON(&ids); err != nil {
@@ -50,7 +49,6 @@ func (h *Handler) DeleteBatch(c *gin.Context) {
 func (h *Handler) GetAudit(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAudit")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetAudit(ctx, tenantID, id)
@@ -64,7 +62,6 @@ func (h *Handler) GetAudit(c *gin.Context) {
 func (h *Handler) GetStats(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
@@ -77,7 +74,6 @@ func (h *Handler) GetStats(c *gin.Context) {
 func (h *Handler) ListAudits(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAudits")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -93,7 +89,6 @@ q := models.AuditQuery{Limit: limit, Offset: offset}
 func (h *Handler) SearchAudits(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SearchAudits")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))

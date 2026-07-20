@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -35,7 +35,6 @@ r.DELETE("/stores/:id/vectors", auth.RequirePermission("vector", "delete"), h.De
 func (h *Handler) CreateStore(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateStore")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateStoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,7 +52,6 @@ func (h *Handler) CreateStore(c *gin.Context) {
 func (h *Handler) DeleteStore(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteStore")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteStore(ctx, tenantID, id); err != nil {
@@ -66,7 +64,6 @@ func (h *Handler) DeleteStore(c *gin.Context) {
 func (h *Handler) DeleteVectors(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteVectors")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	storeID := c.Param("id")
 	var ids []string
@@ -85,7 +82,6 @@ func (h *Handler) DeleteVectors(c *gin.Context) {
 func (h *Handler) GetStore(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStore")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetStore(ctx, tenantID, id)
@@ -99,7 +95,6 @@ func (h *Handler) GetStore(c *gin.Context) {
 func (h *Handler) ListStores(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStores")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -114,7 +109,6 @@ result, err := h.svc.ListStores(ctx, tenantID, limit, offset)
 func (h *Handler) SearchVectors(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SearchVectors")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	storeID := c.Param("id")
 	var req models.SearchQuery
@@ -133,7 +127,6 @@ func (h *Handler) SearchVectors(c *gin.Context) {
 func (h *Handler) UpsertVectors(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpsertVectors")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	storeID := c.Param("id")
 	var req models.UpsertVectorsRequest

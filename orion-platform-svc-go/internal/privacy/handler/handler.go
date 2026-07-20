@@ -9,7 +9,7 @@ import (
     "orion/platform-svc-go/internal/privacy/service"
 
     "github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -33,7 +33,6 @@ func (h *Handler) GetConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfig")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     config, err := h.svc.GetPrivacyConfig(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "config not found", http.StatusNotFound)
@@ -46,7 +45,6 @@ func (h *Handler) UpsertConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpsertConfig")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     var config models.PrivacyConfig
     if err := c.ShouldBindJSON(&config); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -64,7 +62,6 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteConfig")
 	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := ctx
     err := h.svc.DeletePrivacyConfig(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -76,7 +73,6 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 func (h *Handler) ListComplianceStatus(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListComplianceStatus")
 	defer span.End()
-    ctx := ctx
     statuses, err := h.svc.ListComplianceStatus(ctx)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

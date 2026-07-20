@@ -10,7 +10,7 @@ import (
 	"orion/platform-svc-go/internal/ai-security/models"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -75,7 +75,6 @@ func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	q := models.ListQuery{}
 	if p := c.Query("page"); p != "" {
 		fmt.Sscanf(p, "%d", &q.Page)
@@ -95,7 +94,6 @@ func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -108,7 +106,6 @@ func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		er := "invalid request"
@@ -127,7 +124,6 @@ func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -146,7 +142,6 @@ func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	err := h.svc.Delete(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -161,7 +156,6 @@ func (h *Handler) ScanVulnerabilities(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScanVulnerabilities")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	var req models.VulnerabilityScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -179,7 +173,6 @@ func (h *Handler) GetVulnerability(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVulnerability")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	cveID := c.Param("cveId")
 	vuln, err := h.svc.GetVulnerability(ctx, tenantID, cveID)
 	if err != nil {
@@ -193,7 +186,6 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVulnerabilities")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	vulns, err := h.svc.ListVulnerabilities(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -206,7 +198,6 @@ func (h *Handler) FixVulnerability(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FixVulnerability")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	var req models.FixVulnerabilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -224,7 +215,6 @@ func (h *Handler) CheckVulnerability(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckVulnerability")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	cveID := c.Query("cveId")
 	if cveID == "" {
 		errors.WriteError(c, errors.ErrBadRequest, "cveId query parameter required", http.StatusBadRequest)
@@ -244,7 +234,6 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	policies, err := h.svc.ListPolicies(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -257,7 +246,6 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditLog")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	logs, err := h.svc.GetAuditLog(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -270,7 +258,6 @@ func (h *Handler) BlockAccess(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BlockAccess")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	target := c.Query("target")
 	if target == "" {
 		target = c.Param("target")
@@ -287,7 +274,6 @@ func (h *Handler) GetRiskScore(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRiskScore")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := ctx
 	id := c.Param("id")
 	result, err := h.svc.GetRiskScore(ctx, tenantID, id)
 	if err != nil {

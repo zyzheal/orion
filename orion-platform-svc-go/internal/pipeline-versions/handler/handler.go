@@ -11,7 +11,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"strconv"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Service defines the contract the handler needs from the service layer.

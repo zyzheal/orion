@@ -7,7 +7,7 @@ import (
 	"orion/platform-svc-go/internal/federation/models"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Service defines the interface used by Handler.

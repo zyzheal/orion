@@ -10,7 +10,7 @@ import (
 	"orion/platform-svc-go/internal/security-compliance/service"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 // Service defines the methods the handler calls on the service layer.

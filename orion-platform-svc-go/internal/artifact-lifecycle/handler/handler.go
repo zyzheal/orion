@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {
@@ -35,7 +35,6 @@ r := rg.Group("/artifact-lifecycle")
 func (h *Handler) AdvanceStage(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AdvanceStage")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.AdvanceStageRequest
@@ -54,7 +53,6 @@ errors.WriteSuccess(c, result)
 func (h *Handler) ArchiveArtifact(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveArtifact")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.Archive(ctx, tenantID, id)
@@ -68,7 +66,6 @@ func (h *Handler) ArchiveArtifact(c *gin.Context) {
 func (h *Handler) CreateLifecycle(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLifecycle")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateArtifactLifecycleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -86,7 +83,6 @@ func (h *Handler) CreateLifecycle(c *gin.Context) {
 func (h *Handler) DeleteLifecycle(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteLifecycle")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
@@ -99,7 +95,6 @@ id := c.Param("id")
 func (h *Handler) GetLifecycle(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLifecycle")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Param("artifactId")
 	result, err := h.svc.GetByArtifactID(ctx, tenantID, artifactID)
@@ -113,7 +108,6 @@ func (h *Handler) GetLifecycle(c *gin.Context) {
 func (h *Handler) GetStageHistory(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStageHistory")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Query("artifactId")
 	result, err := h.svc.GetStageHistory(ctx, tenantID, artifactID)
@@ -127,7 +121,6 @@ func (h *Handler) GetStageHistory(c *gin.Context) {
 func (h *Handler) ListLifecycle(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLifecycle")
 	defer span.End()
-	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
