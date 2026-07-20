@@ -316,7 +316,3 @@ func safeSortOrder(order string) string {
 	return "DESC"
 }
 
-// init suppresses unused import.
-func init() {
-	_ = sql.DB{}
-}

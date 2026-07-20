@@ -250,7 +250,6 @@ func (s *Service) persistReportHistoryAsync(ctx context.Context, tenantID string
 		return
 	}
 	eg, _ := errgroup.WithContext(ctx)
-	ch := make(chan error, 1)
 	eg.Go(func() error {
 		if err := s.repo.CreateReportHistory(ctx, &models.ReportHistoryEntry{
 			TenantID:    tenantID,
@@ -261,11 +260,6 @@ func (s *Service) persistReportHistoryAsync(ctx context.Context, tenantID string
 		}
 		return nil
 	})
-	go func() {
-		if err := <-ch; err != nil {
-			slog.Error("efficiency: report history goroutine error", "tenantID", tenantID, "error", err)
-		}
-	}()
 	_ = eg.Wait()
 }
 
@@ -279,7 +273,6 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 		return nil
 	}
 	eg, _ := errgroup.WithContext(ctx)
-	ch := make(chan error, 1)
 	eg.Go(func() error {
 		if err := s.repo.CreateTeamData(ctx, &models.TeamData{
 			ID: teamID, TenantID: tenantID, Name: name, Members: members,
@@ -289,11 +282,6 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 		}
 		return nil
 	})
-	go func() {
-		if err := <-ch; err != nil {
-			slog.Error("efficiency: team data goroutine error", "tenantID", tenantID, "teamID", teamID, "error", err)
-		}
-	}()
 	_ = eg.Wait()
 	return nil
 }
@@ -308,7 +296,6 @@ func (s *Service) persistProjectDataAsync(ctx context.Context, tenantID, project
 		return nil
 	}
 	eg, _ := errgroup.WithContext(ctx)
-	ch := make(chan error, 1)
 	eg.Go(func() error {
 		if err := s.repo.CreateProjectData(ctx, &models.ProjectData{
 			ID: projectID, TenantID: tenantID, Name: name,
@@ -318,11 +305,6 @@ func (s *Service) persistProjectDataAsync(ctx context.Context, tenantID, project
 		}
 		return nil
 	})
-	go func() {
-		if err := <-ch; err != nil {
-			slog.Error("efficiency: project data goroutine error", "tenantID", tenantID, "projectID", projectID, "error", err)
-		}
-	}()
 	_ = eg.Wait()
 	return nil
 }
@@ -332,7 +314,6 @@ func (s *Service) persistGlobalDeploymentsAsync(ctx context.Context, tenantID st
 		return nil
 	}
 	eg, _ := errgroup.WithContext(ctx)
-	grpCh := make(chan error, 1)
 	eg.Go(func() error {
 		if err := s.repo.DeleteGlobalDeploymentsByTenant(ctx, tenantID); err != nil {
 			slog.Error("efficiency: failed to delete global deployments", "tenantID", tenantID, "error", err)
@@ -347,11 +328,6 @@ func (s *Service) persistGlobalDeploymentsAsync(ctx context.Context, tenantID st
 		}
 		return nil
 	})
-	go func() {
-		if err := <-grpCh; err != nil {
-			slog.Error("efficiency: global deployments goroutine error", "tenantID", tenantID, "error", err)
-		}
-	}()
 	_ = eg.Wait()
 	return nil
 }
@@ -361,7 +337,6 @@ func (s *Service) persistGlobalPipelinesAsync(ctx context.Context, tenantID stri
 		return nil
 	}
 	eg, _ := errgroup.WithContext(ctx)
-	grpCh := make(chan error, 1)
 	eg.Go(func() error {
 		if err := s.repo.DeleteGlobalPipelinesByTenant(ctx, tenantID); err != nil {
 			slog.Error("efficiency: failed to delete global pipelines", "tenantID", tenantID, "error", err)
@@ -376,11 +351,6 @@ func (s *Service) persistGlobalPipelinesAsync(ctx context.Context, tenantID stri
 		}
 		return nil
 	})
-	go func() {
-		if err := <-grpCh; err != nil {
-			slog.Error("efficiency: global pipelines goroutine error", "tenantID", tenantID, "error", err)
-		}
-	}()
 	_ = eg.Wait()
 	return nil
 }
