@@ -5,17 +5,9 @@ package service
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"math"
-	"sort"
-	"strconv"
-	"strings"
-	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
 	"orion/platform-svc-go/internal/ticketing/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -165,4 +157,3 @@ func (s *Service) DeleteTicket(ctx context.Context, tenantID, id string) error {
 }
 
 // --- Workflow ---
-

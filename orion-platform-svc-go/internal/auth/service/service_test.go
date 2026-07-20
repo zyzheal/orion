@@ -52,8 +52,8 @@ func (m *mockUserRepo) GetByID(_ context.Context, tenantID, id string) (*user_mo
 }
 
 type mockAuthRepo struct {
-	tokens   map[string]*auth_repo.RefreshTokenRow
-	tenants  map[string][]string
+	tokens    map[string]*auth_repo.RefreshTokenRow
+	tenants   map[string][]string
 	createErr error
 }
 
@@ -603,8 +603,8 @@ func Test_buildAvatarURL(t *testing.T) {
 
 func TestServiceErrors(t *testing.T) {
 	tests := []struct {
-		err  error
-		msg  string
+		err error
+		msg string
 	}{
 		{ErrInvalidCredentials, "invalid username or password"},
 		{ErrUserDisabled, "account is disabled"},

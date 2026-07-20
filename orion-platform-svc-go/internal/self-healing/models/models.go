@@ -6,17 +6,17 @@ import "time"
 type IncidentType string
 
 const (
-	IncidentTypeHighCPU       IncidentType = "high_cpu"
-	IncidentTypeHighMemory    IncidentType = "high_memory"
-	IncidentTypeHighErrorRate IncidentType = "high_error_rate"
-	IncidentTypeHighLatency   IncidentType = "high_latency"
-	IncidentTypePodCrash      IncidentType = "pod_crash"
-	IncidentTypeNodeFailure   IncidentType = "node_failure"
-	IncidentTypeServiceDown   IncidentType = "service_down"
-	IncidentTypeDeployFailure IncidentType = "deployment_failure"
-	IncidentTypeDiskFull      IncidentType = "disk_full"
+	IncidentTypeHighCPU        IncidentType = "high_cpu"
+	IncidentTypeHighMemory     IncidentType = "high_memory"
+	IncidentTypeHighErrorRate  IncidentType = "high_error_rate"
+	IncidentTypeHighLatency    IncidentType = "high_latency"
+	IncidentTypePodCrash       IncidentType = "pod_crash"
+	IncidentTypeNodeFailure    IncidentType = "node_failure"
+	IncidentTypeServiceDown    IncidentType = "service_down"
+	IncidentTypeDeployFailure  IncidentType = "deployment_failure"
+	IncidentTypeDiskFull       IncidentType = "disk_full"
 	IncidentTypeNetworkTimeout IncidentType = "network_timeout"
-	IncidentTypeCustom        IncidentType = "custom"
+	IncidentTypeCustom         IncidentType = "custom"
 )
 
 // IncidentSeverity defines the severity level of an incident.
@@ -32,23 +32,23 @@ const (
 type IncidentStatus string
 
 const (
-	IncidentStatusNew           IncidentStatus = "new"
-	IncidentStatusEvaluating    IncidentStatus = "evaluating"
-	IncidentStatusHealing       IncidentStatus = "healing"
-	IncidentStatusHealed        IncidentStatus = "healed"
-	IncidentStatusFailed        IncidentStatus = "failed"
-	IncidentStatusEscalated     IncidentStatus = "escalated"
+	IncidentStatusNew             IncidentStatus = "new"
+	IncidentStatusEvaluating      IncidentStatus = "evaluating"
+	IncidentStatusHealing         IncidentStatus = "healing"
+	IncidentStatusHealed          IncidentStatus = "healed"
+	IncidentStatusFailed          IncidentStatus = "failed"
+	IncidentStatusEscalated       IncidentStatus = "escalated"
 	IncidentStatusPendingApproval IncidentStatus = "pending_approval"
-	IncidentStatusCancelled     IncidentStatus = "cancelled"
+	IncidentStatusCancelled       IncidentStatus = "cancelled"
 )
 
 // RiskLevel defines the risk level of an approval request.
 type RiskLevel string
 
 const (
-	RiskLevelLow     RiskLevel = "low"
-	RiskLevelMedium  RiskLevel = "medium"
-	RiskLevelHigh    RiskLevel = "high"
+	RiskLevelLow      RiskLevel = "low"
+	RiskLevelMedium   RiskLevel = "medium"
+	RiskLevelHigh     RiskLevel = "high"
 	RiskLevelCritical RiskLevel = "critical"
 )
 
@@ -64,19 +64,19 @@ const (
 
 // HealingStrategy is a configured healing strategy.
 type HealingStrategy struct {
-	ID              string        `json:"id" db:"id"`
-	Name            string        `json:"name" db:"name"`
-	TriggerType     string        `json:"triggerType" db:"trigger_type"`
-	Actions         string        `json:"actions" db:"actions"`       // JSONB
-	Conditions      string        `json:"conditions" db:"conditions"` // JSONB
-	Confidence      int64         `json:"confidence" db:"confidence"`
-	Enabled         bool          `json:"enabled" db:"enabled"`
-	Description     string        `json:"description" db:"description"`
-	Environments    string        `json:"environments" db:"environments"` // JSONB
-	MaxRetries      int64         `json:"maxRetries" db:"max_retries"`
-	RetryCooldownMs int64         `json:"retryCooldownMs" db:"retry_cooldown_ms"`
-	CreatedAt       time.Time     `json:"createdAt" db:"created_at"`
-	UpdatedAt       time.Time     `json:"updatedAt" db:"updated_at"`
+	ID              string    `json:"id" db:"id"`
+	Name            string    `json:"name" db:"name"`
+	TriggerType     string    `json:"triggerType" db:"trigger_type"`
+	Actions         string    `json:"actions" db:"actions"`       // JSONB
+	Conditions      string    `json:"conditions" db:"conditions"` // JSONB
+	Confidence      int64     `json:"confidence" db:"confidence"`
+	Enabled         bool      `json:"enabled" db:"enabled"`
+	Description     string    `json:"description" db:"description"`
+	Environments    string    `json:"environments" db:"environments"` // JSONB
+	MaxRetries      int64     `json:"maxRetries" db:"max_retries"`
+	RetryCooldownMs int64     `json:"retryCooldownMs" db:"retry_cooldown_ms"`
+	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt       time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // HealingAction is a single action within a strategy.
@@ -90,26 +90,26 @@ type HealingAction struct {
 
 // HealingIncident is a healing incident record.
 type HealingIncident struct {
-	ID                string         `json:"id" db:"id"`
-	TenantID          string         `json:"tenantId" db:"tenant_id"`
-	AlertID           string         `json:"alertId" db:"alert_id"`
-	Type              IncidentType   `json:"type" db:"type"`
+	ID                string           `json:"id" db:"id"`
+	TenantID          string           `json:"tenantId" db:"tenant_id"`
+	AlertID           string           `json:"alertId" db:"alert_id"`
+	Type              IncidentType     `json:"type" db:"type"`
 	Severity          IncidentSeverity `json:"severity" db:"severity"`
-	AppName           string         `json:"appName" db:"app_name"`
-	Environment       string         `json:"environment" db:"environment"`
-	StrategyID        string         `json:"strategyId" db:"strategy_id"`
-	StrategyName      string         `json:"strategyName" db:"strategy_name"`
-	Actions           string         `json:"actions" db:"actions"`       // JSONB
-	Status            IncidentStatus `json:"status" db:"status"`
-	Attempts          int64          `json:"attempts" db:"attempts"`
-	ApprovalStatus    string         `json:"approvalStatus" db:"approval_status"`
-	ApprovalRequestID string         `json:"approvalRequestId" db:"approval_request_id"`
-	Result            string         `json:"result" db:"result"`         // JSONB
-	Error             string         `json:"error" db:"error"`
-	Tags              string         `json:"tags" db:"tags"`             // JSONB
-	CreatedAt         time.Time      `json:"createdAt" db:"created_at"`
-	StartedAt         time.Time      `json:"startedAt" db:"started_at"`
-	CompletedAt       *time.Time     `json:"completedAt" db:"completed_at"`
+	AppName           string           `json:"appName" db:"app_name"`
+	Environment       string           `json:"environment" db:"environment"`
+	StrategyID        string           `json:"strategyId" db:"strategy_id"`
+	StrategyName      string           `json:"strategyName" db:"strategy_name"`
+	Actions           string           `json:"actions" db:"actions"` // JSONB
+	Status            IncidentStatus   `json:"status" db:"status"`
+	Attempts          int64            `json:"attempts" db:"attempts"`
+	ApprovalStatus    string           `json:"approvalStatus" db:"approval_status"`
+	ApprovalRequestID string           `json:"approvalRequestId" db:"approval_request_id"`
+	Result            string           `json:"result" db:"result"` // JSONB
+	Error             string           `json:"error" db:"error"`
+	Tags              string           `json:"tags" db:"tags"` // JSONB
+	CreatedAt         time.Time        `json:"createdAt" db:"created_at"`
+	StartedAt         time.Time        `json:"startedAt" db:"started_at"`
+	CompletedAt       *time.Time       `json:"completedAt" db:"completed_at"`
 }
 
 // ApprovalRequest is an approval request record.
@@ -141,16 +141,16 @@ type CreateIncidentRequest struct {
 
 // RegisterStrategyRequest is the body for registering a custom strategy.
 type RegisterStrategyRequest struct {
-	ID            string           `json:"id" binding:"required"`
-	Name          string           `json:"name" binding:"required"`
-	TriggerType   string           `json:"triggerType" binding:"required"`
-	Actions       []HealingAction  `json:"actions" binding:"required"`
-	Confidence    int64            `json:"confidence"`
-	Enabled       bool             `json:"enabled"`
-	Description   string           `json:"description"`
-	Conditions    string           `json:"conditions"`
-	Environments  string           `json:"environments"`
-	MaxRetries    int64            `json:"maxRetries"`
+	ID           string          `json:"id" binding:"required"`
+	Name         string          `json:"name" binding:"required"`
+	TriggerType  string          `json:"triggerType" binding:"required"`
+	Actions      []HealingAction `json:"actions" binding:"required"`
+	Confidence   int64           `json:"confidence"`
+	Enabled      bool            `json:"enabled"`
+	Description  string          `json:"description"`
+	Conditions   string          `json:"conditions"`
+	Environments string          `json:"environments"`
+	MaxRetries   int64           `json:"maxRetries"`
 }
 
 // ToggleStrategyRequest is the body for toggling a strategy.

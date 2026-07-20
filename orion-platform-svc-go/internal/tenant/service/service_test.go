@@ -10,20 +10,20 @@ import (
 
 // mockTenantRepo implements TenantRepo for testing.
 type mockTenantRepo struct {
-	tenants          map[string]map[string]any // id -> row
-	tID              int                        // auto-increment id
-	users            []map[string]any           // GetUserTenants result
-	usersList        []map[string]any           // ListTenantUsers result
-	quota            *map[string]any            // GetQuota result
-	namespaceAllocs  []map[string]any           // GetTenantNamespaces result
-	poolStatus       *map[string]any            // PoolStatus result
-	quotaAlerts      []map[string]any           // GetTenantQuotaAlerts result
-	statusCounts     []map[string]any           // GetAlertStatusCounts result
-	resourceCounts   []map[string]any           // GetAlertResourceCounts result
-	activeAlerts     []map[string]any           // GetActiveAlerts result
-	namespaceCount   int                        // NamespaceCount result
-	count            int                        // TenantCount result
-	err              error                      // if set, all methods return this error
+	tenants         map[string]map[string]any // id -> row
+	tID             int                       // auto-increment id
+	users           []map[string]any          // GetUserTenants result
+	usersList       []map[string]any          // ListTenantUsers result
+	quota           *map[string]any           // GetQuota result
+	namespaceAllocs []map[string]any          // GetTenantNamespaces result
+	poolStatus      *map[string]any           // PoolStatus result
+	quotaAlerts     []map[string]any          // GetTenantQuotaAlerts result
+	statusCounts    []map[string]any          // GetAlertStatusCounts result
+	resourceCounts  []map[string]any          // GetAlertResourceCounts result
+	activeAlerts    []map[string]any          // GetActiveAlerts result
+	namespaceCount  int                       // NamespaceCount result
+	count           int                       // TenantCount result
+	err             error                     // if set, all methods return this error
 }
 
 func (m *mockTenantRepo) CreateTenant(ctx context.Context, name string, displayName *string, settingsJSON string, status string) (*int, error) {
@@ -305,7 +305,7 @@ func getStr(v any) string {
 
 func setupTest(t *testing.T) (*Service, *mockTenantRepo) {
 	repo := &mockTenantRepo{
-		tenants:     make(map[string]map[string]any),
+		tenants: make(map[string]map[string]any),
 		poolStatus: &map[string]any{
 			"total":     10,
 			"allocated": 3,
@@ -323,8 +323,8 @@ func TestCreateTenantSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	req := models.CreateTenantRequest{
-		Name:                 "acme",
-		DisplayName:          strPtr("Acme Corp"),
+		Name:                  "acme",
+		DisplayName:           strPtr("Acme Corp"),
 		AutoAllocateNamespace: true,
 		InitialNamespaceCount: 2,
 	}

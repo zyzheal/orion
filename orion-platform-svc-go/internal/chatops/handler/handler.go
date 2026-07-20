@@ -2,15 +2,12 @@ package handler
 
 import (
 	"context"
-	"strconv"
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -350,4 +347,3 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// PUT /settings/commands
 	c.PUT("/settings/commands", auth.RequirePermission("chatops", "write"), h.UpdateCommandConfigs)
 }
-

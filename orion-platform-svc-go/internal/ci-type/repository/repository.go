@@ -2,16 +2,16 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/ci-type/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -211,8 +211,8 @@ func (r *Repository) GetNextVersion(ctx context.Context, ciTypeID string) (strin
 // --- Pagination filter ---
 
 type ListFilter struct {
-	Status  *string
-	Search  *string
-	Limit   *int
-	Offset  *int
+	Status *string
+	Search *string
+	Limit  *int
+	Offset *int
 }

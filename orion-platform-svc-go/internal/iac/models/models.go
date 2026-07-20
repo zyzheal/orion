@@ -4,45 +4,45 @@ import "time"
 
 // Workspace represents an IaC workspace (Terraform state container).
 type Workspace struct {
-	ID          string            `json:"id" db:"id"`
-	TenantID    string            `json:"tenant_id" db:"tenant_id"`
-	Name        string            `json:"name" db:"name"`
-	Description string            `json:"description" db:"description"`
-	BackendType string            `json:"backend_type" db:"backend_type"` // local, s3, gcs, azurerm
-	BackendConfig map[string]string `json:"backend_config,omitempty" db:"backend_config"`
-	Variables   map[string]string `json:"variables,omitempty" db:"variables"`
-	Environment string            `json:"environment" db:"environment"`
-	TerraformVersion string       `json:"terraform_version" db:"terraform_version"`
-	Status      string            `json:"status" db:"status"` // active, locked, archived
-	CreatedAt   time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at" db:"updated_at"`
+	ID               string            `json:"id" db:"id"`
+	TenantID         string            `json:"tenant_id" db:"tenant_id"`
+	Name             string            `json:"name" db:"name"`
+	Description      string            `json:"description" db:"description"`
+	BackendType      string            `json:"backend_type" db:"backend_type"` // local, s3, gcs, azurerm
+	BackendConfig    map[string]string `json:"backend_config,omitempty" db:"backend_config"`
+	Variables        map[string]string `json:"variables,omitempty" db:"variables"`
+	Environment      string            `json:"environment" db:"environment"`
+	TerraformVersion string            `json:"terraform_version" db:"terraform_version"`
+	Status           string            `json:"status" db:"status"` // active, locked, archived
+	CreatedAt        time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at" db:"updated_at"`
 }
 
 // WorkspaceModule represents a reusable IaC module.
 type WorkspaceModule struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description" db:"description"`
-	Source      string    `json:"source" db:"source"` // git URL or registry path
-	Version     string    `json:"version" db:"version"`
+	ID          string            `json:"id" db:"id"`
+	TenantID    string            `json:"tenant_id" db:"tenant_id"`
+	Name        string            `json:"name" db:"name"`
+	Description string            `json:"description" db:"description"`
+	Source      string            `json:"source" db:"source"` // git URL or registry path
+	Version     string            `json:"version" db:"version"`
 	Inputs      map[string]string `json:"inputs,omitempty" db:"inputs"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt   time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at" db:"updated_at"`
 }
 
 // Plan represents a Terraform plan.
 type Plan struct {
-	ID            string    `json:"id" db:"id"`
-	TenantID      string    `json:"tenant_id" db:"tenant_id"`
-	WorkspaceID   string    `json:"workspace_id" db:"workspace_id"`
-	Status        string    `json:"status" db:"status"` // pending, running, completed, failed
-	Added         int       `json:"added" db:"added"`
-	Changed       int       `json:"changed" db:"changed"`
-	Destroyed     int       `json:"destroyed" db:"destroyed"`
-	PlanOutput    string    `json:"plan_output,omitempty" db:"plan_output"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	FinishedAt    *time.Time `json:"finished_at,omitempty" db:"finished_at"`
+	ID          string     `json:"id" db:"id"`
+	TenantID    string     `json:"tenant_id" db:"tenant_id"`
+	WorkspaceID string     `json:"workspace_id" db:"workspace_id"`
+	Status      string     `json:"status" db:"status"` // pending, running, completed, failed
+	Added       int        `json:"added" db:"added"`
+	Changed     int        `json:"changed" db:"changed"`
+	Destroyed   int        `json:"destroyed" db:"destroyed"`
+	PlanOutput  string     `json:"plan_output,omitempty" db:"plan_output"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	FinishedAt  *time.Time `json:"finished_at,omitempty" db:"finished_at"`
 }
 
 // StateVersion represents a snapshot of Terraform state.

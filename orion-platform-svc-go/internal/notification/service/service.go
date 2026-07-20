@@ -12,8 +12,9 @@ import (
 	"orion/platform-svc-go/internal/notification/models"
 	notificationRepo "orion/platform-svc-go/internal/notification/repository"
 
-	"github.com/google/uuid"
 	"orion/go-common/pkg/sentinel"
+
+	"github.com/google/uuid"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -42,7 +43,6 @@ func NewService(repo *notificationRepo.Repository) *Service {
 // --- Errors ---
 
 var (
-
 	ErrInvalidInput = errors.New("invalid input")
 )
 

@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -7,7 +8,6 @@ import (
 	"errors"
 
 	"orion/platform-svc-go/internal/project-member/models"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -25,7 +25,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrBadRequest      = errors.New("invalid request")
 	ErrInvalidRole     = errors.New("invalid role")
 	ErrDuplicateMember = errors.New("user is already a member of this project")

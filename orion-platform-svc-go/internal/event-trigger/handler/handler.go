@@ -2,8 +2,8 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"orion/platform-svc-go/internal/middleware"
+	"strconv"
 
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/event-trigger/models"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // ---------------------------------------------------------------------------

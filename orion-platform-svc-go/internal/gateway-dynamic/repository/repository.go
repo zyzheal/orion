@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -40,18 +39,18 @@ func (r *Repository) Create(ctx context.Context, m *models.GatewayRoute) error {
 			(id, tenant_id, path, methods, upstream_url, enabled, priority, metadata, created_by, updated_by, created_at, updated_at)
 			VALUES (:id, :tenant_id, :path, :methods, :upstream_url, :enabled, :priority, :metadata, :created_by, :updated_by, :created_at, :updated_at)`,
 		map[string]interface{}{
-			"id":          m.ID,
-			"tenant_id":   m.TenantID,
-			"path":        m.Path,
-			"methods":     m.Methods,
+			"id":           m.ID,
+			"tenant_id":    m.TenantID,
+			"path":         m.Path,
+			"methods":      m.Methods,
 			"upstream_url": m.UpstreamURL,
-			"enabled":     m.Enabled,
-			"priority":    m.Priority,
-			"metadata":    metadataJSON,
-			"created_by":  m.CreatedBy,
-			"updated_by":  m.UpdatedBy,
-			"created_at":  m.CreatedAt,
-			"updated_at":  m.UpdatedAt,
+			"enabled":      m.Enabled,
+			"priority":     m.Priority,
+			"metadata":     metadataJSON,
+			"created_by":   m.CreatedBy,
+			"updated_by":   m.UpdatedBy,
+			"created_at":   m.CreatedAt,
+			"updated_at":   m.UpdatedAt,
 		})
 	return err
 }
@@ -254,7 +253,6 @@ func ParseMetadata(raw json.RawMessage) *models.RouteMetadata {
 }
 
 var (
-
-	ErrDuplicate  = errors.New("route already exists")
-	ErrNoRows     = sql.ErrNoRows
+	ErrDuplicate = errors.New("route already exists")
+	ErrNoRows    = sql.ErrNoRows
 )

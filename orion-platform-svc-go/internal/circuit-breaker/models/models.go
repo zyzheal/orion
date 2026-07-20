@@ -42,24 +42,24 @@ type CircuitBreaker struct {
 
 // CreateRequest is the request body for creating a circuit-breaker entry.
 type CreateRequest struct {
-	Name             string      `json:"name" binding:"required"`
-	ServiceName      string      `json:"serviceName"`
-	FailureThreshold int         `json:"failureThreshold"`
-	SuccessThreshold int         `json:"successThreshold"`
-	TimeoutSeconds   int         `json:"timeoutSeconds"`
-	Metadata         string      `json:"metadata"`
+	Name             string `json:"name" binding:"required"`
+	ServiceName      string `json:"serviceName"`
+	FailureThreshold int    `json:"failureThreshold"`
+	SuccessThreshold int    `json:"successThreshold"`
+	TimeoutSeconds   int    `json:"timeoutSeconds"`
+	Metadata         string `json:"metadata"`
 }
 
 // UpdateRequest is the request body for updating a circuit-breaker entry.
 type UpdateRequest struct {
-	Name             *string     `json:"name"`
-	ServiceName      *string     `json:"serviceName"`
-	FailureThreshold *int        `json:"failureThreshold"`
-	SuccessThreshold *int        `json:"successThreshold"`
-	TimeoutSeconds   *int        `json:"timeoutSeconds"`
+	Name             *string       `json:"name"`
+	ServiceName      *string       `json:"serviceName"`
+	FailureThreshold *int          `json:"failureThreshold"`
+	SuccessThreshold *int          `json:"successThreshold"`
+	TimeoutSeconds   *int          `json:"timeoutSeconds"`
 	State            *CircuitState `json:"state"`
-	Enabled          *bool       `json:"enabled"`
-	Metadata         *string     `json:"metadata"`
+	Enabled          *bool         `json:"enabled"`
+	Metadata         *string       `json:"metadata"`
 }
 
 // SuccessRequest is the request body for recording a success.

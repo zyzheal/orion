@@ -6,8 +6,8 @@ import "encoding/json"
 type ModelType string
 
 const (
-	ModelTypeLLM       ModelType = "llm"
-	ModelTypeEmbedding ModelType = "embedding"
+	ModelTypeLLM        ModelType = "llm"
+	ModelTypeEmbedding  ModelType = "embedding"
 	ModelTypeClassifier ModelType = "classifier"
 	ModelTypeRegressor  ModelType = "regressor"
 	ModelTypeDetector   ModelType = "detector"
@@ -19,12 +19,12 @@ const (
 type ModelStatus string
 
 const (
-	ModelStatusDraft     ModelStatus = "draft"
-	ModelStatusTraining  ModelStatus = "training"
-	ModelStatusStaging   ModelStatus = "staging"
+	ModelStatusDraft      ModelStatus = "draft"
+	ModelStatusTraining   ModelStatus = "training"
+	ModelStatusStaging    ModelStatus = "staging"
 	ModelStatusProduction ModelStatus = "production"
 	ModelStatusDeprecated ModelStatus = "deprecated"
-	ModelStatusArchived  ModelStatus = "archived"
+	ModelStatusArchived   ModelStatus = "archived"
 )
 
 // Environment represents the deployment environment.
@@ -41,31 +41,31 @@ const (
 type CanaryStatus string
 
 const (
-	CanaryStatusPending  CanaryStatus = "pending"
-	CanaryStatusRunning  CanaryStatus = "running"
-	CanaryStatusSuccess  CanaryStatus = "success"
-	CanaryStatusFailed   CanaryStatus = "failed"
-	CanaryStatusAborted  CanaryStatus = "aborted"
+	CanaryStatusPending CanaryStatus = "pending"
+	CanaryStatusRunning CanaryStatus = "running"
+	CanaryStatusSuccess CanaryStatus = "success"
+	CanaryStatusFailed  CanaryStatus = "failed"
+	CanaryStatusAborted CanaryStatus = "aborted"
 )
 
 // --- Core entities ---
 
 // AIModel represents an AI model definition.
 type AIModel struct {
-	ID             string        `json:"id" db:"id"`
-	Name           string        `json:"name" db:"name"`
-	DisplayName    string        `json:"display_name" db:"display_name"`
-	Description    string        `json:"description" db:"description"`
-	Type           ModelType     `json:"type" db:"type"`
-	Status         ModelStatus   `json:"status" db:"status"`
-	Framework      string        `json:"framework" db:"framework"`
-	CurrentVersion *string       `json:"current_version,omitempty" db:"current_version"`
-	Tags           string        `json:"tags" db:"tags"`       // JSON array
-	Metadata       string        `json:"metadata" db:"metadata"` // JSON
-	CreatedBy      string        `json:"created_by" db:"created_by"`
-	TenantID       string        `json:"tenant_id" db:"tenant_id"`
-	CreatedAt      int64         `json:"created_at" db:"created_at"`
-	UpdatedAt      int64         `json:"updated_at" db:"updated_at"`
+	ID             string      `json:"id" db:"id"`
+	Name           string      `json:"name" db:"name"`
+	DisplayName    string      `json:"display_name" db:"display_name"`
+	Description    string      `json:"description" db:"description"`
+	Type           ModelType   `json:"type" db:"type"`
+	Status         ModelStatus `json:"status" db:"status"`
+	Framework      string      `json:"framework" db:"framework"`
+	CurrentVersion *string     `json:"current_version,omitempty" db:"current_version"`
+	Tags           string      `json:"tags" db:"tags"`         // JSON array
+	Metadata       string      `json:"metadata" db:"metadata"` // JSON
+	CreatedBy      string      `json:"created_by" db:"created_by"`
+	TenantID       string      `json:"tenant_id" db:"tenant_id"`
+	CreatedAt      int64       `json:"created_at" db:"created_at"`
+	UpdatedAt      int64       `json:"updated_at" db:"updated_at"`
 }
 
 // TagsList returns the model tags as a slice.
@@ -90,20 +90,20 @@ func (m *AIModel) MetadataMap() map[string]interface{} {
 
 // ModelVersion represents a released version of a model.
 type ModelVersion struct {
-	ID          string        `json:"id" db:"id"`
-	ModelID     string        `json:"model_id" db:"model_id"`
-	Version     string        `json:"version" db:"version"`
-	ArtifactUri string        `json:"artifact_uri" db:"artifact_uri"`
-	Environment Environment   `json:"environment" db:"environment"`
-	Status      ModelStatus   `json:"status" db:"status"`
-	Metrics     string        `json:"metrics" db:"metrics"`     // JSON
-	Config      string        `json:"config" db:"config"`       // JSON
-	CreatedBy   string        `json:"created_by" db:"created_by"`
-	TenantID    string        `json:"tenant_id" db:"tenant_id"`
-	CreatedAt   int64         `json:"created_at" db:"created_at"`
-	PromotedAt  *int64        `json:"promoted_at,omitempty" db:"promoted_at"`
-	PromotedBy  *string       `json:"promoted_by,omitempty" db:"promoted_by"`
-	DeprecatedAt *int64       `json:"deprecated_at,omitempty" db:"deprecated_at"`
+	ID           string      `json:"id" db:"id"`
+	ModelID      string      `json:"model_id" db:"model_id"`
+	Version      string      `json:"version" db:"version"`
+	ArtifactUri  string      `json:"artifact_uri" db:"artifact_uri"`
+	Environment  Environment `json:"environment" db:"environment"`
+	Status       ModelStatus `json:"status" db:"status"`
+	Metrics      string      `json:"metrics" db:"metrics"` // JSON
+	Config       string      `json:"config" db:"config"`   // JSON
+	CreatedBy    string      `json:"created_by" db:"created_by"`
+	TenantID     string      `json:"tenant_id" db:"tenant_id"`
+	CreatedAt    int64       `json:"created_at" db:"created_at"`
+	PromotedAt   *int64      `json:"promoted_at,omitempty" db:"promoted_at"`
+	PromotedBy   *string     `json:"promoted_by,omitempty" db:"promoted_by"`
+	DeprecatedAt *int64      `json:"deprecated_at,omitempty" db:"deprecated_at"`
 }
 
 // MetricsMap returns the version metrics as a ModelMetrics struct.
@@ -157,14 +157,14 @@ func (c *CanaryConfig) CurrentMetricsMap() *ModelMetrics {
 
 // ModelMetrics represents model performance metrics.
 type ModelMetrics struct {
-	Accuracy    *float64                `json:"accuracy,omitempty"`
-	Precision   *float64                `json:"precision,omitempty"`
-	Recall      *float64                `json:"recall,omitempty"`
-	F1Score     *float64                `json:"f1_score,omitempty"`
-	Latency     *float64                `json:"latency,omitempty"`
-	Throughput  *float64                `json:"throughput,omitempty"`
-	ErrorRate   *float64                `json:"error_rate,omitempty"`
-	Custom      map[string]float64      `json:"custom,omitempty"`
+	Accuracy   *float64           `json:"accuracy,omitempty"`
+	Precision  *float64           `json:"precision,omitempty"`
+	Recall     *float64           `json:"recall,omitempty"`
+	F1Score    *float64           `json:"f1_score,omitempty"`
+	Latency    *float64           `json:"latency,omitempty"`
+	Throughput *float64           `json:"throughput,omitempty"`
+	ErrorRate  *float64           `json:"error_rate,omitempty"`
+	Custom     map[string]float64 `json:"custom,omitempty"`
 }
 
 // --- Request / Response models ---
@@ -205,12 +205,12 @@ type PromoteVersionRequest struct {
 
 // CanaryConfigRequest is the request body for configuring a canary.
 type CanaryConfigRequest struct {
-	TargetVersion      string    `json:"target_version" binding:"required"`
-	TrafficPercent     float64   `json:"traffic_percent" binding:"required"`
-	Duration           int64     `json:"duration" binding:"required"`
-	SuccessThreshold   *float64  `json:"success_threshold,omitempty"`
-	LatencyThreshold   *float64  `json:"latency_threshold,omitempty"`
-	ErrorRateThreshold *float64  `json:"error_rate_threshold,omitempty"`
+	TargetVersion      string   `json:"target_version" binding:"required"`
+	TrafficPercent     float64  `json:"traffic_percent" binding:"required"`
+	Duration           int64    `json:"duration" binding:"required"`
+	SuccessThreshold   *float64 `json:"success_threshold,omitempty"`
+	LatencyThreshold   *float64 `json:"latency_threshold,omitempty"`
+	ErrorRateThreshold *float64 `json:"error_rate_threshold,omitempty"`
 }
 
 // ListModelsQuery is the query params for listing models.
@@ -246,6 +246,6 @@ type VersionListResponse struct {
 
 // ModelMetricsResponse wraps current metrics and history.
 type ModelMetricsResponse struct {
-	Current ModelMetrics    `json:"current"`
-	History []ModelMetrics  `json:"history"`
+	Current ModelMetrics   `json:"current"`
+	History []ModelMetrics `json:"history"`
 }

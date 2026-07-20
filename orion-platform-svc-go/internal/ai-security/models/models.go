@@ -19,9 +19,9 @@ type ListQuery struct {
 }
 
 type CreateRequest struct {
-	Name    string                 `json:"name" binding:"required"`
-	Status  string                 `json:"status"`
-	Config  map[string]interface{} `json:"config"`
+	Name   string                 `json:"name" binding:"required"`
+	Status string                 `json:"status"`
+	Config map[string]interface{} `json:"config"`
 }
 
 // ---- Vulnerability / CVE scanning ----
@@ -46,25 +46,25 @@ type VulnerabilityScanRequest struct {
 
 // ScanVulnerabilitiesResult is the aggregated output of a Trivy scan.
 type ScanVulnerabilitiesResult struct {
-	Image     string        `json:"image"`
-	Timestamp string        `json:"timestamp"`
-	Total     int           `json:"total"`
-	Critical  int           `json:"critical"`
-	High      int           `json:"high"`
-	Medium    int           `json:"medium"`
-	Low       int           `json:"low"`
+	Image     string          `json:"image"`
+	Timestamp string          `json:"timestamp"`
+	Total     int             `json:"total"`
+	Critical  int             `json:"critical"`
+	High      int             `json:"high"`
+	Medium    int             `json:"medium"`
+	Low       int             `json:"low"`
 	Vulns     []Vulnerability `json:"vulns"`
-	Errors    []string      `json:"errors,omitempty"`
-	Degraded  bool          `json:"degraded"` // true when Trivy engine is unreachable
-	Engine    string        `json:"engine,omitempty"` // "trivy" or "degraded"
+	Errors    []string        `json:"errors,omitempty"`
+	Degraded  bool            `json:"degraded"`         // true when Trivy engine is unreachable
+	Engine    string          `json:"engine,omitempty"` // "trivy" or "degraded"
 }
 
 // Vulnerability represents a single CVE finding.
 type Vulnerability struct {
-	ID          string   `json:"id"`           // CVE identifier
+	ID          string   `json:"id"` // CVE identifier
 	PkgName     string   `json:"pkgName"`
-	Installed   string   `json:"installed"`    // installed version
-	Fixed       string   `json:"fixed"`        // fixed version (empty if none)
+	Installed   string   `json:"installed"` // installed version
+	Fixed       string   `json:"fixed"`     // fixed version (empty if none)
 	Severity    Severity `json:"severity"`
 	Description string   `json:"description"`
 	Links       []string `json:"links"`
@@ -96,6 +96,6 @@ type FixVulnerabilityResult struct {
 	Image         string   `json:"image"`
 	AppliedCVEIDs []string `json:"applied"`
 	Unfixable     []string `json:"unfixable"` // CVEs with no upstream fix
-	Status        string   `json:"status"`     // ok|partial|unavailable
+	Status        string   `json:"status"`    // ok|partial|unavailable
 	Message       string   `json:"message"`
 }

@@ -2,18 +2,14 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"log/slog"
 	"math"
 	"sort"
-	"sync"
 	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
 
 	"github.com/google/uuid"
-	"orion/go-common/pkg/sentinel"
 )
 
 // GetAllDORA computes all four standard DORA metrics.
@@ -539,4 +535,3 @@ func (s *Service) calculateOverallLevel(freq, lead, fail, recovery models.Level)
 	reverseMap := map[int]models.Level{4: models.LevelElite, 3: models.LevelHigh, 2: models.LevelMedium, 1: models.LevelLow, 0: models.LevelLow}
 	return reverseMap[minV]
 }
-

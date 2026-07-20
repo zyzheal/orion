@@ -20,12 +20,12 @@ type Team struct {
 
 // TeamMember represents a team membership
 type TeamMember struct {
-	ID       string `json:"id" db:"id"`
-	TeamID   string `json:"team_id" db:"team_id"`
-	UserID   string `json:"user_id" db:"user_id"`
-	Role     string `json:"role" db:"role"`
+	ID       string    `json:"id" db:"id"`
+	TeamID   string    `json:"team_id" db:"team_id"`
+	UserID   string    `json:"user_id" db:"user_id"`
+	Role     string    `json:"role" db:"role"`
 	JoinedAt time.Time `json:"joined_at" db:"joined_at"`
-	AddedBy  *string `json:"added_by" db:"added_by"`
+	AddedBy  *string   `json:"added_by" db:"added_by"`
 }
 
 // TeamRole represents a team role assignment
@@ -59,7 +59,7 @@ type UpdateTeamRequest struct {
 
 // AddMemberRequest represents the request body for adding a member to a team
 type AddMemberRequest struct {
-	UserID string `json:"userId" binding:"required"`
+	UserID string  `json:"userId" binding:"required"`
 	Role   *string `json:"role"`
 }
 

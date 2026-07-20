@@ -7,8 +7,9 @@ import (
 	"orion/platform-svc-go/internal/report-designer/models"
 	"orion/platform-svc-go/internal/report-designer/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -120,7 +121,7 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
 			return
-	}
+		}
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}

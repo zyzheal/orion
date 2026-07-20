@@ -14,13 +14,13 @@ import (
 // -- mock repo --
 
 type mockEfficiencyRepo struct {
-	snapshots          map[string][]models.MetricSnapshot        // key: tenantID
-	reportHistory      map[string][]models.ReportHistoryEntry    // key: tenantID
-	teamData           map[string]map[string]*models.TeamData    // key: tenantID -> teamID
-	projectData        map[string]map[string]*models.ProjectData // key: tenantID -> projectID
-	globalDeployments  map[string][]models.GlobalDeployment      // key: tenantID
-	globalPipelines    map[string][]models.GlobalPipeline        // key: tenantID
-	dbErr              error
+	snapshots         map[string][]models.MetricSnapshot        // key: tenantID
+	reportHistory     map[string][]models.ReportHistoryEntry    // key: tenantID
+	teamData          map[string]map[string]*models.TeamData    // key: tenantID -> teamID
+	projectData       map[string]map[string]*models.ProjectData // key: tenantID -> projectID
+	globalDeployments map[string][]models.GlobalDeployment      // key: tenantID
+	globalPipelines   map[string][]models.GlobalPipeline        // key: tenantID
+	dbErr             error
 }
 
 func newMockEfficiencyRepo() *mockEfficiencyRepo {
@@ -205,12 +205,12 @@ func mockSvc(repo *mockEfficiencyRepo) *Service {
 
 func buildSuccessDeployment(tenantID string, at time.Time) models.DeploymentRecord {
 	return models.DeploymentRecord{
-		TenantID:    tenantID,
+		TenantID:     tenantID,
 		DeploymentID: "d-1",
-		Service:     "svc",
-		Environment: "prod",
-		Status:      "success",
-		DeployedAt:  at,
+		Service:      "svc",
+		Environment:  "prod",
+		Status:       "success",
+		DeployedAt:   at,
 	}
 }
 

@@ -3,12 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 
 	"orion/platform-svc-go/internal/pipeline-run-history/models"
 
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {

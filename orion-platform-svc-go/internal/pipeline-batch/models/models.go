@@ -4,17 +4,17 @@ import "time"
 
 // PhaseGroup represents a Phase Group for batched pipeline execution.
 type PhaseGroup struct {
-	ID            string     `db:"id" json:"id"`
-	TenantID      string     `db:"tenant_id" json:"tenantId"`
-	PipelineID    string     `db:"pipeline_id" json:"pipelineId"`
-	Name          string     `db:"name" json:"name"`
-	BatchStrategy string     `db:"batch_strategy" json:"batchStrategy"`
-	BatchConfig   string     `db:"batch_config" json:"batchConfig"`
-	GateType      string     `db:"gate_type" json:"gateType"`
-	Status        string     `db:"status" json:"status"`
-	CreatedBy     string     `db:"created_by" json:"createdBy"`
-	CreatedAt     time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt     time.Time  `db:"updated_at" json:"updatedAt"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenantId"`
+	PipelineID    string    `db:"pipeline_id" json:"pipelineId"`
+	Name          string    `db:"name" json:"name"`
+	BatchStrategy string    `db:"batch_strategy" json:"batchStrategy"`
+	BatchConfig   string    `db:"batch_config" json:"batchConfig"`
+	GateType      string    `db:"gate_type" json:"gateType"`
+	Status        string    `db:"status" json:"status"`
+	CreatedBy     string    `db:"created_by" json:"createdBy"`
+	CreatedAt     time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreatePhaseGroupRequest is the request body for creating a phase group.

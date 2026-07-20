@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -11,7 +10,6 @@ import (
 // --- Errors ---
 
 var (
-
 	ErrTicketNotOpen = errors.New("ticket not open")
 )
 
@@ -26,4 +24,3 @@ func ErrNotFoundTicket(id string) error {
 func ErrNotFoundRule(id string) error {
 	return fmt.Errorf("automation rule %q not found: %w", id, sentinel.NotFound)
 }
-

@@ -12,9 +12,10 @@ import (
 
 	"orion/platform-svc-go/internal/pipeline-templates/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Repository provides PostgreSQL CRUD for pipeline templates.
@@ -166,7 +167,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		"UPDATE pipeline_templates SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
-)
+	)
 	if err != nil {
 		return nil, err
 	}

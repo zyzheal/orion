@@ -41,18 +41,18 @@ type SlowTracesQuery struct {
 
 // SlowTracesResponse wraps slow trace results.
 type SlowTracesResponse struct {
-	Total  int         `json:"total"`
+	Total  int          `json:"total"`
 	Traces []TraceEntry `json:"traces"`
 }
 
 // TraceEntry is a single trace record.
 type TraceEntry struct {
-	TraceID     string `json:"traceId"`
-	Service     string `json:"service"`
-	DurationMs  int    `json:"durationMs"`
-	SpanCount   int    `json:"spanCount"`
-	Start       int64  `json:"start"`
-	Error       bool   `json:"error"`
+	TraceID    string `json:"traceId"`
+	Service    string `json:"service"`
+	DurationMs int    `json:"durationMs"`
+	SpanCount  int    `json:"spanCount"`
+	Start      int64  `json:"start"`
+	Error      bool   `json:"error"`
 }
 
 // ===== Business: Service Topology =====
@@ -101,9 +101,9 @@ type SlowQueriesResponse struct {
 
 // SlowQuery is a single slow SQL query record.
 type SlowQuery struct {
-	QueryID     string `json:"queryId"`
-	SQL         string `json:"sql"`
-	DurationMs  int    `json:"durationMs"`
-	Calls       int    `json:"calls"`
-	Database    string `json:"database"`
+	QueryID    string `json:"queryId"`
+	SQL        string `json:"sql"`
+	DurationMs int    `json:"durationMs"`
+	Calls      int    `json:"calls"`
+	Database   string `json:"database"`
 }

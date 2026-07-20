@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/mcp/models"
 	"orion/platform-svc-go/internal/mcp/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -28,7 +29,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.POST("/servers", auth.RequirePermission("mcp", "write"), h.CreateServer)
 	r.PUT("/servers/:id", auth.RequirePermission("mcp", "write"), h.UpdateServer)
 	r.DELETE("/servers/:id", auth.RequirePermission("mcp", "delete"), h.DeleteServer)
-r.GET("/tools", auth.RequirePermission("mcp", "read"), h.ListTools)
+	r.GET("/tools", auth.RequirePermission("mcp", "read"), h.ListTools)
 }
 
 func (h *Handler) CreateServer(c *gin.Context) {
@@ -70,7 +71,7 @@ func (h *Handler) GetServer(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-errors.WriteSuccess(c, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ListServers(c *gin.Context) {
@@ -79,8 +80,8 @@ func (h *Handler) ListServers(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-q := models.ListMCPServersQuery{Limit: limit, Offset: offset}
-result, err := h.svc.ListServers(ctx, tenantID, q)
+	q := models.ListMCPServersQuery{Limit: limit, Offset: offset}
+	result, err := h.svc.ListServers(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -93,7 +94,7 @@ func (h *Handler) ListTools(c *gin.Context) {
 	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
+	q := models.ListMCPToolsQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListTools(ctx, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)

@@ -45,10 +45,10 @@ type DismissAlertRequest struct {
 }
 
 type DetectAnomalyRequest struct {
-	UserID     string      `json:"user_id" binding:"required"`
-	EntityType string      `json:"entity_type" binding:"required"`
-	EntityID   string      `json:"entity_id" binding:"required"`
-	Events     []string    `json:"events" binding:"required"`
+	UserID     string        `json:"user_id" binding:"required"`
+	EntityType string        `json:"entity_type" binding:"required"`
+	EntityID   string        `json:"entity_id" binding:"required"`
+	Events     []string      `json:"events" binding:"required"`
 	Window     time.Duration `json:"window"`
 }
 

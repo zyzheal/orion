@@ -8,16 +8,16 @@ import (
 
 // TerminalAuditLog records a terminal command execution.
 type TerminalAuditLog struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	UserID    string    `db:"user_id" json:"user_id"`
-	Command   string    `db:"command" json:"command"`
-	Output    string    `db:"output" json:"output"`
-	Status    string    `db:"status" json:"status"`
-	Host      string    `db:"host" json:"host"`
-	IP        string    `db:"ip" json:"ip"`
-	DurationMs int64   `db:"duration_ms" json:"duration_ms"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	UserID     string    `db:"user_id" json:"user_id"`
+	Command    string    `db:"command" json:"command"`
+	Output     string    `db:"output" json:"output"`
+	Status     string    `db:"status" json:"status"`
+	Host       string    `db:"host" json:"host"`
+	IP         string    `db:"ip" json:"ip"`
+	DurationMs int64     `db:"duration_ms" json:"duration_ms"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 // AuditQuery filters audit logs.

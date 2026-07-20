@@ -2,16 +2,16 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/script-library/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -67,7 +67,7 @@ func (r *Repository) Update(ctx context.Context, tenantID, id string, updates ma
 		"UPDATE script-library SET "+strings.Join(setParts, ", ")+
 			" WHERE id = $"+strconv.Itoa(idx-2)+" AND tenant_id = $"+strconv.Itoa(idx-1),
 		args...,
-)
+	)
 	if err != nil {
 		return nil, err
 	}

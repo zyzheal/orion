@@ -18,46 +18,62 @@ import (
 // --- mock service (implements Service interface) ---
 
 type mockSvc struct {
-	createKeyFn        func(ctx context.Context, tenantID string, req *models.CreateAuthKeyRequest) (*models.AuthKey, error)
-	getKeyFn           func(ctx context.Context, tenantID, id string) (*models.AuthKey, error)
-	listKeysFn         func(ctx context.Context, tenantID string, status *string) ([]models.AuthKey, error)
-	deactivateKeyFn    func(ctx context.Context, tenantID, id string) error
-	deleteKeyFn        func(ctx context.Context, tenantID, id string) (bool, error)
-	blacklistTokenFn   func(ctx context.Context, tenantID string, req *models.CreateBlacklistRequest, expiresAt time.Time) (*models.AuthTokenBlacklist, error)
-	listBlacklistFn    func(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error)
-	deleteBlacklistFn  func(ctx context.Context, tenantID, id string) (bool, error)
+	createKeyFn       func(ctx context.Context, tenantID string, req *models.CreateAuthKeyRequest) (*models.AuthKey, error)
+	getKeyFn          func(ctx context.Context, tenantID, id string) (*models.AuthKey, error)
+	listKeysFn        func(ctx context.Context, tenantID string, status *string) ([]models.AuthKey, error)
+	deactivateKeyFn   func(ctx context.Context, tenantID, id string) error
+	deleteKeyFn       func(ctx context.Context, tenantID, id string) (bool, error)
+	blacklistTokenFn  func(ctx context.Context, tenantID string, req *models.CreateBlacklistRequest, expiresAt time.Time) (*models.AuthTokenBlacklist, error)
+	listBlacklistFn   func(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error)
+	deleteBlacklistFn func(ctx context.Context, tenantID, id string) (bool, error)
 }
 
 func (m *mockSvc) CreateKey(ctx context.Context, tenantID string, req *models.CreateAuthKeyRequest) (*models.AuthKey, error) {
-	if m.createKeyFn != nil { return m.createKeyFn(ctx, tenantID, req) }
+	if m.createKeyFn != nil {
+		return m.createKeyFn(ctx, tenantID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetKey(ctx context.Context, tenantID, id string) (*models.AuthKey, error) {
-	if m.getKeyFn != nil { return m.getKeyFn(ctx, tenantID, id) }
+	if m.getKeyFn != nil {
+		return m.getKeyFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListKeys(ctx context.Context, tenantID string, status *string) ([]models.AuthKey, error) {
-	if m.listKeysFn != nil { return m.listKeysFn(ctx, tenantID, status) }
+	if m.listKeysFn != nil {
+		return m.listKeysFn(ctx, tenantID, status)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeactivateKey(ctx context.Context, tenantID, id string) error {
-	if m.deactivateKeyFn != nil { return m.deactivateKeyFn(ctx, tenantID, id) }
+	if m.deactivateKeyFn != nil {
+		return m.deactivateKeyFn(ctx, tenantID, id)
+	}
 	return nil
 }
 func (m *mockSvc) DeleteKey(ctx context.Context, tenantID, id string) (bool, error) {
-	if m.deleteKeyFn != nil { return m.deleteKeyFn(ctx, tenantID, id) }
+	if m.deleteKeyFn != nil {
+		return m.deleteKeyFn(ctx, tenantID, id)
+	}
 	return false, nil
 }
 func (m *mockSvc) BlacklistToken(ctx context.Context, tenantID string, req *models.CreateBlacklistRequest, expiresAt time.Time) (*models.AuthTokenBlacklist, error) {
-	if m.blacklistTokenFn != nil { return m.blacklistTokenFn(ctx, tenantID, req, expiresAt) }
+	if m.blacklistTokenFn != nil {
+		return m.blacklistTokenFn(ctx, tenantID, req, expiresAt)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListBlacklist(ctx context.Context, tenantID string) ([]models.AuthTokenBlacklist, error) {
-	if m.listBlacklistFn != nil { return m.listBlacklistFn(ctx, tenantID) }
+	if m.listBlacklistFn != nil {
+		return m.listBlacklistFn(ctx, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeleteBlacklist(ctx context.Context, tenantID, id string) (bool, error) {
-	if m.deleteBlacklistFn != nil { return m.deleteBlacklistFn(ctx, tenantID, id) }
+	if m.deleteBlacklistFn != nil {
+		return m.deleteBlacklistFn(ctx, tenantID, id)
+	}
 	return false, nil
 }
 

@@ -172,8 +172,8 @@ func TestHandler_Validate_Invalid(t *testing.T) {
 func TestHandler_GetGraph_Success(t *testing.T) {
 	repo := &mockPipelineGraphRepo{
 		pipeline: &repository.PipelineDefinition{
-			ID:          "p1",
-			Name:        "deploy-pipeline",
+			ID:   "p1",
+			Name: "deploy-pipeline",
 			YamlContent: `apiVersion: v1
 kind: Pipeline
 metadata:

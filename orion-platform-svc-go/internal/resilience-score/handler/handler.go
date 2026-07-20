@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/resilience-score/models"
 	"orion/platform-svc-go/internal/resilience-score/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -102,7 +103,7 @@ func (h *Handler) ListServiceScores(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": result.Data,
+		"data":  result.Data,
 		"total": result.Total,
 		"page":  result.Page,
 		"size":  result.Size,
@@ -143,7 +144,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": result.Data,
+		"data":  result.Data,
 		"total": result.Total,
 		"page":  result.Page,
 		"size":  result.Size,
@@ -169,7 +170,7 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": result.Data,
+		"data":  result.Data,
 		"total": result.Total,
 		"page":  result.Page,
 		"size":  result.Size,

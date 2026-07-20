@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
 	"strconv"
 
-	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -258,5 +257,3 @@ func (h *Handler) UpdateCommandConfigs(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, gin.H{"data": updated})
 }
-
-

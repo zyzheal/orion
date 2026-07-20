@@ -2,14 +2,14 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"orion/platform-svc-go/internal/digital-twin-simulation/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -24,19 +24,19 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 func (r *Repository) CreateTwin(ctx context.Context, tenantID string, req models.CreateTwinRequest) (*models.DigitalTwin, error) {
 	twin := &models.DigitalTwin{
-		ID:         uuid.New().String(),
-		TenantID:   tenantID,
-		Name:       req.Name,
+		ID:          uuid.New().String(),
+		TenantID:    tenantID,
+		Name:        req.Name,
 		Description: req.Description,
-		EntityType: req.EntityType,
-		SourceID:   req.SourceID,
-		Status:     models.TwinStatusInitializing,
-		Config:     toJSON([]byte("{}")),
-		Metadata:   toJSON([]byte("{}")),
-		SyncPolicy: toJSON([]byte("{}")),
-		SyncHealth: models.SyncHealthHealthy,
-		CreatedAt:  now(),
-		UpdatedAt:  now(),
+		EntityType:  req.EntityType,
+		SourceID:    req.SourceID,
+		Status:      models.TwinStatusInitializing,
+		Config:      toJSON([]byte("{}")),
+		Metadata:    toJSON([]byte("{}")),
+		SyncPolicy:  toJSON([]byte("{}")),
+		SyncHealth:  models.SyncHealthHealthy,
+		CreatedAt:   now(),
+		UpdatedAt:   now(),
 	}
 	if req.Config != nil {
 		twin.Config = *req.Config
@@ -155,10 +155,10 @@ func (r *Repository) UpdateTwinStatusAndSync(ctx context.Context, tenantID, id s
 	_, err = r.db.NamedExecContext(ctx,
 		`UPDATE digital_twin_sim_twins SET status=:status, last_sync_time=:last_sync_time, updated_at=:updated_at WHERE id=:id`,
 		map[string]interface{}{
-			"status":        status,
+			"status":         status,
 			"last_sync_time": lastSync,
-			"updated_at":    updatedAt,
-			"id":            id,
+			"updated_at":     updatedAt,
+			"id":             id,
 		})
 	if err != nil {
 		return nil, err
@@ -315,4 +315,3 @@ func safeSortOrder(order string) string {
 	}
 	return "DESC"
 }
-

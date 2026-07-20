@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -57,7 +55,7 @@ func (r *Repository) CreateRun(ctx context.Context, run *models.PipelineRun) err
 		nullString(run.TriggerBy), string(run.Status), nullString(run.Environment),
 		nullInt64(run.StartedAt), nullInt64(run.CompletedAt), nullInt64(run.DurationMs),
 		run.Context, run.TenantID, now, now,
-)
+	)
 	return err
 }
 
@@ -142,7 +140,7 @@ func (r *Repository) CreateStage(ctx context.Context, stage *models.Stage) error
 		nullString(stage.Result), nullString(stage.Error), stage.Targets,
 		nullString(stage.ExecutionMode), stage.BatchSize,
 		stage.TenantID, now, now,
-)
+	)
 	return err
 }
 
@@ -228,7 +226,7 @@ func (r *Repository) CreateTask(ctx context.Context, task *models.Task) error {
 		nullInt64(task.StartedAt), nullInt64(task.CompletedAt), nullInt64(task.DurationMs),
 		nullString(task.Result), nullString(task.Log), nullString(task.Error),
 		task.TenantID, now, now,
-)
+	)
 	return err
 }
 
@@ -271,7 +269,7 @@ func (r *Repository) CreateCheckpoint(ctx context.Context, cp *models.Checkpoint
 		`INSERT INTO pipeline_checkpoints (id, run_id, stage_name, task_name, state, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		cp.ID, cp.RunID, cp.StageName, nullString(cp.TaskName), cp.State, cp.CreatedAt,
-)
+	)
 	return err
 }
 

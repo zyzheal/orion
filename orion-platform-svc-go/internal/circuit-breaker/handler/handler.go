@@ -7,9 +7,10 @@ import (
 	"orion/platform-svc-go/internal/circuit-breaker/models"
 	"orion/platform-svc-go/internal/circuit-breaker/service"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

@@ -194,10 +194,10 @@ func (s *Service) AuditTrail(ctx context.Context, taskID string, limit int) ([]m
 
 // DebugState describes the current debug stop for a run.
 type DebugState struct {
-	RunID    string          `json:"run_id"`
-	Status   string          `json:"status"` // "paused", "running", "stepping"
-	Position models.JSONB    `json:"position,omitempty"`
-	Metadata models.JSONB    `json:"metadata,omitempty"`
+	RunID    string       `json:"run_id"`
+	Status   string       `json:"status"` // "paused", "running", "stepping"
+	Position models.JSONB `json:"position,omitempty"`
+	Metadata models.JSONB `json:"metadata,omitempty"`
 }
 
 // GetDebugState returns the debug state for a run if one is present.
@@ -239,20 +239,20 @@ func (s *Service) Step(ctx context.Context, tenantID, runID string) *DebugState 
 
 // DiagnoseRequest matches the required fields the TS endpoint expects.
 type DiagnoseRequest struct {
-	TaskID       string `json:"task_id"        binding:"required"`
-	PluginID     string `json:"plugin_id"      binding:"required"`
-	ErrorMessage string `json:"error_message"  binding:"required"`
+	TaskID       string       `json:"task_id"        binding:"required"`
+	PluginID     string       `json:"plugin_id"      binding:"required"`
+	ErrorMessage string       `json:"error_message"  binding:"required"`
 	Input        models.JSONB `json:"input,omitempty"`
 }
 
 // DiagnoseResult is the diagnostic payload returned to the caller.
 type DiagnoseResult struct {
-	Success     bool              `json:"success"`
-	TaskID      string            `json:"task_id"`
-	PluginID    string            `json:"plugin_id"`
-	Diagnosis   string            `json:"diagnosis"`
-	Suggestions []string          `json:"suggestions,omitempty"`
-	Metadata    models.JSONB      `json:"metadata,omitempty"`
+	Success     bool         `json:"success"`
+	TaskID      string       `json:"task_id"`
+	PluginID    string       `json:"plugin_id"`
+	Diagnosis   string       `json:"diagnosis"`
+	Suggestions []string     `json:"suggestions,omitempty"`
+	Metadata    models.JSONB `json:"metadata,omitempty"`
 }
 
 // Diagnose analyses an error context and returns a diagnosis.  It is a
@@ -261,14 +261,14 @@ type DiagnoseResult struct {
 // provider in the future.
 func (s *Service) Diagnose(ctx context.Context, tenantID string, req *DiagnoseRequest) (*DiagnoseResult, error) {
 	result := &DiagnoseResult{
-		Success:  true,
-		TaskID:   req.TaskID,
-		PluginID: req.PluginID,
+		Success:   true,
+		TaskID:    req.TaskID,
+		PluginID:  req.PluginID,
 		Diagnosis: "Error detected in plugin execution for task " + req.TaskID,
 		Suggestions: []string{
 			"Review the plugin logs for " + req.PluginID,
-            "Check plugin configuration and input parameters",
-            "Consider retrying the task with reduced resource constraints",
+			"Check plugin configuration and input parameters",
+			"Consider retrying the task with reduced resource constraints",
 		},
 	}
 	return result, nil

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -184,14 +182,14 @@ func (r *Repository) Escalate(ctx context.Context, tenantID, incidentID string, 
 		`INSERT INTO incident_escalations (id, incident_id, tenant_id, from_level, to_level, reason, escalated_by, created_at)
 		VALUES (:id, :incident_id, :tenant_id, :from_level, :to_level, :reason, :escalated_by, :created_at)`,
 		map[string]interface{}{
-			"id":            uuid.New().String(),
-			"incident_id":   incidentID,
-			"tenant_id":     tenantID,
-			"from_level":    fromLevel,
-			"to_level":      toLevel,
-			"reason":        reason,
-			"escalated_by":  escalatedBy,
-			"created_at":    time.Now().UTC(),
+			"id":           uuid.New().String(),
+			"incident_id":  incidentID,
+			"tenant_id":    tenantID,
+			"from_level":   fromLevel,
+			"to_level":     toLevel,
+			"reason":       reason,
+			"escalated_by": escalatedBy,
+			"created_at":   time.Now().UTC(),
 		})
 	if err != nil {
 		return err

@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/llm-trace/models"
 	"orion/platform-svc-go/internal/llm-trace/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -246,13 +247,13 @@ func (h *Handler) EstimateCost(c *gin.Context) {
 	breakdown := h.svc.CalculateCost(ctx, req.ModelID, req.InputTokens, req.OutputTokens)
 
 	middleware.RespondSuccess(c, gin.H{
-		"modelId":       req.ModelID,
-		"inputTokens":   req.InputTokens,
-		"outputTokens":  req.OutputTokens,
-		"inputCost":     breakdown.InputCost,
-		"outputCost":    breakdown.OutputCost,
-		"totalCost":     breakdown.TotalCost,
-		"currency":      breakdown.Currency,
+		"modelId":          req.ModelID,
+		"inputTokens":      req.InputTokens,
+		"outputTokens":     req.OutputTokens,
+		"inputCost":        breakdown.InputCost,
+		"outputCost":       breakdown.OutputCost,
+		"totalCost":        breakdown.TotalCost,
+		"currency":         breakdown.Currency,
 		"breakdownByModel": breakdown.BreakdownByModel,
 	})
 }
@@ -288,14 +289,14 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 	}
 
 	middleware.RespondSuccess(c, gin.H{
-		"tenantId":     tenantID,
-		"startDate":    startDateForQuery(q.StartDate),
-		"endDate":      endDateForQuery(q.EndDate),
-		"totalTraces":  totalTraces,
-		"inputCost":    breakdown.InputCost,
-		"outputCost":   breakdown.OutputCost,
-		"totalCost":    breakdown.TotalCost,
-		"currency":     breakdown.Currency,
+		"tenantId":         tenantID,
+		"startDate":        startDateForQuery(q.StartDate),
+		"endDate":          endDateForQuery(q.EndDate),
+		"totalTraces":      totalTraces,
+		"inputCost":        breakdown.InputCost,
+		"outputCost":       breakdown.OutputCost,
+		"totalCost":        breakdown.TotalCost,
+		"currency":         breakdown.Currency,
 		"breakdownByModel": breakdown.BreakdownByModel,
 	})
 }

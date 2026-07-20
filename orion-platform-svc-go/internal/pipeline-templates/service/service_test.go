@@ -11,19 +11,19 @@ import (
 // --- mock repository ---
 
 type mockRepo struct {
-	createFn                func(ctx context.Context, m *models.PipelineTemplate) error
-	getByIDFn               func(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
-	listFn                  func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error)
-	updateFn                func(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.PipelineTemplate, error)
-	deleteFn                func(ctx context.Context, tenantID, id string) error
-	setStatusFn             func(ctx context.Context, tenantID, id string, status models.TemplateStatus, publishedAt *int64) (*models.PipelineTemplate, error)
-	createVersionFn         func(ctx context.Context, v *models.TemplateVersion) error
-	listVersionsFn          func(ctx context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error)
-	deleteVersionsByTIDFn   func(ctx context.Context, templateID string) error
-	incrementUsageCountFn   func(ctx context.Context, tenantID, id string) error
-	incrementStarCountFn    func(ctx context.Context, tenantID, id string) error
-	decrementStarCountFn    func(ctx context.Context, tenantID, id string) error
-	categoryCountsFn        func(ctx context.Context, tenantID string) (map[string]int, error)
+	createFn              func(ctx context.Context, m *models.PipelineTemplate) error
+	getByIDFn             func(ctx context.Context, tenantID, id string) (*models.PipelineTemplate, error)
+	listFn                func(ctx context.Context, tenantID string, q *models.ListQuery) ([]models.PipelineTemplate, int, error)
+	updateFn              func(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.PipelineTemplate, error)
+	deleteFn              func(ctx context.Context, tenantID, id string) error
+	setStatusFn           func(ctx context.Context, tenantID, id string, status models.TemplateStatus, publishedAt *int64) (*models.PipelineTemplate, error)
+	createVersionFn       func(ctx context.Context, v *models.TemplateVersion) error
+	listVersionsFn        func(ctx context.Context, tenantID, templateID string, q *models.ListQuery) ([]models.TemplateVersion, int, error)
+	deleteVersionsByTIDFn func(ctx context.Context, templateID string) error
+	incrementUsageCountFn func(ctx context.Context, tenantID, id string) error
+	incrementStarCountFn  func(ctx context.Context, tenantID, id string) error
+	decrementStarCountFn  func(ctx context.Context, tenantID, id string) error
+	categoryCountsFn      func(ctx context.Context, tenantID string) (map[string]int, error)
 }
 
 func (m *mockRepo) Create(ctx context.Context, mt *models.PipelineTemplate) error {
@@ -503,13 +503,13 @@ func TestDelete_RepoError(t *testing.T) {
 
 func TestPublish_Success(t *testing.T) {
 	tmpl := &models.PipelineTemplate{
-		ID:      "tmpl-1",
-		Name:    "test",
-		Version: "1.0.0",
-		Status:  models.StatusDraft,
-		Config:  `{"key":"val"}`,
+		ID:         "tmpl-1",
+		Name:       "test",
+		Version:    "1.0.0",
+		Status:     models.StatusDraft,
+		Config:     `{"key":"val"}`,
 		Parameters: `[{"name":"p1","type":"string","required":true}]`,
-		Author:  "user-1",
+		Author:     "user-1",
 	}
 
 	var setStatusCalled bool
@@ -725,10 +725,10 @@ func TestGetVersions_RepoError(t *testing.T) {
 
 func TestInstantiate_Success(t *testing.T) {
 	tmpl := &models.PipelineTemplate{
-		ID:      "tmpl-1",
-		Name:    "test",
-		Status:  models.StatusPublished,
-		Config:  `{"key":"val"}`,
+		ID:         "tmpl-1",
+		Name:       "test",
+		Status:     models.StatusPublished,
+		Config:     `{"key":"val"}`,
 		Parameters: `[]`,
 	}
 	repo := &mockRepo{
@@ -805,10 +805,10 @@ func TestInstantiate_MissingRequiredParam(t *testing.T) {
 
 func TestInstantiate_WithPlaceholderReplacement(t *testing.T) {
 	tmpl := &models.PipelineTemplate{
-		ID:     "tmpl-1",
-		Name:   "test",
-		Status: models.StatusPublished,
-		Config: `{"namespace":"${namespace}","replicas":3,"labels":{"app":"${appName}"}}`,
+		ID:         "tmpl-1",
+		Name:       "test",
+		Status:     models.StatusPublished,
+		Config:     `{"namespace":"${namespace}","replicas":3,"labels":{"app":"${appName}"}}`,
 		Parameters: `[{"name":"namespace","type":"string","required":true},{"name":"appName","type":"string","required":true}]`,
 	}
 	repo := &mockRepo{

@@ -2,14 +2,14 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"orion/platform-svc-go/internal/tracing/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -69,7 +69,7 @@ func (r *Repository) SearchTraces(ctx context.Context, tenantID string, req *mod
 	}
 	if req.StatusCode > 0 {
 		where += fmt.Sprintf(" AND status_code = $%d", idx)
-	args = append(args, req.StatusCode)
+		args = append(args, req.StatusCode)
 		idx++
 	}
 	if req.Limit <= 0 {

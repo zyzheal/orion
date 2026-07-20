@@ -1,30 +1,29 @@
 package handler
 
 import (
-    "net/http"
+	"net/http"
 
-    "orion/go-common/pkg/auth"
-    "fmt"
+	"fmt"
+	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
-    "orion/platform-svc-go/internal/test-generation/models"
-    "orion/platform-svc-go/internal/test-generation/service"
+	"orion/platform-svc-go/internal/test-generation/models"
+	"orion/platform-svc-go/internal/test-generation/service"
 
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
-    svc *service.Service
+	svc *service.Service
 }
 
 func NewHandler(svc *service.Service) *Handler {
-    return &Handler{svc: svc}
+	return &Handler{svc: svc}
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-    r := rg.Group("/test-generation")
-    r.GET("", auth.RequirePermission("test-generation", "read"), h.List)
+	r := rg.Group("/test-generation")
+	r.GET("", auth.RequirePermission("test-generation", "read"), h.List)
 	r.GET("/:id", auth.RequirePermission("test-generation", "read"), h.Get)
 	r.POST("", auth.RequirePermission("test-generation", "write"), h.Create)
 	r.PUT("/:id", auth.RequirePermission("test-generation", "write"), h.Update)
@@ -38,74 +37,78 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 func (h *Handler) List(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
 	defer span.End()
-    tenantID := c.GetString("tenant_id")
-    q := models.ListQuery{}
-    if p := c.Query("page"); p != "" { fmt.Sscanf(p, "%d", &q.Page) }
-    if l := c.Query("limit"); l != "" { fmt.Sscanf(l, "%d", &q.Limit) }
-    records, err := h.svc.List(ctx, tenantID)
-    if err != nil {
-        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    errors.WriteSuccess(c, gin.H{"data": records, "total": len(records)})
+	tenantID := c.GetString("tenant_id")
+	q := models.ListQuery{}
+	if p := c.Query("page"); p != "" {
+		fmt.Sscanf(p, "%d", &q.Page)
+	}
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &q.Limit)
+	}
+	records, err := h.svc.List(ctx, tenantID)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, gin.H{"data": records, "total": len(records)})
 }
 
 func (h *Handler) Get(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
 	defer span.End()
-    tenantID := c.GetString("tenant_id")
-    record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
-    if err != nil {
-        errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
-        return
-    }
-    errors.WriteSuccess(c, record)
+	tenantID := c.GetString("tenant_id")
+	record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
+		return
+	}
+	errors.WriteSuccess(c, record)
 }
 
 func (h *Handler) Create(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
 	defer span.End()
-    tenantID := c.GetString("tenant_id")
-    var req models.CreateRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
-        return
-    }
-    record, err := h.svc.Create(ctx, tenantID, req)
-    if err != nil {
-        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    errors.WriteSuccess(c, record)
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	record, err := h.svc.Create(ctx, tenantID, req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, record)
 }
 
 func (h *Handler) Update(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
 	defer span.End()
-    tenantID := c.GetString("tenant_id")
-    var req models.CreateRequest
-    if err := c.ShouldBindJSON(&req); err != nil {
-        errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
-        return
-    }
-    record, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
-    if err != nil {
-        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    errors.WriteSuccess(c, record)
+	tenantID := c.GetString("tenant_id")
+	var req models.CreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	record, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, record)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
 	defer span.End()
-    tenantID := c.GetString("tenant_id")
-    err := h.svc.Delete(ctx, tenantID, c.Param("id"))
-    if err != nil {
-        errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    errors.WriteSuccess(c, nil)
+	tenantID := c.GetString("tenant_id")
+	err := h.svc.Delete(ctx, tenantID, c.Param("id"))
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, nil)
 }
 
 // Additional handler methods for extra endpoints
@@ -194,7 +197,7 @@ func (h *Handler) Pause(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Pause(ctx, tenantID, c.Param("id"))
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, result)
@@ -227,7 +230,7 @@ func (h *Handler) ListSchemas(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	schemas, err := h.svc.ListSchemas(ctx, tenantID)
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"schemas": schemas})
@@ -477,7 +480,7 @@ func (h *Handler) Trigger(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Trigger(ctx, tenantID, c.Param("id"))
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, result)
@@ -488,7 +491,7 @@ func (h *Handler) ListTemplates2(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.ListTemplates2(ctx, tenantID)
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, result)
@@ -532,7 +535,7 @@ func (h *Handler) Approve(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.Approve(ctx, tenantID, c.Param("id"))
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, result)
@@ -611,7 +614,7 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	alerts, err := h.svc.ListAlerts(ctx, tenantID)
 	if err != nil {
-	errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	errors.WriteSuccess(c, gin.H{"alerts": alerts})

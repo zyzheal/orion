@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -11,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/visor-exec/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/visor-exec/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -58,7 +59,6 @@ func NewService(repo RepositoryInterface) *Service {
 // --- Errors ---
 
 var (
-
 	ErrInvalidID = errors.New("invalid id")
 )
 

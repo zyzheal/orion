@@ -41,9 +41,9 @@ type Executor interface {
 // passed via stdin as JSON; the plugin is expected to write its result to
 // stdout as a single JSON line.
 type SubprocessExecutor struct {
-	mu       sync.Mutex
-	running  map[string]*runningProcess
-	timeout  time.Duration
+	mu      sync.Mutex
+	running map[string]*runningProcess
+	timeout time.Duration
 }
 
 type runningProcess struct {
@@ -83,11 +83,11 @@ func (e *SubprocessExecutor) Execute(ctx context.Context, p *models.Plugin, req 
 
 	// Build the input payload.
 	inputPayload := map[string]interface{}{
-		"task_id":        req.TaskID,
+		"task_id":         req.TaskID,
 		"pipeline_run_id": req.PipelineRunID,
-		"stage_id":       req.StageID,
-		"input":          req.Input,
-		"config":         p.Config,
+		"stage_id":        req.StageID,
+		"input":           req.Input,
+		"config":          p.Config,
 	}
 
 	inputJSON, err := json.Marshal(inputPayload)
@@ -135,10 +135,10 @@ func (e *SubprocessExecutor) Execute(ctx context.Context, p *models.Plugin, req 
 	e.mu.Unlock()
 
 	result := &models.ExecutionResult{
-		TaskID:       req.TaskID,
-		DurationMs:   durationMs,
-		Stdout:       stdout.String(),
-		Stderr:       stderr.String(),
+		TaskID:     req.TaskID,
+		DurationMs: durationMs,
+		Stdout:     stdout.String(),
+		Stderr:     stderr.String(),
 	}
 
 	if err != nil {

@@ -11,9 +11,10 @@ import (
 
 	"orion/platform-svc-go/internal/progressive/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // sentinel.NotFound indicates a requested resource could not be found.
@@ -245,17 +246,17 @@ func (r *Repository) CreateStage(ctx context.Context, tenantID, deploymentID str
 	)`
 
 	args := map[string]interface{}{
-		"id":                   s.ID,
-		"deployment_id":        s.DeploymentID,
-		"stage_number":         s.StageNumber,
-		"traffic_percent":      s.TrafficPercent,
-		"status":               string(s.Status),
-		"health_metrics":       metricsJSON,
-		"error":                sql.NullString{String: s.Error, Valid: s.Error != ""},
-		"started_at":           s.StartedAt,
-		"completed_at":         s.CompletedAt,
-		"created_at":           now,
-		"updated_at":           now,
+		"id":              s.ID,
+		"deployment_id":   s.DeploymentID,
+		"stage_number":    s.StageNumber,
+		"traffic_percent": s.TrafficPercent,
+		"status":          string(s.Status),
+		"health_metrics":  metricsJSON,
+		"error":           sql.NullString{String: s.Error, Valid: s.Error != ""},
+		"started_at":      s.StartedAt,
+		"completed_at":    s.CompletedAt,
+		"created_at":      now,
+		"updated_at":      now,
 	}
 
 	_, err = r.db.NamedExecContext(ctx, query, args)

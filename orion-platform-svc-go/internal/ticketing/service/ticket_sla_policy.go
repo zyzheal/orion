@@ -2,17 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
-	"orion/platform-svc-go/internal/ticketing/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // --- SLA Policies ---
@@ -185,4 +179,3 @@ func (s *Service) ExecuteRule(ctx context.Context, tenantID string, ruleID strin
 		Message:  fmt.Sprintf("rule %s matched %d tickets (action: %s)", rule.Name, matched, rule.Action),
 	}, nil
 }
-

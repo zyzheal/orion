@@ -4,15 +4,15 @@ import "time"
 
 // DisasterPlan defines a disaster recovery plan.
 type DisasterPlan struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	Name      string    `db:"name" json:"name"`
-	Description string  `db:"description" json:"description"`
-	Steps     string    `db:"steps" json:"steps"`
-	Status    string    `db:"status" json:"status"`
-	LastRun   time.Time `db:"last_run" json:"last_run"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenant_id"`
+	Name        string    `db:"name" json:"name"`
+	Description string    `db:"description" json:"description"`
+	Steps       string    `db:"steps" json:"steps"`
+	Status      string    `db:"status" json:"status"`
+	LastRun     time.Time `db:"last_run" json:"last_run"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // CreateDisasterPlanRequest is the request body for creating a plan.

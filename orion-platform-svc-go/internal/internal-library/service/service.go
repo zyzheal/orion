@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -10,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/internal-library/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/internal-library/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -362,7 +363,6 @@ func determineUpgradeType(current, target string) string {
 // ---------------------------------------------------------------------------
 
 var (
-
 	ErrVersionExists     = errors.New("version already exists")
 	ErrAlreadyDeprecated = errors.New("already deprecated")
 	ErrAlreadyActive     = errors.New("already active")

@@ -8,19 +8,19 @@ import (
 // --- Change Request ---
 
 type ChangeRequest struct {
-	ID            string         `json:"id" db:"id"`
-	TenantID      string         `json:"tenant_id" db:"tenant_id"`
-	Title         string         `json:"title" db:"title"`
-	Description   string         `json:"description" db:"description"`
-	Status        string         `json:"status" db:"status"` // draft, submitted, approved, in_progress, completed, rejected, cancelled
-	ChangeType    string         `json:"change_type" db:"change_type"`    // standard, normal, emergency
-	Priority      string         `json:"priority" db:"priority"`         // low, medium, high, critical
-	RiskLevel     string         `json:"risk_level" db:"risk_level"`     // low, medium, high
-	AssignedTo    string         `json:"assigned_to" db:"assigned_to"`
-	RequesterID   string         `json:"requester_id" db:"requester_id"`
-	CreatedBy     string         `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time      `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time      `json:"updated_at" db:"updated_at"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Title       string    `json:"title" db:"title"`
+	Description string    `json:"description" db:"description"`
+	Status      string    `json:"status" db:"status"`           // draft, submitted, approved, in_progress, completed, rejected, cancelled
+	ChangeType  string    `json:"change_type" db:"change_type"` // standard, normal, emergency
+	Priority    string    `json:"priority" db:"priority"`       // low, medium, high, critical
+	RiskLevel   string    `json:"risk_level" db:"risk_level"`   // low, medium, high
+	AssignedTo  string    `json:"assigned_to" db:"assigned_to"`
+	RequesterID string    `json:"requester_id" db:"requester_id"`
+	CreatedBy   string    `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateChangeRequestRequest struct {
@@ -44,27 +44,27 @@ type UpdateChangeRequestRequest struct {
 }
 
 type ChangeRequestListQuery struct {
-	Status     *string `json:"status"`
-	Type       *string `json:"type"`
-	Priority   *string `json:"priority"`
-	RiskLevel  *string `json:"risk_level"`
-	AssignedTo *string `json:"assigned_to"`
+	Status      *string `json:"status"`
+	Type        *string `json:"type"`
+	Priority    *string `json:"priority"`
+	RiskLevel   *string `json:"risk_level"`
+	AssignedTo  *string `json:"assigned_to"`
 	RequesterID *string `json:"requester_id"`
-	Limit      int     `json:"limit"`
-	Offset     int     `json:"offset"`
+	Limit       int     `json:"limit"`
+	Offset      int     `json:"offset"`
 }
 
 // --- Timeline Event ---
 
 type TimelineEvent struct {
-	ID             string                 `json:"id" db:"id"`
-	ChangeRequestID string               `json:"change_request_id" db:"change_request_id"`
-	TenantID       string               `json:"tenant_id" db:"tenant_id"`
-	EventType      string               `json:"event_type" db:"event_type"`
-	Description    string               `json:"description" db:"description"`
-	Metadata       *json.RawMessage     `json:"metadata,omitempty" db:"metadata"`
-	CreatedBy      string               `json:"created_by" db:"created_by"`
-	CreatedAt      time.Time            `json:"created_at" db:"created_at"`
+	ID              string           `json:"id" db:"id"`
+	ChangeRequestID string           `json:"change_request_id" db:"change_request_id"`
+	TenantID        string           `json:"tenant_id" db:"tenant_id"`
+	EventType       string           `json:"event_type" db:"event_type"`
+	Description     string           `json:"description" db:"description"`
+	Metadata        *json.RawMessage `json:"metadata,omitempty" db:"metadata"`
+	CreatedBy       string           `json:"created_by" db:"created_by"`
+	CreatedAt       time.Time        `json:"created_at" db:"created_at"`
 }
 
 type CreateTimelineEventRequest struct {
@@ -83,16 +83,16 @@ type StatusTransitionRequest struct {
 // --- RFC ---
 
 type RFC struct {
-	ID               string    `json:"id" db:"id"`
-	TenantID         string    `json:"tenant_id" db:"tenant_id"`
-	ChangeRequestID  string    `json:"change_request_id" db:"change_request_id"`
-	RFCNumber        string    `json:"rfc_number" db:"rfc_number"`
-	Title            string    `json:"title" db:"title"`
-	Description      string    `json:"description" db:"description"`
-	Status           string    `json:"status" db:"status"` // draft, submitted, approved, rejected
-	CreatedBy        string    `json:"created_by" db:"created_by"`
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenant_id" db:"tenant_id"`
+	ChangeRequestID string    `json:"change_request_id" db:"change_request_id"`
+	RFCNumber       string    `json:"rfc_number" db:"rfc_number"`
+	Title           string    `json:"title" db:"title"`
+	Description     string    `json:"description" db:"description"`
+	Status          string    `json:"status" db:"status"` // draft, submitted, approved, rejected
+	CreatedBy       string    `json:"created_by" db:"created_by"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateRFCRequest struct {
@@ -124,16 +124,16 @@ type CABMeeting struct {
 }
 
 type CreateCABMeetingRequest struct {
-	Title       string `json:"title" binding:"required"`
-	Description string `json:"description"`
-	Status      string `json:"status"`
+	Title       string    `json:"title" binding:"required"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
 	ScheduledAt time.Time `json:"scheduled_at" binding:"required"`
 }
 
 type UpdateCABMeetingRequest struct {
-	Title       *string   `json:"title"`
-	Description *string   `json:"description"`
-	Status      *string   `json:"status"`
+	Title       *string    `json:"title"`
+	Description *string    `json:"description"`
+	Status      *string    `json:"status"`
 	ScheduledAt *time.Time `json:"scheduled_at"`
 }
 
@@ -164,12 +164,12 @@ type CreateCABDecisionRequest struct {
 // --- Statistics ---
 
 type ChangeStats struct {
-	Total       int    `json:"total"`
-	Open        int    `json:"open"`
-	Approved    int    `json:"approved"`
-	Rejected    int    `json:"rejected"`
-	InProgress  int    `json:"in_progress"`
-	Completed   int    `json:"completed"`
+	Total       int            `json:"total"`
+	Open        int            `json:"open"`
+	Approved    int            `json:"approved"`
+	Rejected    int            `json:"rejected"`
+	InProgress  int            `json:"in_progress"`
+	Completed   int            `json:"completed"`
 	ByType      map[string]int `json:"by_type"`
 	ByPriority  map[string]int `json:"by_priority"`
 	ByRiskLevel map[string]int `json:"by_risk_level"`
@@ -178,6 +178,6 @@ type ChangeStats struct {
 // --- List result with pagination ---
 
 type ListResult[T any] struct {
-	Data  []T   `json:"data"`
-	Total int   `json:"total"`
+	Data  []T `json:"data"`
+	Total int `json:"total"`
 }

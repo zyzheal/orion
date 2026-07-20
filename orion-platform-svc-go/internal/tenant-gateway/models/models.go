@@ -6,50 +6,50 @@ package models
 type TenantTier string
 
 const (
-	TierFree      TenantTier = "free"
-	TierStandard  TenantTier = "standard"
-	TierPremium   TenantTier = "premium"
+	TierFree     TenantTier = "free"
+	TierStandard TenantTier = "standard"
+	TierPremium  TenantTier = "premium"
 )
 
 // TenantStatus represents the operational status of a tenant.
 type TenantStatus string
 
 const (
-	StatusActive     TenantStatus = "active"
-	StatusSuspended  TenantStatus = "suspended"
-	StatusDeleted    TenantStatus = "deleted"
+	StatusActive    TenantStatus = "active"
+	StatusSuspended TenantStatus = "suspended"
+	StatusDeleted   TenantStatus = "deleted"
 )
 
 // --- Core domain model ---
 
 // Tenant is the managed tenant entity stored in PostgreSQL.
 type Tenant struct {
-	ID               string       `json:"id" db:"id"`
-	Name             string       `json:"name" db:"name"`
-	DisplayName      string       `json:"display_name" db:"display_name"`
-	TenantTier       TenantTier   `json:"tier" db:"tier"`
-	Status           TenantStatus `json:"status" db:"status"`
-	NamespacePoolID  string       `json:"namespace_pool_id" db:"namespace_pool_id"`
-	OwnerEmail       string       `json:"owner_email" db:"owner_email"`
-	BusinessUnit     string       `json:"business_unit" db:"business_unit"`
-	CostCenter       string       `json:"cost_center" db:"cost_center"`
-	TenantID         string       `json:"tenant_id" db:"tenant_id"` // isolation key
-	CreatedAt        *int64       `json:"created_at" db:"created_at"`
-	UpdatedAt        *int64       `json:"updated_at" db:"updated_at"`
-	ExpiresAt        *int64       `json:"expires_at" db:"expires_at"`
+	ID              string       `json:"id" db:"id"`
+	Name            string       `json:"name" db:"name"`
+	DisplayName     string       `json:"display_name" db:"display_name"`
+	TenantTier      TenantTier   `json:"tier" db:"tier"`
+	Status          TenantStatus `json:"status" db:"status"`
+	NamespacePoolID string       `json:"namespace_pool_id" db:"namespace_pool_id"`
+	OwnerEmail      string       `json:"owner_email" db:"owner_email"`
+	BusinessUnit    string       `json:"business_unit" db:"business_unit"`
+	CostCenter      string       `json:"cost_center" db:"cost_center"`
+	TenantID        string       `json:"tenant_id" db:"tenant_id"` // isolation key
+	CreatedAt       *int64       `json:"created_at" db:"created_at"`
+	UpdatedAt       *int64       `json:"updated_at" db:"updated_at"`
+	ExpiresAt       *int64       `json:"expires_at" db:"expires_at"`
 }
 
 // --- Request/Response models ---
 
 // CreateTenantRequest is the body for POST /tenants.
 type CreateTenantRequest struct {
-	Name         string       `json:"name" binding:"required"`
-	DisplayName  string       `json:"display_name"`
-	Tier         TenantTier   `json:"tier"`
-	OwnerEmail   string       `json:"owner_email"`
-	BusinessUnit string       `json:"business_unit"`
-	CostCenter   string       `json:"cost_center"`
-	ExpiresAt    *int64       `json:"expires_at"`
+	Name         string     `json:"name" binding:"required"`
+	DisplayName  string     `json:"display_name"`
+	Tier         TenantTier `json:"tier"`
+	OwnerEmail   string     `json:"owner_email"`
+	BusinessUnit string     `json:"business_unit"`
+	CostCenter   string     `json:"cost_center"`
+	ExpiresAt    *int64     `json:"expires_at"`
 }
 
 // UpdateTenantRequest is the body for PUT /tenants/:id.
@@ -66,12 +66,12 @@ type UpdateTenantRequest struct {
 
 // QuotaChanges represents the adjustable quota fields.
 type QuotaChanges struct {
-	CPULimit         *int `json:"cpu_limit"`
-	MemoryLimit      *int `json:"memory_limit"`
+	CPULimit          *int `json:"cpu_limit"`
+	MemoryLimit       *int `json:"memory_limit"`
 	ConcurrentRunners *int `json:"concurrent_runners"`
-	QueueDepth       *int `json:"queue_depth"`
-	DailyTokenQuota  *int `json:"daily_token_quota"`
-	APIQps           *int `json:"api_qps"`
+	QueueDepth        *int `json:"queue_depth"`
+	DailyTokenQuota   *int `json:"daily_token_quota"`
+	APIQps            *int `json:"api_qps"`
 }
 
 // QuotaAdjustmentRequest is the body for POST /tenants/:id/quota.
@@ -113,11 +113,11 @@ type TenantListResponse struct {
 
 // QuotaStatusResponse is the result for GET /tenants/:id/quota.
 type QuotaStatusResponse struct {
-	TenantID string       `json:"tenantId"`
-	Tier     TenantTier   `json:"tier"`
-	Quota    TenantQuota  `json:"quota"`
-	Usage    string       `json:"usage"`   // JSONB stored, returned as string
-	Alerts   string       `json:"alerts"`  // JSONB stored, returned as string
+	TenantID string      `json:"tenantId"`
+	Tier     TenantTier  `json:"tier"`
+	Quota    TenantQuota `json:"quota"`
+	Usage    string      `json:"usage"`  // JSONB stored, returned as string
+	Alerts   string      `json:"alerts"` // JSONB stored, returned as string
 }
 
 // DefaultQuotas returns the built-in quota defaults per tier.

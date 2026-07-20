@@ -15,20 +15,20 @@ import (
 )
 
 type mockSvc struct {
-	createFn             func(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error)
-	getFn                func(ctx context.Context, tenantID, id string) (*models.Capability, error)
-	listFn               func(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
-	updateFn             func(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error)
-	deleteFn             func(ctx context.Context, tenantID, id string) error
-	getTreeFn            func(ctx context.Context, tenantID string) ([]models.Capability, error)
-	grantToRoleFn        func(ctx context.Context, tenantID, capabilityID, roleName, grantedBy string) error
-	revokeFromRoleFn     func(ctx context.Context, tenantID, capabilityID, roleName string) error
-	grantToUserFn        func(ctx context.Context, tenantID, capabilityID, targetUserID, grantedBy string, expiresInHours *int) error
-	revokeFromUserFn     func(ctx context.Context, tenantID, capabilityID, targetUserID string) error
-	mapCommandFn         func(ctx context.Context, tenantID, commandName, commandAction, capabilityID, environmentSuffix string) error
-	getCapabilityFn      func(ctx context.Context, tenantID, command, action, environment string) (*string, error)
-	checkPermissionFn    func(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
-	getEffectiveFn       func(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
+	createFn          func(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error)
+	getFn             func(ctx context.Context, tenantID, id string) (*models.Capability, error)
+	listFn            func(ctx context.Context, tenantID string, limit, offset int) ([]models.Capability, error)
+	updateFn          func(ctx context.Context, tenantID, id string, req models.UpdateCapabilityRequest) (*models.Capability, error)
+	deleteFn          func(ctx context.Context, tenantID, id string) error
+	getTreeFn         func(ctx context.Context, tenantID string) ([]models.Capability, error)
+	grantToRoleFn     func(ctx context.Context, tenantID, capabilityID, roleName, grantedBy string) error
+	revokeFromRoleFn  func(ctx context.Context, tenantID, capabilityID, roleName string) error
+	grantToUserFn     func(ctx context.Context, tenantID, capabilityID, targetUserID, grantedBy string, expiresInHours *int) error
+	revokeFromUserFn  func(ctx context.Context, tenantID, capabilityID, targetUserID string) error
+	mapCommandFn      func(ctx context.Context, tenantID, commandName, commandAction, capabilityID, environmentSuffix string) error
+	getCapabilityFn   func(ctx context.Context, tenantID, command, action, environment string) (*string, error)
+	checkPermissionFn func(ctx context.Context, tenantID string, req models.CheckPermissionRequest) (*models.CheckPermissionResult, error)
+	getEffectiveFn    func(ctx context.Context, tenantID, userID string, roles []string) ([]string, error)
 }
 
 func (m *mockSvc) Create(ctx context.Context, tenantID string, req models.CreateCapabilityRequest) (*models.Capability, error) {
@@ -116,19 +116,45 @@ func (m *mockSvc) GetUserEffectiveCapabilities(ctx context.Context, tenantID, us
 	return nil, nil
 }
 
-func (m *mockSvc) GetUserPermissionRequests(ctx context.Context, tenantID, userID string) ([]models.PermissionRequest, error) { return nil, nil }
-func (m *mockSvc) GrantTemporaryPermission(ctx context.Context, req models.GrantTemporaryRequest) (*models.TemporaryPermission, error) { return nil, nil }
-func (m *mockSvc) GetActiveTemporaryPermissions(ctx context.Context, tenantID, userID string) ([]models.TemporaryPermission, error) { return nil, nil }
-func (m *mockSvc) RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error) { return nil, nil }
-func (m *mockSvc) GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) { return nil, nil }
-func (m *mockSvc) CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error) { return nil, nil }
-func (m *mockSvc) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) { return nil, nil }
-func (m *mockSvc) ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error) { return nil, nil }
-func (m *mockSvc) RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error) { return false, nil }
-func (m *mockSvc) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error) { return nil, nil }
-func (m *mockSvc) RequestPermission(ctx context.Context, tenantID string, body models.RequestPermissionBody) (*models.PermissionRequest, error) { return nil, nil }
-func (m *mockSvc) GrantSimplified(ctx context.Context, req models.GrantSimplifiedRequest) (*models.TemporaryPermission, error) { return nil, nil }
-func (m *mockSvc) RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error) { return nil, nil }
+func (m *mockSvc) GetUserPermissionRequests(ctx context.Context, tenantID, userID string) ([]models.PermissionRequest, error) {
+	return nil, nil
+}
+func (m *mockSvc) GrantTemporaryPermission(ctx context.Context, req models.GrantTemporaryRequest) (*models.TemporaryPermission, error) {
+	return nil, nil
+}
+func (m *mockSvc) GetActiveTemporaryPermissions(ctx context.Context, tenantID, userID string) ([]models.TemporaryPermission, error) {
+	return nil, nil
+}
+func (m *mockSvc) RevokeTemporaryPermission(ctx context.Context, tenantID string, id int, revokedBy string, reason string) (*models.TemporaryPermission, error) {
+	return nil, nil
+}
+func (m *mockSvc) GetAuditLogs(ctx context.Context, tenantID string, q models.AuditLogQuery) ([]models.AuditLog, error) {
+	return nil, nil
+}
+func (m *mockSvc) CreatePermissionRequest(ctx context.Context, tenantID, userID, capabilityID string, body models.CreatePermissionRequestBody) (*models.PermissionRequest, error) {
+	return nil, nil
+}
+func (m *mockSvc) GetPermissionRequestByTicket(ctx context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
+	return nil, nil
+}
+func (m *mockSvc) ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error) {
+	return nil, nil
+}
+func (m *mockSvc) RejectRequest(ctx context.Context, tenantID string, ticketID int, rejecterID string, reason string) (bool, error) {
+	return false, nil
+}
+func (m *mockSvc) CleanupExpiredTemporaryPermissions(ctx context.Context, tenantID string) (*models.CleanupResult, error) {
+	return nil, nil
+}
+func (m *mockSvc) RequestPermission(ctx context.Context, tenantID string, body models.RequestPermissionBody) (*models.PermissionRequest, error) {
+	return nil, nil
+}
+func (m *mockSvc) GrantSimplified(ctx context.Context, req models.GrantSimplifiedRequest) (*models.TemporaryPermission, error) {
+	return nil, nil
+}
+func (m *mockSvc) RevokeSimplified(ctx context.Context, tenantID string, id int, revokedBy string) (*models.TemporaryPermission, error) {
+	return nil, nil
+}
 
 func newHandlerWithSvc(svc Service) *Handler {
 	return &Handler{svc: svc}

@@ -3,15 +3,15 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/escalation/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Repository provides PostgreSQL-backed persistence for escalation rules.
@@ -97,7 +97,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string, q models.ListRu
 		idx++
 	}
 	if q.Level > 0 {
-	query += fmt.Sprintf(" AND level=$%d", idx)
+		query += fmt.Sprintf(" AND level=$%d", idx)
 		args = append(args, q.Level)
 		idx++
 	}

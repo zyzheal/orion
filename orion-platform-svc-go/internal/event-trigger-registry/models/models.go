@@ -18,16 +18,16 @@ const (
 
 // WorkflowTrigger represents a registered trigger (event or cron based).
 type WorkflowTrigger struct {
-	ID             string            `json:"id" db:"id"`
-	TenantID       string            `json:"tenantId" db:"tenant_id"`
-	Name           string            `json:"name" db:"name"`
-	Type           string            `json:"type" db:"type"`             // "event" or "cron"
-	WorkflowID     string            `json:"workflowId" db:"workflow_id"`
-	EventType      string            `json:"eventType" db:"event_type"`  // e.g. "pipeline.run.started"
-	EventFilter    string            `json:"eventFilter" db:"event_filter"`  // JSON object
-	CronExpression *string           `json:"cronExpression,omitempty" db:"cron_expression"`
-	Enabled        bool              `json:"enabled" db:"enabled"`
-	CreatedAt      *int64            `json:"createdAt" db:"created_at"`  // unix seconds
+	ID             string  `json:"id" db:"id"`
+	TenantID       string  `json:"tenantId" db:"tenant_id"`
+	Name           string  `json:"name" db:"name"`
+	Type           string  `json:"type" db:"type"` // "event" or "cron"
+	WorkflowID     string  `json:"workflowId" db:"workflow_id"`
+	EventType      string  `json:"eventType" db:"event_type"`     // e.g. "pipeline.run.started"
+	EventFilter    string  `json:"eventFilter" db:"event_filter"` // JSON object
+	CronExpression *string `json:"cronExpression,omitempty" db:"cron_expression"`
+	Enabled        bool    `json:"enabled" db:"enabled"`
+	CreatedAt      *int64  `json:"createdAt" db:"created_at"` // unix seconds
 }
 
 // ---------------------------------------------------------------------------
@@ -54,20 +54,20 @@ type OrionStream struct {
 
 // CreateTriggerRequest is the request body for creating/updating a trigger.
 type CreateTriggerRequest struct {
-	Name           string            `json:"name" binding:"required"`
-	Type           string            `json:"type" binding:"required"`
-	WorkflowID     string            `json:"workflowId" binding:"required"`
-	EventType      string            `json:"eventType"`
-	EventFilter    string            `json:"eventFilter"`
-	CronExpression *string           `json:"cronExpression,omitempty"`
-	Enabled        bool              `json:"enabled"`
+	Name           string  `json:"name" binding:"required"`
+	Type           string  `json:"type" binding:"required"`
+	WorkflowID     string  `json:"workflowId" binding:"required"`
+	EventType      string  `json:"eventType"`
+	EventFilter    string  `json:"eventFilter"`
+	CronExpression *string `json:"cronExpression,omitempty"`
+	Enabled        bool    `json:"enabled"`
 }
 
 // TestMatchRequest is the request body for testing event-trigger matching.
 type TestMatchRequest struct {
-	EventType   string                 `json:"eventType" binding:"required"`
+	EventType    string                 `json:"eventType" binding:"required"`
 	EventPayload map[string]interface{} `json:"eventPayload"`
-	TriggerID   *string                `json:"triggerId"`
+	TriggerID    *string                `json:"triggerId"`
 }
 
 // SubscriptionSummary describes one active subscription (enabled event trigger).

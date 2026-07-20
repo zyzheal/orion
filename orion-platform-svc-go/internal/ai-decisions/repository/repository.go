@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -11,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -329,8 +327,8 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string, dateRange *m
 
 	// Positive feedback rate
 	var feedbackStats struct {
-		TotalFeedbacks       int64 `db:"total"`
-		PositiveFeedbacks    int64 `db:"positive"`
+		TotalFeedbacks    int64 `db:"total"`
+		PositiveFeedbacks int64 `db:"positive"`
 	}
 	err = r.db.GetContext(ctx, &feedbackStats,
 		fmt.Sprintf(`SELECT

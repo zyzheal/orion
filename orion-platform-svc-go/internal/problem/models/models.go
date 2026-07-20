@@ -12,19 +12,19 @@ type PaginatedResponse struct {
 
 // Problem represents an ITIL problem record.
 type Problem struct {
-	ID          string     `db:"id" json:"id"`
-	TenantID    string     `db:"tenant_id" json:"tenantId"`
-	Title       string     `db:"title" json:"title"`
-	Description *string    `db:"description" json:"description"`
-	Status      string     `db:"status" json:"status"`
-	Priority    string     `db:"priority" json:"priority"`
-	Severity    *string    `db:"severity" json:"severity"`
-	Category    *string    `db:"category" json:"category"`
-	AssignedTo  *string    `db:"assigned_to" json:"assignedTo"`
-	CreatedBy   *string    `db:"created_by" json:"createdBy"`
-	Metadata    *string    `db:"metadata" json:"metadata"`
-	CreatedAt   time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt   time.Time  `db:"updated_at" json:"updatedAt"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenantId"`
+	Title       string    `db:"title" json:"title"`
+	Description *string   `db:"description" json:"description"`
+	Status      string    `db:"status" json:"status"`
+	Priority    string    `db:"priority" json:"priority"`
+	Severity    *string   `db:"severity" json:"severity"`
+	Category    *string   `db:"category" json:"category"`
+	AssignedTo  *string   `db:"assigned_to" json:"assignedTo"`
+	CreatedBy   *string   `db:"created_by" json:"createdBy"`
+	Metadata    *string   `db:"metadata" json:"metadata"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateProblemRequest is the request body for creating a problem.
@@ -52,16 +52,16 @@ type UpdateProblemRequest struct {
 
 // KnownError represents a known error entry in KEDB.
 type KnownError struct {
-	ID               string     `db:"id" json:"id"`
-	ProblemID        string     `db:"problem_id" json:"problemId"`
-	Name             string     `db:"name" json:"name"`
-	Symptoms         *string    `db:"symptoms" json:"symptoms"`
-	Workaround       *string    `db:"workaround" json:"workaround"`
-	RootCause        *string    `db:"root_cause" json:"rootCause"`
-	PermanentFix     *string    `db:"permanent_fix" json:"permanentFix"`
-	AffectedServices *string    `db:"affected_services" json:"affectedServices"`
-	Keywords         *string    `db:"keywords" json:"keywords"`
-	CreatedAt        time.Time  `db:"created_at" json:"createdAt"`
+	ID               string    `db:"id" json:"id"`
+	ProblemID        string    `db:"problem_id" json:"problemId"`
+	Name             string    `db:"name" json:"name"`
+	Symptoms         *string   `db:"symptoms" json:"symptoms"`
+	Workaround       *string   `db:"workaround" json:"workaround"`
+	RootCause        *string   `db:"root_cause" json:"rootCause"`
+	PermanentFix     *string   `db:"permanent_fix" json:"permanentFix"`
+	AffectedServices *string   `db:"affected_services" json:"affectedServices"`
+	Keywords         *string   `db:"keywords" json:"keywords"`
+	CreatedAt        time.Time `db:"created_at" json:"createdAt"`
 }
 
 // CreateKnownErrorRequest is the request body for creating a known error.
@@ -105,26 +105,26 @@ type UpdateStatusRequest struct {
 
 // ProblemStats holds aggregated statistics for problems.
 type ProblemStats struct {
-	Total        int            `json:"total"`
-	ByStatus     map[string]int `json:"byStatus"`
-	ByPriority   map[string]int `json:"byPriority"`
-	BySeverity   map[string]int `json:"bySeverity"`
+	Total      int            `json:"total"`
+	ByStatus   map[string]int `json:"byStatus"`
+	ByPriority map[string]int `json:"byPriority"`
+	BySeverity map[string]int `json:"bySeverity"`
 }
 
 // KnownErrorFilter represents filter parameters for listing known errors.
 type KnownErrorFilter struct {
-	Status   *string
+	Status    *string
 	ProblemID *string
-	Limit    int
-	Offset   int
+	Limit     int
+	Offset    int
 }
 
 // ProblemFilter represents filter parameters for listing problems.
 type ProblemFilter struct {
-	Status    *string
-	Severity  *string
+	Status     *string
+	Severity   *string
 	AssignedTo *string
-	Category  *string
-	Limit     int
-	Offset    int
+	Category   *string
+	Limit      int
+	Offset     int
 }

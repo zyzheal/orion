@@ -5,13 +5,13 @@ import (
 
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/abac-policy/models"
-	"orion/platform-svc-go/internal/abac-policy/repository"
 	"orion/platform-svc-go/internal/abac-policy/service"
 
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Handler struct {

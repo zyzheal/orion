@@ -143,12 +143,12 @@ func (m *mockCapabilityRepo) GrantTemporaryPermission(_ context.Context, tenantI
 	}
 	m.tpermID++
 	m.tperms[m.tpermID] = &models.TemporaryPermission{
-		ID:          m.tpermID,
-		UserID:      userID,
+		ID:           m.tpermID,
+		UserID:       userID,
 		CapabilityID: capabilityID,
-		GrantedBy:   grantedBy,
-		ExpiresAt:   time.Now().UTC().Add(time.Duration(expires) * time.Hour),
-		GrantedAt:   time.Now().UTC(),
+		GrantedBy:    grantedBy,
+		ExpiresAt:    time.Now().UTC().Add(time.Duration(expires) * time.Hour),
+		GrantedAt:    time.Now().UTC(),
 	}
 	return nil
 }
@@ -195,11 +195,11 @@ func (m *mockCapabilityRepo) CreatePermissionRequest(_ context.Context, tenantID
 
 func (m *mockCapabilityRepo) GetPermissionRequestByID(_ context.Context, tenantID string, ticketID int) (*models.PermissionRequest, error) {
 	return &models.PermissionRequest{
-		ID:           ticketID,
-		TenantID:     tenantID,
-		Status:       "pending",
-		UserID:       "u1",
-		CapabilityID: "c1",
+		ID:            ticketID,
+		TenantID:      tenantID,
+		Status:        "pending",
+		UserID:        "u1",
+		CapabilityID:  "c1",
 		DurationHours: 8,
 	}, nil
 }
@@ -395,9 +395,9 @@ func TestGrantTemporaryPermission_InvalidDuration(t *testing.T) {
 	svc := newTestCapService(repo)
 
 	req := models.GrantTemporaryRequest{
-		TenantID:     "t1",
-		UserID:       "u1",
-		CapabilityID: "c1",
+		TenantID:       "t1",
+		UserID:         "u1",
+		CapabilityID:   "c1",
 		ExpiresInHours: -1,
 	}
 	_, err := svc.GrantTemporaryPermission(ctx, req)

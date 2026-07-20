@@ -4,20 +4,20 @@ import "time"
 
 // DeployWindow represents a scheduled deploy window with environment locking.
 type DeployWindow struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenantId"`
-	Name           string     `db:"name" json:"name"`
-	EnvironmentID  *string    `db:"environment_id" json:"environmentId"`
-	Type           string     `db:"type" json:"type"`
-	CronExpression *string    `db:"cron_expression" json:"cronExpression"`
-	StartTime      *time.Time `db:"start_time" json:"startTime"`
-	EndTime        *time.Time `db:"end_time" json:"endTime"`
-	DurationMinutes int       `db:"duration_minutes" json:"durationMinutes"`
-	Timezone       string     `db:"timezone" json:"timezone"`
-	Status         string     `db:"status" json:"status"`
-	CreatedBy      string     `db:"created_by" json:"createdBy"`
-	CreatedAt      time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time  `db:"updated_at" json:"updatedAt"`
+	ID              string     `db:"id" json:"id"`
+	TenantID        string     `db:"tenant_id" json:"tenantId"`
+	Name            string     `db:"name" json:"name"`
+	EnvironmentID   *string    `db:"environment_id" json:"environmentId"`
+	Type            string     `db:"type" json:"type"`
+	CronExpression  *string    `db:"cron_expression" json:"cronExpression"`
+	StartTime       *time.Time `db:"start_time" json:"startTime"`
+	EndTime         *time.Time `db:"end_time" json:"endTime"`
+	DurationMinutes int        `db:"duration_minutes" json:"durationMinutes"`
+	Timezone        string     `db:"timezone" json:"timezone"`
+	Status          string     `db:"status" json:"status"`
+	CreatedBy       string     `db:"created_by" json:"createdBy"`
+	CreatedAt       time.Time  `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateDeployWindowRequest is the request body for creating a deploy window.
@@ -40,25 +40,25 @@ type UpdateDeployWindowRequest struct {
 
 // WindowCheckResult is the result of checking whether a window is active.
 type WindowCheckResult struct {
-	IsActive    bool            `json:"isActive"`
-	Window      *DeployWindow   `json:"window"`
-	Reason      string          `json:"reason"`
+	IsActive bool          `json:"isActive"`
+	Window   *DeployWindow `json:"window"`
+	Reason   string        `json:"reason"`
 }
 
 // ProgressiveDeploy represents a stage-based progressive deployment.
 type ProgressiveDeploy struct {
-	ID             string     `db:"id" json:"id"`
-	TenantID       string     `db:"tenant_id" json:"tenantId"`
-	DeploymentID   string     `db:"deployment_id" json:"deploymentId"`
-	Strategy       string     `db:"strategy" json:"strategy"`
-	Stages         string     `db:"stages" json:"stages"`
-	CurrentStage   int        `db:"current_stage" json:"currentStage"`
-	Status         string     `db:"status" json:"status"`
+	ID              string    `db:"id" json:"id"`
+	TenantID        string    `db:"tenant_id" json:"tenantId"`
+	DeploymentID    string    `db:"deployment_id" json:"deploymentId"`
+	Strategy        string    `db:"strategy" json:"strategy"`
+	Stages          string    `db:"stages" json:"stages"`
+	CurrentStage    int       `db:"current_stage" json:"currentStage"`
+	Status          string    `db:"status" json:"status"`
 	RollbackEnabled bool      `db:"rollback_enabled" json:"rollbackEnabled"`
-	RollbackStage  *string    `db:"rollback_stage" json:"rollbackStage"`
-	RollbackReason *string    `db:"rollback_reason" json:"rollbackReason"`
-	CreatedAt      time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt      time.Time  `db:"updated_at" json:"updatedAt"`
+	RollbackStage   *string   `db:"rollback_stage" json:"rollbackStage"`
+	RollbackReason  *string   `db:"rollback_reason" json:"rollbackReason"`
+	CreatedAt       time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt       time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateProgressiveDeployRequest is the request body for creating a progressive deploy.
@@ -68,18 +68,18 @@ type CreateProgressiveDeployRequest struct {
 
 // Stage represents a single stage in a progressive deployment.
 type Stage struct {
-	Name         string   `json:"name"`
-	TrafficPct   int      `json:"trafficPct"`
-	DurationSec  int      `json:"durationSec"`
-	Status       string   `json:"status"`
-	StartedAt    *string  `json:"startedAt"`
-	CompletedAt  *string  `json:"completedAt"`
+	Name             string  `json:"name"`
+	TrafficPct       int     `json:"trafficPct"`
+	DurationSec      int     `json:"durationSec"`
+	Status           string  `json:"status"`
+	StartedAt        *string `json:"startedAt"`
+	CompletedAt      *string `json:"completedAt"`
 	ValidationResult *string `json:"validationResult"`
 }
 
 // AdvanceStageRequest is the request body for advancing a progressive deploy.
 type AdvanceStageRequest struct {
-	StageID         string  `json:"stage_id" binding:"required"`
+	StageID          string  `json:"stage_id" binding:"required"`
 	ValidationResult *string `json:"validationResult"`
 }
 

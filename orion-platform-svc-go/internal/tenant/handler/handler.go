@@ -13,7 +13,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes the tenant module's HTTP endpoints.
@@ -376,8 +375,8 @@ func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMiddlewareConfig")
 	defer span.End()
 	config := models.MiddlewareConfig{
-		Enabled:       true,
-		HeaderName:    "x-tenant-id",
+		Enabled:        true,
+		HeaderName:     "x-tenant-id",
 		JwtTenantClaim: "tenant_id",
 	}
 	errors.WriteSuccess(c, gin.H{"config": config})

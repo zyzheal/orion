@@ -2,13 +2,13 @@ package models
 
 // ReviewRequest represents an AI review record.
 type ReviewRequest struct {
-	ID        string `db:"id" json:"id"`
-	TenantID  string `db:"tenant_id" json:"tenant_id"`
-	Content   string `db:"content" json:"content"`
-	Status    string `db:"status" json:"status"`
-	Score     float64 `db:"score" json:"score"`
-	Suggestions string `db:"suggestions" json:"suggestions"`
-	CreatedBy string `db:"created_by" json:"created_by"`
+	ID          string  `db:"id" json:"id"`
+	TenantID    string  `db:"tenant_id" json:"tenant_id"`
+	Content     string  `db:"content" json:"content"`
+	Status      string  `db:"status" json:"status"`
+	Score       float64 `db:"score" json:"score"`
+	Suggestions string  `db:"suggestions" json:"suggestions"`
+	CreatedBy   string  `db:"created_by" json:"created_by"`
 }
 
 // ReviewResponse is the response payload.

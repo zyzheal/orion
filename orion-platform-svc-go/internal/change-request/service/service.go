@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/change-request/models"
-	"orion/platform-svc-go/internal/change-request/repository"
 	"orion/go-common/pkg/sentinel"
 )
 

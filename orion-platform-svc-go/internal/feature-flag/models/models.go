@@ -154,15 +154,15 @@ type CreateFlagRequest struct {
 
 // UpdateFlagRequest is the input for updating an existing feature flag.
 type UpdateFlagRequest struct {
-	Name            *string           `json:"name"`
-	Description     *string           `json:"description"`
+	Name            *string            `json:"name"`
+	Description     *string            `json:"description"`
 	Status          *FeatureFlagStatus `json:"status"`
-	DefaultValue    *bool             `json:"default_value"`
-	RolloutPct      *int              `json:"rollout_pct"`
-	RolloutStrategy *RolloutStrategy  `json:"rollout_strategy"`
-	TargetingRules  []TargetingRule   `json:"targeting_rules"`
-	Environments    []string          `json:"environments"`
-	Tags            []string          `json:"tags"`
+	DefaultValue    *bool              `json:"default_value"`
+	RolloutPct      *int               `json:"rollout_pct"`
+	RolloutStrategy *RolloutStrategy   `json:"rollout_strategy"`
+	TargetingRules  []TargetingRule    `json:"targeting_rules"`
+	Environments    []string           `json:"environments"`
+	Tags            []string           `json:"tags"`
 }
 
 // SetRolloutRequest is the input for setting the rollout percentage.

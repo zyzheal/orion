@@ -5,8 +5,9 @@ import (
 	"orion/platform-svc-go/internal/pipeline-batch-operations/models"
 	"orion/platform-svc-go/internal/pipeline-batch-operations/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

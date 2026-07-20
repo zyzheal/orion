@@ -28,9 +28,9 @@ func ValidCheckTypes() []CheckType {
 type LastStatus string
 
 const (
-	StatusUP       LastStatus = "UP"
-	StatusDOWN     LastStatus = "DOWN"
-	StatusUNKNOWN  LastStatus = "UNKNOWN"
+	StatusUP      LastStatus = "UP"
+	StatusDOWN    LastStatus = "DOWN"
+	StatusUNKNOWN LastStatus = "UNKNOWN"
 )
 
 // ValidLastStatuses returns all allowed status values.
@@ -94,11 +94,11 @@ type HealthCheck struct {
 
 // HealthResult represents the result of a single health check execution.
 type HealthResult struct {
-	CheckID       string     `json:"check_id" db:"check_id"`
-	Status        LastStatus `json:"status" db:"status"`
-	ResponseTimeMs int64     `json:"response_time_ms" db:"response_time_ms"`
-	Error         string     `json:"error" db:"error"`
-	CheckedAt     time.Time  `json:"checked_at" db:"checked_at"`
+	CheckID        string     `json:"check_id" db:"check_id"`
+	Status         LastStatus `json:"status" db:"status"`
+	ResponseTimeMs int64      `json:"response_time_ms" db:"response_time_ms"`
+	Error          string     `json:"error" db:"error"`
+	CheckedAt      time.Time  `json:"checked_at" db:"checked_at"`
 }
 
 // HealthSummary holds aggregated health information for a service.

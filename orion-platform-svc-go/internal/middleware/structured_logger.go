@@ -15,12 +15,12 @@ import (
 
 const (
 	// Standard key names used by handlers to read injected values.
-	StdFieldTraceID = "trace_id"
-	StdFieldTenantID = "tenant_id"
-	StdFieldUserID = "user_id"
+	StdFieldTraceID     = "trace_id"
+	StdFieldTenantID    = "tenant_id"
+	StdFieldUserID      = "user_id"
 	StdFieldHandlerName = "handler"
-	StdFieldRemoteIP = "remote_ip"
-	StdFieldRequestID = "request_id"
+	StdFieldRemoteIP    = "remote_ip"
+	StdFieldRequestID   = "request_id"
 )
 
 // contextKey is a private, unexported type to avoid collisions between
@@ -97,16 +97,16 @@ func StdLogger() gin.HandlerFunc {
 		latency := time.Since(start).Microseconds()
 
 		logEntry := gin.H{
-			"time":      time.Now().UTC().Format(time.RFC3339),
-			"traceId":   c.GetString(StdFieldTraceID),
-			"tenantId":  c.GetString(StdFieldTenantID),
-			"userId":    c.GetString(StdFieldUserID),
-			"handler":   c.GetString(StdFieldHandlerName),
-			"method":    c.Request.Method,
-			"path":      c.Request.URL.Path,
-			"status":    status,
-			"latency":   latency,
-			"remote_ip": c.GetString(StdFieldRemoteIP),
+			"time":       time.Now().UTC().Format(time.RFC3339),
+			"traceId":    c.GetString(StdFieldTraceID),
+			"tenantId":   c.GetString(StdFieldTenantID),
+			"userId":     c.GetString(StdFieldUserID),
+			"handler":    c.GetString(StdFieldHandlerName),
+			"method":     c.Request.Method,
+			"path":       c.Request.URL.Path,
+			"status":     status,
+			"latency":    latency,
+			"remote_ip":  c.GetString(StdFieldRemoteIP),
 			"user_agent": c.Request.UserAgent(),
 		}
 
@@ -114,7 +114,7 @@ func StdLogger() gin.HandlerFunc {
 		// writes to stdout; this produces a single JSON line per request.
 		// We deliberately use fmt.Sprintf + newline so that log aggregation tools
 		// (fluentd, vector, Loki) parse it as a single structured record.
-		record, ok := formatLogRecord(logEntry)
+		record, _ := formatLogRecord(logEntry)
 		// Write the structured log line to stdout (gin's default writer).
 		// gin.DefaultWriter points to os.Stdout by default.
 		fmt.Fprintf(gin.DefaultWriter, "%s\n", record)
@@ -193,8 +193,9 @@ func StdLoggerWithLevel(minStatus int) gin.HandlerFunc {
 // module/subpkg.Handler.Method form.
 //
 // Examples:
-//   "orion/platform-svc-go/internal/feature-flag/handler.(*Handler).List-fm"
-//   -> "feature-flag/handler.Handler.List"
+//
+//	"orion/platform-svc-go/internal/feature-flag/handler.(*Handler).List-fm"
+//	-> "feature-flag/handler.Handler.List"
 func normalizeLogHandlerName(fullName string) string {
 	if fullName == "" {
 		return "unregistered"

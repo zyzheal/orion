@@ -28,7 +28,7 @@ func (r *Repository) Create(ctx context.Context, role *models.Role) error {
 			id, tenant_id, name, description, permissions, status, created_at, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 		role.ID, role.TenantID, role.Name, role.Description, role.Permissions, role.Status, role.CreatedAt, role.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -73,7 +73,7 @@ func (r *Repository) Update(ctx context.Context, role *models.Role) error {
 			name=$1, description=$2, status=$3, updated_at=NOW()
 		WHERE id=$4 AND tenant_id=$5`,
 		role.Name, role.Description, role.Status, role.ID, role.TenantID,
-)
+	)
 	return err
 }
 
@@ -85,7 +85,7 @@ func (r *Repository) UpdatePermissions(ctx context.Context, tenantID, id string,
 			permissions=$1, updated_at=NOW()
 		WHERE id=$2 AND tenant_id=$3`,
 		permissions, id, tenantID,
-)
+	)
 	return err
 }
 

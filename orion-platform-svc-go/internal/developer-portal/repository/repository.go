@@ -68,9 +68,9 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 
 func (r *Repository) CreateDocument(ctx context.Context, doc *models.PortalDocument) error {
 	doc.CreatedAt = time.Now().UTC()
-doc.UpdatedAt = time.Now().UTC()
-_, err := r.db.NamedExecContext(ctx,
-	`INSERT INTO portal_documents (id, tenant_id, title, category, content, status, views, helpful, version, created_by, created_at, updated_at) VALUES (:id, :tenant_id, :title, :category, :content, :status, :views, :helpful, :version, :created_by, :created_at, :updated_at)`, doc)
+	doc.UpdatedAt = time.Now().UTC()
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO portal_documents (id, tenant_id, title, category, content, status, views, helpful, version, created_by, created_at, updated_at) VALUES (:id, :tenant_id, :title, :category, :content, :status, :views, :helpful, :version, :created_by, :created_at, :updated_at)`, doc)
 	return err
 }
 
@@ -278,7 +278,7 @@ func (r *Repository) DeleteMockRule(ctx context.Context, tenantID, id string) er
 
 func (r *Repository) CreateSDKTask(ctx context.Context, task *models.SDKTask) error {
 	task.CreatedAt = time.Now().UTC()
-task.UpdatedAt = time.Now().UTC()
+	task.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO dev_portal_sdk_tasks (id, tenant_id, name, language, status, output_url, error, created_at, updated_at) VALUES (:id, :tenant_id, :name, :language, :status, :output_url, :error, :created_at, :updated_at)`, task)
 	return err
@@ -329,7 +329,7 @@ func (r *Repository) ListSDKTasks(ctx context.Context, tenantID string, filter m
 		ci++
 	}
 	if filter.Status != "" {
-	countQuery += fmt.Sprintf(" AND status=$%d", ci)
+		countQuery += fmt.Sprintf(" AND status=$%d", ci)
 		countArgs = append(countArgs, filter.Status)
 		ci++
 	}
@@ -366,7 +366,7 @@ func (r *Repository) DeleteSDKTask(ctx context.Context, tenantID, id string) err
 
 func (r *Repository) CreateSubscription(ctx context.Context, sub *models.Subscription) error {
 	sub.CreatedAt = time.Now().UTC()
-sub.UpdatedAt = time.Now().UTC()
+	sub.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO dev_portal_subscriptions (id, tenant_id, user_id, api_name, plan_name, quota_per_day, quota_per_month, used_per_day, used_per_month, reason, status, approved_by, reject_reason, created_at, updated_at) VALUES (:id, :tenant_id, :user_id, :api_name, :plan_name, :quota_per_day, :quota_per_month, :used_per_day, :used_per_month, :reason, :status, :approved_by, :reject_reason, :created_at, :updated_at)`, sub)
 	return err
@@ -488,7 +488,7 @@ func (r *Repository) GetUsageRecords(ctx context.Context, tenantID, subscription
 
 func (r *Repository) CreatePlaygroundRequest(ctx context.Context, preq *models.PlaygroundRequest) error {
 	preq.CreatedAt = time.Now().UTC()
-preq.UpdatedAt = time.Now().UTC()
+	preq.UpdatedAt = time.Now().UTC()
 	_, err := r.db.NamedExecContext(ctx,
 		`INSERT INTO dev_portal_playground_requests (id, tenant_id, user_id, name, method, path, headers, body, created_at, updated_at) VALUES (:id, :tenant_id, :user_id, :name, :method, :path, :headers, :body, :created_at, :updated_at)`, preq)
 	return err

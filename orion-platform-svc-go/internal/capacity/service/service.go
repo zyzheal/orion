@@ -1,12 +1,14 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/capacity/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

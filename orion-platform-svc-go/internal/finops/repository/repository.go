@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,9 +11,10 @@ import (
 
 	"orion/platform-svc-go/internal/finops/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // validEntityType checks if the entity type is allowed.
@@ -418,10 +418,10 @@ func (r *Repository) GetBillingSummary(ctx context.Context, tenantID string) (*m
 		return nil, err
 	}
 	return &models.BillingSummary{
-		TotalBilling:   totalBilling,
-		PaidAmount:     paidAmount,
-		PendingAmount:  pendingAmount,
-		OverdueAmount:  overdueAmount,
+		TotalBilling:  totalBilling,
+		PaidAmount:    paidAmount,
+		PendingAmount: pendingAmount,
+		OverdueAmount: overdueAmount,
 	}, nil
 }
 
@@ -660,15 +660,15 @@ func (r *Repository) GetBudgetStatus(ctx context.Context, budgetID string, tenan
 	overBudget := currentSpend > b.Amount
 
 	return &models.BudgetStatus{
-		BudgetID:       budgetID,
-		EntityType:     string(b.EntityType),
-		EntityID:       b.EntityID,
-		BudgetAmount:   b.Amount,
-		CurrentSpend:   round2(currentSpend),
-		UsagePercent:   round2(usagePercent),
-		Remaining:      round2(remaining),
-		Period:         b.Period,
-		OverBudget:     overBudget,
+		BudgetID:        budgetID,
+		EntityType:      string(b.EntityType),
+		EntityID:        b.EntityID,
+		BudgetAmount:    b.Amount,
+		CurrentSpend:    round2(currentSpend),
+		UsagePercent:    round2(usagePercent),
+		Remaining:       round2(remaining),
+		Period:          b.Period,
+		OverBudget:      overBudget,
 		TriggeredAlerts: []models.BudgetAlertTrigger{},
 	}, nil
 }

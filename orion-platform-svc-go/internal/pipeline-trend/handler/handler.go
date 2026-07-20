@@ -6,8 +6,9 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/pipeline-trend/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -21,8 +22,9 @@ func NewHandler(svc *service.Service) *Handler {
 
 // RegisterRoutes registers all pipeline-trend endpoints under the given group.
 // Mirrors the TS source:
-//   GET /pipelines/:id/runs/trend
-//   GET /pipelines/trend/compare
+//
+//	GET /pipelines/:id/runs/trend
+//	GET /pipelines/trend/compare
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f := rg.Group("/pipelines")
 

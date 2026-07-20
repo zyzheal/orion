@@ -4,16 +4,16 @@ import "time"
 
 // ComplianceReport represents a compliance audit report.
 type ComplianceReport struct {
-	ID          string     `db:"id" json:"id"`
-	TenantID    string     `db:"tenant_id" json:"tenantId"`
-	Name        string     `db:"name" json:"name"`
-	Description *string    `db:"description" json:"description"`
-	Framework   string     `db:"framework" json:"framework"`
-	TriggeredBy string     `db:"triggered_by" json:"triggeredBy"`
-	ScheduleID  *string    `db:"schedule_id" json:"scheduleId"`
-	Status      string     `db:"status" json:"status"`
-	CreatedAt   time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt   time.Time  `db:"updated_at" json:"updatedAt"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenantId"`
+	Name        string    `db:"name" json:"name"`
+	Description *string   `db:"description" json:"description"`
+	Framework   string    `db:"framework" json:"framework"`
+	TriggeredBy string    `db:"triggered_by" json:"triggeredBy"`
+	ScheduleID  *string   `db:"schedule_id" json:"scheduleId"`
+	Status      string    `db:"status" json:"status"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateComplianceReportRequest is the request body for creating a compliance report.
@@ -49,8 +49,8 @@ type ComplianceSchedule struct {
 
 // CreateComplianceScheduleRequest is the request body for creating a compliance schedule.
 type CreateComplianceScheduleRequest struct {
-	Name           string  `json:"name" binding:"required"`
-	Framework      string  `json:"framework" binding:"required"`
-	CronExpression string  `json:"cronExpression" binding:"required"`
-	Enabled        *bool   `json:"enabled"`
+	Name           string `json:"name" binding:"required"`
+	Framework      string `json:"framework" binding:"required"`
+	CronExpression string `json:"cronExpression" binding:"required"`
+	Enabled        *bool  `json:"enabled"`
 }

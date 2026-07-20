@@ -80,7 +80,7 @@ func (r *Repository) CreateSpace(ctx context.Context, space *models.Space) error
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		space.ID, space.TenantID, space.Name, space.Type, space.Description,
 		space.TeamID, space.OwnerID, space.CreatedAt, space.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -92,7 +92,7 @@ func (r *Repository) GetSpaceByID(ctx context.Context, id string) (*models.Space
 		 FROM kb_spaces WHERE id = $1`, id).Scan(
 		&space.ID, &space.TenantID, &space.Name, &space.Type, &space.Description,
 		&teamID, &space.OwnerID, &space.CreatedAt, &space.UpdatedAt,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (r *Repository) GetDocByID(ctx context.Context, id string) (*models.Documen
 		 FROM kb_docs WHERE id = $1`, id).Scan(
 		&doc.ID, &doc.TenantID, &doc.Title, &doc.Content, &doc.SpaceID,
 		&doc.Tags, &doc.Status, &doc.AuthorID, &doc.CreatedAt, &doc.UpdatedAt,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (r *Repository) CreateDoc(ctx context.Context, doc *models.Document) error 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		doc.ID, doc.TenantID, doc.Title, doc.Content, doc.SpaceID,
 		tagsJSON, doc.Status, doc.AuthorID, doc.CreatedAt, doc.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -294,7 +294,7 @@ func (r *Repository) CreateSyncLog(ctx context.Context, log *models.SyncLog) err
 		`INSERT INTO kb_sync_logs (id, tenant_id, source, status, error_msg, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
 		nextID(ctx, r.db), log.TenantID, log.Source, log.Status, log.ErrorMsg, now,
-)
+	)
 	return err
 }
 

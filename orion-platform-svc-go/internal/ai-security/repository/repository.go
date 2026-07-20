@@ -7,8 +7,9 @@ import (
 
 	"orion/platform-svc-go/internal/ai-security/models"
 
-	"github.com/jmoiron/sqlx"
 	"orion/go-common/pkg/sentinel"
+
+	"github.com/jmoiron/sqlx"
 )
 
 var ErrVulnerabilityEngine = errors.New("vulnerability scanning engine unavailable")

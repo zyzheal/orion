@@ -3,16 +3,16 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/problem/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -178,8 +178,8 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Pro
 	stats.Total = total
 
 	var rows []struct {
-		Status   sql.NullString `db:"status"`
-		Count    int            `db:"count"`
+		Status sql.NullString `db:"status"`
+		Count  int            `db:"count"`
 	}
 	err = r.db.SelectContext(ctx, &rows,
 		`SELECT status, COUNT(*) AS count FROM problem_problems WHERE tenant_id=$1 GROUP BY status`, tenantID)

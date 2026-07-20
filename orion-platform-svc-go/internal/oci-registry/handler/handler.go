@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -95,7 +94,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-item, err := h.svc.Update(ctx, tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -171,7 +170,7 @@ func respondSuccess(c *gin.Context, data any) {
 }
 
 func respondBadRequest(c *gin.Context, message string) {
-errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
+	errors.WriteError(c, errors.ErrBadRequest, message, http.StatusBadRequest)
 }
 
 func respondInternalError(c *gin.Context) {

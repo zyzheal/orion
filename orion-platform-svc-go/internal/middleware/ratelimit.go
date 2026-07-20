@@ -41,11 +41,11 @@ func DefaultRateLimitConfig() RateLimitConfig {
 		RequestsPerMin: 100,
 		Burst:          100,
 		EndpointLimits: map[string]*EndpointLimit{
-			"/api/v1/auth/login":     {RequestsPerMin: 20, Burst: 10},
-			"/api/v1/auth/register":  {RequestsPerMin: 10, Burst: 5},
-			"/api/v1/auth/password":  {RequestsPerMin: 10, Burst: 5},
-			"/api/v1/auth/token":     {RequestsPerMin: 30, Burst: 15},
-			"/api/v1/auth/verify":    {RequestsPerMin: 30, Burst: 15},
+			"/api/v1/auth/login":    {RequestsPerMin: 20, Burst: 10},
+			"/api/v1/auth/register": {RequestsPerMin: 10, Burst: 5},
+			"/api/v1/auth/password": {RequestsPerMin: 10, Burst: 5},
+			"/api/v1/auth/token":    {RequestsPerMin: 30, Burst: 15},
+			"/api/v1/auth/verify":   {RequestsPerMin: 30, Burst: 15},
 		},
 	}
 }
@@ -56,8 +56,8 @@ func DefaultRateLimitConfig() RateLimitConfig {
 
 // tokenBucket implements a thread-safe token bucket algorithm.
 type tokenBucket struct {
-	mu      sync.Mutex
-	tokens  float64
+	mu       sync.Mutex
+	tokens   float64
 	capacity float64
 	refillAt time.Time
 	// refillInterval is the period at which tokens are replenished.

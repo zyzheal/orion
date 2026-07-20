@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrSagaNotFound   = errors.New("saga transaction not found")
-	ErrSagaRunning    = errors.New("saga is already running")
-	ErrInvalidStatus  = errors.New("invalid saga status for this operation")
+	ErrSagaNotFound  = errors.New("saga transaction not found")
+	ErrSagaRunning   = errors.New("saga is already running")
+	ErrInvalidStatus = errors.New("invalid saga status for this operation")
 )
 
 // Repository defines the data-access interface used by SagaCoordinator, DeploySaga, and TransactionLog.

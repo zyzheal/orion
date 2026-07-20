@@ -17,9 +17,9 @@ import (
 )
 
 var (
-	ErrFlagNotFound    = errors.New("feature flag not found")
-	ErrDuplicateKey    = errors.New("feature flag with this key already exists")
-	ErrInvalidRollout  = errors.New("rollout percentage must be between 0 and 100")
+	ErrFlagNotFound   = errors.New("feature flag not found")
+	ErrDuplicateKey   = errors.New("feature flag with this key already exists")
+	ErrInvalidRollout = errors.New("rollout percentage must be between 0 and 100")
 )
 
 // Service implements the feature flag business logic.

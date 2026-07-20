@@ -6,35 +6,35 @@ import "encoding/json"
 type DegradationStrategy string
 
 const (
-	StrategyFallback     DegradationStrategy = "fallback"
+	StrategyFallback       DegradationStrategy = "fallback"
 	StrategyCircuitBreaker DegradationStrategy = "circuit_breaker"
-	StrategyTimeout      DegradationStrategy = "timeout"
-	StrategyRateLimit    DegradationStrategy = "rate_limit"
-	StrategyQueue        DegradationStrategy = "queue"
-	StrategyCache        DegradationStrategy = "cache"
-	StrategyGraceful     DegradationStrategy = "graceful"
-	StrategyCustom       DegradationStrategy = "custom"
+	StrategyTimeout        DegradationStrategy = "timeout"
+	StrategyRateLimit      DegradationStrategy = "rate_limit"
+	StrategyQueue          DegradationStrategy = "queue"
+	StrategyCache          DegradationStrategy = "cache"
+	StrategyGraceful       DegradationStrategy = "graceful"
+	StrategyCustom         DegradationStrategy = "custom"
 )
 
 // TriggerCondition represents the condition that triggers degradation.
 type TriggerCondition string
 
 const (
-	ConditionErrorRate    TriggerCondition = "error_rate"
-	ConditionLatency      TriggerCondition = "latency"
-	ConditionThroughput   TriggerCondition = "throughput"
+	ConditionErrorRate     TriggerCondition = "error_rate"
+	ConditionLatency       TriggerCondition = "latency"
+	ConditionThroughput    TriggerCondition = "throughput"
 	ConditionResourceUsage TriggerCondition = "resource_usage"
-	ConditionManual       TriggerCondition = "manual"
-	ConditionScheduled    TriggerCondition = "scheduled"
+	ConditionManual        TriggerCondition = "manual"
+	ConditionScheduled     TriggerCondition = "scheduled"
 )
 
 // DegradationStatus represents the status of a degradation config.
 type DegradationStatus string
 
 const (
-	StatusActive   DegradationStatus = "active"
-	StatusInactive DegradationStatus = "inactive"
-	StatusTriggered DegradationStatus = "triggered"
+	StatusActive     DegradationStatus = "active"
+	StatusInactive   DegradationStatus = "inactive"
+	StatusTriggered  DegradationStatus = "triggered"
 	StatusRecovering DegradationStatus = "recovering"
 )
 
@@ -52,47 +52,47 @@ const (
 type HistoryStatus string
 
 const (
-	HistoryStatusTriggered  HistoryStatus = "triggered"
-	HistoryStatusRecovered  HistoryStatus = "recovered"
-	HistoryStatusFailed     HistoryStatus = "failed"
+	HistoryStatusTriggered HistoryStatus = "triggered"
+	HistoryStatusRecovered HistoryStatus = "recovered"
+	HistoryStatusFailed    HistoryStatus = "failed"
 )
 
 // --- Core entities ---
 
 // DegradationConfig is the primary degradation configuration entity.
 type DegradationConfig struct {
-	ID            string            `json:"id" db:"id"`
-	Name          string            `json:"name" db:"name"`
-	Description   string            `json:"description" db:"description"`
-	ServiceName   string            `json:"service_name" db:"service_name"`
-	Strategy      DegradationStrategy `json:"strategy" db:"strategy"`
-	Status        DegradationStatus `json:"status" db:"status"`
-	Triggers      string            `json:"triggers" db:"triggers"`      // JSONB array
-	Actions       string            `json:"actions" db:"actions"`        // JSONB array
-	Recovery      string            `json:"recovery" db:"recovery"`      // JSONB
-	Metadata      string            `json:"metadata" db:"metadata"`      // JSONB
-	Enabled       bool              `json:"enabled" db:"enabled"`
-	CreatedAt     int64             `json:"created_at" db:"created_at"`
-	UpdatedAt     int64             `json:"updated_at" db:"updated_at"`
-	LastTriggeredAt *int64          `json:"last_triggered_at,omitempty" db:"last_triggered_at"`
-	TriggerCount  int               `json:"trigger_count" db:"trigger_count"`
-	TenantID      string            `json:"tenant_id" db:"tenant_id"`
+	ID              string              `json:"id" db:"id"`
+	Name            string              `json:"name" db:"name"`
+	Description     string              `json:"description" db:"description"`
+	ServiceName     string              `json:"service_name" db:"service_name"`
+	Strategy        DegradationStrategy `json:"strategy" db:"strategy"`
+	Status          DegradationStatus   `json:"status" db:"status"`
+	Triggers        string              `json:"triggers" db:"triggers"` // JSONB array
+	Actions         string              `json:"actions" db:"actions"`   // JSONB array
+	Recovery        string              `json:"recovery" db:"recovery"` // JSONB
+	Metadata        string              `json:"metadata" db:"metadata"` // JSONB
+	Enabled         bool                `json:"enabled" db:"enabled"`
+	CreatedAt       int64               `json:"created_at" db:"created_at"`
+	UpdatedAt       int64               `json:"updated_at" db:"updated_at"`
+	LastTriggeredAt *int64              `json:"last_triggered_at,omitempty" db:"last_triggered_at"`
+	TriggerCount    int                 `json:"trigger_count" db:"trigger_count"`
+	TenantID        string              `json:"tenant_id" db:"tenant_id"`
 }
 
 // DegradationHistory records a single degradation event.
 type DegradationHistory struct {
-	ID                string        `json:"id" db:"id"`
-	ConfigID          string        `json:"config_id" db:"config_id"`
-	TriggeredAt       int64         `json:"triggered_at" db:"triggered_at"`
-	RecoveredAt       *int64        `json:"recovered_at,omitempty" db:"recovered_at"`
-	TriggerType       TriggerCondition `json:"trigger_type" db:"trigger_type"`
-	TriggerValue      float64       `json:"trigger_value" db:"trigger_value"`
-	TriggerThreshold  float64       `json:"trigger_threshold" db:"trigger_threshold"`
-	Duration          int64         `json:"duration" db:"duration"`
-	Status            HistoryStatus `json:"status" db:"status"`
-	Actions           string        `json:"actions" db:"actions"` // JSONB array
-	TenantID          string        `json:"tenant_id" db:"tenant_id"`
-	CreatedAt         int64         `json:"created_at" db:"created_at"`
+	ID               string           `json:"id" db:"id"`
+	ConfigID         string           `json:"config_id" db:"config_id"`
+	TriggeredAt      int64            `json:"triggered_at" db:"triggered_at"`
+	RecoveredAt      *int64           `json:"recovered_at,omitempty" db:"recovered_at"`
+	TriggerType      TriggerCondition `json:"trigger_type" db:"trigger_type"`
+	TriggerValue     float64          `json:"trigger_value" db:"trigger_value"`
+	TriggerThreshold float64          `json:"trigger_threshold" db:"trigger_threshold"`
+	Duration         int64            `json:"duration" db:"duration"`
+	Status           HistoryStatus    `json:"status" db:"status"`
+	Actions          string           `json:"actions" db:"actions"` // JSONB array
+	TenantID         string           `json:"tenant_id" db:"tenant_id"`
+	CreatedAt        int64            `json:"created_at" db:"created_at"`
 }
 
 // TriggerConfig represents a degradation trigger.
@@ -112,11 +112,11 @@ type ActionConfig struct {
 
 // RecoveryConfig represents the recovery settings.
 type RecoveryConfig struct {
-	AutoRecover         bool   `json:"auto_recover"`
-	RecoveryTimeout     int64  `json:"recovery_timeout"`
-	HealthCheckInterval int64  `json:"health_check_interval"`
+	AutoRecover         bool    `json:"auto_recover"`
+	RecoveryTimeout     int64   `json:"recovery_timeout"`
+	HealthCheckInterval int64   `json:"health_check_interval"`
 	HealthCheckEndpoint *string `json:"health_check_endpoint,omitempty"`
-	MinHealthyDuration  int64  `json:"min_healthy_duration"`
+	MinHealthyDuration  int64   `json:"min_healthy_duration"`
 }
 
 // --- Request / Response models ---
@@ -136,11 +136,11 @@ type CreateDegradationConfigRequest struct {
 
 // UpdateDegradationConfigRequest is the request body for updating a degradation config.
 type UpdateDegradationConfigRequest struct {
-	Name        *string                `json:"name"`
-	Description *string                `json:"description"`
-	Triggers    *[]TriggerConfig       `json:"triggers"`
-	Actions     *[]ActionConfig        `json:"actions"`
-	Recovery    *RecoveryConfig        `json:"recovery"`
+	Name        *string                 `json:"name"`
+	Description *string                 `json:"description"`
+	Triggers    *[]TriggerConfig        `json:"triggers"`
+	Actions     *[]ActionConfig         `json:"actions"`
+	Recovery    *RecoveryConfig         `json:"recovery"`
 	Metadata    *map[string]interface{} `json:"metadata"`
 }
 
@@ -170,10 +170,10 @@ type ListHistoryQuery struct {
 
 // ConfigListResponse wraps a paginated config list.
 type ConfigListResponse struct {
-	Data  []DegradationConfig `json:"data"`
-	Total int                 `json:"total"`
-	Offset int                `json:"offset"`
-	Limit  int                `json:"limit"`
+	Data   []DegradationConfig `json:"data"`
+	Total  int                 `json:"total"`
+	Offset int                 `json:"offset"`
+	Limit  int                 `json:"limit"`
 }
 
 // HistoryListResponse wraps a paginated history list.
@@ -186,11 +186,11 @@ type HistoryListResponse struct {
 
 // GlobalDegradationStatus represents the global degradation status.
 type GlobalDegradationStatus struct {
-	Services        []ServiceStatusEntry `json:"services"`
-	ActiveConfigs   int                  `json:"active_configs"`
-	TotalConfigs    int                  `json:"total_configs"`
-	RecentTriggers  int                  `json:"recent_triggers"`
-	SystemHealth    string               `json:"system_health"` // healthy, warning, critical
+	Services       []ServiceStatusEntry `json:"services"`
+	ActiveConfigs  int                  `json:"active_configs"`
+	TotalConfigs   int                  `json:"total_configs"`
+	RecentTriggers int                  `json:"recent_triggers"`
+	SystemHealth   string               `json:"system_health"` // healthy, warning, critical
 }
 
 // ServiceStatusEntry represents the status of a single service.

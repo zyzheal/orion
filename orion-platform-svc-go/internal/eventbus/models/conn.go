@@ -2,8 +2,8 @@ package models
 
 // ConnectRequest is the request body for connecting to a NATS cluster.
 type ConnectRequest struct {
-	Servers []string                 `json:"servers"`
-	Options map[string]interface{}   `json:"options"`
+	Servers []string               `json:"servers"`
+	Options map[string]interface{} `json:"options"`
 }
 
 // ConnectResult is the response for a successful NATS connection.
@@ -34,8 +34,8 @@ type DLQQuery struct {
 
 // DLQResponse is the response for a DLQ query.
 type DLQResponse struct {
-	Total    int           `json:"total"`
-	Messages []DLQMessage  `json:"messages"`
+	Total    int          `json:"total"`
+	Messages []DLQMessage `json:"messages"`
 }
 
 // DLQMessage represents a single message in the dead letter queue.

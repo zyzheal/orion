@@ -4,38 +4,38 @@ import "time"
 
 // Space represents a knowledge space (workspace/namespace).
 type Space struct {
-	ID          string `json:"id" db:"id"`
-	TenantID    string `json:"tenant_id" db:"tenant_id"`
-	Name        string `json:"name" db:"name"`
-	Type        string `json:"type" db:"type"`          // public, internal, private
-	Description string `json:"description" db:"description"`
-	TeamID      string `json:"team_id,omitempty" db:"team_id"`
-	OwnerID     string `json:"owner_id" db:"owner_id"`
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
+	Name        string    `json:"name" db:"name"`
+	Type        string    `json:"type" db:"type"` // public, internal, private
+	Description string    `json:"description" db:"description"`
+	TeamID      string    `json:"team_id,omitempty" db:"team_id"`
+	OwnerID     string    `json:"owner_id" db:"owner_id"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // Document represents a knowledge document.
 type Document struct {
-	ID        string     `json:"id" db:"id"`
-	TenantID  string     `json:"tenant_id" db:"tenant_id"`
-	Title     string     `json:"title" db:"title"`
-	Content   string     `json:"content" db:"content"`
-	SpaceID   string     `json:"space_id" db:"space_id"`
-	Tags      []string   `json:"tags,omitempty" db:"tags"`
-	Status    string     `json:"status" db:"status"` // draft, published, archived
-	AuthorID  string     `json:"author_id" db:"author_id"`
-	CreatedAt time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	Title     string    `json:"title" db:"title"`
+	Content   string    `json:"content" db:"content"`
+	SpaceID   string    `json:"space_id" db:"space_id"`
+	Tags      []string  `json:"tags,omitempty" db:"tags"`
+	Status    string    `json:"status" db:"status"` // draft, published, archived
+	AuthorID  string    `json:"author_id" db:"author_id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // DocVersion represents a document version entry.
 type DocVersion struct {
-	ID        int       `json:"id" db:"id"`
-	DocumentID string   `json:"document_id" db:"document_id"`
-	Content   string    `json:"content" db:"content"`
-	AuthorID  string    `json:"author_id" db:"author_id"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         int       `json:"id" db:"id"`
+	DocumentID string    `json:"document_id" db:"document_id"`
+	Content    string    `json:"content" db:"content"`
+	AuthorID   string    `json:"author_id" db:"author_id"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 // SyncLog represents a document center sync log entry.
@@ -75,10 +75,10 @@ type CreateDocumentRequest struct {
 }
 
 type UpdateDocumentRequest struct {
-	Title   *string  `json:"title"`
-	Content *string  `json:"content"`
+	Title   *string   `json:"title"`
+	Content *string   `json:"content"`
 	Tags    *[]string `json:"tags"`
-	Status  *string  `json:"status"`
+	Status  *string   `json:"status"`
 }
 
 type SyncTriggerRequest struct {
@@ -103,10 +103,10 @@ type RetrieveRequest struct {
 }
 
 type RetrieveResult struct {
-	ID       string  `json:"doc_id"`
-	Title    string  `json:"title"`
-	Snippet  string  `json:"snippet"`
-	Score    float64 `json:"score"`
+	ID      string  `json:"doc_id"`
+	Title   string  `json:"title"`
+	Snippet string  `json:"snippet"`
+	Score   float64 `json:"score"`
 }
 
 type RetrieveResponse struct {
@@ -121,9 +121,9 @@ type RAGQueryRequest struct {
 }
 
 type RAGQueryResponse struct {
-	Answer     string          `json:"answer"`
-	Sources    []RAGSource     `json:"sources"`
-	Confidence float64         `json:"confidence"`
+	Answer     string      `json:"answer"`
+	Sources    []RAGSource `json:"sources"`
+	Confidence float64     `json:"confidence"`
 }
 
 type RAGSource struct {
@@ -157,10 +157,10 @@ type GraphResponse struct {
 // --- Query helpers ---
 
 type SpaceListQuery struct {
-	Type    string
-	Search  string
-	Limit   int
-	Offset  int
+	Type   string
+	Search string
+	Limit  int
+	Offset int
 }
 
 type DocListQuery struct {
@@ -175,7 +175,7 @@ type DocListQuery struct {
 // --- Response envelope helpers ---
 
 type PaginatedResponse struct {
-	Data any `json:"data"`
+	Data any  `json:"data"`
 	Meta Meta `json:"meta"`
 }
 

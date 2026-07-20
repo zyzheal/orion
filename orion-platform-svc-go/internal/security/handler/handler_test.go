@@ -96,10 +96,10 @@ func TestHandler_ListVulnerabilities_Success(t *testing.T) {
 	vuln := &models.Vulnerability{ID: "v1", CVEID: "CVE-2021-1", PackageName: "lodash", Severity: models.VulnerabilitySeverityHigh, Status: models.VulnerabilityStatusOpen}
 	svc := &mockSecurityService{
 		report: &models.VulnerabilityReport{
-			Vulnerabilities: []models.Vulnerability{*vuln},
+			Vulnerabilities:      []models.Vulnerability{*vuln},
 			TotalVulnerabilities: 1,
-			BySeverity: map[string]int{"high": 1},
-			ByStatus: map[string]int{"open": 1},
+			BySeverity:           map[string]int{"high": 1},
+			ByStatus:             map[string]int{"open": 1},
 		},
 	}
 	h := newHandlerWithSvc(svc)
@@ -125,10 +125,10 @@ func TestHandler_ListVulnerabilities_ServiceError(t *testing.T) {
 func TestHandler_ListVulnerabilities_Empty(t *testing.T) {
 	svc := &mockSecurityService{
 		report: &models.VulnerabilityReport{
-			Vulnerabilities:        []models.Vulnerability{},
-			TotalVulnerabilities:   0,
-			BySeverity:             make(map[string]int),
-			ByStatus:               make(map[string]int),
+			Vulnerabilities:      []models.Vulnerability{},
+			TotalVulnerabilities: 0,
+			BySeverity:           make(map[string]int),
+			ByStatus:             make(map[string]int),
 		},
 	}
 	h := newHandlerWithSvc(svc)
@@ -210,7 +210,7 @@ func TestHandler_GetVulnerability_NotFound(t *testing.T) {
 func TestHandler_Remediate_Success(t *testing.T) {
 	vuln := &models.Vulnerability{
 		ID: "v-1", CVEID: "CVE-2021-1", PackageName: "lodash",
-		Status: models.VulnerabilityStatusRemediated,
+		Status:    models.VulnerabilityStatusRemediated,
 		UpdatedAt: time.Now().UTC(),
 	}
 	svc := &mockSecurityService{

@@ -3,14 +3,13 @@ package handler
 import (
 	"net/http"
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/queue/models"
 	"orion/platform-svc-go/internal/queue/service"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

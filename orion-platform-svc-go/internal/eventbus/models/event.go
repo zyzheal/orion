@@ -9,13 +9,13 @@ import "time"
 // to the parent event that triggered this one.
 type Event struct {
 	ID            string    `db:"id" json:"id"`
-	Type          string    `db:"type" json:"type"`         // e.g. "pipeline.completed"
-	Payload       string    `db:"payload" json:"payload"`   // JSON string
-	Source        string    `db:"source" json:"source"`     // originating service/module
+	Type          string    `db:"type" json:"type"`       // e.g. "pipeline.completed"
+	Payload       string    `db:"payload" json:"payload"` // JSON string
+	Source        string    `db:"source" json:"source"`   // originating service/module
 	TenantID      string    `db:"tenant_id" json:"tenantId"`
 	UserID        string    `db:"user_id" json:"userId"`
 	CorrelationID *string   `db:"correlation_id" json:"correlationId"` // saga/pipeline correlation
-	CausationID   *string   `db:"causation_id" json:"causationId"`    // parent event ID
+	CausationID   *string   `db:"causation_id" json:"causationId"`     // parent event ID
 	OccurredAt    time.Time `db:"occurred_at" json:"occurredAt"`
 	CreatedAt     time.Time `db:"created_at" json:"createdAt"`
 }

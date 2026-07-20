@@ -2,14 +2,12 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/compliance/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -48,7 +46,7 @@ func (r *Repository) ListReports(ctx context.Context, tenantID string, framework
 	query := `SELECT * FROM compliance_reports WHERE tenant_id=$1`
 	args := []interface{}{tenantID}
 	if framework != nil && *framework != "" {
-	query += ` AND framework=$2`
+		query += ` AND framework=$2`
 		args = append(args, *framework)
 	}
 	query += ` ORDER BY created_at DESC`

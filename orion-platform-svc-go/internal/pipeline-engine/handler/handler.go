@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 	"strconv"
 
@@ -9,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/pipeline-engine/models"
 	"orion/platform-svc-go/internal/pipeline-engine/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

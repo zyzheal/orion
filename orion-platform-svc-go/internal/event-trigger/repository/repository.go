@@ -28,7 +28,7 @@ func (r *Repository) Create(ctx context.Context, t *models.EventTrigger) error {
 		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now(),now())`,
 		t.ID, t.Name, t.EventType, t.Action, t.Target, t.Enabled,
 		t.Description, t.TenantID, t.UserID,
-)
+	)
 	return err
 }
 
@@ -41,7 +41,7 @@ func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*models.
 		 FROM event_triggers
 		 WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (r *Repository) Count(ctx context.Context, tenantID string) (int, error) {
 	err := r.db.GetContext(ctx, &count,
 		`SELECT COUNT(*) FROM event_triggers WHERE tenant_id = $1`,
 		tenantID,
-)
+	)
 	return count, err
 }
 
@@ -98,7 +98,7 @@ func (r *Repository) Update(ctx context.Context, t *models.EventTrigger) error {
 		 WHERE id = $7 AND tenant_id = $8`,
 		t.Name, t.EventType, t.Action, t.Target, t.Enabled,
 		t.Description, t.ID, t.TenantID,
-)
+	)
 	return err
 }
 
@@ -107,7 +107,7 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM event_triggers WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
-)
+	)
 	return err
 }
 

@@ -1,9 +1,9 @@
 package repository
 
 import (
-	"time"
 	"context"
 	"fmt"
+	"time"
 
 	"orion/platform-svc-go/internal/finops-v2/models"
 
@@ -324,11 +324,11 @@ func (r *Repository) ForecastBudget(ctx context.Context, tenantID, id string) (*
 		overrun = ((projected - b.Amount) / b.Amount) * 100
 	}
 	return &models.BudgetForecastResponse{
-		BudgetID:            b.ID,
-		ProjectedTotalCost:  usedCost * 1.2,
-		RemainingDays:       remainingDays,
-		OverrunLikelihood:   overrun,
-		Recommendation:      "review spending",
+		BudgetID:           b.ID,
+		ProjectedTotalCost: usedCost * 1.2,
+		RemainingDays:      remainingDays,
+		OverrunLikelihood:  overrun,
+		Recommendation:     "review spending",
 	}, nil
 }
 
@@ -425,7 +425,7 @@ func (r *Repository) EstimateSavings(ctx context.Context, tenantID string) (*mod
 		return nil, err
 	}
 	return &models.SavingsEstimate{
-		TotalPotentialSavings: total,
+		TotalPotentialSavings:  total,
 		OptimizationCategories: map[string]float64{},
 		Confidence:             75.0,
 		ReportedPeriod:         time.Now().UTC().Format(time.DateOnly),
@@ -536,4 +536,3 @@ func (r *Repository) HealthCheckAlways(ctx context.Context) (bool, error) {
 func NotYetImplemented(msg string) error {
 	return fmt.Errorf("%s", msg)
 }
-

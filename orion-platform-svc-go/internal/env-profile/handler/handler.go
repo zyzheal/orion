@@ -7,15 +7,15 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/env-profile/models"
 
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 // Sentinel errors used by the service layer.
 var (
-
 	ErrBadRequest = errors.New("bad request")
 )
 

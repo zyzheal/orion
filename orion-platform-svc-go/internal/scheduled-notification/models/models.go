@@ -43,17 +43,17 @@ type CreateScheduleRequest struct {
 
 // UpdateScheduleRequest is the request body for updating a scheduled notification.
 type UpdateScheduleRequest struct {
-	Name           *string     `json:"name"`
-	Title          *string     `json:"title"`
-	Body           *string     `json:"body"`
-	Channel        *string     `json:"channel"`
-	CronExpression *string     `json:"cronExpression"`
-	Recipients     *string     `json:"recipients"`
-	Metadata       *string     `json:"metadata"`
-	StartDate      *time.Time  `json:"startDate"`
-	EndDate        *time.Time  `json:"endDate"`
-	MaxRetries     *int        `json:"maxRetries"`
-	Enabled        *bool       `json:"enabled"`
+	Name           *string    `json:"name"`
+	Title          *string    `json:"title"`
+	Body           *string    `json:"body"`
+	Channel        *string    `json:"channel"`
+	CronExpression *string    `json:"cronExpression"`
+	Recipients     *string    `json:"recipients"`
+	Metadata       *string    `json:"metadata"`
+	StartDate      *time.Time `json:"startDate"`
+	EndDate        *time.Time `json:"endDate"`
+	MaxRetries     *int       `json:"maxRetries"`
+	Enabled        *bool      `json:"enabled"`
 }
 
 // ListFilter represents optional filters for listing scheduled notifications.

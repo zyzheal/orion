@@ -11,7 +11,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -66,13 +65,19 @@ func (r *Repository) ListAlerts(ctx context.Context, tenantID string, q models.L
 	args := []interface{}{tenantID}
 	idx := 2
 	if q.UserID != "" {
-		cond += ` AND user_id = $` + strconv.Itoa(idx); args = append(args, q.UserID); idx++
+		cond += ` AND user_id = $` + strconv.Itoa(idx)
+		args = append(args, q.UserID)
+		idx++
 	}
 	if q.Status != "" {
-		cond += ` AND status = $` + strconv.Itoa(idx); args = append(args, q.Status); idx++
+		cond += ` AND status = $` + strconv.Itoa(idx)
+		args = append(args, q.Status)
+		idx++
 	}
 	if q.Severity != "" {
-		cond += ` AND severity = $` + strconv.Itoa(idx); args = append(args, q.Severity); idx++
+		cond += ` AND severity = $` + strconv.Itoa(idx)
+		args = append(args, q.Severity)
+		idx++
 	}
 	cond += ` ORDER BY created_at DESC LIMIT $` + strconv.Itoa(idx) + ` OFFSET $` + strconv.Itoa(idx+1)
 	args = append(args, q.Limit, q.Offset)

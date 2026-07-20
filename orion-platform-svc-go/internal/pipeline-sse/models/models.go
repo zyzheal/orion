@@ -4,14 +4,14 @@ import "time"
 
 // SSEConnection represents a single SSE client connection.
 type SSEConnection struct {
-	ID           string    `json:"id"`
-	PipelineID   string    `json:"pipelineId"`
-	RunID        string    `json:"runId"`
-	UserID       string    `json:"userId"`
-	ConnectedAt  time.Time `json:"connectedAt"`
-	LogLevels    []string  `json:"logLevels"`
-	IncludeLogs  bool      `json:"includeLogs"`
-	IncludeStatus bool     `json:"includeStatus"`
+	ID            string    `json:"id"`
+	PipelineID    string    `json:"pipelineId"`
+	RunID         string    `json:"runId"`
+	UserID        string    `json:"userId"`
+	ConnectedAt   time.Time `json:"connectedAt"`
+	LogLevels     []string  `json:"logLevels"`
+	IncludeLogs   bool      `json:"includeLogs"`
+	IncludeStatus bool      `json:"includeStatus"`
 }
 
 // LogEvent represents a pipeline log line emitted over SSE.
@@ -60,8 +60,8 @@ type PublishStatusRequest struct {
 
 // SSEStats holds connection statistics.
 type SSEStats struct {
-	TotalConnections int              `json:"totalConnections"`
-	ConnectionsByUser map[string]int  `json:"connectionsByUser"`
+	TotalConnections  int            `json:"totalConnections"`
+	ConnectionsByUser map[string]int `json:"connectionsByUser"`
 }
 
 // SSELogEventRecord is the database model for persisted SSE log events.

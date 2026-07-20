@@ -7,8 +7,9 @@ import (
 	"orion/platform-svc-go/internal/disaster-recovery/models"
 	"orion/platform-svc-go/internal/disaster-recovery/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

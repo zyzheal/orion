@@ -5,8 +5,9 @@ import (
 	"orion/platform-svc-go/internal/cache-cleanup/models"
 	"orion/platform-svc-go/internal/cache-cleanup/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

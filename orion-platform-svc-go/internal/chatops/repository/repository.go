@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,9 +10,10 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -320,11 +320,11 @@ func (r *Repository) UpdateAlertState(ctx context.Context, tenantID, userID, ale
 			status=EXCLUDED.status,
 			updated_at=EXCLUDED.updated_at`,
 		map[string]interface{}{
-			"id":        uuid.New().String(),
-			"tenant_id": tenantID,
-			"user_id":   userID,
-			"alert_id":  alertID,
-			"status":    status,
+			"id":         uuid.New().String(),
+			"tenant_id":  tenantID,
+			"user_id":    userID,
+			"alert_id":   alertID,
+			"status":     status,
 			"created_at": now,
 			"updated_at": now,
 		})
@@ -534,9 +534,9 @@ func (r *Repository) UpdateApproverSchedule(ctx context.Context, tenantID string
 			`INSERT INTO chatops_approver_schedule (id, tenant_id, user_id, start_time, end_time)
 			 VALUES (:id, :tenant_id, :user_id, :start_time, :end_time)`,
 			map[string]interface{}{
-				"id":        uuid.New().String(),
-				"tenant_id": tenantID,
-				"user_id":   s.UserID,
+				"id":         uuid.New().String(),
+				"tenant_id":  tenantID,
+				"user_id":    s.UserID,
 				"start_time": s.StartTime,
 				"end_time":   s.EndTime,
 			})
@@ -665,13 +665,13 @@ func (r *Repository) UpdateCommandPermission(ctx context.Context, tenantID, id s
 			role_ids=COALESCE(:role_ids, role_ids)
 		 WHERE id=$1 AND tenant_id=$2`,
 		map[string]interface{}{
-			"description":      updates["description"],
-			"capability":       updates["capability"],
-			"risk_level":       updates["risk_level"],
+			"description":       updates["description"],
+			"capability":        updates["capability"],
+			"risk_level":        updates["risk_level"],
 			"requires_approval": updates["requires_approval"],
-			"role_ids":         updates["role_ids"],
-			"id":               id,
-			"tenant_id":        tenantID,
+			"role_ids":          updates["role_ids"],
+			"id":                id,
+			"tenant_id":         tenantID,
 		})
 	return err
 }
@@ -1002,11 +1002,11 @@ func (r *Repository) GetDashboardStats(ctx context.Context, tenantID string, day
 		`SELECT COUNT(DISTINCT user_id) FROM chatops_executions WHERE tenant_id=$1 AND start_time >= $2`, tenantID, since)
 
 	return &models.DashboardStatsResult{
-		TotalCommands:  totalCommands,
+		TotalCommands:   totalCommands,
 		TotalExecutions: totalExecutions,
-		SuccessRate:    successRate,
-		TopCommands:    topCommands,
-		ActiveUsers:    activeUsers,
+		SuccessRate:     successRate,
+		TopCommands:     topCommands,
+		ActiveUsers:     activeUsers,
 	}, nil
 }
 
@@ -1029,11 +1029,11 @@ func (r *Repository) HealthCheck(ctx context.Context) (*models.HealthCheckResult
 		status = "down"
 	}
 	return &models.HealthCheckResult{
-		Success:  err == nil,
-		EventBus: map[string]interface{}{"status": status},
-		SSE:      map[string]interface{}{"active_connections": 0},
+		Success:       err == nil,
+		EventBus:      map[string]interface{}{"status": status},
+		SSE:           map[string]interface{}{"active_connections": 0},
 		Subscriptions: map[string]interface{}{"failures": 0},
-		Metrics:  map[string]interface{}{},
+		Metrics:       map[string]interface{}{},
 	}, nil
 }
 

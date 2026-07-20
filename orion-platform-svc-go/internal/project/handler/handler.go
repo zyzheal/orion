@@ -6,8 +6,9 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/project/models"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

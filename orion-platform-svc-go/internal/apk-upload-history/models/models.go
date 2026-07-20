@@ -31,30 +31,30 @@ type ApkUploadRecord struct {
 
 // ApkUploadStats aggregates upload statistics.
 type ApkUploadStats struct {
-	TotalUploads  int `json:"totalUploads"`
-	SuccessCount  int `json:"successCount"`
-	FailedCount   int `json:"failedCount"`
-	TotalSize     int64 `json:"totalSize"`
-	LastUploadAt  time.Time `json:"lastUploadAt"`
+	TotalUploads int       `json:"totalUploads"`
+	SuccessCount int       `json:"successCount"`
+	FailedCount  int       `json:"failedCount"`
+	TotalSize    int64     `json:"totalSize"`
+	LastUploadAt time.Time `json:"lastUploadAt"`
 }
 
 // CreateRecordRequest creates an upload record.
 type CreateRecordRequest struct {
-	Market      string  `json:"market" binding:"required"`
-	PackageName string  `json:"package_name" binding:"required"`
-	Version     string  `json:"version" binding:"required"`
-	VersionCode int     `json:"version_code"`
-	FileName    string  `json:"file_name" binding:"required"`
-	FileSize    int64   `json:"file_size"`
-	Checksum    string  `json:"checksum"`
-	UploadedBy  string  `json:"uploaded_by"`
+	Market      string `json:"market" binding:"required"`
+	PackageName string `json:"package_name" binding:"required"`
+	Version     string `json:"version" binding:"required"`
+	VersionCode int    `json:"version_code"`
+	FileName    string `json:"file_name" binding:"required"`
+	FileSize    int64  `json:"file_size"`
+	Checksum    string `json:"checksum"`
+	UploadedBy  string `json:"uploaded_by"`
 }
 
 // ListQuery filters upload records.
 type ListQuery struct {
-	Limit    *int    `json:"limit"`
-	Offset   *int    `json:"offset"`
-	Market   string  `json:"market"`
-	Status   string  `json:"status"`
+	Limit       *int   `json:"limit"`
+	Offset      *int   `json:"offset"`
+	Market      string `json:"market"`
+	Status      string `json:"status"`
 	PackageName string `json:"package_name"`
 }

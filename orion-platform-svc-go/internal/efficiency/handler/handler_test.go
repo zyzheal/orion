@@ -17,18 +17,18 @@ import (
 
 // mockSvc implements Service interface for efficiency handler tests.
 type mockSvc struct {
-	generateReportFn        func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error)
-	getReportHistoryFn      func(ctx context.Context, tenantID string, limit int) ([]*eff_models.EfficiencyReport, error)
-	getTeamMetricsFn        func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error)
-	getProjectMetricsFn     func(ctx context.Context, tenantID, projectID string) (*eff_models.ProjectMetrics, error)
-	getAllTeamsFn           func(ctx context.Context, tenantID string) []eff_models.TeamInfo
-	comparePeriodsFn        func(ctx context.Context, tenantID string, a, b eff_models.PeriodSpec) (*eff_models.PeriodComparisonResult, error)
-	getAllDORAFn            func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.AllDORAResult, error)
-	getDORATrendFn          func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.DORATrendResult, error)
-	getDashboardDataFn      func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) *eff_models.DashboardData
+	generateReportFn         func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error)
+	getReportHistoryFn       func(ctx context.Context, tenantID string, limit int) ([]*eff_models.EfficiencyReport, error)
+	getTeamMetricsFn         func(ctx context.Context, tenantID, teamID string) (*eff_models.TeamMetrics, error)
+	getProjectMetricsFn      func(ctx context.Context, tenantID, projectID string) (*eff_models.ProjectMetrics, error)
+	getAllTeamsFn            func(ctx context.Context, tenantID string) []eff_models.TeamInfo
+	comparePeriodsFn         func(ctx context.Context, tenantID string, a, b eff_models.PeriodSpec) (*eff_models.PeriodComparisonResult, error)
+	getAllDORAFn             func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.AllDORAResult, error)
+	getDORATrendFn           func(ctx context.Context, tenantID string, deployments []eff_models.DeploymentRecord, pipelines []eff_models.PipelineCompletionRecord, incidents []eff_models.IncidentRecord, tw eff_models.TimeWindow, ws int) (*eff_models.DORATrendResult, error)
+	getDashboardDataFn       func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) *eff_models.DashboardData
 	getHistoricalSnapshotsFn func(ctx context.Context, tenantID string, weeks int) ([]eff_models.HistoricalSnapshotWeek, error)
-	getBottlenecksFn        func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) []eff_models.Bottleneck
-	getDeveloperProfilesFn  func(ctx context.Context, tenantID string) []eff_models.DeveloperProfile
+	getBottlenecksFn         func(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) []eff_models.Bottleneck
+	getDeveloperProfilesFn   func(ctx context.Context, tenantID string) []eff_models.DeveloperProfile
 }
 
 func (m *mockSvc) GenerateReport(ctx context.Context, tenantID string, tw eff_models.TimeWindow, ws int) (*eff_models.EfficiencyReport, error) {
@@ -277,8 +277,8 @@ func TestHandler_ComparePeriods_Success(t *testing.T) {
 	}
 	h := newHandlerWithSvc(svc)
 	body := eff_models.ComparePeriodsRequest{
-		PeriodA: &eff_models.PeriodSpec{Label: "A", Start: now.Add(-14*24*time.Hour), End: now.Add(-7*24*time.Hour)},
-		PeriodB: &eff_models.PeriodSpec{Label: "B", Start: now.Add(-7*24*time.Hour), End: now},
+		PeriodA: &eff_models.PeriodSpec{Label: "A", Start: now.Add(-14 * 24 * time.Hour), End: now.Add(-7 * 24 * time.Hour)},
+		PeriodB: &eff_models.PeriodSpec{Label: "B", Start: now.Add(-7 * 24 * time.Hour), End: now},
 	}
 	w := performRequest(h, h.ComparePeriods, "POST", body, nil, nil)
 	if w.Code != http.StatusOK {

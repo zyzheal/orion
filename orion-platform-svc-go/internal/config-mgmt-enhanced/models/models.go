@@ -36,9 +36,9 @@ type ChangeRequestStatus string
 type RiskLevel string
 
 const (
-	ChangeTypeCreate   ChangeRequestType = "create"
-	ChangeTypeModify   ChangeRequestType = "modify"
-	ChangeTypeDelete   ChangeRequestType = "delete"
+	ChangeTypeCreate ChangeRequestType = "create"
+	ChangeTypeModify ChangeRequestType = "modify"
+	ChangeTypeDelete ChangeRequestType = "delete"
 
 	StatusPending    ChangeRequestStatus = "pending"
 	StatusApproved   ChangeRequestStatus = "approved"
@@ -96,17 +96,17 @@ type ApprovalRecord struct {
 
 // SubmitChangeRequestInput is the request body for submitting a new change request.
 type SubmitChangeRequestInput struct {
-	ConfigKey         string              `json:"configKey" binding:"required"`
-	ConfigGroup       string              `json:"configGroup"`
-	Environment       string              `json:"environment"`
-	ChangeType        ChangeRequestType   `json:"changeType"`
-	OldValue          string              `json:"oldValue"`
-	NewValue          string              `json:"newValue"`
-	Reason            string              `json:"reason" binding:"required"`
-	RiskLevel         RiskLevel           `json:"riskLevel"`
-	ExecutionPlan     string              `json:"executionPlan"`
-	RollbackPlan      string              `json:"rollbackPlan"`
-	RequiredApprovals int                 `json:"requiredApprovals"`
+	ConfigKey         string            `json:"configKey" binding:"required"`
+	ConfigGroup       string            `json:"configGroup"`
+	Environment       string            `json:"environment"`
+	ChangeType        ChangeRequestType `json:"changeType"`
+	OldValue          string            `json:"oldValue"`
+	NewValue          string            `json:"newValue"`
+	Reason            string            `json:"reason" binding:"required"`
+	RiskLevel         RiskLevel         `json:"riskLevel"`
+	ExecutionPlan     string            `json:"executionPlan"`
+	RollbackPlan      string            `json:"rollbackPlan"`
+	RequiredApprovals int               `json:"requiredApprovals"`
 }
 
 // ApproveChangeInput is the request body for approving or rejecting a change request.
@@ -151,10 +151,10 @@ type ChangeHistory struct {
 type DriftStatus string
 
 const (
-	DriftInSync           DriftStatus = "in_sync"
-	DriftDetected         DriftStatus = "drift_detected"
-	DriftRemediating      DriftStatus = "remediating"
-	DriftRemediated       DriftStatus = "remediated"
+	DriftInSync            DriftStatus = "in_sync"
+	DriftDetected          DriftStatus = "drift_detected"
+	DriftRemediating       DriftStatus = "remediating"
+	DriftRemediated        DriftStatus = "remediated"
 	DriftRemediationFailed DriftStatus = "remediation_failed"
 )
 
@@ -169,37 +169,37 @@ const (
 
 // DriftReport represents a configuration drift detection report.
 type DriftReport struct {
-	ID                     string            `db:"id" json:"id"`
-	TenantID               string            `db:"tenant_id" json:"tenantId"`
-	ConfigGroup            string            `db:"config_group" json:"configGroup"`
-	DriftStatus            DriftStatus       `db:"drift_status" json:"driftStatus"`
-	ExpectedConfig         string            `db:"expected_config" json:"-"`
-	ActualConfig           string            `db:"actual_config" json:"-"`
-	DriftItems             string            `db:"drift_items" json:"-"`
-	TotalDrifts            int               `db:"total_drifts" json:"totalDrifts"`
-	CriticalDrifts         int               `db:"critical_drifts" json:"criticalDrifts"`
-	AutoRemediationEnabled bool              `db:"auto_remediation_enabled" json:"autoRemediationEnabled"`
-	RemediationLog         string            `db:"remediation_log" json:"-"`
-	DetectedAt             time.Time         `db:"detected_at" json:"detectedAt"`
-	LastCheckedAt          time.Time         `db:"last_checked_at" json:"lastCheckedAt"`
-	CreatedAt              time.Time         `db:"created_at" json:"createdAt"`
+	ID                     string      `db:"id" json:"id"`
+	TenantID               string      `db:"tenant_id" json:"tenantId"`
+	ConfigGroup            string      `db:"config_group" json:"configGroup"`
+	DriftStatus            DriftStatus `db:"drift_status" json:"driftStatus"`
+	ExpectedConfig         string      `db:"expected_config" json:"-"`
+	ActualConfig           string      `db:"actual_config" json:"-"`
+	DriftItems             string      `db:"drift_items" json:"-"`
+	TotalDrifts            int         `db:"total_drifts" json:"totalDrifts"`
+	CriticalDrifts         int         `db:"critical_drifts" json:"criticalDrifts"`
+	AutoRemediationEnabled bool        `db:"auto_remediation_enabled" json:"autoRemediationEnabled"`
+	RemediationLog         string      `db:"remediation_log" json:"-"`
+	DetectedAt             time.Time   `db:"detected_at" json:"detectedAt"`
+	LastCheckedAt          time.Time   `db:"last_checked_at" json:"lastCheckedAt"`
+	CreatedAt              time.Time   `db:"created_at" json:"createdAt"`
 
 	// Populated fields (deserialized from JSON columns)
-	DriftItemsList     []DriftItem          `json:"driftItems"`
-	RemediationLogList []RemediationEntry   `json:"remediationLog"`
+	DriftItemsList     []DriftItem            `json:"driftItems"`
+	RemediationLogList []RemediationEntry     `json:"remediationLog"`
 	ExpectedConfigData map[string]interface{} `json:"expectedConfig"`
 	ActualConfigData   map[string]interface{} `json:"actualConfig"`
 }
 
 // DriftItem represents a single configuration drift entry.
 type DriftItem struct {
-	ConfigKey     string      `json:"configKey"`
-	ConfigGroup   string      `json:"configGroup"`
-	Path          string      `json:"path"`
-	ExpectedValue interface{} `json:"expectedValue"`
-	ActualValue   interface{} `json:"actualValue"`
+	ConfigKey     string        `json:"configKey"`
+	ConfigGroup   string        `json:"configGroup"`
+	Path          string        `json:"path"`
+	ExpectedValue interface{}   `json:"expectedValue"`
+	ActualValue   interface{}   `json:"actualValue"`
 	Severity      DriftSeverity `json:"severity"`
-	Description   string      `json:"description"`
+	Description   string        `json:"description"`
 }
 
 // RemediationEntry represents a single remediation action log entry.
@@ -237,7 +237,7 @@ type DriftDetectRequest struct {
 
 // DriftDetectResult is the response from drift detection.
 type DriftDetectResult struct {
-	Status string      `json:"status"`
+	Status string       `json:"status"`
 	Drifts []DriftEntry `json:"drifts"`
 }
 

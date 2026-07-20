@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -8,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 
-	"orion/platform-svc-go/internal/knowledge/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/knowledge/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -217,7 +218,6 @@ func (s *Service) Retrieve(ctx context.Context, tenantID string, query string, r
 // --- Errors ---
 
 var (
-
 	ErrSpaceNotFound    = errors.New("space not found")
 	ErrDocumentNotFound = errors.New("document not found")
 )

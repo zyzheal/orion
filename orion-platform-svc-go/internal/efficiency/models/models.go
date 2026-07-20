@@ -16,10 +16,10 @@ const (
 type Level string
 
 const (
-	LevelElite Level = "elite"
-	LevelHigh  Level = "high"
+	LevelElite  Level = "elite"
+	LevelHigh   Level = "high"
 	LevelMedium Level = "medium"
-	LevelLow   Level = "low"
+	LevelLow    Level = "low"
 )
 
 const (
@@ -69,20 +69,20 @@ type TimeWindowConfig struct {
 
 // DeploymentRecord stores a deployment event.
 type DeploymentRecord struct {
-	ID                 string      `json:"id" db:"id"`
-	TenantID           string      `json:"tenantId" db:"tenant_id"`
-	DeploymentID       string      `json:"deploymentId" db:"deployment_id"`
-	Service            string      `json:"service" db:"service"`
-	Environment        string      `json:"environment" db:"environment"`
-	Status             string      `json:"status" db:"status"`
-	Version            *string     `json:"version,omitempty" db:"version"`
-	DurationMs         *int64      `json:"durationMs,omitempty" db:"duration_ms"`
-	DeployedAt         time.Time   `json:"deployedAt" db:"deployed_at"`
-	RecoveryTimeMs     *int64      `json:"recoveryTimeMs,omitempty" db:"recovery_time_ms"`
-	CommitSha          *string     `json:"commitSha,omitempty" db:"commit_sha"`
-	CommitCommittedAt  *time.Time  `json:"commitCommittedAt,omitempty" db:"commit_committed_at"`
-	SyncedToClickHouse bool        `json:"syncedToClickHouse" db:"synced_to_clickhouse"`
-	SyncedAt           *time.Time  `json:"syncedAt,omitempty" db:"synced_at"`
+	ID                 string     `json:"id" db:"id"`
+	TenantID           string     `json:"tenantId" db:"tenant_id"`
+	DeploymentID       string     `json:"deploymentId" db:"deployment_id"`
+	Service            string     `json:"service" db:"service"`
+	Environment        string     `json:"environment" db:"environment"`
+	Status             string     `json:"status" db:"status"`
+	Version            *string    `json:"version,omitempty" db:"version"`
+	DurationMs         *int64     `json:"durationMs,omitempty" db:"duration_ms"`
+	DeployedAt         time.Time  `json:"deployedAt" db:"deployed_at"`
+	RecoveryTimeMs     *int64     `json:"recoveryTimeMs,omitempty" db:"recovery_time_ms"`
+	CommitSha          *string    `json:"commitSha,omitempty" db:"commit_sha"`
+	CommitCommittedAt  *time.Time `json:"commitCommittedAt,omitempty" db:"commit_committed_at"`
+	SyncedToClickHouse bool       `json:"syncedToClickHouse" db:"synced_to_clickhouse"`
+	SyncedAt           *time.Time `json:"syncedAt,omitempty" db:"synced_at"`
 }
 
 // PipelineCompletionRecord stores a pipeline run completion event.
@@ -132,24 +132,24 @@ type DeploymentFrequency struct {
 
 // LeadTimeForChanges computed result.
 type LeadTimeForChanges struct {
-	Window             TimeWindowConfig `json:"window" db:"-"`
-	TotalChanges       int              `json:"totalChanges"`
-	AverageLeadTimeMs  int64            `json:"averageLeadTimeMs"`
-	MedianLeadTimeMs   int64            `json:"medianLeadTimeMs"`
-	P90LeadTimeMs      int64            `json:"p90LeadTimeMs"`
-	P99LeadTimeMs      int64            `json:"p99LeadTimeMs"`
-	LeadTimeLevel      Level            `json:"leadTimeLevel"`
-	CalculationMethod  string           `json:"calculationMethod"`
+	Window            TimeWindowConfig `json:"window" db:"-"`
+	TotalChanges      int              `json:"totalChanges"`
+	AverageLeadTimeMs int64            `json:"averageLeadTimeMs"`
+	MedianLeadTimeMs  int64            `json:"medianLeadTimeMs"`
+	P90LeadTimeMs     int64            `json:"p90LeadTimeMs"`
+	P99LeadTimeMs     int64            `json:"p99LeadTimeMs"`
+	LeadTimeLevel     Level            `json:"leadTimeLevel"`
+	CalculationMethod string           `json:"calculationMethod"`
 }
 
 // DeploymentFailureRecord for failure details.
 type DeploymentFailureRecord struct {
-	DeploymentID   string   `json:"deploymentId"`
-	Service        string   `json:"service"`
-	Environment    string   `json:"environment"`
+	DeploymentID   string    `json:"deploymentId"`
+	Service        string    `json:"service"`
+	Environment    string    `json:"environment"`
 	FailedAt       time.Time `json:"failedAt"`
-	Reason         *string  `json:"reason,omitempty"`
-	RecoveryTimeMs *int64   `json:"recoveryTimeMs,omitempty"`
+	Reason         *string   `json:"reason,omitempty"`
+	RecoveryTimeMs *int64    `json:"recoveryTimeMs,omitempty"`
 }
 
 // ChangeFailureRate computed result.
@@ -260,10 +260,10 @@ type TeamData struct {
 type ProjectData struct {
 	ID          string `json:"id" db:"id"`
 	TenantID    string `json:"tenantId" db:"tenant_id"`
-	Name        string  `json:"name" db:"name"`
-	Pipelines   string  `json:"pipelines" db:"pipelines"`
-	Deployments string  `json:"deployments" db:"deployments"`
-	Commits     int     `json:"commits" db:"commits"`
+	Name        string `json:"name" db:"name"`
+	Pipelines   string `json:"pipelines" db:"pipelines"`
+	Deployments string `json:"deployments" db:"deployments"`
+	Commits     int    `json:"commits" db:"commits"`
 }
 
 // GlobalDeployment persisted entity.
@@ -305,10 +305,10 @@ type PeriodMetrics struct {
 
 // PeriodChanges percentage deltas.
 type PeriodChanges struct {
-	PipelineRuns     float64 `json:"pipelineRuns"`
-	SuccessRate      float64 `json:"successRate"`
-	AverageBuildTime float64 `json:"averageBuildTime"`
-	Deployments      float64 `json:"deployments"`
+	PipelineRuns      float64 `json:"pipelineRuns"`
+	SuccessRate       float64 `json:"successRate"`
+	AverageBuildTime  float64 `json:"averageBuildTime"`
+	Deployments       float64 `json:"deployments"`
 	ChangeFailureRate float64 `json:"changeFailureRate"`
 }
 
@@ -316,7 +316,7 @@ type PeriodChanges struct {
 type PeriodComparisonResult struct {
 	PeriodA PeriodMetrics `json:"periodA"`
 	PeriodB PeriodMetrics `json:"periodB"`
-	Changes PeriodChanges  `json:"changes"`
+	Changes PeriodChanges `json:"changes"`
 }
 
 // ===== DORA standard metric result =====
@@ -348,11 +348,11 @@ type DORATrendChanges struct {
 
 // DORATrendResult compares current and previous periods.
 type DORATrendResult struct {
-	Current        AllDORAResult `json:"current"`
-	Previous       AllDORAResult `json:"previous"`
+	Current        AllDORAResult    `json:"current"`
+	Previous       AllDORAResult    `json:"previous"`
 	Changes        DORATrendChanges `json:"changes"`
-	CurrentPeriod  string `json:"currentPeriod"`
-	PreviousPeriod string `json:"previousPeriod"`
+	CurrentPeriod  string           `json:"currentPeriod"`
+	PreviousPeriod string           `json:"previousPeriod"`
 }
 
 // MetricSnapshot is the per-calculation snapshot stored in DB.
@@ -395,8 +395,8 @@ type DashboardSummary struct {
 
 // DashboardData is the /dashboard response body.
 type DashboardData struct {
-	DORA    DashboardDORA   `json:"dora"`
-	Trends  DashboardDORA   `json:"trends"`
+	DORA    DashboardDORA    `json:"dora"`
+	Trends  DashboardDORA    `json:"trends"`
 	Summary DashboardSummary `json:"summary"`
 }
 
@@ -404,11 +404,11 @@ type DashboardData struct {
 
 // Bottleneck is a derived improvement area.
 type Bottleneck struct {
-	ID          string  `json:"id"`
-	Category    string  `json:"category"`
-	Description string  `json:"description"`
-	Impact      Impact  `json:"impact"`
-	Metric      string  `json:"metric"`
+	ID           string `json:"id"`
+	Category     string `json:"category"`
+	Description  string `json:"description"`
+	Impact       Impact `json:"impact"`
+	Metric       string `json:"metric"`
 	CurrentValue string `json:"currentValue"`
 	TargetValue  string `json:"targetValue"`
 	Suggestion   string `json:"suggestion"`
@@ -418,26 +418,26 @@ type Bottleneck struct {
 
 // DeveloperProfile is derived from team data.
 type DeveloperProfile struct {
-	ID           string   `json:"id"`
-	Name         string   `json:"name"`
-	Team         string   `json:"team"`
-	Role         string   `json:"role"`
-	Commits      int      `json:"commits"`
-	PRs          int      `json:"prs"`
-	Reviews      int      `json:"reviews"`
-	BugsFixed    int      `json:"bugsFixed"`
-	AvgReviewTime int     `json:"avgReviewTime"`
-	AvgPRSize    int      `json:"avgPRSize"`
-	CodeQuality  int      `json:"codeQuality"`
-	ActiveDays   int      `json:"activeDays"`
-	Specialty    []string `json:"specialty"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Team          string   `json:"team"`
+	Role          string   `json:"role"`
+	Commits       int      `json:"commits"`
+	PRs           int      `json:"prs"`
+	Reviews       int      `json:"reviews"`
+	BugsFixed     int      `json:"bugsFixed"`
+	AvgReviewTime int      `json:"avgReviewTime"`
+	AvgPRSize     int      `json:"avgPRSize"`
+	CodeQuality   int      `json:"codeQuality"`
+	ActiveDays    int      `json:"activeDays"`
+	Specialty     []string `json:"specialty"`
 }
 
 // ===== Request DTOs =====
 
 // ComparePeriodsRequest is the body for POST /compare.
 type ComparePeriodsRequest struct {
-	TenantID *string    `json:"tenantId"`
+	TenantID *string     `json:"tenantId"`
 	PeriodA  *PeriodSpec `json:"periodA" binding:"required"`
 	PeriodB  *PeriodSpec `json:"periodB" binding:"required"`
 }

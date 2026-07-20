@@ -1,20 +1,10 @@
 package service
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"log/slog"
 	"math"
-	"sort"
-	"sync"
 	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
-
-	"github.com/google/uuid"
-	"orion/go-common/pkg/sentinel"
 )
 
 // ==================== Generic helpers ====================
@@ -115,4 +105,3 @@ func copyTeamInfos(src []models.TeamInfo) []models.TeamInfo {
 	copy(out, src)
 	return out
 }
-

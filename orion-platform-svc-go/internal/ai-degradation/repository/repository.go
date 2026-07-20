@@ -11,13 +11,13 @@ import (
 
 	"orion/platform-svc-go/internal/ai-degradation/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 var (
-
 	ErrConfigDisabled = errors.New("config disabled")
 )
 
@@ -105,7 +105,7 @@ func (r *Repository) CreateConfig(ctx context.Context, config *models.Degradatio
 		config.ID, config.Name, config.Description, config.ServiceName, string(config.Strategy),
 		string(config.Status), config.Triggers, config.Actions, config.Recovery, config.Metadata,
 		config.Enabled, now, now, nullInt64(config.LastTriggeredAt), config.TriggerCount, config.TenantID,
-)
+	)
 	return err
 }
 
@@ -287,7 +287,7 @@ func (r *Repository) CreateHistory(ctx context.Context, history *models.Degradat
 		history.ID, history.ConfigID, history.TriggeredAt, nullInt64(history.RecoveredAt),
 		string(history.TriggerType), history.TriggerValue, history.TriggerThreshold,
 		history.Duration, string(history.Status), history.Actions, history.TenantID, now,
-)
+	)
 	return err
 }
 

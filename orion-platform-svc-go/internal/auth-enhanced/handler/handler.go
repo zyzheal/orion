@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -104,7 +103,7 @@ func (h *Handler) DeactivateKey(c *gin.Context) {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
 	}
-middleware.RespondSuccess(c, gin.H{"message": "key deactivated"})
+	middleware.RespondSuccess(c, gin.H{"message": "key deactivated"})
 }
 
 func (h *Handler) DeleteKey(c *gin.Context) {

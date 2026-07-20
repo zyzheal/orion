@@ -4,18 +4,18 @@ import "time"
 
 // User represents a user entity
 type User struct {
-	ID           string    `json:"id" db:"id"`
-	TenantID     string    `json:"tenant_id" db:"tenant_id"`
-	Username     string    `json:"username" db:"username"`
-	Email        string    `json:"email" db:"email"`
-	FullName     string    `json:"full_name" db:"full_name"`
-	Role         string    `json:"role" db:"role"`
-	Status       string    `json:"status" db:"status"`
-	AvatarURL    string    `json:"avatar_url" db:"avatar_url"`
-	Settings     string `json:"settings" db:"settings"`
-	Password     string `json:"-" db:"password"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	Username  string    `json:"username" db:"username"`
+	Email     string    `json:"email" db:"email"`
+	FullName  string    `json:"full_name" db:"full_name"`
+	Role      string    `json:"role" db:"role"`
+	Status    string    `json:"status" db:"status"`
+	AvatarURL string    `json:"avatar_url" db:"avatar_url"`
+	Settings  string    `json:"settings" db:"settings"`
+	Password  string    `json:"-" db:"password"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // CreateUserRequest for creating a user

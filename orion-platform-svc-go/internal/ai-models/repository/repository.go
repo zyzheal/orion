@@ -10,12 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 var (
-
-	ErrDuplicate  = errors.New("duplicate record")
+	ErrDuplicate = errors.New("duplicate record")
 )
 
 // Repository handles PostgreSQL persistence for AI models.
@@ -62,7 +60,7 @@ func (r *Repository) CreateModel(ctx context.Context, m *models.AIModel) error {
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 		m.ID, m.Name, m.DisplayName, m.Description, string(m.Type), string(m.Status), m.Framework,
 		nullString(m.CurrentVersion), m.Tags, m.Metadata, m.CreatedBy, m.TenantID, now, now,
-)
+	)
 	return err
 }
 
@@ -213,7 +211,7 @@ func (r *Repository) CreateVersion(ctx context.Context, v *models.ModelVersion) 
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		v.ID, v.ModelID, v.Version, v.ArtifactUri, string(v.Environment), string(v.Status),
 		v.Metrics, v.Config, v.CreatedBy, v.TenantID, now, nullInt64(v.PromotedAt), nullString(v.PromotedBy),
-)
+	)
 	return err
 }
 
@@ -342,7 +340,7 @@ func (r *Repository) CreateCanary(ctx context.Context, c *models.CanaryConfig) e
 		c.SuccessThreshold, c.LatencyThreshold, c.ErrorRateThreshold,
 		c.StartTime, c.Duration, string(c.Status), nullString(c.CurrentMetrics),
 		c.TenantID, now, now,
-)
+	)
 	return err
 }
 

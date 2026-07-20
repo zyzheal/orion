@@ -2,14 +2,12 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/change-intelligence/models"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {

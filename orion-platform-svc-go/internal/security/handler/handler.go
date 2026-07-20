@@ -8,10 +8,11 @@ import (
 	"orion/platform-svc-go/internal/security/models"
 	"orion/platform-svc-go/internal/security/service"
 
-	"github.com/gin-gonic/gin"
-	"orion/platform-svc-go/internal/middleware"
-	"go.opentelemetry.io/otel"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 type Service interface {
@@ -95,11 +96,11 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 	middleware.RespondSuccess(c, gin.H{
 		"data": report.Vulnerabilities,
 		"meta": gin.H{
-			"total":          report.TotalVulnerabilities,
-			"bySeverity":     report.BySeverity,
-			"byStatus":       report.ByStatus,
-			"openCritical":   report.OpenCritical,
-			"openHigh":       report.OpenHigh,
+			"total":        report.TotalVulnerabilities,
+			"bySeverity":   report.BySeverity,
+			"byStatus":     report.ByStatus,
+			"openCritical": report.OpenCritical,
+			"openHigh":     report.OpenHigh,
 		},
 	})
 }

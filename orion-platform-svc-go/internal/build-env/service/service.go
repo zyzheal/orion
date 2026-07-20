@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -11,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"orion/platform-svc-go/internal/build-env/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/build-env/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -242,7 +243,6 @@ func (s *Service) AnalyzePerformanceImpact(ctx context.Context, tenantID, pipeli
 // --- Errors ---
 
 var (
-
 	ErrInvalidConfigID    = errors.New("invalid config id")
 	ErrInvalidLogID       = errors.New("invalid log id")
 	ErrConflict           = errors.New("conflict")

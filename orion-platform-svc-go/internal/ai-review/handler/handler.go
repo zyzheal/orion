@@ -21,7 +21,7 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-r := rg.Group("/ai-review")
+	r := rg.Group("/ai-review")
 	r.GET("", auth.RequirePermission("ai-review", "read"), h.ListReviews)
 	r.GET("/:id", auth.RequirePermission("ai-review", "read"), h.GetReview)
 	r.POST("", auth.RequirePermission("ai-review", "write"), h.CreateReview)

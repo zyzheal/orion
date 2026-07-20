@@ -6,8 +6,9 @@ import (
 	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/user-activity/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -102,4 +103,3 @@ func (h *Handler) DeleteActivity(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, gin.H{"message": "activity deleted"})
 }
-

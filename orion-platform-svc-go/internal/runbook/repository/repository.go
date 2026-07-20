@@ -3,15 +3,15 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strconv"
 	"time"
 
 	"orion/platform-svc-go/internal/runbook/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {

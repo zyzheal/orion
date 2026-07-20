@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	ErrNotConnected       = errors.New("event bus not connected to NATS")
-	ErrJetStreamDisabled  = errors.New("JetStream not available")
-	ErrInvalidNATSServer  = errors.New("invalid NATS server address")
+	ErrNotConnected      = errors.New("event bus not connected to NATS")
+	ErrJetStreamDisabled = errors.New("JetStream not available")
+	ErrInvalidNATSServer = errors.New("invalid NATS server address")
 )
 
 // natssub tracks a single subscription handle so ListSubscriptions can
@@ -27,18 +27,18 @@ type natssub struct {
 
 // connState holds the in-memory connection state for the event bus per tenant.
 type connState struct {
-	mu         sync.RWMutex
-	nc         *nats.Conn          // live NATS connection (nil when disconnected)
-	jetStream  nats.JetStream      // JetStream context (nil when unavailable)
-	connected  bool
-	server     string
+	mu          sync.RWMutex
+	nc          *nats.Conn     // live NATS connection (nil when disconnected)
+	jetStream   nats.JetStream // JetStream context (nil when unavailable)
+	connected   bool
+	server      string
 	connectedAt time.Time
-	subs       map[string]*natssub // active subscriptions keyed by consumer name
+	subs        map[string]*natssub // active subscriptions keyed by consumer name
 }
 
 // busConn is a per-service connection registry keyed by tenant.
 type busConn struct {
-	mu    sync.RWMutex
+	mu     sync.RWMutex
 	states map[string]*connState
 }
 

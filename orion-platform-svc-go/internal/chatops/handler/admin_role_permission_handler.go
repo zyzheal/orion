@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
 	"strconv"
 
-	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -368,5 +367,3 @@ func (h *Handler) DeleteCommandVersion(c *gin.Context) {
 }
 
 // ---- Admin: Rate Limits ----
-
-

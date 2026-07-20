@@ -30,9 +30,9 @@ func (r *Repository) Create(ctx context.Context, key *models.APIKey) error {
 			id, name, key_hash, last_used_at, expires_at, scope,
 			tenant_id, user_id, created_at, updated_at
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-key.ID, key.Name, key.KeyHash, key.LastUsedAt, key.ExpiresAt, key.Scope,
+		key.ID, key.Name, key.KeyHash, key.LastUsedAt, key.ExpiresAt, key.Scope,
 		key.TenantID, key.UserID, key.CreatedAt, key.UpdatedAt,
-)
+	)
 	return err
 }
 

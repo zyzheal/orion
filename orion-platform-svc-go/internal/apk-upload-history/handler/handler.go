@@ -9,9 +9,10 @@ import (
 	"orion/platform-svc-go/internal/apk-upload-history/models"
 	"orion/platform-svc-go/internal/apk-upload-history/service"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

@@ -10,10 +10,10 @@ type LoginRequest struct {
 
 // LoginResponse returned on successful login.
 type LoginResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-	ExpiresAt    int64  `json:"expiresAt"`
-	TenantID     string `json:"tenantId,omitempty"`
+	AccessToken  string   `json:"accessToken"`
+	RefreshToken string   `json:"refreshToken"`
+	ExpiresAt    int64    `json:"expiresAt"`
+	TenantID     string   `json:"tenantId,omitempty"`
 	User         UserInfo `json:"user"`
 }
 

@@ -14,9 +14,9 @@ import (
 // ---- Mock ----
 
 type mockGraphRepo struct {
-	def     *repository.PipelineDefinition
-	dbErr   error
-	noRows  bool
+	def    *repository.PipelineDefinition
+	dbErr  error
+	noRows bool
 }
 
 func (m *mockGraphRepo) GetPipelineByID(_ context.Context, id string) (*repository.PipelineDefinition, error) {

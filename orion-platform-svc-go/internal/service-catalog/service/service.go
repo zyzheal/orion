@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -19,8 +20,6 @@ type RepositoryInterface interface {
 	GetRequestTimeline(ctx context.Context, tenantID, requestID string) ([]models.TimelineEntry, error)
 	GetSLABreaches(ctx context.Context, tenantID string, serviceFilter string, from int64, limit int) ([]models.SLABreach, error)
 }
-
-
 
 type Service struct {
 	repo RepositoryInterface

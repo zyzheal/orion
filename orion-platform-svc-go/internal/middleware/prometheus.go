@@ -16,11 +16,11 @@ import (
 // ---------------------------------------------------------------------------
 
 const (
-	promNamespace  = "orion"
-	promSubsystem  = "http_requests"
-	labelMethod    = "method"
-	labelHandler   = "handler"
-	labelStatus    = "status"
+	promNamespace = "orion"
+	promSubsystem = "http_requests"
+	labelMethod   = "method"
+	labelHandler  = "handler"
+	labelStatus   = "status"
 )
 
 // requestTotal counts all requests by method, handler, and status.

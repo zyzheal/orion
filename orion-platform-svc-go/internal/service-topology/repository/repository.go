@@ -3,14 +3,14 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/service-topology/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -319,7 +319,10 @@ func (r *Repository) GetTopologyStats(ctx context.Context, tenantID string) (*mo
 	}
 	for start := range graph {
 		seen := map[string]bool{}
-		q := []struct{ node string; depth int }{{start, 0}}
+		q := []struct {
+			node  string
+			depth int
+		}{{start, 0}}
 		for len(q) > 0 {
 			cur := q[0]
 			q = q[1:]
@@ -329,7 +332,10 @@ func (r *Repository) GetTopologyStats(ctx context.Context, tenantID string) (*mo
 			for _, nb := range graph[cur.node] {
 				if !seen[nb] {
 					seen[nb] = true
-					q = append(q, struct{ node string; depth int }{nb, cur.depth + 1})
+					q = append(q, struct {
+						node  string
+						depth int
+					}{nb, cur.depth + 1})
 				}
 			}
 		}

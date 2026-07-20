@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -13,9 +14,9 @@ import (
 
 	"orion/platform-svc-go/internal/security/models"
 
-	"github.com/google/uuid"
-	"orion/platform-svc-go/internal/security/repository"
 	"orion/go-common/pkg/sentinel"
+
+	"github.com/google/uuid"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -30,7 +31,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrInvalidInput      = errors.New("invalid input")
 	ErrTrivyNotInstalled = errors.New("trivy is not installed or not found in PATH")
 	ErrTrivyScanFailed   = errors.New("trivy scan failed")

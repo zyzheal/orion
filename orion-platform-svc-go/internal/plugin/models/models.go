@@ -212,33 +212,33 @@ func (f *SecurityEventFilter) GetLimit() int {
 // ---------------------------------------------------------------------------
 
 type ResourceQuota struct {
-	CPUCores     int   `json:"cpu_cores"`
-	MemoryBytes  int64 `json:"memory_bytes"`
-	TimeoutMs    int   `json:"timeout_ms"`
-	MaxConcurrent int  `json:"max_concurrent"`
+	CPUCores      int   `json:"cpu_cores"`
+	MemoryBytes   int64 `json:"memory_bytes"`
+	TimeoutMs     int   `json:"timeout_ms"`
+	MaxConcurrent int   `json:"max_concurrent"`
 }
 
 type PluginResourceQuota struct {
-	ID           string    `db:"id"            json:"id"`
-	PluginID     string    `db:"plugin_id"     json:"plugin_id"`
-	TenantID     string    `db:"tenant_id"     json:"tenant_id,omitempty"`
-	CPUCores     int       `db:"cpu_cores"     json:"cpu_cores"`
-	MemoryBytes  int64     `db:"memory_bytes"  json:"memory_bytes"`
-	TimeoutMs    int       `db:"timeout_ms"    json:"timeout_ms"`
-	MaxConcurrent int      `db:"max_concurrent" json:"max_concurrent"`
-	CreatedAt    time.Time `db:"created_at"    json:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
+	ID            string    `db:"id"            json:"id"`
+	PluginID      string    `db:"plugin_id"     json:"plugin_id"`
+	TenantID      string    `db:"tenant_id"     json:"tenant_id,omitempty"`
+	CPUCores      int       `db:"cpu_cores"     json:"cpu_cores"`
+	MemoryBytes   int64     `db:"memory_bytes"  json:"memory_bytes"`
+	TimeoutMs     int       `db:"timeout_ms"    json:"timeout_ms"`
+	MaxConcurrent int       `db:"max_concurrent" json:"max_concurrent"`
+	CreatedAt     time.Time `db:"created_at"    json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"    json:"updated_at"`
 }
 
 type TenantQuota struct {
-	ID           string    `db:"id"            json:"id"`
-	TenantID     string    `db:"tenant_id"     json:"tenant_id"`
-	CPUCores     int       `db:"cpu_cores"     json:"cpu_cores"`
-	MemoryBytes  int64     `db:"memory_bytes"  json:"memory_bytes"`
-	TimeoutMs    int       `db:"timeout_ms"    json:"timeout_ms"`
-	MaxConcurrent int      `db:"max_concurrent" json:"max_concurrent"`
-	CreatedAt    time.Time `db:"created_at"    json:"created_at"`
-	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
+	ID            string    `db:"id"            json:"id"`
+	TenantID      string    `db:"tenant_id"     json:"tenant_id"`
+	CPUCores      int       `db:"cpu_cores"     json:"cpu_cores"`
+	MemoryBytes   int64     `db:"memory_bytes"  json:"memory_bytes"`
+	TimeoutMs     int       `db:"timeout_ms"    json:"timeout_ms"`
+	MaxConcurrent int       `db:"max_concurrent" json:"max_concurrent"`
+	CreatedAt     time.Time `db:"created_at"    json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at"    json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +246,12 @@ type TenantQuota struct {
 // ---------------------------------------------------------------------------
 
 type ResourceUsage struct {
-	CPUPercent    float64   `json:"cpu_percent"`
-	MemoryBytes   int64     `json:"memory_bytes"`
-	DiskBytes     int64     `json:"disk_bytes"`
-	NetworkRxBytes int64    `json:"network_rx_bytes"`
-	NetworkTxBytes int64    `json:"network_tx_bytes"`
-	Timestamp     time.Time `json:"timestamp"`
+	CPUPercent     float64   `json:"cpu_percent"`
+	MemoryBytes    int64     `json:"memory_bytes"`
+	DiskBytes      int64     `json:"disk_bytes"`
+	NetworkRxBytes int64     `json:"network_rx_bytes"`
+	NetworkTxBytes int64     `json:"network_tx_bytes"`
+	Timestamp      time.Time `json:"timestamp"`
 }
 
 // ---------------------------------------------------------------------------
@@ -273,16 +273,16 @@ type ValidationError struct {
 // ---------------------------------------------------------------------------
 
 type DLPDetectionResult struct {
-	HasSensitiveData bool        `json:"has_sensitive_data"`
+	HasSensitiveData bool         `json:"has_sensitive_data"`
 	Patterns         []DLPPattern `json:"patterns,omitempty"`
-	RedactedData     string      `json:"redacted_data,omitempty"`
+	RedactedData     string       `json:"redacted_data,omitempty"`
 }
 
 type DLPPattern struct {
-	Type     string `json:"type"`
-	Matched  string `json:"matched_text"`
-	Start    int    `json:"start"`
-	End      int    `json:"end"`
+	Type       string  `json:"type"`
+	Matched    string  `json:"matched_text"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
 	Confidence float64 `json:"confidence"`
 }
 
@@ -291,8 +291,8 @@ type DLPPattern struct {
 // ---------------------------------------------------------------------------
 
 type UpdateQuotaRequest struct {
-	CPUCores     *int   `json:"cpu_cores"`
-	MemoryBytes  *int64 `json:"memory_bytes"`
-	TimeoutMs    *int   `json:"timeout_ms"`
-	MaxConcurrent *int  `json:"max_concurrent"`
+	CPUCores      *int   `json:"cpu_cores"`
+	MemoryBytes   *int64 `json:"memory_bytes"`
+	TimeoutMs     *int   `json:"timeout_ms"`
+	MaxConcurrent *int   `json:"max_concurrent"`
 }

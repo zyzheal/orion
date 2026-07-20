@@ -9,9 +9,10 @@ import (
 
 	"orion/platform-svc-go/internal/terminal-audit/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {

@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,8 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"orion/platform-svc-go/internal/capability/models"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/capability/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -648,7 +649,6 @@ func (s *Service) recordAudit(ctx context.Context, tenantID, action, userID, tar
 
 // Known sentinel errors used by handlers for status-code routing.
 var (
-
 	ErrParentNotFound           = errors.New("parent not found")
 	ErrInvalidRiskLevel         = errors.New("invalid risk level")
 	ErrRoleNotFound             = errors.New("role not found")

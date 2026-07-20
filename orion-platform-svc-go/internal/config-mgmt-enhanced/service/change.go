@@ -37,8 +37,8 @@ func (s *Service) ApproveChangeRequest(ctx context.Context, tenantID, id string,
 	}
 	cr.ApprovalsList = append(cr.ApprovalsList, record)
 	approvalsJSON, marshalErr := json.Marshal(cr.ApprovalsList)
-		cr.Approvals = string(approvalsJSON)
-		err = marshalErr
+	cr.Approvals = string(approvalsJSON)
+	err = marshalErr
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *Service) RollbackChangeRequest(ctx context.Context, tenantID, id string
 
 	now := time.Now().UTC()
 	updated, err := s.repo.UpdateChangeRequest(ctx, id, tenantID, map[string]interface{}{
-		"status":       models.StatusRolledBack,
+		"status":         models.StatusRolledBack,
 		"rolled_back_at": now,
 		"rolled_back_by": "system",
 		"updated_at":     now,
@@ -173,7 +173,7 @@ func (s *Service) GetChangeHistory(ctx context.Context, tenantID, id string) ([]
 func (s *Service) DriftDetect(ctx context.Context, tenantID string, req *models.DriftDetectRequest) (*models.DriftDetectResult, error) {
 	// Create a drift report for this scan
 	report := &models.DriftReport{
-		TenantID: tenantID,
+		TenantID:    tenantID,
 		DriftStatus: models.DriftInSync,
 	}
 	if err := s.repo.CreateDriftReport(ctx, report); err != nil {
@@ -224,16 +224,16 @@ func (s *Service) RemediateDrift(ctx context.Context, tenantID, id string, req *
 	}
 	dr.RemediationLogList = append(dr.RemediationLogList, entry)
 	remediationJSON, marshalErr := json.Marshal(dr.RemediationLogList)
-		dr.RemediationLog = string(remediationJSON)
-		err = marshalErr
+	dr.RemediationLog = string(remediationJSON)
+	err = marshalErr
 	if err != nil {
 		return nil, err
 	}
 
 	updated, err := s.repo.UpdateDriftReport(ctx, id, tenantID, map[string]interface{}{
-		"drift_status":     models.DriftRemediated,
-		"remediation_log":  dr.RemediationLog,
-		"last_checked_at":  now,
+		"drift_status":    models.DriftRemediated,
+		"remediation_log": dr.RemediationLog,
+		"last_checked_at": now,
 	})
 	if err != nil {
 		return nil, err

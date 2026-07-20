@@ -3,20 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log/slog"
 	"math"
-	"sort"
-	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
 	"orion/platform-svc-go/internal/efficiency/models"
-
-	"github.com/google/uuid"
-	"orion/go-common/pkg/sentinel"
 )
 
 // ==================== Standardization (DORACalculator) ====================
@@ -453,4 +446,3 @@ func (s *Service) loadAllFromRepo(ctx context.Context) error {
 
 	return nil
 }
-

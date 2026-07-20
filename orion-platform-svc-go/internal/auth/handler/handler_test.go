@@ -17,10 +17,10 @@ import (
 // --- mock service ---
 
 type mockService struct {
-	loginFn    func(ctx context.Context, req *models.LoginRequest, tenantID string) (*models.LoginResponse, error)
-	registerFn func(ctx context.Context, req *models.RegisterRequest, tenantID string) (*models.RegisterResponse, error)
-	refreshFn  func(ctx context.Context, req *models.RefreshRequest) (*models.RefreshResponse, error)
-	logoutFn   func(ctx context.Context, req *models.LogoutRequest) error
+	loginFn      func(ctx context.Context, req *models.LoginRequest, tenantID string) (*models.LoginResponse, error)
+	registerFn   func(ctx context.Context, req *models.RegisterRequest, tenantID string) (*models.RegisterResponse, error)
+	refreshFn    func(ctx context.Context, req *models.RefreshRequest) (*models.RefreshResponse, error)
+	logoutFn     func(ctx context.Context, req *models.LogoutRequest) error
 	getProfileFn func(ctx context.Context, tenantID, userID string) (*models.MeResponse, error)
 }
 
@@ -95,7 +95,7 @@ func TestHandler_Login_Success(t *testing.T) {
 				RefreshToken: "refresh",
 				ExpiresAt:    1000,
 				TenantID:     "tenant-1",
-				User: models.UserInfo{ID: "u1", Username: "test", Role: "user"},
+				User:         models.UserInfo{ID: "u1", Username: "test", Role: "user"},
 			}, nil
 		},
 	})

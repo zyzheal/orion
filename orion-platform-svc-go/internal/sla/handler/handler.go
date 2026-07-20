@@ -4,15 +4,13 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/sla/models"
 	"orion/platform-svc-go/internal/sla/service"
 
-
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes the SLA module HTTP endpoints.
@@ -322,7 +320,7 @@ func (h *Handler) ListBreachEvents(c *gin.Context) {
 		limit, _ = strconv.Atoi(l)
 	}
 	if o := c.DefaultQuery("offset", "0"); o != "" {
-	offset, _ = strconv.Atoi(o)
+		offset, _ = strconv.Atoi(o)
 	}
 	result, err := h.svc.ListBreachEvents(ctx, tenantID, limit, offset)
 	if err != nil {

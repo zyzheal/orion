@@ -7,8 +7,9 @@ import (
 	"orion/platform-svc-go/internal/alert/models"
 	"orion/platform-svc-go/internal/alert/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 

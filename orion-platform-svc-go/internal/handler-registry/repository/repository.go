@@ -87,17 +87,17 @@ func (r *Repository) CreateEntry(ctx context.Context, entry *models.HandlerRegis
 		INSERT INTO handler_registry_entries (id, tenant_id, domain, name, display_name, description, status, config, registered_by, created_at, updated_at)
 		VALUES (:id, :tenant_id, :domain, :name, :display_name, :description, :status, :config, :registered_by, :created_at, :updated_at)
 	`, &struct {
-		ID           string     `db:"id"`
-		TenantID     string     `db:"tenant_id"`
-		Domain       string     `db:"domain"`
-		Name         string     `db:"name"`
-		DisplayName  string     `db:"display_name"`
-		Description  string     `db:"description"`
-		Status       string     `db:"status"`
-		Config       string     `db:"config"`
-		RegisteredBy string     `db:"registered_by"`
-		CreatedAt    time.Time  `db:"created_at"`
-		UpdatedAt    time.Time  `db:"updated_at"`
+		ID           string    `db:"id"`
+		TenantID     string    `db:"tenant_id"`
+		Domain       string    `db:"domain"`
+		Name         string    `db:"name"`
+		DisplayName  string    `db:"display_name"`
+		Description  string    `db:"description"`
+		Status       string    `db:"status"`
+		Config       string    `db:"config"`
+		RegisteredBy string    `db:"registered_by"`
+		CreatedAt    time.Time `db:"created_at"`
+		UpdatedAt    time.Time `db:"updated_at"`
 	}{
 		ID:           entry.ID,
 		TenantID:     entry.TenantID,

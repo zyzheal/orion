@@ -8,8 +8,8 @@ type Hook struct {
 	Name        string    `db:"name" json:"name"`
 	Description string    `db:"description" json:"description"`
 	Trigger     string    `db:"trigger" json:"trigger"` // pre-build, post-deploy, etc.
-	Action      string    `db:"action" json:"action"`    // script, webhooks, etc.
-	Config      string    `db:"config" json:"config"`    // JSON config
+	Action      string    `db:"action" json:"action"`   // script, webhooks, etc.
+	Config      string    `db:"config" json:"config"`   // JSON config
 	Enabled     bool      `db:"enabled" json:"enabled"`
 	TenantID    string    `db:"tenant_id" json:"tenant_id"`
 	UserID      string    `db:"user_id" json:"user_id"`

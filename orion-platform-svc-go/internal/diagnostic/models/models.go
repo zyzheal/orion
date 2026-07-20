@@ -4,29 +4,29 @@ import "time"
 
 // Session represents a diagnostic session.
 type Session struct {
-	ID         string     `db:"id" json:"id"`
-	TenantID   string     `db:"tenant_id" json:"tenantId"`
-	PipelineID *string    `db:"pipeline_id" json:"pipelineId"`
-	TriggerType string    `db:"trigger_type" json:"triggerType"`
-	TriggerID  string     `db:"trigger_id" json:"triggerId"`
-	TriggeredBy *string   `db:"triggered_by" json:"triggeredBy"`
-	Status     string     `db:"status" json:"status"`
-	StartedAt  time.Time  `db:"started_at" json:"startedAt"`
+	ID          string     `db:"id" json:"id"`
+	TenantID    string     `db:"tenant_id" json:"tenantId"`
+	PipelineID  *string    `db:"pipeline_id" json:"pipelineId"`
+	TriggerType string     `db:"trigger_type" json:"triggerType"`
+	TriggerID   string     `db:"trigger_id" json:"triggerId"`
+	TriggeredBy *string    `db:"triggered_by" json:"triggeredBy"`
+	Status      string     `db:"status" json:"status"`
+	StartedAt   time.Time  `db:"started_at" json:"startedAt"`
 	CompletedAt *time.Time `db:"completed_at" json:"completedAt"`
-	CreatedAt  time.Time  `db:"created_at" json:"createdAt"`
+	CreatedAt   time.Time  `db:"created_at" json:"createdAt"`
 }
 
 // Symptom represents a symptom within a diagnostic session.
 type Symptom struct {
-	ID          string     `db:"id" json:"id"`
-	SessionID   string     `db:"session_id" json:"sessionId"`
-	Name        string     `db:"name" json:"name"`
-	Description *string    `db:"description" json:"description"`
-	Type        string     `db:"type" json:"type"`
-	Source      string     `db:"source" json:"source"`
-	Severity    string     `db:"severity" json:"severity"`
-	Metadata    string     `db:"metadata" json:"metadata"`
-	CreatedAt   time.Time  `db:"created_at" json:"createdAt"`
+	ID          string    `db:"id" json:"id"`
+	SessionID   string    `db:"session_id" json:"sessionId"`
+	Name        string    `db:"name" json:"name"`
+	Description *string   `db:"description" json:"description"`
+	Type        string    `db:"type" json:"type"`
+	Source      string    `db:"source" json:"source"`
+	Severity    string    `db:"severity" json:"severity"`
+	Metadata    string    `db:"metadata" json:"metadata"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
 }
 
 // Report represents a diagnostic report.
@@ -52,13 +52,13 @@ type Pattern struct {
 
 // Outcome represents a recorded diagnostic outcome.
 type Outcome struct {
-	ID             string     `db:"id" json:"id"`
-	SessionID      string     `db:"session_id" json:"sessionId"`
-	PatternID      string     `db:"pattern_id" json:"patternId"`
-	Confirmed      bool       `db:"confirmed" json:"confirmed"`
+	ID              string    `db:"id" json:"id"`
+	SessionID       string    `db:"session_id" json:"sessionId"`
+	PatternID       string    `db:"pattern_id" json:"patternId"`
+	Confirmed       bool      `db:"confirmed" json:"confirmed"`
 	ActualRootCause *string   `db:"actual_root_cause" json:"actualRootCause"`
-	FixTimeMs      *int64     `db:"fix_time_ms" json:"fixTimeMs"`
-	CreatedAt      time.Time  `db:"created_at" json:"createdAt"`
+	FixTimeMs       *int64    `db:"fix_time_ms" json:"fixTimeMs"`
+	CreatedAt       time.Time `db:"created_at" json:"createdAt"`
 }
 
 // CreateSessionRequest is the request body for triggering a diagnostic.
@@ -80,11 +80,11 @@ type AddSymptomRequest struct {
 
 // CreatePatternRequest is the request body for adding a diagnostic pattern.
 type CreatePatternRequest struct {
-	Name       string  `json:"name" binding:"required"`
-	Symptoms   string  `json:"symptoms" binding:"required"`
-	RootCause  string  `json:"rootCause" binding:"required"`
-	Solution   string  `json:"solution" binding:"required"`
-	Category   string  `json:"category" binding:"required"`
+	Name      string `json:"name" binding:"required"`
+	Symptoms  string `json:"symptoms" binding:"required"`
+	RootCause string `json:"rootCause" binding:"required"`
+	Solution  string `json:"solution" binding:"required"`
+	Category  string `json:"category" binding:"required"`
 }
 
 // RecordOutcomeRequest is the request body for recording an outcome.
@@ -104,22 +104,22 @@ type TriggerResult struct {
 
 // SessionWithReport includes an optional embedded report.
 type SessionWithReport struct {
-	Session  Session `json:"session"`
-	Report   *Report `json:"report"`
+	Session Session `json:"session"`
+	Report  *Report `json:"report"`
 }
 
 // ComplexityEstimate holds fix complexity information.
 type ComplexityEstimate struct {
-	Level   string  `json:"level"`
-	Reason  string  `json:"reason"`
-	Effort  *int    `json:"effort"`
+	Level  string `json:"level"`
+	Reason string `json:"reason"`
+	Effort *int   `json:"effort"`
 }
 
 // KnowledgeBaseStats holds aggregate stats.
 type KnowledgeBaseStats struct {
-	Patterns    int `json:"patterns"`
-	Sessions    int `json:"sessions"`
-	Reports     int `json:"reports"`
+	Patterns int `json:"patterns"`
+	Sessions int `json:"sessions"`
+	Reports  int `json:"reports"`
 }
 
 // PaginatedResponse is a generic paginated response.

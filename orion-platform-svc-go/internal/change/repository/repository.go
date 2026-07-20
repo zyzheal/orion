@@ -10,9 +10,10 @@ import (
 
 	"orion/platform-svc-go/internal/change/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -65,8 +66,8 @@ func (r *Repository) ListChangeRequests(ctx context.Context, tenantID string, q 
 	argCount := 2
 
 	for _, pair := range []struct {
-		col  string
-		val  *string
+		col string
+		val *string
 	}{
 		{"status", q.Status},
 		{"change_type", q.Type},
@@ -329,7 +330,7 @@ func (r *Repository) ListCABMeetings(ctx context.Context, tenantID string, q mod
 		fmt.Sprintf(`SELECT * FROM cab_meetings WHERE %s ORDER BY scheduled_at DESC LIMIT $%d OFFSET $%d`,
 			whereClause, argCount, argCount+1),
 		append(args, q.Limit, q.Offset)...,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +372,6 @@ func (r *Repository) AddCABDecision(ctx context.Context, tenantID, cabID, change
 // --- Errors ---
 
 var (
-
 	ErrRFCNotFound   = errors.New("rfc not found")
 	ErrCABNotFound   = errors.New("cab meeting not found")
 	ErrInvalidStatus = errors.New("invalid status")

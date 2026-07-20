@@ -11,11 +11,12 @@ import (
 
 	"orion/platform-svc-go/internal/code-repo/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -405,12 +406,12 @@ func (r *Repository) ListWebhookLogs(ctx context.Context, limit, offset int) ([]
 			return nil, fmt.Errorf("failed to scan webhook log row: %w", err)
 		}
 		logs = append(logs, map[string]interface{}{
-			"id":        id,
-			"repo_id":   repoID,
-			"event_type": eventType,
-			"status":    status,
+			"id":           id,
+			"repo_id":      repoID,
+			"event_type":   eventType,
+			"status":       status,
 			"delivered_at": deliveredAt,
-			"created_at": createdAt,
+			"created_at":   createdAt,
 		})
 	}
 	if err := rows.Err(); err != nil {

@@ -7,8 +7,9 @@ import (
 	"orion/platform-svc-go/internal/finops/models"
 	"orion/platform-svc-go/internal/finops/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -160,7 +161,7 @@ func (h *Handler) EvaluateCost(c *gin.Context) {
 	}
 	// Mirrors TS: 200 if passed, 403 if failed
 	if !result.Passed {
-	middleware.RespondForbidden(c, result.Message)
+		middleware.RespondForbidden(c, result.Message)
 		return
 	}
 	middleware.RespondSuccess(c, result)

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -41,7 +39,7 @@ func (r *Repository) CreateTransaction(ctx context.Context, tx *models.SagaTrans
 		tx.ID, tx.TenantID, tx.SagaName, tx.RequestID, string(tx.Status),
 		tx.Input, tx.Metadata, tx.CurrentStep, nullString(tx.Error),
 		nullInt64(tx.StartedAt), nullInt64(tx.CompletedAt), now, now,
-)
+	)
 	return err
 }
 
@@ -153,7 +151,7 @@ func (r *Repository) CreateStep(ctx context.Context, step *models.SagaStep) erro
 		nullInt64(step.StartedAt), nullInt64(step.CompletedAt),
 		nullInt64(step.CompensationStartedAt), nullInt64(step.CompensationCompletedAt),
 		now, now,
-)
+	)
 	return err
 }
 

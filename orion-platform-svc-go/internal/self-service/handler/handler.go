@@ -5,10 +5,10 @@ import (
 	"orion/platform-svc-go/internal/self-service/models"
 	"orion/platform-svc-go/internal/self-service/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

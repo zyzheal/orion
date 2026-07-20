@@ -7,10 +7,11 @@ import (
 	"errors"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/privacy/models"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/platform-svc-go/internal/privacy/models"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -114,11 +115,11 @@ func (r *Repository) DeleteConfig(ctx context.Context, tenantID string) error {
 
 func (r *Repository) ListComplianceStatus(ctx context.Context) ([]models.ComplianceStatus, error) {
 	type row struct {
-		TenantID        string `db:"tenant_id"`
-		CCPAEnabled     bool   `db:"ccpa_enabled"`
-		GDPRCompliance  bool   `db:"gdpr_compliance"`
-		DataEncryption  bool   `db:"data_encryption"`
-		RetentionDays   int    `db:"retention_days"`
+		TenantID       string `db:"tenant_id"`
+		CCPAEnabled    bool   `db:"ccpa_enabled"`
+		GDPRCompliance bool   `db:"gdpr_compliance"`
+		DataEncryption bool   `db:"data_encryption"`
+		RetentionDays  int    `db:"retention_days"`
 	}
 	var rows []row
 	err := r.db.SelectContext(ctx, &rows,

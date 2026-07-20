@@ -3,15 +3,15 @@ package models
 import "time"
 
 type Metric struct {
-	Name      string      `json:"name" db:"name"`
-	Value     float64     `json:"value" db:"value"`
+	Name      string            `json:"name" db:"name"`
+	Value     float64           `json:"value" db:"value"`
 	Tags      map[string]string `json:"tags" db:"tags"`
-	Timestamp time.Time   `json:"timestamp" db:"timestamp"`
+	Timestamp time.Time         `json:"timestamp" db:"timestamp"`
 }
 
 type Dashboard struct {
-	ID    string `json:"id" db:"id"`
-	Name  string `json:"name" db:"name"`
+	ID     string `json:"id" db:"id"`
+	Name   string `json:"name" db:"name"`
 	Layout string `json:"layout" db:"layout"`
 }
 
@@ -25,8 +25,8 @@ type AlertRule struct {
 }
 
 type MetricQuery struct {
-	Name     string `json:"name"`
-	From     string `json:"from"`
-	To       string `json:"to"`
+	Name      string `json:"name"`
+	From      string `json:"from"`
+	To        string `json:"to"`
 	Aggregate string `json:"aggregate"`
 }

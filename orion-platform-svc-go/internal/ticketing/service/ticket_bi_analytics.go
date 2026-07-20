@@ -4,15 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/ticketing/models"
-	"orion/platform-svc-go/internal/ticketing/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // --- BI Analytics ---
@@ -284,4 +280,3 @@ func (s *Service) GetTimeTrend(ctx context.Context, tenantID string, period stri
 		Values: values,
 	}, nil
 }
-

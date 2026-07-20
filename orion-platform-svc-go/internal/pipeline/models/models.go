@@ -15,28 +15,28 @@ const (
 type PipelineTriggerType string
 
 const (
-	TriggerTypeManual  PipelineTriggerType = "manual"
-	TriggerTypeWebhook PipelineTriggerType = "webhook"
+	TriggerTypeManual   PipelineTriggerType = "manual"
+	TriggerTypeWebhook  PipelineTriggerType = "webhook"
 	TriggerTypeSchedule PipelineTriggerType = "schedule"
-	TriggerTypeEvent   PipelineTriggerType = "event"
+	TriggerTypeEvent    PipelineTriggerType = "event"
 )
 
 // Pipeline is the core pipeline entity.
 type Pipeline struct {
-	ID             string             `json:"id" db:"id"`
-	TenantID       string             `json:"tenantId" db:"tenant_id"`
-	ProjectID      string             `json:"projectId" db:"project_id"`
-	Name           string             `json:"name" db:"name"`
-	Description    string             `json:"description" db:"description"`
+	ID             string              `json:"id" db:"id"`
+	TenantID       string              `json:"tenantId" db:"tenant_id"`
+	ProjectID      string              `json:"projectId" db:"project_id"`
+	Name           string              `json:"name" db:"name"`
+	Description    string              `json:"description" db:"description"`
 	TriggerType    PipelineTriggerType `json:"triggerType" db:"trigger_type"`
-	Status         PipelineStatus     `json:"status" db:"status"`
-	Version        int                `json:"version" db:"version"`
-	YamlDefinition string             `json:"yamlDefinition" db:"yaml_definition"`
-	Spec           string             `json:"spec" db:"spec"`         // JSONB
-	Config         string             `json:"config" db:"config"`     // JSONB
-	CreatedBy      string             `json:"createdBy" db:"created_by"`
-	CreatedAt      time.Time          `json:"createdAt" db:"created_at"`
-	UpdatedAt      time.Time          `json:"updatedAt" db:"updated_at"`
+	Status         PipelineStatus      `json:"status" db:"status"`
+	Version        int                 `json:"version" db:"version"`
+	YamlDefinition string              `json:"yamlDefinition" db:"yaml_definition"`
+	Spec           string              `json:"spec" db:"spec"`     // JSONB
+	Config         string              `json:"config" db:"config"` // JSONB
+	CreatedBy      string              `json:"createdBy" db:"created_by"`
+	CreatedAt      time.Time           `json:"createdAt" db:"created_at"`
+	UpdatedAt      time.Time           `json:"updatedAt" db:"updated_at"`
 }
 
 // CreatePipelineRequest is the body for creating a pipeline.
@@ -67,12 +67,12 @@ type ListPipelinesOptions struct {
 
 // PipelineVersion represents a version snapshot.
 type PipelineVersion struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Version     int              `json:"version"`
-	Description string           `json:"description"`
-	Status      PipelineStatus   `json:"status"`
-	CreatedAt   time.Time        `json:"createdAt"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Version     int            `json:"version"`
+	Description string         `json:"description"`
+	Status      PipelineStatus `json:"status"`
+	CreatedAt   time.Time      `json:"createdAt"`
 }
 
 // PipelineValidationResult is the validation outcome.
@@ -90,11 +90,11 @@ type PipelineRunResult struct {
 
 // PipelineStats holds aggregated pipeline statistics.
 type PipelineStats struct {
-	TotalRuns    int   `json:"totalRuns"`
-	SuccessRuns  int   `json:"successRuns"`
-	FailedRuns   int   `json:"failedRuns"`
-	RunningRuns  int   `json:"runningRuns"`
-	AvgDuration  int64 `json:"avgDuration"`
+	TotalRuns   int   `json:"totalRuns"`
+	SuccessRuns int   `json:"successRuns"`
+	FailedRuns  int   `json:"failedRuns"`
+	RunningRuns int   `json:"runningRuns"`
+	AvgDuration int64 `json:"avgDuration"`
 }
 
 // BatchStartResult is the per-pipeline result for batch start.

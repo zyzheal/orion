@@ -10,9 +10,10 @@ import (
 
 	"orion/platform-svc-go/internal/internal-library/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -222,7 +223,8 @@ func (r *Repository) ListDependents(ctx context.Context, libraryID string) ([]mo
 func (r *Repository) AddDependent(ctx context.Context, d *models.LibraryDependent) error {
 	d.ID = uuid.New().String()
 	d.CreatedAt = time.Now().UTC()
-	t := time.Now().UTC(); d.LastUpdated = &t
+	t := time.Now().UTC()
+	d.LastUpdated = &t
 	if d.UpgradeAvailable == false {
 		d.UpgradeAvailable = false
 	}

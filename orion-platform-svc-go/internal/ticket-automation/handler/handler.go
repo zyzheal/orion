@@ -6,10 +6,10 @@ import (
 	"orion/platform-svc-go/internal/ticket-automation/models"
 	"orion/platform-svc-go/internal/ticket-automation/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes HTTP endpoints for ticket automation.

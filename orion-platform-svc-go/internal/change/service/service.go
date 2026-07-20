@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -8,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/change/models"
 	"orion/platform-svc-go/internal/change/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -277,7 +278,6 @@ func (s *Service) AddCABDecision(ctx context.Context, tenantID, cabID string, re
 // --- Errors ---
 
 var (
-
 	ErrChangeNotFound = fmt.Errorf("change request not found: %w", sentinel.NotFound)
 )
 

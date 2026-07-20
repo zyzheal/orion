@@ -33,7 +33,7 @@ func (r *Repository) Create(ctx context.Context, hook *models.Hook) error {
 		hook.ID, hook.Name, hook.Description, hook.Trigger, hook.Action,
 		hook.Config, hook.Enabled, hook.TenantID, hook.UserID,
 		hook.CreatedAt, hook.UpdatedAt,
-)
+	)
 	return err
 }
 
@@ -98,7 +98,7 @@ func (r *Repository) Update(ctx context.Context, hook *models.Hook) error {
 		WHERE id=$7 AND tenant_id=$8`,
 		hook.Name, hook.Description, hook.Trigger, hook.Action,
 		hook.Config, hook.Enabled, hook.ID, hook.TenantID,
-)
+	)
 	return err
 }
 

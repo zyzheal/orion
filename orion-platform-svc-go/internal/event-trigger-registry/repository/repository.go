@@ -8,9 +8,10 @@ import (
 
 	"orion/platform-svc-go/internal/event-trigger-registry/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Repository provides PostgreSQL access for workflow triggers.

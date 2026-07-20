@@ -22,7 +22,7 @@ func (r *Repository) CreateTenant(ctx context.Context, name string, displayName 
 		`INSERT INTO tenants (name, display_name, status, settings, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING id`,
 		name, displayName, status, settingsJSON,
-).Scan(&id)
+	).Scan(&id)
 	return &id, err
 }
 
@@ -34,7 +34,7 @@ func (r *Repository) GetTenantRow(ctx context.Context, id string) (*map[string]a
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT id, name, display_name, status, settings, created_at, updated_at FROM tenants WHERE id = $1`,
 		id,
-).Scan(&id, &name, &displayName, &status, &settings, &createdAt, &updatedAt); err != nil {
+	).Scan(&id, &name, &displayName, &status, &settings, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	m["id"] = id
@@ -126,7 +126,7 @@ func (r *Repository) UpdateTenant(ctx context.Context, id string, name *string, 
 		fmt.Sprintf(`UPDATE tenants SET %s, updated_at = NOW() WHERE id = $%d`,
 			updatesStr(updates), n),
 		args...,
-)
+	)
 	return err
 }
 
@@ -158,7 +158,7 @@ func (r *Repository) GetUserTenants(ctx context.Context, userID string) ([]map[s
 		 WHERE tu.user_id = $1 AND t.status = 'active'
 		 ORDER BY tu.role DESC, t.display_name ASC`,
 		userID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (r *Repository) ListTenantUsers(ctx context.Context, tenantID string) ([]ma
 		 WHERE tu.tenant_id = $1
 		 ORDER BY tu.role DESC, tu.created_at ASC`,
 		tenantID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (r *Repository) AddTenantUser(ctx context.Context, tenantID, userID, role s
 		 VALUES ($1, $2, $3, NOW())
 		 ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = $3`,
 		tenantID, userID, role,
-)
+	)
 	return err
 }
 
@@ -231,7 +231,7 @@ func (r *Repository) RemoveTenantUser(ctx context.Context, tenantID, userID stri
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id = $2`,
 		tenantID, userID,
-)
+	)
 	return err
 }
 
@@ -240,7 +240,7 @@ func (r *Repository) CountTenantAdmins(ctx context.Context, tenantID string) (in
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM tenant_users WHERE tenant_id = $1 AND (role = 'owner' OR role = 'admin')`,
 		tenantID,
-).Scan(&count)
+	).Scan(&count)
 	return count, err
 }
 
@@ -253,7 +253,7 @@ func (r *Repository) GetTenantByRow(ctx context.Context, tenantID string) (*map[
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT id, name, display_name FROM tenants WHERE id = $1`,
 		tenantID,
-).Scan(&id, &name, &displayName); err != nil {
+	).Scan(&id, &name, &displayName); err != nil {
 		return nil, err
 	}
 	m["id"] = id
@@ -267,7 +267,7 @@ func (r *Repository) GetPendingInvite(ctx context.Context, tenantID, email strin
 		`SELECT id, status, expires_at FROM tenant_invites
 		 WHERE tenant_id = $1 AND email = $2 AND status = 'pending' AND expires_at > NOW()`,
 		tenantID, email,
-)
+	)
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
@@ -288,7 +288,7 @@ func (r *Repository) GetTenantUserByEmail(ctx context.Context, tenantID, email s
 	err := r.db.QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM tenant_users tu INNER JOIN users u ON tu.user_id = u.id WHERE tu.tenant_id = $1 AND u.email = $2)`,
 		tenantID, email,
-).Scan(&exists)
+	).Scan(&exists)
 	return exists, err
 }
 
@@ -298,7 +298,7 @@ func (r *Repository) CreateInvite(ctx context.Context, tenantID, email, role, in
 		 VALUES ($1, $2, $3, $4, 'pending', $5, $6, NOW())
 		 RETURNING id, invite_code, email, role, status, expires_at, created_at`,
 		tenantID, email, role, inviteCode, invitedBy, expiresAt,
-)
+	)
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
@@ -325,7 +325,7 @@ func (r *Repository) GetInviteByCode(ctx context.Context, code string) (*map[str
 		 FROM tenant_invites ti INNER JOIN tenants t ON ti.tenant_id = t.id
 		 WHERE ti.invite_code = $1`,
 		code,
-)
+	)
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
@@ -353,7 +353,7 @@ func (r *Repository) UserIsTenantMember(ctx context.Context, tenantID, userID st
 	err := r.db.QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM tenant_users WHERE tenant_id = $1 AND user_id = $2)`,
 		tenantID, userID,
-).Scan(&exists)
+	).Scan(&exists)
 	return exists, err
 }
 
@@ -361,7 +361,7 @@ func (r *Repository) UpdateInviteStatus(ctx context.Context, status, userID stri
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE tenant_invites SET status = $1, accepted_by = $2, accepted_at = NOW() WHERE id = $3`,
 		status, userID, id,
-)
+	)
 	return err
 }
 
@@ -372,7 +372,7 @@ func (r *Repository) AllocateNamespace(ctx context.Context, tenantID int, nsName
 		`INSERT INTO namespace_allocations (tenant_id, namespace_name, status, purpose, allocated_at, created_at)
 		 VALUES ($1, $2, 'allocated', $3, NOW(), NOW())`,
 		tenantID, nsName, purpose,
-)
+	)
 	return err
 }
 
@@ -380,7 +380,7 @@ func (r *Repository) ReleaseNamespace(ctx context.Context, nsName string) error 
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE namespace_allocations SET status = 'released', updated_at = NOW() WHERE namespace_name = $1`,
 		nsName,
-)
+	)
 	return err
 }
 
@@ -391,7 +391,7 @@ func (r *Repository) GetTenantNamespaces(ctx context.Context, tenantID string) (
 		 WHERE tenant_id = $1
 		 ORDER BY allocated_at DESC`,
 		tenantID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +429,7 @@ func (r *Repository) NamespaceCount(ctx context.Context, tenantID string) (int, 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM namespace_allocations WHERE tenant_id = $1 AND status = 'allocated'`,
 		tenantID,
-).Scan(&count)
+	).Scan(&count)
 	return count, err
 }
 
@@ -454,7 +454,7 @@ func (r *Repository) GetQuota(ctx context.Context, tenantID int, tenantIDStr str
 		 FROM tenant_quotas WHERE tenant_id = $1 OR tenant_id_str = $2
 		 LIMIT 1`,
 		tenantID, tenantIDStr,
-)
+	)
 	if rows.Err() != nil {
 		return nil, rows.Err()
 	}
@@ -522,7 +522,7 @@ func (r *Repository) GetAlertStatusCounts(ctx context.Context, tenantID string) 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT notify_status, COUNT(*) as count FROM tenant_quota_alerts WHERE tenant_id = $1 GROUP BY notify_status`,
 		tenantID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +547,7 @@ func (r *Repository) GetAlertResourceCounts(ctx context.Context, tenantID string
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT resource_type, COUNT(*) as count FROM tenant_quota_alerts WHERE tenant_id = $1 AND created_at > NOW() - INTERVAL '7 days' GROUP BY resource_type`,
 		tenantID,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -572,7 +572,7 @@ func (r *Repository) GetActiveAlerts(ctx context.Context, tenantID string, limit
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, resource_type, threshold_percent, current_usage, quota_limit, created_at FROM tenant_quota_alerts WHERE tenant_id = $1 AND notify_status = 'sent' AND (cooldown_until IS NULL OR cooldown_until < NOW()) ORDER BY created_at DESC LIMIT $2`,
 		tenantID, limit,
-)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +603,7 @@ func (r *Repository) MigrateUserToTenant(ctx context.Context, newTenantID int, u
 		 VALUES ($1, $2, 'member')
 		 ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'member'`,
 		newTenantID, userID,
-)
+	)
 	return err
 }
 
@@ -611,7 +611,7 @@ func (r *Repository) MoveNamespaces(ctx context.Context, newTenantID int, nsName
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE namespace_allocations SET tenant_id = $1, updated_at = NOW() WHERE namespace_name = $2 AND tenant_id = $3`,
 		newTenantID, nsName, oldTenantID,
-)
+	)
 	return err
 }
 
@@ -619,7 +619,7 @@ func (r *Repository) MovePipeline(ctx context.Context, newTenantID int, pipeline
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE pipelines SET tenant_id = $1 WHERE id = $2 AND tenant_id = $3`,
 		newTenantID, pipelineID, oldTenantID,
-)
+	)
 	return err
 }
 

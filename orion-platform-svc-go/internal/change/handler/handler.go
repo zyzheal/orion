@@ -4,15 +4,13 @@ import (
 	"strconv"
 
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/go-common/pkg/errors"
 	"orion/platform-svc-go/internal/change/models"
 	"orion/platform-svc-go/internal/change/service"
-
+	"orion/platform-svc-go/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes the change module's HTTP endpoints.
@@ -66,7 +64,7 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	q := models.ChangeRequestListQuery{Limit: 20, Offset: 0}
 	if s := c.Query("status"); s != "" {
-	q.Status = &s
+		q.Status = &s
 	}
 	if t := c.Query("type"); t != "" {
 		q.Type = &t
@@ -75,20 +73,20 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 		q.Priority = &p
 	}
 	if r := c.Query("risk_level"); r != "" {
-	q.RiskLevel = &r
+		q.RiskLevel = &r
 	}
 	if a := c.Query("assigned_to"); a != "" {
 		assignedTo := a
-	q.AssignedTo = &assignedTo
+		q.AssignedTo = &assignedTo
 	}
 	if req := c.Query("requester_id"); req != "" {
-	q.RequesterID = &req
+		q.RequesterID = &req
 	}
 	if l := c.DefaultQuery("limit", "20"); l != "" {
-	q.Limit, _ = strconv.Atoi(l)
+		q.Limit, _ = strconv.Atoi(l)
 	}
 	if o := c.DefaultQuery("offset", "0"); o != "" {
-	q.Offset, _ = strconv.Atoi(o)
+		q.Offset, _ = strconv.Atoi(o)
 	}
 	result, err := h.svc.ListChangeRequests(ctx, tenantID, q)
 	if err != nil {
@@ -141,7 +139,7 @@ func (h *Handler) UpdateChangeRequest(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateChangeRequest")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-id := c.Param("id")
+	id := c.Param("id")
 	var req models.UpdateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
@@ -174,7 +172,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")
 	var req models.StatusTransitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	result, err := h.svc.UpdateStatus(ctx, tenantID, id, req.Status, req.Reason)
@@ -191,7 +189,7 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeline")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-id := c.Param("id")
+	id := c.Param("id")
 	limit := 20
 	offset := 0
 	if l := c.DefaultQuery("limit", "20"); l != "" {
@@ -219,7 +217,7 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-event, err := h.svc.AddTimelineEvent(ctx, tenantID, changeRequestID, req.EventType, req.Description, req.Metadata, userID)
+	event, err := h.svc.AddTimelineEvent(ctx, tenantID, changeRequestID, req.EventType, req.Description, req.Metadata, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -269,7 +267,7 @@ func (h *Handler) GetRFC(c *gin.Context) {
 	rfc, err := h.svc.GetRFC(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
-		errors.WriteError(c, errors.ErrNotFound, "RFC not found", 404)
+			errors.WriteError(c, errors.ErrNotFound, "RFC not found", 404)
 			return
 		}
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
@@ -329,7 +327,7 @@ func (h *Handler) CreateCABMeeting(c *gin.Context) {
 	userID := c.GetString("user_id")
 	var req models.CreateCABMeetingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
+		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	meeting, err := h.svc.CreateCABMeeting(ctx, tenantID, req, userID)
@@ -345,7 +343,7 @@ func (h *Handler) GetCABMeeting(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-meeting, err := h.svc.GetCABMeeting(ctx, tenantID, id)
+	meeting, err := h.svc.GetCABMeeting(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			errors.WriteError(c, errors.ErrNotFound, "CAB meeting not found", 404)
@@ -371,7 +369,7 @@ func (h *Handler) UpdateCABMeeting(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-meeting, err := h.svc.UpdateCABMeeting(ctx, tenantID, id, req)
+	meeting, err := h.svc.UpdateCABMeeting(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -391,7 +389,7 @@ func (h *Handler) ListCABMeetings(c *gin.Context) {
 		q.Limit, _ = strconv.Atoi(l)
 	}
 	if o := c.DefaultQuery("offset", "0"); o != "" {
-	q.Offset, _ = strconv.Atoi(o)
+		q.Offset, _ = strconv.Atoi(o)
 	}
 	result, err := h.svc.ListCABMeetings(ctx, tenantID, q)
 	if err != nil {

@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,9 +10,8 @@ import (
 	"regexp"
 	"time"
 
-	"orion/platform-svc-go/internal/deployment-trigger/models"
-	"orion/platform-svc-go/internal/deployment-trigger/repository"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/deployment-trigger/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -27,7 +27,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrDisabled             = errors.New("deployment trigger is disabled")
 	ErrInvalidCron          = errors.New("invalid cron expression")
 	ErrInvalidTagPattern    = errors.New("invalid tag pattern")

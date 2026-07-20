@@ -142,8 +142,8 @@ func (r *Repository) GetTopology(ctx context.Context, tenantID string) (*models.
 
 func (r *Repository) SetTopology(ctx context.Context, tenantID string, nodes, edges any) (*models.Topology, error) {
 	t := &models.Topology{
-		ID:       uuid.New().String(),
-		TenantID: tenantID,
+		ID:        uuid.New().String(),
+		TenantID:  tenantID,
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}

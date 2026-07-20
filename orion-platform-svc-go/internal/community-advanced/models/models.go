@@ -53,11 +53,11 @@ type MentorshipRequest struct {
 
 // Mentorship represents a mentorship pairing.
 type Mentorship struct {
-	MentorID   string `json:"mentorId"`
-	MenteeID   string `json:"menteeId"`
-	Area       string `json:"area"`
-	Status     string `json:"status"`
-	StartedAt  int64  `json:"startedAt"`
+	MentorID  string `json:"mentorId"`
+	MenteeID  string `json:"menteeId"`
+	Area      string `json:"area"`
+	Status    string `json:"status"`
+	StartedAt int64  `json:"startedAt"`
 }
 
 // VoteRequest is the request body for voting on a best practice.
@@ -67,9 +67,9 @@ type VoteRequest struct {
 
 // BestPractice represents a best practice entry.
 type BestPractice struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Votes  int    `json:"votes"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Votes int    `json:"votes"`
 }
 
 // IncentiveProgramRequest is the request body for creating an incentive program.

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // sentinel.NotFound is returned when a record does not exist.
@@ -200,13 +198,13 @@ func (r *Repository) UpsertServiceScore(ctx context.Context, tenantID string, s 
 	_, err = r.db.NamedExecContext(ctx,
 		`INSERT INTO resilience_service_scores (tenant_id, service_name, overall_score, level, components, dependencies, incidents, last_assessment) VALUES (:tenant_id, :serviceName, :overallScore, :level, :components, :dependencies, :incidents, :lastAssessment) ON CONFLICT (tenant_id, service_name) DO UPDATE SET overall_score=EXCLUDED.overall_score, level=EXCLUDED.level, components=EXCLUDED.components, dependencies=EXCLUDED.dependencies, incidents=EXCLUDED.incidents, last_assessment=EXCLUDED.last_assessment`,
 		&serviceScoreRow{
-			TenantID:      tenantID,
-			ServiceName:   s.ServiceName,
-			OverallScore:  s.OverallScore,
-			Level:         s.Level,
-			Components:    string(componentsJSON),
-			Dependencies:  string(depsJSON),
-			Incidents:     string(incidentsJSON),
+			TenantID:       tenantID,
+			ServiceName:    s.ServiceName,
+			OverallScore:   s.OverallScore,
+			Level:          s.Level,
+			Components:     string(componentsJSON),
+			Dependencies:   string(depsJSON),
+			Incidents:      string(incidentsJSON),
 			LastAssessment: s.LastAssessment,
 		})
 	return err

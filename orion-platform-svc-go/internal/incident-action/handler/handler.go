@@ -2,14 +2,14 @@ package handler
 
 import (
 	"orion/go-common/pkg/auth"
-	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/incident-action/models"
 	"orion/platform-svc-go/internal/incident-action/service"
+	"orion/platform-svc-go/internal/middleware"
+
+	"orion/go-common/pkg/errors"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Handler exposes HTTP endpoints for incident action.

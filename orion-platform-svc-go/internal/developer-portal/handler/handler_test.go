@@ -16,11 +16,11 @@ import (
 
 type mockSvc struct {
 	// --- DeveloperPortal CRUD ---
-	createFn            func(ctx context.Context, tenantID string, req models.CreateDeveloperPortalRequest) (*models.DeveloperPortal, error)
-	getFn               func(ctx context.Context, tenantID, id string) (*models.DeveloperPortal, error)
-	listFn              func(ctx context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error)
-	updateFn            func(ctx context.Context, tenantID, id string, req models.UpdateDeveloperPortalRequest) (*models.DeveloperPortal, error)
-	deleteFn            func(ctx context.Context, tenantID, id string) error
+	createFn func(ctx context.Context, tenantID string, req models.CreateDeveloperPortalRequest) (*models.DeveloperPortal, error)
+	getFn    func(ctx context.Context, tenantID, id string) (*models.DeveloperPortal, error)
+	listFn   func(ctx context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error)
+	updateFn func(ctx context.Context, tenantID, id string, req models.UpdateDeveloperPortalRequest) (*models.DeveloperPortal, error)
+	deleteFn func(ctx context.Context, tenantID, id string) error
 
 	// --- Documents ---
 	createDocumentFn    func(ctx context.Context, tenantID, userID string, req models.CreateDocumentRequest) (*models.PortalDocument, error)
@@ -35,8 +35,8 @@ type mockSvc struct {
 	recordHelpfulFn     func(ctx context.Context, tenantID, id string, helpful bool) (*models.PortalDocument, error)
 
 	// --- Versions ---
-	createNewVersionFn      func(ctx context.Context, tenantID, id, version, userID string) (*models.PortalDocument, error)
-	getDocumentVersionsFn   func(ctx context.Context, tenantID, id string) ([]models.DocumentVersion, error)
+	createNewVersionFn    func(ctx context.Context, tenantID, id, version, userID string) (*models.PortalDocument, error)
+	getDocumentVersionsFn func(ctx context.Context, tenantID, id string) ([]models.DocumentVersion, error)
 
 	// --- Review ---
 	submitForReviewFn func(ctx context.Context, tenantID, id, userID string) (*models.PortalDocument, error)
@@ -67,119 +67,165 @@ type mockSvc struct {
 	regenerateTaskFn        func(ctx context.Context, tenantID, id string) (*models.SDKTask, error)
 
 	// --- Subscriptions ---
-	createSubFn          func(ctx context.Context, tenantID, userID string, req models.CreateSubscriptionRequest) (*models.Subscription, error)
-	listSubFn            func(ctx context.Context, tenantID string, filter models.SubscriptionFilter) (*models.SubscriptionListResult, error)
-	getSubFn             func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
-	approveSubFn         func(ctx context.Context, tenantID, id, approvedBy string) (*models.Subscription, error)
-	rejectSubFn          func(ctx context.Context, tenantID, id, approvedBy string, reason string) (*models.Subscription, error)
-	suspendSubFn         func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
-	cancelSubFn          func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
-	getUsageStatsFn      func(ctx context.Context, tenantID string) (*models.SubscriptionStats, error)
-	getUsageRecordsFn    func(ctx context.Context, tenantID, subscriptionID string, filter models.UsageRecordFilter) (*models.UsageRecordListResult, error)
+	createSubFn       func(ctx context.Context, tenantID, userID string, req models.CreateSubscriptionRequest) (*models.Subscription, error)
+	listSubFn         func(ctx context.Context, tenantID string, filter models.SubscriptionFilter) (*models.SubscriptionListResult, error)
+	getSubFn          func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	approveSubFn      func(ctx context.Context, tenantID, id, approvedBy string) (*models.Subscription, error)
+	rejectSubFn       func(ctx context.Context, tenantID, id, approvedBy string, reason string) (*models.Subscription, error)
+	suspendSubFn      func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	cancelSubFn       func(ctx context.Context, tenantID, id string) (*models.Subscription, error)
+	getUsageStatsFn   func(ctx context.Context, tenantID string) (*models.SubscriptionStats, error)
+	getUsageRecordsFn func(ctx context.Context, tenantID, subscriptionID string, filter models.UsageRecordFilter) (*models.UsageRecordListResult, error)
 
 	// --- Playground ---
-	quickExecuteFn           func(ctx context.Context, tenantID, userID string, req models.PlaygroundExecuteRequest) (*models.PlaygroundExecuteResult, error)
-	saveRequestFn            func(ctx context.Context, tenantID, userID string, req models.CreatePlaygroundRequestRequest) (*models.PlaygroundRequest, error)
-	listPlaygroundRequestsFn func(ctx context.Context, tenantID, userID string, filter models.PlaygroundRequestFilter) (*models.PlaygroundRequestListResult, error)
-	getPlaygroundStatsFn     func(ctx context.Context, tenantID, userID string) (*models.PlaygroundStats, error)
-	getPlaygroundRequestFn   func(ctx context.Context, tenantID, id string) (*models.PlaygroundRequest, error)
+	quickExecuteFn            func(ctx context.Context, tenantID, userID string, req models.PlaygroundExecuteRequest) (*models.PlaygroundExecuteResult, error)
+	saveRequestFn             func(ctx context.Context, tenantID, userID string, req models.CreatePlaygroundRequestRequest) (*models.PlaygroundRequest, error)
+	listPlaygroundRequestsFn  func(ctx context.Context, tenantID, userID string, filter models.PlaygroundRequestFilter) (*models.PlaygroundRequestListResult, error)
+	getPlaygroundStatsFn      func(ctx context.Context, tenantID, userID string) (*models.PlaygroundStats, error)
+	getPlaygroundRequestFn    func(ctx context.Context, tenantID, id string) (*models.PlaygroundRequest, error)
 	updatePlaygroundRequestFn func(ctx context.Context, tenantID, id string, req models.UpdatePlaygroundRequestRequest) (*models.PlaygroundRequest, error)
 	deletePlaygroundRequestFn func(ctx context.Context, tenantID, id string) error
-	executeRequestFn         func(ctx context.Context, tenantID, id string) (*models.PlaygroundExecuteResult, error)
-	getResponseHistoryFn     func(ctx context.Context, tenantID, requestID string, filter models.UsageRecordFilter) (*models.ResponseHistoryListResult, error)
-	clearHistoryFn           func(ctx context.Context, tenantID, requestID string) error
+	executeRequestFn          func(ctx context.Context, tenantID, id string) (*models.PlaygroundExecuteResult, error)
+	getResponseHistoryFn      func(ctx context.Context, tenantID, requestID string, filter models.UsageRecordFilter) (*models.ResponseHistoryListResult, error)
+	clearHistoryFn            func(ctx context.Context, tenantID, requestID string) error
 }
 
 func (m *mockSvc) Create(ctx context.Context, tenantID string, req models.CreateDeveloperPortalRequest) (*models.DeveloperPortal, error) {
-	if m.createFn != nil { return m.createFn(ctx, tenantID, req) }
+	if m.createFn != nil {
+		return m.createFn(ctx, tenantID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) Get(ctx context.Context, tenantID, id string) (*models.DeveloperPortal, error) {
-	if m.getFn != nil { return m.getFn(ctx, tenantID, id) }
+	if m.getFn != nil {
+		return m.getFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) List(ctx context.Context, tenantID string, limit, offset int) ([]models.DeveloperPortal, error) {
-	if m.listFn != nil { return m.listFn(ctx, tenantID, limit, offset) }
+	if m.listFn != nil {
+		return m.listFn(ctx, tenantID, limit, offset)
+	}
 	return nil, nil
 }
 func (m *mockSvc) Update(ctx context.Context, tenantID, id string, req models.UpdateDeveloperPortalRequest) (*models.DeveloperPortal, error) {
-	if m.updateFn != nil { return m.updateFn(ctx, tenantID, id, req) }
+	if m.updateFn != nil {
+		return m.updateFn(ctx, tenantID, id, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) Delete(ctx context.Context, tenantID, id string) error {
-	if m.deleteFn != nil { return m.deleteFn(ctx, tenantID, id) }
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, tenantID, id)
+	}
 	return nil
 }
 func (m *mockSvc) CreateDocument(ctx context.Context, tenantID, userID string, req models.CreateDocumentRequest) (*models.PortalDocument, error) {
-	if m.createDocumentFn != nil { return m.createDocumentFn(ctx, tenantID, userID, req) }
+	if m.createDocumentFn != nil {
+		return m.createDocumentFn(ctx, tenantID, userID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListDocuments(ctx context.Context, tenantID string, page, pageSize int) ([]models.PortalDocument, error) {
-	if m.listDocumentsFn != nil { return m.listDocumentsFn(ctx, tenantID, page, pageSize) }
+	if m.listDocumentsFn != nil {
+		return m.listDocumentsFn(ctx, tenantID, page, pageSize)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetDocument(ctx context.Context, tenantID, id string) (*models.PortalDocument, error) {
-	if m.getDocumentFn != nil { return m.getDocumentFn(ctx, tenantID, id) }
+	if m.getDocumentFn != nil {
+		return m.getDocumentFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) UpdateDocument(ctx context.Context, tenantID, id string, req models.UpdateDocumentRequest) (*models.PortalDocument, error) {
-	if m.updateDocumentFn != nil { return m.updateDocumentFn(ctx, tenantID, id, req) }
+	if m.updateDocumentFn != nil {
+		return m.updateDocumentFn(ctx, tenantID, id, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeleteDocument(ctx context.Context, tenantID, id string) error {
-	if m.deleteDocumentFn != nil { return m.deleteDocumentFn(ctx, tenantID, id) }
+	if m.deleteDocumentFn != nil {
+		return m.deleteDocumentFn(ctx, tenantID, id)
+	}
 	return nil
 }
 func (m *mockSvc) CreateMockRule(ctx context.Context, tenantID string, req models.CreateMockRuleRequest) (*models.MockRule, error) {
-	if m.createMockRuleFn != nil { return m.createMockRuleFn(ctx, tenantID, req) }
+	if m.createMockRuleFn != nil {
+		return m.createMockRuleFn(ctx, tenantID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListMockRules(ctx context.Context, tenantID string, filter models.MockRuleFilter) (*models.MockRuleListResult, error) {
-	if m.listMockRulesFn != nil { return m.listMockRulesFn(ctx, tenantID, filter) }
+	if m.listMockRulesFn != nil {
+		return m.listMockRulesFn(ctx, tenantID, filter)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetMockRule(ctx context.Context, tenantID, id string) (*models.MockRule, error) {
-	if m.getMockRuleFn != nil { return m.getMockRuleFn(ctx, tenantID, id) }
+	if m.getMockRuleFn != nil {
+		return m.getMockRuleFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) UpdateMockRule(ctx context.Context, tenantID, id string, req models.UpdateMockRuleRequest) (*models.MockRule, error) {
-	if m.updateMockRuleFn != nil { return m.updateMockRuleFn(ctx, tenantID, id, req) }
+	if m.updateMockRuleFn != nil {
+		return m.updateMockRuleFn(ctx, tenantID, id, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) DeleteMockRule(ctx context.Context, tenantID, id string) error {
-	if m.deleteMockRuleFn != nil { return m.deleteMockRuleFn(ctx, tenantID, id) }
+	if m.deleteMockRuleFn != nil {
+		return m.deleteMockRuleFn(ctx, tenantID, id)
+	}
 	return nil
 }
 func (m *mockSvc) GetMockRuleStats(ctx context.Context, tenantID string) (*models.MockRuleStats, error) {
-	if m.getMockRuleStatsFn != nil { return m.getMockRuleStatsFn(ctx, tenantID) }
+	if m.getMockRuleStatsFn != nil {
+		return m.getMockRuleStatsFn(ctx, tenantID)
+	}
 	return nil, nil
 }
 func (m *mockSvc) MatchRequest(ctx context.Context, tenantID string, method, path string) (*models.MockSimulateResult, error) {
-	if m.matchRequestFn != nil { return m.matchRequestFn(ctx, tenantID, method, path) }
+	if m.matchRequestFn != nil {
+		return m.matchRequestFn(ctx, tenantID, method, path)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ToggleMockRule(ctx context.Context, tenantID, id string) (*models.MockRule, error) {
-	if m.toggleMockRuleFn != nil { return m.toggleMockRuleFn(ctx, tenantID, id) }
+	if m.toggleMockRuleFn != nil {
+		return m.toggleMockRuleFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) CreateSubscription(ctx context.Context, tenantID, userID string, req models.CreateSubscriptionRequest) (*models.Subscription, error) {
-	if m.createSubFn != nil { return m.createSubFn(ctx, tenantID, userID, req) }
+	if m.createSubFn != nil {
+		return m.createSubFn(ctx, tenantID, userID, req)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ListSubscriptions(ctx context.Context, tenantID string, filter models.SubscriptionFilter) (*models.SubscriptionListResult, error) {
-	if m.listSubFn != nil { return m.listSubFn(ctx, tenantID, filter) }
+	if m.listSubFn != nil {
+		return m.listSubFn(ctx, tenantID, filter)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetSubscription(ctx context.Context, tenantID, id string) (*models.Subscription, error) {
-	if m.getSubFn != nil { return m.getSubFn(ctx, tenantID, id) }
+	if m.getSubFn != nil {
+		return m.getSubFn(ctx, tenantID, id)
+	}
 	return nil, nil
 }
 func (m *mockSvc) ApproveSubscription(ctx context.Context, tenantID, id, approvedBy string) (*models.Subscription, error) {
-	if m.approveSubFn != nil { return m.approveSubFn(ctx, tenantID, id, approvedBy) }
+	if m.approveSubFn != nil {
+		return m.approveSubFn(ctx, tenantID, id, approvedBy)
+	}
 	return nil, nil
 }
 func (m *mockSvc) GetUsageStats(ctx context.Context, tenantID string) (*models.SubscriptionStats, error) {
-	if m.getUsageStatsFn != nil { return m.getUsageStatsFn(ctx, tenantID) }
+	if m.getUsageStatsFn != nil {
+		return m.getUsageStatsFn(ctx, tenantID)
+	}
 	return nil, nil
 }
 

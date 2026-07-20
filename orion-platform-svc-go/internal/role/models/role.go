@@ -60,28 +60,28 @@ const (
 
 // Role is the core domain model persisted in PostgreSQL.
 type Role struct {
-	ID          string        `db:"id" json:"id"`
-	Name        string        `db:"name" json:"name"`
-	Description string        `db:"description" json:"description"`
-	Permissions Permissions   `db:"permissions" json:"permissions"`
-	TenantID    string        `db:"tenant_id" json:"tenant_id"`
-	Status      RoleStatus    `db:"status" json:"status"`
-	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time     `db:"updated_at" json:"updated_at"`
+	ID          string      `db:"id" json:"id"`
+	Name        string      `db:"name" json:"name"`
+	Description string      `db:"description" json:"description"`
+	Permissions Permissions `db:"permissions" json:"permissions"`
+	TenantID    string      `db:"tenant_id" json:"tenant_id"`
+	Status      RoleStatus  `db:"status" json:"status"`
+	CreatedAt   time.Time   `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time   `db:"updated_at" json:"updated_at"`
 }
 
 // CreateRoleRequest is the input for creating a new role.
 type CreateRoleRequest struct {
-	Name            string       `json:"name" binding:"required"`
-	Description     string       `json:"description"`
-	Permissions     []Permission `json:"permissions"`
+	Name        string       `json:"name" binding:"required"`
+	Description string       `json:"description"`
+	Permissions []Permission `json:"permissions"`
 }
 
 // UpdateRoleRequest is the input for updating an existing role (partial update).
 type UpdateRoleRequest struct {
-	Name        *string       `json:"name"`
-	Description *string       `json:"description"`
-	Status      *RoleStatus   `json:"status"`
+	Name        *string     `json:"name"`
+	Description *string     `json:"description"`
+	Status      *RoleStatus `json:"status"`
 }
 
 // SetPermissionsRequest is the input for setting permissions on a role.

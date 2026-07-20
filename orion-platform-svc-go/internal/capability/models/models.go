@@ -21,12 +21,12 @@ type UpdateCapabilityRequest struct {
 // --- Permission check ---
 
 type CheckPermissionRequest struct {
-	UserID         string   `json:"user_id" binding:"required"`
-	CapabilityID   string   `json:"capability_id" binding:"required"`
-	Environment    string   `json:"environment"`
-	Command        string   `json:"command"`
-	Action         string   `json:"action"`
-	UserRoles      []string `json:"user_roles"`
+	UserID       string   `json:"user_id" binding:"required"`
+	CapabilityID string   `json:"capability_id" binding:"required"`
+	Environment  string   `json:"environment"`
+	Command      string   `json:"command"`
+	Action       string   `json:"action"`
+	UserRoles    []string `json:"user_roles"`
 }
 
 type CheckPermissionResult struct {
@@ -49,28 +49,28 @@ type GrantTemporaryRequest struct {
 }
 
 type TemporaryPermission struct {
-	ID                int       `json:"id" db:"id"`
-	UserID            string    `json:"user_id" db:"user_id"`
-	CapabilityID      string    `json:"capability_id" db:"capability_id"`
-	EnvironmentSuffix string    `json:"environment_suffix" db:"environment_suffix"`
-	Reason            string    `json:"reason" db:"reason"`
-	GrantedBy         string    `json:"granted_by" db:"granted_by"`
-	ExpiresAt         time.Time `json:"expires_at" db:"expires_at"`
-	GrantedAt         time.Time `json:"granted_at" db:"granted_at"`
+	ID                int        `json:"id" db:"id"`
+	UserID            string     `json:"user_id" db:"user_id"`
+	CapabilityID      string     `json:"capability_id" db:"capability_id"`
+	EnvironmentSuffix string     `json:"environment_suffix" db:"environment_suffix"`
+	Reason            string     `json:"reason" db:"reason"`
+	GrantedBy         string     `json:"granted_by" db:"granted_by"`
+	ExpiresAt         time.Time  `json:"expires_at" db:"expires_at"`
+	GrantedAt         time.Time  `json:"granted_at" db:"granted_at"`
 	RevokedAt         *time.Time `json:"revoked_at,omitempty" db:"revoked_at"`
 }
 
 // --- Permission audit ---
 
 type AuditLog struct {
-	ID        int       `json:"id" db:"id"`
-	TenantID  string    `json:"tenant_id" db:"tenant_id"`
-	Action    string    `json:"action" db:"action"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	TargetType string   `json:"target_type" db:"target_type"`
-	TargetID  string    `json:"target_id" db:"target_id"`
-	Details   string    `json:"details" db:"details"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         int       `json:"id" db:"id"`
+	TenantID   string    `json:"tenant_id" db:"tenant_id"`
+	Action     string    `json:"action" db:"action"`
+	UserID     string    `json:"user_id" db:"user_id"`
+	TargetType string    `json:"target_type" db:"target_type"`
+	TargetID   string    `json:"target_id" db:"target_id"`
+	Details    string    `json:"details" db:"details"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 type AuditLogQuery struct {
@@ -94,17 +94,17 @@ type CreatePermissionRequestBody struct {
 }
 
 type PermissionRequest struct {
-	ID           int       `json:"id" db:"id"`
-	TenantID     string    `json:"tenant_id" db:"tenant_id"`
-	UserID       string    `json:"user_id" db:"user_id"`
-	CapabilityID string    `json:"capability_id" db:"capability_id"`
-	Status       string    `json:"status" db:"status"` // pending, approved, rejected, granted
-	Reason             string     `json:"reason" db:"reason"`
-	ApproverID         string     `json:"approver_id" db:"approver_id"`
-	DurationHours      int        `json:"duration_hours" db:"duration_hours"`
-	EnvironmentSuffix  string     `json:"environment_suffix" db:"environment_suffix"`
-	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
+	ID                int       `json:"id" db:"id"`
+	TenantID          string    `json:"tenant_id" db:"tenant_id"`
+	UserID            string    `json:"user_id" db:"user_id"`
+	CapabilityID      string    `json:"capability_id" db:"capability_id"`
+	Status            string    `json:"status" db:"status"` // pending, approved, rejected, granted
+	Reason            string    `json:"reason" db:"reason"`
+	ApproverID        string    `json:"approver_id" db:"approver_id"`
+	DurationHours     int       `json:"duration_hours" db:"duration_hours"`
+	EnvironmentSuffix string    `json:"environment_suffix" db:"environment_suffix"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CleanupResult struct {

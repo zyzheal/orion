@@ -56,8 +56,8 @@ const (
 // ----- ListQuery (pagination) -----
 
 type ListQuery struct {
-	Page  int `form:"page" binding:"min=1"`
-	Size  int `form:"size" binding:"min=1,max=100"`
+	Page  int    `form:"page" binding:"min=1"`
+	Size  int    `form:"size" binding:"min=1,max=100"`
 	Sort  string `form:"sort"`
 	Order string `form:"order"`
 }
@@ -114,11 +114,11 @@ type ComponentMetricDetail struct {
 
 // ComponentScoreResponse is a resilience component score.
 type ComponentScoreResponse struct {
-	Component string                    `json:"component"`
-	Score     int                       `json:"score"`
-	Level     string                    `json:"level"`
-	Details   []ComponentMetricDetail   `json:"details"`
-	Status    string                    `json:"status"`
+	Component string                  `json:"component"`
+	Score     int                     `json:"score"`
+	Level     string                  `json:"level"`
+	Details   []ComponentMetricDetail `json:"details"`
+	Status    string                  `json:"status"`
 }
 
 // GlobalScoreTrends holds the trend data.
@@ -130,14 +130,14 @@ type GlobalScoreTrends struct {
 
 // GlobalResilienceScore is the overall system resilience score.
 type GlobalResilienceScore struct {
-	OverallScore        int                       `json:"overallScore"`
-	Level               string                    `json:"level"`
-	Components          []ComponentScoreResponse  `json:"components"`
-	Trends              GlobalScoreTrends         `json:"trends"`
-	LastAssessment      string                    `json:"lastAssessment"`
-	NextAssessment      string                    `json:"nextAssessment"`
-	RiskFactors         []string                  `json:"riskFactors"`
-	TopRecommendations  []string                  `json:"topRecommendations"`
+	OverallScore       int                      `json:"overallScore"`
+	Level              string                   `json:"level"`
+	Components         []ComponentScoreResponse `json:"components"`
+	Trends             GlobalScoreTrends        `json:"trends"`
+	LastAssessment     string                   `json:"lastAssessment"`
+	NextAssessment     string                   `json:"nextAssessment"`
+	RiskFactors        []string                 `json:"riskFactors"`
+	TopRecommendations []string                 `json:"topRecommendations"`
 }
 
 // ServiceDependency describes one dependency of a service.
@@ -157,13 +157,13 @@ type IncidentInfo struct {
 
 // ServiceResilienceScore holds per-service resilience data.
 type ServiceResilienceScore struct {
-	ServiceName   string                   `json:"serviceName"`
-	OverallScore  int                      `json:"overallScore"`
-	Level         string                   `json:"level"`
-	Components    []ComponentScoreResponse `json:"components"`
-	Dependencies  []ServiceDependency      `json:"dependencies"`
-	Incidents     IncidentInfo             `json:"incidents"`
-	LastAssessment string                  `json:"lastAssessment"`
+	ServiceName    string                   `json:"serviceName"`
+	OverallScore   int                      `json:"overallScore"`
+	Level          string                   `json:"level"`
+	Components     []ComponentScoreResponse `json:"components"`
+	Dependencies   []ServiceDependency      `json:"dependencies"`
+	Incidents      IncidentInfo             `json:"incidents"`
+	LastAssessment string                   `json:"lastAssessment"`
 }
 
 // ----- DB-persistent models -----
@@ -177,23 +177,23 @@ type ResilienceHistory struct {
 	Level           string `json:"level" db:"level"`
 	ComponentScores string `json:"componentScores" db:"component_scores"` // JSONB
 	Trigger         string `json:"trigger" db:"trigger"`
-	Details         string `json:"details,omitempty" db:"details"`       // JSONB
+	Details         string `json:"details,omitempty" db:"details"` // JSONB
 }
 
 // ResilienceRecommendation is stored in resilience_recommendations table.
 type ResilienceRecommendation struct {
-	ID                    string   `json:"id" db:"id"`
-	TenantID              string   `json:"tenant_id" db:"tenant_id"`
-	Component             string   `json:"component" db:"component"`
-	Priority              string   `json:"priority" db:"priority"`  // high, medium, low
-	Title                 string   `json:"title" db:"title"`
-	Description           string   `json:"description" db:"description"`
-	CurrentScore          int      `json:"currentScore" db:"current_score"`
-	PotentialImprovement  int      `json:"potentialImprovement" db:"potential_improvement"`
-	Effort                string   `json:"effort" db:"effort"`       // low, medium, high
-	Impact                string   `json:"impact" db:"impact"`       // low, medium, high
-	Actions               string   `json:"actions" db:"actions"`     // JSONB (string[])
-	References            string   `json:"references" db:"references"` // JSONB (string[])
+	ID                   string `json:"id" db:"id"`
+	TenantID             string `json:"tenant_id" db:"tenant_id"`
+	Component            string `json:"component" db:"component"`
+	Priority             string `json:"priority" db:"priority"` // high, medium, low
+	Title                string `json:"title" db:"title"`
+	Description          string `json:"description" db:"description"`
+	CurrentScore         int    `json:"currentScore" db:"current_score"`
+	PotentialImprovement int    `json:"potentialImprovement" db:"potential_improvement"`
+	Effort               string `json:"effort" db:"effort"`         // low, medium, high
+	Impact               string `json:"impact" db:"impact"`         // low, medium, high
+	Actions              string `json:"actions" db:"actions"`       // JSONB (string[])
+	References           string `json:"references" db:"references"` // JSONB (string[])
 }
 
 // BenchmarkComparison is one component comparison in a benchmark.
@@ -206,37 +206,37 @@ type BenchmarkComparison struct {
 
 // ResilienceBenchmark is stored in resilience_benchmarks table.
 type ResilienceBenchmark struct {
-	ID             string                 `json:"id" db:"id"`
-	TenantID       string                 `json:"tenant_id" db:"tenant_id"`
-	Name           string                 `json:"name" db:"name"`
-	Timestamp      int64                  `json:"timestamp" db:"timestamp"`
-	CurrentScore   int                    `json:"currentScore" db:"current_score"`
-	BenchmarkScore int                    `json:"benchmarkScore" db:"benchmark_score"`
-	Comparison     string                 `json:"comparison" db:"comparison"` // JSONB
-	Analysis       string                 `json:"analysis" db:"analysis"`
+	ID             string `json:"id" db:"id"`
+	TenantID       string `json:"tenant_id" db:"tenant_id"`
+	Name           string `json:"name" db:"name"`
+	Timestamp      int64  `json:"timestamp" db:"timestamp"`
+	CurrentScore   int    `json:"currentScore" db:"current_score"`
+	BenchmarkScore int    `json:"benchmarkScore" db:"benchmark_score"`
+	Comparison     string `json:"comparison" db:"comparison"` // JSONB
+	Analysis       string `json:"analysis" db:"analysis"`
 }
 
 // ----- Request DTOs -----
 
 // AssessResilienceRequest is the body for POST /resilience-score/assess.
 type AssessResilienceRequest struct {
-	Scope         string   `json:"scope" binding:"required"`       // global, service, component
-	ServiceName   string   `json:"serviceName,omitempty"`
-	Components    []string `json:"components"`
-	DeepAnalysis  bool     `json:"deepAnalysis"`
+	Scope        string   `json:"scope" binding:"required"` // global, service, component
+	ServiceName  string   `json:"serviceName,omitempty"`
+	Components   []string `json:"components"`
+	DeepAnalysis bool     `json:"deepAnalysis"`
 }
 
 // CreateBenchmarkRequest is the body for POST /resilience-score/benchmarks.
 type CreateBenchmarkRequest struct {
-	Name         string            `json:"name" binding:"required"`
-	BaselineType string            `json:"baselineType" binding:"required"` // industry, internal, custom
-	CustomScores map[string]int    `json:"customScores"`
+	Name         string         `json:"name" binding:"required"`
+	BaselineType string         `json:"baselineType" binding:"required"` // industry, internal, custom
+	CustomScores map[string]int `json:"customScores"`
 }
 
 // ComponentScoreBreakdown is one element of GET /components response.
 type ComponentScoreBreakdown struct {
-	Component string              `json:"component"`
-	Global    int                 `json:"global"`
+	Component string                 `json:"component"`
+	Global    int                    `json:"global"`
 	Breakdown []ServiceBreakdownItem `json:"breakdown"`
 }
 
@@ -250,7 +250,7 @@ type ServiceBreakdownItem struct {
 
 // AssessmentMetric holds a single simulated metric.
 type AssessmentMetric struct {
-	Name  string  `json:"name"`
-	Value float64 `json:"value"`
+	Name   string  `json:"name"`
+	Value  float64 `json:"value"`
 	Weight float64 `json:"weight"`
 }

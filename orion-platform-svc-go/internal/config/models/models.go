@@ -68,16 +68,16 @@ type RollbackRequest struct {
 // ---------- GitOps ----------
 
 type GitOpsConfig struct {
-	ID               string    `json:"id" db:"id"`
-	TenantID         string    `json:"tenant_id" db:"tenant_id"`
-	RepositoryURL    string    `json:"repository_url" db:"repository_url"`
-	Branch           string    `json:"branch" db:"branch"`
-	Path             string    `json:"path" db:"path"`
-	Status           string    `json:"status" db:"status"` // enabled, disabled
-	LastSyncAt       time.Time `json:"last_sync_at" db:"last_sync_at"`
-	SyncStatus       string    `json:"sync_status" db:"sync_status"` // synced, pending, failed
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	ID            string    `json:"id" db:"id"`
+	TenantID      string    `json:"tenant_id" db:"tenant_id"`
+	RepositoryURL string    `json:"repository_url" db:"repository_url"`
+	Branch        string    `json:"branch" db:"branch"`
+	Path          string    `json:"path" db:"path"`
+	Status        string    `json:"status" db:"status"` // enabled, disabled
+	LastSyncAt    time.Time `json:"last_sync_at" db:"last_sync_at"`
+	SyncStatus    string    `json:"sync_status" db:"sync_status"` // synced, pending, failed
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateGitOpsRequest struct {
@@ -87,26 +87,26 @@ type CreateGitOpsRequest struct {
 }
 
 type GitOpsSyncStatus struct {
-	ID         string    `json:"id" db:"id"`
-	ConfigID   string    `json:"config_id" db:"config_id"`
-	Status     string    `json:"status" db:"status"`
-	Error      string    `json:"error" db:"error"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	ID        string    `json:"id" db:"id"`
+	ConfigID  string    `json:"config_id" db:"config_id"`
+	Status    string    `json:"status" db:"status"`
+	Error     string    `json:"error" db:"error"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 // ---------- Change Request ----------
 
 type ChangeRequest struct {
-	ID            string    `json:"id" db:"id"`
-	TenantID      string    `json:"tenant_id" db:"tenant_id"`
-	ConfigID      string    `json:"config_id" db:"config_id"`
-	Description   string    `json:"description" db:"description"`
-	Status        string    `json:"status" db:"status"` // pending, approved, rejected, cancelled
-	RequestedBy   string    `json:"requested_by" db:"requested_by"`
-	ApprovedBy    string    `json:"approved_by" db:"approved_by"`
-	RejectReason  string    `json:"reject_reason" db:"reject_reason"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	ID           string    `json:"id" db:"id"`
+	TenantID     string    `json:"tenant_id" db:"tenant_id"`
+	ConfigID     string    `json:"config_id" db:"config_id"`
+	Description  string    `json:"description" db:"description"`
+	Status       string    `json:"status" db:"status"` // pending, approved, rejected, cancelled
+	RequestedBy  string    `json:"requested_by" db:"requested_by"`
+	ApprovedBy   string    `json:"approved_by" db:"approved_by"`
+	RejectReason string    `json:"reject_reason" db:"reject_reason"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateChangeRequestRequest struct {
@@ -156,24 +156,24 @@ type UpdateTemplateRequest struct {
 }
 
 type ConfigTemplateVersion struct {
-	ID        string    `json:"id" db:"id"`
-	TemplateID string   `json:"template_id" db:"template_id"`
-	Version   string    `json:"version" db:"version"`
-	Schema    any       `json:"schema" db:"schema"`
-	CreatedBy string    `json:"created_by" db:"created_by"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         string    `json:"id" db:"id"`
+	TemplateID string    `json:"template_id" db:"template_id"`
+	Version    string    `json:"version" db:"version"`
+	Schema     any       `json:"schema" db:"schema"`
+	CreatedBy  string    `json:"created_by" db:"created_by"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 }
 
 // ---------- Canary Deployment ----------
 
 type CanaryDeployment struct {
-	ID            string    `json:"id" db:"id"`
-	TenantID      string    `json:"tenant_id" db:"tenant_id"`
-	ConfigID      string    `json:"config_id" db:"config_id"`
-	Status        string    `json:"status" db:"status"` // running, promoted, rolled_back
-	TrafficPercent int      `json:"traffic_percent" db:"traffic_percent"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	ID             string    `json:"id" db:"id"`
+	TenantID       string    `json:"tenant_id" db:"tenant_id"`
+	ConfigID       string    `json:"config_id" db:"config_id"`
+	Status         string    `json:"status" db:"status"` // running, promoted, rolled_back
+	TrafficPercent int       `json:"traffic_percent" db:"traffic_percent"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateCanaryRequest struct {
@@ -195,17 +195,17 @@ type ConfigSnapshot struct {
 // ---------- Diff ----------
 
 type ConfigDiff struct {
-	Key     string `json:"key"`
-	OldVal  string `json:"old_val"`
-	NewVal  string `json:"new_val"`
-	Status  string `json:"status"` // added, removed, modified
+	Key    string `json:"key"`
+	OldVal string `json:"old_val"`
+	NewVal string `json:"new_val"`
+	Status string `json:"status"` // added, removed, modified
 }
 
 type EnvironmentDiffResult struct {
-	SourceEnv  string        `json:"source_env"`
-	TargetEnv  string        `json:"target_env"`
+	SourceEnv   string       `json:"source_env"`
+	TargetEnv   string       `json:"target_env"`
 	Differences []ConfigDiff `json:"differences"`
-	TotalCount int           `json:"total_count"`
+	TotalCount  int          `json:"total_count"`
 }
 
 type VersionDiffResult struct {
@@ -218,10 +218,10 @@ type VersionDiffResult struct {
 // ---------- Dependency Graph ----------
 
 type DependencyNode struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Type     string   `json:"type"`
-	Deps     []string `json:"dependencies"`
+	ID   string   `json:"id"`
+	Name string   `json:"name"`
+	Type string   `json:"type"`
+	Deps []string `json:"dependencies"`
 }
 
 // ---------- Webhook ----------
@@ -239,11 +239,11 @@ type ConfigWebhook struct {
 }
 
 type CreateWebhookRequest struct {
-	Name   string `json:"name" binding:"required"`
-	URL    string `json:"url" binding:"required"`
-	Secret string `json:"secret"`
-	Events any    `json:"events"`
-	Enabled *bool `json:"enabled"`
+	Name    string `json:"name" binding:"required"`
+	URL     string `json:"url" binding:"required"`
+	Secret  string `json:"secret"`
+	Events  any    `json:"events"`
+	Enabled *bool  `json:"enabled"`
 }
 
 type UpdateWebhookRequest struct {

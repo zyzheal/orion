@@ -8,18 +8,18 @@ import "time"
 
 // BudgetGuard represents a budget guard rule.
 type BudgetGuard struct {
-	ID           string     `db:"id" json:"id"`
-	TenantID     string     `db:"tenant_id" json:"tenantId"`
-	Name         string     `db:"name" json:"name"`
-	Description  *string    `db:"description" json:"description"`
-	BudgetAmount *float64   `db:"budget_amount" json:"budgetAmount"`
-	ThresholdPct *float64   `db:"threshold_pct" json:"thresholdPct"`
-	Currency     string     `db:"currency" json:"currency"`
-	Action       string     `db:"action" json:"action"`
-	Scope        *string    `db:"scope" json:"scope"`
-	Enabled      bool       `db:"enabled" json:"enabled"`
-	CreatedAt    time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt    time.Time  `db:"updated_at" json:"updatedAt"`
+	ID           string    `db:"id" json:"id"`
+	TenantID     string    `db:"tenant_id" json:"tenantId"`
+	Name         string    `db:"name" json:"name"`
+	Description  *string   `db:"description" json:"description"`
+	BudgetAmount *float64  `db:"budget_amount" json:"budgetAmount"`
+	ThresholdPct *float64  `db:"threshold_pct" json:"thresholdPct"`
+	Currency     string    `db:"currency" json:"currency"`
+	Action       string    `db:"action" json:"action"`
+	Scope        *string   `db:"scope" json:"scope"`
+	Enabled      bool      `db:"enabled" json:"enabled"`
+	CreatedAt    time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateBudgetGuardRequest is the request body for creating a budget guard.
@@ -35,15 +35,15 @@ type CreateBudgetGuardRequest struct {
 
 // EvaluationResult is the result of evaluating a cost against budget guards.
 type EvaluationResult struct {
-	Passed        bool      `json:"passed"`
-	GuardID       *string   `json:"guardId"`
-	BudgetAmount  *float64  `json:"budgetAmount"`
-	EstimatedCost float64   `json:"estimatedCost"`
-	ThresholdPct  *float64  `json:"thresholdPct"`
-	Message       string    `json:"message"`
-	TenantID      string    `json:"tenantId"`
-	ProjectID     *string   `json:"projectId"`
-	Environment   *string   `json:"environment"`
+	Passed        bool     `json:"passed"`
+	GuardID       *string  `json:"guardId"`
+	BudgetAmount  *float64 `json:"budgetAmount"`
+	EstimatedCost float64  `json:"estimatedCost"`
+	ThresholdPct  *float64 `json:"thresholdPct"`
+	Message       string   `json:"message"`
+	TenantID      string   `json:"tenantId"`
+	ProjectID     *string  `json:"projectId"`
+	Environment   *string  `json:"environment"`
 }
 
 // ============================================================================
@@ -52,20 +52,20 @@ type EvaluationResult struct {
 
 // Anomaly represents a detected cost anomaly.
 type Anomaly struct {
-	ID                string     `db:"id" json:"id"`
-	TenantID          string     `db:"tenant_id" json:"tenantId"`
-	Type              string     `db:"type" json:"type"`
-	Severity          string     `db:"severity" json:"severity"`
-	Value             float64    `db:"value" json:"value"`
-	ExpectedValue     float64    `db:"expected_value" json:"expectedValue"`
-	Deviation         float64    `db:"deviation" json:"deviation"`
-	Description       string     `db:"description" json:"description"`
-	Metadata          string     `db:"metadata" json:"metadata"`
-	TimeWindowStart   time.Time  `db:"time_window_start" json:"timeWindowStart"`
-	TimeWindowEnd     time.Time  `db:"time_window_end" json:"timeWindowEnd"`
-	DetectedAt        time.Time  `db:"detected_at" json:"detectedAt"`
-	ResolvedAt        *time.Time `db:"resolved_at" json:"resolvedAt"`
-	CreatedAt         time.Time  `db:"created_at" json:"createdAt"`
+	ID              string     `db:"id" json:"id"`
+	TenantID        string     `db:"tenant_id" json:"tenantId"`
+	Type            string     `db:"type" json:"type"`
+	Severity        string     `db:"severity" json:"severity"`
+	Value           float64    `db:"value" json:"value"`
+	ExpectedValue   float64    `db:"expected_value" json:"expectedValue"`
+	Deviation       float64    `db:"deviation" json:"deviation"`
+	Description     string     `db:"description" json:"description"`
+	Metadata        string     `db:"metadata" json:"metadata"`
+	TimeWindowStart time.Time  `db:"time_window_start" json:"timeWindowStart"`
+	TimeWindowEnd   time.Time  `db:"time_window_end" json:"timeWindowEnd"`
+	DetectedAt      time.Time  `db:"detected_at" json:"detectedAt"`
+	ResolvedAt      *time.Time `db:"resolved_at" json:"resolvedAt"`
+	CreatedAt       time.Time  `db:"created_at" json:"createdAt"`
 }
 
 // AnomalyDetectionResult is the result of anomaly detection (statistical).
@@ -89,16 +89,16 @@ type TimeWindow struct {
 
 // CostTrendResult is the result of a cost trend query.
 type CostTrendResult struct {
-	Points             []TrendPoint `json:"points"`
-	Days               int          `json:"days"`
-	TenantID           string       `json:"tenantId"`
-	TotalCost          float64      `json:"totalCost"`
-	AverageCost        float64      `json:"averageCost"`
-	Trend              string       `json:"trend"` // "increasing" | "decreasing" | "stable"
-	ChangeRate         float64      `json:"changeRate"`
-	OverallChangeRate  float64      `json:"overallChangeRate"`
-	MaxCost            float64      `json:"maxCost"`
-	MinCost            float64      `json:"minCost"`
+	Points            []TrendPoint `json:"points"`
+	Days              int          `json:"days"`
+	TenantID          string       `json:"tenantId"`
+	TotalCost         float64      `json:"totalCost"`
+	AverageCost       float64      `json:"averageCost"`
+	Trend             string       `json:"trend"` // "increasing" | "decreasing" | "stable"
+	ChangeRate        float64      `json:"changeRate"`
+	OverallChangeRate float64      `json:"overallChangeRate"`
+	MaxCost           float64      `json:"maxCost"`
+	MinCost           float64      `json:"minCost"`
 }
 
 // TrendPoint is a single point in a trend series.
@@ -116,21 +116,21 @@ type TrendPoint struct {
 
 // OptimizationSuggestion represents a cost optimization suggestion.
 type OptimizationSuggestion struct {
-	ID                 string     `db:"id" json:"id"`
-	TenantID           string     `db:"tenant_id" json:"tenantId"`
-	Service            string     `db:"service" json:"service"`
-	Category           string     `db:"category" json:"category"`
-	Description        string     `db:"description" json:"description"`
-	PotentialSavings   float64    `db:"potential_savings" json:"potentialSavings"`
-	Status             string     `db:"status" json:"status"`
-	Priority           string     `db:"priority" json:"priority"`
-	EntityID           *string    `db:"entity_id" json:"entityId"`
-	EntityType         *string    `db:"entity_type" json:"entityType"`
-	ResourceIDs        *string    `db:"resource_ids" json:"resourceIds"`
-	Notes              *string    `db:"notes" json:"notes"`
-	Effort             float64    `db:"effort" json:"effort"`
-	CreatedAt          time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt          *time.Time `db:"updated_at" json:"updatedAt"`
+	ID               string     `db:"id" json:"id"`
+	TenantID         string     `db:"tenant_id" json:"tenantId"`
+	Service          string     `db:"service" json:"service"`
+	Category         string     `db:"category" json:"category"`
+	Description      string     `db:"description" json:"description"`
+	PotentialSavings float64    `db:"potential_savings" json:"potentialSavings"`
+	Status           string     `db:"status" json:"status"`
+	Priority         string     `db:"priority" json:"priority"`
+	EntityID         *string    `db:"entity_id" json:"entityId"`
+	EntityType       *string    `db:"entity_type" json:"entityType"`
+	ResourceIDs      *string    `db:"resource_ids" json:"resourceIds"`
+	Notes            *string    `db:"notes" json:"notes"`
+	Effort           float64    `db:"effort" json:"effort"`
+	CreatedAt        time.Time  `db:"created_at" json:"createdAt"`
+	UpdatedAt        *time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // OptimizationSavingsSummary is the aggregated savings estimate.
@@ -204,28 +204,28 @@ type DetectAnomaliesRequest struct {
 
 // UsageRecord represents a usage metering entry.
 type UsageRecord struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenantId"`
-	Service     string            `db:"service" json:"service"`
-	Metric      string            `db:"metric" json:"metric"`
-	Quantity    float64           `db:"quantity" json:"quantity"`
-	UnitPrice   float64           `db:"unit_price" json:"unitPrice"`
-	TotalCost   float64           `db:"total_cost" json:"totalCost"`
-	PeriodStart string            `db:"period_start" json:"periodStart"`
-	PeriodEnd   string            `db:"period_end" json:"periodEnd"`
-	Metadata    string            `db:"metadata" json:"metadata,omitempty"`
-	CreatedAt   time.Time         `db:"created_at" json:"createdAt"`
+	ID          string    `db:"id" json:"id"`
+	TenantID    string    `db:"tenant_id" json:"tenantId"`
+	Service     string    `db:"service" json:"service"`
+	Metric      string    `db:"metric" json:"metric"`
+	Quantity    float64   `db:"quantity" json:"quantity"`
+	UnitPrice   float64   `db:"unit_price" json:"unitPrice"`
+	TotalCost   float64   `db:"total_cost" json:"totalCost"`
+	PeriodStart string    `db:"period_start" json:"periodStart"`
+	PeriodEnd   string    `db:"period_end" json:"periodEnd"`
+	Metadata    string    `db:"metadata" json:"metadata,omitempty"`
+	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
 }
 
 // RecordUsageRequest is the request body for recording usage.
 type RecordUsageRequest struct {
-	Service    string            `json:"service" binding:"required"`
-	Metric     string            `json:"metric" binding:"required"`
-	Quantity   float64           `json:"quantity" binding:"required"`
-	UnitPrice  float64           `json:"unitPrice" binding:"required"`
-	PeriodStart string           `json:"periodStart" binding:"required"`
-	PeriodEnd  string            `json:"periodEnd" binding:"required"`
-	Metadata   map[string]string `json:"metadata"`
+	Service     string            `json:"service" binding:"required"`
+	Metric      string            `json:"metric" binding:"required"`
+	Quantity    float64           `json:"quantity" binding:"required"`
+	UnitPrice   float64           `json:"unitPrice" binding:"required"`
+	PeriodStart string            `json:"periodStart" binding:"required"`
+	PeriodEnd   string            `json:"periodEnd" binding:"required"`
+	Metadata    map[string]string `json:"metadata"`
 }
 
 // UsageSummary is the usage summary response.
@@ -261,10 +261,10 @@ type GenerateBillingRecordRequest struct {
 
 // BillingSummary is the billing summary response.
 type BillingSummary struct {
-	TotalBilling    float64 `json:"totalBilling"`
-	PaidAmount      float64 `json:"paidAmount"`
-	PendingAmount   float64 `json:"pendingAmount"`
-	OverdueAmount   float64 `json:"overdueAmount"`
+	TotalBilling     float64 `json:"totalBilling"`
+	PaidAmount       float64 `json:"paidAmount"`
+	PendingAmount    float64 `json:"pendingAmount"`
+	OverdueAmount    float64 `json:"overdueAmount"`
 	CurrentMonthCost float64 `json:"currentMonthCost"`
 }
 
@@ -284,16 +284,16 @@ const (
 
 // CostRecord represents an entity cost tracking record.
 type CostRecord struct {
-	ID         string            `db:"id" json:"id"`
-	TenantID   string            `db:"tenant_id" json:"tenantId"`
-	EntityType CostEntityType    `db:"entity_type" json:"entityType"`
-	EntityID   string            `db:"entity_id" json:"entityId"`
-	Amount     float64           `db:"amount" json:"amount"`
-	Category   string            `db:"category" json:"category"`
-	Currency   string            `db:"currency" json:"currency"`
-	Environment *string          `db:"environment" json:"environment"`
-	Metadata   string            `db:"metadata" json:"metadata"`
-	CreatedAt  time.Time         `db:"created_at" json:"createdAt"`
+	ID          string         `db:"id" json:"id"`
+	TenantID    string         `db:"tenant_id" json:"tenantId"`
+	EntityType  CostEntityType `db:"entity_type" json:"entityType"`
+	EntityID    string         `db:"entity_id" json:"entityId"`
+	Amount      float64        `db:"amount" json:"amount"`
+	Category    string         `db:"category" json:"category"`
+	Currency    string         `db:"currency" json:"currency"`
+	Environment *string        `db:"environment" json:"environment"`
+	Metadata    string         `db:"metadata" json:"metadata"`
+	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
 }
 
 // TrackCostRequest is the generic request body for tracking costs.
@@ -319,14 +319,14 @@ type EntityCostSummary struct {
 
 // CostSummary is the aggregated cost summary.
 type CostSummary struct {
-	TotalCost     float64 `json:"totalCost"`
-	ComputeCost   float64 `json:"computeCost"`
-	StorageCost   float64 `json:"storageCost"`
-	NetworkCost   float64 `json:"networkCost"`
-	SaasCost      float64 `json:"saasCost"`
-	Period        string  `json:"period"`
-	Currency      string  `json:"currency"`
-	TenantID      string  `json:"tenantId"`
+	TotalCost   float64 `json:"totalCost"`
+	ComputeCost float64 `json:"computeCost"`
+	StorageCost float64 `json:"storageCost"`
+	NetworkCost float64 `json:"networkCost"`
+	SaasCost    float64 `json:"saasCost"`
+	Period      string  `json:"period"`
+	Currency    string  `json:"currency"`
+	TenantID    string  `json:"tenantId"`
 }
 
 // CostBreakdown is a cost breakdown by dimension.
@@ -344,21 +344,21 @@ type CostBreakdown struct {
 
 // ChargebackReport represents a cost chargeback report.
 type ChargebackReport struct {
-	ID          string                    `json:"id"`
-	GeneratedAt time.Time                 `json:"generatedAt"`
-	Period      string                    `json:"period"`
-	TotalCost   float64                   `json:"totalCost"`
-	Entities    []ChargebackEntity        `json:"entities"`
-	Currency    string                    `json:"currency"`
+	ID          string             `json:"id"`
+	GeneratedAt time.Time          `json:"generatedAt"`
+	Period      string             `json:"period"`
+	TotalCost   float64            `json:"totalCost"`
+	Entities    []ChargebackEntity `json:"entities"`
+	Currency    string             `json:"currency"`
 }
 
 // ChargebackEntity represents an entity in a chargeback report.
 type ChargebackEntity struct {
-	EntityType  CostEntityType     `json:"entityType"`
-	EntityID    string             `json:"entityId"`
-	Cost        float64            `json:"cost"`
-	Percentage  float64            `json:"percentage"`
-	Breakdown   map[string]float64 `json:"breakdown"`
+	EntityType CostEntityType     `json:"entityType"`
+	EntityID   string             `json:"entityId"`
+	Cost       float64            `json:"cost"`
+	Percentage float64            `json:"percentage"`
+	Breakdown  map[string]float64 `json:"breakdown"`
 }
 
 // ============================================================================
@@ -367,30 +367,30 @@ type ChargebackEntity struct {
 
 // Budget represents a cost budget for an entity.
 type Budget struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenantId"`
-	EntityType  CostEntityType    `db:"entity_type" json:"entityType"`
-	EntityID    string            `db:"entity_id" json:"entityId"`
-	Amount      float64           `db:"amount" json:"amount"`
-	Period      string            `db:"period" json:"period"`
-	Currency    string            `db:"currency" json:"currency"`
-	Alerts      string            `db:"alerts" json:"alerts"` // JSON array of thresholds
-	Environment *string           `db:"environment" json:"environment"`
-	Description *string           `db:"description" json:"description"`
-	CreatedAt   time.Time         `db:"created_at" json:"createdAt"`
-	UpdatedAt   time.Time         `db:"updated_at" json:"updatedAt"`
+	ID          string         `db:"id" json:"id"`
+	TenantID    string         `db:"tenant_id" json:"tenantId"`
+	EntityType  CostEntityType `db:"entity_type" json:"entityType"`
+	EntityID    string         `db:"entity_id" json:"entityId"`
+	Amount      float64        `db:"amount" json:"amount"`
+	Period      string         `db:"period" json:"period"`
+	Currency    string         `db:"currency" json:"currency"`
+	Alerts      string         `db:"alerts" json:"alerts"` // JSON array of thresholds
+	Environment *string        `db:"environment" json:"environment"`
+	Description *string        `db:"description" json:"description"`
+	CreatedAt   time.Time      `db:"created_at" json:"createdAt"`
+	UpdatedAt   time.Time      `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateBudgetRequest is the request body for creating a budget.
 type CreateBudgetRequest struct {
-	EntityType  string            `json:"entityType" binding:"required"`
-	EntityID    string            `json:"entityId" binding:"required"`
-	Amount      float64           `json:"amount" binding:"required"`
-	Period      string            `json:"period" binding:"required"`
-	Currency    string            `json:"currency"`
-	Alerts      []int             `json:"alerts"`
-	Environment *string           `json:"environment"`
-	Description *string           `json:"description"`
+	EntityType  string  `json:"entityType" binding:"required"`
+	EntityID    string  `json:"entityId" binding:"required"`
+	Amount      float64 `json:"amount" binding:"required"`
+	Period      string  `json:"period" binding:"required"`
+	Currency    string  `json:"currency"`
+	Alerts      []int   `json:"alerts"`
+	Environment *string `json:"environment"`
+	Description *string `json:"description"`
 }
 
 // UpdateBudgetRequest is the request body for updating a budget.
@@ -404,29 +404,29 @@ type UpdateBudgetRequest struct {
 
 // BudgetStatus is the current status of a budget.
 type BudgetStatus struct {
-	BudgetID      string    `json:"budgetId"`
-	EntityType    string    `json:"entityType"`
-	EntityID      string    `json:"entityId"`
-	BudgetAmount  float64   `json:"budgetAmount"`
-	CurrentSpend  float64   `json:"currentSpend"`
-	UsagePercent  float64   `json:"usagePercent"`
-	Remaining     float64   `json:"remaining"`
-	Period        string    `json:"period"`
-	OverBudget    bool      `json:"overBudget"`
+	BudgetID        string               `json:"budgetId"`
+	EntityType      string               `json:"entityType"`
+	EntityID        string               `json:"entityId"`
+	BudgetAmount    float64              `json:"budgetAmount"`
+	CurrentSpend    float64              `json:"currentSpend"`
+	UsagePercent    float64              `json:"usagePercent"`
+	Remaining       float64              `json:"remaining"`
+	Period          string               `json:"period"`
+	OverBudget      bool                 `json:"overBudget"`
 	TriggeredAlerts []BudgetAlertTrigger `json:"triggeredAlerts"`
-	ForecastedSpend *float64 `json:"forecastedSpend"`
+	ForecastedSpend *float64             `json:"forecastedSpend"`
 }
 
 // BudgetForecast is the forecasted spend for a budget.
 type BudgetForecast struct {
-	BudgetID         string    `json:"budgetId"`
-	CurrentSpend     float64   `json:"currentSpend"`
-	ForecastedSpend  float64   `json:"forecastedSpend"`
-	ProjectedOverage float64   `json:"projectedOverage"`
-	DailySpendRate   float64   `json:"dailySpendRate"`
-	DaysUntilExhausted int     `json:"daysUntilExhausted"`
-	WithinBudget     bool      `json:"withinBudget"`
-	History          []BudgetHistoryPoint `json:"history"`
+	BudgetID           string               `json:"budgetId"`
+	CurrentSpend       float64              `json:"currentSpend"`
+	ForecastedSpend    float64              `json:"forecastedSpend"`
+	ProjectedOverage   float64              `json:"projectedOverage"`
+	DailySpendRate     float64              `json:"dailySpendRate"`
+	DaysUntilExhausted int                  `json:"daysUntilExhausted"`
+	WithinBudget       bool                 `json:"withinBudget"`
+	History            []BudgetHistoryPoint `json:"history"`
 }
 
 // BudgetHistoryPoint is a point in budget history.
@@ -437,14 +437,14 @@ type BudgetHistoryPoint struct {
 
 // BudgetAlertTrigger represents a triggered budget alert.
 type BudgetAlertTrigger struct {
-	ID           string  `json:"id"`
-	BudgetID     string  `json:"budgetId"`
-	Threshold    int     `json:"threshold"`
-	Actual       float64 `json:"actual"`
-	Percentage   float64 `json:"percentage"`
-	TriggeredAt  time.Time `json:"triggeredAt"`
-	EntityType   string  `json:"entityType"`
-	EntityID     string  `json:"entityId"`
+	ID          string    `json:"id"`
+	BudgetID    string    `json:"budgetId"`
+	Threshold   int       `json:"threshold"`
+	Actual      float64   `json:"actual"`
+	Percentage  float64   `json:"percentage"`
+	TriggeredAt time.Time `json:"triggeredAt"`
+	EntityType  string    `json:"entityType"`
+	EntityID    string    `json:"entityId"`
 }
 
 // ============================================================================
@@ -464,29 +464,29 @@ const (
 
 // ROIAnalysis represents an ROI analysis record.
 type ROIAnalysis struct {
-	ID             string            `db:"id" json:"id"`
-	TenantID       string            `db:"tenant_id" json:"tenantId"`
-	InvestmentType string            `db:"investment_type" json:"investmentType"`
-	Name           string            `db:"name" json:"name"`
-	Cost           float64           `db:"cost" json:"cost"`
-	Savings        float64           `db:"savings" json:"savings"`
-	Period         string            `db:"period" json:"period"`
-	ROIPercentage  float64           `db:"roi_percentage" json:"roiPercentage"`
-	PaybackMonths  float64           `db:"payback_months" json:"paybackMonths"`
-	Description    *string           `db:"description" json:"description"`
-	Details        string            `db:"details" json:"details"`
-	AnalyzedAt     time.Time         `db:"analyzed_at" json:"analyzedAt"`
+	ID             string    `db:"id" json:"id"`
+	TenantID       string    `db:"tenant_id" json:"tenantId"`
+	InvestmentType string    `db:"investment_type" json:"investmentType"`
+	Name           string    `db:"name" json:"name"`
+	Cost           float64   `db:"cost" json:"cost"`
+	Savings        float64   `db:"savings" json:"savings"`
+	Period         string    `db:"period" json:"period"`
+	ROIPercentage  float64   `db:"roi_percentage" json:"roiPercentage"`
+	PaybackMonths  float64   `db:"payback_months" json:"paybackMonths"`
+	Description    *string   `db:"description" json:"description"`
+	Details        string    `db:"details" json:"details"`
+	AnalyzedAt     time.Time `db:"analyzed_at" json:"analyzedAt"`
 }
 
 // CreateROIRequest is the request body for creating an ROI analysis.
 type CreateROIRequest struct {
-	InvestmentType string  `json:"investmentType" binding:"required"`
-	Name           string  `json:"name" binding:"required"`
-	Cost           float64 `json:"cost" binding:"required"`
-	MonthlySavings float64 `json:"monthlySavings" binding:"required"`
+	InvestmentType   string   `json:"investmentType" binding:"required"`
+	Name             string   `json:"name" binding:"required"`
+	Cost             float64  `json:"cost" binding:"required"`
+	MonthlySavings   float64  `json:"monthlySavings" binding:"required"`
 	TimeSavingsHours *float64 `json:"timeSavingsHours"`
-	Description *string `json:"description"`
-	Details     string  `json:"details"`
+	Description      *string  `json:"description"`
+	Details          string   `json:"details"`
 }
 
 // ROISummary is the aggregated ROI summary.
@@ -504,25 +504,25 @@ type ROISummary struct {
 
 // CostPeriodComparison represents a before/after cost comparison.
 type CostPeriodComparison struct {
-	ID              string    `db:"id" json:"id"`
-	TenantID        string    `db:"tenant_id" json:"tenantId"`
-	Description     string    `db:"description" json:"description"`
-	BeforeCost      float64   `db:"before_cost" json:"beforeCost"`
-	AfterCost       float64   `db:"after_cost" json:"afterCost"`
-	Savings         float64   `db:"savings" json:"savings"`
-	SavingsPercent  float64   `db:"savings_percent" json:"savingsPercent"`
-	TimeSavingsHours *float64 `db:"time_savings_hours" json:"timeSavingsHours"`
-	Period          string    `db:"period" json:"period"`
-	CreatedAt       time.Time `db:"created_at" json:"createdAt"`
+	ID               string    `db:"id" json:"id"`
+	TenantID         string    `db:"tenant_id" json:"tenantId"`
+	Description      string    `db:"description" json:"description"`
+	BeforeCost       float64   `db:"before_cost" json:"beforeCost"`
+	AfterCost        float64   `db:"after_cost" json:"afterCost"`
+	Savings          float64   `db:"savings" json:"savings"`
+	SavingsPercent   float64   `db:"savings_percent" json:"savingsPercent"`
+	TimeSavingsHours *float64  `db:"time_savings_hours" json:"timeSavingsHours"`
+	Period           string    `db:"period" json:"period"`
+	CreatedAt        time.Time `db:"created_at" json:"createdAt"`
 }
 
 // CreateCostComparisonRequest is the request body for creating a period comparison.
 type CreateCostComparisonRequest struct {
-	Description      string    `json:"description" binding:"required"`
-	BeforeCost       float64   `json:"beforeCost" binding:"required"`
-	AfterCost        float64   `json:"afterCost" binding:"required"`
-	TimeSavingsHours *float64  `json:"timeSavingsHours"`
-	Period           string    `json:"period"`
+	Description      string   `json:"description" binding:"required"`
+	BeforeCost       float64  `json:"beforeCost" binding:"required"`
+	AfterCost        float64  `json:"afterCost" binding:"required"`
+	TimeSavingsHours *float64 `json:"timeSavingsHours"`
+	Period           string   `json:"period"`
 }
 
 // ============================================================================
@@ -533,13 +533,13 @@ type CreateCostComparisonRequest struct {
 type OptimizationCategory string
 
 const (
-	OptCategoryRightSizing      OptimizationCategory = "right-sizing"
-	OptCategoryUnusedResources  OptimizationCategory = "unused-resources"
+	OptCategoryRightSizing       OptimizationCategory = "right-sizing"
+	OptCategoryUnusedResources   OptimizationCategory = "unused-resources"
 	OptCategoryReservedInstances OptimizationCategory = "reserved-instances"
-	OptCategoryStorageOpt       OptimizationCategory = "storage-optimization"
-	OptCategoryNetworkOpt       OptimizationCategory = "network-optimization"
-	OptCategoryScheduling       OptimizationCategory = "scheduling"
-	OptCategoryArchitecture     OptimizationCategory = "architecture"
+	OptCategoryStorageOpt        OptimizationCategory = "storage-optimization"
+	OptCategoryNetworkOpt        OptimizationCategory = "network-optimization"
+	OptCategoryScheduling        OptimizationCategory = "scheduling"
+	OptCategoryArchitecture      OptimizationCategory = "architecture"
 )
 
 // OptimizationPriority represents the priority of an optimization.
@@ -566,15 +566,15 @@ const (
 
 // CreateOptimizationRequest is the request body for creating an optimization suggestion.
 type CreateOptimizationRequest struct {
-	Category   OptimizationCategory `json:"category" binding:"required"`
-	Description string             `json:"description" binding:"required"`
-	EstimatedSavings float64       `json:"estimatedSavings"`
-	Effort       float64          `json:"effort"`
-	Priority     OptimizationPriority `json:"priority"`
-	EntityID     *string          `json:"entityId"`
-	EntityType   *string          `json:"entityType"`
-	ResourceIDs  []string         `json:"resourceIds"`
-	Notes        *string          `json:"notes"`
+	Category         OptimizationCategory `json:"category" binding:"required"`
+	Description      string               `json:"description" binding:"required"`
+	EstimatedSavings float64              `json:"estimatedSavings"`
+	Effort           float64              `json:"effort"`
+	Priority         OptimizationPriority `json:"priority"`
+	EntityID         *string              `json:"entityId"`
+	EntityType       *string              `json:"entityType"`
+	ResourceIDs      []string             `json:"resourceIds"`
+	Notes            *string              `json:"notes"`
 }
 
 // UpdateOptimizationRequest is the request body for updating optimization status.
@@ -589,12 +589,12 @@ type UpdateOptimizationRequest struct {
 
 // CostForecastResult is the result of cost forecasting.
 type CostForecastResult struct {
-	PredictedEndOfMonthCost float64                    `json:"predictedEndOfMonthCost"`
-	CurrentSpend            float64                    `json:"currentSpend"`
-	ProjectedOverage        float64                    `json:"projectedOverage"`
-	Confidence              float64                    `json:"confidence"`
-	DailyForecast           []ForecastDay              `json:"dailyForecast"`
-	GeneratedAt             time.Time                  `json:"generatedAt"`
+	PredictedEndOfMonthCost float64       `json:"predictedEndOfMonthCost"`
+	CurrentSpend            float64       `json:"currentSpend"`
+	ProjectedOverage        float64       `json:"projectedOverage"`
+	Confidence              float64       `json:"confidence"`
+	DailyForecast           []ForecastDay `json:"dailyForecast"`
+	GeneratedAt             time.Time     `json:"generatedAt"`
 }
 
 // ForecastDay is a single day in the forecast.

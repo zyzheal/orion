@@ -1,16 +1,15 @@
 package handler
 
 import (
-
-        "orion/go-common/pkg/auth"
+	"orion/go-common/pkg/auth"
+	"orion/platform-svc-go/internal/auth-mfa/models"
+	"orion/platform-svc-go/internal/auth-mfa/service"
 	"orion/platform-svc-go/internal/middleware"
-        "orion/platform-svc-go/internal/auth-mfa/models"
-        "orion/platform-svc-go/internal/auth-mfa/service"
 
-        "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {

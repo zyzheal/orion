@@ -209,12 +209,12 @@ func TestSagaCoordinator_Compensation_Success(t *testing.T) {
 	// Create steps
 	for i, name := range []string{"validate", "prepare", "build", "deploy"} {
 		step := &models.SagaStep{
-			ID:          name + "-tx-1",
-			TenantID:    "t1",
+			ID:            name + "-tx-1",
+			TenantID:      "t1",
 			TransactionID: tx.ID,
-			StepName:    name,
-			Sequence:    i,
-			Status:      models.SagaStepStatusCompleted,
+			StepName:      name,
+			Sequence:      i,
+			Status:        models.SagaStepStatusCompleted,
 		}
 		repo.steps[step.ID] = step
 	}
@@ -245,11 +245,11 @@ func TestSagaCoordinator_Compensation_Failure(t *testing.T) {
 	repo.transactions[tx.ID] = tx
 
 	step := &models.SagaStep{
-		ID:          "validate-tx-2",
-		TenantID:    "t1",
+		ID:            "validate-tx-2",
+		TenantID:      "t1",
 		TransactionID: tx.ID,
-		StepName:    "validate",
-		Status:      models.SagaStepStatusCompleted,
+		StepName:      "validate",
+		Status:        models.SagaStepStatusCompleted,
 	}
 	repo.steps[step.ID] = step
 

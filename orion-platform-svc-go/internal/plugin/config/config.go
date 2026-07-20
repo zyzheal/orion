@@ -7,17 +7,17 @@ import (
 )
 
 type Config struct {
-	Port        int
-	DBHost      string
-	DBPort      int
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBSSLMode   string
-	JWTSecret   string
-	RedisAddr   string
-	NATSAddr    string
-	NATSStream  string
+	Port       int
+	DBHost     string
+	DBPort     int
+	DBUser     string
+	DBPassword string
+	DBName     string
+	DBSSLMode  string
+	JWTSecret  string
+	RedisAddr  string
+	NATSAddr   string
+	NATSStream string
 }
 
 func Load() *Config {

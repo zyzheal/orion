@@ -9,14 +9,14 @@ import (
 	"orion/platform-svc-go/internal/inception/models"
 	"orion/platform-svc-go/internal/inception/repository"
 
-	"github.com/google/uuid"
 	"orion/go-common/pkg/sentinel"
+
+	"github.com/google/uuid"
 )
 
 var (
-
-	ErrBlacklisted             = errors.New("sql blocked by blacklist")
-	ErrInvalidStatus           = errors.New("invalid status transition")
+	ErrBlacklisted              = errors.New("sql blocked by blacklist")
+	ErrInvalidStatus            = errors.New("invalid status transition")
 	ErrInceptionProjectNotFound = errors.New("project not found")
 )
 

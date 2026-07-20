@@ -7,8 +7,9 @@ import (
 	"orion/platform-svc-go/internal/terminal-audit/models"
 	"orion/platform-svc-go/internal/terminal-audit/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -25,7 +26,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r.GET("", auth.RequirePermission("terminal-audit", "read"), h.ListAudits)
 	r.GET("/:id", auth.RequirePermission("terminal-audit", "read"), h.GetAudit)
 	r.DELETE("/batch", auth.RequirePermission("terminal-audit", "delete"), h.DeleteBatch)
-r.PUT("/search", auth.RequirePermission("terminal-audit", "read"), h.SearchAudits)
+	r.PUT("/search", auth.RequirePermission("terminal-audit", "read"), h.SearchAudits)
 	r.GET("/stats", auth.RequirePermission("terminal-audit", "read"), h.GetStats)
 }
 
@@ -77,7 +78,7 @@ func (h *Handler) ListAudits(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-q := models.AuditQuery{Limit: limit, Offset: offset}
+	q := models.AuditQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.ListAudits(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
@@ -92,7 +93,7 @@ func (h *Handler) SearchAudits(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-q := models.AuditQuery{Limit: limit, Offset: offset}
+	q := models.AuditQuery{Limit: limit, Offset: offset}
 	result, err := h.svc.SearchAudits(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)

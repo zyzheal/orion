@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/problem/models"
 	"orion/platform-svc-go/internal/problem/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -95,13 +96,13 @@ func (h *Handler) ListProblems(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 
 	filter := &models.ProblemFilter{
-		Status:    ptrString(c.Query("status")),
-		Severity:  ptrString(c.Query("severity")),
+		Status:     ptrString(c.Query("status")),
+		Severity:   ptrString(c.Query("severity")),
 		AssignedTo: ptrString(c.Query("assignedTo")),
-		Category:  ptrString(c.Query("category")),
+		Category:   ptrString(c.Query("category")),
 	}
 	if p := c.Query("page"); p != "" {
-		filter.Offset = (ptrInt(c, "page", 1)-1) * ptrInt(c, "pageSize", 20)
+		filter.Offset = (ptrInt(c, "page", 1) - 1) * ptrInt(c, "pageSize", 20)
 		filter.Limit = ptrInt(c, "pageSize", 20)
 	}
 
@@ -339,7 +340,7 @@ func (h *Handler) ListKnownErrors(c *gin.Context) {
 	filter := &models.KnownErrorFilter{
 		ProblemID: ptrString(c.Query("problemId")),
 		Limit:     ptrInt(c, "pageSize", 20),
-		Offset:    (ptrInt(c, "page", 1)-1) * ptrInt(c, "pageSize", 20),
+		Offset:    (ptrInt(c, "page", 1) - 1) * ptrInt(c, "pageSize", 20),
 	}
 
 	kes, total, err := h.svc.ListKnownErrors(ctx, tenantID, filter)

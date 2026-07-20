@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/visor-exec/models"
 	v_service "orion/platform-svc-go/internal/visor-exec/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -99,7 +100,7 @@ func (h *Handler) CountCommandLogs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountCommandLogs")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-count, err := h.svc.CountCommandLogs(ctx, tenantID)
+	count, err := h.svc.CountCommandLogs(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -165,7 +166,7 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 func (h *Handler) CountTemplates(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountTemplates")
 	defer span.End()
-count, err := h.svc.CountTemplates(ctx)
+	count, err := h.svc.CountTemplates(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -251,7 +252,7 @@ func (h *Handler) ListCronJobs(c *gin.Context) {
 func (h *Handler) CountCronJobs(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountCronJobs")
 	defer span.End()
-count, err := h.svc.CountCronJobs(ctx)
+	count, err := h.svc.CountCronJobs(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

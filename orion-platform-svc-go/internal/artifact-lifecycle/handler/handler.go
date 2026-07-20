@@ -8,8 +8,9 @@ import (
 	"orion/platform-svc-go/internal/artifact-lifecycle/models"
 	"orion/platform-svc-go/internal/artifact-lifecycle/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -22,7 +23,7 @@ func NewHandler(svc *service.Service) *Handler {
 }
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-r := rg.Group("/artifact-lifecycle")
+	r := rg.Group("/artifact-lifecycle")
 	r.GET("", auth.RequirePermission("artifact-lifecycle", "read"), h.ListLifecycle)
 	r.GET("/:artifactId", auth.RequirePermission("artifact-lifecycle", "read"), h.GetLifecycle)
 	r.POST("", auth.RequirePermission("artifact-lifecycle", "write"), h.CreateLifecycle)
@@ -47,7 +48,7 @@ func (h *Handler) AdvanceStage(c *gin.Context) {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
-errors.WriteSuccess(c, result)
+	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) ArchiveArtifact(c *gin.Context) {
@@ -84,7 +85,7 @@ func (h *Handler) DeleteLifecycle(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteLifecycle")
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
-id := c.Param("id")
+	id := c.Param("id")
 	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -124,7 +125,7 @@ func (h *Handler) ListLifecycle(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-result, err := h.svc.List(ctx, tenantID, limit, offset)
+	result, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

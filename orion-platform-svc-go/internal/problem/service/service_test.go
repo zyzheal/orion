@@ -11,32 +11,32 @@ import (
 
 // mockProblemRepo implements the repository methods we need for testing.
 type mockProblemRepo struct {
-	problems       map[string]*models.Problem
-	knownErrors    map[string]*models.KnownError
-	incidentLinks  map[string][]string
-	changeLinks    map[string][]string
-	createErr      error
-	updateErr      error
-	deleteProblem  bool
-	deleteKE       bool
-	getProblemErr  error
-	getKErr        error
-	updateProblemOut *models.Problem
-	updateKEOut    *models.KnownError
-	listProblems   []models.Problem
-	listProblemsTotal int
-	listKnownErrors []models.KnownError
-	listKnownErrorsTotal int
-	searchKnownErrors []models.KnownError
+	problems               map[string]*models.Problem
+	knownErrors            map[string]*models.KnownError
+	incidentLinks          map[string][]string
+	changeLinks            map[string][]string
+	createErr              error
+	updateErr              error
+	deleteProblem          bool
+	deleteKE               bool
+	getProblemErr          error
+	getKErr                error
+	updateProblemOut       *models.Problem
+	updateKEOut            *models.KnownError
+	listProblems           []models.Problem
+	listProblemsTotal      int
+	listKnownErrors        []models.KnownError
+	listKnownErrorsTotal   int
+	searchKnownErrors      []models.KnownError
 	searchKnownErrorsTotal int
-	getStatsOut    *models.ProblemStats
-	getStatsErr    error
-	linkIncidentOut *models.Problem
-	linkIncidentErr error
-	linkChangeOut   *models.Problem
-	linkChangeErr   error
-	getIncidentLinksErr error
-	getChangeLinksErr   error
+	getStatsOut            *models.ProblemStats
+	getStatsErr            error
+	linkIncidentOut        *models.Problem
+	linkIncidentErr        error
+	linkChangeOut          *models.Problem
+	linkChangeErr          error
+	getIncidentLinksErr    error
+	getChangeLinksErr      error
 }
 
 func (m *mockProblemRepo) CreateProblem(_ context.Context, p *models.Problem) error {

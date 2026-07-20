@@ -2,8 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
@@ -11,7 +9,6 @@ import (
 	"orion/platform-svc-go/internal/saga/service"
 
 	"github.com/gin-gonic/gin"
-	"orion/go-common/pkg/errors"
 	"go.opentelemetry.io/otel"
 )
 
@@ -197,4 +194,5 @@ func (h *Handler) GetStep(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, step)
 }
+
 // No local response helpers — all handlers use middleware.RespondXXX (standardized).

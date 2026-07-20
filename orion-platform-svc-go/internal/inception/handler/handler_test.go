@@ -19,12 +19,12 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockSvc struct {
-	healthFn       func(ctx context.Context) (string, error)
-	statusFn       func(ctx context.Context, tenantID string) (bool, string, error)
-	createAuditFn  func(ctx context.Context, tenantID string, req *models.CreateAuditRequest) (*models.SQLAuditHistory, error)
-	listDBsFn      func(ctx context.Context, tenantID string) ([]string, error)
-	listAuditsFn   func(ctx context.Context, tenantID string, offset, limit int) ([]models.SQLAuditHistory, error)
-	countAuditsFn  func(ctx context.Context, tenantID string) (int, error)
+	healthFn      func(ctx context.Context) (string, error)
+	statusFn      func(ctx context.Context, tenantID string) (bool, string, error)
+	createAuditFn func(ctx context.Context, tenantID string, req *models.CreateAuditRequest) (*models.SQLAuditHistory, error)
+	listDBsFn     func(ctx context.Context, tenantID string) ([]string, error)
+	listAuditsFn  func(ctx context.Context, tenantID string, offset, limit int) ([]models.SQLAuditHistory, error)
+	countAuditsFn func(ctx context.Context, tenantID string) (int, error)
 }
 
 func (m *mockSvc) Health(ctx context.Context) (string, error) {

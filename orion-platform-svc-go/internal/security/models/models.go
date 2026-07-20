@@ -70,12 +70,12 @@ type ListVulnerabilitiesOptions struct {
 
 // VulnerabilityReport is the response for listing vulnerabilities with aggregated metadata.
 type VulnerabilityReport struct {
-	Vulnerabilities        []Vulnerability `json:"data"`
-	TotalVulnerabilities   int             `json:"total"`
-	BySeverity             map[string]int  `json:"bySeverity"`
-	ByStatus               map[string]int  `json:"byStatus"`
-	OpenCritical           int             `json:"openCritical"`
-	OpenHigh               int             `json:"openHigh"`
+	Vulnerabilities      []Vulnerability `json:"data"`
+	TotalVulnerabilities int             `json:"total"`
+	BySeverity           map[string]int  `json:"bySeverity"`
+	ByStatus             map[string]int  `json:"byStatus"`
+	OpenCritical         int             `json:"openCritical"`
+	OpenHigh             int             `json:"openHigh"`
 }
 
 // ScanResult is the response for a dependency vulnerability scan.

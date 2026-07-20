@@ -1,15 +1,14 @@
 package handler
 
 import (
-	"context"
 	"strconv"
 
-	"orion/go-common/pkg/auth"
 	"orion/platform-svc-go/internal/chatops/models"
 	"orion/platform-svc-go/internal/chatops/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -492,7 +491,7 @@ func (h *Handler) GetAllowedCommands(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {
-	middleware.RespondForbidden(c, "user not authenticated")
+		middleware.RespondForbidden(c, "user not authenticated")
 		return
 	}
 	commands, err := h.svc.GetUserAllowedCommands(ctx, tenantID, userID)
@@ -502,4 +501,3 @@ func (h *Handler) GetAllowedCommands(c *gin.Context) {
 	}
 	middleware.RespondSuccess(c, gin.H{"commands": commands})
 }
-

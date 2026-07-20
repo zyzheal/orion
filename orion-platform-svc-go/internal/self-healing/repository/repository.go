@@ -11,9 +11,10 @@ import (
 
 	"orion/platform-svc-go/internal/self-healing/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -91,24 +92,24 @@ func (r *Repository) CreateIncident(ctx context.Context, tenantID string, req mo
 	}
 
 	incident := &models.HealingIncident{
-		ID:               uuid.New().String(),
-		TenantID:         tenantID,
-		AlertID:          req.AlertID,
-		Type:             req.Type,
-		Severity:         req.Severity,
-		AppName:          req.AppName,
-		Environment:      req.Environment,
-		Status:           models.IncidentStatusEvaluating,
-		ApprovalStatus:   "not_required",
-		Actions:          "{}",
-		Tags:             tagsJSON,
-		CreatedAt:        now,
-		StartedAt:        now,
-		Attempts:         0,
-		StrategyID:       "",
-		StrategyName:     "",
-		Result:           "",
-		Error:            "",
+		ID:                uuid.New().String(),
+		TenantID:          tenantID,
+		AlertID:           req.AlertID,
+		Type:              req.Type,
+		Severity:          req.Severity,
+		AppName:           req.AppName,
+		Environment:       req.Environment,
+		Status:            models.IncidentStatusEvaluating,
+		ApprovalStatus:    "not_required",
+		Actions:           "{}",
+		Tags:              tagsJSON,
+		CreatedAt:         now,
+		StartedAt:         now,
+		Attempts:          0,
+		StrategyID:        "",
+		StrategyName:      "",
+		Result:            "",
+		Error:             "",
 		ApprovalRequestID: "",
 	}
 

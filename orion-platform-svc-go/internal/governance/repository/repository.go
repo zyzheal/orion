@@ -3,16 +3,16 @@ package repository
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"orion/platform-svc-go/internal/governance/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -76,22 +76,22 @@ func (r *Repository) CreatePolicy(ctx context.Context, req *models.CreatePolicyR
 		`INSERT INTO governance_policies (id, tenant_id, name, description, type, status, severity, rules, scope, enforcement, created_by, applied_count, violation_count, metadata, created_at, updated_at)
 		 VALUES (:id, :tenantId, :name, :description, :type, :status, :severity, :rules, :scope, :enforcement, :createdBy, :appliedCount, :violationCount, :metadata, :createdAt, :updatedAt)`,
 		map[string]interface{}{
-			"id":           p.ID,
-			"tenantId":     p.TenantID,
-			"name":         p.Name,
-			"description":  p.Description,
-			"type":         p.Type,
-			"status":       p.Status,
-			"severity":     p.Severity,
-			"rules":        p.Rules,
-			"scope":        p.Scope,
-			"enforcement":  p.Enforcement,
-			"createdBy":    p.CreatedBy,
-			"appliedCount": p.AppliedCount,
+			"id":             p.ID,
+			"tenantId":       p.TenantID,
+			"name":           p.Name,
+			"description":    p.Description,
+			"type":           p.Type,
+			"status":         p.Status,
+			"severity":       p.Severity,
+			"rules":          p.Rules,
+			"scope":          p.Scope,
+			"enforcement":    p.Enforcement,
+			"createdBy":      p.CreatedBy,
+			"appliedCount":   p.AppliedCount,
 			"violationCount": p.ViolationCount,
-			"metadata":     p.Metadata,
-			"createdAt":    p.CreatedAt,
-			"updatedAt":    p.UpdatedAt,
+			"metadata":       p.Metadata,
+			"createdAt":      p.CreatedAt,
+			"updatedAt":      p.UpdatedAt,
 		})
 	return p, err
 }
@@ -322,13 +322,13 @@ func (r *Repository) CreateComplianceCheck(ctx context.Context, policyID string,
 		`INSERT INTO governance_compliance_checks (id, timestamp, resource_id, resource_type, status, violations, score, recommendations)
 		 VALUES (:id, :timestamp, :resourceId, :resourceType, :status, :violations, :score, :recommendations)`,
 		map[string]interface{}{
-			"id":             uuid.New().String(),
-			"timestamp":      now,
-			"resourceId":     req.ResourceID,
-			"resourceType":   req.ResourceType,
-			"status":         models.ComplianceCompliant,
-			"violations":     "[]",
-			"score":          100,
+			"id":              uuid.New().String(),
+			"timestamp":       now,
+			"resourceId":      req.ResourceID,
+			"resourceType":    req.ResourceType,
+			"status":          models.ComplianceCompliant,
+			"violations":      "[]",
+			"score":           100,
 			"recommendations": `["keep compliant"]`,
 		})
 	_ = policyID
@@ -395,7 +395,7 @@ func (r *Repository) GetPolicyStats(ctx context.Context, tenantID string) (*Poli
 }
 
 type PolicyStats struct {
-	TotalPolicies int `json:"totalPolicies"`
+	TotalPolicies  int `json:"totalPolicies"`
 	ActivePolicies int `json:"activePolicies"`
 }
 

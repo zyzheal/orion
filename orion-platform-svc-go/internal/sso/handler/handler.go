@@ -9,8 +9,9 @@ import (
 	"orion/platform-svc-go/internal/sso/models"
 	"orion/platform-svc-go/internal/sso/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -41,7 +42,7 @@ func (h *Handler) CreateProvider(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-result, err := h.svc.CreateProvider(ctx, tenantID, &provider)
+	result, err := h.svc.CreateProvider(ctx, tenantID, &provider)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -54,7 +55,7 @@ func (h *Handler) GetProvider(c *gin.Context) {
 	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-result, err := h.svc.GetProvider(ctx, tenantID, id)
+	result, err := h.svc.GetProvider(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -101,7 +102,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	q := models.ListProvidersQuery{Limit: limit, Offset: offset}
-result, total, err := h.svc.ListProviders(ctx, tenantID, q)
+	result, total, err := h.svc.ListProviders(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

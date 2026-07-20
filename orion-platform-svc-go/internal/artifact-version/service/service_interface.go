@@ -7,8 +7,9 @@ package service
 
 import (
 	"context"
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/artifact-version/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 // ServiceInterface defines the interface for the artifact-version service.

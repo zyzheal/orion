@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // Repository persists batch operation request records.
@@ -24,13 +22,13 @@ func NewRepository(db *sqlx.DB) *Repository {
 
 // BatchOperationRequest is a persisted record of a batch operation.
 type BatchOperationRequest struct {
-	ID        string     `db:"id" json:"id"`
-	TenantID  string     `db:"tenant_id" json:"tenantId"`
-	Operation string     `db:"operation" json:"operation"`
-	TargetIDs string     `db:"target_ids" json:"targetIds"`
-	Status    string     `db:"status" json:"status"`
-	CreatedAt time.Time  `db:"created_at" json:"createdAt"`
-	UpdatedAt time.Time  `db:"updated_at" json:"updatedAt"`
+	ID        string    `db:"id" json:"id"`
+	TenantID  string    `db:"tenant_id" json:"tenantId"`
+	Operation string    `db:"operation" json:"operation"`
+	TargetIDs string    `db:"target_ids" json:"targetIds"`
+	Status    string    `db:"status" json:"status"`
+	CreatedAt time.Time `db:"created_at" json:"createdAt"`
+	UpdatedAt time.Time `db:"updated_at" json:"updatedAt"`
 }
 
 // CreateOperationRequest inserts a new batch operation request record.

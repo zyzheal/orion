@@ -1,22 +1,21 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math"
-	"sort"
 	"sync"
 	"time"
 
 	"orion/platform-svc-go/internal/efficiency/models"
 
-	"github.com/google/uuid"
 	"orion/go-common/pkg/sentinel"
+
+	"github.com/google/uuid"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -39,7 +38,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrBadRequest = errors.New("bad request")
 	ErrLocked     = errors.New("locked")
 )
@@ -538,4 +536,3 @@ func (s *Service) GetDashboardData(_context context.Context, tenantID string, ti
 		Summary: summary,
 	}
 }
-

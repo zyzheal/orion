@@ -7,7 +7,7 @@ type Build struct {
 	ID            string    `json:"id" db:"id"`
 	TenantID      string    `json:"tenant_id" db:"tenant_id"`
 	Name          string    `json:"name" db:"name"`
-	Status        string    `json:"status" db:"status"`        // queued, running, success, failed
+	Status        string    `json:"status" db:"status"` // queued, running, success, failed
 	PipelineID    string    `json:"pipeline_id" db:"pipeline_id"`
 	ProductLineID string    `json:"product_line_id" db:"product_line_id"`
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
@@ -30,14 +30,14 @@ type UpdateBuildRequest struct {
 
 // BuildImage represents a build image record.
 type BuildImage struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	ImageTag    string    `json:"image_tag" db:"image_tag"`
-	BaseImage   string    `json:"base_image" db:"base_image"`
-	Dockerfile  string    `json:"dockerfile" db:"dockerfile"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ID         string    `json:"id" db:"id"`
+	TenantID   string    `json:"tenant_id" db:"tenant_id"`
+	Name       string    `json:"name" db:"name"`
+	ImageTag   string    `json:"image_tag" db:"image_tag"`
+	BaseImage  string    `json:"base_image" db:"base_image"`
+	Dockerfile string    `json:"dockerfile" db:"dockerfile"`
+	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateBuildImageRequest struct {
@@ -59,8 +59,8 @@ type BuildCacheConfig struct {
 	ID        int       `json:"id" db:"id"`
 	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	Name      string    `json:"name" db:"name"`
-	Level     string    `json:"level" db:"level"`     // local, remote
-	Status    string    `json:"status" db:"status"`   // active, inactive
+	Level     string    `json:"level" db:"level"`   // local, remote
+	Status    string    `json:"status" db:"status"` // active, inactive
 	CacheDir  string    `json:"cache_dir" db:"cache_dir"`
 	TTLHours  int       `json:"ttl_hours" db:"ttl_hours"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -85,11 +85,11 @@ type UpdateBuildCacheConfigRequest struct {
 
 // BuildCacheEntry represents a cache entry.
 type BuildCacheEntry struct {
-	ID        int       `json:"id" db:"id"`
-	ConfigID  int       `json:"config_id" db:"config_id"`
-	Key       string    `json:"key" db:"key"`
-	Value     string    `json:"value" db:"value"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID        int        `json:"id" db:"id"`
+	ConfigID  int        `json:"config_id" db:"config_id"`
+	Key       string     `json:"key" db:"key"`
+	Value     string     `json:"value" db:"value"`
+	CreatedAt time.Time  `json:"created_at" db:"created_at"`
 	ExpiresAt *time.Time `json:"expires_at" db:"expires_at"`
 }
 
@@ -123,23 +123,23 @@ type CacheMetrics struct {
 
 // CacheHealth represents health assessment for a cache.
 type CacheHealth struct {
-	CacheID   string `json:"cache_id"`
-	Healthy   bool   `json:"healthy"`
-	Reason    string `json:"reason,omitempty"`
+	CacheID   string    `json:"cache_id"`
+	Healthy   bool      `json:"healthy"`
+	Reason    string    `json:"reason,omitempty"`
 	LastCheck time.Time `json:"last_check"`
 }
 
 // CachePerformanceImpact represents performance impact analysis.
 type CachePerformanceImpact struct {
-	PipelineID     string  `json:"pipeline_id"`
-	TimeSavedMs    float64 `json:"time_saved_ms"`
-	BuildsWithCache int    `json:"builds_with_cache"`
-	TotalBuilds    int     `json:"total_builds"`
+	PipelineID      string  `json:"pipeline_id"`
+	TimeSavedMs     float64 `json:"time_saved_ms"`
+	BuildsWithCache int     `json:"builds_with_cache"`
+	TotalBuilds     int     `json:"total_builds"`
 }
 
 // RecordCacheEventRequest represents the request body for recording a cache event.
 type RecordCacheEventRequest struct {
-	CacheID       string  `json:"cache_id" binding:"required"`
-	EventType     string  `json:"event_type" binding:"required"` // hit, miss, evict
+	CacheID        string   `json:"cache_id" binding:"required"`
+	EventType      string   `json:"event_type" binding:"required"` // hit, miss, evict
 	LatencySavedMs *float64 `json:"latency_saved_ms"`
 }

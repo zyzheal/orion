@@ -15,13 +15,13 @@ type CommandLog struct {
 }
 
 type CommandLogDetail struct {
-	ID        string `json:"id" db:"id"`
-	CommandID string `json:"command_id" db:"command_id"`
-	Hostname  string `json:"hostname" db:"hostname"`
-	Output    string `json:"output" db:"output"`
+	ID          string `json:"id" db:"id"`
+	CommandID   string `json:"command_id" db:"command_id"`
+	Hostname    string `json:"hostname" db:"hostname"`
+	Output      string `json:"output" db:"output"`
 	ErrorOutput string `json:"error_output" db:"error_output"`
-	ExitCode  int    `json:"exit_code" db:"exit_code"`
-	Status    string `json:"status" db:"status"`
+	ExitCode    int    `json:"exit_code" db:"exit_code"`
+	Status      string `json:"status" db:"status"`
 }
 
 // --- Script Templates ---

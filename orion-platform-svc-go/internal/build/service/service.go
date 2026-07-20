@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/build/models"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -30,7 +30,6 @@ type RepositoryInterface interface {
 }
 
 var (
-
 	ErrInvalidInput = errors.New("invalid input")
 	ErrInvalidState = errors.New("invalid state")
 )

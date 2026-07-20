@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -7,9 +8,8 @@ import (
 	"database/sql"
 	"errors"
 
-	"orion/platform-svc-go/internal/performance/models"
-	"orion/platform-svc-go/internal/performance/repository"
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/performance/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.

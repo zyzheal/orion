@@ -2,14 +2,14 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"orion/platform-svc-go/internal/module/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Repository struct {
@@ -52,11 +52,11 @@ func (r *Repository) UpdateStatus(ctx context.Context, tenantID, id string, enab
 		UPDATE module SET enabled = :enabled, status = :status, updated_at = :updated_at
 		WHERE id = :id AND tenant_id = :tenant_id`,
 		map[string]interface{}{
-			"enabled":     enabled,
-			"status":      status,
-			"updated_at":  time.Now().UTC(),
-			"id":          id,
-			"tenant_id":   tenantID,
+			"enabled":    enabled,
+			"status":     status,
+			"updated_at": time.Now().UTC(),
+			"id":         id,
+			"tenant_id":  tenantID,
 		})
 	if err != nil {
 		return nil, err

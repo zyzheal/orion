@@ -5,52 +5,52 @@ import "time"
 // --- Command ---
 
 type ChatOpsCommand struct {
-	ID             string      `json:"id" db:"id"`
-	TenantID       string      `json:"tenant_id" db:"tenant_id"`
-	Name           string      `json:"name" db:"name"`
-	Subcommand     string      `json:"subcommand" db:"subcommand"`
-	Aliases        string      `json:"aliases" db:"aliases"`
-	Description    string      `json:"description" db:"description"`
-	PermissionLevel string     `json:"permission_level" db:"permission_level"`
-	Schema         string      `json:"schema" db:"schema"`
-	Examples       string      `json:"examples" db:"examples"`
-	CreatedAt      time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt      time.Time   `json:"updated_at" db:"updated_at"`
+	ID              string    `json:"id" db:"id"`
+	TenantID        string    `json:"tenant_id" db:"tenant_id"`
+	Name            string    `json:"name" db:"name"`
+	Subcommand      string    `json:"subcommand" db:"subcommand"`
+	Aliases         string    `json:"aliases" db:"aliases"`
+	Description     string    `json:"description" db:"description"`
+	PermissionLevel string    `json:"permission_level" db:"permission_level"`
+	Schema          string    `json:"schema" db:"schema"`
+	Examples        string    `json:"examples" db:"examples"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type CreateCommandRequest struct {
-	Name          string `json:"name" binding:"required"`
-	Subcommand    string `json:"subcommand"`
-	Aliases       string `json:"aliases"`
-	Description   string `json:"description"`
+	Name            string `json:"name" binding:"required"`
+	Subcommand      string `json:"subcommand"`
+	Aliases         string `json:"aliases"`
+	Description     string `json:"description"`
 	PermissionLevel string `json:"permission_level"`
-	Schema        string `json:"schema"`
-	Examples      string `json:"examples"`
+	Schema          string `json:"schema"`
+	Examples        string `json:"examples"`
 }
 
 type UpdateCommandRequest struct {
-	Name          *string `json:"name"`
-	Subcommand    *string `json:"subcommand"`
-	Description   *string `json:"description"`
+	Name            *string `json:"name"`
+	Subcommand      *string `json:"subcommand"`
+	Description     *string `json:"description"`
 	PermissionLevel *string `json:"permission_level"`
-	Schema        *string `json:"schema"`
-	Examples      *string `json:"examples"`
+	Schema          *string `json:"schema"`
+	Examples        *string `json:"examples"`
 }
 
 // --- Execution ---
 
 type Execution struct {
-	ID          string      `json:"id" db:"id"`
-	TenantID    string      `json:"tenant_id" db:"tenant_id"`
-	CommandID   string      `json:"command_id" db:"command_id"`
-	UserID      string      `json:"user_id" db:"user_id"`
-	Status      string      `json:"status" db:"status"` // running, completed, failed
-	Params      string      `json:"params" db:"params"`
-	Result      string      `json:"result" db:"result"`
-	Milestones  string      `json:"milestones" db:"milestones"`
-	StartTime   time.Time   `json:"start_time" db:"start_time"`
-	EndTime     *time.Time  `json:"end_time" db:"end_time"`
-	CreatedAt   time.Time   `json:"created_at" db:"created_at"`
+	ID         string     `json:"id" db:"id"`
+	TenantID   string     `json:"tenant_id" db:"tenant_id"`
+	CommandID  string     `json:"command_id" db:"command_id"`
+	UserID     string     `json:"user_id" db:"user_id"`
+	Status     string     `json:"status" db:"status"` // running, completed, failed
+	Params     string     `json:"params" db:"params"`
+	Result     string     `json:"result" db:"result"`
+	Milestones string     `json:"milestones" db:"milestones"`
+	StartTime  time.Time  `json:"start_time" db:"start_time"`
+	EndTime    *time.Time `json:"end_time" db:"end_time"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at"`
 }
 
 type ExecuteCommandRequest struct {
@@ -63,21 +63,21 @@ type ExecuteCommandRequest struct {
 // --- Session / Message ---
 
 type ChatOpsSession struct {
-	ID         string    `json:"id" db:"id"`
-	TenantID   string    `json:"tenant_id" db:"tenant_id"`
-	UserID     string    `json:"user_id" db:"user_id"`
-	CreatedAt  time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type ChatOpsMessage struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	SessionID   string    `json:"session_id" db:"session_id"`
-	UserID      string    `json:"user_id" db:"user_id"`
-	Text        string    `json:"text" db:"text"`
-	Platform    string    `json:"platform" db:"platform"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	SessionID string    `json:"session_id" db:"session_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	Text      string    `json:"text" db:"text"`
+	Platform  string    `json:"platform" db:"platform"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 // --- Audit Log ---
@@ -128,21 +128,21 @@ type UpdateNotificationPreferenceRequest struct {
 // --- DND Settings ---
 
 type DNDSettings struct {
-	ID          string     `json:"id" db:"id"`
-	TenantID    string     `json:"tenant_id" db:"tenant_id"`
-	UserID      string     `json:"user_id" db:"user_id"`
-	Enabled     bool       `json:"enabled" db:"enabled"`
-	StartTime   string     `json:"start_time" db:"start_time"`
-	EndTime     string     `json:"end_time" db:"end_time"`
-	RepeatDays  string     `json:"repeat_days" db:"repeat_days"`
-	AllowCritical bool     `json:"allow_critical" db:"allow_critical"`
+	ID            string `json:"id" db:"id"`
+	TenantID      string `json:"tenant_id" db:"tenant_id"`
+	UserID        string `json:"user_id" db:"user_id"`
+	Enabled       bool   `json:"enabled" db:"enabled"`
+	StartTime     string `json:"start_time" db:"start_time"`
+	EndTime       string `json:"end_time" db:"end_time"`
+	RepeatDays    string `json:"repeat_days" db:"repeat_days"`
+	AllowCritical bool   `json:"allow_critical" db:"allow_critical"`
 }
 
 type UpdateDNDRequest struct {
-	Enabled      *bool   `json:"enabled"`
-	StartTime    string  `json:"start_time"`
-	EndTime      string  `json:"end_time"`
-	RepeatDays   string  `json:"repeat_days"`
+	Enabled       *bool  `json:"enabled"`
+	StartTime     string `json:"start_time"`
+	EndTime       string `json:"end_time"`
+	RepeatDays    string `json:"repeat_days"`
 	AllowCritical *bool  `json:"allow_critical"`
 }
 
@@ -153,13 +153,13 @@ type ToggleDNDRequest struct {
 // --- Platform Config ---
 
 type PlatformConfig struct {
-	ID         string `json:"id" db:"id"`
-	TenantID   string `json:"tenant_id" db:"tenant_id"`
-	UserID     string `json:"user_id" db:"user_id"`
-	Platform   string `json:"platform" db:"platform"`
-	Enabled    bool   `json:"enabled" db:"enabled"`
-	Webhook    string `json:"webhook" db:"webhook"`
-	Token      string `json:"token" db:"token"`
+	ID       string `json:"id" db:"id"`
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	UserID   string `json:"user_id" db:"user_id"`
+	Platform string `json:"platform" db:"platform"`
+	Enabled  bool   `json:"enabled" db:"enabled"`
+	Webhook  string `json:"webhook" db:"webhook"`
+	Token    string `json:"token" db:"token"`
 }
 
 type UpdatePlatformConfigRequest struct {
@@ -176,33 +176,33 @@ type PlatformConfigInput struct {
 // --- Alert State ---
 
 type AlertState struct {
-	ID            string    `json:"id" db:"id"`
-	TenantID      string    `json:"tenant_id" db:"tenant_id"`
-	UserID        string    `json:"user_id" db:"user_id"`
-	AlertID       string    `json:"alert_id" db:"alert_id"`
-	Status        string    `json:"status" db:"status"` // unread, read, acknowledged, dismissed
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
+	UserID    string    `json:"user_id" db:"user_id"`
+	AlertID   string    `json:"alert_id" db:"alert_id"`
+	Status    string    `json:"status" db:"status"` // unread, read, acknowledged, dismissed
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // --- Question / Command Config ---
 
 type QuestionConfig struct {
-	ID        string `json:"id" db:"id"`
-	TenantID  string `json:"tenant_id" db:"tenant_id"`
-	UserID    string `json:"user_id" db:"user_id"`
-	Title     string `json:"title" db:"title"`
-	Command   string `json:"command" db:"command"`
-	Enabled   bool   `json:"enabled" db:"enabled"`
+	ID       string `json:"id" db:"id"`
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	UserID   string `json:"user_id" db:"user_id"`
+	Title    string `json:"title" db:"title"`
+	Command  string `json:"command" db:"command"`
+	Enabled  bool   `json:"enabled" db:"enabled"`
 }
 
 type CommandConfig struct {
-	ID        string `json:"id" db:"id"`
-	TenantID  string `json:"tenant_id" db:"tenant_id"`
-	UserID    string `json:"user_id" db:"user_id"`
-	Command   string `json:"command" db:"command"`
-	Params    string `json:"params" db:"params"`
-	Enabled   bool   `json:"enabled" db:"enabled"`
+	ID       string `json:"id" db:"id"`
+	TenantID string `json:"tenant_id" db:"tenant_id"`
+	UserID   string `json:"user_id" db:"user_id"`
+	Command  string `json:"command" db:"command"`
+	Params   string `json:"params" db:"params"`
+	Enabled  bool   `json:"enabled" db:"enabled"`
 }
 
 type UpdateQuestionConfigsRequest struct {
@@ -210,10 +210,10 @@ type UpdateQuestionConfigsRequest struct {
 }
 
 type QuestionConfigInput struct {
-	ID       string `json:"id"`
-	Title    string `json:"title" binding:"required"`
-	Command  string `json:"command" binding:"required"`
-	Enabled  bool   `json:"enabled"`
+	ID      string `json:"id"`
+	Title   string `json:"title" binding:"required"`
+	Command string `json:"command" binding:"required"`
+	Enabled bool   `json:"enabled"`
 }
 
 type UpdateCommandConfigsRequest struct {
@@ -230,40 +230,40 @@ type CommandConfigInput struct {
 // --- Capability Mapping ---
 
 type CapabilityMapping struct {
-	ID              string `json:"id" db:"id"`
-	TenantID        string `json:"tenant_id" db:"tenant_id"`
-	CommandID       string `json:"command_id" db:"command_id"`
-	CapabilityID    string `json:"capability_id" db:"capability_id"`
-	Environment     string `json:"environment" db:"environment"`
-	RiskLevel       int    `json:"risk_level" db:"risk_level"`
-	RequiresApproval bool  `json:"requires_approval" db:"requires_approval"`
+	ID               string `json:"id" db:"id"`
+	TenantID         string `json:"tenant_id" db:"tenant_id"`
+	CommandID        string `json:"command_id" db:"command_id"`
+	CapabilityID     string `json:"capability_id" db:"capability_id"`
+	Environment      string `json:"environment" db:"environment"`
+	RiskLevel        int    `json:"risk_level" db:"risk_level"`
+	RequiresApproval bool   `json:"requires_approval" db:"requires_approval"`
 }
 
 type CreateCapabilityMappingRequest struct {
-	CommandID       string `json:"command_id" binding:"required"`
-	CapabilityID    string `json:"capability_id" binding:"required"`
-	Environment     string `json:"environment"`
-	RiskLevel       int    `json:"risk_level" binding:"required,min=1,max=4"`
-	RequiresApproval bool  `json:"requires_approval"`
+	CommandID        string `json:"command_id" binding:"required"`
+	CapabilityID     string `json:"capability_id" binding:"required"`
+	Environment      string `json:"environment"`
+	RiskLevel        int    `json:"risk_level" binding:"required,min=1,max=4"`
+	RequiresApproval bool   `json:"requires_approval"`
 }
 
 type UpdateCapabilityMappingRequest struct {
-	CommandID       *string `json:"command_id"`
-	CapabilityID    *string `json:"capability_id"`
-	Environment     *string `json:"environment"`
-	RiskLevel       *int    `json:"risk_level"`
-	RequiresApproval *bool  `json:"requires_approval"`
+	CommandID        *string `json:"command_id"`
+	CapabilityID     *string `json:"capability_id"`
+	Environment      *string `json:"environment"`
+	RiskLevel        *int    `json:"risk_level"`
+	RequiresApproval *bool   `json:"requires_approval"`
 }
 
 // --- Approval Config ---
 
 type ApprovalConfig struct {
-	ID         string   `json:"id" db:"id"`
-	TenantID   string   `json:"tenant_id" db:"tenant_id"`
-	Capability string   `json:"capability" db:"capability"`
-	Enabled    bool     `json:"enabled" db:"enabled"`
-	Approvers  string   `json:"approvers" db:"approvers"`
-	Threshold  int      `json:"threshold" db:"threshold"`
+	ID         string `json:"id" db:"id"`
+	TenantID   string `json:"tenant_id" db:"tenant_id"`
+	Capability string `json:"capability" db:"capability"`
+	Enabled    bool   `json:"enabled" db:"enabled"`
+	Approvers  string `json:"approvers" db:"approvers"`
+	Threshold  int    `json:"threshold" db:"threshold"`
 }
 
 type UpdateApprovalConfigRequest struct {
@@ -331,8 +331,8 @@ type CreateRoleRequest struct {
 }
 
 type UpdateRoleRequest struct {
-	Name        *string  `json:"name"`
-	Description *string  `json:"description"`
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
 	Permissions *[]string `json:"permissions"`
 }
 
@@ -359,25 +359,25 @@ type CreateCommandPermissionRequest struct {
 }
 
 type UpdateCommandPermissionRequest struct {
-	Description      *string  `json:"description"`
-	Capability       *string  `json:"capability"`
-	RiskLevel        *int     `json:"risk_level"`
-	RequiresApproval *bool    `json:"requires_approval"`
+	Description      *string   `json:"description"`
+	Capability       *string   `json:"capability"`
+	RiskLevel        *int      `json:"risk_level"`
+	RequiresApproval *bool     `json:"requires_approval"`
 	RoleIDs          *[]string `json:"role_ids"`
 }
 
 // --- Environment Permission ---
 
 type EnvironmentPermission struct {
-	ID                string `json:"id" db:"id"`
-	TenantID          string `json:"tenant_id" db:"tenant_id"`
-	Environment       string `json:"environment" db:"environment"`
-	Description       string `json:"description" db:"description"`
-	RateLimit         int    `json:"rate_limit" db:"rate_limit"`
-	RequireApproval   bool   `json:"require_approval" db:"require_approval"`
-	AllowedCommands   string `json:"allowed_commands" db:"allowed_commands"`
-	DeniedCommands    string `json:"denied_commands" db:"denied_commands"`
-	RoleIDs           string `json:"role_ids" db:"role_ids"`
+	ID              string `json:"id" db:"id"`
+	TenantID        string `json:"tenant_id" db:"tenant_id"`
+	Environment     string `json:"environment" db:"environment"`
+	Description     string `json:"description" db:"description"`
+	RateLimit       int    `json:"rate_limit" db:"rate_limit"`
+	RequireApproval bool   `json:"require_approval" db:"require_approval"`
+	AllowedCommands string `json:"allowed_commands" db:"allowed_commands"`
+	DeniedCommands  string `json:"denied_commands" db:"denied_commands"`
+	RoleIDs         string `json:"role_ids" db:"role_ids"`
 }
 
 type CreateEnvironmentPermissionRequest struct {
@@ -391,9 +391,9 @@ type CreateEnvironmentPermissionRequest struct {
 }
 
 type UpdateEnvironmentPermissionRequest struct {
-	Description     *string  `json:"description"`
-	RateLimit       *int     `json:"rate_limit"`
-	RequireApproval *bool    `json:"require_approval"`
+	Description     *string   `json:"description"`
+	RateLimit       *int      `json:"rate_limit"`
+	RequireApproval *bool     `json:"require_approval"`
 	AllowedCommands *[]string `json:"allowed_commands"`
 	DeniedCommands  *[]string `json:"denied_commands"`
 	RoleIDs         *[]string `json:"role_ids"`
@@ -459,19 +459,19 @@ type CreateRateLimitRequest struct {
 // --- Webhook ---
 
 type Webhook struct {
-	ID          string    `json:"id" db:"id"`
-	TenantID    string    `json:"tenant_id" db:"tenant_id"`
-	Name        string    `json:"name" db:"name"`
-	URL         string    `json:"url" db:"url"`
-	Events      string    `json:"events" db:"events"`
-	SecretKey   string    `json:"secret_key" db:"secret_key"`
-	Enabled     bool      `json:"enabled" db:"enabled"`
-	RetryCount  int       `json:"retry_count" db:"retry_count"`
-	TimeoutSeconds int    `json:"timeout_seconds" db:"timeout_seconds"`
-	Headers     string    `json:"headers" db:"headers"`
-	Description string    `json:"description" db:"description"`
-	CreatedBy   string    `json:"created_by" db:"created_by"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID             string    `json:"id" db:"id"`
+	TenantID       string    `json:"tenant_id" db:"tenant_id"`
+	Name           string    `json:"name" db:"name"`
+	URL            string    `json:"url" db:"url"`
+	Events         string    `json:"events" db:"events"`
+	SecretKey      string    `json:"secret_key" db:"secret_key"`
+	Enabled        bool      `json:"enabled" db:"enabled"`
+	RetryCount     int       `json:"retry_count" db:"retry_count"`
+	TimeoutSeconds int       `json:"timeout_seconds" db:"timeout_seconds"`
+	Headers        string    `json:"headers" db:"headers"`
+	Description    string    `json:"description" db:"description"`
+	CreatedBy      string    `json:"created_by" db:"created_by"`
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }
 
 type CreateWebhookRequest struct {
@@ -501,21 +501,21 @@ type DashboardStatsRequest struct {
 }
 
 type DashboardStatsResult struct {
-	TotalCommands    int               `json:"total_commands"`
-	TotalExecutions  int               `json:"total_executions"`
-	SuccessRate      float64           `json:"success_rate"`
-	TopCommands      []map[string]interface{} `json:"top_commands"`
-	ActiveUsers      int               `json:"active_users"`
+	TotalCommands   int                      `json:"total_commands"`
+	TotalExecutions int                      `json:"total_executions"`
+	SuccessRate     float64                  `json:"success_rate"`
+	TopCommands     []map[string]interface{} `json:"top_commands"`
+	ActiveUsers     int                      `json:"active_users"`
 }
 
 // --- Health Check ---
 
 type HealthCheckResult struct {
-	Success   bool            `json:"success"`
-	EventBus  map[string]interface{} `json:"event_bus"`
-	SSE       map[string]interface{} `json:"sse"`
+	Success       bool                   `json:"success"`
+	EventBus      map[string]interface{} `json:"event_bus"`
+	SSE           map[string]interface{} `json:"sse"`
 	Subscriptions map[string]interface{} `json:"subscriptions"`
-	Metrics   map[string]interface{} `json:"metrics"`
+	Metrics       map[string]interface{} `json:"metrics"`
 }
 
 // --- Knowledge Recommendation ---
@@ -530,8 +530,8 @@ type KnowledgeRecommendation struct {
 // --- User Allowed Commands ---
 
 type AllowedCommandsResult struct {
-	UserID     string   `json:"user_id"`
-	Commands   []string `json:"commands"`
+	UserID   string   `json:"user_id"`
+	Commands []string `json:"commands"`
 }
 
 // --- Message (Webhook receive) ---

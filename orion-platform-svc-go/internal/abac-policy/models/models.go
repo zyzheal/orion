@@ -4,17 +4,17 @@ import "time"
 
 // ABACPolicy represents an attribute-based access control policy.
 type ABACPolicy struct {
-	ID          string            `db:"id" json:"id"`
-	TenantID    string            `db:"tenant_id" json:"tenant_id"`
-	Name        string            `db:"name" json:"name"`
-	Description string            `db:"description" json:"description"`
-	ResourceType string           `db:"resource_type" json:"resource_type"`
-	Action      string            `db:"action" json:"action"`
-	Effect      string            `db:"effect" json:"effect"` // allow|deny
-	Conditions  map[string]string `db:"conditions" json:"conditions"`
-	Status      string            `db:"status" json:"status"` // active|inactive
-	CreatedAt   time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time         `db:"updated_at" json:"updated_at"`
+	ID           string            `db:"id" json:"id"`
+	TenantID     string            `db:"tenant_id" json:"tenant_id"`
+	Name         string            `db:"name" json:"name"`
+	Description  string            `db:"description" json:"description"`
+	ResourceType string            `db:"resource_type" json:"resource_type"`
+	Action       string            `db:"action" json:"action"`
+	Effect       string            `db:"effect" json:"effect"` // allow|deny
+	Conditions   map[string]string `db:"conditions" json:"conditions"`
+	Status       string            `db:"status" json:"status"` // active|inactive
+	CreatedAt    time.Time         `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time         `db:"updated_at" json:"updated_at"`
 }
 
 // CreateABACPolicyRequest is the request body for creating an ABAC policy.

@@ -46,41 +46,96 @@ func newMockRepo() *mockTenantRepo {
 	}
 }
 
-func (m *mockTenantRepo) ListTenants(_ context.Context, status *string, limit, offset int) ([]map[string]any, int, error) { return m.listTenants, m.listTenantsTotal, m.dbErr }
-func (m *mockTenantRepo) GetTenantRow(_ context.Context, _ string) (*map[string]any, error) { return m.getTenant, m.getTenantErr }
-func (m *mockTenantRepo) GetTenantByRow(_ context.Context, _ string) (*map[string]any, error) { return m.getTenant, m.getTenantErr }
-func (m *mockTenantRepo) CreateTenant(_ context.Context, _ string, _ *string, _, _ string) (*int, error) {
-	if m.createErr != nil { return nil, m.createErr }
-	id := 1; return &id, nil
+func (m *mockTenantRepo) ListTenants(_ context.Context, status *string, limit, offset int) ([]map[string]any, int, error) {
+	return m.listTenants, m.listTenantsTotal, m.dbErr
 }
-func (m *mockTenantRepo) UpdateTenant(_ context.Context, _ string, _ *string, _ *string, _ *string, _ string) error { return m.updateErr }
+func (m *mockTenantRepo) GetTenantRow(_ context.Context, _ string) (*map[string]any, error) {
+	return m.getTenant, m.getTenantErr
+}
+func (m *mockTenantRepo) GetTenantByRow(_ context.Context, _ string) (*map[string]any, error) {
+	return m.getTenant, m.getTenantErr
+}
+func (m *mockTenantRepo) CreateTenant(_ context.Context, _ string, _ *string, _, _ string) (*int, error) {
+	if m.createErr != nil {
+		return nil, m.createErr
+	}
+	id := 1
+	return &id, nil
+}
+func (m *mockTenantRepo) UpdateTenant(_ context.Context, _ string, _ *string, _ *string, _ *string, _ string) error {
+	return m.updateErr
+}
 func (m *mockTenantRepo) DeleteTenant(_ context.Context, _ string) error { return m.deleteErr }
-func (m *mockTenantRepo) TenantCount(_ context.Context, _ *string) (int, error) { return m.count, m.dbErr }
-func (m *mockTenantRepo) GetQuota(_ context.Context, _ int, _ string) (*map[string]any, error) { return m.quota, m.quotaErr }
-func (m *mockTenantRepo) UpsertQuota(_ context.Context, _ int, _ string, _ *models.TenantQuota) error { return m.dbErr }
-func (m *mockTenantRepo) PoolStatus(_ context.Context) (*map[string]any, error) { return m.poolStatus, m.dbErr }
-func (m *mockTenantRepo) AllocateNamespace(_ context.Context, _ int, _, _ string) error { return m.dbErr }
+func (m *mockTenantRepo) TenantCount(_ context.Context, _ *string) (int, error) {
+	return m.count, m.dbErr
+}
+func (m *mockTenantRepo) GetQuota(_ context.Context, _ int, _ string) (*map[string]any, error) {
+	return m.quota, m.quotaErr
+}
+func (m *mockTenantRepo) UpsertQuota(_ context.Context, _ int, _ string, _ *models.TenantQuota) error {
+	return m.dbErr
+}
+func (m *mockTenantRepo) PoolStatus(_ context.Context) (*map[string]any, error) {
+	return m.poolStatus, m.dbErr
+}
+func (m *mockTenantRepo) AllocateNamespace(_ context.Context, _ int, _, _ string) error {
+	return m.dbErr
+}
 func (m *mockTenantRepo) ReleaseNamespace(_ context.Context, _ string) error { return m.dbErr }
-func (m *mockTenantRepo) GetTenantNamespaces(_ context.Context, _ string) ([]map[string]any, error) { return m.namespaces, m.dbErr }
-func (m *mockTenantRepo) NamespaceCount(_ context.Context, _ string) (int, error) { return len(m.namespaces), m.dbErr }
-func (m *mockTenantRepo) MigrateUserToTenant(_ context.Context, _ int, _ string) error { return m.dbErr }
+func (m *mockTenantRepo) GetTenantNamespaces(_ context.Context, _ string) ([]map[string]any, error) {
+	return m.namespaces, m.dbErr
+}
+func (m *mockTenantRepo) NamespaceCount(_ context.Context, _ string) (int, error) {
+	return len(m.namespaces), m.dbErr
+}
+func (m *mockTenantRepo) MigrateUserToTenant(_ context.Context, _ int, _ string) error {
+	return m.dbErr
+}
 func (m *mockTenantRepo) RemoveTenantUser(_ context.Context, _, _ string) error { return m.dbErr }
-func (m *mockTenantRepo) CountTenantAdmins(_ context.Context, _ string) (int, error) { return m.adminCount, m.dbErr }
-func (m *mockTenantRepo) GetUserTenants(_ context.Context, _ string) ([]map[string]any, error) { return m.userTenants, m.dbErr }
-func (m *mockTenantRepo) ListTenantUsers(_ context.Context, _ string) ([]map[string]any, error) { return m.listUsers, m.dbErr }
+func (m *mockTenantRepo) CountTenantAdmins(_ context.Context, _ string) (int, error) {
+	return m.adminCount, m.dbErr
+}
+func (m *mockTenantRepo) GetUserTenants(_ context.Context, _ string) ([]map[string]any, error) {
+	return m.userTenants, m.dbErr
+}
+func (m *mockTenantRepo) ListTenantUsers(_ context.Context, _ string) ([]map[string]any, error) {
+	return m.listUsers, m.dbErr
+}
 func (m *mockTenantRepo) AddTenantUser(_ context.Context, _, _, _ string) error { return m.dbErr }
-func (m *mockTenantRepo) GetPendingInvite(_ context.Context, _, _ string) (*map[string]any, error) { return m.invitePending, m.inviteErr }
-func (m *mockTenantRepo) GetTenantUserByEmail(_ context.Context, _, _ string) (bool, error) { return false, m.inviteErr }
-func (m *mockTenantRepo) CreateInvite(_ context.Context, _, _, _, _, _, _ string) (*map[string]any, error) { return m.inviteInfo, m.inviteErr }
-func (m *mockTenantRepo) GetInviteByCode(_ context.Context, _ string) (*map[string]any, error) { return m.inviteInfo, m.inviteErr }
+func (m *mockTenantRepo) GetPendingInvite(_ context.Context, _, _ string) (*map[string]any, error) {
+	return m.invitePending, m.inviteErr
+}
+func (m *mockTenantRepo) GetTenantUserByEmail(_ context.Context, _, _ string) (bool, error) {
+	return false, m.inviteErr
+}
+func (m *mockTenantRepo) CreateInvite(_ context.Context, _, _, _, _, _, _ string) (*map[string]any, error) {
+	return m.inviteInfo, m.inviteErr
+}
+func (m *mockTenantRepo) GetInviteByCode(_ context.Context, _ string) (*map[string]any, error) {
+	return m.inviteInfo, m.inviteErr
+}
 func (m *mockTenantRepo) UpdateInviteStatus(_ context.Context, _, _, _ string) error { return m.dbErr }
-func (m *mockTenantRepo) UserIsTenantMember(_ context.Context, _, _ string) (bool, error) { return false, m.dbErr }
-func (m *mockTenantRepo) MoveNamespaces(_ context.Context, _ int, _ string, _ int) error { return m.dbErr }
-func (m *mockTenantRepo) MovePipeline(_ context.Context, _ int, _ string, _ int) error { return m.dbErr }
-func (m *mockTenantRepo) GetTenantQuotaAlerts(_ context.Context, tenantID string, status *string, limit, offset int) ([]map[string]any, int, error) { return nil, 0, m.dbErr }
-func (m *mockTenantRepo) GetAlertStatusCounts(_ context.Context, _ string) ([]map[string]any, error) { return nil, m.dbErr }
-func (m *mockTenantRepo) GetAlertResourceCounts(_ context.Context, _ string) ([]map[string]any, error) { return nil, m.dbErr }
-func (m *mockTenantRepo) GetActiveAlerts(_ context.Context, _ string, _ int) ([]map[string]any, error) { return nil, m.dbErr }
+func (m *mockTenantRepo) UserIsTenantMember(_ context.Context, _, _ string) (bool, error) {
+	return false, m.dbErr
+}
+func (m *mockTenantRepo) MoveNamespaces(_ context.Context, _ int, _ string, _ int) error {
+	return m.dbErr
+}
+func (m *mockTenantRepo) MovePipeline(_ context.Context, _ int, _ string, _ int) error {
+	return m.dbErr
+}
+func (m *mockTenantRepo) GetTenantQuotaAlerts(_ context.Context, tenantID string, status *string, limit, offset int) ([]map[string]any, int, error) {
+	return nil, 0, m.dbErr
+}
+func (m *mockTenantRepo) GetAlertStatusCounts(_ context.Context, _ string) ([]map[string]any, error) {
+	return nil, m.dbErr
+}
+func (m *mockTenantRepo) GetAlertResourceCounts(_ context.Context, _ string) ([]map[string]any, error) {
+	return nil, m.dbErr
+}
+func (m *mockTenantRepo) GetActiveAlerts(_ context.Context, _ string, _ int) ([]map[string]any, error) {
+	return nil, m.dbErr
+}
 
 func newHandlerWithSvc(svc *service.Service) *Handler { return NewHandler(svc) }
 
@@ -97,11 +152,15 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 	c.Request = httptest.NewRequest(method, "/", &buf)
 	c.Request.Header.Set("Content-Type", "application/json")
 	if pathParams != nil {
-		for k, v := range pathParams { c.Params = append(c.Params, gin.Param{Key: k, Value: v}) }
+		for k, v := range pathParams {
+			c.Params = append(c.Params, gin.Param{Key: k, Value: v})
+		}
 	}
 	if queryParams != nil {
 		q := c.Request.URL.Query()
-		for k, v := range queryParams { q.Set(k, v) }
+		for k, v := range queryParams {
+			q.Set(k, v)
+		}
 		c.Request.URL.RawQuery = q.Encode()
 	}
 	handlerFn(c)
@@ -115,7 +174,9 @@ func TestHandler_List_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.List, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_Create_Success(t *testing.T) {
@@ -123,7 +184,9 @@ func TestHandler_Create_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Create, "POST", models.CreateTenantRequest{Name: "acme"}, nil, nil)
-	if w.Code != http.StatusCreated { t.Errorf("expected 201, got %d", w.Code) }
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d", w.Code)
+	}
 }
 
 func TestHandler_Get_Success(t *testing.T) {
@@ -133,7 +196,9 @@ func TestHandler_Get_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_Get_NotFound(t *testing.T) {
@@ -142,7 +207,9 @@ func TestHandler_Get_NotFound(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Get, "GET", nil, map[string]string{"id": "999"}, nil)
-	if w.Code != http.StatusNotFound { t.Errorf("expected 404, got %d", w.Code) }
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
 }
 
 func TestHandler_Delete_Success(t *testing.T) {
@@ -150,7 +217,9 @@ func TestHandler_Delete_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Delete, "DELETE", nil, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusNoContent { t.Errorf("expected 204, got %d", w.Code) }
+	if w.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d", w.Code)
+	}
 }
 
 func TestHandler_Update_ServiceError(t *testing.T) {
@@ -159,7 +228,9 @@ func TestHandler_Update_ServiceError(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Update, "PUT", map[string]interface{}{"name": "updated"}, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusInternalServerError { t.Errorf("expected 500, got %d", w.Code) }
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetCurrent_Success(t *testing.T) {
@@ -169,7 +240,9 @@ func TestHandler_GetCurrent_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.GetCurrent, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetQuota_Success(t *testing.T) {
@@ -179,7 +252,9 @@ func TestHandler_GetQuota_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.GetQuota, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_Invite_Success(t *testing.T) {
@@ -191,7 +266,9 @@ func TestHandler_Invite_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Invite, "POST", models.InviteRequest{Email: "a@b.com", Role: "admin"}, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusCreated { t.Errorf("expected 201, got %d", w.Code) }
+	if w.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d", w.Code)
+	}
 }
 
 func TestHandler_Invite_UserAlreadyMember(t *testing.T) {
@@ -204,7 +281,9 @@ func TestHandler_Invite_UserAlreadyMember(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.Invite, "POST", models.InviteRequest{Email: "a@b.com", Role: "admin"}, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusBadRequest { t.Errorf("expected 400, got %d", w.Code) }
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
 }
 
 func TestHandler_GetMiddlewareConfig(t *testing.T) {
@@ -212,7 +291,9 @@ func TestHandler_GetMiddlewareConfig(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.GetMiddlewareConfig, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_ListUsers_Success(t *testing.T) {
@@ -221,7 +302,9 @@ func TestHandler_ListUsers_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.ListUsers, "GET", nil, map[string]string{"id": "1"}, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }
 
 func TestHandler_AlertStats_Success(t *testing.T) {
@@ -229,5 +312,7 @@ func TestHandler_AlertStats_Success(t *testing.T) {
 	svc := service.NewService(repo)
 	h := newHandlerWithSvc(svc)
 	w := performRequest(h, h.AlertStats, "GET", nil, nil, nil)
-	if w.Code != http.StatusOK { t.Errorf("expected 200, got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
 }

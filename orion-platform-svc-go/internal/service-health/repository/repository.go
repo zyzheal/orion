@@ -9,9 +9,10 @@ import (
 
 	"orion/platform-svc-go/internal/service-health/models"
 
+	"orion/go-common/pkg/sentinel"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"orion/go-common/pkg/sentinel"
 )
 
 // sentinel.NotFound is returned when a health check is not found within a tenant.
@@ -127,11 +128,11 @@ func (r *Repository) RecordResult(ctx context.Context, checkID string, status mo
 		INSERT INTO service_health_results (check_id, status, response_time_ms, error, checked_at)
 		VALUES (:check_id, :status, :response_time_ms, :error, :checked_at)`,
 		map[string]interface{}{
-			"check_id":       checkID,
-			"status":         status,
+			"check_id":         checkID,
+			"status":           status,
 			"response_time_ms": responseTimeMs,
-			"error":          errMsg,
-			"checked_at":     checkedAt,
+			"error":            errMsg,
+			"checked_at":       checkedAt,
 		})
 	return err
 }

@@ -67,15 +67,15 @@ type CreateFunctionRequest struct {
 
 // UpdateFunctionRequest is the body for updating a function.
 type UpdateFunctionRequest struct {
-	Name        *string            `json:"name"`
-	Description *string            `json:"description"`
-	Runtime     *FunctionRuntime   `json:"runtime"`
-	Handler     *string            `json:"handler"`
-	Memory      *int               `json:"memory"`
-	Timeout     *int               `json:"timeout"`
-	Environment map[string]string  `json:"environment"`
-	Code        *string            `json:"code"`
-	Replicas    *int               `json:"replicas"`
+	Name        *string           `json:"name"`
+	Description *string           `json:"description"`
+	Runtime     *FunctionRuntime  `json:"runtime"`
+	Handler     *string           `json:"handler"`
+	Memory      *int              `json:"memory"`
+	Timeout     *int              `json:"timeout"`
+	Environment map[string]string `json:"environment"`
+	Code        *string           `json:"code"`
+	Replicas    *int              `json:"replicas"`
 }
 
 // ListFunctionsQuery filters used when listing functions.
@@ -86,30 +86,30 @@ type ListFunctionsQuery struct {
 
 // Deployment represents a deployment of a function.
 type Deployment struct {
-	ID        string     `db:"id" json:"id"`
-	TenantID  string     `db:"tenant_id" json:"tenant_id"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
 	FunctionID string    `db:"function_id" json:"function_id"`
-	Status    string     `db:"status" json:"status"`
-	CreatedAt time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time  `db:"updated_at" json:"updated_at"`
+	Status     string    `db:"status" json:"status"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // InvokeResult is the result of invoking a function.
 type InvokeResult struct {
-	Success bool   `json:"success"`
-	Output  string `json:"output,omitempty"`
-	Error   string `json:"error,omitempty"`
-	DurationMs int `json:"duration_ms"`
+	Success    bool   `json:"success"`
+	Output     string `json:"output,omitempty"`
+	Error      string `json:"error,omitempty"`
+	DurationMs int    `json:"duration_ms"`
 }
 
 // FunctionLog represents a log entry for a function invocation.
 type FunctionLog struct {
-	ID        string    `db:"id" json:"id"`
-	TenantID  string    `db:"tenant_id" json:"tenant_id"`
-	FunctionID string   `db:"function_id" json:"function_id"`
-	Level     string    `db:"level" json:"level"`
-	Message   string    `db:"message" json:"message"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	ID         string    `db:"id" json:"id"`
+	TenantID   string    `db:"tenant_id" json:"tenant_id"`
+	FunctionID string    `db:"function_id" json:"function_id"`
+	Level      string    `db:"level" json:"level"`
+	Message    string    `db:"message" json:"message"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 // GetFunctionLogsQuery filters used when getting function logs.
@@ -120,21 +120,21 @@ type GetFunctionLogsQuery struct {
 
 // FunctionMetric represents a metric for a function.
 type FunctionMetric struct {
-	FunctionID   string  `db:"function_id" json:"function_id"`
-	Invocations  int64   `json:"invocations"`
+	FunctionID    string  `db:"function_id" json:"function_id"`
+	Invocations   int64   `json:"invocations"`
 	AvgDurationMs float64 `json:"avg_duration_ms"`
-	ErrorCount   int64   `json:"error_count"`
-	ErrorRate    float64 `json:"error_rate"`
+	ErrorCount    int64   `json:"error_count"`
+	ErrorRate     float64 `json:"error_rate"`
 	MemoryUsageMB float64 `json:"memory_usage_mb"`
 }
 
 // AggregateMetrics returns aggregate metrics across all functions for a tenant.
 type AggregateMetrics struct {
-	TenantID       string             `json:"tenant_id"`
-	TotalFunctions int                `json:"total_functions"`
+	TenantID         string           `json:"tenant_id"`
+	TotalFunctions   int              `json:"total_functions"`
 	TotalInvocations int64            `json:"total_invocations"`
-	AvgErrorRate   float64            `json:"avg_error_rate"`
-	TopFunctions   []FunctionMetric   `json:"top_functions"`
+	AvgErrorRate     float64          `json:"avg_error_rate"`
+	TopFunctions     []FunctionMetric `json:"top_functions"`
 }
 
 // Trigger represents a trigger for a serverless function.
@@ -165,9 +165,9 @@ type ListTriggersQuery struct {
 
 // AutoScalingRecommendation represents an auto-scaling recommendation.
 type AutoScalingRecommendation struct {
-	FunctionID    string `json:"function_id"`
-	FunctionName  string `json:"function_name"`
-	CurrentReplicas int  `json:"current_replicas"`
-	RecommendedReplicas int `json:"recommended_replicas"`
-	Reason        string `json:"reason"`
+	FunctionID          string `json:"function_id"`
+	FunctionName        string `json:"function_name"`
+	CurrentReplicas     int    `json:"current_replicas"`
+	RecommendedReplicas int    `json:"recommended_replicas"`
+	Reason              string `json:"reason"`
 }

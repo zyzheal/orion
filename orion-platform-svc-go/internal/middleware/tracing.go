@@ -7,12 +7,11 @@ import (
 	"encoding/hex"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/attribute"
-	otelstd "go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel"
-
-	"orion/go-common/pkg/otel" // shared OTel config
+	otelstd "go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // traceHeader is the canonical header name used for cross-service trace IDs.

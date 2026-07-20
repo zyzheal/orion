@@ -1,4 +1,5 @@
 package service
+
 //go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
 //go:generate mockgen -destination=mock_repository.go -package=service . RepositoryInterface
 
@@ -9,9 +10,9 @@ import (
 	"math"
 	"time"
 
+	"orion/go-common/pkg/sentinel"
 	"orion/platform-svc-go/internal/progressive/models"
 	"orion/platform-svc-go/internal/progressive/repository"
-	"orion/go-common/pkg/sentinel"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -45,7 +46,6 @@ func NewService(repo RepositoryInterface) *Service {
 // ---------------------------------------------------------------------------
 
 var (
-
 	ErrBadRequest        = errors.New("bad request")
 	ErrInvalidStrategy   = errors.New("invalid strategy: must be canary, blue_green, or rolling")
 	ErrInvalidState      = errors.New("invalid state transition")

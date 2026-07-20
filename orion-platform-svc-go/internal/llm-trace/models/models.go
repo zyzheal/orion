@@ -18,46 +18,46 @@ const (
 // --- Default model pricing (CNY per token) ---
 
 var DefaultModelPricing = map[string]ModelPricing{
-	"gpt-4":           {Input: 0.002, Output: 0.004},
-	"gpt-4-turbo":     {Input: 0.001, Output: 0.002},
-	"gpt-3.5-turbo":   {Input: 0.0003, Output: 0.0006},
-	"claude-opus":     {Input: 0.003, Output: 0.006},
-	"claude-sonnet":   {Input: 0.001, Output: 0.002},
-	"claude-haiku":    {Input: 0.0003, Output: 0.0006},
-	"qwen-max":        {Input: 0.0005, Output: 0.001},
-	"deepseek":        {Input: 0.0003, Output: 0.0006},
+	"gpt-4":         {Input: 0.002, Output: 0.004},
+	"gpt-4-turbo":   {Input: 0.001, Output: 0.002},
+	"gpt-3.5-turbo": {Input: 0.0003, Output: 0.0006},
+	"claude-opus":   {Input: 0.003, Output: 0.006},
+	"claude-sonnet": {Input: 0.001, Output: 0.002},
+	"claude-haiku":  {Input: 0.0003, Output: 0.0006},
+	"qwen-max":      {Input: 0.0005, Output: 0.001},
+	"deepseek":      {Input: 0.0003, Output: 0.0006},
 }
 
 // --- Core entity: LLMTrace ---
 
 // LLMTrace records a single LLM call with token usage and cost.
 type LLMTrace struct {
-	ID                  string            `db:"id" json:"id"`
-	TenantID            string            `db:"tenant_id" json:"tenantId"`
-	UserID              sql.NullString    `db:"user_id" json:"userId"`
-	ScenarioID          sql.NullString    `db:"scenario_id" json:"scenarioId"`
-	ProviderID          sql.NullString    `db:"provider_id" json:"providerId"`
-	ModelID             string            `db:"model_id" json:"modelId"`
-	PromptContent       sql.NullString    `db:"prompt_content" json:"promptContent"`
-	PromptHash          string            `db:"prompt_hash" json:"promptHash"`
-	OutputContent       sql.NullString    `db:"output_content" json:"outputContent"`
-	OutputHash          sql.NullString    `db:"output_hash" json:"outputHash"`
-	InputTokens         int               `db:"input_tokens" json:"inputTokens"`
-	OutputTokens        int               `db:"output_tokens" json:"outputTokens"`
-	TotalTokens         int               `db:"total_tokens" json:"totalTokens"`
-	InputCost           float64           `db:"input_cost" json:"inputCost"`
-	OutputCost          float64           `db:"output_cost" json:"outputCost"`
-	TotalCost           float64           `db:"total_cost" json:"totalCost"`
-	Currency            string            `db:"currency" json:"currency"`
-	Status              TraceStatus       `db:"status" json:"status"`
-	RequestStartedAt    time.Time         `db:"request_started_at" json:"requestStartedAt"`
-	RequestCompletedAt  sql.NullTime      `db:"request_completed_at" json:"requestCompletedAt"`
-	DurationMs          sql.NullInt64     `db:"duration_ms" json:"durationMs"`
-	ParentTraceID       sql.NullString    `db:"parent_trace_id" json:"parentTraceId"`
-	ErrorMessage        sql.NullString    `db:"error_message" json:"errorMessage"`
-	RequestContext      sql.NullString    `db:"request_context" json:"requestContext"` // JSONB
-	Metadata            sql.NullString    `db:"metadata" json:"metadata"`               // JSONB
-	CreatedAt           time.Time         `db:"created_at" json:"createdAt"`
+	ID                 string         `db:"id" json:"id"`
+	TenantID           string         `db:"tenant_id" json:"tenantId"`
+	UserID             sql.NullString `db:"user_id" json:"userId"`
+	ScenarioID         sql.NullString `db:"scenario_id" json:"scenarioId"`
+	ProviderID         sql.NullString `db:"provider_id" json:"providerId"`
+	ModelID            string         `db:"model_id" json:"modelId"`
+	PromptContent      sql.NullString `db:"prompt_content" json:"promptContent"`
+	PromptHash         string         `db:"prompt_hash" json:"promptHash"`
+	OutputContent      sql.NullString `db:"output_content" json:"outputContent"`
+	OutputHash         sql.NullString `db:"output_hash" json:"outputHash"`
+	InputTokens        int            `db:"input_tokens" json:"inputTokens"`
+	OutputTokens       int            `db:"output_tokens" json:"outputTokens"`
+	TotalTokens        int            `db:"total_tokens" json:"totalTokens"`
+	InputCost          float64        `db:"input_cost" json:"inputCost"`
+	OutputCost         float64        `db:"output_cost" json:"outputCost"`
+	TotalCost          float64        `db:"total_cost" json:"totalCost"`
+	Currency           string         `db:"currency" json:"currency"`
+	Status             TraceStatus    `db:"status" json:"status"`
+	RequestStartedAt   time.Time      `db:"request_started_at" json:"requestStartedAt"`
+	RequestCompletedAt sql.NullTime   `db:"request_completed_at" json:"requestCompletedAt"`
+	DurationMs         sql.NullInt64  `db:"duration_ms" json:"durationMs"`
+	ParentTraceID      sql.NullString `db:"parent_trace_id" json:"parentTraceId"`
+	ErrorMessage       sql.NullString `db:"error_message" json:"errorMessage"`
+	RequestContext     sql.NullString `db:"request_context" json:"requestContext"` // JSONB
+	Metadata           sql.NullString `db:"metadata" json:"metadata"`              // JSONB
+	CreatedAt          time.Time      `db:"created_at" json:"createdAt"`
 }
 
 // --- Pricing ---
@@ -125,9 +125,9 @@ type CostBreakdownQuery struct {
 
 // CostEstimateRequest is the body for estimating cost.
 type CostEstimateRequest struct {
-	ModelID       string `json:"modelId" binding:"required"`
-	InputTokens   int    `json:"inputTokens" binding:"required"`
-	OutputTokens  int    `json:"outputTokens" binding:"required"`
+	ModelID      string `json:"modelId" binding:"required"`
+	InputTokens  int    `json:"inputTokens" binding:"required"`
+	OutputTokens int    `json:"outputTokens" binding:"required"`
 }
 
 // TraceCreateRequest is the body for creating a trace.

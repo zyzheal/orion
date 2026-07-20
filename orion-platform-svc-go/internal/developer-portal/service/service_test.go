@@ -10,12 +10,12 @@ import (
 )
 
 type mockDPRepo struct {
-	portals  map[string]*models.DeveloperPortal
-	docs     map[string]*models.PortalDocument
-	rules    map[string]*models.MockRule
-	tasks    map[string]*models.SDKTask
-	subs     map[string]*models.Subscription
-	dbErr    error
+	portals map[string]*models.DeveloperPortal
+	docs    map[string]*models.PortalDocument
+	rules   map[string]*models.MockRule
+	tasks   map[string]*models.SDKTask
+	subs    map[string]*models.Subscription
+	dbErr   error
 }
 
 func newMockDPRepo() *mockDPRepo {
@@ -424,9 +424,9 @@ func TestCreateDocument_Success(t *testing.T) {
 	svc := newTestDPService(repo)
 
 	d, err := svc.CreateDocument(ctx, "t1", "u1", models.CreateDocumentRequest{
-		Title:   "doc1",
+		Title:    "doc1",
 		Category: "guide",
-		Content: "content",
+		Content:  "content",
 	})
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)

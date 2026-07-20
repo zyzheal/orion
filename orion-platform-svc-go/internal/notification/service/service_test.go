@@ -177,20 +177,36 @@ func TestNotificationCreate_SourceFieldResolution(t *testing.T) {
 	}
 
 	var rid, rtype, rmeta string
-	if req.SourceID != nil { rid = *req.SourceID }
-	if req.SourceType != nil { rtype = *req.SourceType }
-	if req.Metadata != nil { rmeta = *req.Metadata }
+	if req.SourceID != nil {
+		rid = *req.SourceID
+	}
+	if req.SourceType != nil {
+		rtype = *req.SourceType
+	}
+	if req.Metadata != nil {
+		rmeta = *req.Metadata
+	}
 
-	if rid != "src-1" { t.Errorf("sourceID mismatch: %s", rid) }
-	if rtype != "pipeline" { t.Errorf("sourceType mismatch: %s", rtype) }
-	if rmeta != "{\"k\":\"v\"}" { t.Errorf("metadata mismatch: %s", rmeta) }
+	if rid != "src-1" {
+		t.Errorf("sourceID mismatch: %s", rid)
+	}
+	if rtype != "pipeline" {
+		t.Errorf("sourceType mismatch: %s", rtype)
+	}
+	if rmeta != "{\"k\":\"v\"}" {
+		t.Errorf("metadata mismatch: %s", rmeta)
+	}
 }
 
 // Update logic
 func testUpdateLogic(status *string, read *bool) (map[string]interface{}, error) {
 	updates := map[string]interface{}{}
-	if status != nil { updates["status"] = *status }
-	if read != nil { updates["read"] = *read }
+	if status != nil {
+		updates["status"] = *status
+	}
+	if read != nil {
+		updates["read"] = *read
+	}
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
@@ -220,24 +236,34 @@ func TestNotificationUpdate_NoFields(t *testing.T) {
 
 // List pagination logic
 func testListPage(page, pageSize int) (int, int) {
-	if page < 1 { page = 1 }
-	if pageSize < 1 || pageSize > 100 { pageSize = 20 }
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
 	return (page - 1) * pageSize, pageSize
 }
 
 func TestNotificationList_DefaultPage(t *testing.T) {
 	offset, _ := testListPage(0, 10)
-	if offset != 0 { t.Errorf("expected offset 0, got %d", offset) }
+	if offset != 0 {
+		t.Errorf("expected offset 0, got %d", offset)
+	}
 }
 
 func TestNotificationList_DefaultPageSize(t *testing.T) {
 	_, size := testListPage(1, 200)
-	if size != 20 { t.Errorf("expected size 20, got %d", size) }
+	if size != 20 {
+		t.Errorf("expected size 20, got %d", size)
+	}
 }
 
 func TestNotificationList_OffsetCalc(t *testing.T) {
 	offset, _ := testListPage(3, 10)
-	if offset != 20 { t.Errorf("expected offset 20, got %d", offset) }
+	if offset != 20 {
+		t.Errorf("expected offset 20, got %d", offset)
+	}
 }
 
 // --- Repository mock tests ---
@@ -246,8 +272,12 @@ func TestMockRepoCreate_Success(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{}}
 	n := &notif_models.Notification{TenantID: "t1", Title: "t", Body: "b", Channel: "email"}
 	err := repo.Create(context.Background(), n)
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if n.ID != "notif-1" { t.Errorf("expected ID notif-1, got %s", n.ID) }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if n.ID != "notif-1" {
+		t.Errorf("expected ID notif-1, got %s", n.ID)
+	}
 }
 
 func TestMockRepoCreate_Error(t *testing.T) {
@@ -261,48 +291,72 @@ func TestMockRepoGetByID_Success(t *testing.T) {
 	n := &notif_models.Notification{ID: "n1", TenantID: "t1", Title: "t"}
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{"t1:n1": n}}
 	got, err := repo.GetByID(context.Background(), "n1", "t1")
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if got.Title != "t" { t.Errorf("expected t, got %s", got.Title) }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if got.Title != "t" {
+		t.Errorf("expected t, got %s", got.Title)
+	}
 }
 
 func TestMockRepoGetByID_NotFound(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{}}
 	_, err := repo.GetByID(context.Background(), "x", "t1")
-	if !errors.Is(err, sql.ErrNoRows) { t.Errorf("expected ErrNoRows, got %v", err) }
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("expected ErrNoRows, got %v", err)
+	}
 }
 
 func TestMockRepoList_Success(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{
 		"t1:n1": {ID: "n1", TenantID: "t1"}, "t1:n2": {ID: "n2", TenantID: "t1"}}}
 	items, err := repo.List(context.Background(), "t1", nil, 10, 0)
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if len(items) != 2 { t.Errorf("expected 2, got %d", len(items)) }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(items) != 2 {
+		t.Errorf("expected 2, got %d", len(items))
+	}
 }
 
 func TestMockRepoUpdateFields_Success(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{
 		"t1:n1": {ID: "n1", TenantID: "t1", Status: "pending"}}}
 	n, err := repo.UpdateFields(context.Background(), "n1", "t1", map[string]interface{}{"status": "sent"})
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if n.Status != "sent" { t.Errorf("expected sent, got %s", n.Status) }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if n.Status != "sent" {
+		t.Errorf("expected sent, got %s", n.Status)
+	}
 }
 
 func TestMockRepoUpdateFields_NotFound(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{}}
 	_, err := repo.UpdateFields(context.Background(), "x", "t1", map[string]interface{}{"status": "sent"})
-	if err == nil { t.Fatal("expected error") }
+	if err == nil {
+		t.Fatal("expected error")
+	}
 }
 
 func TestMockRepoDelete_Success(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{"t1:n1": {}}}
 	deleted, err := repo.Delete(context.Background(), "n1", "t1")
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if !deleted { t.Error("expected deleted=true") }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if !deleted {
+		t.Error("expected deleted=true")
+	}
 }
 
 func TestMockRepoDelete_NotFound(t *testing.T) {
 	repo := &mockNotifRepo{notifications: map[string]*notif_models.Notification{}}
 	deleted, err := repo.Delete(context.Background(), "x", "t1")
-	if err != nil { t.Fatalf("expected no error, got %v", err) }
-	if deleted { t.Error("expected deleted=false") }
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if deleted {
+		t.Error("expected deleted=false")
+	}
 }

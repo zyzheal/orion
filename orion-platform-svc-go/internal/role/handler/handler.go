@@ -12,7 +12,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 // ErrDuplicateName is the error returned when a role with the same name already exists.

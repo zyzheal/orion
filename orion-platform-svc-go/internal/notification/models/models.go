@@ -53,10 +53,10 @@ type ListFilter struct {
 
 // NotificationStats contains aggregate counts for notifications.
 type NotificationStats struct {
-	Total   int `json:"total"`
-	Unread  int `json:"unread"`
-	Sent    int `json:"sent"`
-	Failed  int `json:"failed"`
+	Total  int `json:"total"`
+	Unread int `json:"unread"`
+	Sent   int `json:"sent"`
+	Failed int `json:"failed"`
 }
 
 // PaginatedResponse is a generic paginated response.

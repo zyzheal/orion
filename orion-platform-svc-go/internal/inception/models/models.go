@@ -63,20 +63,20 @@ func (a *JSONArray) Scan(src interface{}) error {
 
 // SQLAuditHistory stores audit results from the Inception engine.
 type SQLAuditHistory struct {
-	ID            string     `db:"id" json:"id"`
-	TenantID      string     `db:"tenant_id" json:"tenant_id"`
-	DBName        string     `db:"db_name" json:"db_name"`
-	SQLStatement  string     `db:"sql_statement" json:"sql_statement"`
-	OperationType string     `db:"operation_type" json:"operation_type"`
-	DryRun        bool       `db:"dry_run" json:"dry_run"`
-	Status        string     `db:"status" json:"status"`
-	Errors        JSONArray  `db:"errors" json:"errors"`
-	Warnings      JSONArray  `db:"warnings" json:"warnings"`
-	AffectedRows  *int       `db:"affected_rows" json:"affected_rows,omitempty"`
-	ExecTimeMs    *int       `db:"exec_time_ms" json:"exec_time_ms,omitempty"`
-	AuditedBy     *string    `db:"audited_by" json:"audited_by,omitempty"`
-	RequestID     *string    `db:"request_id" json:"request_id,omitempty"`
-	CreatedAt     time.Time  `db:"created_at" json:"created_at"`
+	ID            string    `db:"id" json:"id"`
+	TenantID      string    `db:"tenant_id" json:"tenant_id"`
+	DBName        string    `db:"db_name" json:"db_name"`
+	SQLStatement  string    `db:"sql_statement" json:"sql_statement"`
+	OperationType string    `db:"operation_type" json:"operation_type"`
+	DryRun        bool      `db:"dry_run" json:"dry_run"`
+	Status        string    `db:"status" json:"status"`
+	Errors        JSONArray `db:"errors" json:"errors"`
+	Warnings      JSONArray `db:"warnings" json:"warnings"`
+	AffectedRows  *int      `db:"affected_rows" json:"affected_rows,omitempty"`
+	ExecTimeMs    *int      `db:"exec_time_ms" json:"exec_time_ms,omitempty"`
+	AuditedBy     *string   `db:"audited_by" json:"audited_by,omitempty"`
+	RequestID     *string   `db:"request_id" json:"request_id,omitempty"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }
 
 // CreateAuditRequest is the request payload for creating an audit entry.
@@ -143,12 +143,12 @@ type InceptionConfig struct {
 
 // CreateConfigRequest is the request payload for creating/upserting an inception config.
 type CreateConfigRequest struct {
-	Host     string `json:"host" binding:"required"`
-	Port     int    `json:"port"`
-	User     string `json:"user" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Host      string `json:"host" binding:"required"`
+	Port      int    `json:"port"`
+	User      string `json:"user" binding:"required"`
+	Password  string `json:"password" binding:"required"`
 	DefaultDB string `json:"default_db"`
-	TimeoutMs int   `json:"timeout_ms"`
+	TimeoutMs int    `json:"timeout_ms"`
 }
 
 // UpdateConfigRequest is the request payload for updating an inception config.

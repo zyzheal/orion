@@ -2,9 +2,9 @@ package handler
 
 import (
 	"net/http"
+	"orion/platform-svc-go/internal/middleware"
 	"strconv"
 	"time"
-	"orion/platform-svc-go/internal/middleware"
 
 	"orion/go-common/pkg/auth"
 	"orion/go-common/pkg/errors"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
-	"orion/go-common/pkg/sentinel"
 )
 
 type Handler struct {
@@ -146,9 +145,9 @@ func (h *Handler) Query(c *gin.Context) {
 		return
 	}
 	middleware.RespondSuccess(c, gin.H{
-		"data": logs,
-		"total": total,
-		"page": q.Offset,
+		"data":     logs,
+		"total":    total,
+		"page":     q.Offset,
 		"pageSize": q.Limit,
 	})
 }
@@ -207,7 +206,6 @@ func parseTimeParam(s string) (time.Time, bool) {
 	}
 	return time.Time{}, false
 }
-
 
 func respondSuccess(c *gin.Context, data interface{}) {
 	errors.WriteSuccess(c, data)

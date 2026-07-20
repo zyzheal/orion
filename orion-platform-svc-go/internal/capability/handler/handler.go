@@ -9,8 +9,9 @@ import (
 	"orion/platform-svc-go/internal/capability/models"
 	"orion/platform-svc-go/internal/capability/service"
 
-	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+
+	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel"
 )
 
@@ -717,4 +718,3 @@ func splitQuery(roles string) []string {
 func splitComma(c rune) bool {
 	return c == ','
 }
-
