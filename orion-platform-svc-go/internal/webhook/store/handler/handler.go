@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/webhook/store/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 	"orion/go-common/pkg/sentinel"
 )
 
@@ -40,6 +41,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateWebhookConfig")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	domain := c.Param("domain")
 	var req models.CreateConfigEntryRequest
@@ -47,7 +50,7 @@ func (h *Handler) Create(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.Create(c.Request.Context(), tenantID, domain, &req)
+	result, err := h.svc.Create(ctx, tenantID, domain, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -56,8 +59,10 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWebhookConfig")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
+	result, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), 404)
 		return
@@ -66,9 +71,11 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) ListByDomain(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWebhookConfigByDomain")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	domain := c.Param("domain")
-	results, err := h.svc.ListByDomain(c.Request.Context(), tenantID, domain)
+	results, err := h.svc.ListByDomain(ctx, tenantID, domain)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

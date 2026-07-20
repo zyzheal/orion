@@ -1653,6 +1653,9 @@ func main() {
 	permH := perm_handler.NewHandler(permSvc)
 
 	r := gin.New()
+	// Prometheus metrics registration: must happen before any middleware
+	// collects metrics (called once at startup).
+	middleware.RegisterPrometheusMetrics()
 	r.Use(errors.ErrorRecovery(logger))
 	r.Use(middleware.RequestID())
 	r.Use(middleware.StructuredLogger(logger))
@@ -1663,6 +1666,7 @@ func main() {
 	r.Use(platmw.Tracing(platmw.TracingConfig{
 		ServiceName: "orion-platform-svc",
 	}))
+	r.Use(middleware.Prometheus())
 	r.Use(middleware.CORS(middleware.DefaultCORSConfig()))
 	r.Use(platmw.SecurityHeaders())
 

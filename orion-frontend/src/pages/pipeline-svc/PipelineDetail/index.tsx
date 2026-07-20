@@ -37,6 +37,54 @@ import duration from 'dayjs/plugin/duration';
 
 dayjs.extend(duration);
 
+// Typed domain interfaces for pipeline detail
+interface StepDetail {
+  name: string;
+  status: string;
+  duration?: number;
+}
+
+interface StageDetail {
+  name: string;
+  id?: string;
+  status: string;
+  duration?: number;
+  startTime?: string;
+  endTime?: string;
+  type?: string;
+  dependsOn?: string[];
+  steps?: StepDetail[];
+  logs?: string[];
+}
+
+interface PipelineDetailModel {
+  id: string;
+  name: string;
+  runNumber: number;
+  status: string;
+  branch: string;
+  commit?: string;
+  version?: string;
+  author?: string;
+  trigger?: string;
+  startTime?: string;
+  endTime?: string;
+  duration?: number;
+  stages?: StageDetail[];
+  context?: Record<string, unknown>;
+  pipelineVersion?: string;
+}
+
+interface APIFlattenedResponse {
+  run: Partial<PipelineDetailModel>;
+  stages: StageDetail[];
+}
+
+interface RetryStageResponse {
+  id?: string;
+  run?: { id?: string };
+}
+
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
 
@@ -60,7 +108,7 @@ const PipelineDetail: React.FC = () => {
   const [retryingStageId, setRetryingStageId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [pipeline, setPipeline] = useState<any>(null);
+  const [pipeline, setPipeline] = useState<PipelineDetailModel | null>(null);
 
   // Load pipeline detail from API
   useEffect(() => {
@@ -72,14 +120,14 @@ const PipelineDetail: React.FC = () => {
         // response-wrapper wraps bare {run, stages, tasks} into {success, data: {run, stages, tasks}, meta, _legacy}
         const wrapperData = response.data as { data?: unknown };
         const apiData = wrapperData?.data ?? wrapperData;
-        if (apiData && ((apiData as any).run || (apiData as any).stages)) {
-          const run = (apiData as any).run || apiData;
+        if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
+          const run = (apiData as APIFlattenedResponse).run || apiData;
           const flattened = {
             ...run,
-            branch: run.context?.branch || run.branch || 'main',
-            commit: run.context?.commitSha || run.commit || '-',
-            version: run.context?.version || run.pipelineVersion,
-            stages: (apiData as any).stages || [],
+            branch: (run as PipelineDetailModel).context?.branch || (run as PipelineDetailModel).branch || 'main',
+            commit: (run as PipelineDetailModel).context?.commitSha || (run as PipelineDetailModel).commit || '-',
+            version: (run as PipelineDetailModel).context?.version || (run as PipelineDetailModel).pipelineVersion,
+            stages: (apiData as APIFlattenedResponse).stages || [],
           };
           setPipeline(flattened);
         } else {
@@ -101,7 +149,7 @@ const PipelineDetail: React.FC = () => {
 
   // Calculate progress percentage
   const totalStages = pipeline?.stages?.length || 0;
-  const completedStages = pipeline?.stages?.filter((s: any) => s.status === 'success').length || 0;
+  const completedStages = pipeline?.stages?.filter((s: StageDetail) => s.status === 'success').length || 0;
   const progressPercent = totalStages > 0 ? Math.round((completedStages / totalStages) * 100) : 0;
 
   // Format duration
@@ -122,14 +170,14 @@ const PipelineDetail: React.FC = () => {
       const response = await getPipelineRun(id!);
       const wrapperData = response.data as { data?: unknown };
       const apiData = wrapperData?.data ?? wrapperData;
-      if (apiData && ((apiData as any).run || (apiData as any).stages)) {
-        const run = (apiData as any).run || apiData;
+      if (apiData && (apiData instanceof Object) && ('run' in apiData || 'stages' in apiData)) {
+        const run = (apiData as APIFlattenedResponse).run || apiData;
         const flattened = {
           ...run,
-          branch: run.context?.branch || run.branch || 'main',
-          commit: run.context?.commitSha || run.commit || '-',
-          version: run.context?.version || run.pipelineVersion,
-          stages: (apiData as any).stages || [],
+          branch: (run as PipelineDetailModel).context?.branch || (run as PipelineDetailModel).branch || 'main',
+          commit: (run as PipelineDetailModel).context?.commitSha || (run as PipelineDetailModel).commit || '-',
+          version: (run as PipelineDetailModel).context?.version || (run as PipelineDetailModel).pipelineVersion,
+          stages: (apiData as APIFlattenedResponse).stages || [],
         };
         setPipeline(flattened);
       }
@@ -332,7 +380,7 @@ const PipelineDetail: React.FC = () => {
                   padding: '8px 0',
                 }}
               >
-                {pipeline.stages?.map((stage: any, index: number) => (
+                {pipeline.stages?.map((stage: StageDetail, index: number) => (
                   <React.Fragment key={stage.name}>
                     {/* Stage node */}
                     <div
@@ -412,7 +460,7 @@ const PipelineDetail: React.FC = () => {
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
                 <div style={{ marginTop: spacing.sm }}>
-                  {pipeline.stages.map((stage: any, index: number) => (
+                  {pipeline.stages.map((stage: StageDetail, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
@@ -452,7 +500,7 @@ const PipelineDetail: React.FC = () => {
                       {/* Steps within the stage */}
                       {stage.steps && stage.steps.length > 0 && (
                         <Space direction="vertical" size={4}>
-                          {stage.steps.map((step: any) => (
+                          {stage.steps.map((step: StepDetail) => (
                             <div
                               key={step.name}
                               style={{
@@ -508,7 +556,7 @@ const PipelineDetail: React.FC = () => {
                 color: colors.neutral[300],
               }}
             >
-              {pipeline.stages?.map((stage: any) => (
+              {pipeline.stages?.map((stage: StageDetail) => (
                 <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
@@ -525,7 +573,7 @@ const PipelineDetail: React.FC = () => {
                   </div>
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
-                    stage.logs.map((log: any, index: number) => (
+                    stage.logs.map((log: string, index: number) => (
                       <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
@@ -574,7 +622,7 @@ const PipelineDetail: React.FC = () => {
           <CardPanel title="依赖关系图">
             {pipeline.stages && pipeline.stages.length > 0 ? (
               <DAGGraph
-                stages={pipeline.stages.map((stage: any, idx: number) => ({
+                stages={pipeline.stages.map((stage: StageDetail, idx: number) => ({
                   id: `stage-${idx}`,
                   name: stage.name,
                   type: stage.type || 'custom',

@@ -191,8 +191,9 @@ const ServiceCatalog: React.FC = () => {
       if (serviceStatusFilter) params.status = serviceStatusFilter;
       const res = await getCatalogServices(params);
       setServices(res.data || []);
-    } catch (err: any) {
-      message.error(`加载服务目录失败: ${err.message || '未知错误'}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      message.error(`加载服务目录失败: ${msg}`);
     } finally {
       setServicesLoading(false);
     }

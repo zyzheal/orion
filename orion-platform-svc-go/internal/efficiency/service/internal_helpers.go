@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"orion/platform-svc-go/internal/efficiency/models"
 
 	"github.com/google/uuid"
@@ -104,14 +106,21 @@ func (s *Service) saveSnapshot(ctx context.Context, tenantID string, timeWindow 
 	snapshot.TimeWindow = string(timeWindow)
 	snapshot.CapturedAt = time.Now().UTC()
 	if s.repo != nil {
-		go func() {
+		eg, _ := errgroup.WithContext(ctx)
+		eg.Go(func() error {
 			if err := s.repo.CreateSnapshot(ctx, &snapshot); err != nil {
 				slog.Error("efficiency: failed to create snapshot", "tenantID", tenantID, "window", timeWindow, "error", err)
+				return err
 			}
 			if err := s.repo.PruneOldSnapshots(ctx, tenantID, 100); err != nil {
 				slog.Error("efficiency: failed to prune old snapshots", "tenantID", tenantID, "error", err)
+				return err
 			}
-		}()
+			return nil
+		})
+		// Fire-and-forget: drain errors asynchronously so saveSnapshot remains non-blocking.
+		done := make(chan error, 1)
+		go func() { done <- eg.Wait() }()
 	}
 }
 

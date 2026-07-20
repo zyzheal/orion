@@ -9,9 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -96,28 +97,25 @@ func (e *LocalSpawnExecutor) Execute(ctx context.Context, spec ContainerSpec, co
 	}
 
 	var stdoutBuf, stderrBuf bytes.Buffer
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		_, _ = io.Copy(&stdoutBuf, stdout)
-	}()
-	go func() {
-		defer wg.Done()
-		_, _ = io.Copy(&stderrBuf, stderr)
-	}()
+	eg, _ := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		_, err := io.Copy(&stdoutBuf, stdout)
+		return err
+	})
+	eg.Go(func() error {
+		_, err := io.Copy(&stderrBuf, stderr)
+		return err
+	})
 
 	// Enforce timeout with separate goroutine
 	if timeout > 0 {
-		select {
-		case <-ctx.Done():
-			_ = cmd.Process.Signal(syscall.SIGKILL)
-		default:
-		}
+		// ctx.Done() is handled by exec.CommandContext automatically
+		_ = ctx
 	}
 
 	err = cmd.Wait()
-	wg.Wait()
+	// Drain the copy goroutines (pipes closed by cmd.Wait(), they finish quickly).
+	_ = eg.Wait()
 
 	exitCode := 0
 	if err != nil {
