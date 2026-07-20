@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -90,6 +91,8 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // List handler - GET /ai/decisions
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	limitStr := c.Query("limit")
@@ -130,7 +133,7 @@ func (h *Handler) List(c *gin.Context) {
 		}
 	}
 
-	decisions, total, err := h.svc.ListDecisions(c.Request.Context(), tenantID, q)
+	decisions, total, err := h.svc.ListDecisions(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -145,6 +148,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create handler - POST /ai/decisions
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.RecordDecisionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -153,7 +158,7 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 
-	d, err := h.svc.RecordDecision(c.Request.Context(), tenantID, userID, &req)
+	d, err := h.svc.RecordDecision(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -163,10 +168,12 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get handler - GET /ai/decisions/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	d, err := h.svc.GetDecision(c.Request.Context(), id, tenantID)
+	d, err := h.svc.GetDecision(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Decision not found")
@@ -180,10 +187,12 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Delete handler - DELETE /ai/decisions/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	deleted, err := h.svc.DeleteDecision(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteDecision(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Decision not found")
@@ -201,10 +210,12 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // GetExplanation handler - GET /ai/decisions/:id/explanation
 func (h *Handler) GetExplanation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExplanation")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	result, err := h.svc.GetExplanation(c.Request.Context(), id, tenantID)
+	result, err := h.svc.GetExplanation(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Decision not found")
@@ -218,6 +229,8 @@ func (h *Handler) GetExplanation(c *gin.Context) {
 
 // SubmitFeedback handler - POST /ai/decisions/:id/feedback
 func (h *Handler) SubmitFeedback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SubmitFeedback")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
@@ -228,7 +241,7 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 		return
 	}
 
-	d, err := h.svc.SubmitFeedback(c.Request.Context(), tenantID, userID, id, &req)
+	d, err := h.svc.SubmitFeedback(ctx, tenantID, userID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Decision not found")
@@ -242,10 +255,12 @@ func (h *Handler) SubmitFeedback(c *gin.Context) {
 
 // GetTraces handler - GET /ai/decisions/:id/trace
 func (h *Handler) GetTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTraces")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	traces, err := h.svc.GetTraces(c.Request.Context(), id, tenantID)
+	traces, err := h.svc.GetTraces(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Decision not found")
@@ -259,6 +274,8 @@ func (h *Handler) GetTraces(c *gin.Context) {
 
 // GetStats handler - GET /ai/decisions/stats
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	var dateRange *models.DateRange
@@ -278,7 +295,7 @@ func (h *Handler) GetStats(c *gin.Context) {
 		dateRange = dr
 	}
 
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID, dateRange)
+	stats, err := h.svc.GetStats(ctx, tenantID, dateRange)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -288,6 +305,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 
 // AnalyzeDecisions handler - POST /ai/decisions/analyze
 func (h *Handler) AnalyzeDecisions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AnalyzeDecisions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	var req models.AnalyzeDecisionsRequest
@@ -300,7 +319,7 @@ func (h *Handler) AnalyzeDecisions(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.AnalyzeDecisions(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.AnalyzeDecisions(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -5,9 +5,9 @@ import (
 	"orion/platform-svc-go/internal/digital-twin/models"
 	dt_service "orion/platform-svc-go/internal/digital-twin/service"
 
-	"errors"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -57,13 +57,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Digital Twins ---
 
 func (h *Handler) CreateTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDigitalTwinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateTwin(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateTwin(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -72,8 +74,10 @@ func (h *Handler) CreateTwin(c *gin.Context) {
 }
 
 func (h *Handler) ListTwins(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTwins")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListTwins(c.Request.Context(), tenantID)
+	items, err := h.svc.ListTwins(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -86,9 +90,11 @@ func (h *Handler) ListTwins(c *gin.Context) {
 }
 
 func (h *Handler) GetTwinState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTwinState")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	state, err := h.svc.GetTwinState(c.Request.Context(), tenantID, id)
+	state, err := h.svc.GetTwinState(ctx, tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -101,6 +107,8 @@ func (h *Handler) GetTwinState(c *gin.Context) {
 }
 
 func (h *Handler) CreateSnapshot(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSnapshot")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.CreateSnapshotRequest
@@ -108,12 +116,12 @@ func (h *Handler) CreateSnapshot(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	snap, err := h.svc.CreateSnapshot(c.Request.Context(), id, req.Name)
+	snap, err := h.svc.CreateSnapshot(ctx, id, req.Name)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -124,13 +132,15 @@ func (h *Handler) CreateSnapshot(c *gin.Context) {
 // --- Sandbox ---
 
 func (h *Handler) CreateSandbox(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSandbox")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSandboxRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	sb, err := h.svc.CreateSandbox(c.Request.Context(), tenantID, req)
+	sb, err := h.svc.CreateSandbox(ctx, tenantID, req)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -143,11 +153,15 @@ func (h *Handler) CreateSandbox(c *gin.Context) {
 }
 
 func (h *Handler) ListSandboxes(c *gin.Context) {
-	items := h.svc.ListSandboxes(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSandboxes")
+	defer span.End()
+	items := h.svc.ListSandboxes(ctx)
 	middleware.RespondSuccess(c, items)
 }
 
 func (h *Handler) StopSandbox(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopSandbox")
+	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.StopSandbox(id)
 	if err != nil {
@@ -158,6 +172,8 @@ func (h *Handler) StopSandbox(c *gin.Context) {
 }
 
 func (h *Handler) DestroySandbox(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DestroySandbox")
+	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.DestroySandbox(id)
 	if err != nil {
@@ -168,6 +184,8 @@ func (h *Handler) DestroySandbox(c *gin.Context) {
 }
 
 func (h *Handler) SandboxHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SandboxHealth")
+	defer span.End()
 	id := c.Param("id")
 	_, err := h.svc.SandboxHealth(id)
 	if err != nil {
@@ -180,14 +198,16 @@ func (h *Handler) SandboxHealth(c *gin.Context) {
 // --- Traffic Recording ---
 
 func (h *Handler) RecordTraffic(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordTraffic")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	record, err := h.svc.RecordTraffic(c.Request.Context(), id)
+	record, err := h.svc.RecordTraffic(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -203,6 +223,8 @@ func (h *Handler) RecordTraffic(c *gin.Context) {
 }
 
 func (h *Handler) StartRecording(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartRecording")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body struct {
@@ -212,7 +234,7 @@ func (h *Handler) StartRecording(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
@@ -222,14 +244,16 @@ func (h *Handler) StartRecording(c *gin.Context) {
 }
 
 func (h *Handler) ListRecordingSessions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecordingSessions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	sessions, err := h.svc.ListRecordingSessions(c.Request.Context(), id)
+	sessions, err := h.svc.ListRecordingSessions(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -238,24 +262,32 @@ func (h *Handler) ListRecordingSessions(c *gin.Context) {
 }
 
 func (h *Handler) StopRecording(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRecording")
+	defer span.End()
 	recordingID := c.Param("recordingId")
 	result := h.svc.StopRecording(recordingID)
 	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) PauseRecording(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseRecording")
+	defer span.End()
 	recordingID := c.Param("recordingId")
 	result := h.svc.PauseRecording(recordingID)
 	middleware.RespondSuccess(c, result)
 }
 
 func (h *Handler) GetRecordingDetail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingDetail")
+	defer span.End()
 	recordingID := c.Param("recordingId")
 	detail := h.svc.GetRecordingDetail(recordingID)
 	middleware.RespondSuccess(c, detail)
 }
 
 func (h *Handler) GetRecordingRecords(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecordingRecords")
+	defer span.End()
 	recordingID := c.Param("recordingId")
 	records := h.svc.GetRecordingRecords(recordingID)
 	middleware.RespondSuccess(c, records)
@@ -264,14 +296,16 @@ func (h *Handler) GetRecordingRecords(c *gin.Context) {
 // --- Traffic Replay ---
 
 func (h *Handler) ReplayTraffic(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReplayTraffic")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	result, err := h.svc.ReplayTraffic(c.Request.Context(), id)
+	result, err := h.svc.ReplayTraffic(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,6 +314,8 @@ func (h *Handler) ReplayTraffic(c *gin.Context) {
 }
 
 func (h *Handler) StartReplay(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartReplay")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.CreateReplayStartRequest
@@ -287,12 +323,12 @@ func (h *Handler) StartReplay(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	_, err := h.svc.FindTwin(c.Request.Context(), tenantID, id)
+	_, err := h.svc.FindTwin(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "digital twin not found")
 		return
 	}
-	session, err := h.svc.StartReplay(c.Request.Context(), id, req)
+	session, err := h.svc.StartReplay(ctx, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -301,8 +337,10 @@ func (h *Handler) StartReplay(c *gin.Context) {
 }
 
 func (h *Handler) ListReplaySessions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReplaySessions")
+	defer span.End()
 	id := c.Param("id")
-	sessions, err := h.svc.ListReplaySessions(c.Request.Context(), id)
+	sessions, err := h.svc.ListReplaySessions(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -311,8 +349,10 @@ func (h *Handler) ListReplaySessions(c *gin.Context) {
 }
 
 func (h *Handler) GetReplayStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReplayStatus")
+	defer span.End()
 	replayID := c.Param("replayId")
-	status, err := h.svc.GetReplayStatus(c.Request.Context(), replayID)
+	status, err := h.svc.GetReplayStatus(ctx, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")
@@ -325,8 +365,10 @@ func (h *Handler) GetReplayStatus(c *gin.Context) {
 }
 
 func (h *Handler) CancelReplay(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelReplay")
+	defer span.End()
 	replayID := c.Param("replayId")
-	result, err := h.svc.CancelReplay(c.Request.Context(), replayID)
+	result, err := h.svc.CancelReplay(ctx, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")
@@ -339,8 +381,10 @@ func (h *Handler) CancelReplay(c *gin.Context) {
 }
 
 func (h *Handler) GetReplayReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReplayReport")
+	defer span.End()
 	replayID := c.Param("replayId")
-	report, err := h.svc.GetReplayReport(c.Request.Context(), replayID)
+	report, err := h.svc.GetReplayReport(ctx, replayID)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "replay session not found")
@@ -365,7 +409,3 @@ func twinToResponse(t *models.DigitalTwin) gin.H {
 	}
 }
 
-// Suppress unused import errors (errors package).
-func init() {
-	_ = errors.New
-}

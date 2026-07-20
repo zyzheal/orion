@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/infra-ops-svc-go/internal/dr/models"

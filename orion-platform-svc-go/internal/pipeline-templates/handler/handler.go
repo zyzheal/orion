@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for Pipeline Templates.
@@ -111,6 +112,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Categories returns the list of categories with counts.
 func (h *Handler) Categories(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Categories")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	cats, err := h.svc.GetCategories(ctx, tenantID)
@@ -123,6 +126,8 @@ func (h *Handler) Categories(c *gin.Context) {
 
 // Search returns a paginated search of templates.
 func (h *Handler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -149,6 +154,8 @@ func (h *Handler) Search(c *gin.Context) {
 
 // List returns a paginated list of templates.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -174,6 +181,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create creates a new template.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	authorID := c.GetString("user_id")
 	if authorID == "" {
@@ -197,6 +206,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get retrieves a template by ID.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tmpl, err := h.svc.Get(ctx, tenantID, c.Param("id"))
@@ -209,6 +220,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update updates a template.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -228,6 +241,8 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a template.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
@@ -243,6 +258,8 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Publish publishes a template.
 func (h *Handler) Publish(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Publish")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tmpl, err := h.svc.Publish(ctx, tenantID, c.Param("id"))
@@ -255,6 +272,8 @@ func (h *Handler) Publish(c *gin.Context) {
 
 // Deprecate deprecates a template.
 func (h *Handler) Deprecate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Deprecate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tmpl, err := h.svc.Deprecate(ctx, tenantID, c.Param("id"))
@@ -267,6 +286,8 @@ func (h *Handler) Deprecate(c *gin.Context) {
 
 // Versions returns paginated versions for a template.
 func (h *Handler) Versions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Versions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -292,6 +313,8 @@ func (h *Handler) Versions(c *gin.Context) {
 
 // Instantiate creates a pipeline from a template.
 func (h *Handler) Instantiate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Instantiate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -311,6 +334,8 @@ func (h *Handler) Instantiate(c *gin.Context) {
 
 // Star stars a template.
 func (h *Handler) Star(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Star")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tmpl, err := h.svc.Star(ctx, tenantID, c.Param("id"))
@@ -323,6 +348,8 @@ func (h *Handler) Star(c *gin.Context) {
 
 // Unstar removes a star from a template.
 func (h *Handler) Unstar(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Unstar")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tmpl, err := h.svc.Unstar(ctx, tenantID, c.Param("id"))

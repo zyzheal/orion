@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/inspection/models"
+)
+
 // ServiceInterface defines the interface for the inspection service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id string, tag string) (map[string]any, error)

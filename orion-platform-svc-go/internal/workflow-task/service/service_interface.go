@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/workflow-task/models"
+)
+
 // ServiceInterface defines the interface for the workflow-task service.
 type ServiceInterface interface {
 	Claim(ctx context.Context, id string, tenantID string, assigneeID string, comment *string) (*models.WorkflowTask, error)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -83,6 +84,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Build handlers ---
 
 func (h *Handler) ListBuilds(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuilds")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset := 0
@@ -91,7 +94,7 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 			offset = (v - 1) * limit
 		}
 	}
-	items, err := h.svc.ListBuilds(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.ListBuilds(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -103,9 +106,11 @@ func (h *Handler) ListBuilds(c *gin.Context) {
 }
 
 func (h *Handler) GetBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuild")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetBuild(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetBuild(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "build not found")
@@ -118,13 +123,15 @@ func (h *Handler) GetBuild(c *gin.Context) {
 }
 
 func (h *Handler) CreateBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBuild")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateBuild(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateBuild(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -133,6 +140,8 @@ func (h *Handler) CreateBuild(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateBuild")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateBuildRequest
@@ -140,7 +149,7 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.UpdateBuild(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.UpdateBuild(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "build not found")
@@ -153,9 +162,11 @@ func (h *Handler) UpdateBuild(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBuild(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBuild")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteBuild(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteBuild(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -166,10 +177,12 @@ func (h *Handler) DeleteBuild(c *gin.Context) {
 // --- Build Image handlers ---
 
 func (h *Handler) ListBuildImages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuildImages")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListBuildImages(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.ListBuildImages(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -181,9 +194,11 @@ func (h *Handler) ListBuildImages(c *gin.Context) {
 }
 
 func (h *Handler) GetBuildImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuildImage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetBuildImage(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetBuildImage(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -192,13 +207,15 @@ func (h *Handler) GetBuildImage(c *gin.Context) {
 }
 
 func (h *Handler) CreateBuildImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBuildImage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildImageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateBuildImage(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateBuildImage(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -207,6 +224,8 @@ func (h *Handler) CreateBuildImage(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBuildImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateBuildImage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateBuildImageRequest
@@ -214,7 +233,7 @@ func (h *Handler) UpdateBuildImage(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.UpdateBuildImage(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.UpdateBuildImage(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -223,9 +242,11 @@ func (h *Handler) UpdateBuildImage(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBuildImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBuildImage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteBuildImage(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteBuildImage(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -236,12 +257,14 @@ func (h *Handler) DeleteBuildImage(c *gin.Context) {
 // --- Build Cache handlers ---
 
 func (h *Handler) ListCacheConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCacheConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	level := c.Query("level")
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	configs, err := h.svc.ListCacheConfigs(c.Request.Context(), tenantID, level, status, limit, offset)
+	configs, err := h.svc.ListCacheConfigs(ctx, tenantID, level, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -253,9 +276,11 @@ func (h *Handler) ListCacheConfigs(c *gin.Context) {
 }
 
 func (h *Handler) GetCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	config, err := h.svc.GetCacheConfig(c.Request.Context(), tenantID, id)
+	config, err := h.svc.GetCacheConfig(ctx, tenantID, id)
 	if err != nil {
 		if service.IsInvalidID(err) {
 			middleware.RespondBadRequest(c, "invalid config id")
@@ -272,13 +297,15 @@ func (h *Handler) GetCacheConfig(c *gin.Context) {
 }
 
 func (h *Handler) CreateCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCacheConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBuildCacheConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	config, err := h.svc.CreateCacheConfig(c.Request.Context(), tenantID, req)
+	config, err := h.svc.CreateCacheConfig(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -287,6 +314,8 @@ func (h *Handler) CreateCacheConfig(c *gin.Context) {
 }
 
 func (h *Handler) UpdateCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateCacheConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateBuildCacheConfigRequest
@@ -294,7 +323,7 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	config, err := h.svc.UpdateCacheConfig(c.Request.Context(), tenantID, id, req)
+	config, err := h.svc.UpdateCacheConfig(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsInvalidID(err) {
 			middleware.RespondBadRequest(c, "invalid config id")
@@ -311,9 +340,11 @@ func (h *Handler) UpdateCacheConfig(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCacheConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteCacheConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteCacheConfig(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteCacheConfig(ctx, tenantID, id); err != nil {
 		if service.IsInvalidID(err) {
 			middleware.RespondBadRequest(c, "invalid config id")
 			return
@@ -328,10 +359,12 @@ func (h *Handler) DeleteCacheConfig(c *gin.Context) {
 // --- Build Log handlers ---
 
 func (h *Handler) ListBuildLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBuildLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	logs, err := h.svc.ListBuildLogs(c.Request.Context(), tenantID, limit, offset)
+	logs, err := h.svc.ListBuildLogs(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -343,9 +376,11 @@ func (h *Handler) ListBuildLogs(c *gin.Context) {
 }
 
 func (h *Handler) GetBuildLog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBuildLog")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	log, err := h.svc.GetBuildLog(c.Request.Context(), tenantID, id)
+	log, err := h.svc.GetBuildLog(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -356,8 +391,10 @@ func (h *Handler) GetBuildLog(c *gin.Context) {
 // --- Cache Monitor handlers ---
 
 func (h *Handler) GetCacheDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	dashboard, err := h.svc.GetDashboard(c.Request.Context(), tenantID)
+	dashboard, err := h.svc.GetDashboard(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -366,9 +403,11 @@ func (h *Handler) GetCacheDashboard(c *gin.Context) {
 }
 
 func (h *Handler) GetCacheMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCacheMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	cacheID := c.Param("cacheId")
-	metrics, err := h.svc.GetCacheMetrics(c.Request.Context(), tenantID, cacheID)
+	metrics, err := h.svc.GetCacheMetrics(ctx, tenantID, cacheID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "cache not found")
@@ -381,9 +420,11 @@ func (h *Handler) GetCacheMetrics(c *gin.Context) {
 }
 
 func (h *Handler) AssessCacheHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssessCacheHealth")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	cacheID := c.Param("cacheId")
-	health, err := h.svc.AssessCacheHealth(c.Request.Context(), tenantID, cacheID)
+	health, err := h.svc.AssessCacheHealth(ctx, tenantID, cacheID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -392,9 +433,11 @@ func (h *Handler) AssessCacheHealth(c *gin.Context) {
 }
 
 func (h *Handler) AnalyzePerformanceImpact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AnalyzePerformanceImpact")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
-	impact, err := h.svc.AnalyzePerformanceImpact(c.Request.Context(), tenantID, pipelineID)
+	impact, err := h.svc.AnalyzePerformanceImpact(ctx, tenantID, pipelineID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -403,13 +446,15 @@ func (h *Handler) AnalyzePerformanceImpact(c *gin.Context) {
 }
 
 func (h *Handler) RecordCacheEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordCacheEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RecordCacheEventRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.RecordCacheEvent(c.Request.Context(), tenantID, req); err != nil {
+	if err := h.svc.RecordCacheEvent(ctx, tenantID, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}

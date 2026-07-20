@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -51,6 +52,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------- Operation Tracking ----------
 
 func (h *Handler) TrackOperation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TrackOperation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	actorID := c.GetString("user_id")
 	var req models.TrackOperationRequest
@@ -58,7 +61,7 @@ func (h *Handler) TrackOperation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	op, err := h.svc.TrackOperation(c.Request.Context(), tenantID, actorID, req)
+	op, err := h.svc.TrackOperation(ctx, tenantID, actorID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -67,11 +70,13 @@ func (h *Handler) TrackOperation(c *gin.Context) {
 }
 
 func (h *Handler) GetOperationHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOperationHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Param("artifactId")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.GetOperationHistory(c.Request.Context(), tenantID, artifactID, limit, offset)
+	items, err := h.svc.GetOperationHistory(ctx, tenantID, artifactID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -80,13 +85,15 @@ func (h *Handler) GetOperationHistory(c *gin.Context) {
 }
 
 func (h *Handler) GetArtifactStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetArtifactStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Query("artifactId")
 	if artifactID == "" {
 		middleware.RespondBadRequest(c, "artifactId is required")
 		return
 	}
-	stats, err := h.svc.GetArtifactStats(c.Request.Context(), tenantID, artifactID)
+	stats, err := h.svc.GetArtifactStats(ctx, tenantID, artifactID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -95,8 +102,10 @@ func (h *Handler) GetArtifactStats(c *gin.Context) {
 }
 
 func (h *Handler) Cleanup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Cleanup")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.Cleanup(c.Request.Context(), tenantID)
+	result, err := h.svc.Cleanup(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -107,11 +116,13 @@ func (h *Handler) Cleanup(c *gin.Context) {
 // ---------- Scan ----------
 
 func (h *Handler) ScanArtifact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScanArtifact")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Param("artifactId")
 	var req models.ScanArtifactRequest
 	c.ShouldBindJSON(&req)
-	scan, err := h.svc.ScanArtifact(c.Request.Context(), tenantID, artifactID, req)
+	scan, err := h.svc.ScanArtifact(ctx, tenantID, artifactID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -120,9 +131,11 @@ func (h *Handler) ScanArtifact(c *gin.Context) {
 }
 
 func (h *Handler) GetScanReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetScanReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	scanID := c.Param("scanId")
-	report, err := h.svc.GetScanReport(c.Request.Context(), tenantID, scanID)
+	report, err := h.svc.GetScanReport(ctx, tenantID, scanID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -131,9 +144,11 @@ func (h *Handler) GetScanReport(c *gin.Context) {
 }
 
 func (h *Handler) GetArtifactScanReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetArtifactScanReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	artifactID := c.Param("artifactId")
-	reports, err := h.svc.GetArtifactScanReports(c.Request.Context(), tenantID, artifactID)
+	reports, err := h.svc.GetArtifactScanReports(ctx, tenantID, artifactID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -142,13 +157,15 @@ func (h *Handler) GetArtifactScanReports(c *gin.Context) {
 }
 
 func (h *Handler) DetectMalicious(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectMalicious")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.DetectMaliciousRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.DetectMalicious(c.Request.Context(), tenantID, req)
+	result, err := h.svc.DetectMalicious(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -159,13 +176,15 @@ func (h *Handler) DetectMalicious(c *gin.Context) {
 // ---------- Retention ----------
 
 func (h *Handler) DefineRetentionPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DefineRetentionPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.DefineRetentionPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	policy, err := h.svc.DefineRetentionPolicy(c.Request.Context(), tenantID, req)
+	policy, err := h.svc.DefineRetentionPolicy(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -174,13 +193,15 @@ func (h *Handler) DefineRetentionPolicy(c *gin.Context) {
 }
 
 func (h *Handler) EvaluateRetention(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateRetention")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateRetentionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EvaluateRetention(c.Request.Context(), tenantID, req)
+	result, err := h.svc.EvaluateRetention(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -189,10 +210,12 @@ func (h *Handler) EvaluateRetention(c *gin.Context) {
 }
 
 func (h *Handler) GetRetentionReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRetentionReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RetentionReportRequest
 	c.ShouldBindJSON(&req)
-	report, err := h.svc.GetRetentionReport(c.Request.Context(), tenantID, req)
+	report, err := h.svc.GetRetentionReport(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -201,8 +224,10 @@ func (h *Handler) GetRetentionReport(c *gin.Context) {
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID)
+	policies, err := h.svc.ListPolicies(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -211,9 +236,11 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	if err := h.svc.DeletePolicy(c.Request.Context(), tenantID, policyID); err != nil {
+	if err := h.svc.DeletePolicy(ctx, tenantID, policyID); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}

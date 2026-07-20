@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/chaos-gateway/models"
+)
+
 // ServiceInterface defines the interface for the chaos-gateway service.
 type ServiceInterface interface {
 	CreateExperiment(ctx context.Context, tenantID, createdBy string, req models.CreateExperimentRequest) (*models.ChaosExperiment, error)

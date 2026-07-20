@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/process-step/models"
+)
+
 // ServiceInterface defines the interface for the process-step service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateProcessStepRequest) (*models.ProcessStep, error)

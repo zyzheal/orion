@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/do-not-disturb/models"
+)
+
 // ServiceInterface defines the interface for the do-not-disturb service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID, userID string, req *models.CreateDoNotDisturbRequest) (*models.DoNotDisturb, error)

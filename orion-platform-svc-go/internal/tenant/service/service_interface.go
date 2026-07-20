@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/tenant/models"
+)
+
 // ServiceInterface defines the interface for the tenant service.
 type ServiceInterface interface {
 	AcceptInvite(ctx context.Context, code, userID, userEmail string) (*map[string]any, error)

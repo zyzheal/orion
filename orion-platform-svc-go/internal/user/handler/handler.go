@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/user/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -48,6 +49,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new user.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -57,7 +60,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	resp, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -67,6 +70,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves users with optional filters and pagination.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -95,7 +100,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Status = &status
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
+	items, err := h.svc.List(ctx, tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -105,8 +110,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get retrieves a single user by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	user, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	user, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -116,6 +123,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update modifies an existing user.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdateUserRequest
@@ -124,7 +133,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	user, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	user, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -134,8 +143,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a user by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -144,8 +155,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count returns the total number of users for the tenant.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -155,13 +168,15 @@ func (h *Handler) Count(c *gin.Context) {
 
 // Authenticate verifies credentials and returns the authenticated user.
 func (h *Handler) Authenticate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Authenticate")
+	defer span.End()
 	var req models.AuthenticateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	user, err := h.svc.Authenticate(c.Request.Context(), &req)
+	user, err := h.svc.Authenticate(ctx, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
 		return
@@ -172,6 +187,8 @@ func (h *Handler) Authenticate(c *gin.Context) {
 
 // ChangePassword updates a user's password.
 func (h *Handler) ChangePassword(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ChangePassword")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -181,7 +198,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.ChangePassword(c.Request.Context(), tenantID, userID, &req); err != nil {
+	if err := h.svc.ChangePassword(ctx, tenantID, userID, &req); err != nil {
 		errors.WriteError(c, errors.ErrUnauthorized, err.Error(), http.StatusUnauthorized)
 		return
 	}

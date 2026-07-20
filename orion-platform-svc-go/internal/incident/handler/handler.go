@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -62,6 +63,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- CRUD handlers ---
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateIncidentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -72,7 +75,7 @@ func (h *Handler) Create(c *gin.Context) {
 		middleware.RespondBadRequest(c, "title, type, and severity are required")
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -81,9 +84,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	pm, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	pm, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Incident not found")
@@ -96,13 +101,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	status := c.Query("status")
 	severity := c.Query("severity")
 	priority := c.Query("priority")
-	items, err := h.svc.List(c.Request.Context(), tenantID, models.IncidentListQuery{
+	items, err := h.svc.List(ctx, tenantID, models.IncidentListQuery{
 		Status:   status,
 		Severity: severity,
 		Priority: priority,
@@ -117,6 +124,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateIncidentRequest
@@ -124,7 +133,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Incident not found")
@@ -137,9 +146,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Incident not found")
 			return
@@ -153,8 +164,10 @@ func (h *Handler) Delete(c *gin.Context) {
 // --- Statistics ---
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -165,6 +178,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 // --- Status ---
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateStatusRequest
@@ -177,7 +192,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 	actorID := c.GetString("user_id")
-	m, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status, actorID, req.Reason)
+	m, err := h.svc.UpdateStatus(ctx, tenantID, id, req.Status, actorID, req.Reason)
 	if err != nil {
 		if service.IsStateConflict(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -196,6 +211,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 // --- Assignment ---
 
 func (h *Handler) AssignCommander(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssignCommander")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.AssignCommanderRequest
@@ -207,7 +224,7 @@ func (h *Handler) AssignCommander(c *gin.Context) {
 		middleware.RespondBadRequest(c, "commander_id is required")
 		return
 	}
-	m, err := h.svc.AssignCommander(c.Request.Context(), tenantID, id, req.CommanderID)
+	m, err := h.svc.AssignCommander(ctx, tenantID, id, req.CommanderID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -222,6 +239,8 @@ func (h *Handler) AssignCommander(c *gin.Context) {
 // --- Escalation ---
 
 func (h *Handler) Escalate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Escalate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.EscalateRequest
@@ -233,7 +252,7 @@ func (h *Handler) Escalate(c *gin.Context) {
 		middleware.RespondBadRequest(c, "to_level, reason, and escalated_by are required")
 		return
 	}
-	if err := h.svc.Escalate(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.svc.Escalate(ctx, tenantID, id, req); err != nil {
 		if service.IsValidationErr(err) {
 			middleware.RespondBadRequest(c, err.Error())
 			return
@@ -249,9 +268,11 @@ func (h *Handler) Escalate(c *gin.Context) {
 }
 
 func (h *Handler) GetEscalations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEscalations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	escalations, err := h.svc.GetEscalations(c.Request.Context(), tenantID, id)
+	escalations, err := h.svc.GetEscalations(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -262,9 +283,11 @@ func (h *Handler) GetEscalations(c *gin.Context) {
 // --- SLA ---
 
 func (h *Handler) CheckSla(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckSla")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	sla, err := h.svc.CheckSlaBreach(c.Request.Context(), tenantID, id)
+	sla, err := h.svc.CheckSlaBreach(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -277,9 +300,11 @@ func (h *Handler) CheckSla(c *gin.Context) {
 }
 
 func (h *Handler) MarkSlaBreach(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MarkSlaBreach")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.MarkSlaBreach(c.Request.Context(), tenantID, id)
+	m, err := h.svc.MarkSlaBreach(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -294,6 +319,8 @@ func (h *Handler) MarkSlaBreach(c *gin.Context) {
 // --- Timeline ---
 
 func (h *Handler) AddTimelineEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddTimelineEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.AddTimelineEventRequest
@@ -308,7 +335,7 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 	if req.ActorID == "" {
 		req.ActorID = c.GetString("user_id")
 	}
-	event, err := h.svc.AddTimelineEvent(c.Request.Context(), tenantID, id, req)
+	event, err := h.svc.AddTimelineEvent(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsValidationErr(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -325,11 +352,13 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 }
 
 func (h *Handler) GetTimeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	timeline, err := h.svc.GetTimeline(c.Request.Context(), tenantID, id, models.TimelineQuery{
+	timeline, err := h.svc.GetTimeline(ctx, tenantID, id, models.TimelineQuery{
 		Limit:  &limit,
 		Offset: &offset,
 	})
@@ -343,6 +372,8 @@ func (h *Handler) GetTimeline(c *gin.Context) {
 // --- Postmortem ---
 
 func (h *Handler) CreatePostmortem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePostmortem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.CreatePostmortemRequest
@@ -357,7 +388,7 @@ func (h *Handler) CreatePostmortem(c *gin.Context) {
 	if req.CreatedBy == "" {
 		req.CreatedBy = c.GetString("user_id")
 	}
-	pm, err := h.svc.CreatePostmortem(c.Request.Context(), tenantID, id, req)
+	pm, err := h.svc.CreatePostmortem(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsAlreadyExists(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -374,9 +405,11 @@ func (h *Handler) CreatePostmortem(c *gin.Context) {
 }
 
 func (h *Handler) GetPostmortem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPostmortem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	pm, err := h.svc.GetPostmortem(c.Request.Context(), tenantID, id)
+	pm, err := h.svc.GetPostmortem(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Post-mortem not found")
@@ -389,6 +422,8 @@ func (h *Handler) GetPostmortem(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePostmortem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePostmortem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdatePostmortemRequest
@@ -396,7 +431,7 @@ func (h *Handler) UpdatePostmortem(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	pm, err := h.svc.UpdatePostmortem(c.Request.Context(), tenantID, id, req)
+	pm, err := h.svc.UpdatePostmortem(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -413,13 +448,15 @@ func (h *Handler) UpdatePostmortem(c *gin.Context) {
 }
 
 func (h *Handler) PublishPostmortem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishPostmortem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body struct {
 		ReviewedBy *string `json:"reviewed_by"`
 	}
 	c.ShouldBindJSON(&body)
-	pm, err := h.svc.PublishPostmortem(c.Request.Context(), tenantID, id, body.ReviewedBy)
+	pm, err := h.svc.PublishPostmortem(ctx, tenantID, id, body.ReviewedBy)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -436,9 +473,11 @@ func (h *Handler) PublishPostmortem(c *gin.Context) {
 }
 
 func (h *Handler) ArchivePostmortem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchivePostmortem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	pm, err := h.svc.ArchivePostmortem(c.Request.Context(), tenantID, id)
+	pm, err := h.svc.ArchivePostmortem(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -457,10 +496,12 @@ func (h *Handler) ArchivePostmortem(c *gin.Context) {
 // --- Knowledge recommendations ---
 
 func (h *Handler) GetKnowledgeRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetKnowledgeRecommendations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "5"))
-	result, err := h.svc.GetKnowledgeRecommendations(c.Request.Context(), tenantID, id, limit)
+	result, err := h.svc.GetKnowledgeRecommendations(ctx, tenantID, id, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())

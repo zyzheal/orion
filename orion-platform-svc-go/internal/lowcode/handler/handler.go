@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for the lowcode module.
@@ -67,6 +68,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListFlows handles GET /flows
 func (h *Handler) ListFlows(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFlows")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -87,7 +90,7 @@ func (h *Handler) ListFlows(c *gin.Context) {
 		filter.Search = &search
 	}
 
-	items, total, err := h.svc.ListFlows(c.Request.Context(), tenantID, filter, page, pageSize)
+	items, total, err := h.svc.ListFlows(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -103,8 +106,10 @@ func (h *Handler) ListFlows(c *gin.Context) {
 
 // GetFlow handles GET /flows/:id
 func (h *Handler) GetFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
-	flow, err := h.svc.GetFlow(c.Request.Context(), tenantID, c.Param("id"))
+	flow, err := h.svc.GetFlow(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -118,6 +123,8 @@ func (h *Handler) GetFlow(c *gin.Context) {
 
 // CreateFlow handles POST /flows
 func (h *Handler) CreateFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
 	userID := c.GetString("user_id")
 
@@ -127,7 +134,7 @@ func (h *Handler) CreateFlow(c *gin.Context) {
 		return
 	}
 
-	flow, err := h.svc.CreateFlow(c.Request.Context(), tenantID, userID, &req)
+	flow, err := h.svc.CreateFlow(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -137,6 +144,8 @@ func (h *Handler) CreateFlow(c *gin.Context) {
 
 // UpdateFlow handles PUT /flows/:id
 func (h *Handler) UpdateFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	var req models.UpdateFlowRequest
@@ -145,7 +154,7 @@ func (h *Handler) UpdateFlow(c *gin.Context) {
 		return
 	}
 
-	flow, err := h.svc.UpdateFlow(c.Request.Context(), tenantID, c.Param("id"), &req)
+	flow, err := h.svc.UpdateFlow(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -159,8 +168,10 @@ func (h *Handler) UpdateFlow(c *gin.Context) {
 
 // DeleteFlow handles DELETE /flows/:id
 func (h *Handler) DeleteFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
-	if err := h.svc.DeleteFlow(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.DeleteFlow(ctx, tenantID, c.Param("id")); err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
 			return
@@ -173,8 +184,10 @@ func (h *Handler) DeleteFlow(c *gin.Context) {
 
 // PublishFlow handles POST /flows/:id/publish
 func (h *Handler) PublishFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
-	flow, err := h.svc.PublishFlow(c.Request.Context(), tenantID, c.Param("id"))
+	flow, err := h.svc.PublishFlow(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -188,6 +201,8 @@ func (h *Handler) PublishFlow(c *gin.Context) {
 
 // ExecuteFlow handles POST /flows/:id/execute
 func (h *Handler) ExecuteFlow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteFlow")
+	defer span.End()
 	tenantID := getTenantID(c)
 	userID := c.GetString("user_id")
 
@@ -198,7 +213,7 @@ func (h *Handler) ExecuteFlow(c *gin.Context) {
 		input.Input = ""
 	}
 
-	inst, err := h.svc.ExecuteFlow(c.Request.Context(), tenantID, userID, c.Param("id"), input.Input)
+	inst, err := h.svc.ExecuteFlow(ctx, tenantID, userID, c.Param("id"), input.Input)
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -218,10 +233,12 @@ func (h *Handler) ExecuteFlow(c *gin.Context) {
 
 // CreateVersion handles POST /workflows/:id/versions
 func (h *Handler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateVersion")
+	defer span.End()
 	tenantID := getTenantID(c)
 	userID := c.GetString("user_id")
 
-	snap, err := h.svc.CreateVersion(c.Request.Context(), tenantID, userID, c.Param("id"))
+	snap, err := h.svc.CreateVersion(ctx, tenantID, userID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -235,8 +252,10 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 
 // ListVersions handles GET /workflows/:id/versions
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
 	tenantID := getTenantID(c)
-	snapshots, err := h.svc.ListVersions(c.Request.Context(), tenantID, c.Param("id"))
+	snapshots, err := h.svc.ListVersions(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -252,6 +271,8 @@ func (h *Handler) ListVersions(c *gin.Context) {
 
 // ImportWorkflow handles POST /workflows/import
 func (h *Handler) ImportWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ImportWorkflow")
+	defer span.End()
 	tenantID := getTenantID(c)
 	userID := c.GetString("user_id")
 
@@ -261,7 +282,7 @@ func (h *Handler) ImportWorkflow(c *gin.Context) {
 		return
 	}
 
-	flow, err := h.svc.ImportWorkflow(c.Request.Context(), tenantID, userID, &req)
+	flow, err := h.svc.ImportWorkflow(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -271,8 +292,10 @@ func (h *Handler) ImportWorkflow(c *gin.Context) {
 
 // ExportWorkflow handles POST /workflows/:id/export
 func (h *Handler) ExportWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExportWorkflow")
+	defer span.End()
 	tenantID := getTenantID(c)
-	resp, err := h.svc.ExportWorkflow(c.Request.Context(), tenantID, c.Param("id"))
+	resp, err := h.svc.ExportWorkflow(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if err == service.ErrFlowNotFound {
 			middleware.RespondNotFound(c, "flow not found")
@@ -288,7 +311,9 @@ func (h *Handler) ExportWorkflow(c *gin.Context) {
 
 // ListTemplates handles GET /templates
 func (h *Handler) ListTemplates(c *gin.Context) {
-	items, err := h.svc.ListTemplates(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTemplates")
+	defer span.End()
+	items, err := h.svc.ListTemplates(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -298,6 +323,8 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 
 // CreateTemplate handles POST /templates
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTemplate")
+	defer span.End()
 	userID := c.GetString("user_id")
 
 	var req models.CreateTemplateRequest
@@ -306,7 +333,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 		return
 	}
 
-	tmpl, err := h.svc.CreateTemplate(c.Request.Context(), userID, &req)
+	tmpl, err := h.svc.CreateTemplate(ctx, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -316,6 +343,8 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 
 // ApplyTemplate handles POST /templates/:id/apply
 func (h *Handler) ApplyTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplyTemplate")
+	defer span.End()
 	tenantID := getTenantID(c)
 	userID := c.GetString("user_id")
 
@@ -325,7 +354,7 @@ func (h *Handler) ApplyTemplate(c *gin.Context) {
 		return
 	}
 
-	flow, err := h.svc.ApplyTemplate(c.Request.Context(), tenantID, userID, c.Param("id"), &req)
+	flow, err := h.svc.ApplyTemplate(ctx, tenantID, userID, c.Param("id"), &req)
 	if err != nil {
 		if err == service.ErrTemplateNotFound {
 			middleware.RespondNotFound(c, "template not found")

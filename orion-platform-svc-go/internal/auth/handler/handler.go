@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/auth/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for authentication.
@@ -46,6 +47,8 @@ func (h *Handler) RegisterRoutes(public *gin.RouterGroup, protected *gin.RouterG
 
 // Login authenticates a user and returns tokens.
 func (h *Handler) Login(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Login")
+	defer span.End()
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
@@ -54,7 +57,7 @@ func (h *Handler) Login(c *gin.Context) {
 
 	requestedTenantID := c.GetHeader("X-Tenant-ID")
 
-	resp, err := h.svc.Login(c.Request.Context(), &req, requestedTenantID)
+	resp, err := h.svc.Login(ctx, &req, requestedTenantID)
 	if err != nil {
 		switch err {
 		case service.ErrInvalidCredentials:
@@ -78,6 +81,8 @@ func (h *Handler) Login(c *gin.Context) {
 
 // Register creates a new user account.
 func (h *Handler) Register(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Register")
+	defer span.End()
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
@@ -86,7 +91,7 @@ func (h *Handler) Register(c *gin.Context) {
 
 	requestedTenantID := c.GetHeader("X-Tenant-ID")
 
-	resp, err := h.svc.Register(c.Request.Context(), &req, requestedTenantID)
+	resp, err := h.svc.Register(ctx, &req, requestedTenantID)
 	if err != nil {
 		switch err {
 		case service.ErrUsernameExists:
@@ -104,13 +109,15 @@ func (h *Handler) Register(c *gin.Context) {
 
 // Refresh validates a refresh token and issues new tokens.
 func (h *Handler) Refresh(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Refresh")
+	defer span.End()
 	var req models.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	resp, err := h.svc.Refresh(c.Request.Context(), &req)
+	resp, err := h.svc.Refresh(ctx, &req)
 	if err != nil {
 		switch err {
 		case service.ErrInvalidRefreshToken:
@@ -130,13 +137,15 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 // Logout invalidates tokens.
 func (h *Handler) Logout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Logout")
+	defer span.End()
 	var req models.LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		// Accept empty body; just proceed with silent logout
 		req = models.LogoutRequest{}
 	}
 
-	if err := h.svc.Logout(c.Request.Context(), &req); err != nil {
+	if err := h.svc.Logout(ctx, &req); err != nil {
 		errors.WriteError(c, errors.ErrInternal, "logout failed", http.StatusInternalServerError)
 		return
 	}
@@ -146,10 +155,12 @@ func (h *Handler) Logout(c *gin.Context) {
 
 // Me returns the current user's profile.
 func (h *Handler) Me(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Me")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
-	resp, err := h.svc.GetProfile(c.Request.Context(), tenantID, userID)
+	resp, err := h.svc.GetProfile(ctx, tenantID, userID)
 	if err != nil {
 		if err == service.ErrUserNotFound {
 			errors.WriteError(c, errors.ErrNotFound, "user not found", http.StatusNotFound)

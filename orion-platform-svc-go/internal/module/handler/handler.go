@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/module/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -30,8 +31,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns all module status for the tenant.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	snapshot, err := h.svc.GetModuleStatus(c.Request.Context(), tenantID)
+	snapshot, err := h.svc.GetModuleStatus(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, "failed to list modules", http.StatusInternalServerError)
 		return
@@ -41,9 +44,11 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get returns a single module by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	mod, err := h.svc.GetModuleByID(c.Request.Context(), tenantID, id)
+	mod, err := h.svc.GetModuleByID(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "module not found", http.StatusNotFound)
 		return
@@ -53,6 +58,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Toggle enables or disables a module.
 func (h *Handler) Toggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Toggle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ToggleModuleRequest
@@ -60,7 +67,7 @@ func (h *Handler) Toggle(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
-	mod, err := h.svc.ToggleModule(c.Request.Context(), tenantID, id, req.Enabled)
+	mod, err := h.svc.ToggleModule(ctx, tenantID, id, req.Enabled)
 	switch {
 	case err != nil && err.Error() == "core module cannot be disabled":
 		errors.WriteError(c, errors.ErrValidation, "core module cannot be disabled", http.StatusBadRequest)
@@ -77,8 +84,10 @@ func (h *Handler) Toggle(c *gin.Context) {
 
 // Validate returns dependency validation results.
 func (h *Handler) Validate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Validate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	results, err := h.svc.ValidateDependencies(c.Request.Context(), tenantID)
+	results, err := h.svc.ValidateDependencies(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, "failed to validate dependencies", http.StatusInternalServerError)
 		return
@@ -88,8 +97,10 @@ func (h *Handler) Validate(c *gin.Context) {
 
 // StartupOrder returns the ordered list of enabled module names.
 func (h *Handler) StartupOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartupOrder")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	order, err := h.svc.GetStartupOrder(c.Request.Context(), tenantID)
+	order, err := h.svc.GetStartupOrder(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, "failed to get startup order", http.StatusInternalServerError)
 		return

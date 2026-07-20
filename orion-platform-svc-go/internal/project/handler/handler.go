@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -37,6 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := c.GetString("user_id")
 	var req models.CreateProjectRequest
@@ -44,7 +47,7 @@ func (h *Handler) Create(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
+	p, err := h.svc.Create(ctx, tenantID, createdBy, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -53,8 +56,10 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -63,8 +68,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	p, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	p, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -73,6 +80,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateProjectRequest
@@ -80,7 +89,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
+	p, err := h.svc.Update(ctx, tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -89,8 +98,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}

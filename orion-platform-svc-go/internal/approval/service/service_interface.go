@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/approval/models"
+)
+
 // ServiceInterface defines the interface for the approval service.
 type ServiceInterface interface {
 	AgentAnalyze(ctx context.Context, tenantID, approvalID string) (*models.ApprovalRequest, error)

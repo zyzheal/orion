@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/script/models"
+)
+
 // ServiceInterface defines the interface for the script service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateScriptRequest) (*models.Script, error)

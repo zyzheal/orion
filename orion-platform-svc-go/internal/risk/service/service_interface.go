@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/risk/models"
+)
+
 // ServiceInterface defines the interface for the risk service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateRiskRequest) (*models.Risk, error)

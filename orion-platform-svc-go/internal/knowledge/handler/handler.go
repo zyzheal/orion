@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -74,6 +75,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Space handlers ---
 
 func (h *Handler) ListSpaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSpaces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.SpaceListQuery{
 		Type:   c.Query("type"),
@@ -94,7 +97,7 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 	q.Limit = pp
 	q.Offset = (p - 1) * pp
 
-	spaces, err := h.svc.ListSpaces(c.Request.Context(), tenantID, q)
+	spaces, err := h.svc.ListSpaces(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -106,6 +109,8 @@ func (h *Handler) ListSpaces(c *gin.Context) {
 }
 
 func (h *Handler) CreateSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSpace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,7 +121,7 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 		middleware.RespondBadRequest(c, "name is required")
 		return
 	}
-	space, err := h.svc.CreateSpace(c.Request.Context(), tenantID, req)
+	space, err := h.svc.CreateSpace(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -125,8 +130,10 @@ func (h *Handler) CreateSpace(c *gin.Context) {
 }
 
 func (h *Handler) GetSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSpace")
+	defer span.End()
 	id := c.Param("id")
-	space, err := h.svc.GetSpace(c.Request.Context(), id)
+	space, err := h.svc.GetSpace(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
@@ -139,13 +146,15 @@ func (h *Handler) GetSpace(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSpace")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateSpaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	space, err := h.svc.UpdateSpace(c.Request.Context(), id, req)
+	space, err := h.svc.UpdateSpace(ctx, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
@@ -158,8 +167,10 @@ func (h *Handler) UpdateSpace(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSpace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSpace")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteSpace(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteSpace(ctx, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
 			return
@@ -173,6 +184,8 @@ func (h *Handler) DeleteSpace(c *gin.Context) {
 // --- Document handlers ---
 
 func (h *Handler) ListDocs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDocs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.DocListQuery{
 		SpaceID: c.Query("spaceId"),
@@ -202,9 +215,9 @@ func (h *Handler) ListDocs(c *gin.Context) {
 	var docs []models.Document
 	var err error
 	if c.Query("type") == "docs" {
-		docs, err = h.svc.ListDocsByType(c.Request.Context(), tenantID, q)
+		docs, err = h.svc.ListDocsByType(ctx, tenantID, q)
 	} else {
-		docs, err = h.svc.ListDocs(c.Request.Context(), tenantID, q)
+		docs, err = h.svc.ListDocs(ctx, tenantID, q)
 	}
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -217,8 +230,10 @@ func (h *Handler) ListDocs(c *gin.Context) {
 }
 
 func (h *Handler) GetDocTags(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDocTags")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	tags, err := h.svc.GetDocTags(c.Request.Context(), tenantID)
+	tags, err := h.svc.GetDocTags(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -227,8 +242,10 @@ func (h *Handler) GetDocTags(c *gin.Context) {
 }
 
 func (h *Handler) GetDocToc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDocToc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	toc, err := h.svc.GetDocToc(c.Request.Context(), tenantID)
+	toc, err := h.svc.GetDocToc(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -237,6 +254,8 @@ func (h *Handler) GetDocToc(c *gin.Context) {
 }
 
 func (h *Handler) CreateDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDoc")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDocumentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -247,7 +266,7 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 		middleware.RespondBadRequest(c, "title, content, and space_id are required")
 		return
 	}
-	doc, err := h.svc.CreateDoc(c.Request.Context(), tenantID, req)
+	doc, err := h.svc.CreateDoc(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "space not found")
@@ -260,8 +279,10 @@ func (h *Handler) CreateDoc(c *gin.Context) {
 }
 
 func (h *Handler) GetDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDoc")
+	defer span.End()
 	id := c.Param("id")
-	doc, err := h.svc.GetDoc(c.Request.Context(), id)
+	doc, err := h.svc.GetDoc(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -274,13 +295,15 @@ func (h *Handler) GetDoc(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDoc")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateDocumentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	doc, err := h.svc.UpdateDoc(c.Request.Context(), id, req)
+	doc, err := h.svc.UpdateDoc(ctx, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -293,8 +316,10 @@ func (h *Handler) UpdateDoc(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDoc(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDoc")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteDoc(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteDoc(ctx, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
 			return
@@ -306,8 +331,10 @@ func (h *Handler) DeleteDoc(c *gin.Context) {
 }
 
 func (h *Handler) GetDocVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDocVersions")
+	defer span.End()
 	id := c.Param("id")
-	versions, err := h.svc.GetDocVersions(c.Request.Context(), id)
+	versions, err := h.svc.GetDocVersions(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "document not found")
@@ -322,13 +349,15 @@ func (h *Handler) GetDocVersions(c *gin.Context) {
 // --- Sync handlers ---
 
 func (h *Handler) TriggerSync(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerSync")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SyncTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	log, err := h.svc.TriggerSync(c.Request.Context(), tenantID, req.Source)
+	log, err := h.svc.TriggerSync(ctx, tenantID, req.Source)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -337,6 +366,8 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 }
 
 func (h *Handler) GetSyncLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSyncLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := 10
 	if l := c.Query("limit"); l != "" {
@@ -344,7 +375,7 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 			limit = v
 		}
 	}
-	logs, err := h.svc.GetSyncLogs(c.Request.Context(), tenantID, limit)
+	logs, err := h.svc.GetSyncLogs(ctx, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -355,6 +386,8 @@ func (h *Handler) GetSyncLogs(c *gin.Context) {
 // --- RAG handlers ---
 
 func (h *Handler) RAGRetrieve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGRetrieve")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RetrieveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -365,7 +398,7 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
-	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
+	results, err := h.svc.Retrieve(ctx, tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -390,6 +423,8 @@ func (h *Handler) RAGRetrieve(c *gin.Context) {
 }
 
 func (h *Handler) RAGQuery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RAGQuery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RAGQueryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -400,7 +435,7 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 		middleware.RespondBadRequest(c, "query is required")
 		return
 	}
-	results, err := h.svc.Retrieve(c.Request.Context(), tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
+	results, err := h.svc.Retrieve(ctx, tenantID, req.Query, models.RetrieveRequest{SpaceID: req.SpaceID, TopK: req.TopK})
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -458,13 +493,15 @@ func (h *Handler) RAGQuery(c *gin.Context) {
 // --- Knowledge Graph handler ---
 
 func (h *Handler) GetGraph(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGraph")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	spaceID := c.Query("spaceId")
 
 	var spaces []models.Space
 	var err error
 	if spaceID != "" {
-		space, e := h.svc.GetSpace(c.Request.Context(), spaceID)
+		space, e := h.svc.GetSpace(ctx, spaceID)
 		if e != nil {
 			if service.IsNotFound(e) {
 				middleware.RespondNotFound(c, "space not found")
@@ -475,7 +512,7 @@ func (h *Handler) GetGraph(c *gin.Context) {
 		}
 		spaces = []models.Space{*space}
 	} else {
-		spaces, err = h.svc.ListSpaces(c.Request.Context(), tenantID, models.SpaceListQuery{Limit: 20})
+		spaces, err = h.svc.ListSpaces(ctx, tenantID, models.SpaceListQuery{Limit: 20})
 		if err != nil {
 			middleware.RespondInternalError(c, err.Error())
 			return
@@ -488,7 +525,7 @@ func (h *Handler) GetGraph(c *gin.Context) {
 	for _, space := range spaces {
 		nodes = append(nodes, models.GraphNode{ID: space.ID, Type: "space", Label: space.Name})
 
-		docs, e := h.svc.ListDocs(c.Request.Context(), tenantID, models.DocListQuery{SpaceID: space.ID, Limit: 50})
+		docs, e := h.svc.ListDocs(ctx, tenantID, models.DocListQuery{SpaceID: space.ID, Limit: 50})
 		if e != nil {
 			continue
 		}

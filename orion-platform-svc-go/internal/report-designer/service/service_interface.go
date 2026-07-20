@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/report-designer/models"
+)
+
 // ServiceInterface defines the interface for the report-designer service.
 type ServiceInterface interface {
 	CreateDatasource(ctx context.Context, req *models.CreateDatasourceRequest) (*models.ReportDatasource, error)

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"orion/governance-svc-go/internal/risk/models"
 	"orion/governance-svc-go/internal/risk/service"

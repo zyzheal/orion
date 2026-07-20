@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/skill/models"
+)
+
 // ServiceInterface defines the interface for the skill service.
 type ServiceInterface interface {
 	AddVersion(ctx context.Context, tenantID, skillID string, req models.AddVersionRequest) (*models.SkillVersion, error)

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"orion/ai-svc-go/internal/intelligence/models"
 	"orion/ai-svc-go/internal/intelligence/service"

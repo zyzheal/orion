@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ticketing/models"
+)
+
 // ServiceInterface defines the interface for the ticketing service.
 type ServiceInterface interface {
 	ActivateSuspend(ctx context.Context, tenantID, id string) (*models.Suspend, error)

@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/circuit-breaker/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,8 +42,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	entities, err := h.svc.List(c.Request.Context(), tenantID)
+	entities, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -51,13 +54,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
+	entity, err := h.svc.Create(ctx, &req, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -66,9 +71,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
+	entity, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -77,6 +84,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +93,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
+	entity, err := h.svc.Update(ctx, id, tenantID, &req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -93,9 +102,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.Delete(ctx, id, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -108,11 +119,13 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) RecordSuccess(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordSuccess")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	var req models.SuccessRequest
 	_ = c.ShouldBindJSON(&req) // optional body
-	_, err := h.svc.RecordSuccess(c.Request.Context(), id, tenantID, req.ResponseTimeMs)
+	_, err := h.svc.RecordSuccess(ctx, id, tenantID, req.ResponseTimeMs)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -129,6 +142,8 @@ func (h *Handler) RecordSuccess(c *gin.Context) {
 }
 
 func (h *Handler) RecordFailure(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordFailure")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	var req models.FailureRequest
@@ -136,7 +151,7 @@ func (h *Handler) RecordFailure(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	_, err := h.svc.RecordFailure(c.Request.Context(), id, tenantID, req.ErrorMsg)
+	_, err := h.svc.RecordFailure(ctx, id, tenantID, req.ErrorMsg)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -153,9 +168,11 @@ func (h *Handler) RecordFailure(c *gin.Context) {
 }
 
 func (h *Handler) GetState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetState")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	resp, err := h.svc.Evaluate(c.Request.Context(), id, tenantID)
+	resp, err := h.svc.Evaluate(ctx, id, tenantID)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -168,11 +185,13 @@ func (h *Handler) GetState(c *gin.Context) {
 }
 
 func (h *Handler) GetEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEvents")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	limit := 20
 	_ = c.Query("limit") // optional
-	events, err := h.svc.GetRecentEvents(c.Request.Context(), id, tenantID, limit)
+	events, err := h.svc.GetRecentEvents(ctx, id, tenantID, limit)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -181,8 +200,10 @@ func (h *Handler) GetEvents(c *gin.Context) {
 }
 
 func (h *Handler) ListOpen(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOpen")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	entities, err := h.svc.ListOpen(c.Request.Context(), tenantID)
+	entities, err := h.svc.ListOpen(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return

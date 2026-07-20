@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/deploy-enhanced/models"
+)
+
 // ServiceInterface defines the interface for the deploy-enhanced service.
 type ServiceInterface interface {
 	AdvanceStage(ctx context.Context, id string, stageID string, validationResult *string, tenantID string) (*models.ProgressiveDeploy, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/data-lineage/models"
+)
+
 // ServiceInterface defines the interface for the data-lineage service.
 type ServiceInterface interface {
 	CreateLineage(ctx context.Context, tenantID string, req *models.CreateLineageRequest) (*models.Lineage, error)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for gateway dynamic route management.
@@ -37,6 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // List retrieves paginated gateway routes with optional enabled/q filters.
 // TS: GET /api/v1/gateway/routes
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -57,7 +60,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	q := c.Query("q")
 
-	items, total, err := h.svc.ListWithFilter(c.Request.Context(), tenantID, enabledFlag, q, pageSize, offset)
+	items, total, err := h.svc.ListWithFilter(ctx, tenantID, enabledFlag, q, pageSize, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -80,10 +83,12 @@ func (h *Handler) List(c *gin.Context) {
 // Get retrieves a single gateway route by id.
 // TS: GET /api/v1/gateway/routes/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -94,6 +99,8 @@ func (h *Handler) Get(c *gin.Context) {
 // Create creates a new gateway route.
 // TS: POST /api/v1/gateway/routes
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -107,7 +114,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -120,6 +127,8 @@ func (h *Handler) Create(c *gin.Context) {
 // Update modifies an existing gateway route.
 // TS: PUT /api/v1/gateway/routes/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	id := c.Param("id")
@@ -130,7 +139,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -142,10 +151,12 @@ func (h *Handler) Update(c *gin.Context) {
 // Delete removes a gateway route.
 // TS: DELETE /api/v1/gateway/routes/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -155,6 +166,8 @@ func (h *Handler) Delete(c *gin.Context) {
 // Toggle enables or disables a gateway route.
 // TS: PATCH /api/v1/gateway/routes/:id/toggle
 func (h *Handler) Toggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Toggle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	id := c.Param("id")
@@ -165,7 +178,7 @@ func (h *Handler) Toggle(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.Toggle(c.Request.Context(), tenantID, id, req.Enabled)
+	m, err := h.svc.Toggle(ctx, tenantID, id, req.Enabled)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -177,9 +190,11 @@ func (h *Handler) Toggle(c *gin.Context) {
 // Stats returns aggregate statistics across gateway routes for the tenant.
 // TS: GET /api/v1/gateway/routes/stats
 func (h *Handler) Stats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Stats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
+	stats, err := h.svc.Stats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

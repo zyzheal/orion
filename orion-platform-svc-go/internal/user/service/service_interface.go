@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/user/models"
+)
+
 // ServiceInterface defines the interface for the user service.
 type ServiceInterface interface {
 	Authenticate(ctx context.Context, req *models.AuthenticateRequest) (*models.User, error)

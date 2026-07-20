@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/api-consumption/models"
+)
+
 // ServiceInterface defines the interface for the api-consumption service.
 type ServiceInterface interface {
 	CreateConsumption(ctx context.Context, tenantID string, req *models.CreateConsumptionRequest) (*models.Consumption, error)

@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-budget/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // BudgetService defines the contract the handler needs from the service layer.
@@ -72,10 +73,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // GetBudget retrieves the budget configuration for a pipeline.
 // GET /pipelines/:pipelineId/budget
 func (h *Handler) GetBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
-	b, err := h.svc.GetBudget(c.Request.Context(), tenantID, pipelineID)
+	b, err := h.svc.GetBudget(ctx, tenantID, pipelineID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -86,6 +89,8 @@ func (h *Handler) GetBudget(c *gin.Context) {
 // UpsertBudget creates or updates a budget configuration for a pipeline.
 // PUT /pipelines/:pipelineId/budget
 func (h *Handler) UpsertBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpsertBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -99,7 +104,7 @@ func (h *Handler) UpsertBudget(c *gin.Context) {
 		return
 	}
 
-	b, err := h.svc.UpsertBudget(c.Request.Context(), tenantID, pipelineID, &req)
+	b, err := h.svc.UpsertBudget(ctx, tenantID, pipelineID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -117,10 +122,12 @@ func (h *Handler) UpsertBudget(c *gin.Context) {
 // GetUsage returns the current budget usage snapshot for a pipeline.
 // GET /pipelines/:pipelineId/budget/usage
 func (h *Handler) GetUsage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUsage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
-	usage, err := h.svc.GetBudgetUsage(c.Request.Context(), tenantID, pipelineID)
+	usage, err := h.svc.GetBudgetUsage(ctx, tenantID, pipelineID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -135,10 +142,12 @@ func (h *Handler) GetUsage(c *gin.Context) {
 // ListAlerts returns all alert rules for a pipeline's budget.
 // GET /pipelines/:pipelineId/budget/alerts
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
-	alerts, err := h.svc.GetAlerts(c.Request.Context(), tenantID, pipelineID)
+	alerts, err := h.svc.GetAlerts(ctx, tenantID, pipelineID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -149,6 +158,8 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 // CreateAlert creates a new alert rule.
 // POST /pipelines/:pipelineId/budget/alerts
 func (h *Handler) CreateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -158,7 +169,7 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, pipelineID, &req)
+	alert, err := h.svc.CreateAlert(ctx, tenantID, pipelineID, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -169,6 +180,8 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 // UpdateAlert patches an existing alert rule.
 // PUT /pipelines/:pipelineId/budget/alerts/:alertId
 func (h *Handler) UpdateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 	alertID := c.Param("alertId")
@@ -179,7 +192,7 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, pipelineID, alertID, &req)
+	alert, err := h.svc.UpdateAlert(ctx, tenantID, pipelineID, alertID, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -190,11 +203,13 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 // DeleteAlert removes an alert rule.
 // DELETE /pipelines/:pipelineId/budget/alerts/:alertId
 func (h *Handler) DeleteAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 	alertID := c.Param("alertId")
 
-	if err := h.svc.DeleteAlert(c.Request.Context(), tenantID, pipelineID, alertID); err != nil {
+	if err := h.svc.DeleteAlert(ctx, tenantID, pipelineID, alertID); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -208,6 +223,8 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 // ListHistory returns paginated budget history for a pipeline.
 // GET /pipelines/:pipelineId/budget/history
 func (h *Handler) ListHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pipelineID := c.Param("pipelineId")
 
@@ -219,7 +236,7 @@ func (h *Handler) ListHistory(c *gin.Context) {
 		Limit:  &limit,
 	}
 
-	page, err := h.svc.GetHistoryPage(c.Request.Context(), tenantID, pipelineID, q)
+	page, err := h.svc.GetHistoryPage(ctx, tenantID, pipelineID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

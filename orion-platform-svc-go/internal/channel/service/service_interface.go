@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/channel/models"
+)
+
 // ServiceInterface defines the interface for the channel service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateChannelRequest) (*models.NotificationChannel, error)

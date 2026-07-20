@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-models/models"
+)
+
 // ServiceInterface defines the interface for the ai-models service.
 type ServiceInterface interface {
 	ConfigureCanary(ctx context.Context, tenantID, modelID string, req models.CanaryConfigRequest) (*models.CanaryConfig, error)

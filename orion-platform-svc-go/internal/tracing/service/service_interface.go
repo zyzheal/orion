@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/tracing/models"
+)
+
 // ServiceInterface defines the interface for the tracing service.
 type ServiceInterface interface {
 	CreateOtelConfig(ctx context.Context, tenantID string, req *models.CreateOtelRequest) (*models.OtelCollectorConfig, error)

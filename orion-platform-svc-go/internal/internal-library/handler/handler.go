@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -58,13 +59,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // =============================================================================
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateInternalLibraryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -73,8 +76,10 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, c.Param("id"))
+	m, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -87,10 +92,12 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -102,8 +109,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) GetByName(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetByName")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	m, err := h.svc.GetByName(c.Request.Context(), tenantID, c.Param("name"))
+	m, err := h.svc.GetByName(ctx, tenantID, c.Param("name"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -116,10 +125,12 @@ func (h *Handler) GetByName(c *gin.Context) {
 }
 
 func (h *Handler) ListByLanguage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListByLanguage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListByLanguage(c.Request.Context(), tenantID, c.Param("language"), limit, offset)
+	items, err := h.svc.ListByLanguage(ctx, tenantID, c.Param("language"), limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -131,10 +142,12 @@ func (h *Handler) ListByLanguage(c *gin.Context) {
 }
 
 func (h *Handler) ListByOwner(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListByOwner")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListByOwner(c.Request.Context(), tenantID, c.Param("owner"), limit, offset)
+	items, err := h.svc.ListByOwner(ctx, tenantID, c.Param("owner"), limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -146,13 +159,15 @@ func (h *Handler) ListByOwner(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateInternalLibraryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), req)
+	m, err := h.svc.Update(ctx, tenantID, c.Param("id"), req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -165,8 +180,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
 			return
@@ -182,13 +199,15 @@ func (h *Handler) Delete(c *gin.Context) {
 // =============================================================================
 
 func (h *Handler) PublishVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishVersion")
+	defer span.End()
 	libraryID := c.Param("id")
 	var req models.PublishVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	v, err := h.svc.PublishVersion(c.Request.Context(), libraryID, req)
+	v, err := h.svc.PublishVersion(ctx, libraryID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -205,8 +224,10 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 }
 
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
 	libraryID := c.Param("id")
-	versions, err := h.svc.ListVersions(c.Request.Context(), libraryID)
+	versions, err := h.svc.ListVersions(ctx, libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -222,9 +243,11 @@ func (h *Handler) ListVersions(c *gin.Context) {
 }
 
 func (h *Handler) GetVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersion")
+	defer span.End()
 	libraryID := c.Param("id")
 	version := c.Param("version")
-	v, err := h.svc.GetVersion(c.Request.Context(), libraryID, version)
+	v, err := h.svc.GetVersion(ctx, libraryID, version)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -237,6 +260,8 @@ func (h *Handler) GetVersion(c *gin.Context) {
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeprecateVersion")
+	defer span.End()
 	libraryID := c.Param("id")
 	version := c.Param("version")
 	var req models.DeprecateVersionRequest
@@ -244,7 +269,7 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	v, err := h.svc.DeprecateVersion(c.Request.Context(), libraryID, version, req.Reason, req.MigrationGuide, req.EOLDate)
+	v, err := h.svc.DeprecateVersion(ctx, libraryID, version, req.Reason, req.MigrationGuide, req.EOLDate)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -261,6 +286,8 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 // =============================================================================
 
 func (h *Handler) Deprecate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Deprecate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.DeprecateLibraryRequest
@@ -268,7 +295,7 @@ func (h *Handler) Deprecate(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	lib, err := h.svc.Deprecate(c.Request.Context(), tenantID, id, req.Reason, req.MigrationGuide, req.EOLDate)
+	lib, err := h.svc.Deprecate(ctx, tenantID, id, req.Reason, req.MigrationGuide, req.EOLDate)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -285,9 +312,11 @@ func (h *Handler) Deprecate(c *gin.Context) {
 }
 
 func (h *Handler) Activate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Activate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	lib, err := h.svc.Activate(c.Request.Context(), tenantID, id)
+	lib, err := h.svc.Activate(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -308,8 +337,10 @@ func (h *Handler) Activate(c *gin.Context) {
 // =============================================================================
 
 func (h *Handler) ListDependents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDependents")
+	defer span.End()
 	libraryID := c.Param("id")
-	dependents, err := h.svc.ListDependents(c.Request.Context(), libraryID)
+	dependents, err := h.svc.ListDependents(ctx, libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -325,13 +356,15 @@ func (h *Handler) ListDependents(c *gin.Context) {
 }
 
 func (h *Handler) AddDependent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddDependent")
+	defer span.End()
 	libraryID := c.Param("id")
 	var req models.AddDependentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.AddDependent(c.Request.Context(), libraryID, req)
+	d, err := h.svc.AddDependent(ctx, libraryID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")
@@ -344,6 +377,8 @@ func (h *Handler) AddDependent(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDependentVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDependentVersion")
+	defer span.End()
 	libraryID := c.Param("id")
 	repoName := c.Param("repoName")
 	var req models.UpdateDependentRequest
@@ -351,7 +386,7 @@ func (h *Handler) UpdateDependentVersion(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpdateDependentVersion(c.Request.Context(), libraryID, repoName, req.Version); err != nil {
+	if err := h.svc.UpdateDependentVersion(ctx, libraryID, repoName, req.Version); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "dependent not found")
 			return
@@ -363,8 +398,10 @@ func (h *Handler) UpdateDependentVersion(c *gin.Context) {
 }
 
 func (h *Handler) CheckDependencies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckDependencies")
+	defer span.End()
 	repoName := c.Param("repoName")
-	results, err := h.svc.CheckDependencies(c.Request.Context(), repoName)
+	results, err := h.svc.CheckDependencies(ctx, repoName)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -373,8 +410,10 @@ func (h *Handler) CheckDependencies(c *gin.Context) {
 }
 
 func (h *Handler) UpdateStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStats")
+	defer span.End()
 	libraryID := c.Param("id")
-	stats, err := h.svc.UpdateStats(c.Request.Context(), libraryID)
+	stats, err := h.svc.UpdateStats(ctx, libraryID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "library not found")

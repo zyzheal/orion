@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/cost-allocation/models"
+)
+
 // ServiceInterface defines the interface for the cost-allocation service.
 type ServiceInterface interface {
 	CompleteReport(ctx context.Context, tenantID, id string, totalCost, allocatedCost float64, resultData string) (*models.Report, error)

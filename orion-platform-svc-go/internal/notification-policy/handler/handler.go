@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -90,6 +91,8 @@ func (h *Handler) getPagination(c *gin.Context) (int, int) {
 // --- Policy handlers ---
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	page, pageSize := h.getPagination(c)
 
@@ -104,7 +107,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 		}
 	}
 
-	policies, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	policies, total, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -118,9 +121,11 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	policy, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	policy, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification policy not found")
@@ -133,6 +138,8 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePolicy")
+	defer span.End()
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -140,7 +147,7 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	policy, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	policy, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -149,6 +156,8 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePolicy")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -156,7 +165,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	policy, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	policy, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification policy not found")
@@ -169,9 +178,11 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -184,8 +195,10 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 }
 
 func (h *Handler) CountPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountPolicies")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -194,6 +207,8 @@ func (h *Handler) CountPolicies(c *gin.Context) {
 }
 
 func (h *Handler) EvaluatePolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluatePolicies")
+	defer span.End()
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -201,7 +216,7 @@ func (h *Handler) EvaluatePolicies(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	results, err := h.svc.Evaluate(c.Request.Context(), tenantID, userID, &req)
+	results, err := h.svc.Evaluate(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -212,11 +227,13 @@ func (h *Handler) EvaluatePolicies(c *gin.Context) {
 // --- Workflow handlers ---
 
 func (h *Handler) ListWorkflows(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWorkflows")
+	defer span.End()
 	policyID := c.Param("policyId")
 	tenantID := h.getTenantID(c)
 	page, pageSize := h.getPagination(c)
 
-	workflows, total, err := h.svc.ListWorkflows(c.Request.Context(), tenantID, policyID, page, pageSize)
+	workflows, total, err := h.svc.ListWorkflows(ctx, tenantID, policyID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,10 +247,12 @@ func (h *Handler) ListWorkflows(c *gin.Context) {
 }
 
 func (h *Handler) GetWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWorkflow")
+	defer span.End()
 	policyID := c.Param("policyId")
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	workflow, err := h.svc.GetWorkflow(c.Request.Context(), tenantID, policyID, id)
+	workflow, err := h.svc.GetWorkflow(ctx, tenantID, policyID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification policy workflow not found")
@@ -246,6 +265,8 @@ func (h *Handler) GetWorkflow(c *gin.Context) {
 }
 
 func (h *Handler) CreateWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateWorkflow")
+	defer span.End()
 	policyID := c.Param("policyId")
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -255,7 +276,7 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 	req.PolicyID = policyID
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	workflow, err := h.svc.CreateWorkflow(c.Request.Context(), tenantID, userID, &req)
+	workflow, err := h.svc.CreateWorkflow(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -264,6 +285,8 @@ func (h *Handler) CreateWorkflow(c *gin.Context) {
 }
 
 func (h *Handler) UpdateWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateWorkflow")
+	defer span.End()
 	policyID := c.Param("policyId")
 	id := c.Param("id")
 	var req models.UpdateWorkflowRequest
@@ -272,7 +295,7 @@ func (h *Handler) UpdateWorkflow(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	workflow, err := h.svc.UpdateWorkflow(c.Request.Context(), tenantID, policyID, id, &req)
+	workflow, err := h.svc.UpdateWorkflow(ctx, tenantID, policyID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification policy workflow not found")
@@ -285,10 +308,12 @@ func (h *Handler) UpdateWorkflow(c *gin.Context) {
 }
 
 func (h *Handler) DeleteWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteWorkflow")
+	defer span.End()
 	policyID := c.Param("policyId")
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteWorkflow(c.Request.Context(), tenantID, policyID, id)
+	deleted, err := h.svc.DeleteWorkflow(ctx, tenantID, policyID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

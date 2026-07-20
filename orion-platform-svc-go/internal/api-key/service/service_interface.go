@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/api-key/models"
+)
+
 // ServiceInterface defines the interface for the api-key service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID, userID string, req *models.CreateKeyRequest) (*CreateAPIKeyResponse, error)

@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/ai-cost/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -28,8 +29,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListRecords(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecords")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	f := models.CostFilter{ModelID: c.Query("modelId")}
 	records, err := h.svc.ListCostRecords(ctx, tenantID, f)
 	if err != nil {
@@ -40,8 +43,10 @@ func (h *Handler) ListRecords(c *gin.Context) {
 }
 
 func (h *Handler) GetSummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSummary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	summary, err := h.svc.GetCostSummary(ctx, tenantID, models.CostFilter{})
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -51,8 +56,10 @@ func (h *Handler) GetSummary(c *gin.Context) {
 }
 
 func (h *Handler) GetRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	record, err := h.svc.GetCostRecord(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "cost record not found", http.StatusNotFound)
@@ -62,8 +69,10 @@ func (h *Handler) GetRecord(c *gin.Context) {
 }
 
 func (h *Handler) RecordCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var record models.CostRecord
 	if err := c.ShouldBindJSON(&record); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)

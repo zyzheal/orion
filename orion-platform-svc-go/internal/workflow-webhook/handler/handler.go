@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ---------------------------------------------------------------------------
@@ -86,6 +87,8 @@ func parsePagination(c *gin.Context) (int, int) {
 // This is a public endpoint — no auth middleware. Signature verification
 // is done via x-webhook-signature and x-webhook-timestamp headers.
 func (h *Handler) HandleWebhook(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HandleWebhook")
+	defer span.End()
 	webhookPath := c.Param("webhookPath")
 	if webhookPath == "" {
 		middleware.RespondBadRequest(c, "webhookPath is required")
@@ -101,7 +104,7 @@ func (h *Handler) HandleWebhook(c *gin.Context) {
 	signatureHeader := c.GetHeader("x-webhook-signature")
 	timestampHeader := c.GetHeader("x-webhook-timestamp")
 
-	result, err := h.svc.ProcessWebhook(c.Request.Context(), webhookPath, body, signatureHeader, timestampHeader)
+	result, err := h.svc.ProcessWebhook(ctx, webhookPath, body, signatureHeader, timestampHeader)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -124,7 +127,7 @@ func (h *Handler) HandleWebhook(c *gin.Context) {
 	}
 
 	// Create a real workflow instance via the workflow engine.
-	ctx := c.Request.Context()
+	ctx := ctx
 	if h.workflowSvc == nil {
 		// Workflow service not wired — log the event but respond with pending.
 		middleware.RespondSuccess(c, models.WebhookResponse{
@@ -162,6 +165,8 @@ func (h *Handler) HandleWebhook(c *gin.Context) {
 
 // List handles GET /workflow-webhooks
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	page, pageSize := parsePagination(c)
 
@@ -174,7 +179,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Enabled = &enabled
 	}
 
-	items, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	items, total, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -189,6 +194,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create handles POST /workflow-webhooks
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateWebhookTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -196,7 +203,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	t, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	t, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -206,9 +213,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get handles GET /workflow-webhooks/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	t, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow webhook not found")
@@ -222,6 +231,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update handles PUT /workflow-webhooks/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateWebhookTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -229,7 +240,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	t, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow webhook not found")
@@ -243,9 +254,11 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete handles DELETE /workflow-webhooks/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow webhook not found")
 			return
@@ -258,8 +271,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count handles GET /workflow-webhooks/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -269,9 +284,11 @@ func (h *Handler) Count(c *gin.Context) {
 
 // RotateSecret handles POST /workflow-webhooks/:id/rotate-secret
 func (h *Handler) RotateSecret(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RotateSecret")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	secret, err := h.svc.RotateSecret(c.Request.Context(), tenantID, id)
+	secret, err := h.svc.RotateSecret(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow webhook not found")
@@ -285,11 +302,13 @@ func (h *Handler) RotateSecret(c *gin.Context) {
 
 // ListLogs handles GET /workflow-webhooks/:id/logs
 func (h *Handler) ListLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLogs")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
 	// Verify the trigger exists and belongs to the tenant.
-	if _, err := h.svc.GetByID(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.GetByID(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow webhook not found")
 			return
@@ -299,7 +318,7 @@ func (h *Handler) ListLogs(c *gin.Context) {
 	}
 
 	page, pageSize := parsePagination(c)
-	logs, total, err := h.svc.ListLogs(c.Request.Context(), id, page, pageSize)
+	logs, total, err := h.svc.ListLogs(ctx, id, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

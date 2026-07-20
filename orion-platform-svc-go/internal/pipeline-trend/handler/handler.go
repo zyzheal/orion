@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -43,6 +44,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // GetRunHistoryTrend handles GET /pipelines/:id/runs/trend.
 func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRunHistoryTrend")
+	defer span.End()
 	pipelineID := c.Param("id")
 	if pipelineID == "" {
 		middleware.RespondBadRequest(c, "pipeline id is required")
@@ -52,7 +55,7 @@ func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
 	period := c.DefaultQuery("period", "30d")
 	granularity := c.DefaultQuery("granularity", "day")
 
-	result, err := h.svc.GetRunHistoryTrend(c.Request.Context(), pipelineID, period, granularity)
+	result, err := h.svc.GetRunHistoryTrend(ctx, pipelineID, period, granularity)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -71,6 +74,8 @@ func (h *Handler) GetRunHistoryTrend(c *gin.Context) {
 
 // GetRunHistoryCompare handles GET /pipelines/trend/compare.
 func (h *Handler) GetRunHistoryCompare(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRunHistoryCompare")
+	defer span.End()
 	rawIDs := c.Query("pipelineIds")
 	if rawIDs == "" {
 		middleware.RespondBadRequest(c, "pipelineIds query parameter is required")
@@ -86,7 +91,7 @@ func (h *Handler) GetRunHistoryCompare(c *gin.Context) {
 	period := c.DefaultQuery("period", "30d")
 	granularity := c.DefaultQuery("granularity", "day")
 
-	result, err := h.svc.GetRunHistoryCompare(c.Request.Context(), pipelineIDs, period, granularity)
+	result, err := h.svc.GetRunHistoryCompare(ctx, pipelineIDs, period, granularity)
 	if err != nil {
 		switch {
 		case service.IsNotFound(err):

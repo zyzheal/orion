@@ -1,5 +1,9 @@
 package service
 
+//go:generate mockgen -destination=mock_service.go -package=service . ServiceInterface
+//go:generate mockgen -destination=mock_auth_repo.go -package=service . AuthRepository
+//go:generate mockgen -destination=mock_user_repo.go -package=service . UserRepository
+
 import (
 	"context"
 	"crypto/rand"

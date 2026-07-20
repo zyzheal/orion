@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/slo/models"
+)
+
 // ServiceInterface defines the interface for the slo service.
 type ServiceInterface interface {
 	CreateSLO(ctx context.Context, slo *models.SLODefinition) error

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler handles HTTP requests for the policy module.
@@ -101,10 +102,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Core CRUD handlers ---
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, limit, offset)
+	policies, err := h.svc.ListPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -113,13 +116,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreatePolicy(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreatePolicy(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -128,9 +133,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetPolicy(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetPolicy(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "policy not found")
@@ -143,6 +150,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
@@ -150,7 +159,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.UpdatePolicy(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.UpdatePolicy(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -159,9 +168,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeletePolicy(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeletePolicy(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -169,6 +180,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Toggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Toggle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req struct {
@@ -178,7 +191,7 @@ func (h *Handler) Toggle(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.TogglePolicy(c.Request.Context(), tenantID, id, req.Enabled)
+	m, err := h.svc.TogglePolicy(ctx, tenantID, id, req.Enabled)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -189,6 +202,8 @@ func (h *Handler) Toggle(c *gin.Context) {
 // --- Policy evaluation handlers ---
 
 func (h *Handler) Evaluate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Evaluate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -199,7 +214,7 @@ func (h *Handler) Evaluate(c *gin.Context) {
 	if req.PolicyID == "" {
 		req.PolicyID = c.Param("id")
 	}
-	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
+	result, err := h.svc.EvaluatePolicy(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -208,11 +223,13 @@ func (h *Handler) Evaluate(c *gin.Context) {
 }
 
 func (h *Handler) ListEvaluations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEvaluations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	evaluations, err := h.svc.GetEvaluationHistory(c.Request.Context(), tenantID, id, limit, offset)
+	evaluations, err := h.svc.GetEvaluationHistory(ctx, tenantID, id, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -224,13 +241,15 @@ func (h *Handler) ListEvaluations(c *gin.Context) {
 
 // EvaluatePolicyRoot handles POST /policies/evaluate-policy.
 func (h *Handler) EvaluatePolicyRoot(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluatePolicyRoot")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
+	result, err := h.svc.EvaluatePolicy(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "policy not found")
@@ -244,13 +263,15 @@ func (h *Handler) EvaluatePolicyRoot(c *gin.Context) {
 
 // EvaluateRoot handles POST /policies/evaluate.
 func (h *Handler) EvaluateRoot(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateRoot")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EvaluatePolicy(c.Request.Context(), tenantID, req)
+	result, err := h.svc.EvaluatePolicy(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "policy not found")
@@ -264,10 +285,12 @@ func (h *Handler) EvaluateRoot(c *gin.Context) {
 
 // ListRootEvaluations handles GET /policies/evaluations.
 func (h *Handler) ListRootEvaluations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRootEvaluations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
+	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -277,10 +300,12 @@ func (h *Handler) ListRootEvaluations(c *gin.Context) {
 
 // ListEvaluationsRuns handles GET /policies/evaluations/runs.
 func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEvaluationsRuns")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	evaluations, err := h.svc.ListEvaluations(c.Request.Context(), tenantID, limit, offset)
+	evaluations, err := h.svc.ListEvaluations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -291,10 +316,12 @@ func (h *Handler) ListEvaluationsRuns(c *gin.Context) {
 // --- Violation handlers ---
 
 func (h *Handler) ListViolations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListViolations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	violations, err := h.svc.ListViolations(c.Request.Context(), tenantID, limit, offset)
+	violations, err := h.svc.ListViolations(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -303,6 +330,8 @@ func (h *Handler) ListViolations(c *gin.Context) {
 }
 
 func (h *Handler) WaiveViolation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WaiveViolation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	violationID := c.Param("violationId")
 	var req models.WaiveViolationRequest
@@ -310,7 +339,7 @@ func (h *Handler) WaiveViolation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.WaiveViolation(c.Request.Context(), tenantID, violationID, req); err != nil {
+	if err := h.svc.WaiveViolation(ctx, tenantID, violationID, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -318,6 +347,8 @@ func (h *Handler) WaiveViolation(c *gin.Context) {
 }
 
 func (h *Handler) ResolveViolation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResolveViolation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	violationID := c.Param("violationId")
 	var req models.ResolveViolationRequest
@@ -325,7 +356,7 @@ func (h *Handler) ResolveViolation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ResolveViolation(c.Request.Context(), tenantID, violationID, req); err != nil {
+	if err := h.svc.ResolveViolation(ctx, tenantID, violationID, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -335,10 +366,12 @@ func (h *Handler) ResolveViolation(c *gin.Context) {
 // --- Override handlers ---
 
 func (h *Handler) ListOverrides(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOverrides")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	overrides, err := h.svc.ListOverrides(c.Request.Context(), tenantID, limit, offset)
+	overrides, err := h.svc.ListOverrides(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -347,6 +380,8 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 }
 
 func (h *Handler) CreateOverride(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateOverride")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	overrideBy := c.GetString("user_id")
 	var req models.CreateOverrideRequest
@@ -358,7 +393,7 @@ func (h *Handler) CreateOverride(c *gin.Context) {
 	if req.PolicyID == "" {
 		req.PolicyID = c.Param("id")
 	}
-	o, err := h.svc.CreateOverride(c.Request.Context(), tenantID, req, overrideBy)
+	o, err := h.svc.CreateOverride(ctx, tenantID, req, overrideBy)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -369,8 +404,10 @@ func (h *Handler) CreateOverride(c *gin.Context) {
 // --- Bundle handlers ---
 
 func (h *Handler) ListBundles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBundles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	bundles, err := h.svc.ListBundles(c.Request.Context(), tenantID)
+	bundles, err := h.svc.ListBundles(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -379,9 +416,11 @@ func (h *Handler) ListBundles(c *gin.Context) {
 }
 
 func (h *Handler) GetBundle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBundle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	b, err := h.svc.GetBundle(c.Request.Context(), tenantID, id)
+	b, err := h.svc.GetBundle(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -390,6 +429,8 @@ func (h *Handler) GetBundle(c *gin.Context) {
 }
 
 func (h *Handler) SyncBundles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SyncBundles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SyncBundlesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -400,7 +441,7 @@ func (h *Handler) SyncBundles(c *gin.Context) {
 	if req.SourceURL == "" {
 		req.SourceURL = c.DefaultQuery("source_url", "")
 	}
-	result, err := h.svc.SyncBundles(c.Request.Context(), tenantID, req.SourceURL)
+	result, err := h.svc.SyncBundles(ctx, tenantID, req.SourceURL)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -411,12 +452,14 @@ func (h *Handler) SyncBundles(c *gin.Context) {
 // --- Policy testing handler ---
 
 func (h *Handler) TestPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestPolicy")
+	defer span.End()
 	var req models.TestPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	results, err := h.svc.TestPolicy(c.Request.Context(), req.Rego, req.TestCases)
+	results, err := h.svc.TestPolicy(ctx, req.Rego, req.TestCases)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -427,13 +470,15 @@ func (h *Handler) TestPolicy(c *gin.Context) {
 // --- Exemption handlers ---
 
 func (h *Handler) CreateExemption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateExemption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExemptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.SubmitExemption(c.Request.Context(), tenantID, req)
+	m, err := h.svc.SubmitExemption(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -442,9 +487,11 @@ func (h *Handler) CreateExemption(c *gin.Context) {
 }
 
 func (h *Handler) GetExemption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExemption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetExemption(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetExemption(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "exemption not found")
@@ -457,13 +504,15 @@ func (h *Handler) GetExemption(c *gin.Context) {
 }
 
 func (h *Handler) ListExemptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExemptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ListExemptionsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc.ListExemptions(c.Request.Context(), tenantID, req)
+	resp, err := h.svc.ListExemptions(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -472,6 +521,8 @@ func (h *Handler) ListExemptions(c *gin.Context) {
 }
 
 func (h *Handler) ApproveExemption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveExemption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ReviewExemptionRequest
@@ -481,7 +532,7 @@ func (h *Handler) ApproveExemption(c *gin.Context) {
 	}
 	req.Action = models.ExemptionActionApprove
 	req.Reviewer = c.GetString("user_id")
-	m, err := h.svc.ReviewExemption(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.ReviewExemption(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -490,6 +541,8 @@ func (h *Handler) ApproveExemption(c *gin.Context) {
 }
 
 func (h *Handler) RejectExemption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectExemption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ReviewExemptionRequest
@@ -499,7 +552,7 @@ func (h *Handler) RejectExemption(c *gin.Context) {
 	}
 	req.Action = models.ExemptionActionReject
 	req.Reviewer = c.GetString("user_id")
-	m, err := h.svc.ReviewExemption(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.ReviewExemption(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -508,9 +561,11 @@ func (h *Handler) RejectExemption(c *gin.Context) {
 }
 
 func (h *Handler) RevokeExemption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RevokeExemption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.RevokeExemption(c.Request.Context(), tenantID, id)
+	m, err := h.svc.RevokeExemption(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -40,13 +41,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -55,9 +58,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -66,10 +71,12 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	off, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, off)
+	items, err := h.svc.List(ctx, tenantID, limit, off)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -78,6 +85,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateCronJobRequest
@@ -110,7 +119,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, "no fields to update")
 		return
 	}
-	m, err := h.svc.UpdatePartial(c.Request.Context(), tenantID, id, updates)
+	m, err := h.svc.UpdatePartial(ctx, tenantID, id, updates)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -119,9 +128,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -129,9 +140,11 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) EnableJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableJob")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.EnableJob(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.EnableJob(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -139,9 +152,11 @@ func (h *Handler) EnableJob(c *gin.Context) {
 }
 
 func (h *Handler) DisableJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableJob")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DisableJob(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DisableJob(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -149,9 +164,11 @@ func (h *Handler) DisableJob(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteJob")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	execution, err := h.svc.ExecuteJob(c.Request.Context(), tenantID, id)
+	execution, err := h.svc.ExecuteJob(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -160,9 +177,11 @@ func (h *Handler) ExecuteJob(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExecutions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	jobID := c.Query("jobId")
-	history, err := h.svc.GetExecutionHistory(c.Request.Context(), tenantID, jobID)
+	history, err := h.svc.GetExecutionHistory(ctx, tenantID, jobID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -171,9 +190,11 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecution")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	executionID := c.Param("executionId")
-	evt, err := h.svc.GetExecutionByID(c.Request.Context(), tenantID, executionID)
+	evt, err := h.svc.GetExecutionByID(ctx, tenantID, executionID)
 	if err != nil {
 		middleware.RespondNotFound(c, "execution not found")
 		return
@@ -182,13 +203,17 @@ func (h *Handler) GetExecution(c *gin.Context) {
 }
 
 func (h *Handler) RunningJobs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunningJobs")
+	defer span.End()
 	running := h.svc.GetRunningJobs()
 	middleware.RespondSuccess(c, running)
 }
 
 func (h *Handler) Status(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Status")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
+	status, err := h.svc.GetStatus(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -197,11 +222,15 @@ func (h *Handler) Status(c *gin.Context) {
 }
 
 func (h *Handler) StartScheduler(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartScheduler")
+	defer span.End()
 	h.svc.Start()
 	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler started"})
 }
 
 func (h *Handler) StopScheduler(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopScheduler")
+	defer span.End()
 	h.svc.Stop()
 	middleware.RespondSuccess(c, gin.H{"message": "cron scheduler stopped"})
 }

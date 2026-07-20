@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the change module's HTTP endpoints.
@@ -59,6 +60,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Change Request CRUD ====================
 
 func (h *Handler) ListChangeRequests(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListChangeRequests")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.ChangeRequestListQuery{Limit: 20, Offset: 0}
 	if s := c.Query("status"); s != "" {
@@ -86,7 +89,7 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 	if o := c.DefaultQuery("offset", "0"); o != "" {
 	q.Offset, _ = strconv.Atoi(o)
 	}
-	result, err := h.svc.ListChangeRequests(c.Request.Context(), tenantID, q)
+	result, err := h.svc.ListChangeRequests(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -95,6 +98,8 @@ func (h *Handler) ListChangeRequests(c *gin.Context) {
 }
 
 func (h *Handler) CreateChangeRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateChangeRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateChangeRequestRequest
@@ -102,7 +107,7 @@ func (h *Handler) CreateChangeRequest(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CreateChangeRequest(c.Request.Context(), tenantID, req, userID)
+	result, err := h.svc.CreateChangeRequest(ctx, tenantID, req, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -111,9 +116,11 @@ func (h *Handler) CreateChangeRequest(c *gin.Context) {
 }
 
 func (h *Handler) GetChangeRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangeRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	cr, err := h.svc.GetChangeRequest(c.Request.Context(), tenantID, id)
+	cr, err := h.svc.GetChangeRequest(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			errors.WriteError(c, errors.ErrNotFound, "change request not found", 404)
@@ -130,6 +137,8 @@ func (h *Handler) GetChangeRequest(c *gin.Context) {
 }
 
 func (h *Handler) UpdateChangeRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateChangeRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 	var req models.UpdateChangeRequestRequest
@@ -137,7 +146,7 @@ id := c.Param("id")
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.UpdateChangeRequest(c.Request.Context(), tenantID, id, req)
+	result, err := h.svc.UpdateChangeRequest(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -146,9 +155,11 @@ id := c.Param("id")
 }
 
 func (h *Handler) DeleteChangeRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteChangeRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteChangeRequest(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteChangeRequest(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -156,6 +167,8 @@ func (h *Handler) DeleteChangeRequest(c *gin.Context) {
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.StatusTransitionRequest
@@ -163,7 +176,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, req.Status, req.Reason)
+	result, err := h.svc.UpdateStatus(ctx, tenantID, id, req.Status, req.Reason)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -174,6 +187,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 // ==================== Timeline ====================
 
 func (h *Handler) GetTimeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 	limit := 20
@@ -184,7 +199,7 @@ id := c.Param("id")
 	if o := c.DefaultQuery("offset", "0"); o != "" {
 		offset, _ = strconv.Atoi(o)
 	}
-	events, err := h.svc.GetTimeline(c.Request.Context(), tenantID, id, limit, offset)
+	events, err := h.svc.GetTimeline(ctx, tenantID, id, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -193,6 +208,8 @@ id := c.Param("id")
 }
 
 func (h *Handler) AddTimelineEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddTimelineEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	changeRequestID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -201,7 +218,7 @@ func (h *Handler) AddTimelineEvent(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-event, err := h.svc.AddTimelineEvent(c.Request.Context(), tenantID, changeRequestID, req.EventType, req.Description, req.Metadata, userID)
+event, err := h.svc.AddTimelineEvent(ctx, tenantID, changeRequestID, req.EventType, req.Description, req.Metadata, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -212,8 +229,10 @@ event, err := h.svc.AddTimelineEvent(c.Request.Context(), tenantID, changeReques
 // ==================== Statistics ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -224,6 +243,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 // ==================== RFC ====================
 
 func (h *Handler) CreateRFC(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRFC")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateRFCRequest
@@ -231,7 +252,7 @@ func (h *Handler) CreateRFC(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	rfc, err := h.svc.CreateRFC(c.Request.Context(), tenantID, req, userID)
+	rfc, err := h.svc.CreateRFC(ctx, tenantID, req, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -240,9 +261,11 @@ func (h *Handler) CreateRFC(c *gin.Context) {
 }
 
 func (h *Handler) GetRFC(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRFC")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	rfc, err := h.svc.GetRFC(c.Request.Context(), tenantID, id)
+	rfc, err := h.svc.GetRFC(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 		errors.WriteError(c, errors.ErrNotFound, "RFC not found", 404)
@@ -259,6 +282,8 @@ func (h *Handler) GetRFC(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRFC(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRFC")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateRFCRequest
@@ -266,7 +291,7 @@ func (h *Handler) UpdateRFC(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	rfc, err := h.svc.UpdateRFC(c.Request.Context(), tenantID, id, req)
+	rfc, err := h.svc.UpdateRFC(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -275,6 +300,8 @@ func (h *Handler) UpdateRFC(c *gin.Context) {
 }
 
 func (h *Handler) ListRFCs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRFCs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := 20
 	offset := 0
@@ -284,7 +311,7 @@ func (h *Handler) ListRFCs(c *gin.Context) {
 	if o := c.DefaultQuery("offset", "0"); o != "" {
 		offset, _ = strconv.Atoi(o)
 	}
-	result, err := h.svc.ListRFCs(c.Request.Context(), tenantID, limit, offset)
+	result, err := h.svc.ListRFCs(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -295,6 +322,8 @@ func (h *Handler) ListRFCs(c *gin.Context) {
 // ==================== CAB Meetings ====================
 
 func (h *Handler) CreateCABMeeting(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCABMeeting")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateCABMeetingRequest
@@ -302,7 +331,7 @@ func (h *Handler) CreateCABMeeting(c *gin.Context) {
 	errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	meeting, err := h.svc.CreateCABMeeting(c.Request.Context(), tenantID, req, userID)
+	meeting, err := h.svc.CreateCABMeeting(ctx, tenantID, req, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -311,9 +340,11 @@ func (h *Handler) CreateCABMeeting(c *gin.Context) {
 }
 
 func (h *Handler) GetCABMeeting(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCABMeeting")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-meeting, err := h.svc.GetCABMeeting(c.Request.Context(), tenantID, id)
+meeting, err := h.svc.GetCABMeeting(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			errors.WriteError(c, errors.ErrNotFound, "CAB meeting not found", 404)
@@ -330,6 +361,8 @@ meeting, err := h.svc.GetCABMeeting(c.Request.Context(), tenantID, id)
 }
 
 func (h *Handler) UpdateCABMeeting(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateCABMeeting")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateCABMeetingRequest
@@ -337,7 +370,7 @@ func (h *Handler) UpdateCABMeeting(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-meeting, err := h.svc.UpdateCABMeeting(c.Request.Context(), tenantID, id, req)
+meeting, err := h.svc.UpdateCABMeeting(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -346,6 +379,8 @@ meeting, err := h.svc.UpdateCABMeeting(c.Request.Context(), tenantID, id, req)
 }
 
 func (h *Handler) ListCABMeetings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCABMeetings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.CABMeetingListQuery{Limit: 20, Offset: 0}
 	if s := c.Query("status"); s != "" {
@@ -357,7 +392,7 @@ func (h *Handler) ListCABMeetings(c *gin.Context) {
 	if o := c.DefaultQuery("offset", "0"); o != "" {
 	q.Offset, _ = strconv.Atoi(o)
 	}
-	result, err := h.svc.ListCABMeetings(c.Request.Context(), tenantID, q)
+	result, err := h.svc.ListCABMeetings(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -368,6 +403,8 @@ func (h *Handler) ListCABMeetings(c *gin.Context) {
 // ==================== CAB Decisions ====================
 
 func (h *Handler) AddCABDecision(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddCABDecision")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	cabID := c.Param("cabID")
 	var req models.CreateCABDecisionRequest
@@ -375,7 +412,7 @@ func (h *Handler) AddCABDecision(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	decision, err := h.svc.AddCABDecision(c.Request.Context(), tenantID, cabID, req)
+	decision, err := h.svc.AddCABDecision(ctx, tenantID, cabID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/user-token/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -27,8 +28,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) GetTokens(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTokens")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	userID := c.Param("id")
 	tokens, err := h.svc.GetTokens(ctx, tenantID, userID)
 	if err != nil {
@@ -39,8 +42,10 @@ func (h *Handler) GetTokens(c *gin.Context) {
 }
 
 func (h *Handler) CreateToken(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateToken")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.CreateTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request body", http.StatusBadRequest)
@@ -56,8 +61,10 @@ func (h *Handler) CreateToken(c *gin.Context) {
 }
 
 func (h *Handler) DeleteToken(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteToken")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	tokenID := c.Param("tokenId")
 	err := h.svc.DeleteToken(ctx, tenantID, tokenID)
 	if err != nil {

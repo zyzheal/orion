@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -42,7 +43,9 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) GetGraph(c *gin.Context) {
-	graph, err := h.svc.GetGraph(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGraph")
+	defer span.End()
+	graph, err := h.svc.GetGraph(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -51,8 +54,10 @@ func (h *Handler) GetGraph(c *gin.Context) {
 }
 
 func (h *Handler) CheckDefinition(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckDefinition")
+	defer span.End()
 	definitionID := c.Param("definitionId")
-	result, err := h.svc.CheckDefinition(c.Request.Context(), definitionID)
+	result, err := h.svc.CheckDefinition(ctx, definitionID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -65,7 +70,9 @@ func (h *Handler) CheckDefinition(c *gin.Context) {
 }
 
 func (h *Handler) GetVisualization(c *gin.Context) {
-	data, err := h.svc.GetVisualization(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVisualization")
+	defer span.End()
+	data, err := h.svc.GetVisualization(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

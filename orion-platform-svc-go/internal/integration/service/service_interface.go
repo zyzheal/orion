@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/integration/models"
+)
+
 // ServiceInterface defines the interface for the integration service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateIntegrationRequest) (*models.Integration, error)

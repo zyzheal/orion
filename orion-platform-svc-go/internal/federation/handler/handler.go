@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/federation/models"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the interface used by Handler.
@@ -87,13 +88,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) CreateFederation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateFederation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateFederationConfig(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateFederationConfig(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -102,8 +105,10 @@ func (h *Handler) CreateFederation(c *gin.Context) {
 }
 
 func (h *Handler) GetFederation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFederation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetFederationConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -112,8 +117,10 @@ func (h *Handler) GetFederation(c *gin.Context) {
 }
 
 func (h *Handler) ListFederations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFederations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListFederationConfigs(c.Request.Context(), tenantID)
+	items, err := h.svc.ListFederationConfigs(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -122,13 +129,15 @@ func (h *Handler) ListFederations(c *gin.Context) {
 }
 
 func (h *Handler) UpdateFederation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateFederation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.UpdateFederationConfig(c.Request.Context(), tenantID, c.Param("id"), &req)
+	d, err := h.svc.UpdateFederationConfig(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -137,8 +146,10 @@ func (h *Handler) UpdateFederation(c *gin.Context) {
 }
 
 func (h *Handler) DeleteFederation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteFederation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	err := h.svc.DeleteFederationConfig(c.Request.Context(), tenantID, c.Param("id"))
+	err := h.svc.DeleteFederationConfig(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -151,13 +162,15 @@ func (h *Handler) DeleteFederation(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) RegisterExecutor(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterExecutor")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExecutorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.RegisterExecutor(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.RegisterExecutor(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -166,8 +179,10 @@ func (h *Handler) RegisterExecutor(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutors(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExecutors")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListExecutors(c.Request.Context(), tenantID)
+	items, err := h.svc.ListExecutors(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -176,8 +191,10 @@ func (h *Handler) ListExecutors(c *gin.Context) {
 }
 
 func (h *Handler) GetExecutorHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecutorHealth")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	e, hlt, err := h.svc.GetExecutorHealth(c.Request.Context(), tenantID, c.Param("executorId"))
+	e, hlt, err := h.svc.GetExecutorHealth(ctx, tenantID, c.Param("executorId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -186,8 +203,10 @@ func (h *Handler) GetExecutorHealth(c *gin.Context) {
 }
 
 func (h *Handler) GetExecutorDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecutorDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetExecutorDashboard(c.Request.Context(), tenantID)
+	d, err := h.svc.GetExecutorDashboard(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -196,13 +215,15 @@ func (h *Handler) GetExecutorDashboard(c *gin.Context) {
 }
 
 func (h *Handler) ExecutorHeartbeat(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecutorHeartbeat")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ExecutorHeartbeatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	e, hlt, err := h.svc.ExecutorHeartbeat(c.Request.Context(), tenantID, c.Param("executorId"), &req)
+	e, hlt, err := h.svc.ExecutorHeartbeat(ctx, tenantID, c.Param("executorId"), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -211,8 +232,10 @@ func (h *Handler) ExecutorHeartbeat(c *gin.Context) {
 }
 
 func (h *Handler) DeregisterExecutor(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeregisterExecutor")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ok, err := h.svc.DeregisterExecutor(c.Request.Context(), tenantID, c.Param("executorId"))
+	ok, err := h.svc.DeregisterExecutor(ctx, tenantID, c.Param("executorId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -221,13 +244,15 @@ func (h *Handler) DeregisterExecutor(c *gin.Context) {
 }
 
 func (h *Handler) DispatchJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DispatchJob")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.DispatchJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.DispatchJob(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.DispatchJob(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -240,13 +265,15 @@ func (h *Handler) DispatchJob(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedulingPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSchedulingPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateSchedulingPolicy(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateSchedulingPolicy(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -255,9 +282,11 @@ func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedulingPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	_ = tenantID
-	items, err := h.svc.ListSchedulingPolicies(c.Request.Context(), tenantID)
+	items, err := h.svc.ListSchedulingPolicies(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -270,13 +299,15 @@ func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) ScheduleCrossClusterJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScheduleCrossClusterJob")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.ScheduleCrossClusterJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.ScheduleCrossClusterJob(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.ScheduleCrossClusterJob(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -289,13 +320,15 @@ func (h *Handler) ScheduleCrossClusterJob(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) CreateResourcePool(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateResourcePool")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateResourcePoolRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.CreateResourcePool(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.CreateResourcePool(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -304,8 +337,10 @@ func (h *Handler) CreateResourcePool(c *gin.Context) {
 }
 
 func (h *Handler) GetResourcePoolStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResourcePoolStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetResourcePoolStatus(c.Request.Context(), tenantID, c.Param("poolId"))
+	d, err := h.svc.GetResourcePoolStatus(ctx, tenantID, c.Param("poolId"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -318,13 +353,15 @@ func (h *Handler) GetResourcePoolStatus(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFederatedClusterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -333,11 +370,13 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	_ = ps
-	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -346,8 +385,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	d, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	d, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -356,13 +397,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateFederatedClusterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	d, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -371,8 +414,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -380,8 +425,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

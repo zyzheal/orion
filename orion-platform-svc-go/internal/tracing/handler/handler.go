@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -35,13 +36,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTraces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	serviceName := c.Query("serviceName")
 	limit := 50
 	if l := c.Query("limit"); l != "" {
 		limit, _ = strconv.Atoi(l)
 	}
-	traces, err := h.svc.GetTraceList(c.Request.Context(), tenantID, serviceName, limit)
+	traces, err := h.svc.GetTraceList(ctx, tenantID, serviceName, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -50,9 +53,11 @@ func (h *Handler) ListTraces(c *gin.Context) {
 }
 
 func (h *Handler) GetTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	traceID := c.Param("traceId")
-	traces, err := h.svc.GetTrace(c.Request.Context(), tenantID, traceID)
+	traces, err := h.svc.GetTrace(ctx, tenantID, traceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -65,9 +70,11 @@ func (h *Handler) GetTrace(c *gin.Context) {
 }
 
 func (h *Handler) GetTraceSpans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTraceSpans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	traceID := c.Param("traceId")
-	traces, err := h.svc.GetTrace(c.Request.Context(), tenantID, traceID)
+	traces, err := h.svc.GetTrace(ctx, tenantID, traceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -76,13 +83,15 @@ func (h *Handler) GetTraceSpans(c *gin.Context) {
 }
 
 func (h *Handler) SearchTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SearchTraces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TraceSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	traces, err := h.svc.SearchTraces(c.Request.Context(), tenantID, &req)
+	traces, err := h.svc.SearchTraces(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -91,8 +100,10 @@ func (h *Handler) SearchTraces(c *gin.Context) {
 }
 
 func (h *Handler) GetSamplingConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSamplingConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	configs, err := h.svc.GetSamplingConfigs(c.Request.Context(), tenantID)
+	configs, err := h.svc.GetSamplingConfigs(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -101,13 +112,15 @@ func (h *Handler) GetSamplingConfigs(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSamplingConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSamplingConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpsertSamplingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	config, err := h.svc.UpsertSamplingConfig(c.Request.Context(), tenantID, &req)
+	config, err := h.svc.UpsertSamplingConfig(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -116,9 +129,11 @@ func (h *Handler) UpdateSamplingConfig(c *gin.Context) {
 }
 
 func (h *Handler) GetOtelConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOtelConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	configType := c.Query("configType")
-	configs, err := h.svc.GetOtelConfigs(c.Request.Context(), tenantID, configType)
+	configs, err := h.svc.GetOtelConfigs(ctx, tenantID, configType)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -127,13 +142,15 @@ func (h *Handler) GetOtelConfigs(c *gin.Context) {
 }
 
 func (h *Handler) CreateOtelConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateOtelConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateOtelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	config, err := h.svc.CreateOtelConfig(c.Request.Context(), tenantID, &req)
+	config, err := h.svc.CreateOtelConfig(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -142,6 +159,8 @@ func (h *Handler) CreateOtelConfig(c *gin.Context) {
 }
 
 func (h *Handler) UpdateOtelConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateOtelConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateOtelRequest
@@ -149,7 +168,7 @@ func (h *Handler) UpdateOtelConfig(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	config, err := h.svc.UpdateOtelConfig(c.Request.Context(), tenantID, id, &req)
+	config, err := h.svc.UpdateOtelConfig(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -158,9 +177,11 @@ func (h *Handler) UpdateOtelConfig(c *gin.Context) {
 }
 
 func (h *Handler) DeleteOtelConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteOtelConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteOtelConfig(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteOtelConfig(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

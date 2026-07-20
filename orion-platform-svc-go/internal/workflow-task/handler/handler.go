@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -45,6 +46,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // ListTasks handler - GET /workflow-tasks
 func (h *Handler) ListTasks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTasks")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	filter := &models.ListFilter{}
@@ -66,7 +69,7 @@ func (h *Handler) ListTasks(c *gin.Context) {
 		}
 	}
 
-	tasks, total, err := h.svc.ListTasks(c.Request.Context(), tenantID, filter)
+	tasks, total, err := h.svc.ListTasks(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -91,9 +94,11 @@ func (h *Handler) ListTasks(c *gin.Context) {
 
 // GetTask handler - GET /workflow-tasks/:id
 func (h *Handler) GetTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTask")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	task, err := h.svc.GetTask(c.Request.Context(), id, tenantID)
+	task, err := h.svc.GetTask(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow task not found")
@@ -107,6 +112,8 @@ func (h *Handler) GetTask(c *gin.Context) {
 
 // ClaimTask handler - POST /workflow-tasks/:id/claim
 func (h *Handler) ClaimTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ClaimTask")
+	defer span.End()
 	id := c.Param("id")
 	var req models.ClaimTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -122,7 +129,7 @@ func (h *Handler) ClaimTask(c *gin.Context) {
 		return
 	}
 
-	task, err := h.svc.Claim(c.Request.Context(), id, tenantID, assigneeID, req.Comment)
+	task, err := h.svc.Claim(ctx, id, tenantID, assigneeID, req.Comment)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow task not found")
@@ -140,6 +147,8 @@ func (h *Handler) ClaimTask(c *gin.Context) {
 
 // CompleteTask handler - POST /workflow-tasks/:id/complete
 func (h *Handler) CompleteTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteTask")
+	defer span.End()
 	id := c.Param("id")
 	var req models.CompleteTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -148,7 +157,7 @@ func (h *Handler) CompleteTask(c *gin.Context) {
 	}
 
 	tenantID := h.getTenantID(c)
-	task, err := h.svc.Complete(c.Request.Context(), id, tenantID, req.Comment, req.FormData)
+	task, err := h.svc.Complete(ctx, id, tenantID, req.Comment, req.FormData)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow task not found")

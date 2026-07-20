@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/data-quality/models"
+)
+
 // ServiceInterface defines the interface for the data-quality service.
 type ServiceInterface interface {
 	CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.Alert, error)

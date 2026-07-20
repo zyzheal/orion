@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/config-mgmt-enhanced/models"
+)
+
 // ServiceInterface defines the interface for the config-mgmt-enhanced service.
 type ServiceInterface interface {
 	Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.ConfigMgmt, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/service-topology/models"
+)
+
 // ServiceInterface defines the interface for the service-topology service.
 type ServiceInterface interface {
 	AddDependency(ctx context.Context, tenantID, source, target string, relType models.RelationType) error

@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the governance service.
@@ -84,6 +85,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---- Policy handlers ----
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePolicy")
+	defer span.End()
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -91,7 +94,7 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	p, err := h.svc.CreatePolicy(c.Request.Context(), &req, tenantID, userID)
+	p, err := h.svc.CreatePolicy(ctx, &req, tenantID, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -100,6 +103,8 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	q := &models.PolicyListQuery{
 		Type:     c.Query("type"),
@@ -108,7 +113,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 	}
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	policies, total, err := h.svc.ListPolicies(c.Request.Context(), tenantID, q, offset, limit)
+	policies, total, err := h.svc.ListPolicies(ctx, tenantID, q, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -126,9 +131,11 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	p, err := h.svc.GetPolicy(c.Request.Context(), id, tenantID)
+	p, err := h.svc.GetPolicy(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
@@ -137,6 +144,8 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePolicy")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -145,7 +154,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	p, err := h.svc.UpdatePolicy(c.Request.Context(), id, tenantID, &req, userID)
+	p, err := h.svc.UpdatePolicy(ctx, id, tenantID, &req, userID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
@@ -154,10 +163,12 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	err := h.svc.DeletePolicy(c.Request.Context(), id, tenantID, userID)
+	err := h.svc.DeletePolicy(ctx, id, tenantID, userID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
@@ -168,10 +179,12 @@ func (h *Handler) DeletePolicy(c *gin.Context) {
 // ---- Enable / Disable handlers ----
 
 func (h *Handler) EnablePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnablePolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	p, err := h.svc.EnablePolicy(c.Request.Context(), id, tenantID, userID)
+	p, err := h.svc.EnablePolicy(ctx, id, tenantID, userID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
@@ -180,10 +193,12 @@ func (h *Handler) EnablePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DisablePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisablePolicy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	p, err := h.svc.DisablePolicy(c.Request.Context(), id, tenantID, userID)
+	p, err := h.svc.DisablePolicy(ctx, id, tenantID, userID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Policy not found")
 		return
@@ -194,10 +209,12 @@ func (h *Handler) DisablePolicy(c *gin.Context) {
 // ---- Audit Logs handler ----
 
 func (h *Handler) GetAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditLogs")
+	defer span.End()
 	id := c.Param("id")
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	logs, total, err := h.svc.GetAuditLogs(c.Request.Context(), id, offset, limit)
+	logs, total, err := h.svc.GetAuditLogs(ctx, id, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,13 +247,15 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 // ---- Compliance Check handler ----
 
 func (h *Handler) CheckCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckCompliance")
+	defer span.End()
 	var req models.ComplianceCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.CheckCompliance(c.Request.Context(), &req, tenantID)
+	result, err := h.svc.CheckCompliance(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -247,6 +266,8 @@ func (h *Handler) CheckCompliance(c *gin.Context) {
 // ---- Compliance Report handler ----
 
 func (h *Handler) GetComplianceReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceReport")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	period := (*models.CompliancePeriod)(nil)
 	start := c.Query("start")
@@ -254,7 +275,7 @@ func (h *Handler) GetComplianceReport(c *gin.Context) {
 	if start != "" || end != "" {
 		period = &models.CompliancePeriod{Start: start, End: end}
 	}
-	report, err := h.svc.GetComplianceReport(c.Request.Context(), tenantID, period)
+	report, err := h.svc.GetComplianceReport(ctx, tenantID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -265,6 +286,8 @@ func (h *Handler) GetComplianceReport(c *gin.Context) {
 // ---- Apply Policy handler ----
 
 func (h *Handler) ApplyPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplyPolicy")
+	defer span.End()
 	id := c.Param("id")
 	var req models.ApplyPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -273,7 +296,7 @@ func (h *Handler) ApplyPolicy(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	result, err := h.svc.ApplyPolicy(c.Request.Context(), id, tenantID, &req, userID)
+	result, err := h.svc.ApplyPolicy(ctx, id, tenantID, &req, userID)
 	if err != nil {
 		if err == service.ErrPolicyNotActive {
 			middleware.RespondBadRequest(c, "Policy must be active to apply")
@@ -288,10 +311,12 @@ func (h *Handler) ApplyPolicy(c *gin.Context) {
 // ---- Rules handler ----
 
 func (h *Handler) GetRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRules")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	rules, total, err := h.svc.GetRules(c.Request.Context(), tenantID, offset, limit)
+	rules, total, err := h.svc.GetRules(ctx, tenantID, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

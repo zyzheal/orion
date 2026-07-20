@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/circuit-breaker/models"
+)
+
 // ServiceInterface defines the interface for the circuit-breaker service.
 type ServiceInterface interface {
 	Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.CircuitBreaker, error)

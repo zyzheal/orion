@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/health-check/models"
+)
+
 // ServiceInterface defines the interface for the health-check service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateHealthCheckRequest) (string, error)

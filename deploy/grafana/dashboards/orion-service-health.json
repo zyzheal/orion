@@ -1,0 +1,243 @@
+{
+  "uid": "orion-service-health-v1",
+  "title": "Orion Service Health",
+  "description": "Per-service CPU, memory, disk, request volume and error rate",
+  "tags": ["orion", "service", "health"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "version": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Resource Usage",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "CPU Usage by Service",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 1},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.7}, {"color": "red", "value": 0.9}]}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(rate(container_cpu_usage_seconds_total{container_name=~\"orion-.*\"}[5m])) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"},
+        {"expr": "avg(rate(node_cpu_seconds_total{mode!=\"idle\"}[5m])) by (instance)", "legendFormat": "Host: {{instance}}", "refId": "B"}
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Memory Usage by Service",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 1},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(container_memory_working_set_bytes{container_name=~\"orion-.*\"}) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Disk Usage by Service",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(container_fs_usage_bytes{container_name=~\"orion-.*\"}) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Memory Working Set % of Limit",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.7}, {"color": "red", "value": 0.9}]}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(container_memory_working_set_bytes{container_name=~\"orion-.*\"}) by (container_name) / avg(container_memory_limit_bytes{container_name=~\"orion-.*\"}) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Request Metrics",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 17}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Request Volume by Handler (Top 15)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 18},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(15, sum(rate(orion_http_requests_total[5m])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Error Rate by Handler (Top 10)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 18},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.01}, {"color": "red", "value": 0.05}]}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(10, sum(rate(orion_http_requests_errors_total[5m])) by (handler) / sum(rate(orion_http_requests_total[5m])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "5xx Errors (5m) by Handler",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 26},
+      "options": {
+        "colorMode": "background",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "graphMode": "area",
+        "widthMode": "tight"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 10}]},
+          "color": {"mode": "thresholds"}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(10, sum(rate(orion_http_requests_total{status=~\"5..\"}[5m])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "P95 Latency by Handler (Top 10)",
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 26},
+      "options": {
+        "colorMode": "background",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "graphMode": "area",
+        "widthMode": "tight"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.5}, {"color": "red", "value": 1.0}]},
+          "color": {"mode": "thresholds"}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(10, histogram_quantile(0.95, sum(rate(orion_http_requests_duration_seconds_bucket[5m])) by (le, handler)))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Service Health Summary",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32},
+      "options": {
+        "showHeader": true,
+        "columns": [],
+        "frameOptions": {"showHeader": true}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"align": "left", "displayMode": "auto", "inspect": false}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Error %"}, "properties": [{"id": "custom.displayMode", "value": "color-background"}]},
+          {"matcher": {"id": "byName", "options": "P95 (s)"}, "properties": [{"id": "custom.displayMode", "value": "color-background"}]}
+        ]
+      },
+      "targets": [
+        {"expr": "sum(rate(orion_http_requests_total{status=~\"4..|5..\"}[5m])) by (handler) / sum(rate(orion_http_requests_total[5m])) by (handler) * 100", "format": "table", "instant": true, "refId": "A"}
+      ]
+    }
+  ],
+  "templating": {"list": []}
+}

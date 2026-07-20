@@ -8,6 +8,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -37,6 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateDevice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDevice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateMFADeviceRequest
@@ -44,7 +47,7 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CreateDevice(c.Request.Context(), tenantID, userID, &req)
+	result, err := h.svc.CreateDevice(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -53,9 +56,11 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 }
 
 func (h *Handler) ListDevices(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDevices")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	devices, err := h.svc.ListDevices(c.Request.Context(), tenantID, userID, nil)
+	devices, err := h.svc.ListDevices(ctx, tenantID, userID, nil)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -64,9 +69,11 @@ func (h *Handler) ListDevices(c *gin.Context) {
 }
 
 func (h *Handler) GetDevice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDevice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	device, err := h.svc.GetDevice(c.Request.Context(), tenantID, id)
+	device, err := h.svc.GetDevice(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
@@ -75,9 +82,11 @@ func (h *Handler) GetDevice(c *gin.Context) {
 }
 
 func (h *Handler) ActivateDevice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ActivateDevice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.ActivateDevice(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.ActivateDevice(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
@@ -85,9 +94,11 @@ func (h *Handler) ActivateDevice(c *gin.Context) {
 }
 
 func (h *Handler) DisableDevice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableDevice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DisableDevice(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DisableDevice(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "device not found", 404)
 		return
 	}
@@ -95,9 +106,11 @@ func (h *Handler) DisableDevice(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDevice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDevice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteDevice(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteDevice(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -110,6 +123,8 @@ func (h *Handler) DeleteDevice(c *gin.Context) {
 }
 
 func (h *Handler) VerifyCode(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VerifyCode")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.VerifyMFACodeRequest
@@ -117,7 +132,7 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "code is required", 400)
 		return
 	}
-	valid, err := h.svc.VerifyCode(c.Request.Context(), tenantID, userID, req.Code)
+	valid, err := h.svc.VerifyCode(ctx, tenantID, userID, req.Code)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -126,9 +141,11 @@ func (h *Handler) VerifyCode(c *gin.Context) {
 }
 
 func (h *Handler) GenerateBackupCodes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateBackupCodes")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	codes, err := h.svc.GenerateBackupCodes(c.Request.Context(), tenantID, userID)
+	codes, err := h.svc.GenerateBackupCodes(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

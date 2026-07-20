@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/vector-store/models"
+)
+
 // ServiceInterface defines the interface for the vector-store service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateVectorStoreRequest) (*models.VectorStore, error)

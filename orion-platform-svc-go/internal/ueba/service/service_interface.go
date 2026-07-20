@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ueba/models"
+)
+
 // ServiceInterface defines the interface for the ueba service.
 type ServiceInterface interface {
 	CreateAlert(ctx context.Context, tenantID string, req *models.CreateAlertRequest) (*models.UEBAAlert, error)

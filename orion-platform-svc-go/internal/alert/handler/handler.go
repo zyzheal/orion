@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -56,13 +57,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ----- Alert Ingestion -----
 
 func (h *Handler) Ingest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Ingest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.IngestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc.Ingest(c.Request.Context(), tenantID, req)
+	resp, err := h.svc.Ingest(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -73,6 +76,8 @@ func (h *Handler) Ingest(c *gin.Context) {
 // ----- Alert Correlation -----
 
 func (h *Handler) Correlate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Correlate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CorrelationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -83,7 +88,7 @@ func (h *Handler) Correlate(c *gin.Context) {
 		middleware.RespondBadRequest(c, "alerts is required")
 		return
 	}
-	analysis, err := h.svc.Correlate(c.Request.Context(), tenantID, req.Alerts)
+	analysis, err := h.svc.Correlate(ctx, tenantID, req.Alerts)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -92,8 +97,10 @@ func (h *Handler) Correlate(c *gin.Context) {
 }
 
 func (h *Handler) GetTopology(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTopology")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	topo, err := h.svc.GetTopology(c.Request.Context(), tenantID)
+	topo, err := h.svc.GetTopology(ctx, tenantID)
 	if err != nil {
 		middleware.RespondSuccess(c, gin.H{"topology": nil})
 		return
@@ -102,13 +109,15 @@ func (h *Handler) GetTopology(c *gin.Context) {
 }
 
 func (h *Handler) SetTopology(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetTopology")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TopologyNodesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, "Invalid topology")
 		return
 	}
-	update, err := h.svc.SetTopology(c.Request.Context(), tenantID, req)
+	update, err := h.svc.SetTopology(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -123,8 +132,10 @@ func (h *Handler) SetTopology(c *gin.Context) {
 // ----- Alert Deduplication -----
 
 func (h *Handler) GetDedupStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDedupStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetDedupStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetDedupStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -133,8 +144,10 @@ func (h *Handler) GetDedupStats(c *gin.Context) {
 }
 
 func (h *Handler) GetGroups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGroups")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	groups, err := h.svc.GetActiveGroups(c.Request.Context(), tenantID)
+	groups, err := h.svc.GetActiveGroups(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -145,8 +158,10 @@ func (h *Handler) GetGroups(c *gin.Context) {
 // ----- Alert Suppression -----
 
 func (h *Handler) GetSuppressionStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSuppressionStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetSuppressionStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetSuppressionStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -155,8 +170,10 @@ func (h *Handler) GetSuppressionStats(c *gin.Context) {
 }
 
 func (h *Handler) GetMaintenanceWindows(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMaintenanceWindows")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	windows, err := h.svc.GetActiveMaintenanceWindows(c.Request.Context(), tenantID)
+	windows, err := h.svc.GetActiveMaintenanceWindows(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -165,13 +182,15 @@ func (h *Handler) GetMaintenanceWindows(c *gin.Context) {
 }
 
 func (h *Handler) AddMaintenanceWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddMaintenanceWindow")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AddMaintenanceWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	_, err := h.svc.AddMaintenanceWindow(c.Request.Context(), tenantID, req)
+	_, err := h.svc.AddMaintenanceWindow(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondBadRequest(c, "Invalid maintenance window")
 		return
@@ -180,8 +199,10 @@ func (h *Handler) AddMaintenanceWindow(c *gin.Context) {
 }
 
 func (h *Handler) GetKnownIssues(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetKnownIssues")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	issues, err := h.svc.GetOpenKnownIssues(c.Request.Context(), tenantID)
+	issues, err := h.svc.GetOpenKnownIssues(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -190,13 +211,15 @@ func (h *Handler) GetKnownIssues(c *gin.Context) {
 }
 
 func (h *Handler) AddKnownIssue(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddKnownIssue")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AddKnownIssueRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	_, err := h.svc.AddKnownIssue(c.Request.Context(), tenantID, req)
+	_, err := h.svc.AddKnownIssue(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondBadRequest(c, "Invalid known issue")
 		return
@@ -205,8 +228,10 @@ func (h *Handler) AddKnownIssue(c *gin.Context) {
 }
 
 func (h *Handler) GetActiveAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetActiveAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	alerts, err := h.svc.GetActiveAlerts(c.Request.Context(), tenantID)
+	alerts, err := h.svc.GetActiveAlerts(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -217,11 +242,13 @@ func (h *Handler) GetActiveAlerts(c *gin.Context) {
 // ----- Alert List -----
 
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	severity := c.Query("severity")
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	result, err := h.svc.ListAlerts(c.Request.Context(), tenantID, severity, status, limit)
+	result, err := h.svc.ListAlerts(ctx, tenantID, severity, status, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,9 +257,11 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	alert, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
+	alert, err := h.svc.GetAlert(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "Alert "+id+" not found")
 		return
@@ -241,6 +270,8 @@ func (h *Handler) GetAlert(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req service.UpdateAlertRequest
@@ -248,7 +279,7 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	alert, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, id, req)
+	alert, err := h.svc.UpdateAlert(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -257,9 +288,11 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteAlert(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteAlert(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}

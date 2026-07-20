@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/privacy/models"
+)
+
 // ServiceInterface defines the interface for the privacy service.
 type ServiceInterface interface {
 	DeletePrivacyConfig(ctx context.Context, tenantID string) error

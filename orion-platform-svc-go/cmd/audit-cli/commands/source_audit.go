@@ -14,7 +14,12 @@ import (
 
 // SourceAuditCommand audits _source column distribution in a database.
 func SourceAuditCommand(args map[string]string) int {
-	dsn := requireFlag(args, "dsn")
+	dsn, err := requireFlag(args, "dsn")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v
+", err)
+		return types.ExitErr
+	}
 	tableArg := args["tables"]
 	format := types.OutputFormat(args["format"])
 	if format == "" {

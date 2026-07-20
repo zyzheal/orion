@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/gateway-dynamic/models"
+)
+
 // ServiceInterface defines the interface for the gateway-dynamic service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateGatewayRouteRequest) (*models.GatewayRoute, error)

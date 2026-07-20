@@ -7,6 +7,7 @@ import (
 	"orion/platform-svc-go/internal/smart-deploy/service"
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 type Handler struct {
 	svc *service.Service
@@ -53,6 +54,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 // CreateDeployment handles POST /smart-deploy
 func (h *Handler) CreateDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDeployment")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -71,6 +74,8 @@ func (h *Handler) CreateDeployment(c *gin.Context) {
 }
 // GetDeployment handles GET /smart-deploy/:id
 func (h *Handler) GetDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDeployment")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -84,6 +89,8 @@ func (h *Handler) GetDeployment(c *gin.Context) {
 }
 // ListDeployments handles GET /smart-deploy
 func (h *Handler) ListDeployments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	_ = ctx
@@ -132,6 +139,8 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 }
 // GetLatestDeployment handles GET /smart-deploy/latest/:appName/:environment
 func (h *Handler) GetLatestDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLatestDeployment")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -145,6 +154,8 @@ func (h *Handler) GetLatestDeployment(c *gin.Context) {
 }
 // CancelDeployment handles POST /smart-deploy/:id/cancel
 func (h *Handler) CancelDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelDeployment")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -165,12 +176,16 @@ func (h *Handler) CancelDeployment(c *gin.Context) {
 }
 // DeleteDeployment handles DELETE /smart-deploy/:id
 func (h *Handler) DeleteDeployment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDeployment")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	// Delete is not exposed on service; return not-implemented.
 	middleware.RespondBadRequest(c, "delete not supported for deployments")
 }
 // Rollback handles POST /smart-deploy/:id/rollback
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -189,6 +204,8 @@ func (h *Handler) Rollback(c *gin.Context) {
 }
 // GetRollbackHistory handles GET /smart-deploy/:id/rollbacks
 func (h *Handler) GetRollbackHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRollbackHistory")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -205,6 +222,8 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 }
 // GetMetrics handles GET /smart-deploy/metrics
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetrics")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")
@@ -218,6 +237,8 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 }
 // GetAuditTrail handles GET /smart-deploy/:id/audit
 func (h *Handler) GetAuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditTrail")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 
 	tenantID := c.GetString("tenant_id")

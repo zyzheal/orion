@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/efficiency/models"
+)
+
 // ServiceInterface defines the interface for the efficiency service.
 type ServiceInterface interface {
 	ComparePeriods(_context context.Context, tenantID string, periodA, periodB models.PeriodSpec) (*models.PeriodComparisonResult, error)

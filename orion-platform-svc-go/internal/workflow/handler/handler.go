@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -74,6 +75,8 @@ func getPagination(c *gin.Context) (int, int) {
 // --- Workflow handlers ---
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	var statusPtr *string
@@ -82,7 +85,7 @@ func (h *Handler) List(c *gin.Context) {
 	}
 	page, pageSize := getPagination(c)
 
-	wfs, total, err := h.svc.List(c.Request.Context(), tenantID, statusPtr, page, pageSize)
+	wfs, total, err := h.svc.List(ctx, tenantID, statusPtr, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -96,9 +99,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	wf, err := h.svc.Get(c.Request.Context(), id, tenantID)
+	wf, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -111,6 +116,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -119,7 +126,7 @@ func (h *Handler) Create(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	createdBy := auth.GetUserID(c)
 
-	wf, err := h.svc.Create(c.Request.Context(), &req, tenantID, createdBy)
+	wf, err := h.svc.Create(ctx, &req, tenantID, createdBy)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -128,6 +135,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateWorkflowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -135,7 +144,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	wf, err := h.svc.Update(c.Request.Context(), id, &req, tenantID)
+	wf, err := h.svc.Update(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -148,9 +157,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.Delete(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -163,9 +174,11 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Pause")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	wf, err := h.svc.Pause(c.Request.Context(), id, tenantID)
+	wf, err := h.svc.Pause(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -178,9 +191,11 @@ func (h *Handler) Pause(c *gin.Context) {
 }
 
 func (h *Handler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resume")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	wf, err := h.svc.Resume(c.Request.Context(), id, tenantID)
+	wf, err := h.svc.Resume(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow not found")
@@ -193,6 +208,8 @@ func (h *Handler) Resume(c *gin.Context) {
 }
 
 func (h *Handler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Execute")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	triggeredBy := auth.GetUserID(c)
@@ -207,7 +224,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		initialInput = *body.InitialInput
 	}
 
-	exec, err := h.svc.Execute(c.Request.Context(), id, tenantID, triggeredBy, initialInput)
+	exec, err := h.svc.Execute(ctx, id, tenantID, triggeredBy, initialInput)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -224,11 +241,13 @@ func (h *Handler) Execute(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExecutions")
+	defer span.End()
 	workflowID := c.Param("id")
 	tenantID := h.getTenantID(c)
 	page, pageSize := getPagination(c)
 
-	execs, total, err := h.svc.ListExecutions(c.Request.Context(), workflowID, tenantID, page, pageSize)
+	execs, total, err := h.svc.ListExecutions(ctx, workflowID, tenantID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -242,9 +261,11 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 }
 
 func (h *Handler) GetExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecution")
+	defer span.End()
 	executionID := c.Param("executionId")
 	tenantID := h.getTenantID(c)
-	exec, err := h.svc.GetExecution(c.Request.Context(), executionID, tenantID)
+	exec, err := h.svc.GetExecution(ctx, executionID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workflow execution not found")

@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/ai-review/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -29,7 +30,9 @@ r := rg.Group("/ai-review")
 }
 
 func (h *Handler) ApproveReview(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveReview")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.Approve(ctx, tenantID, id)
@@ -41,7 +44,9 @@ func (h *Handler) ApproveReview(c *gin.Context) {
 }
 
 func (h *Handler) CreateReview(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateReview")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateReviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -57,7 +62,9 @@ func (h *Handler) CreateReview(c *gin.Context) {
 }
 
 func (h *Handler) GetReview(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReview")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.Get(ctx, tenantID, id)
@@ -69,7 +76,9 @@ func (h *Handler) GetReview(c *gin.Context) {
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReviews")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -84,7 +93,9 @@ func (h *Handler) ListReviews(c *gin.Context) {
 }
 
 func (h *Handler) RejectReview(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectReview")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.Reject(ctx, tenantID, id)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/knowledge/models"
+)
+
 // ServiceInterface defines the interface for the knowledge service.
 type ServiceInterface interface {
 	CreateDoc(ctx context.Context, tenantID string, req models.CreateDocumentRequest) (*models.Document, error)

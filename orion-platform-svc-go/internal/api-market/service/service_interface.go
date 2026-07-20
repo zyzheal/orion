@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/api-market/models"
+)
+
 // ServiceInterface defines the interface for the api-market service.
 type ServiceInterface interface {
 	CheckSubscription(ctx context.Context, appID string, productID string, tenantID string) (bool, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/deploy/models"
+)
+
 // ServiceInterface defines the interface for the deploy service.
 type ServiceInterface interface {
 	Cancel(ctx context.Context, tenantID, id string) error

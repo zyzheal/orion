@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -50,6 +51,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Handlers ---
 
 func (h *Handler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Pause")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
@@ -59,7 +62,7 @@ func (h *Handler) Pause(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Pause(c.Request.Context(), runID, &req, tenantID)
+	run, err := h.svc.Pause(ctx, runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -76,6 +79,8 @@ func (h *Handler) Pause(c *gin.Context) {
 }
 
 func (h *Handler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resume")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
@@ -85,7 +90,7 @@ func (h *Handler) Resume(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Resume(c.Request.Context(), runID, &req, tenantID)
+	run, err := h.svc.Resume(ctx, runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -102,6 +107,8 @@ func (h *Handler) Resume(c *gin.Context) {
 }
 
 func (h *Handler) Abort(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Abort")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
@@ -111,7 +118,7 @@ func (h *Handler) Abort(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Abort(c.Request.Context(), runID, &req, tenantID)
+	run, err := h.svc.Abort(ctx, runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -128,6 +135,8 @@ func (h *Handler) Abort(c *gin.Context) {
 }
 
 func (h *Handler) Retry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Retry")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
@@ -137,7 +146,7 @@ func (h *Handler) Retry(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Retry(c.Request.Context(), runID, &req, tenantID)
+	run, err := h.svc.Retry(ctx, runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -154,6 +163,8 @@ func (h *Handler) Retry(c *gin.Context) {
 }
 
 func (h *Handler) Restart(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Restart")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
@@ -163,7 +174,7 @@ func (h *Handler) Restart(c *gin.Context) {
 		return
 	}
 
-	run, err := h.svc.Restart(c.Request.Context(), runID, &req, tenantID)
+	run, err := h.svc.Restart(ctx, runID, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -176,10 +187,12 @@ func (h *Handler) Restart(c *gin.Context) {
 }
 
 func (h *Handler) GetCheckpoints(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCheckpoints")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
-	cps, total, err := h.svc.GetCheckpoints(c.Request.Context(), runID, tenantID)
+	cps, total, err := h.svc.GetCheckpoints(ctx, runID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -191,10 +204,12 @@ func (h *Handler) GetCheckpoints(c *gin.Context) {
 }
 
 func (h *Handler) GetControlLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetControlLogs")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 
-	logs, total, err := h.svc.GetPauseResumeLogs(c.Request.Context(), runID, tenantID)
+	logs, total, err := h.svc.GetPauseResumeLogs(ctx, runID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -44,12 +45,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Lineage ====================
 
 func (h *Handler) ListLineages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLineages")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
-	result, err := h.svc.ListLineages(c.Request.Context(), tenantID, status)
+	result, err := h.svc.ListLineages(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -58,13 +61,15 @@ func (h *Handler) ListLineages(c *gin.Context) {
 }
 
 func (h *Handler) CreateLineage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLineage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateLineageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateLineage(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateLineage(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -77,9 +82,11 @@ func (h *Handler) CreateLineage(c *gin.Context) {
 }
 
 func (h *Handler) GetLineage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLineage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetLineage(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetLineage(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "lineage not found")
@@ -92,6 +99,8 @@ func (h *Handler) GetLineage(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLineage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateLineage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateLineageRequest
@@ -99,7 +108,7 @@ func (h *Handler) UpdateLineage(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateLineage(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateLineage(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "lineage not found")
@@ -116,9 +125,11 @@ func (h *Handler) UpdateLineage(c *gin.Context) {
 }
 
 func (h *Handler) DeleteLineage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteLineage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteLineage(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteLineage(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "lineage not found")
@@ -133,6 +144,8 @@ func (h *Handler) DeleteLineage(c *gin.Context) {
 // ==================== Nodes ====================
 
 func (h *Handler) CreateNode(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateNode")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	lineageID := c.Param("lineageId")
 	var req models.CreateNodeRequest
@@ -142,7 +155,7 @@ func (h *Handler) CreateNode(c *gin.Context) {
 	}
 	// Ensure request has the correct lineage context
 	req2 := &models.CreateNodeRequest{Name: req.Name, Type: req.Type, Properties: req.Properties}
-	result, err := h.svc.CreateNode(c.Request.Context(), tenantID, lineageID, req2)
+	result, err := h.svc.CreateNode(ctx, tenantID, lineageID, req2)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "lineage not found")
@@ -159,9 +172,11 @@ func (h *Handler) CreateNode(c *gin.Context) {
 }
 
 func (h *Handler) ListNodes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListNodes")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if id := c.Param("lineageId"); id != "" {
-		result, err := h.svc.ListNodes(c.Request.Context(), tenantID, id)
+		result, err := h.svc.ListNodes(ctx, tenantID, id)
 		if err != nil {
 			middleware.RespondInternalError(c, err.Error())
 			return
@@ -175,6 +190,8 @@ func (h *Handler) ListNodes(c *gin.Context) {
 // ==================== Relationships ====================
 
 func (h *Handler) CreateRelationship(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRelationship")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	lineageID := c.Param("lineageId")
 	var req models.CreateRelationshipRequest
@@ -182,7 +199,7 @@ func (h *Handler) CreateRelationship(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateRelationship(c.Request.Context(), tenantID, lineageID, &req)
+	result, err := h.svc.CreateRelationship(ctx, tenantID, lineageID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "lineage not found")
@@ -201,8 +218,10 @@ func (h *Handler) CreateRelationship(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

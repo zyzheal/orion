@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/session/models"
+)
+
 // ServiceInterface defines the interface for the session service.
 type ServiceInterface interface {
 	CleanupExpired(ctx context.Context, tenantID string) (int64, error)

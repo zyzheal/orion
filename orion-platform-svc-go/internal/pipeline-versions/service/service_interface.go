@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-versions/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-versions service.
 type ServiceInterface interface {
 	CompareVersions(ctx context.Context, tenantID string, req *models.CompareVersionsRequest) (*models.CompareResult, error)

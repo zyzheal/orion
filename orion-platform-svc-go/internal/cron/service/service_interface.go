@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/cron/models"
+)
+
 // ServiceInterface defines the interface for the cron service.
 type ServiceInterface interface {
 	AddJob(ctx context.Context, tenantID string, req models.CreateCronJobRequest) (*models.CronJob, error)

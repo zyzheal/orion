@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/apm/models"
+)
+
 // ServiceInterface defines the interface for the apm service.
 type ServiceInterface interface {
 	Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.ApmEntry, error)

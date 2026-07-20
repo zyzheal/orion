@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/self-service/models"
+)
+
 // ServiceInterface defines the interface for the self-service service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateSelfServiceRequest) (*models.SelfService, error)

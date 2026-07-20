@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/monitoring/models"
+	"time"
+)
+
 // ServiceInterface defines the interface for the monitoring service.
 type ServiceInterface interface {
 	AcknowledgeAlert(ctx context.Context, tenantID, id, ackBy string, comment string) (*models.Alert, error)

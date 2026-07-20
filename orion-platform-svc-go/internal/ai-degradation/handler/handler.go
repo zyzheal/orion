@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var _ = http.StatusOK
@@ -88,6 +89,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateConfig creates a new degradation configuration.
 func (h *Handler) CreateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDegradationConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -107,6 +110,8 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 
 // GetConfig retrieves a degradation configuration by ID.
 func (h *Handler) GetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	config, err := h.svc.GetConfig(ctx, tenantID, c.Param("id"))
@@ -120,6 +125,8 @@ func (h *Handler) GetConfig(c *gin.Context) {
 
 // ListConfigs lists degradation configurations.
 func (h *Handler) ListConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListConfigs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	req := models.ListConfigsQuery{}
@@ -141,6 +148,8 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 
 // UpdateConfig updates a degradation configuration.
 func (h *Handler) UpdateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	var req models.UpdateDegradationConfigRequest
@@ -159,6 +168,8 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 
 // DeleteConfig deletes a degradation configuration.
 func (h *Handler) DeleteConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -173,6 +184,8 @@ func (h *Handler) DeleteConfig(c *gin.Context) {
 
 // EnableConfig enables a degradation configuration.
 func (h *Handler) EnableConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -186,6 +199,8 @@ func (h *Handler) EnableConfig(c *gin.Context) {
 
 // DisableConfig disables a degradation configuration.
 func (h *Handler) DisableConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -199,6 +214,8 @@ func (h *Handler) DisableConfig(c *gin.Context) {
 
 // TriggerDegradation manually triggers degradation.
 func (h *Handler) TriggerDegradation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerDegradation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -219,6 +236,8 @@ func (h *Handler) TriggerDegradation(c *gin.Context) {
 
 // RecoverService recovers a degraded service.
 func (h *Handler) RecoverService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecoverService")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -232,6 +251,8 @@ func (h *Handler) RecoverService(c *gin.Context) {
 
 // GetHistory retrieves degradation history for a config.
 func (h *Handler) GetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	req := models.ListHistoryQuery{}
@@ -253,6 +274,8 @@ func (h *Handler) GetHistory(c *gin.Context) {
 
 // GetGlobalStatus returns the global degradation status.
 func (h *Handler) GetGlobalStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGlobalStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 

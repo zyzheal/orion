@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/security/models"
+)
+
 // ServiceInterface defines the interface for the security service.
 type ServiceInterface interface {
 	CheckVulnerability(ctx context.Context, tenantID, id string) (*models.Vulnerability, error)

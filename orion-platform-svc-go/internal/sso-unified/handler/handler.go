@@ -7,6 +7,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -28,13 +29,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateConfig")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         var req models.CreateSSOConfigRequest
         if err := c.ShouldBindJSON(&req); err != nil {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+        result, err := h.svc.Create(ctx, tenantID, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -43,8 +46,10 @@ func (h *Handler) CreateConfig(c *gin.Context) {
 }
 
 func (h *Handler) ListConfigs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListConfigs")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
-        configs, err := h.svc.GetAll(c.Request.Context(), tenantID)
+        configs, err := h.svc.GetAll(ctx, tenantID)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -53,9 +58,11 @@ func (h *Handler) ListConfigs(c *gin.Context) {
 }
 
 func (h *Handler) GetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfig")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         provider := c.Param("provider")
-        config, err := h.svc.Get(c.Request.Context(), tenantID, provider)
+        config, err := h.svc.Get(ctx, tenantID, provider)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
@@ -64,6 +71,8 @@ func (h *Handler) GetConfig(c *gin.Context) {
 }
 
 func (h *Handler) UpdateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateConfig")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         provider := c.Param("provider")
         var req models.UpdateSSOConfigRequest
@@ -71,7 +80,7 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Update(c.Request.Context(), tenantID, provider, &req)
+        result, err := h.svc.Update(ctx, tenantID, provider, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "config not found", 404)
                 return
@@ -80,9 +89,11 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
 }
 
 func (h *Handler) DeleteConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteConfig")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         provider := c.Param("provider")
-        deleted, err := h.svc.Delete(c.Request.Context(), tenantID, provider)
+        deleted, err := h.svc.Delete(ctx, tenantID, provider)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return

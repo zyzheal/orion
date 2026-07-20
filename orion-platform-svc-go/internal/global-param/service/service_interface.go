@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/global-param/models"
+)
+
 // ServiceInterface defines the interface for the global-param service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateGlobalParamRequest) (*models.GlobalParam, error)

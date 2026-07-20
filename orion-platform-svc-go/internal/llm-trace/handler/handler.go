@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes LLM trace endpoints.
@@ -77,10 +78,12 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // GetTrace handler - GET /api/v1/llm/traces/:traceId
 func (h *Handler) GetTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrace")
+	defer span.End()
 	traceID := c.Param("traceId")
 	tenantID := h.getTenantID(c)
 
-	t, err := h.svc.GetTrace(c.Request.Context(), traceID, tenantID)
+	t, err := h.svc.GetTrace(ctx, traceID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Trace not found")
@@ -94,6 +97,8 @@ func (h *Handler) GetTrace(c *gin.Context) {
 
 // ListTraces handler - GET /api/v1/llm/traces
 func (h *Handler) ListTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTraces")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	limitStr := c.Query("limit")
@@ -110,7 +115,7 @@ func (h *Handler) ListTraces(c *gin.Context) {
 		}
 	}
 
-	traces, total, err := h.svc.ListTraces(c.Request.Context(), tenantID, q)
+	traces, total, err := h.svc.ListTraces(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -125,6 +130,8 @@ func (h *Handler) ListTraces(c *gin.Context) {
 
 // CreateTrace handler - POST /api/v1/llm/traces
 func (h *Handler) CreateTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTrace")
+	defer span.End()
 	var req models.TraceCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -133,7 +140,7 @@ func (h *Handler) CreateTrace(c *gin.Context) {
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 
-	t, err := h.svc.CreateTrace(c.Request.Context(), tenantID, userID, &req)
+	t, err := h.svc.CreateTrace(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -143,6 +150,8 @@ func (h *Handler) CreateTrace(c *gin.Context) {
 
 // CompleteTrace handler - POST /api/v1/llm/traces/:traceId/complete
 func (h *Handler) CompleteTrace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteTrace")
+	defer span.End()
 	traceID := c.Param("traceId")
 	tenantID := h.getTenantID(c)
 
@@ -152,7 +161,7 @@ func (h *Handler) CompleteTrace(c *gin.Context) {
 		return
 	}
 
-	t, err := h.svc.CompleteTrace(c.Request.Context(), traceID, tenantID, &req)
+	t, err := h.svc.CompleteTrace(ctx, traceID, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Trace not found")
@@ -166,6 +175,8 @@ func (h *Handler) CompleteTrace(c *gin.Context) {
 
 // GetDailyStats handler - GET /api/v1/llm/stats/daily
 func (h *Handler) GetDailyStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDailyStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	var date *string
@@ -179,7 +190,7 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 		date = &dateStr
 	}
 
-	stats, err := h.svc.GetDailyStats(c.Request.Context(), tenantID, date)
+	stats, err := h.svc.GetDailyStats(ctx, tenantID, date)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -189,9 +200,11 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 
 // GetTrackingAccuracy handler - GET /api/v1/llm/tracking/accuracy
 func (h *Handler) GetTrackingAccuracy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrackingAccuracy")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
-	accuracy, err := h.svc.GetTrackingAccuracy(c.Request.Context(), tenantID)
+	accuracy, err := h.svc.GetTrackingAccuracy(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -201,7 +214,9 @@ func (h *Handler) GetTrackingAccuracy(c *gin.Context) {
 
 // GetPricing handler - GET /api/v1/llm/pricing
 func (h *Handler) GetPricing(c *gin.Context) {
-	pricing := h.svc.GetAllPricing(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPricing")
+	defer span.End()
+	pricing := h.svc.GetAllPricing(ctx)
 
 	pricingMap := make(map[string]gin.H)
 	for k, v := range pricing {
@@ -220,13 +235,15 @@ func (h *Handler) GetPricing(c *gin.Context) {
 
 // EstimateCost handler - POST /api/v1/llm/cost/estimate
 func (h *Handler) EstimateCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EstimateCost")
+	defer span.End()
 	var req models.CostEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, "Missing required fields: modelId, inputTokens, outputTokens")
 		return
 	}
 
-	breakdown := h.svc.CalculateCost(c.Request.Context(), req.ModelID, req.InputTokens, req.OutputTokens)
+	breakdown := h.svc.CalculateCost(ctx, req.ModelID, req.InputTokens, req.OutputTokens)
 
 	middleware.RespondSuccess(c, gin.H{
 		"modelId":       req.ModelID,
@@ -242,6 +259,8 @@ func (h *Handler) EstimateCost(c *gin.Context) {
 
 // GetCostBreakdown handler - GET /api/v1/llm/cost/breakdown
 func (h *Handler) GetCostBreakdown(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostBreakdown")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	q := &models.CostBreakdownQuery{}
@@ -262,7 +281,7 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 		q.EndDate = &t
 	}
 
-	breakdown, totalTraces, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, q)
+	breakdown, totalTraces, err := h.svc.GetCostBreakdown(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

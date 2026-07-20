@@ -1,0 +1,247 @@
+{
+  "uid": "orion-tenant-v1",
+  "title": "Orion Tenant Dashboard",
+  "description": "Per-tenant request volume, error rate and resource usage",
+  "tags": ["orion", "tenant", "multi-tenant"],
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 0,
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "version": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Tenant Overview",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total Active Tenants",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+      "options": {
+        "colorMode": "value",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {"unit": "none", "color": {"mode": "thresholds"}},
+        "overrides": []
+      },
+      "targets": [{"expr": "count(orion_http_requests_total) by (handler)", "refId": "A"}]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tenants with Errors (5m)",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+      "options": {
+        "colorMode": "value",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 5}]},
+          "color": {"mode": "thresholds"}
+        },
+        "overrides": []
+      },
+      "targets": [{"expr": "count(count(orion_http_requests_total{status=~\"4..|5..\"}[5m])) by (handler)", "refId": "A"}]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg Requests per Tenant (5m)",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+      "options": {
+        "colorMode": "value",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "color": {"mode": "thresholds"}},
+        "overrides": []
+      },
+      "targets": [{"expr": "avg(sum(rate(orion_http_requests_total[5m])) by (handler))", "refId": "A"}]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Peak Requests (5m)",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+      "options": {
+        "colorMode": "value",
+        "textMode": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "values": false, "missing": "hide"},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "color": {"mode": "thresholds"}},
+        "overrides": []
+      },
+      "targets": [{"expr": "max(sum(rate(orion_http_requests_total[5m])) by (handler))", "refId": "A"}]
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Tenant Request Volume",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Request Rate per Tenant",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "mean"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(20, sum(rate(orion_http_requests_total[5m])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Request Volume per Tenant (Last 6h)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "calcs": ["sum"]}, "tooltip": {"mode": "single"}, "orientation": "auto", "barWidth": 0.9, "order": "desc"},
+      "fieldConfig": {"defaults": {"unit": "none", "color": {"mode": "palette-classic"}}, "overrides": []},
+      "targets": [
+        {"expr": "topk(20, sum(increase(orion_http_requests_total[6h])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Tenant Error Rate",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Error Rate per Tenant",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"]},
+        "tooltip": {"mode": "multi", "sort": "desc"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "line"}},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 0.01}, {"color": "red", "value": 0.05}]}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "topk(20, sum(rate(orion_http_requests_total{status=~\"4..|5..\"}[5m])) by (handler) / sum(rate(orion_http_requests_total[5m])) by (handler))", "legendFormat": "{{handler}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Tenant Health Matrix",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+      "options": {
+        "showHeader": true,
+        "columns": [],
+        "frameOptions": {"showHeader": true}
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"align": "left", "displayMode": "auto", "inspect": false}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "Error Rate"}, "properties": [{"id": "custom.displayMode", "value": "color-background"}]},
+          {"matcher": {"id": "byName", "options": "Requests"}, "properties": [{"id": "custom.displayMode", "value": "color-text"}]}
+        ]
+      },
+      "targets": [
+        {"expr": "sum(rate(orion_http_requests_total[5m])) by (handler) / ignoring(handler) group_left sum(rate(orion_http_requests_total[5m]))", "format": "table", "instant": true, "refId": "A"}
+      ]
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Tenant Resource Usage",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 23}
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Memory per Tenant",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(container_memory_working_set_bytes{container_name=~\"orion-tenant-.*\"}) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "CPU per Tenant",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "options": {
+        "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["sum", "max"]},
+        "tooltip": {"mode": "multi", "sort": "none"},
+        "seriesOverrides": []
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {"mode": "palette-classic"},
+          "custom": {"drawStyle": "line", "fillOpacity": 10, "gradientMode": "none", "lineWidth": 1, "showPoints": "never", "spanNulls": false, "stacking": {"group": "A", "mode": "none"}, "thresholdsStyle": {"mode": "off"}}
+        },
+        "overrides": []
+      },
+      "targets": [
+        {"expr": "avg(rate(container_cpu_usage_seconds_total{container_name=~\"orion-tenant-.*\"}[5m])) by (container_name)", "legendFormat": "{{container_name}}", "refId": "A"}
+      ]
+    }
+  ],
+  "templating": {
+    "list": []
+  }
+}

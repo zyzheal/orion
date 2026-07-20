@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,13 +42,15 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
 	var q models.ListAlertsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	alerts, err := h.svc.ListAlerts(c.Request.Context(), tenantID, q)
+	alerts, err := h.svc.ListAlerts(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -56,8 +59,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlert")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	alert, err := h.svc.GetAlert(c.Request.Context(), c.Param("id"), tenantID)
+	alert, err := h.svc.GetAlert(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "alert not found")
@@ -70,13 +75,15 @@ func (h *Handler) GetAlert(c *gin.Context) {
 }
 
 func (h *Handler) CreateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlert")
+	defer span.End()
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, &req)
+	alert, err := h.svc.CreateAlert(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,13 +92,15 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 }
 
 func (h *Handler) DismissAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DismissAlert")
+	defer span.End()
 	var req models.DismissAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	err := h.svc.DismissAlert(c.Request.Context(), c.Param("id"), tenantID, &req)
+	err := h.svc.DismissAlert(ctx, c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "alert not found")
@@ -104,8 +113,10 @@ func (h *Handler) DismissAlert(c *gin.Context) {
 }
 
 func (h *Handler) ListProfiles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProfiles")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	profiles, err := h.svc.ListProfiles(c.Request.Context(), tenantID)
+	profiles, err := h.svc.ListProfiles(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -114,8 +125,10 @@ func (h *Handler) ListProfiles(c *gin.Context) {
 }
 
 func (h *Handler) GetProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProfile")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	profile, err := h.svc.GetProfile(c.Request.Context(), tenantID, c.Param("entityId"))
+	profile, err := h.svc.GetProfile(ctx, tenantID, c.Param("entityId"))
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "profile not found")
@@ -128,18 +141,20 @@ func (h *Handler) GetProfile(c *gin.Context) {
 }
 
 func (h *Handler) DetectAnomaly(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectAnomaly")
+	defer span.End()
 	var req models.DetectAnomalyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	alertReq, err := h.svc.DetectAnomaly(c.Request.Context(), tenantID, &req)
+	alertReq, err := h.svc.DetectAnomaly(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	alert, err := h.svc.CreateAlert(c.Request.Context(), tenantID, alertReq)
+	alert, err := h.svc.CreateAlert(ctx, tenantID, alertReq)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

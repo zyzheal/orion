@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -37,6 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAuditLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.AuditLogFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -55,7 +58,7 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 		filter.Result = &rs
 	}
 
-	result, total, err := h.svc.ListAuditLogs(c.Request.Context(), tenantID, filter)
+	result, total, err := h.svc.ListAuditLogs(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -64,13 +67,15 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 }
 
 func (h *Handler) LogPermission(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LogPermission")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.LogPermission(c.Request.Context(), tenantID, &req, c.ClientIP(), c.Request.UserAgent())
+	result, err := h.svc.LogPermission(ctx, tenantID, &req, c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -79,9 +84,11 @@ func (h *Handler) LogPermission(c *gin.Context) {
 }
 
 func (h *Handler) GetAuditLog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditLog")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetAuditLog(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetAuditLog(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "audit log not found")
 		return
@@ -90,9 +97,11 @@ func (h *Handler) GetAuditLog(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAuditLog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAuditLog")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteAuditLog(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteAuditLog(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

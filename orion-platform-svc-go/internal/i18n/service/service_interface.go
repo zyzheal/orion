@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/i18n/models"
+)
+
 // ServiceInterface defines the interface for the i18n service.
 type ServiceInterface interface {
 	CreateLocale(ctx context.Context, tenantID string, req models.CreateLocaleRequest) (*models.Locale, error)

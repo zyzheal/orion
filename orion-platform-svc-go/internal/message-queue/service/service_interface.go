@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/message-queue/models"
+)
+
 // ServiceInterface defines the interface for the message-queue service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateMessageQueueRequest) (*models.MessageQueue, error)

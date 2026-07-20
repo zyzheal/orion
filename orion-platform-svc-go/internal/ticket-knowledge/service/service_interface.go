@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ticket-knowledge/models"
+)
+
 // ServiceInterface defines the interface for the ticket-knowledge service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateTicketKnowledgeRequest) (*models.TicketKnowledge, error)

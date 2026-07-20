@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -43,6 +44,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Contract ====================
 
 func (h *Handler) ListContracts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListContracts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.ContractFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -57,7 +60,7 @@ func (h *Handler) ListContracts(c *gin.Context) {
 	if v := c.Query("version"); v != "" {
 		filter.Version = &v
 	}
-	result, err := h.svc.ListContracts(c.Request.Context(), tenantID, filter)
+	result, err := h.svc.ListContracts(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -66,13 +69,15 @@ func (h *Handler) ListContracts(c *gin.Context) {
 }
 
 func (h *Handler) CreateContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateContract")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateContract(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateContract(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -85,9 +90,11 @@ func (h *Handler) CreateContract(c *gin.Context) {
 }
 
 func (h *Handler) GetContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetContract")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetContract(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetContract(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "contract not found")
@@ -100,6 +107,8 @@ func (h *Handler) GetContract(c *gin.Context) {
 }
 
 func (h *Handler) UpdateContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateContract")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateContractRequest
@@ -107,7 +116,7 @@ func (h *Handler) UpdateContract(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateContract(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateContract(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "contract not found")
@@ -124,9 +133,11 @@ func (h *Handler) UpdateContract(c *gin.Context) {
 }
 
 func (h *Handler) DeleteContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteContract")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteContract(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteContract(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "contract not found")
@@ -141,6 +152,8 @@ func (h *Handler) DeleteContract(c *gin.Context) {
 // ==================== Endpoints ====================
 
 func (h *Handler) CreateEndpoint(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateEndpoint")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	contractID := c.Param("id")
 	var req models.CreateEndpointRequest
@@ -148,7 +161,7 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateEndpoint(c.Request.Context(), tenantID, contractID, &req)
+	result, err := h.svc.CreateEndpoint(ctx, tenantID, contractID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "contract not found")
@@ -165,9 +178,11 @@ func (h *Handler) CreateEndpoint(c *gin.Context) {
 }
 
 func (h *Handler) ListEndpoints(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEndpoints")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	contractID := c.Param("id")
-	result, err := h.svc.ListEndpoints(c.Request.Context(), tenantID, contractID)
+	result, err := h.svc.ListEndpoints(ctx, tenantID, contractID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -176,10 +191,12 @@ func (h *Handler) ListEndpoints(c *gin.Context) {
 }
 
 func (h *Handler) DeleteEndpoint(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteEndpoint")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	contractID := c.Param("id")
 	endpointID := c.Param("endpointId")
-	err := h.svc.DeleteEndpoint(c.Request.Context(), tenantID, contractID, endpointID)
+	err := h.svc.DeleteEndpoint(ctx, tenantID, contractID, endpointID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "endpoint not found")
@@ -194,8 +211,10 @@ func (h *Handler) DeleteEndpoint(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

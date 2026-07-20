@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 	"orion/lowcode-svc-go/internal/models"
 	"orion/lowcode-svc-go/internal/service"
@@ -69,7 +68,7 @@ func (h *WorkflowHandler) ListWorkflows(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, defs, "total": total, "limit": limit, "offset": offset)
+	respondSuccess(c, gin.H{"data": defs, "total": total, "limit": limit, "offset": offset})
 }
 
 // GetWorkflow returns a single workflow definition.
@@ -143,7 +142,7 @@ func (h *WorkflowHandler) PublishWorkflow(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, def, "message": "published")
+	respondSuccess(c, gin.H{"data": def, "message": "published"})
 }
 
 // ExecuteWorkflow creates a new instance and starts execution.
@@ -161,7 +160,7 @@ func (h *WorkflowHandler) ExecuteWorkflow(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, inst, "message": "execution started")
+	respondCreated(c, gin.H{"data": inst, "message": "execution started"})
 }
 
 // =====================================================================
@@ -197,7 +196,7 @@ func (h *WorkflowHandler) ListVersions(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, versions, "total": total, "limit": limit, "offset": offset)
+	respondSuccess(c, gin.H{"data": versions, "total": total, "limit": limit, "offset": offset})
 }
 
 // =====================================================================
@@ -219,7 +218,7 @@ func (h *WorkflowHandler) ImportWorkflow(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondCreated(c, def, "message": "imported")
+	respondCreated(c, gin.H{"data": def, "message": "imported"})
 }
 
 // ExportWorkflow exports a workflow definition.
@@ -247,7 +246,7 @@ func (h *WorkflowHandler) ListTemplates(c *gin.Context) {
 		respondInternalError(c, err.Error())
 		return
 	}
-	respondSuccess(c, templates, "total": total)
+	respondSuccess(c, gin.H{"data": templates, "total": total})
 }
 
 // CreateTemplate creates a new workflow template.

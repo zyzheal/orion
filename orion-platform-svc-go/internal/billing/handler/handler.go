@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the billing module's HTTP endpoints.
@@ -57,12 +58,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Accounts ====================
 
 func (h *Handler) ListAccounts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAccounts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
-	result, err := h.svc.ListAccounts(c.Request.Context(), tenantID, status)
+	result, err := h.svc.ListAccounts(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -71,13 +74,15 @@ func (h *Handler) ListAccounts(c *gin.Context) {
 }
 
 func (h *Handler) CreateAccount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAccount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateAccount(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateAccount(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -90,9 +95,11 @@ func (h *Handler) CreateAccount(c *gin.Context) {
 }
 
 func (h *Handler) GetAccount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAccount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetAccount(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetAccount(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "account not found")
@@ -105,6 +112,8 @@ func (h *Handler) GetAccount(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAccount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAccount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateAccountRequest
@@ -112,7 +121,7 @@ func (h *Handler) UpdateAccount(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateAccount(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateAccount(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "account not found")
@@ -129,9 +138,11 @@ func (h *Handler) UpdateAccount(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAccount(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAccount")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteAccount(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteAccount(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "account not found")
@@ -146,6 +157,8 @@ func (h *Handler) DeleteAccount(c *gin.Context) {
 // ==================== Invoices ====================
 
 func (h *Handler) ListInvoices(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListInvoices")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.InvoiceFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -166,7 +179,7 @@ func (h *Handler) ListInvoices(c *gin.Context) {
 	if pe := c.Query("periodEnd"); pe != "" {
 		filter.PeriodEnd = &pe
 	}
-	result, total, err := h.svc.ListInvoices(c.Request.Context(), tenantID, filter)
+	result, total, err := h.svc.ListInvoices(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -175,13 +188,15 @@ func (h *Handler) ListInvoices(c *gin.Context) {
 }
 
 func (h *Handler) CreateInvoice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateInvoice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateInvoiceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateInvoice(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateInvoice(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -194,9 +209,11 @@ func (h *Handler) CreateInvoice(c *gin.Context) {
 }
 
 func (h *Handler) GetInvoice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetInvoice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetInvoice(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetInvoice(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "invoice not found")
@@ -209,6 +226,8 @@ func (h *Handler) GetInvoice(c *gin.Context) {
 }
 
 func (h *Handler) UpdateInvoice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateInvoice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var updates map[string]interface{}
@@ -216,7 +235,7 @@ func (h *Handler) UpdateInvoice(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateInvoice(c.Request.Context(), tenantID, id, updates)
+	result, err := h.svc.UpdateInvoice(ctx, tenantID, id, updates)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "invoice not found")
@@ -229,9 +248,11 @@ func (h *Handler) UpdateInvoice(c *gin.Context) {
 }
 
 func (h *Handler) DeleteInvoice(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteInvoice")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteInvoice(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteInvoice(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "invoice not found")
@@ -246,6 +267,8 @@ func (h *Handler) DeleteInvoice(c *gin.Context) {
 // ==================== Line Items ====================
 
 func (h *Handler) CreateLineItem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLineItem")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	invoiceID := c.Param("invoiceId")
 	var req models.CreateLineItemRequest
@@ -254,7 +277,7 @@ func (h *Handler) CreateLineItem(c *gin.Context) {
 		return
 	}
 	req.InvoiceID = invoiceID
-	result, err := h.svc.CreateLineItem(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateLineItem(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "invoice not found")
@@ -271,9 +294,11 @@ func (h *Handler) CreateLineItem(c *gin.Context) {
 }
 
 func (h *Handler) ListLineItems(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLineItems")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	invoiceID := c.Param("invoiceId")
-	result, err := h.svc.ListLineItems(c.Request.Context(), tenantID, invoiceID)
+	result, err := h.svc.ListLineItems(ctx, tenantID, invoiceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -284,12 +309,14 @@ func (h *Handler) ListLineItems(c *gin.Context) {
 // ==================== Subscriptions ====================
 
 func (h *Handler) ListSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSubscriptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
-	result, err := h.svc.ListSubscriptions(c.Request.Context(), tenantID, status)
+	result, err := h.svc.ListSubscriptions(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -298,13 +325,15 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 }
 
 func (h *Handler) CreateSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSubscriptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateSubscription(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateSubscription(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -317,9 +346,11 @@ func (h *Handler) CreateSubscription(c *gin.Context) {
 }
 
 func (h *Handler) GetSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetSubscription(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetSubscription(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "subscription not found")
@@ -332,6 +363,8 @@ func (h *Handler) GetSubscription(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateSubscriptionRequest
@@ -339,7 +372,7 @@ func (h *Handler) UpdateSubscription(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateSubscription(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateSubscription(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "subscription not found")
@@ -356,9 +389,11 @@ func (h *Handler) UpdateSubscription(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSubscription")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteSubscription(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteSubscription(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "subscription not found")
@@ -373,8 +408,10 @@ func (h *Handler) DeleteSubscription(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetBillingStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetBillingStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

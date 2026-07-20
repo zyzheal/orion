@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/incident-action/models"
+)
+
 // ServiceInterface defines the interface for the incident-action service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, e *models.LILNLCLILDLELNLTLuLALCLTLILOLN) (*models.LILNLCLILDLELNLTLuLALCLTLILOLN, error)

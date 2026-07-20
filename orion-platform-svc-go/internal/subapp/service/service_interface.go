@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/subapp/models"
+)
+
 // ServiceInterface defines the interface for the subapp service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, createdBy *string, req models.CreateSubAppRequest) (*models.SubApp, error)

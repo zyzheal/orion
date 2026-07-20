@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/finops/models"
+)
+
 // ServiceInterface defines the interface for the finops service.
 type ServiceInterface interface {
 	ApplyOptimization(ctx context.Context, tenantID string, id string) (bool, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/workbench/models"
+)
+
 // ServiceInterface defines the interface for the workbench service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateWorkbenchRequest) (*models.Workbench, error)

@@ -10,6 +10,7 @@ import (
     "orion/platform-svc-go/internal/autonomous-pipeline/service"
 
     "github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -33,8 +34,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     q := models.ListQuery{}
     if p := c.Query("page"); p != "" { fmt.Sscanf(p, "%d", &q.Page) }
     if l := c.Query("limit"); l != "" { fmt.Sscanf(l, "%d", &q.Limit) }
@@ -47,8 +50,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     record, err := h.svc.Get(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -58,8 +63,10 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var req models.CreateRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -74,8 +81,10 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var req models.CreateRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -90,8 +99,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     err := h.svc.Delete(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -102,8 +113,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Additional handler methods for extra endpoints
 func (h *Handler) RunInspection(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunInspection")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.RunInspection(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -112,8 +125,10 @@ func (h *Handler) RunInspection(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResults")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     results, err := h.svc.GetResults(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -122,8 +137,10 @@ func (h *Handler) GetResults(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": results, "total": len(results)})
 }
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     err := h.svc.UpdateStatus(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -132,8 +149,10 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
     errors.WriteSuccess(c, nil)
 }
 func (h *Handler) ListTemplates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTemplates")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     templates, err := h.svc.ListTemplates(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -142,8 +161,10 @@ func (h *Handler) ListTemplates(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": templates, "total": len(templates)})
 }
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     stats, err := h.svc.GetStats(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -152,8 +173,10 @@ func (h *Handler) GetStats(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"stats": stats})
 }
 func (h *Handler) RunPipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunPipeline")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.RunPipeline(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -162,8 +185,10 @@ func (h *Handler) RunPipeline(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatus")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     record, err := h.svc.GetStatus(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -172,8 +197,10 @@ func (h *Handler) GetStatus(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"status": record.Status})
 }
 func (h *Handler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Pause")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Pause(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -182,8 +209,10 @@ func (h *Handler) Pause(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resume")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Resume(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -192,8 +221,10 @@ func (h *Handler) Resume(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLogs")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     logs, err := h.svc.GetLogs(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -202,8 +233,10 @@ func (h *Handler) GetLogs(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"logs": logs})
 }
 func (h *Handler) ListSchemas(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchemas")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     schemas, err := h.svc.ListSchemas(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -212,8 +245,10 @@ func (h *Handler) ListSchemas(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"schemas": schemas})
 }
 func (h *Handler) GetLineage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLineage")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     lineage, err := h.svc.GetLineage(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -222,8 +257,10 @@ func (h *Handler) GetLineage(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"lineage": lineage})
 }
 func (h *Handler) GetConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfig")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     config, err := h.svc.GetConfig(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -232,8 +269,10 @@ func (h *Handler) GetConfig(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"config": config})
 }
 func (h *Handler) UpdateConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateConfig")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.UpdateConfig(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -242,8 +281,10 @@ func (h *Handler) UpdateConfig(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetStatusMiddleware(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatusMiddleware")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.GetStatusMiddleware(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -252,8 +293,10 @@ func (h *Handler) GetStatusMiddleware(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Restart(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Restart")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Restart(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -262,8 +305,10 @@ func (h *Handler) Restart(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Configure(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Configure")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Configure(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -272,8 +317,10 @@ func (h *Handler) Configure(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListPlugins(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPlugins")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     plugins, err := h.svc.ListPlugins(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -282,8 +329,10 @@ func (h *Handler) ListPlugins(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": plugins, "total": len(plugins)})
 }
 func (h *Handler) GetPlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlugin")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     plugin, err := h.svc.GetPlugin(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -292,8 +341,10 @@ func (h *Handler) GetPlugin(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"plugin": plugin})
 }
 func (h *Handler) EnablePlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnablePlugin")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.EnablePlugin(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -302,8 +353,10 @@ func (h *Handler) EnablePlugin(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) DisablePlugin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisablePlugin")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.DisablePlugin(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -312,8 +365,10 @@ func (h *Handler) DisablePlugin(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Train(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Train")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Train(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -322,8 +377,10 @@ func (h *Handler) Train(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Evaluate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Evaluate")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Evaluate(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -332,8 +389,10 @@ func (h *Handler) Evaluate(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Deploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Deploy")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Deploy(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -342,8 +401,10 @@ func (h *Handler) Deploy(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Rollback(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -352,8 +413,10 @@ func (h *Handler) Rollback(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetrics")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     metrics, err := h.svc.GetMetrics(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -362,8 +425,10 @@ func (h *Handler) GetMetrics(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"metrics": metrics})
 }
 func (h *Handler) ListExperiments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExperiments")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     experiments, err := h.svc.ListExperiments(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -372,8 +437,10 @@ func (h *Handler) ListExperiments(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": experiments, "total": len(experiments)})
 }
 func (h *Handler) ListArtifacts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListArtifacts")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     artifacts, err := h.svc.ListArtifacts(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -382,8 +449,10 @@ func (h *Handler) ListArtifacts(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": artifacts, "total": len(artifacts)})
 }
 func (h *Handler) ListModels(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListModels")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     models, err := h.svc.ListModels(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -392,8 +461,10 @@ func (h *Handler) ListModels(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": models, "total": len(models)})
 }
 func (h *Handler) RegisterModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterModel")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.RegisterModel(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -402,8 +473,10 @@ func (h *Handler) RegisterModel(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) DeregisterModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeregisterModel")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.DeregisterModel(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -412,8 +485,10 @@ func (h *Handler) DeregisterModel(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListPipelines(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelines")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     pipelines, err := h.svc.ListPipelines(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -422,8 +497,10 @@ func (h *Handler) ListPipelines(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": pipelines, "total": len(pipelines)})
 }
 func (h *Handler) Trigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Trigger")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Trigger(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -432,8 +509,10 @@ func (h *Handler) Trigger(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListTemplates2(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTemplates2")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     templates, err := h.svc.ListTemplates2(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -442,8 +521,10 @@ func (h *Handler) ListTemplates2(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": templates, "total": len(templates)})
 }
 func (h *Handler) GetBranchStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBranchStatus")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.GetBranchStatus(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -452,8 +533,10 @@ func (h *Handler) GetBranchStatus(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListHistories(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistories")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     histories, err := h.svc.ListHistories(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -462,8 +545,10 @@ func (h *Handler) ListHistories(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": histories, "total": len(histories)})
 }
 func (h *Handler) ListPending(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPending")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     pending, err := h.svc.ListPending(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -472,8 +557,10 @@ func (h *Handler) ListPending(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": pending, "total": len(pending)})
 }
 func (h *Handler) Approve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Approve")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Approve(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -482,8 +569,10 @@ func (h *Handler) Approve(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Reject(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Reject")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Reject(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -492,8 +581,10 @@ func (h *Handler) Reject(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Escalate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Escalate")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Escalate(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -502,8 +593,10 @@ func (h *Handler) Escalate(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetByUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetByUser")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     data, err := h.svc.GetByUser(ctx, tenantID, c.Query("user"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -512,8 +605,10 @@ func (h *Handler) GetByUser(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"data": data, "total": len(data)})
 }
 func (h *Handler) Forecast(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Forecast")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     forecast, err := h.svc.Forecast(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -522,8 +617,10 @@ func (h *Handler) Forecast(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"forecast": forecast})
 }
 func (h *Handler) GetUtilization(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUtilization")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     utilization, err := h.svc.GetUtilization(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -532,8 +629,10 @@ func (h *Handler) GetUtilization(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"utilization": utilization})
 }
 func (h *Handler) ScaleResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScaleResource")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.ScaleResource(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -542,8 +641,10 @@ func (h *Handler) ScaleResource(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     alerts, err := h.svc.ListAlerts(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -552,8 +653,10 @@ func (h *Handler) ListAlerts(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"alerts": alerts})
 }
 func (h *Handler) GetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHistory")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     history, err := h.svc.GetHistory(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -562,8 +665,10 @@ func (h *Handler) GetHistory(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"history": history})
 }
 func (h *Handler) AddTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddTag")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.AddTag(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -572,8 +677,10 @@ func (h *Handler) AddTag(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) DeleteTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTag")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.DeleteTag(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -582,8 +689,10 @@ func (h *Handler) DeleteTag(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) CheckCompatibility(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckCompatibility")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.CheckCompatibility(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -592,8 +701,10 @@ func (h *Handler) CheckCompatibility(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ValidateBranch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidateBranch")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.ValidateBranch(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -602,8 +713,10 @@ func (h *Handler) ValidateBranch(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) GetCoverage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCoverage")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     coverage, err := h.svc.GetCoverage(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -612,8 +725,10 @@ func (h *Handler) GetCoverage(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"coverage": coverage})
 }
 func (h *Handler) EnforcePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnforcePolicy")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.EnforcePolicy(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)
@@ -622,8 +737,10 @@ func (h *Handler) EnforcePolicy(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) ListViolations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListViolations")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     violations, err := h.svc.ListViolations(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -632,8 +749,10 @@ func (h *Handler) ListViolations(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"violations": violations})
 }
 func (h *Handler) BatchCreate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchCreate")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var reqs []models.CreateRequest
     if err := c.ShouldBindJSON(&reqs); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -647,8 +766,10 @@ func (h *Handler) BatchCreate(c *gin.Context) {
     errors.WriteSuccess(c, res)
 }
 func (h *Handler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     results, err := h.svc.Search(ctx, tenantID, c.Query("q"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -657,8 +778,10 @@ func (h *Handler) Search(c *gin.Context) {
     errors.WriteSuccess(c, gin.H{"results": results})
 }
 func (h *Handler) Regenerate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Regenerate")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     res, err := h.svc.Regenerate(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "not found", http.StatusNotFound)

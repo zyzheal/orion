@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -73,6 +74,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Trigger ---
 
 func (h *Handler) Trigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Trigger")
+	defer span.End()
 	var req models.CreateSessionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -83,7 +86,7 @@ func (h *Handler) Trigger(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.TriggerDiagnostic(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.TriggerDiagnostic(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -94,6 +97,8 @@ func (h *Handler) Trigger(c *gin.Context) {
 // --- Sessions ---
 
 func (h *Handler) ListSessions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSessions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	statusPtr := &status
@@ -110,7 +115,7 @@ func (h *Handler) ListSessions(c *gin.Context) {
 	if triggerID == "" {
 		triggerIDPtr = nil
 	}
-	sessions, total, err := h.svc.GetDiagnosticHistory(c.Request.Context(), tenantID, statusPtr, triggerTypePtr, triggerIDPtr)
+	sessions, total, err := h.svc.GetDiagnosticHistory(ctx, tenantID, statusPtr, triggerTypePtr, triggerIDPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -124,8 +129,10 @@ func (h *Handler) ListSessions(c *gin.Context) {
 }
 
 func (h *Handler) GetSession(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSession")
+	defer span.End()
 	id := c.Param("id")
-	session, err := h.svc.GetDiagnosticDetail(c.Request.Context(), id)
+	session, err := h.svc.GetDiagnosticDetail(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic session not found")
@@ -135,7 +142,7 @@ func (h *Handler) GetSession(c *gin.Context) {
 		return
 	}
 	// Try to include the associated report
-	report, _ := h.svc.GetReportBySession(c.Request.Context(), id)
+	report, _ := h.svc.GetReportBySession(ctx, id)
 	middleware.RespondSuccess(c, models.SessionWithReport{
 		Session: *session,
 		Report:  report,
@@ -143,13 +150,15 @@ func (h *Handler) GetSession(c *gin.Context) {
 }
 
 func (h *Handler) AddSymptom(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddSymptom")
+	defer span.End()
 	id := c.Param("id")
 	var req models.AddSymptomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	session, err := h.svc.AddSymptomToSession(c.Request.Context(), id, &req)
+	session, err := h.svc.AddSymptomToSession(ctx, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic session not found")
@@ -162,8 +171,10 @@ func (h *Handler) AddSymptom(c *gin.Context) {
 }
 
 func (h *Handler) CompleteSession(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteSession")
+	defer span.End()
 	id := c.Param("id")
-	result, err := h.svc.CompleteSession(c.Request.Context(), id)
+	result, err := h.svc.CompleteSession(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic session not found")
@@ -176,8 +187,10 @@ func (h *Handler) CompleteSession(c *gin.Context) {
 }
 
 func (h *Handler) EstimateComplexity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EstimateComplexity")
+	defer span.End()
 	id := c.Param("id")
-	estimate, err := h.svc.EstimateFixComplexity(c.Request.Context(), id)
+	estimate, err := h.svc.EstimateFixComplexity(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic session not found")
@@ -192,6 +205,8 @@ func (h *Handler) EstimateComplexity(c *gin.Context) {
 // --- Reports ---
 
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReports")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	tenantIDPtr := &tenantID
 	sessionID := c.Query("sessionId")
@@ -200,7 +215,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 		sessionIDPtr = nil
 	}
 	_ = c.Query("limit") // unused for now
-	reports, total, err := h.svc.GetReportHistory(c.Request.Context(), tenantIDPtr, sessionIDPtr)
+	reports, total, err := h.svc.GetReportHistory(ctx, tenantIDPtr, sessionIDPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -214,8 +229,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReport")
+	defer span.End()
 	id := c.Param("id")
-	report, err := h.svc.GetReport(c.Request.Context(), id)
+	report, err := h.svc.GetReport(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic report not found")
@@ -230,13 +247,15 @@ func (h *Handler) GetReport(c *gin.Context) {
 // --- Knowledge ---
 
 func (h *Handler) AddPattern(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddPattern")
+	defer span.End()
 	var req models.CreatePatternRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	pattern, err := h.svc.AddPattern(c.Request.Context(), tenantID, &req)
+	pattern, err := h.svc.AddPattern(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -245,6 +264,8 @@ func (h *Handler) AddPattern(c *gin.Context) {
 }
 
 func (h *Handler) ListPatterns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPatterns")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	tenantIDPtr := &tenantID
 	category := c.Query("category")
@@ -259,7 +280,7 @@ func (h *Handler) ListPatterns(c *gin.Context) {
 	}
 	_ = c.Query("minFrequency")
 	_ = c.Query("limit")
-	patterns, total, err := h.svc.SearchPatterns(c.Request.Context(), tenantIDPtr, categoryPtr, keywordPtr)
+	patterns, total, err := h.svc.SearchPatterns(ctx, tenantIDPtr, categoryPtr, keywordPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -273,8 +294,10 @@ func (h *Handler) ListPatterns(c *gin.Context) {
 }
 
 func (h *Handler) GetPattern(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPattern")
+	defer span.End()
 	id := c.Param("id")
-	pattern, err := h.svc.GetPattern(c.Request.Context(), id)
+	pattern, err := h.svc.GetPattern(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic pattern not found")
@@ -287,8 +310,10 @@ func (h *Handler) GetPattern(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	stats, err := h.svc.GetKnowledgeBaseStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetKnowledgeBaseStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -297,13 +322,15 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) RecordOutcome(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordOutcome")
+	defer span.End()
 	var req models.RecordOutcomeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	outcome, err := h.svc.RecordOutcome(c.Request.Context(), tenantID, &req)
+	outcome, err := h.svc.RecordOutcome(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "diagnostic session or pattern not found")
@@ -318,8 +345,10 @@ func (h *Handler) RecordOutcome(c *gin.Context) {
 // --- Status ---
 
 func (h *Handler) GetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatus")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
+	status, err := h.svc.GetStatus(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

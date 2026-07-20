@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/workflow-dependency/models"
+)
+
 // ServiceInterface defines the interface for the workflow-dependency service.
 type ServiceInterface interface {
 	CheckDefinition(ctx context.Context, definitionID string) (*models.DependencyCheck, error)

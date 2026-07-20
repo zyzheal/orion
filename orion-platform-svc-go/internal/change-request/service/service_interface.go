@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/change-request/models"
+	"time"
+)
+
 // ServiceInterface defines the interface for the change-request service.
 type ServiceInterface interface {
 	ApproveRequest(ctx context.Context, requestID string, approvalID string, tenantID string, approverID string, comments *string) (*models.ChangeApproval, error)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -32,6 +33,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) GetActivities(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetActivities")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.Param("id")
 	currentUserID := c.GetString("user_id")
@@ -45,7 +48,7 @@ func (h *Handler) GetActivities(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 
-	result, err := h.svc.GetActivities(c.Request.Context(), userID, page, pageSize)
+	result, err := h.svc.GetActivities(ctx, userID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -59,6 +62,8 @@ func (h *Handler) GetActivities(c *gin.Context) {
 }
 
 func (h *Handler) GetActivity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetActivity")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	userID := c.Param("id")
 	activityID := c.Param("activityId")
@@ -69,7 +74,7 @@ func (h *Handler) GetActivity(c *gin.Context) {
 		return
 	}
 
-	a, err := h.svc.GetActivity(c.Request.Context(), userID, activityID)
+	a, err := h.svc.GetActivity(ctx, userID, activityID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Activity "+activityID+" not found")
 		return
@@ -78,6 +83,8 @@ func (h *Handler) GetActivity(c *gin.Context) {
 }
 
 func (h *Handler) DeleteActivity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteActivity")
+	defer span.End()
 	_ = c.GetString("tenant_id")
 	userID := c.Param("id")
 	activityID := c.Param("activityId")
@@ -88,7 +95,7 @@ func (h *Handler) DeleteActivity(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.DeleteActivity(c.Request.Context(), userID, activityID)
+	err := h.svc.DeleteActivity(ctx, userID, activityID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

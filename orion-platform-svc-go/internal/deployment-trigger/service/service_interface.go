@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/deployment-trigger/models"
+	"time"
+)
+
 // ServiceInterface defines the interface for the deployment-trigger service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateTriggerRequest) (*models.DeploymentTrigger, error)

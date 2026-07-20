@@ -3,11 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"orion/platform-svc-go/internal/finops-v2/models"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -538,7 +536,3 @@ func NotYetImplemented(msg string) error {
 	return fmt.Errorf("%s", msg)
 }
 
-func init() {
-	// Prevent unused uuid import warning — uuid is referenced via sql.NullString in future.
-	_ = uuid.NewString
-}

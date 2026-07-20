@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/canary-traffic/models"
+)
+
 // ServiceInterface defines the interface for the canary-traffic service.
 type ServiceInterface interface {
 	AdjustWeight(ctx context.Context, id, tenantID string, canaryWeight int) (*models.CanaryTraffic, error)

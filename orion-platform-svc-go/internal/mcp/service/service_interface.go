@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/mcp/models"
+)
+
 // ServiceInterface defines the interface for the mcp service.
 type ServiceInterface interface {
 	CreateServer(ctx context.Context, tenantID string, req models.CreateMCPServerRequest) (*models.MCPServer, error)

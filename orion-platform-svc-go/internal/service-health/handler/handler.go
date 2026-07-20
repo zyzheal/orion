@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/service-health/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler wires the service-health service to gin routes.
@@ -48,8 +49,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -58,9 +61,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -69,13 +74,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -84,6 +91,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	// Detect whether any field was sent so we can pass *bool for Enabled
 	// when the caller explicitly provided it.
@@ -98,7 +107,7 @@ func (h *Handler) Update(c *gin.Context) {
 	// enabled pointer when toggling. We keep that semantic here.
 	req := reqRaw
 	id := c.Param("id")
-	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -107,9 +116,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -122,11 +133,13 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // RecordResult records a new health check result for an existing check.
 func (h *Handler) RecordResult(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordResult")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	checkID := c.Param("id")
 
 	// Verify the check exists and belongs to the tenant first.
-	_, err := h.svc.Get(c.Request.Context(), tenantID, checkID)
+	_, err := h.svc.Get(ctx, tenantID, checkID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -142,7 +155,7 @@ func (h *Handler) RecordResult(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.svc.RecordHealthResult(c.Request.Context(), checkID, req.Status, req.ResponseTimeMs, req.Error)
+	updated, err := h.svc.RecordHealthResult(ctx, checkID, req.Status, req.ResponseTimeMs, req.Error)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -152,11 +165,13 @@ func (h *Handler) RecordResult(c *gin.Context) {
 
 // GetResults returns the recent results for a check.
 func (h *Handler) GetResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResults")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	checkID := c.Param("id")
 
 	// Verify ownership.
-	_, err := h.svc.Get(c.Request.Context(), tenantID, checkID)
+	_, err := h.svc.Get(ctx, tenantID, checkID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -169,7 +184,7 @@ func (h *Handler) GetResults(c *gin.Context) {
 		}
 	}
 
-	results, err := h.svc.GetRecentResults(c.Request.Context(), checkID, limit)
+	results, err := h.svc.GetRecentResults(ctx, checkID, limit)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -183,9 +198,11 @@ func (h *Handler) GetResults(c *gin.Context) {
 
 // GetServiceHealth returns the aggregated health summary for a single service.
 func (h *Handler) GetServiceHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceHealth")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	serviceName := c.Param("serviceName")
-	summary, err := h.svc.GetServiceHealth(c.Request.Context(), tenantID, serviceName)
+	summary, err := h.svc.GetServiceHealth(ctx, tenantID, serviceName)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "service health summary not found", http.StatusNotFound)
 		return
@@ -195,8 +212,10 @@ func (h *Handler) GetServiceHealth(c *gin.Context) {
 
 // GetAllSummaries returns health summaries for every service within the tenant.
 func (h *Handler) GetAllSummaries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllSummaries")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	summaries, err := h.svc.GetAllHealthSummaries(c.Request.Context(), tenantID)
+	summaries, err := h.svc.GetAllHealthSummaries(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -207,6 +226,8 @@ func (h *Handler) GetAllSummaries(c *gin.Context) {
 // DegradedServices returns summaries for services whose 24h uptime falls below
 // the given threshold (query param: threshold_uptime).
 func (h *Handler) DegradedServices(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DegradedServices")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	threshold := 99.0
@@ -216,7 +237,7 @@ func (h *Handler) DegradedServices(c *gin.Context) {
 		}
 	}
 
-	summaries, err := h.svc.DetectDegradedServices(c.Request.Context(), tenantID, threshold)
+	summaries, err := h.svc.DetectDegradedServices(ctx, tenantID, threshold)
 	if err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), http.StatusBadRequest)
 		return

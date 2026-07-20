@@ -12,6 +12,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-error-detail/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -38,6 +39,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ErrorDetail handles GET /pipelines/:runId/error-detail.
 func (h *Handler) ErrorDetail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ErrorDetail")
+	defer span.End()
 	ctx := context.Background()
 	runID := c.Param("runId")
 

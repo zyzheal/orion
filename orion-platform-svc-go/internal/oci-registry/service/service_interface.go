@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/oci-registry/models"
+)
+
 // ServiceInterface defines the interface for the oci-registry service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateOciRegistryRequest) (*models.OciRegistry, error)

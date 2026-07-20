@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/smart-deploy/models"
+)
+
 // ServiceInterface defines the interface for the smart-deploy service.
 type ServiceInterface interface {
 	CancelDeployment(ctx context.Context, tenantID, id, cancelledBy string) (*models.Deployment, error)

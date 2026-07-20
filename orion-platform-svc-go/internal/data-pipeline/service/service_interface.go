@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/data-pipeline/models"
+)
+
 // ServiceInterface defines the interface for the data-pipeline service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)

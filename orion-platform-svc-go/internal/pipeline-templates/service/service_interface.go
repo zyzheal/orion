@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-templates/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-templates service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateTemplateRequest, authorID string) (*models.PipelineTemplate, error)

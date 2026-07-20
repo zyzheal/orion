@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -76,6 +77,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // === CRUD ===
 
 func (h *Handler) ListPipelines(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPipelines")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -114,6 +117,8 @@ func (h *Handler) ListPipelines(c *gin.Context) {
 }
 
 func (h *Handler) CreatePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -132,6 +137,8 @@ func (h *Handler) CreatePipeline(c *gin.Context) {
 }
 
 func (h *Handler) GetPipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	pipeline, err := h.svc.GetPipeline(ctx, tenantID, c.Param("id"))
@@ -143,6 +150,8 @@ func (h *Handler) GetPipeline(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -161,6 +170,8 @@ func (h *Handler) UpdatePipeline(c *gin.Context) {
 }
 
 func (h *Handler) DeletePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	deleted, err := h.svc.DeletePipeline(ctx, tenantID, c.Param("id"))
@@ -178,6 +189,8 @@ func (h *Handler) DeletePipeline(c *gin.Context) {
 // === Validation ===
 
 func (h *Handler) ValidatePipeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidatePipeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -198,6 +211,8 @@ func (h *Handler) ValidatePipeline(c *gin.Context) {
 // === Runs ===
 
 func (h *Handler) StartRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	result, err := h.svc.StartRun(ctx, tenantID, c.Param("id"))
@@ -209,6 +224,8 @@ func (h *Handler) StartRun(c *gin.Context) {
 }
 
 func (h *Handler) StopRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	err := h.svc.StopRun(ctx, tenantID, c.Param("runId"))
@@ -222,6 +239,8 @@ func (h *Handler) StopRun(c *gin.Context) {
 // === Batch ===
 
 func (h *Handler) BatchStart(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStart")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -242,6 +261,8 @@ func (h *Handler) BatchStart(c *gin.Context) {
 }
 
 func (h *Handler) BatchStop(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStop")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -262,6 +283,8 @@ func (h *Handler) BatchStop(c *gin.Context) {
 }
 
 func (h *Handler) BatchDelete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchDelete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -284,6 +307,8 @@ func (h *Handler) BatchDelete(c *gin.Context) {
 // === Stats & Versions ===
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	stats, err := h.svc.GetStats(ctx, tenantID, c.Param("id"))
@@ -295,6 +320,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) GetVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	versions, err := h.svc.GetVersions(ctx, tenantID, c.Param("id"))

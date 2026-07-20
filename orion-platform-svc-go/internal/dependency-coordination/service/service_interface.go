@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/dependency-coordination/models"
+)
+
 // ServiceInterface defines the interface for the dependency-coordination service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateDependencyCoordinationRequest) (*models.DependencyCoordination, error)

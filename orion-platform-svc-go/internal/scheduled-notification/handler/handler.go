@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -75,6 +76,8 @@ func (h *Handler) getPagination(c *gin.Context) (int, int) {
 // --- Handlers ---
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	page, pageSize := h.getPagination(c)
 
@@ -90,7 +93,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Enabled = &enabled
 	}
 
-	schedules, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	schedules, total, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -104,6 +107,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -111,7 +116,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	schedule, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	schedule, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -120,9 +125,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	schedule, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	schedule, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")
@@ -135,6 +142,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,7 +151,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	schedule, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	schedule, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")
@@ -155,9 +164,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -170,8 +181,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	total, err := h.svc.Count(c.Request.Context(), tenantID)
+	total, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -180,9 +193,11 @@ func (h *Handler) Count(c *gin.Context) {
 }
 
 func (h *Handler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Execute")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	err := h.svc.Execute(c.Request.Context(), tenantID, id)
+	err := h.svc.Execute(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")
@@ -195,9 +210,11 @@ func (h *Handler) Execute(c *gin.Context) {
 }
 
 func (h *Handler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Pause")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	schedule, err := h.svc.Pause(c.Request.Context(), tenantID, id)
+	schedule, err := h.svc.Pause(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")
@@ -210,9 +227,11 @@ func (h *Handler) Pause(c *gin.Context) {
 }
 
 func (h *Handler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resume")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	schedule, err := h.svc.Resume(c.Request.Context(), tenantID, id)
+	schedule, err := h.svc.Resume(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")
@@ -225,9 +244,11 @@ func (h *Handler) Resume(c *gin.Context) {
 }
 
 func (h *Handler) GetLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLogs")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	logs, err := h.svc.GetLogs(c.Request.Context(), tenantID, id)
+	logs, err := h.svc.GetLogs(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "scheduled notification not found")

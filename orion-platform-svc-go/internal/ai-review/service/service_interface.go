@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-review/models"
+)
+
 // ServiceInterface defines the interface for the ai-review service.
 type ServiceInterface interface {
 	Approve(ctx context.Context, tenantID, id string) (*models.ReviewRequest, error)

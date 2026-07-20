@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/incident/models"
+)
+
 // ServiceInterface defines the interface for the incident service.
 type ServiceInterface interface {
 	AddTimelineEvent(ctx context.Context, tenantID, incidentID string, req models.AddTimelineEventRequest) (*models.TimelineEvent, error)

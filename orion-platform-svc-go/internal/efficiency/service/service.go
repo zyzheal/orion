@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"sort"
 	"sync"
@@ -1147,8 +1148,12 @@ func (s *Service) saveSnapshot(ctx context.Context, tenantID string, timeWindow 
 	snapshot.CapturedAt = time.Now().UTC()
 	if s.repo != nil {
 		go func() {
-			_ = s.repo.CreateSnapshot(ctx, &snapshot)
-			_ = s.repo.PruneOldSnapshots(ctx, tenantID, 100)
+			if err := s.repo.CreateSnapshot(ctx, &snapshot); err != nil {
+				slog.Error("efficiency: failed to create snapshot", "tenantID", tenantID, "window", timeWindow, "error", err)
+			}
+			if err := s.repo.PruneOldSnapshots(ctx, tenantID, 100); err != nil {
+				slog.Error("efficiency: failed to prune old snapshots", "tenantID", tenantID, "error", err)
+			}
 		}()
 	}
 }
@@ -1279,11 +1284,13 @@ func (s *Service) persistReportHistoryAsync(ctx context.Context, tenantID string
 		return
 	}
 	go func() {
-		_ = s.repo.CreateReportHistory(ctx, &models.ReportHistoryEntry{
+		if err := s.repo.CreateReportHistory(ctx, &models.ReportHistoryEntry{
 			TenantID:    tenantID,
 			ReportData:  string(data),
 			GeneratedAt: report.GeneratedAt,
-		})
+		}); err != nil {
+			slog.Error("efficiency: failed to persist report history", "tenantID", tenantID, "error", err)
+		}
 	}()
 }
 
@@ -1297,10 +1304,12 @@ func (s *Service) persistTeamDataAsync(ctx context.Context, tenantID, teamID, na
 		return nil
 	}
 	go func() {
-		_ = s.repo.CreateTeamData(ctx, &models.TeamData{
+		if err := s.repo.CreateTeamData(ctx, &models.TeamData{
 			ID: teamID, TenantID: tenantID, Name: name, Members: members,
 			Pipelines: string(pdata), Deployments: string(ddata),
-		})
+		}); err != nil {
+			slog.Error("efficiency: failed to persist team data", "tenantID", tenantID, "teamID", teamID, "error", err)
+		}
 	}()
 	return nil
 }
@@ -1315,10 +1324,12 @@ func (s *Service) persistProjectDataAsync(ctx context.Context, tenantID, project
 		return nil
 	}
 	go func() {
-		_ = s.repo.CreateProjectData(ctx, &models.ProjectData{
+		if err := s.repo.CreateProjectData(ctx, &models.ProjectData{
 			ID: projectID, TenantID: tenantID, Name: name,
 			Pipelines: string(pdata), Deployments: string(ddata), Commits: commits,
-		})
+		}); err != nil {
+			slog.Error("efficiency: failed to persist project data", "tenantID", tenantID, "projectID", projectID, "error", err)
+		}
 	}()
 	return nil
 }
@@ -1328,12 +1339,16 @@ func (s *Service) persistGlobalDeploymentsAsync(ctx context.Context, tenantID st
 		return nil
 	}
 	go func() {
-		_ = s.repo.DeleteGlobalDeploymentsByTenant(ctx, tenantID)
+		if err := s.repo.DeleteGlobalDeploymentsByTenant(ctx, tenantID); err != nil {
+			slog.Error("efficiency: failed to delete global deployments", "tenantID", tenantID, "error", err)
+		}
 		for _, d := range deployments {
 			data, _ := json.Marshal(d)
-			_ = s.repo.CreateGlobalDeployment(ctx, &models.GlobalDeployment{
+			if err := s.repo.CreateGlobalDeployment(ctx, &models.GlobalDeployment{
 				TenantID: tenantID, DeploymentData: string(data), DeployedAt: d.DeployedAt,
-			})
+			}); err != nil {
+				slog.Error("efficiency: failed to create global deployment", "tenantID", tenantID, "error", err)
+			}
 		}
 	}()
 	return nil
@@ -1344,12 +1359,16 @@ func (s *Service) persistGlobalPipelinesAsync(ctx context.Context, tenantID stri
 		return nil
 	}
 	go func() {
-		_ = s.repo.DeleteGlobalPipelinesByTenant(ctx, tenantID)
+		if err := s.repo.DeleteGlobalPipelinesByTenant(ctx, tenantID); err != nil {
+			slog.Error("efficiency: failed to delete global pipelines", "tenantID", tenantID, "error", err)
+		}
 		for _, p := range pipelines {
 			data, _ := json.Marshal(p)
-			_ = s.repo.CreateGlobalPipeline(ctx, &models.GlobalPipeline{
+			if err := s.repo.CreateGlobalPipeline(ctx, &models.GlobalPipeline{
 				TenantID: tenantID, PipelineData: string(data), CompletedAt: p.CompletedAt,
-			})
+			}); err != nil {
+				slog.Error("efficiency: failed to create global pipeline", "tenantID", tenantID, "error", err)
+			}
 		}
 	}()
 	return nil

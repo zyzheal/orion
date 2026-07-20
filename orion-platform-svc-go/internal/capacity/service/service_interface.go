@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/capacity/models"
+)
+
 // ServiceInterface defines the interface for the capacity service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id, tag string) (gin.H, error)

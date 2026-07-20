@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/permission-audit/models"
+)
+
 // ServiceInterface defines the interface for the permission-audit service.
 type ServiceInterface interface {
 	DeleteAuditLog(ctx context.Context, tenantID, id string) (bool, error)

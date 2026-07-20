@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/finops-v2/models"
+)
+
 // ServiceInterface defines the interface for the finops-v2 service.
 type ServiceInterface interface {
 	CheckBudgetAlerts(ctx context.Context, tenantID string, entityID, entityType string) ([]models.BudgetAlert, error)

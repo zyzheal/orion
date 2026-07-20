@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/chaos-gateway/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for chaos experiments.
@@ -93,6 +94,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // GetScenarios returns the built-in scenario definitions.
 func (h *Handler) GetScenarios(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetScenarios")
+	defer span.End()
 	ctx := context.Background()
 	scenarios, err := h.svc.GetScenarios(ctx)
 	if err != nil {
@@ -104,6 +107,8 @@ func (h *Handler) GetScenarios(c *gin.Context) {
 
 // ListExperiments returns a paginated list of experiments.
 func (h *Handler) ListExperiments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExperiments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -129,6 +134,8 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 
 // CreateExperiment creates a new experiment.
 func (h *Handler) CreateExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -152,6 +159,8 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 
 // GetExperiment retrieves a single experiment by id.
 func (h *Handler) GetExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -166,6 +175,8 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 
 // UpdateExperiment updates an experiment.
 func (h *Handler) UpdateExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -191,6 +202,8 @@ func (h *Handler) UpdateExperiment(c *gin.Context) {
 
 // DeleteExperiment deletes an experiment.
 func (h *Handler) DeleteExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -209,6 +222,8 @@ func (h *Handler) DeleteExperiment(c *gin.Context) {
 
 // StartExperiment starts an experiment.
 func (h *Handler) StartExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -223,6 +238,8 @@ func (h *Handler) StartExperiment(c *gin.Context) {
 
 // StopExperiment stops an experiment.
 func (h *Handler) StopExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -237,6 +254,8 @@ func (h *Handler) StopExperiment(c *gin.Context) {
 
 // PauseExperiment pauses a running experiment.
 func (h *Handler) PauseExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -251,6 +270,8 @@ func (h *Handler) PauseExperiment(c *gin.Context) {
 
 // ResumeExperiment resumes a paused experiment.
 func (h *Handler) ResumeExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResumeExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -265,6 +286,8 @@ func (h *Handler) ResumeExperiment(c *gin.Context) {
 
 // GetResults returns paginated results for an experiment.
 func (h *Handler) GetResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResults")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -288,6 +311,8 @@ func (h *Handler) GetResults(c *gin.Context) {
 
 // GetLogs returns paginated logs for an experiment.
 func (h *Handler) GetLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -311,6 +336,8 @@ func (h *Handler) GetLogs(c *gin.Context) {
 
 // ScheduleExperiment creates a scheduled experiment.
 func (h *Handler) ScheduleExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScheduleExperiment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ---------------------------------------------------------------------------
@@ -73,13 +74,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ===========================================================================
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	d, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	d, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -88,10 +91,12 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	ps, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, (page-1)*ps, ps)
+	items, err := h.svc.List(ctx, tenantID, (page-1)*ps, ps)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -100,9 +105,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	d, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	d, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -111,8 +118,10 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -120,8 +129,10 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -134,13 +145,15 @@ func (h *Handler) Count(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdatePluginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	updated, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	updated, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -149,6 +162,8 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Install(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Install")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Param("pluginId")
 	var body struct {
@@ -161,7 +176,7 @@ func (h *Handler) Install(c *gin.Context) {
 	if body.Version == "" {
 		body.Version = "latest"
 	}
-	p, err := h.svc.Install(c.Request.Context(), tenantID, pluginID, body.Version, body.Config)
+	p, err := h.svc.Install(ctx, tenantID, pluginID, body.Version, body.Config)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -170,9 +185,11 @@ func (h *Handler) Install(c *gin.Context) {
 }
 
 func (h *Handler) Enable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Enable")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Param("pluginId")
-	p, err := h.svc.Enable(c.Request.Context(), tenantID, pluginID)
+	p, err := h.svc.Enable(ctx, tenantID, pluginID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -181,9 +198,11 @@ func (h *Handler) Enable(c *gin.Context) {
 }
 
 func (h *Handler) Disable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Disable")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Param("pluginId")
-	p, err := h.svc.Disable(c.Request.Context(), tenantID, pluginID)
+	p, err := h.svc.Disable(ctx, tenantID, pluginID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -196,13 +215,15 @@ func (h *Handler) Disable(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) Audit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Audit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	pluginID := c.Query("plugin_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
-	logs, err := h.svc.ListAuditEntries(c.Request.Context(), tenantID, pluginID, limit)
+	logs, err := h.svc.ListAuditEntries(ctx, tenantID, pluginID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -211,12 +232,14 @@ func (h *Handler) Audit(c *gin.Context) {
 }
 
 func (h *Handler) AuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AuditTrail")
+	defer span.End()
 	taskID := c.Param("taskId")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
-	logs, err := h.svc.AuditTrail(c.Request.Context(), taskID, limit)
+	logs, err := h.svc.AuditTrail(ctx, taskID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -229,9 +252,11 @@ func (h *Handler) AuditTrail(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) Timeline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Timeline")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
-	execution, err := h.svc.GetExecutionByTaskID(c.Request.Context(), tenantID, runID)
+	execution, err := h.svc.GetExecutionByTaskID(ctx, tenantID, runID)
 	if err != nil {
 		middleware.RespondNotFound(c, "execution not found for run: "+runID)
 		return
@@ -240,27 +265,35 @@ func (h *Handler) Timeline(c *gin.Context) {
 }
 
 func (h *Handler) DebugPause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugPause")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
-	state := h.svc.Pause(c.Request.Context(), tenantID, runID)
+	state := h.svc.Pause(ctx, tenantID, runID)
 	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "paused", "debugState": state})
 }
 
 func (h *Handler) DebugResume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugResume")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
-	h.svc.Resume(c.Request.Context(), tenantID, runID)
+	h.svc.Resume(ctx, tenantID, runID)
 	middleware.RespondSuccess(c, gin.H{"runId": runID, "status": "resumed"})
 }
 
 func (h *Handler) DebugStep(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugStep")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	rnID := c.Param("runId")
-	state := h.svc.Step(c.Request.Context(), tenantID, rnID)
+	state := h.svc.Step(ctx, tenantID, rnID)
 	middleware.RespondSuccess(c, gin.H{"runId": rnID, "status": "stepping", "debugState": state})
 }
 
 func (h *Handler) DebugState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DebugState")
+	defer span.End()
 	runID := c.Param("runId")
 	state := h.svc.GetDebugState(runID)
 	if state == nil {
@@ -275,6 +308,8 @@ func (h *Handler) DebugState(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) AIDiagnose(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AIDiagnose")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body struct {
 		Context service.DiagnoseRequest `json:"context" binding:"required"`
@@ -287,7 +322,7 @@ func (h *Handler) AIDiagnose(c *gin.Context) {
 		middleware.RespondBadRequest(c, "Missing required context fields: taskId, pluginId, errorMessage")
 		return
 	}
-	result, err := h.svc.Diagnose(c.Request.Context(), tenantID, &body.Context)
+	result, err := h.svc.Diagnose(ctx, tenantID, &body.Context)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -300,13 +335,15 @@ func (h *Handler) AIDiagnose(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) UpsertPluginQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpsertPluginQuota")
+	defer span.End()
 	pluginID := c.Param("pluginId")
 	var req models.ResourceQuota
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpsertPluginQuota(c.Request.Context(), pluginID, &req); err != nil {
+	if err := h.svc.UpsertPluginQuota(ctx, pluginID, &req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -314,8 +351,10 @@ func (h *Handler) UpsertPluginQuota(c *gin.Context) {
 }
 
 func (h *Handler) PluginQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PluginQuota")
+	defer span.End()
 	pluginID := c.Param("pluginId")
-	q, err := h.svc.GetPluginQuota(c.Request.Context(), pluginID)
+	q, err := h.svc.GetPluginQuota(ctx, pluginID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -324,8 +363,10 @@ func (h *Handler) PluginQuota(c *gin.Context) {
 }
 
 func (h *Handler) DeletePluginQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePluginQuota")
+	defer span.End()
 	pluginID := c.Param("pluginId")
-	if err := h.svc.DeletePluginQuota(c.Request.Context(), pluginID); err != nil {
+	if err := h.svc.DeletePluginQuota(ctx, pluginID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -337,6 +378,8 @@ func (h *Handler) DeletePluginQuota(c *gin.Context) {
 // ===========================================================================
 
 func (h *Handler) CreateSecurityEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSecurityEvent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var ev models.SecurityEvent
 	if err := c.ShouldBindJSON(&ev); err != nil {
@@ -345,7 +388,7 @@ func (h *Handler) CreateSecurityEvent(c *gin.Context) {
 	}
 	ev.ID = "" // will be generated by repository
 	ev.TenantID = tenantID
-	if err := h.svc.CreateSecurityEvent(c.Request.Context(), &ev); err != nil {
+	if err := h.svc.CreateSecurityEvent(ctx, &ev); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -353,6 +396,8 @@ func (h *Handler) CreateSecurityEvent(c *gin.Context) {
 }
 
 func (h *Handler) ListSecurityEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSecurityEvents")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	f := &models.SecurityEventFilter{
 		TenantID: tenantID,
@@ -365,7 +410,7 @@ func (h *Handler) ListSecurityEvents(c *gin.Context) {
 	if l, _ := strconv.Atoi(c.DefaultQuery("limit", "100")); l > 0 {
 		f.Limit = l
 	}
-	events, err := h.svc.ListSecurityEvents(c.Request.Context(), f)
+	events, err := h.svc.ListSecurityEvents(ctx, f)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

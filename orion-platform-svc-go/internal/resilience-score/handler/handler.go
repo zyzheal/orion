@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ResilienceService defines the service interface used by Handler.
@@ -69,8 +70,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ----- Global Score -----
 
 func (h *Handler) GetGlobalScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGlobalScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	score, err := h.svc.GetGlobalScore(c.Request.Context(), tenantID)
+	score, err := h.svc.GetGlobalScore(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -81,12 +84,14 @@ func (h *Handler) GetGlobalScore(c *gin.Context) {
 // ----- Service Scores -----
 
 func (h *Handler) ListServiceScores(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListServiceScores")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
 	sort := c.Query("sort")
 	order := c.Query("order")
-	result, err := h.svc.ListServiceScores(c.Request.Context(), tenantID, models.ListQuery{
+	result, err := h.svc.ListServiceScores(ctx, tenantID, models.ListQuery{
 		Page:  page,
 		Size:  size,
 		Sort:  sort,
@@ -105,9 +110,11 @@ func (h *Handler) ListServiceScores(c *gin.Context) {
 }
 
 func (h *Handler) GetServiceScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	score, err := h.svc.GetServiceScore(c.Request.Context(), tenantID, name)
+	score, err := h.svc.GetServiceScore(ctx, tenantID, name)
 	if err != nil {
 		middleware.RespondNotFound(c, "Service resilience score "+name+" not found")
 		return
@@ -118,12 +125,14 @@ func (h *Handler) GetServiceScore(c *gin.Context) {
 // ----- History -----
 
 func (h *Handler) ListHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
 	sort := c.Query("sort")
 	order := c.Query("order")
-	result, err := h.svc.ListHistory(c.Request.Context(), tenantID, models.ListQuery{
+	result, err := h.svc.ListHistory(ctx, tenantID, models.ListQuery{
 		Page:  page,
 		Size:  size,
 		Sort:  sort,
@@ -144,12 +153,14 @@ func (h *Handler) ListHistory(c *gin.Context) {
 // ----- Recommendations -----
 
 func (h *Handler) ListRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecommendations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "20"))
 	priority := c.Query("priority")
 	component := c.Query("component")
-	result, err := h.svc.ListRecommendations(c.Request.Context(), tenantID, models.ListQuery{
+	result, err := h.svc.ListRecommendations(ctx, tenantID, models.ListQuery{
 		Page: page,
 		Size: size,
 	}, priority, component)
@@ -168,6 +179,8 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 // ----- Assess -----
 
 func (h *Handler) Assess(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Assess")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AssessResilienceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -177,7 +190,7 @@ func (h *Handler) Assess(c *gin.Context) {
 	if req.Scope == "" {
 		req.Scope = "global"
 	}
-	result, err := h.svc.Assess(c.Request.Context(), tenantID, req)
+	result, err := h.svc.Assess(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -188,8 +201,10 @@ func (h *Handler) Assess(c *gin.Context) {
 // ----- Components -----
 
 func (h *Handler) GetComponentScores(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComponentScores")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	components, err := h.svc.GetComponentScores(c.Request.Context(), tenantID)
+	components, err := h.svc.GetComponentScores(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -200,13 +215,15 @@ func (h *Handler) GetComponentScores(c *gin.Context) {
 // ----- Benchmarks -----
 
 func (h *Handler) CreateBenchmark(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBenchmark")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBenchmarkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	benchmark, err := h.svc.CreateBenchmark(c.Request.Context(), tenantID, req)
+	benchmark, err := h.svc.CreateBenchmark(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

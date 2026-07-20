@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/progressive/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler provides HTTP handlers for the progressive deployment module.
@@ -50,9 +51,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	items, total, err := h.svc.List(c.Request.Context(), tenantID)
+	items, total, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		writeInternalError(c, err.Error())
 		return
@@ -61,10 +64,12 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	d, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	d, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			writeNotFound(c, "deployment not found")
@@ -77,6 +82,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateProgressiveDeploymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +91,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	d, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	d, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -93,6 +100,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -102,7 +111,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	d, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	d, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -111,10 +120,12 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			writeNotFound(c, "deployment not found")
@@ -135,10 +146,12 @@ func (h *Handler) Delete(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Start(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Start")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	d, err := h.svc.StartRollout(c.Request.Context(), tenantID, id)
+	d, err := h.svc.StartRollout(ctx, tenantID, id)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -147,6 +160,8 @@ func (h *Handler) Start(c *gin.Context) {
 }
 
 func (h *Handler) CompleteStage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteStage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
 	stageStr := c.Param("stage")
@@ -163,7 +178,7 @@ func (h *Handler) CompleteStage(c *gin.Context) {
 		return
 	}
 
-	d, err := h.svc.CompleteStage(c.Request.Context(), tenantID, deploymentID, stageNumber,
+	d, err := h.svc.CompleteStage(ctx, tenantID, deploymentID, stageNumber,
 		req.HealthOK, req.ErrorRate, req.Metrics)
 	if err != nil {
 		handleServiceError(c, err)
@@ -173,10 +188,12 @@ func (h *Handler) CompleteStage(c *gin.Context) {
 }
 
 func (h *Handler) Pause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Pause")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	d, err := h.svc.Pause(c.Request.Context(), tenantID, id)
+	d, err := h.svc.Pause(ctx, tenantID, id)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -185,10 +202,12 @@ func (h *Handler) Pause(c *gin.Context) {
 }
 
 func (h *Handler) Resume(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resume")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	d, err := h.svc.Resume(c.Request.Context(), tenantID, id)
+	d, err := h.svc.Resume(ctx, tenantID, id)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -197,6 +216,8 @@ func (h *Handler) Resume(c *gin.Context) {
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
@@ -209,7 +230,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 		req.Reason = "manual rollback"
 	}
 
-	d, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.Reason)
+	d, err := h.svc.Rollback(ctx, tenantID, id, req.Reason)
 	if err != nil {
 		handleServiceError(c, err)
 		return
@@ -222,10 +243,12 @@ func (h *Handler) Rollback(c *gin.Context) {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) ListStages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStages")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
 
-	stages, err := h.svc.GetStages(c.Request.Context(), tenantID, deploymentID)
+	stages, err := h.svc.GetStages(ctx, tenantID, deploymentID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			writeNotFound(c, "deployment not found")
@@ -238,10 +261,12 @@ func (h *Handler) ListStages(c *gin.Context) {
 }
 
 func (h *Handler) GetProgress(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProgress")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
 
-	progress, err := h.svc.GetProgress(c.Request.Context(), tenantID, deploymentID)
+	progress, err := h.svc.GetProgress(ctx, tenantID, deploymentID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			writeNotFound(c, "deployment not found")

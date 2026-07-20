@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/permission/models"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -43,6 +44,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new permission.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -52,7 +55,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	perm, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	perm, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -62,6 +65,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves permissions with optional filters and pagination.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -81,7 +86,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Action = &action
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
+	items, err := h.svc.List(ctx, tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -91,8 +96,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get retrieves a single permission by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	perm, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	perm, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -102,6 +109,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update modifies an existing permission.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdatePermissionRequest
@@ -110,7 +119,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	perm, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	perm, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -120,8 +129,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a permission by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -130,8 +141,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count returns the total number of permissions for the tenant.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return

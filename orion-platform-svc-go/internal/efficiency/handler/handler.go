@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the efficiency service.
@@ -72,6 +73,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Reports ====================
 
 func (h *Handler) GetReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -89,7 +92,7 @@ func (h *Handler) GetReports(c *gin.Context) {
 		windowSize = 1
 	}
 
-	report, err := h.svc.GenerateReport(c.Request.Context(), tenantID, timeWindow, windowSize)
+	report, err := h.svc.GenerateReport(ctx, tenantID, timeWindow, windowSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -98,6 +101,8 @@ func (h *Handler) GetReports(c *gin.Context) {
 }
 
 func (h *Handler) GetReportHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReportHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -110,7 +115,7 @@ func (h *Handler) GetReportHistory(c *gin.Context) {
 		limit = 10
 	}
 
-	history, err := h.svc.GetReportHistory(c.Request.Context(), tenantID, limit)
+	history, err := h.svc.GetReportHistory(ctx, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -121,6 +126,8 @@ func (h *Handler) GetReportHistory(c *gin.Context) {
 // ==================== Team / Project Metrics ====================
 
 func (h *Handler) GetTeamMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTeamMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -134,7 +141,7 @@ func (h *Handler) GetTeamMetrics(c *gin.Context) {
 		return
 	}
 
-	metrics, err := h.svc.GetTeamMetrics(c.Request.Context(), tenantID, teamID)
+	metrics, err := h.svc.GetTeamMetrics(ctx, tenantID, teamID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -143,6 +150,8 @@ func (h *Handler) GetTeamMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetProjectMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProjectMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -156,7 +165,7 @@ func (h *Handler) GetProjectMetrics(c *gin.Context) {
 		return
 	}
 
-	metrics, err := h.svc.GetProjectMetrics(c.Request.Context(), tenantID, projectId)
+	metrics, err := h.svc.GetProjectMetrics(ctx, tenantID, projectId)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -165,18 +174,22 @@ func (h *Handler) GetProjectMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetAllTeams(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllTeams")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = "default"
 	}
 
-	teams := h.svc.GetAllTeams(c.Request.Context(), tenantID)
+	teams := h.svc.GetAllTeams(ctx, tenantID)
 	middleware.RespondSuccess(c, gin.H{"teams": teams})
 }
 
 // ==================== Period Comparison ====================
 
 func (h *Handler) ComparePeriods(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComparePeriods")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = "default"
@@ -195,7 +208,7 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 		return
 	}
 
-	comparison, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, *req.PeriodA, *req.PeriodB)
+	comparison, err := h.svc.ComparePeriods(ctx, tenantID, *req.PeriodA, *req.PeriodB)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -206,6 +219,8 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 // ==================== DORA Metrics ====================
 
 func (h *Handler) GetAllDORA(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllDORA")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -222,7 +237,7 @@ func (h *Handler) GetAllDORA(c *gin.Context) {
 		windowSize = 1
 	}
 
-	result, err := h.svc.GetAllDORA(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
+	result, err := h.svc.GetAllDORA(ctx, tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -231,6 +246,8 @@ func (h *Handler) GetAllDORA(c *gin.Context) {
 }
 
 func (h *Handler) GetDORATrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDORATrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -247,7 +264,7 @@ func (h *Handler) GetDORATrend(c *gin.Context) {
 		windowSize = 1
 	}
 
-	trend, err := h.svc.GetDORATrend(c.Request.Context(), tenantID, nil, nil, nil, timeWindow, windowSize)
+	trend, err := h.svc.GetDORATrend(ctx, tenantID, nil, nil, nil, timeWindow, windowSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -258,6 +275,8 @@ func (h *Handler) GetDORATrend(c *gin.Context) {
 // ==================== Dashboard ====================
 
 func (h *Handler) GetDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -274,13 +293,15 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 		windowSize = 1
 	}
 
-	dashboard := h.svc.GetDashboardData(c.Request.Context(), tenantID, timeWindow, windowSize)
+	dashboard := h.svc.GetDashboardData(ctx, tenantID, timeWindow, windowSize)
 	middleware.RespondSuccess(c, gin.H{"dashboard": dashboard})
 }
 
 // ==================== Trends ====================
 
 func (h *Handler) GetTrends(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrends")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -293,7 +314,7 @@ func (h *Handler) GetTrends(c *gin.Context) {
 		weeks = 12
 	}
 
-	snapshots, err := h.svc.GetHistoricalSnapshots(c.Request.Context(), tenantID, weeks)
+	snapshots, err := h.svc.GetHistoricalSnapshots(ctx, tenantID, weeks)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -304,6 +325,8 @@ func (h *Handler) GetTrends(c *gin.Context) {
 // ==================== Bottlenecks ====================
 
 func (h *Handler) GetBottlenecks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBottlenecks")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -320,13 +343,15 @@ func (h *Handler) GetBottlenecks(c *gin.Context) {
 		windowSize = 1
 	}
 
-	bottlenecks := h.svc.GetBottlenecks(c.Request.Context(), tenantID, timeWindow, windowSize)
+	bottlenecks := h.svc.GetBottlenecks(ctx, tenantID, timeWindow, windowSize)
 	middleware.RespondSuccess(c, gin.H{"bottlenecks": bottlenecks})
 }
 
 // ==================== Developer Profiles ====================
 
 func (h *Handler) GetDeveloperProfiles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDeveloperProfiles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		tenantID = c.Query("tenantId")
@@ -335,7 +360,7 @@ func (h *Handler) GetDeveloperProfiles(c *gin.Context) {
 		tenantID = "default"
 	}
 
-	profiles := h.svc.GetDeveloperProfiles(c.Request.Context(), tenantID)
+	profiles := h.svc.GetDeveloperProfiles(ctx, tenantID)
 	middleware.RespondSuccess(c, gin.H{"profiles": profiles})
 }
 

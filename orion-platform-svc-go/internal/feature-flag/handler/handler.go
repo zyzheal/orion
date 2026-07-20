@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the interface used by Handler.
@@ -60,6 +61,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new feature flag.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := c.GetString("user_id")
 
@@ -69,7 +72,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	flag, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
+	flag, err := h.svc.Create(ctx, tenantID, createdBy, &req)
 	if err != nil {
 		if err == service.ErrDuplicateKey {
 			middleware.RespondConflict(c, err.Error())
@@ -83,6 +86,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves feature flags with optional status/environment filters and pagination.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -102,7 +107,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Environment = &env
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
+	items, err := h.svc.List(ctx, tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -112,6 +117,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Search performs a text search across flag name, key, and description.
 func (h *Handler) Search(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Search")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	query := c.Query("q")
 	if query == "" {
@@ -121,7 +128,7 @@ func (h *Handler) Search(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	items, err := h.svc.Search(c.Request.Context(), tenantID, query, (page-1)*pageSize, pageSize)
+	items, err := h.svc.Search(ctx, tenantID, query, (page-1)*pageSize, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -131,8 +138,10 @@ func (h *Handler) Search(c *gin.Context) {
 
 // Get retrieves a single feature flag by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	flag, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	flag, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -142,6 +151,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update modifies an existing feature flag.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	updatedBy := c.GetString("user_id")
 
@@ -151,7 +162,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	flag, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
+	flag, err := h.svc.Update(ctx, tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
 		if err == service.ErrFlagNotFound {
 			middleware.RespondNotFound(c, err.Error())
@@ -165,8 +176,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a feature flag by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -175,8 +188,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count returns the total number of feature flags for the tenant.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -186,6 +201,8 @@ func (h *Handler) Count(c *gin.Context) {
 
 // SetRollout sets the rollout percentage for a flag.
 func (h *Handler) SetRollout(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetRollout")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	updatedBy := c.GetString("user_id")
 
@@ -195,7 +212,7 @@ func (h *Handler) SetRollout(c *gin.Context) {
 		return
 	}
 
-	flag, err := h.svc.SetRolloutPercentage(c.Request.Context(), tenantID, c.Param("id"), updatedBy, req.Percentage)
+	flag, err := h.svc.SetRolloutPercentage(ctx, tenantID, c.Param("id"), updatedBy, req.Percentage)
 	if err != nil {
 		if err == service.ErrInvalidRollout {
 			middleware.RespondBadRequest(c, err.Error())
@@ -213,6 +230,8 @@ func (h *Handler) SetRollout(c *gin.Context) {
 
 // RecordToggle records a toggle event for a flag.
 func (h *Handler) RecordToggle(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordToggle")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	changedBy := c.GetString("user_id")
 
@@ -223,13 +242,13 @@ func (h *Handler) RecordToggle(c *gin.Context) {
 	}
 
 	// Verify the flag exists and belongs to this tenant.
-	_, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	_, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 
-	if err := h.svc.RecordToggle(c.Request.Context(), c.Param("id"), req.OldValue, req.NewValue, changedBy, req.Reason); err != nil {
+	if err := h.svc.RecordToggle(ctx, c.Param("id"), req.OldValue, req.NewValue, changedBy, req.Reason); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -238,6 +257,8 @@ func (h *Handler) RecordToggle(c *gin.Context) {
 
 // Evaluate evaluates a single feature flag.
 func (h *Handler) Evaluate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Evaluate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.EvaluateFlagRequest
@@ -246,7 +267,7 @@ func (h *Handler) Evaluate(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.EvaluateFlag(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.EvaluateFlag(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -256,6 +277,8 @@ func (h *Handler) Evaluate(c *gin.Context) {
 
 // EvaluateBatch evaluates multiple feature flags in a single request.
 func (h *Handler) EvaluateBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateBatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var reqs []models.EvaluateFlagRequest
@@ -264,7 +287,7 @@ func (h *Handler) EvaluateBatch(c *gin.Context) {
 		return
 	}
 
-	results, err := h.svc.EvaluateFlags(c.Request.Context(), tenantID, reqs)
+	results, err := h.svc.EvaluateFlags(ctx, tenantID, reqs)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -274,18 +297,20 @@ func (h *Handler) EvaluateBatch(c *gin.Context) {
 
 // ToggleHistory retrieves the toggle history for a flag.
 func (h *Handler) ToggleHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
 	// Verify the flag exists and belongs to this tenant.
-	_, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	_, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	records, err := h.svc.ListToggleHistory(c.Request.Context(), id, limit)
+	records, err := h.svc.ListToggleHistory(ctx, id, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

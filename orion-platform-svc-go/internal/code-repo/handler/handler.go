@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -98,7 +99,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Adapters ---
 
 func (h *Handler) ListAdapters(c *gin.Context) {
-	adapters, err := h.svc.ListAdapters(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAdapters")
+	defer span.End()
+	adapters, err := h.svc.ListAdapters(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,8 +112,10 @@ func (h *Handler) ListAdapters(c *gin.Context) {
 // --- Repositories ---
 
 func (h *Handler) ListRepositories(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRepositories")
+	defer span.End()
 	adapterID := c.Param("adapterId")
-	repos, err := h.svc.ListRepositories(c.Request.Context(), adapterID)
+	repos, err := h.svc.ListRepositories(ctx, adapterID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -119,9 +124,11 @@ func (h *Handler) ListRepositories(c *gin.Context) {
 }
 
 func (h *Handler) GetRepository(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRepository")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
-	repo, err := h.svc.GetRepository(c.Request.Context(), adapterID, repoID)
+	repo, err := h.svc.GetRepository(ctx, adapterID, repoID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "repository not found")
@@ -136,9 +143,11 @@ func (h *Handler) GetRepository(c *gin.Context) {
 // --- Branches ---
 
 func (h *Handler) ListBranches(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBranches")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
-	branches, err := h.svc.ListBranches(c.Request.Context(), adapterID, repoID)
+	branches, err := h.svc.ListBranches(ctx, adapterID, repoID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -147,6 +156,8 @@ func (h *Handler) ListBranches(c *gin.Context) {
 }
 
 func (h *Handler) CreateBranch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBranch")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	var req models.CreateBranchRequest
@@ -154,7 +165,7 @@ func (h *Handler) CreateBranch(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.CreateBranch(c.Request.Context(), adapterID, repoID, req); err != nil {
+	if err := h.svc.CreateBranch(ctx, adapterID, repoID, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -162,10 +173,12 @@ func (h *Handler) CreateBranch(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBranch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBranch")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	branchName := c.Param("branchName")
-	if err := h.svc.DeleteBranch(c.Request.Context(), adapterID, repoID, branchName); err != nil {
+	if err := h.svc.DeleteBranch(ctx, adapterID, repoID, branchName); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -175,10 +188,12 @@ func (h *Handler) DeleteBranch(c *gin.Context) {
 // --- Pull Requests ---
 
 func (h *Handler) ListPullRequests(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPullRequests")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	state := c.Query("state")
-	prs, err := h.svc.ListPullRequests(c.Request.Context(), adapterID, repoID, state)
+	prs, err := h.svc.ListPullRequests(ctx, adapterID, repoID, state)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -187,6 +202,8 @@ func (h *Handler) ListPullRequests(c *gin.Context) {
 }
 
 func (h *Handler) GetPullRequestByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPullRequestByID")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Query("repoId")
 	if repoID == "" {
@@ -194,7 +211,7 @@ func (h *Handler) GetPullRequestByID(c *gin.Context) {
 		return
 	}
 	prID := c.Param("prId")
-	pr, err := h.svc.GetPullRequest(c.Request.Context(), adapterID, repoID, prID)
+	pr, err := h.svc.GetPullRequest(ctx, adapterID, repoID, prID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pull request not found")
@@ -207,6 +224,8 @@ func (h *Handler) GetPullRequestByID(c *gin.Context) {
 }
 
 func (h *Handler) CreatePullRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePullRequest")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	var req models.CreatePullRequestRequest
@@ -214,7 +233,7 @@ func (h *Handler) CreatePullRequest(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	pr, err := h.svc.CreatePullRequest(c.Request.Context(), adapterID, repoID, req)
+	pr, err := h.svc.CreatePullRequest(ctx, adapterID, repoID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -223,6 +242,8 @@ func (h *Handler) CreatePullRequest(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePullRequestByID")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Query("repoId")
 	if repoID == "" {
@@ -246,7 +267,7 @@ func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
 		middleware.RespondBadRequest(c, "repoId is required")
 		return
 	}
-	pr, err := h.svc.UpdatePullRequest(c.Request.Context(), adapterID, repoID, prID, req)
+	pr, err := h.svc.UpdatePullRequest(ctx, adapterID, repoID, prID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pull request not found")
@@ -259,10 +280,12 @@ func (h *Handler) UpdatePullRequestByID(c *gin.Context) {
 }
 
 func (h *Handler) MergePullRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MergePullRequest")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
-	if err := h.svc.MergePullRequest(c.Request.Context(), adapterID, repoID, prID); err != nil {
+	if err := h.svc.MergePullRequest(ctx, adapterID, repoID, prID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -270,10 +293,12 @@ func (h *Handler) MergePullRequest(c *gin.Context) {
 }
 
 func (h *Handler) ClosePullRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ClosePullRequest")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
-	if err := h.svc.ClosePullRequest(c.Request.Context(), adapterID, repoID, prID); err != nil {
+	if err := h.svc.ClosePullRequest(ctx, adapterID, repoID, prID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -283,6 +308,8 @@ func (h *Handler) ClosePullRequest(c *gin.Context) {
 // --- Reviews ---
 
 func (h *Handler) AddReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddReview")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
@@ -293,7 +320,7 @@ func (h *Handler) AddReview(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	review, err := h.svc.AddReview(c.Request.Context(), adapterID, repoID, prID, userID, username, req)
+	review, err := h.svc.AddReview(ctx, adapterID, repoID, prID, userID, username, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -302,10 +329,12 @@ func (h *Handler) AddReview(c *gin.Context) {
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReviews")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
-	reviews, err := h.svc.ListReviews(c.Request.Context(), adapterID, repoID, prID)
+	reviews, err := h.svc.ListReviews(ctx, adapterID, repoID, prID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -316,6 +345,8 @@ func (h *Handler) ListReviews(c *gin.Context) {
 // --- Comments ---
 
 func (h *Handler) AddComment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddComment")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
@@ -326,7 +357,7 @@ func (h *Handler) AddComment(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	comment, err := h.svc.AddComment(c.Request.Context(), adapterID, repoID, prID, userID, username, req)
+	comment, err := h.svc.AddComment(ctx, adapterID, repoID, prID, userID, username, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -335,10 +366,12 @@ func (h *Handler) AddComment(c *gin.Context) {
 }
 
 func (h *Handler) ListComments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListComments")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	prID := c.Param("prId")
-	comments, err := h.svc.ListComments(c.Request.Context(), adapterID, repoID, prID)
+	comments, err := h.svc.ListComments(ctx, adapterID, repoID, prID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -349,11 +382,13 @@ func (h *Handler) ListComments(c *gin.Context) {
 // --- Commits ---
 
 func (h *Handler) ListCommits(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCommits")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	commits, err := h.svc.ListCommits(c.Request.Context(), adapterID, repoID, limit, offset)
+	commits, err := h.svc.ListCommits(ctx, adapterID, repoID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -362,10 +397,12 @@ func (h *Handler) ListCommits(c *gin.Context) {
 }
 
 func (h *Handler) GetCommit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCommit")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	sha := c.Param("sha")
-	commit, err := h.svc.GetCommit(c.Request.Context(), adapterID, repoID, sha)
+	commit, err := h.svc.GetCommit(ctx, adapterID, repoID, sha)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "commit not found")
@@ -380,12 +417,14 @@ func (h *Handler) GetCommit(c *gin.Context) {
 // --- File Diff ---
 
 func (h *Handler) GetFileDiff(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFileDiff")
+	defer span.End()
 	adapterID := c.Param("adapterId")
 	repoID := c.Param("repoId")
 	base := c.Query("base")
 	head := c.Query("head")
 	path := c.Query("path")
-	diff, err := h.svc.GetFileDiff(c.Request.Context(), adapterID, repoID, base, head, path)
+	diff, err := h.svc.GetFileDiff(ctx, adapterID, repoID, base, head, path)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -396,8 +435,10 @@ func (h *Handler) GetFileDiff(c *gin.Context) {
 // --- Code Owners ---
 
 func (h *Handler) ListCodeOwners(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCodeOwners")
+	defer span.End()
 	repoID := c.Query("repoId")
-	owners, err := h.svc.ListCodeOwners(c.Request.Context(), repoID)
+	owners, err := h.svc.ListCodeOwners(ctx, repoID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -408,9 +449,11 @@ func (h *Handler) ListCodeOwners(c *gin.Context) {
 // --- Webhooks ---
 
 func (h *Handler) ListWebhookLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWebhookLogs")
+	defer span.End()
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	logs, err := h.svc.ListWebhookLogs(c.Request.Context(), limit, offset)
+	logs, err := h.svc.ListWebhookLogs(ctx, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -421,13 +464,15 @@ func (h *Handler) ListWebhookLogs(c *gin.Context) {
 // --- Webhook Secrets ---
 
 func (h *Handler) SetWebhookSecret(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetWebhookSecret")
+	defer span.End()
 	repoID := c.Param("id")
 	var req models.SetWebhookSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, "secret is required in request body")
 		return
 	}
-	resp, err := h.svc.SetWebhookSecret(c.Request.Context(), repoID, req.Secret)
+	resp, err := h.svc.SetWebhookSecret(ctx, repoID, req.Secret)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -436,8 +481,10 @@ func (h *Handler) SetWebhookSecret(c *gin.Context) {
 }
 
 func (h *Handler) GetWebhookSecret(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWebhookSecret")
+	defer span.End()
 	repoID := c.Param("id")
-	resp, err := h.svc.GetWebhookSecret(c.Request.Context(), repoID)
+	resp, err := h.svc.GetWebhookSecret(ctx, repoID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook secret not found for this repository")
@@ -450,10 +497,12 @@ func (h *Handler) GetWebhookSecret(c *gin.Context) {
 }
 
 func (h *Handler) RotateWebhookSecret(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RotateWebhookSecret")
+	defer span.End()
 	repoID := c.Param("id")
 	var req models.SetWebhookSecretRequest
 	c.ShouldBindJSON(&req) // optional body
-	resp, err := h.svc.RotateWebhookSecret(c.Request.Context(), repoID, req.Secret)
+	resp, err := h.svc.RotateWebhookSecret(ctx, repoID, req.Secret)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

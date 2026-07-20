@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/auth-enhanced/models"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -49,13 +50,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuthKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CreateKey(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateKey(ctx, tenantID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -64,10 +67,12 @@ func (h *Handler) CreateKey(c *gin.Context) {
 }
 
 func (h *Handler) GetKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	_ = tenantID
-	result, err := h.svc.GetKey(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetKey(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
@@ -76,9 +81,11 @@ func (h *Handler) GetKey(c *gin.Context) {
 }
 
 func (h *Handler) ListKeys(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListKeys")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	keys, err := h.svc.ListKeys(c.Request.Context(), tenantID, &status)
+	keys, err := h.svc.ListKeys(ctx, tenantID, &status)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -87,9 +94,11 @@ func (h *Handler) ListKeys(c *gin.Context) {
 }
 
 func (h *Handler) DeactivateKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeactivateKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeactivateKey(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeactivateKey(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "key not found", 404)
 		return
 	}
@@ -97,9 +106,11 @@ errors.WriteSuccess(c, gin.H{"message": "key deactivated"})
 }
 
 func (h *Handler) DeleteKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteKey")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteKey(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteKey(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -112,6 +123,8 @@ func (h *Handler) DeleteKey(c *gin.Context) {
 }
 
 func (h *Handler) BlacklistToken(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BlacklistToken")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBlacklistRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -124,7 +137,7 @@ func (h *Handler) BlacklistToken(c *gin.Context) {
 			expiresAt = time.Now().UTC().Add(time.Duration(h) * time.Hour)
 		}
 	}
-	result, err := h.svc.BlacklistToken(c.Request.Context(), tenantID, &req, expiresAt)
+	result, err := h.svc.BlacklistToken(ctx, tenantID, &req, expiresAt)
 	if err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
@@ -133,8 +146,10 @@ func (h *Handler) BlacklistToken(c *gin.Context) {
 }
 
 func (h *Handler) ListBlacklist(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBlacklist")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	tokens, err := h.svc.ListBlacklist(c.Request.Context(), tenantID)
+	tokens, err := h.svc.ListBlacklist(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -143,9 +158,11 @@ func (h *Handler) ListBlacklist(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBlacklist(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBlacklist")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteBlacklist(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteBlacklist(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/event-trigger-registry/models"
+)
+
 // ServiceInterface defines the interface for the event-trigger-registry service.
 type ServiceInterface interface {
 	CreateTrigger(ctx context.Context, tenantID string, req models.CreateTriggerRequest) (*models.WorkflowTrigger, error)

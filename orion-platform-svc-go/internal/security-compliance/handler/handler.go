@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/security-compliance/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -71,10 +72,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Compliance Policies ---
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	policies, err := h.svc.ListPolicies(c.Request.Context(), tenantID, limit, offset)
+	policies, err := h.svc.ListPolicies(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -83,13 +86,15 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) DefinePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DefinePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	policy, err := h.svc.DefinePolicy(c.Request.Context(), tenantID, req)
+	policy, err := h.svc.DefinePolicy(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -100,13 +105,15 @@ func (h *Handler) DefinePolicy(c *gin.Context) {
 // --- Compliance Evaluation ---
 
 func (h *Handler) EvaluateCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateCompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.EvaluateComplianceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EvaluateCompliance(c.Request.Context(), tenantID, req)
+	result, err := h.svc.EvaluateCompliance(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -121,9 +128,11 @@ func (h *Handler) EvaluateCompliance(c *gin.Context) {
 // --- Compliance Report ---
 
 func (h *Handler) GetComplianceReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	report, err := h.svc.GetComplianceReport(c.Request.Context(), tenantID, policyID)
+	report, err := h.svc.GetComplianceReport(ctx, tenantID, policyID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -138,8 +147,10 @@ func (h *Handler) GetComplianceReport(c *gin.Context) {
 // --- Compliance Score ---
 
 func (h *Handler) GetComplianceScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	score, err := h.svc.GetComplianceScore(c.Request.Context(), tenantID)
+	score, err := h.svc.GetComplianceScore(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -150,13 +161,15 @@ func (h *Handler) GetComplianceScore(c *gin.Context) {
 // --- Remediation ---
 
 func (h *Handler) AutoRemediateCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AutoRemediateCompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RemediationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.AutoRemediateCompliance(c.Request.Context(), tenantID, req)
+	result, err := h.svc.AutoRemediateCompliance(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -171,10 +184,12 @@ func (h *Handler) AutoRemediateCompliance(c *gin.Context) {
 // --- Audit Plans ---
 
 func (h *Handler) ListAuditPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAuditPlans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	plans, err := h.svc.ListAuditPlans(c.Request.Context(), tenantID, limit, offset)
+	plans, err := h.svc.ListAuditPlans(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -183,13 +198,15 @@ func (h *Handler) ListAuditPlans(c *gin.Context) {
 }
 
 func (h *Handler) CreateAuditPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAuditPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	plan, err := h.svc.CreateAuditPlan(c.Request.Context(), tenantID, req)
+	plan, err := h.svc.CreateAuditPlan(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -200,9 +217,11 @@ func (h *Handler) CreateAuditPlan(c *gin.Context) {
 // --- Audit Execution ---
 
 func (h *Handler) ExecuteAudit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteAudit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	planID := c.Param("id")
-	execution, err := h.svc.ExecuteAudit(c.Request.Context(), tenantID, planID)
+	execution, err := h.svc.ExecuteAudit(ctx, tenantID, planID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -213,9 +232,11 @@ func (h *Handler) ExecuteAudit(c *gin.Context) {
 // --- Audit Report ---
 
 func (h *Handler) GetAuditReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	executionID := c.Param("id")
-	report, err := h.svc.GetAuditReport(c.Request.Context(), tenantID, executionID)
+	report, err := h.svc.GetAuditReport(ctx, tenantID, executionID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -230,9 +251,11 @@ func (h *Handler) GetAuditReport(c *gin.Context) {
 // --- Audit Findings ---
 
 func (h *Handler) GetAuditFindings(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditFindings")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	reportID := c.Param("id")
-	findings, err := h.svc.GetAuditFindings(c.Request.Context(), tenantID, reportID)
+	findings, err := h.svc.GetAuditFindings(ctx, tenantID, reportID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -241,6 +264,8 @@ func (h *Handler) GetAuditFindings(c *gin.Context) {
 }
 
 func (h *Handler) CloseFinding(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CloseFinding")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	findingID := c.Param("id")
 	var req models.CloseFindingRequest
@@ -248,7 +273,7 @@ func (h *Handler) CloseFinding(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.CloseFinding(c.Request.Context(), tenantID, findingID, req.Reason); err != nil {
+	if err := h.svc.CloseFinding(ctx, tenantID, findingID, req.Reason); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -258,8 +283,10 @@ func (h *Handler) CloseFinding(c *gin.Context) {
 // --- Compliance Frameworks ---
 
 func (h *Handler) GetFrameworks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFrameworks")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	list, err := h.svc.GetFrameworks(c.Request.Context(), tenantID)
+	list, err := h.svc.GetFrameworks(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -268,9 +295,11 @@ func (h *Handler) GetFrameworks(c *gin.Context) {
 }
 
 func (h *Handler) GetFramework(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFramework")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	fw, err := h.svc.GetFramework(c.Request.Context(), tenantID, id)
+	fw, err := h.svc.GetFramework(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -285,13 +314,15 @@ func (h *Handler) GetFramework(c *gin.Context) {
 // --- Evidence Collection ---
 
 func (h *Handler) CollectEvidence(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectEvidence")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectEvidenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	collection, err := h.svc.CollectEvidence(c.Request.Context(), tenantID, req)
+	collection, err := h.svc.CollectEvidence(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -304,9 +335,11 @@ func (h *Handler) CollectEvidence(c *gin.Context) {
 }
 
 func (h *Handler) GetEvidence(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEvidence")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	evidence, err := h.svc.GetEvidence(c.Request.Context(), tenantID, policyID)
+	evidence, err := h.svc.GetEvidence(ctx, tenantID, policyID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -315,13 +348,15 @@ func (h *Handler) GetEvidence(c *gin.Context) {
 }
 
 func (h *Handler) GenerateEvidenceCollection(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateEvidenceCollection")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectEvidenceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	collection, err := h.svc.GenerateEvidenceCollection(c.Request.Context(), tenantID, req)
+	collection, err := h.svc.GenerateEvidenceCollection(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -336,13 +371,15 @@ func (h *Handler) GenerateEvidenceCollection(c *gin.Context) {
 // --- Gap Analysis ---
 
 func (h *Handler) PerformGapAnalysis(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PerformGapAnalysis")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.GapAnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.PerformGapAnalysis(c.Request.Context(), tenantID, req)
+	result, err := h.svc.PerformGapAnalysis(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

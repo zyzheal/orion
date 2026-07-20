@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/metrics/models"
+)
+
 // ServiceInterface defines the interface for the metrics service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateMetricsRequest) (*models.Metrics, error)

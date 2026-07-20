@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/sprint/models"
+)
+
 // ServiceInterface defines the interface for the sprint service.
 type ServiceInterface interface {
 	AddTicket(ctx context.Context, tenantID, sprintID string, req models.AddTicketRequest) (*models.SprintTicket, error)

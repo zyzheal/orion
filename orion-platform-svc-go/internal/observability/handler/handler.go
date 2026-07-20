@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/observability/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -29,8 +30,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) RecordMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordMetric")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var m models.Metric
 	if err := c.ShouldBindJSON(&m); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -45,8 +48,10 @@ func (h *Handler) RecordMetric(c *gin.Context) {
 }
 
 func (h *Handler) ListMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	q := models.MetricQuery{
 		Name:      c.Query("name"),
 		From:      c.Query("from"),
@@ -62,8 +67,10 @@ func (h *Handler) ListMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetMetric(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetric")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	m, err := h.svc.GetMetric(ctx, tenantID, c.Param("name"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "metric not found", http.StatusNotFound)
@@ -73,8 +80,10 @@ func (h *Handler) GetMetric(c *gin.Context) {
 }
 
 func (h *Handler) CreateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var rule models.AlertRule
 	if err := c.ShouldBindJSON(&rule); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -89,8 +98,10 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 }
 
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	rules, err := h.svc.ListAlertRules(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

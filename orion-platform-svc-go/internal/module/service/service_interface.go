@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/module/models"
+)
+
 // ServiceInterface defines the interface for the module service.
 type ServiceInterface interface {
 	GetModuleByID(ctx context.Context, tenantID, id string) (*models.Module, error)

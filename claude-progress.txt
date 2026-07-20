@@ -4430,3 +4430,34 @@ expect(result.data.xxx).toBe(...); // 正确访问解包后的数据
 | Phase 5: SSO 企业集成 | ✅ | OIDC + LDAP + WeChat + HR Sync + Device + GeoLogin + KeyRotation |
 
 **权限系统全部完成**
+
+## 2026-07-20: Phase 3.11 — 安全头配置 (Security Headers)
+
+### 概述
+
+为 orion-platform-svc-go 启用安全头中间件。SecurityHeaders() 函数已存在于
+`internal/middleware/security.go`，但未在 main.go 的 Gin engine 中注册。
+
+### 修复内容
+
+1. **main.go 注册**: 在 CORS 中间件之后、RateLimit 之前添加 `r.Use(platmw.SecurityHeaders())`
+2. **security.go 清理**: 移除未使用的 `net/http` import（`go vet` 警告）
+
+### 应用的安全头
+
+| 头字段 | 值 | 防护目标 |
+|--------|-----|---------|
+| X-Frame-Options | DENY | 防点击劫持 |
+| X-Content-Type-Options | nosniff | 防 MIME 嗅探 |
+| X-XSS-Protection | 1; mode=block | 遗留 XSS 过滤器 |
+| Referrer-Policy | strict-origin-when-cross-origin | 控制 referrer 泄露 |
+| Content-Security-Policy | default-src 'self' (完整策略) | 防 XSS/数据外泄 |
+| Strict-Transport-Security | max-age=31536000; includeSubDomains | 强制 HTTPS |
+| Permissions-Policy | 禁用非必要浏览器特性 | 减少攻击面 |
+| X-Powered-By | 删除 | 隐藏框架信息 |
+
+### 验证
+
+- `go vet ./internal/middleware/security.go` ✅ PASS
+- 全项目 `go build ./cmd/server/` 存在预存错误（ratelimit.go, cron service, repository interface 等），与本次修改无关
+- Commit: f1d6752e

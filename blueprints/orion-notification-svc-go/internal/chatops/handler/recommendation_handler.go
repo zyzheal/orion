@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/notification-svc-go/internal/chatops/service"
 

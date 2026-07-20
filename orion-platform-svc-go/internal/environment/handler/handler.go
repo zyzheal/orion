@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -33,6 +34,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := c.GetString("user_id")
 	var req models.CreateEnvironmentRequest
@@ -40,7 +43,7 @@ func (h *Handler) Create(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	env, err := h.svc.Create(c.Request.Context(), tenantID, createdBy, &req)
+	env, err := h.svc.Create(ctx, tenantID, createdBy, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -49,9 +52,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	projectID := c.Query("projectId")
-	envs, err := h.svc.List(c.Request.Context(), tenantID, projectID)
+	envs, err := h.svc.List(ctx, tenantID, projectID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -60,8 +65,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	env, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	env, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -70,6 +77,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateEnvironmentRequest
@@ -77,7 +86,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	env, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), updatedBy, &req)
+	env, err := h.svc.Update(ctx, tenantID, c.Param("id"), updatedBy, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -86,8 +95,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -95,13 +106,15 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.UpdateStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	env, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, c.Param("id"), req.Status)
+	env, err := h.svc.UpdateStatus(ctx, tenantID, c.Param("id"), req.Status)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -110,8 +123,10 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) Lock(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Lock")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	env, err := h.svc.Lock(c.Request.Context(), tenantID, c.Param("id"))
+	env, err := h.svc.Lock(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -120,8 +135,10 @@ func (h *Handler) Lock(c *gin.Context) {
 }
 
 func (h *Handler) Unlock(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Unlock")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	env, err := h.svc.Unlock(c.Request.Context(), tenantID, c.Param("id"))
+	env, err := h.svc.Unlock(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -130,8 +147,10 @@ func (h *Handler) Unlock(c *gin.Context) {
 }
 
 func (h *Handler) GetLockStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLockStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	locked, err := h.svc.GetLockStatus(c.Request.Context(), tenantID, c.Param("id"))
+	locked, err := h.svc.GetLockStatus(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -140,8 +159,10 @@ func (h *Handler) GetLockStatus(c *gin.Context) {
 }
 
 func (h *Handler) CheckDeploymentAllowed(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckDeploymentAllowed")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	allowed, err := h.svc.CheckDeploymentAllowed(c.Request.Context(), tenantID, c.Param("id"))
+	allowed, err := h.svc.CheckDeploymentAllowed(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

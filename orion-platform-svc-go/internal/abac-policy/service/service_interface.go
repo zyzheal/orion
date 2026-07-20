@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/abac-policy/models"
+)
+
 // ServiceInterface defines the interface for the abac-policy service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateABACPolicyRequest) (*models.ABACPolicy, error)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for AI model management.
@@ -103,6 +104,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListModels lists models with filters and pagination.
 func (h *Handler) ListModels(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListModels")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var q models.ListModelsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
@@ -113,7 +116,7 @@ func (h *Handler) ListModels(c *gin.Context) {
 		q.Limit = 20
 	}
 
-	resp, err := h.svc.ListModels(c.Request.Context(), tenantID, q)
+	resp, err := h.svc.ListModels(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -123,6 +126,8 @@ func (h *Handler) ListModels(c *gin.Context) {
 
 // RegisterModel registers a new model.
 func (h *Handler) RegisterModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterModel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	if userID == "" {
@@ -134,7 +139,7 @@ func (h *Handler) RegisterModel(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.RegisterModel(c.Request.Context(), tenantID, userID, req)
+	m, err := h.svc.RegisterModel(ctx, tenantID, userID, req)
 	if err != nil {
 		if err.Error() == service.ErrModelAlreadyExists.Error() {
 			middleware.RespondBadRequest(c, err.Error())
@@ -148,10 +153,12 @@ func (h *Handler) RegisterModel(c *gin.Context) {
 
 // GetModel retrieves a model by ID.
 func (h *Handler) GetModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetModel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	m, err := h.svc.GetModel(c.Request.Context(), tenantID, modelID)
+	m, err := h.svc.GetModel(ctx, tenantID, modelID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -161,6 +168,8 @@ func (h *Handler) GetModel(c *gin.Context) {
 
 // UpdateModel updates model metadata.
 func (h *Handler) UpdateModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateModel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 	var req models.UpdateModelRequest
@@ -169,7 +178,7 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.UpdateModel(c.Request.Context(), tenantID, modelID, req)
+	m, err := h.svc.UpdateModel(ctx, tenantID, modelID, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -179,10 +188,12 @@ func (h *Handler) UpdateModel(c *gin.Context) {
 
 // DeleteModel deletes a model.
 func (h *Handler) DeleteModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteModel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	if err := h.svc.DeleteModel(c.Request.Context(), tenantID, modelID); err != nil {
+	if err := h.svc.DeleteModel(ctx, tenantID, modelID); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -191,6 +202,8 @@ func (h *Handler) DeleteModel(c *gin.Context) {
 
 // ListVersions lists versions for a model.
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 	var q models.ListVersionsQuery
@@ -202,7 +215,7 @@ func (h *Handler) ListVersions(c *gin.Context) {
 		q.Limit = 20
 	}
 
-	resp, err := h.svc.ListVersions(c.Request.Context(), tenantID, modelID, q)
+	resp, err := h.svc.ListVersions(ctx, tenantID, modelID, q)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -212,6 +225,8 @@ func (h *Handler) ListVersions(c *gin.Context) {
 
 // PublishVersion publishes a new version.
 func (h *Handler) PublishVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -224,7 +239,7 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 		return
 	}
 
-	v, err := h.svc.PublishVersion(c.Request.Context(), tenantID, modelID, userID, req)
+	v, err := h.svc.PublishVersion(ctx, tenantID, modelID, userID, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -234,11 +249,13 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 
 // GetVersion retrieves a version by ID.
 func (h *Handler) GetVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 	versionID := c.Param("versionId")
 
-	v, err := h.svc.GetVersion(c.Request.Context(), tenantID, modelID, versionID)
+	v, err := h.svc.GetVersion(ctx, tenantID, modelID, versionID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -248,6 +265,8 @@ func (h *Handler) GetVersion(c *gin.Context) {
 
 // PromoteVersion promotes a version to the target environment.
 func (h *Handler) PromoteVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PromoteVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 	versionID := c.Param("versionId")
@@ -261,7 +280,7 @@ func (h *Handler) PromoteVersion(c *gin.Context) {
 		return
 	}
 
-	v, err := h.svc.PromoteVersion(c.Request.Context(), tenantID, modelID, versionID, userID, req)
+	v, err := h.svc.PromoteVersion(ctx, tenantID, modelID, versionID, userID, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -271,10 +290,12 @@ func (h *Handler) PromoteVersion(c *gin.Context) {
 
 // RollbackVersion rolls back to the previous production version.
 func (h *Handler) RollbackVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	v, err := h.svc.RollbackVersion(c.Request.Context(), tenantID, modelID)
+	v, err := h.svc.RollbackVersion(ctx, tenantID, modelID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -284,10 +305,12 @@ func (h *Handler) RollbackVersion(c *gin.Context) {
 
 // GetModelMetrics returns current metrics and history.
 func (h *Handler) GetModelMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetModelMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	resp, err := h.svc.GetModelMetrics(c.Request.Context(), tenantID, modelID)
+	resp, err := h.svc.GetModelMetrics(ctx, tenantID, modelID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -297,6 +320,8 @@ func (h *Handler) GetModelMetrics(c *gin.Context) {
 
 // ConfigureCanary sets up a canary release.
 func (h *Handler) ConfigureCanary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ConfigureCanary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	_ = c.GetString("user_id") // unused
 	modelID := c.Param("id")
@@ -306,7 +331,7 @@ func (h *Handler) ConfigureCanary(c *gin.Context) {
 		return
 	}
 
-	cn, err := h.svc.ConfigureCanary(c.Request.Context(), tenantID, modelID, req)
+	cn, err := h.svc.ConfigureCanary(ctx, tenantID, modelID, req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -316,10 +341,12 @@ func (h *Handler) ConfigureCanary(c *gin.Context) {
 
 // GetCanaryConfig retrieves the canary config.
 func (h *Handler) GetCanaryConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCanaryConfig")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	cn, err := h.svc.GetCanaryConfig(c.Request.Context(), tenantID, modelID)
+	cn, err := h.svc.GetCanaryConfig(ctx, tenantID, modelID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -329,10 +356,12 @@ func (h *Handler) GetCanaryConfig(c *gin.Context) {
 
 // StopCanary stops the canary release.
 func (h *Handler) StopCanary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopCanary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	modelID := c.Param("id")
 
-	if err := h.svc.StopCanary(c.Request.Context(), tenantID, modelID); err != nil {
+	if err := h.svc.StopCanary(ctx, tenantID, modelID); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}

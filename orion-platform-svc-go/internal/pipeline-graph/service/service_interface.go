@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-graph/models"
+	"orion/platform-svc-go/internal/pipeline-graph/repository"
+)
+
 // ServiceInterface defines the interface for the pipeline-graph service.
 type ServiceInterface interface {
 	BuildGraph(pipelineID, yamlDefinition string) (*models.GraphData, error)

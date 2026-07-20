@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/handler-registry/models"
+)
+
 // ServiceInterface defines the interface for the handler-registry service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateHandlerRegistryRequest) (*models.HandlerRegistry, error)

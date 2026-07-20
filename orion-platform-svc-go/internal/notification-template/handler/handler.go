@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -63,6 +64,8 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // List handles GET /notification-templates
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -77,7 +80,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Enabled = &enabled
 	}
 
-	templates, total, _, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	templates, total, _, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -92,6 +95,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create handles POST /notification-templates
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -99,7 +104,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	tpl, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	tpl, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,9 +114,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get handles GET /notification-templates/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	tpl, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	tpl, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification template not found")
@@ -125,6 +132,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update handles PUT /notification-templates/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -132,7 +141,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	tpl, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	tpl, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification template not found")
@@ -146,9 +155,11 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete handles DELETE /notification-templates/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -162,8 +173,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count handles GET /notification-templates/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -173,13 +186,15 @@ func (h *Handler) Count(c *gin.Context) {
 
 // Render handles POST /notification-templates/render
 func (h *Handler) Render(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Render")
+	defer span.End()
 	var req models.RenderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.Render(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Render(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification template not found")
@@ -193,9 +208,11 @@ func (h *Handler) Render(c *gin.Context) {
 
 // Preview handles POST /notification-templates/:id/preview
 func (h *Handler) Preview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Preview")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.Preview(c.Request.Context(), tenantID, id)
+	result, err := h.svc.Preview(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification template not found")
@@ -209,10 +226,12 @@ func (h *Handler) Preview(c *gin.Context) {
 
 // Duplicate handles POST /notification-templates/:id/duplicate
 func (h *Handler) Duplicate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Duplicate")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	tpl, err := h.svc.Duplicate(c.Request.Context(), tenantID, userID, id)
+	tpl, err := h.svc.Duplicate(ctx, tenantID, userID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "notification template not found")

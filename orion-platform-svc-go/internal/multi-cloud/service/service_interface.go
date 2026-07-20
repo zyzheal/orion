@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/multi-cloud/models"
+)
+
 // ServiceInterface defines the interface for the multi-cloud service.
 type ServiceInterface interface {
 	AddCloudAccount(ctx context.Context, tenantID string, input models.CloudAccountInput) (*models.CloudAccount, error)

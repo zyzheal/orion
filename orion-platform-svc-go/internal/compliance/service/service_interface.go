@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/compliance/models"
+)
+
 // ServiceInterface defines the interface for the compliance service.
 type ServiceInterface interface {
 	CreateReport(ctx context.Context, tenantID string, req *models.CreateComplianceReportRequest) (*models.ComplianceReport, error)

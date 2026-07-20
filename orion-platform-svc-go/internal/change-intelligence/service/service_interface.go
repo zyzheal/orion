@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/change-intelligence/models"
+)
+
 // ServiceInterface defines the interface for the change-intelligence service.
 type ServiceInterface interface {
 	Analyze(ctx context.Context, req *models.AnalyzeRequest, tenantID string, createdBy string) (*models.ChangeAnalysis, error)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -67,6 +68,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // ListTypes handler - GET /ci-types
 func (h *Handler) ListTypes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTypes")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	status := c.Query("status")
@@ -94,7 +97,7 @@ func (h *Handler) ListTypes(c *gin.Context) {
 		}
 	}
 
-	types, total, err := h.svc.ListTypes(c.Request.Context(), tenantID, filter)
+	types, total, err := h.svc.ListTypes(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,6 +112,8 @@ func (h *Handler) ListTypes(c *gin.Context) {
 
 // CreateType handler - POST /ci-types
 func (h *Handler) CreateType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateType")
+	defer span.End()
 	var req models.CreateCITypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -119,7 +124,7 @@ func (h *Handler) CreateType(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.CreateType(c.Request.Context(), &req, tenantID)
+	t, err := h.svc.CreateType(ctx, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -133,9 +138,11 @@ func (h *Handler) CreateType(c *gin.Context) {
 
 // GetType handler - GET /ci-types/:id
 func (h *Handler) GetType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetType")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	schema, err := h.svc.GetTypeWithSchema(c.Request.Context(), id, tenantID)
+	schema, err := h.svc.GetTypeWithSchema(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -149,6 +156,8 @@ func (h *Handler) GetType(c *gin.Context) {
 
 // UpdateType handler - PUT /ci-types/:id
 func (h *Handler) UpdateType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateType")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateCITypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -156,7 +165,7 @@ func (h *Handler) UpdateType(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.UpdateType(c.Request.Context(), id, &req, tenantID)
+	t, err := h.svc.UpdateType(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -170,9 +179,11 @@ func (h *Handler) UpdateType(c *gin.Context) {
 
 // DeleteType handler - DELETE /ci-types/:id
 func (h *Handler) DeleteType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteType")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteType(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteType(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -186,9 +197,11 @@ func (h *Handler) DeleteType(c *gin.Context) {
 
 // GetAttributes handler - GET /ci-types/:id/attributes
 func (h *Handler) GetAttributes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAttributes")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	tenantID := h.getTenantID(c)
-	attrs, err := h.svc.GetAttributes(c.Request.Context(), ciTypeID, tenantID)
+	attrs, err := h.svc.GetAttributes(ctx, ciTypeID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -202,6 +215,8 @@ func (h *Handler) GetAttributes(c *gin.Context) {
 
 // SetAttributes handler - PUT /ci-types/:id/attributes
 func (h *Handler) SetAttributes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetAttributes")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	var req struct {
 		Attributes []models.CreateCIAttributeRequest `json:"attributes"`
@@ -215,7 +230,7 @@ func (h *Handler) SetAttributes(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	attrs, err := h.svc.SetAttributes(c.Request.Context(), ciTypeID, tenantID, req.Attributes)
+	attrs, err := h.svc.SetAttributes(ctx, ciTypeID, tenantID, req.Attributes)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -229,6 +244,8 @@ func (h *Handler) SetAttributes(c *gin.Context) {
 
 // ValidateInstance handler - POST /ci-types/:id/validate
 func (h *Handler) ValidateInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidateInstance")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	var req struct {
 		Data map[string]interface{} `json:"data" binding:"required"`
@@ -242,7 +259,7 @@ func (h *Handler) ValidateInstance(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ValidateInstance(c.Request.Context(), ciTypeID, tenantID, req.Data)
+	result, err := h.svc.ValidateInstance(ctx, ciTypeID, tenantID, req.Data)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -256,11 +273,13 @@ func (h *Handler) ValidateInstance(c *gin.Context) {
 
 // CreateVersion handler - POST /ci-types/:id/versions
 func (h *Handler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateVersion")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	var req models.CreateCITypeVersionRequest
 	_ = c.ShouldBindJSON(&req)
 	tenantID := h.getTenantID(c)
-	version, err := h.svc.CreateVersion(c.Request.Context(), ciTypeID, tenantID, req.ChangeSummary)
+	version, err := h.svc.CreateVersion(ctx, ciTypeID, tenantID, req.ChangeSummary)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -274,9 +293,11 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 
 // GetVersions handler - GET /ci-types/:id/versions
 func (h *Handler) GetVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersions")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	tenantID := h.getTenantID(c)
-	versions, err := h.svc.GetVersions(c.Request.Context(), ciTypeID, tenantID)
+	versions, err := h.svc.GetVersions(ctx, ciTypeID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type not found")
@@ -290,10 +311,12 @@ func (h *Handler) GetVersions(c *gin.Context) {
 
 // Rollback handler - POST /ci-types/:id/versions/:versionId/rollback
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	ciTypeID := c.Param("id")
 	versionID := c.Param("versionId")
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.Rollback(c.Request.Context(), ciTypeID, tenantID, versionID)
+	t, err := h.svc.Rollback(ctx, ciTypeID, tenantID, versionID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "CI type or version not found")

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -47,13 +48,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Core CRUD ---
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	t, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		h.handleCreateErr(c, err)
 		return
@@ -62,9 +65,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	t, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	t, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")
@@ -77,6 +82,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.ListQuery{
 		Limit:  parseQueryInt(c, "limit", 100),
@@ -91,7 +98,7 @@ func (h *Handler) List(c *gin.Context) {
 	if p := c.Query("namespace_pool_id"); p != "" {
 		q.NamespacePoolID = ptrStr(p)
 	}
-	result, err := h.svc.List(c.Request.Context(), tenantID, q)
+	result, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -100,6 +107,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateTenantRequest
@@ -107,7 +116,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	t, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		h.handleUpdateErr(c, err)
 		return
@@ -116,9 +125,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")
 			return
@@ -132,9 +143,11 @@ func (h *Handler) Delete(c *gin.Context) {
 // --- Lifecycle ---
 
 func (h *Handler) Suspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Suspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	t, err := h.svc.Suspend(c.Request.Context(), tenantID, id)
+	t, err := h.svc.Suspend(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")
@@ -147,9 +160,11 @@ func (h *Handler) Suspend(c *gin.Context) {
 }
 
 func (h *Handler) Activate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Activate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	t, err := h.svc.Activate(c.Request.Context(), tenantID, id)
+	t, err := h.svc.Activate(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")
@@ -164,9 +179,11 @@ func (h *Handler) Activate(c *gin.Context) {
 // --- Quota ---
 
 func (h *Handler) GetQuotaStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetQuotaStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	status, err := h.svc.GetQuotaStatus(c.Request.Context(), tenantID, id)
+	status, err := h.svc.GetQuotaStatus(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")
@@ -179,6 +196,8 @@ func (h *Handler) GetQuotaStatus(c *gin.Context) {
 }
 
 func (h *Handler) AdjustQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AdjustQuota")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.QuotaAdjustmentRequest
@@ -186,7 +205,7 @@ func (h *Handler) AdjustQuota(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.AdjustQuota(c.Request.Context(), tenantID, id, req)
+	t, err := h.svc.AdjustQuota(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "tenant not found")

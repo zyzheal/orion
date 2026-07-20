@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/user-profile/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -28,9 +29,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) GetMyProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMyProfile")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	p, err := h.svc.GetProfile(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "profile not found", http.StatusNotFound)
@@ -40,8 +43,10 @@ func (h *Handler) GetMyProfile(c *gin.Context) {
 }
 
 func (h *Handler) GetProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProfile")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	p, err := h.svc.GetProfile(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "profile not found", http.StatusNotFound)
@@ -51,9 +56,11 @@ func (h *Handler) GetProfile(c *gin.Context) {
 }
 
 func (h *Handler) UpdateMyProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateMyProfile")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -68,8 +75,10 @@ func (h *Handler) UpdateMyProfile(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProfile(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateProfile")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)

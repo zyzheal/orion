@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/user-activity/models"
+)
+
 // ServiceInterface defines the interface for the user-activity service.
 type ServiceInterface interface {
 	CreateActivity(ctx context.Context, userID, action, resourceType, resourceID string, details any, ipAddress, userAgent string) (*models.UserActivity, error)

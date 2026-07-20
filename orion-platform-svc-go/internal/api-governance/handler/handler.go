@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -72,13 +73,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---- Contract handlers ----
 
 func (h *Handler) CreateContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateContract")
+	defer span.End()
 	var req models.CreateContractRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	contract, err := h.svc.CreateContract(c.Request.Context(), &req, tenantID)
+	contract, err := h.svc.CreateContract(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -97,10 +100,12 @@ func (h *Handler) CreateContract(c *gin.Context) {
 }
 
 func (h *Handler) ListContracts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListContracts")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	apiName := ptrIf(c.Query("apiName"))
 	status := ptrIf(c.Query("status"))
-	contracts, err := h.svc.ListContracts(c.Request.Context(), tenantID, apiName, status)
+	contracts, err := h.svc.ListContracts(ctx, tenantID, apiName, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -113,9 +118,11 @@ func (h *Handler) ListContracts(c *gin.Context) {
 }
 
 func (h *Handler) GetContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetContract")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	contract, err := h.svc.GetContract(c.Request.Context(), id, tenantID)
+	contract, err := h.svc.GetContract(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Contract not found")
 		return
@@ -124,9 +131,11 @@ func (h *Handler) GetContract(c *gin.Context) {
 }
 
 func (h *Handler) EvaluateContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateContract")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	_, err := h.svc.EvaluateContract(c.Request.Context(), id, tenantID)
+	_, err := h.svc.EvaluateContract(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Contract not found")
 		return
@@ -144,6 +153,8 @@ func (h *Handler) EvaluateContract(c *gin.Context) {
 }
 
 func (h *Handler) VerifyContract(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VerifyContract")
+	defer span.End()
 	id := c.Param("id")
 	var req models.VerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -151,7 +162,7 @@ func (h *Handler) VerifyContract(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.VerifyContract(c.Request.Context(), id, &req, tenantID)
+	result, err := h.svc.VerifyContract(ctx, id, &req, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Contract not found")
 		return
@@ -160,9 +171,11 @@ func (h *Handler) VerifyContract(c *gin.Context) {
 }
 
 func (h *Handler) GetVerificationHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVerificationHistory")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	history, err := h.svc.GetVerificationHistory(c.Request.Context(), id, tenantID)
+	history, err := h.svc.GetVerificationHistory(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -184,10 +197,12 @@ func (h *Handler) GetVerificationHistory(c *gin.Context) {
 // ---- Violation handlers ----
 
 func (h *Handler) ListViolations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListViolations")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	contractID := ptrIf(c.Query("contractId"))
 	severity := ptrIf(c.Query("severity"))
-	violations, err := h.svc.ListViolations(c.Request.Context(), tenantID, contractID, severity)
+	violations, err := h.svc.ListViolations(ctx, tenantID, contractID, severity)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -209,13 +224,15 @@ func (h *Handler) ListViolations(c *gin.Context) {
 // ---- Version handlers ----
 
 func (h *Handler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateVersion")
+	defer span.End()
 	var req models.CreateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	ver, err := h.svc.CreateVersion(c.Request.Context(), &req, tenantID)
+	ver, err := h.svc.CreateVersion(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -224,10 +241,12 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 }
 
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	apiName := ptrIf(c.Query("apiName"))
 	status := ptrIf(c.Query("status"))
-	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, apiName, status)
+	versions, err := h.svc.ListVersions(ctx, tenantID, apiName, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -240,6 +259,8 @@ func (h *Handler) ListVersions(c *gin.Context) {
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeprecateVersion")
+	defer span.End()
 	id := c.Param("id")
 	var req models.DeprecateVersionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -247,7 +268,7 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	updated, err := h.svc.DeprecateVersion(c.Request.Context(), id, &req, tenantID)
+	updated, err := h.svc.DeprecateVersion(ctx, id, &req, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "Version not found")
 		return
@@ -256,9 +277,11 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 }
 
 func (h *Handler) RetireVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RetireVersion")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	updated, err := h.svc.RetireVersion(c.Request.Context(), id, tenantID)
+	updated, err := h.svc.RetireVersion(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -267,8 +290,10 @@ func (h *Handler) RetireVersion(c *gin.Context) {
 }
 
 func (h *Handler) ListDeprecatedVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeprecatedVersions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	versions, err := h.svc.ListDeprecatedVersions(c.Request.Context(), tenantID)
+	versions, err := h.svc.ListDeprecatedVersions(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -283,12 +308,14 @@ func (h *Handler) ListDeprecatedVersions(c *gin.Context) {
 // ---- Compatibility handler ----
 
 func (h *Handler) CheckCompatibility(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckCompatibility")
+	defer span.End()
 	var req models.CompatibilityRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CheckCompatibility(c.Request.Context(), req.SourceVersion, req.TargetVersion)
+	result, err := h.svc.CheckCompatibility(ctx, req.SourceVersion, req.TargetVersion)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -299,13 +326,15 @@ func (h *Handler) CheckCompatibility(c *gin.Context) {
 // ---- Rule handlers ----
 
 func (h *Handler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRule")
+	defer span.End()
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	rule, err := h.svc.CreateRule(c.Request.Context(), &req, tenantID)
+	rule, err := h.svc.CreateRule(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -322,8 +351,10 @@ func (h *Handler) CreateRule(c *gin.Context) {
 // ---- Report handler ----
 
 func (h *Handler) GetGovernanceReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGovernanceReport")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	stats, err := h.svc.GetGovernanceStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetGovernanceStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

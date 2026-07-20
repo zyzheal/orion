@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/build-env/models"
+)
+
 // ServiceInterface defines the interface for the build-env service.
 type ServiceInterface interface {
 	AnalyzePerformanceImpact(ctx context.Context, tenantID, pipelineID string) (*models.CachePerformanceImpact, error)

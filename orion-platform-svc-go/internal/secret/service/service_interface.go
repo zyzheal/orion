@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/secret/models"
+)
+
 // ServiceInterface defines the interface for the secret service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID, userID string, req *models.CreateSecretRequest) (*SecretListItem, error)

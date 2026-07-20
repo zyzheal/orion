@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-gateway/models"
+)
+
 // ServiceInterface defines the interface for the ai-gateway service.
 type ServiceInterface interface {
 	GetByModel(ctx context.Context, tenantID, model string) ([]models.GatewayResponse, int, error)

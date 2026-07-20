@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Resource and action constants for SLO RBAC.
@@ -41,12 +42,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) GetDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
-	result, err := h.svc.GetDashboard(c.Request.Context(), tenantID)
+	result, err := h.svc.GetDashboard(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -55,6 +58,8 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 }
 
 func (h *Handler) ListSLOs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSLOs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -72,7 +77,7 @@ func (h *Handler) ListSLOs(c *gin.Context) {
 		enabledPtr = &b
 	}
 
-	result, err := h.svc.ListSLOs(c.Request.Context(), tenantID, sloType, enabledPtr)
+	result, err := h.svc.ListSLOs(ctx, tenantID, sloType, enabledPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -81,13 +86,15 @@ func (h *Handler) ListSLOs(c *gin.Context) {
 }
 
 func (h *Handler) GetSLO(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSLO")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	id := c.Param("id")
-	result, err := h.svc.GetSLO(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetSLO(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "SLO not found")
 		return
@@ -96,6 +103,8 @@ func (h *Handler) GetSLO(c *gin.Context) {
 }
 
 func (h *Handler) CreateSLO(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSLO")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -121,7 +130,7 @@ func (h *Handler) CreateSLO(c *gin.Context) {
 		Enabled:           true,
 	}
 
-	if err := h.svc.CreateSLO(c.Request.Context(), slo); err != nil {
+	if err := h.svc.CreateSLO(ctx, slo); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -129,6 +138,8 @@ func (h *Handler) CreateSLO(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSLO(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSLO")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -170,7 +181,7 @@ func (h *Handler) UpdateSLO(c *gin.Context) {
 		updates["tags"] = req.Tags
 	}
 
-	result, err := h.svc.UpdateSLO(c.Request.Context(), tenantID, id, updates)
+	result, err := h.svc.UpdateSLO(ctx, tenantID, id, updates)
 	if err != nil {
 		middleware.RespondNotFound(c, "SLO not found")
 		return
@@ -179,13 +190,15 @@ func (h *Handler) UpdateSLO(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSLO(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSLO")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	id := c.Param("id")
-	if err := h.svc.DeleteSLO(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteSLO(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -193,6 +206,8 @@ func (h *Handler) DeleteSLO(c *gin.Context) {
 }
 
 func (h *Handler) RecordSLI(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordSLI")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -215,7 +230,7 @@ func (h *Handler) RecordSLI(c *gin.Context) {
 		Metadata:   req.Metadata,
 	}
 
-	if err := h.svc.RecordSLI(c.Request.Context(), m); err != nil {
+	if err := h.svc.RecordSLI(ctx, m); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -223,6 +238,8 @@ func (h *Handler) RecordSLI(c *gin.Context) {
 }
 
 func (h *Handler) GetSLIHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSLIHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -231,7 +248,7 @@ func (h *Handler) GetSLIHistory(c *gin.Context) {
 	sloID := c.Param("id")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	result, err := h.svc.GetSLIHistory(c.Request.Context(), sloID, tenantID, limit)
+	result, err := h.svc.GetSLIHistory(ctx, sloID, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -240,13 +257,15 @@ func (h *Handler) GetSLIHistory(c *gin.Context) {
 }
 
 func (h *Handler) GetLatestErrorBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLatestErrorBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
 		return
 	}
 	sloID := c.Param("id")
-	result, err := h.svc.GetLatestErrorBudget(c.Request.Context(), sloID, tenantID)
+	result, err := h.svc.GetLatestErrorBudget(ctx, sloID, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, "error budget not found")
 		return
@@ -255,6 +274,8 @@ func (h *Handler) GetLatestErrorBudget(c *gin.Context) {
 }
 
 func (h *Handler) GetErrorBudgetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetErrorBudgetHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondBadRequest(c, "tenant_id is required")
@@ -263,7 +284,7 @@ func (h *Handler) GetErrorBudgetHistory(c *gin.Context) {
 	sloID := c.Param("id")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	result, err := h.svc.GetErrorBudgetHistory(c.Request.Context(), sloID, tenantID, limit)
+	result, err := h.svc.GetErrorBudgetHistory(ctx, sloID, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

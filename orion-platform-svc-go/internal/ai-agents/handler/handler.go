@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/ai-agents/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes AI agents endpoints.
@@ -71,6 +72,8 @@ func (h *Handler) getUserID(c *gin.Context) string {
 // --- List agents: GET /ai-agents ---
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	offset, limit := getPaginationParams(c)
@@ -101,12 +104,12 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Order = &orderStr
 	}
 
-	agents, err := h.svc.ListAgents(c.Request.Context(), tenantID, filter)
+	agents, err := h.svc.ListAgents(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
-	total, err := h.svc.CountAgents(c.Request.Context(), tenantID, filter)
+	total, err := h.svc.CountAgents(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -134,6 +137,8 @@ func (h *Handler) List(c *gin.Context) {
 // --- Create agent: POST /ai-agents ---
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
 
@@ -143,7 +148,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	agent, err := h.svc.RegisterAgent(c.Request.Context(), tenantID, userID, &req)
+	agent, err := h.svc.RegisterAgent(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -160,10 +165,12 @@ func (h *Handler) Create(c *gin.Context) {
 // --- Get agent: GET /ai-agents/:id ---
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	agent, err := h.svc.GetAgent(c.Request.Context(), id, tenantID)
+	agent, err := h.svc.GetAgent(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")
@@ -184,6 +191,8 @@ func (h *Handler) Get(c *gin.Context) {
 // --- Update agent: PUT /ai-agents/:id ---
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
@@ -193,7 +202,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	agent, err := h.svc.UpdateAgent(c.Request.Context(), id, tenantID, &req)
+	agent, err := h.svc.UpdateAgent(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")
@@ -214,10 +223,12 @@ func (h *Handler) Update(c *gin.Context) {
 // --- Delete agent: DELETE /ai-agents/:id ---
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
-	deleted, err := h.svc.DeleteAgent(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteAgent(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")
@@ -237,6 +248,8 @@ func (h *Handler) Delete(c *gin.Context) {
 // --- Update status: POST /ai-agents/:id/status ---
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
@@ -253,7 +266,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	agent, err := h.svc.UpdateAgentStatus(c.Request.Context(), id, tenantID, status)
+	agent, err := h.svc.UpdateAgentStatus(ctx, id, tenantID, status)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")
@@ -274,11 +287,13 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 // --- Get audit logs: GET /ai-agents/:id/audit-logs ---
 
 func (h *Handler) GetAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditLogs")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
 	// Verify agent exists
-	_, err := h.svc.GetAgent(c.Request.Context(), id, tenantID)
+	_, err := h.svc.GetAgent(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")
@@ -297,7 +312,7 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 		}
 	}
 
-	logs, err := h.svc.GetAuditLogs(c.Request.Context(), id, tenantID, limit)
+	logs, err := h.svc.GetAuditLogs(ctx, id, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -323,8 +338,10 @@ func (h *Handler) GetAuditLogs(c *gin.Context) {
 
 // GetStats returns aggregated agent statistics.
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	stats, err := h.svc.GetAgentStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -334,6 +351,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Execute")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 
@@ -343,7 +362,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.ExecuteAgent(c.Request.Context(), id, tenantID, &req)
+	result, err := h.svc.ExecuteAgent(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "Agent not found")

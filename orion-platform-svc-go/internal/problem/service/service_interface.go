@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/problem/models"
+)
+
 // ServiceInterface defines the interface for the problem service.
 type ServiceInterface interface {
 	CreateKnownError(ctx context.Context, tenantID string, req *models.CreateKnownErrorRequest) (*models.KnownError, error)

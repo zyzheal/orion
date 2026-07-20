@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-cost/models"
+)
+
 // ServiceInterface defines the interface for the ai-cost service.
 type ServiceInterface interface {
 	DeleteCostRecord(ctx context.Context, tenantID, id string) error

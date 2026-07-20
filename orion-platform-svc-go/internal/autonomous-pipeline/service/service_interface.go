@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/autonomous-pipeline/models"
+)
+
 // ServiceInterface defines the interface for the autonomous-pipeline service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id string) (gin.H, error)

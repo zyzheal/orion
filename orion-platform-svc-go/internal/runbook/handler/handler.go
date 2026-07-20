@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/runbook/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -32,11 +33,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	q := models.ListQuery{Limit: &limit, Offset: &offset, Category: c.Query("category"), Severity: c.Query("severity")}
-	items, total, err := h.svc.List(c.Request.Context(), tenantID, q)
+	items, total, err := h.svc.List(ctx, tenantID, q)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -45,9 +48,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -56,13 +61,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRunbookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -71,6 +78,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateRunbookRequest
@@ -78,7 +87,7 @@ func (h *Handler) Update(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -87,9 +96,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -97,6 +108,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Execute(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Execute")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runbookID := c.Param("id")
 	var req models.CreateRunbookExecutionRequest
@@ -104,7 +117,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	ex, err := h.svc.CreateExecution(c.Request.Context(), tenantID, runbookID, req)
+	ex, err := h.svc.CreateExecution(ctx, tenantID, runbookID, req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, err.Error(), 404)
 		return
@@ -113,9 +126,11 @@ func (h *Handler) Execute(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExecutions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runbookID := c.Param("id")
-	executions, err := h.svc.ListExecutions(c.Request.Context(), tenantID, runbookID)
+	executions, err := h.svc.ListExecutions(ctx, tenantID, runbookID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return

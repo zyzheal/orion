@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -71,6 +72,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Deploy Window handlers ---
 
 func (h *Handler) ListWindows(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWindows")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	environmentID := c.Query("environmentId")
 	status := c.Query("status")
@@ -82,7 +85,7 @@ func (h *Handler) ListWindows(c *gin.Context) {
 	if status == "" {
 		statusPtr = nil
 	}
-	windows, total, err := h.svc.ListWindows(c.Request.Context(), tenantID, envPtr, statusPtr)
+	windows, total, err := h.svc.ListWindows(ctx, tenantID, envPtr, statusPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -96,9 +99,11 @@ func (h *Handler) ListWindows(c *gin.Context) {
 }
 
 func (h *Handler) GetWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWindow")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	w, err := h.svc.GetWindow(c.Request.Context(), id, tenantID)
+	w, err := h.svc.GetWindow(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "deploy window not found")
@@ -111,13 +116,15 @@ func (h *Handler) GetWindow(c *gin.Context) {
 }
 
 func (h *Handler) CreateWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateWindow")
+	defer span.End()
 	var req models.CreateDeployWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	w, err := h.svc.CreateWindow(c.Request.Context(), &req, tenantID)
+	w, err := h.svc.CreateWindow(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -126,6 +133,8 @@ func (h *Handler) CreateWindow(c *gin.Context) {
 }
 
 func (h *Handler) UpdateWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateWindow")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateDeployWindowRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -133,7 +142,7 @@ func (h *Handler) UpdateWindow(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	w, err := h.svc.UpdateWindow(c.Request.Context(), id, &req, tenantID)
+	w, err := h.svc.UpdateWindow(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "deploy window not found")
@@ -146,9 +155,11 @@ func (h *Handler) UpdateWindow(c *gin.Context) {
 }
 
 func (h *Handler) DeleteWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteWindow")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteWindow(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteWindow(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -161,9 +172,11 @@ func (h *Handler) DeleteWindow(c *gin.Context) {
 }
 
 func (h *Handler) CheckWindow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckWindow")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.CheckWindow(c.Request.Context(), id, tenantID)
+	result, err := h.svc.CheckWindow(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "deploy window not found")
@@ -178,6 +191,8 @@ func (h *Handler) CheckWindow(c *gin.Context) {
 // --- Progressive Deploy handlers ---
 
 func (h *Handler) CreateProgressiveDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProgressiveDeploy")
+	defer span.End()
 	deploymentID := c.Param("deploymentId")
 	var req models.CreateProgressiveDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -185,7 +200,7 @@ func (h *Handler) CreateProgressiveDeploy(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	pd, err := h.svc.CreateProgressiveDeploy(c.Request.Context(), deploymentID, &req, tenantID)
+	pd, err := h.svc.CreateProgressiveDeploy(ctx, deploymentID, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -194,9 +209,11 @@ func (h *Handler) CreateProgressiveDeploy(c *gin.Context) {
 }
 
 func (h *Handler) GetProgress(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProgress")
+	defer span.End()
 	deployID := c.Param("deployId")
 	tenantID := h.getTenantID(c)
-	pd, err := h.svc.GetProgress(c.Request.Context(), deployID, tenantID)
+	pd, err := h.svc.GetProgress(ctx, deployID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "progressive deploy not found")
@@ -209,6 +226,8 @@ func (h *Handler) GetProgress(c *gin.Context) {
 }
 
 func (h *Handler) AdvanceStage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AdvanceStage")
+	defer span.End()
 	deployID := c.Param("deployId")
 	var req models.AdvanceStageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -216,7 +235,7 @@ func (h *Handler) AdvanceStage(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	pd, err := h.svc.AdvanceStage(c.Request.Context(), deployID, req.StageID, req.ValidationResult, tenantID)
+	pd, err := h.svc.AdvanceStage(ctx, deployID, req.StageID, req.ValidationResult, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -225,6 +244,8 @@ func (h *Handler) AdvanceStage(c *gin.Context) {
 }
 
 func (h *Handler) RollbackStage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackStage")
+	defer span.End()
 	deployID := c.Param("deployId")
 	var req models.RollbackStageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -232,7 +253,7 @@ func (h *Handler) RollbackStage(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	pd, err := h.svc.RollbackStage(c.Request.Context(), deployID, req.StageID, req.Reason, tenantID)
+	pd, err := h.svc.RollbackStage(ctx, deployID, req.StageID, req.Reason, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -243,13 +264,15 @@ func (h *Handler) RollbackStage(c *gin.Context) {
 // --- Emergency Deploy handlers ---
 
 func (h *Handler) RequestEmergencyDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RequestEmergencyDeploy")
+	defer span.End()
 	var req models.CreateEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	ed, err := h.svc.RequestEmergencyDeploy(c.Request.Context(), &req, tenantID)
+	ed, err := h.svc.RequestEmergencyDeploy(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -258,13 +281,15 @@ func (h *Handler) RequestEmergencyDeploy(c *gin.Context) {
 }
 
 func (h *Handler) ListEmergencies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEmergencies")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	statusPtr := &status
 	if status == "" {
 		statusPtr = nil
 	}
-	emergencies, total, err := h.svc.ListEmergencies(c.Request.Context(), tenantID, statusPtr)
+	emergencies, total, err := h.svc.ListEmergencies(ctx, tenantID, statusPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -278,6 +303,8 @@ func (h *Handler) ListEmergencies(c *gin.Context) {
 }
 
 func (h *Handler) ApproveEmergencyDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveEmergencyDeploy")
+	defer span.End()
 	id := c.Param("id")
 	var req models.ApproveEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -285,7 +312,7 @@ func (h *Handler) ApproveEmergencyDeploy(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	ed, err := h.svc.ApproveEmergencyDeploy(c.Request.Context(), id, req.ApprovedBy, tenantID)
+	ed, err := h.svc.ApproveEmergencyDeploy(ctx, id, req.ApprovedBy, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "emergency deploy not found")
@@ -298,6 +325,8 @@ func (h *Handler) ApproveEmergencyDeploy(c *gin.Context) {
 }
 
 func (h *Handler) CompleteEmergencyDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteEmergencyDeploy")
+	defer span.End()
 	id := c.Param("id")
 	var req models.CompleteEmergencyDeployRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -305,7 +334,7 @@ func (h *Handler) CompleteEmergencyDeploy(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	ed, err := h.svc.CompleteEmergencyDeploy(c.Request.Context(), id, req.PostMortem, tenantID)
+	ed, err := h.svc.CompleteEmergencyDeploy(ctx, id, req.PostMortem, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "emergency deploy not found")
@@ -318,9 +347,11 @@ func (h *Handler) CompleteEmergencyDeploy(c *gin.Context) {
 }
 
 func (h *Handler) RejectEmergencyDeploy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectEmergencyDeploy")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	ed, err := h.svc.RejectEmergencyDeploy(c.Request.Context(), id, tenantID)
+	ed, err := h.svc.RejectEmergencyDeploy(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "emergency deploy not found")

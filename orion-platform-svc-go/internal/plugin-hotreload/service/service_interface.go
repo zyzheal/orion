@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/plugin-hotreload/models"
+)
+
 // ServiceInterface defines the interface for the plugin-hotreload service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreatePluginHotreloadRequest) (*models.PluginHotreload, error)

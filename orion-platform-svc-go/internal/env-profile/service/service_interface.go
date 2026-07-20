@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/env-profile/models"
+)
+
 // ServiceInterface defines the interface for the env-profile service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateEnvProfileRequest) (*models.EnvProfile, error)

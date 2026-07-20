@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/user-token/models"
+)
+
 // ServiceInterface defines the interface for the user-token service.
 type ServiceInterface interface {
 	CreateToken(ctx context.Context, tenantID string, req models.CreateTokenRequest) (models.CreateTokenResponse, error)

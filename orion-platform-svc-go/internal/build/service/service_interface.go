@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/build/models"
+)
+
 // ServiceInterface defines the interface for the build service.
 type ServiceInterface interface {
 	CancelBuild(ctx context.Context, tenantID, id string) (*models.Build, error)

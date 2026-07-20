@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/test-selector/models"
+)
+
 // ServiceInterface defines the interface for the test-selector service.
 type ServiceInterface interface {
 	CreateTestSuite(ctx context.Context, tenantID string, req models.CreateTestSuiteRequest) (*models.TestSuite, error)

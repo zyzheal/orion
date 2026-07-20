@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/internal-library/models"
+	"time"
+)
+
 // ServiceInterface defines the interface for the internal-library service.
 type ServiceInterface interface {
 	Activate(ctx context.Context, tenantID, id string) (*models.InternalLibrary, error)

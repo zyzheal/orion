@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/supply-chain/models"
+)
+
 // ServiceInterface defines the interface for the supply-chain service.
 type ServiceInterface interface {
 	AnalyzeDependencies(ctx context.Context, tenantID, packageName, version string, depth int) error

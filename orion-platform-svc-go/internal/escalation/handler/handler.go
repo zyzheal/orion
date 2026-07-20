@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -32,7 +33,9 @@ r.POST("", auth.RequirePermission("escalation", "write"), h.CreateRule)
 }
 
 func (h *Handler) CreateRule(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRule")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	var req models.TriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -48,7 +51,9 @@ func (h *Handler) CreateRule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRule")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	if err := h.svc.DeleteRule(ctx, tenantID, id); err != nil {
@@ -59,7 +64,9 @@ func (h *Handler) DeleteRule(c *gin.Context) {
 }
 
 func (h *Handler) GetRule(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRule")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	result, err := h.svc.GetRule(ctx, tenantID, id)
@@ -71,7 +78,9 @@ func (h *Handler) GetRule(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
@@ -82,7 +91,9 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) ListRules(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRules")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -96,7 +107,9 @@ func (h *Handler) ListRules(c *gin.Context) {
 }
 
 func (h *Handler) TriggerRule(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerRule")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.TriggerRequest
@@ -113,7 +126,9 @@ func (h *Handler) TriggerRule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRule(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRule")
+	defer span.End()
+	ctx := ctx
 	tenantID := c.GetString("tenant_id")
 id := c.Param("id")
 	var req models.TriggerRequest

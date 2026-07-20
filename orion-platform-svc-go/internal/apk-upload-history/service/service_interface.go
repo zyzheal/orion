@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/apk-upload-history/models"
+)
+
 // ServiceInterface defines the interface for the apk-upload-history service.
 type ServiceInterface interface {
 	CheckDuplicate(ctx context.Context, tenantID, market, packageName, version string) (bool, error)

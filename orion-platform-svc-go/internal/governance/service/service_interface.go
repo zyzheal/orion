@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/governance/models"
+)
+
 // ServiceInterface defines the interface for the governance service.
 type ServiceInterface interface {
 	ApplyPolicy(ctx context.Context, id, tenantID string, req *models.ApplyPolicyRequest, userID string) (*models.PolicyApplyResult, error)

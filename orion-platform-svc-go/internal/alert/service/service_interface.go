@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/alert/models"
+)
+
 // ServiceInterface defines the interface for the alert service.
 type ServiceInterface interface {
 	AddKnownIssue(ctx context.Context, tenantID string, req models.AddKnownIssueRequest) (*models.KnownIssue, error)

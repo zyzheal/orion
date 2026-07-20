@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var validCheckTypes = map[string]bool{
@@ -48,8 +49,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) ListChecks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListChecks")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	checks, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -59,8 +62,10 @@ func (h *Handler) ListChecks(c *gin.Context) {
 }
 
 func (h *Handler) GetCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCheck")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	check, err := h.svc.Get(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -74,8 +79,10 @@ func (h *Handler) GetCheck(c *gin.Context) {
 }
 
 func (h *Handler) CreateCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCheck")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -94,8 +101,10 @@ func (h *Handler) CreateCheck(c *gin.Context) {
 }
 
 func (h *Handler) UpdateCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateCheck")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.CreateHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -113,8 +122,10 @@ func (h *Handler) UpdateCheck(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteCheck")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -123,8 +134,10 @@ func (h *Handler) DeleteCheck(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteCheck")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.ExecuteHealthCheckRequest
 	_ = c.ShouldBindJSON(&req)
 
@@ -141,8 +154,10 @@ func (h *Handler) ExecuteCheck(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteAll(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteAll")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	ctx := c.Request.Context()
+	ctx := ctx
 
 	result, err := h.svc.ExecuteAll(ctx, tenantID)
 	if err != nil {
@@ -153,7 +168,9 @@ func (h *Handler) ExecuteAll(c *gin.Context) {
 }
 
 func (h *Handler) QuickCheck(c *gin.Context) {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "QuickCheck")
+	defer span.End()
+	ctx := ctx
 	var req models.QuickHealthCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())

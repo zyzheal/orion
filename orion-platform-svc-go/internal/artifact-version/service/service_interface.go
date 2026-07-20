@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/artifact-version/models"
+)
+
 // ServiceInterface defines the interface for the artifact-version service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id string) (*models.Record, error)

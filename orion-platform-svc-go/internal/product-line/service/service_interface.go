@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/product-line/models"
+)
+
 // ServiceInterface defines the interface for the product-line service.
 type ServiceInterface interface {
 	Activate(ctx context.Context, tenantID, id string) (*models.ProductLine, error)

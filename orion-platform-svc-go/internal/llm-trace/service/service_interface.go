@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/llm-trace/models"
+)
+
 // ServiceInterface defines the interface for the llm-trace service.
 type ServiceInterface interface {
 	CalculateBatchCost(ctx context.Context, traces []models.LLMTrace) *models.CostBreakdown

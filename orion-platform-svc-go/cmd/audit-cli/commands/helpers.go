@@ -4,7 +4,6 @@ package commands
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -23,14 +22,13 @@ func openDB(dsn string) (*sql.DB, error) {
 	return db, nil
 }
 
-// requireFlag returns the value for the given flag or exits with an error if absent.
-func requireFlag(args map[string]string, flag string) string {
+// requireFlag returns the value for the given flag or an error if absent.
+func requireFlag(args map[string]string, flag string) (string, error) {
 	v := args[flag]
 	if v == "" {
-		fmt.Fprintf(os.Stderr, "error: --%s is required\n", flag)
-		os.Exit(2)
+		return "", fmt.Errorf("--%s is required", flag)
 	}
-	return v
+	return v, nil
 }
 
 // parseTables parses a comma-separated table list. If value is "all", returns

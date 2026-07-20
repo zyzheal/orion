@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the methods the handler calls on the service layer.
@@ -92,9 +93,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Schedules ---
 
 func (h *Handler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedules")
+	defer span.End()
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	status := ptrIf(c.Query("status"))
-	schedules, total, err := h.svc.List(c.Request.Context(), tenantID, status)
+	schedules, total, err := h.svc.List(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,8 +112,10 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 }
 
 func (h *Handler) GetSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSchedule")
+	defer span.End()
 	id := c.Param("id")
-	schedule, err := h.svc.Get(c.Request.Context(), id)
+	schedule, err := h.svc.Get(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "schedule not found")
@@ -123,13 +128,15 @@ func (h *Handler) GetSchedule(c *gin.Context) {
 }
 
 func (h *Handler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedule")
+	defer span.End()
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	schedule, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	schedule, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -138,13 +145,15 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSchedule")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	schedule, err := h.svc.Update(c.Request.Context(), id, &req)
+	schedule, err := h.svc.Update(ctx, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "schedule not found")
@@ -157,8 +166,10 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSchedule")
+	defer span.End()
 	id := c.Param("id")
-	deleted, err := h.svc.Delete(c.Request.Context(), id)
+	deleted, err := h.svc.Delete(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -173,8 +184,10 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 // --- Assignments ---
 
 func (h *Handler) ListAssignments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAssignments")
+	defer span.End()
 	scheduleID := ptrIf(c.Query("scheduleId"))
-	assignments, total, err := h.svc.ListAssignments(c.Request.Context(), scheduleID)
+	assignments, total, err := h.svc.ListAssignments(ctx, scheduleID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -190,8 +203,10 @@ func (h *Handler) ListAssignments(c *gin.Context) {
 }
 
 func (h *Handler) GetAssignment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAssignment")
+	defer span.End()
 	id := c.Param("id")
-	assignment, err := h.svc.GetAssignment(c.Request.Context(), id)
+	assignment, err := h.svc.GetAssignment(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "assignment not found")
@@ -204,12 +219,14 @@ func (h *Handler) GetAssignment(c *gin.Context) {
 }
 
 func (h *Handler) CreateAssignment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAssignment")
+	defer span.End()
 	var req models.CreateAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	assignment, err := h.svc.CreateAssignment(c.Request.Context(), &req)
+	assignment, err := h.svc.CreateAssignment(ctx, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -218,13 +235,15 @@ func (h *Handler) CreateAssignment(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAssignment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAssignment")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateAssignmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	assignment, err := h.svc.UpdateAssignment(c.Request.Context(), id, &req)
+	assignment, err := h.svc.UpdateAssignment(ctx, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "assignment not found")
@@ -237,8 +256,10 @@ func (h *Handler) UpdateAssignment(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAssignment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAssignment")
+	defer span.End()
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteAssignment(c.Request.Context(), id)
+	deleted, err := h.svc.DeleteAssignment(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -253,8 +274,10 @@ func (h *Handler) DeleteAssignment(c *gin.Context) {
 // --- Overrides ---
 
 func (h *Handler) ListOverrides(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOverrides")
+	defer span.End()
 	scheduleID := ptrIf(c.Query("scheduleId"))
-	overrides, total, err := h.svc.ListOverrides(c.Request.Context(), scheduleID)
+	overrides, total, err := h.svc.ListOverrides(ctx, scheduleID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -269,8 +292,10 @@ func (h *Handler) ListOverrides(c *gin.Context) {
 }
 
 func (h *Handler) GetOverride(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOverride")
+	defer span.End()
 	id := c.Param("id")
-	override, err := h.svc.GetOverride(c.Request.Context(), id)
+	override, err := h.svc.GetOverride(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "override not found")
@@ -283,12 +308,14 @@ func (h *Handler) GetOverride(c *gin.Context) {
 }
 
 func (h *Handler) CreateOverride(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateOverride")
+	defer span.End()
 	var req models.CreateOverrideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	override, err := h.svc.CreateOverride(c.Request.Context(), &req)
+	override, err := h.svc.CreateOverride(ctx, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -297,13 +324,15 @@ func (h *Handler) CreateOverride(c *gin.Context) {
 }
 
 func (h *Handler) UpdateOverride(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateOverride")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateOverrideRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	override, err := h.svc.UpdateOverride(c.Request.Context(), id, &req)
+	override, err := h.svc.UpdateOverride(ctx, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "override not found")
@@ -316,8 +345,10 @@ func (h *Handler) UpdateOverride(c *gin.Context) {
 }
 
 func (h *Handler) DeleteOverride(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteOverride")
+	defer span.End()
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteOverride(c.Request.Context(), id)
+	deleted, err := h.svc.DeleteOverride(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -332,12 +363,14 @@ func (h *Handler) DeleteOverride(c *gin.Context) {
 // --- On-Call Now ---
 
 func (h *Handler) GetOnCallNow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOnCallNow")
+	defer span.End()
 	scheduleID := c.Query("scheduleId")
 	if scheduleID == "" {
 		middleware.RespondBadRequest(c, "scheduleId is required")
 		return
 	}
-	result, err := h.svc.GetOnCallNow(c.Request.Context(), scheduleID)
+	result, err := h.svc.GetOnCallNow(ctx, scheduleID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "no active on-call found for this schedule")

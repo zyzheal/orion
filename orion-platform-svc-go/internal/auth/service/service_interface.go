@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/auth/models"
+)
+
 // ServiceInterface defines the interface for the auth service.
 type ServiceInterface interface {
 	GetProfile(ctx context.Context, tenantID, userID string) (*models.MeResponse, error)

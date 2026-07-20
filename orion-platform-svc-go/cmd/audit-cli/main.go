@@ -27,59 +27,64 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	exitCode := run(os.Args[1:])
+	os.Exit(exitCode)
+}
+
+// run is the main entry point, refactored to return an exit code
+// instead of calling os.Exit scattered throughout the control flow.
+// This enables graceful shutdown and proper testability.
+func run(args []string) int {
+	if len(args) < 1 {
 		printUsage()
-		os.Exit(types.ExitErr)
+		return types.ExitErr
 	}
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	cmd := args[0]
+	cmdArgs := args[1:]
 
-	var exitCode int
 	switch cmd {
 	case "schema-check":
-		flags, showHelp := commands.SchemaCheckParseArgs(args)
+		flags, showHelp := commands.SchemaCheckParseArgs(cmdArgs)
 		if showHelp {
-			os.Exit(types.ExitPass)
+			return types.ExitPass
 		}
-		exitCode = commands.SchemaCheckCommand(flags)
+		return commands.SchemaCheckCommand(flags)
 
 	case "data-compare":
-		flags, showHelp := commands.DataCompareParseArgs(args)
+		flags, showHelp := commands.DataCompareParseArgs(cmdArgs)
 		if showHelp {
-			os.Exit(types.ExitPass)
+			return types.ExitPass
 		}
-		exitCode = commands.DataCompareCommand(flags)
+		return commands.DataCompareCommand(flags)
 
 	case "source-audit":
-		flags, showHelp := commands.SourceAuditParseArgs(args)
+		flags, showHelp := commands.SourceAuditParseArgs(cmdArgs)
 		if showHelp {
-			os.Exit(types.ExitPass)
+			return types.ExitPass
 		}
-		exitCode = commands.SourceAuditCommand(flags)
+		return commands.SourceAuditCommand(flags)
 
 	case "report":
-		flags, showHelp := commands.ReportParseArgs(args)
+		flags, showHelp := commands.ReportParseArgs(cmdArgs)
 		if showHelp {
-			os.Exit(types.ExitPass)
+			return types.ExitPass
 		}
-		exitCode = commands.ReportCommand(flags)
+		return commands.ReportCommand(flags)
 
 	case "--version", "-v":
 		fmt.Println("audit-cli v0.1.0")
-		os.Exit(types.ExitPass)
+		return types.ExitPass
 
 	case "--help", "-h":
 		printUsage()
-		os.Exit(types.ExitPass)
+		return types.ExitPass
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", cmd)
 		printUsage()
-		os.Exit(types.ExitErr)
+		return types.ExitErr
 	}
-
-	os.Exit(exitCode)
 }
 
 func printUsage() {

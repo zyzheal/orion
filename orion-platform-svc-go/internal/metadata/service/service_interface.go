@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/metadata/models"
+)
+
 // ServiceInterface defines the interface for the metadata service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID string) error

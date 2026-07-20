@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -71,6 +72,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // === Incidents ===
 
 func (h *Handler) CreateIncident(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateIncident")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -89,6 +92,8 @@ func (h *Handler) CreateIncident(c *gin.Context) {
 }
 
 func (h *Handler) GetIncident(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIncident")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -103,6 +108,8 @@ func (h *Handler) GetIncident(c *gin.Context) {
 // === History ===
 
 func (h *Handler) ListHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -140,6 +147,8 @@ func (h *Handler) ListHistory(c *gin.Context) {
 // === Effectiveness ===
 
 func (h *Handler) GetEffectiveness(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEffectiveness")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -159,6 +168,8 @@ func (h *Handler) GetEffectiveness(c *gin.Context) {
 // === Strategies ===
 
 func (h *Handler) ListStrategies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStrategies")
+	defer span.End()
 	ctx := context.Background()
 
 	strategies, err := h.svc.ListStrategies(ctx)
@@ -173,6 +184,8 @@ func (h *Handler) ListStrategies(c *gin.Context) {
 }
 
 func (h *Handler) GetStrategy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStrategy")
+	defer span.End()
 	ctx := context.Background()
 
 	strategy, err := h.svc.GetStrategy(ctx, c.Param("id"))
@@ -184,6 +197,8 @@ func (h *Handler) GetStrategy(c *gin.Context) {
 }
 
 func (h *Handler) ToggleStrategy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleStrategy")
+	defer span.End()
 	ctx := context.Background()
 
 	var req models.ToggleStrategyRequest
@@ -204,6 +219,8 @@ func (h *Handler) ToggleStrategy(c *gin.Context) {
 }
 
 func (h *Handler) RegisterStrategy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterStrategy")
+	defer span.End()
 	ctx := context.Background()
 
 	var req models.RegisterStrategyRequest
@@ -223,6 +240,8 @@ func (h *Handler) RegisterStrategy(c *gin.Context) {
 // === Approvals ===
 
 func (h *Handler) ListApprovals(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListApprovals")
+	defer span.End()
 	ctx := context.Background()
 	status := c.Query("status")
 
@@ -238,6 +257,8 @@ func (h *Handler) ListApprovals(c *gin.Context) {
 }
 
 func (h *Handler) GetApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApproval")
+	defer span.End()
 	ctx := context.Background()
 
 	approval, err := h.svc.GetApproval(ctx, c.Param("id"))
@@ -249,6 +270,8 @@ func (h *Handler) GetApproval(c *gin.Context) {
 }
 
 func (h *Handler) RespondApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RespondApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 

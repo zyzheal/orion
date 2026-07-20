@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -55,6 +56,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ExecuteCommand(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteCommand")
+	defer span.End()
 	var req struct {
 		Command string   `json:"command" binding:"required"`
 		HostIDs []string `json:"hostIds"`
@@ -67,7 +70,7 @@ func (h *Handler) ExecuteCommand(c *gin.Context) {
 	if req.Timeout <= 0 {
 		req.Timeout = 300
 	}
-	log, err := h.svc.ExecuteCommand(c.Request.Context(), req.Command, req.HostIDs, req.Timeout)
+	log, err := h.svc.ExecuteCommand(ctx, req.Command, req.HostIDs, req.Timeout)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -76,13 +79,15 @@ func (h *Handler) ExecuteCommand(c *gin.Context) {
 }
 
 func (h *Handler) ListCommandLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCommandLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	if pageSize <= 0 {
 		pageSize = 20
 	}
-	logs, err := h.svc.ListCommandLogs(c.Request.Context(), tenantID, page, pageSize)
+	logs, err := h.svc.ListCommandLogs(ctx, tenantID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -91,8 +96,10 @@ func (h *Handler) ListCommandLogs(c *gin.Context) {
 }
 
 func (h *Handler) CountCommandLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountCommandLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-count, err := h.svc.CountCommandLogs(c.Request.Context(), tenantID)
+count, err := h.svc.CountCommandLogs(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -101,8 +108,10 @@ count, err := h.svc.CountCommandLogs(c.Request.Context(), tenantID)
 }
 
 func (h *Handler) GetCommandLogByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCommandLogByID")
+	defer span.End()
 	id := c.Param("id")
-	log, err := h.svc.GetCommandLogByID(c.Request.Context(), id)
+	log, err := h.svc.GetCommandLogByID(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -111,8 +120,10 @@ func (h *Handler) GetCommandLogByID(c *gin.Context) {
 }
 
 func (h *Handler) GetCommandLogDetails(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCommandLogDetails")
+	defer span.End()
 	id := c.Param("id")
-	details, err := h.svc.GetCommandLogDetails(c.Request.Context(), id)
+	details, err := h.svc.GetCommandLogDetails(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -121,6 +132,8 @@ func (h *Handler) GetCommandLogDetails(c *gin.Context) {
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTemplate")
+	defer span.End()
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -130,7 +143,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 		middleware.RespondBadRequest(c, "content is required")
 		return
 	}
-	tpl, err := h.svc.CreateTemplate(c.Request.Context(), req)
+	tpl, err := h.svc.CreateTemplate(ctx, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -139,7 +152,9 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 }
 
 func (h *Handler) ListTemplates(c *gin.Context) {
-	tpls, err := h.svc.ListTemplates(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTemplates")
+	defer span.End()
+	tpls, err := h.svc.ListTemplates(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -148,7 +163,9 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 }
 
 func (h *Handler) CountTemplates(c *gin.Context) {
-count, err := h.svc.CountTemplates(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountTemplates")
+	defer span.End()
+count, err := h.svc.CountTemplates(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -157,8 +174,10 @@ count, err := h.svc.CountTemplates(c.Request.Context())
 }
 
 func (h *Handler) GetTemplateByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTemplateByID")
+	defer span.End()
 	id := c.Param("id")
-	tpl, err := h.svc.GetTemplateByID(c.Request.Context(), id)
+	tpl, err := h.svc.GetTemplateByID(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -167,6 +186,8 @@ func (h *Handler) GetTemplateByID(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTemplate")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -177,7 +198,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 		middleware.RespondBadRequest(c, "at least one field is required")
 		return
 	}
-	tpl, err := h.svc.UpdateTemplate(c.Request.Context(), id, req)
+	tpl, err := h.svc.UpdateTemplate(ctx, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -186,8 +207,10 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTemplate")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteTemplate(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteTemplate(ctx, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -195,6 +218,8 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 }
 
 func (h *Handler) CreateCronJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateCronJob")
+	defer span.End()
 	var req models.CreateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -204,7 +229,7 @@ func (h *Handler) CreateCronJob(c *gin.Context) {
 		middleware.RespondBadRequest(c, "cronExpression is required")
 		return
 	}
-	job, err := h.svc.CreateCronJob(c.Request.Context(), req)
+	job, err := h.svc.CreateCronJob(ctx, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -213,7 +238,9 @@ func (h *Handler) CreateCronJob(c *gin.Context) {
 }
 
 func (h *Handler) ListCronJobs(c *gin.Context) {
-	jobs, err := h.svc.ListCronJobs(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCronJobs")
+	defer span.End()
+	jobs, err := h.svc.ListCronJobs(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -222,7 +249,9 @@ func (h *Handler) ListCronJobs(c *gin.Context) {
 }
 
 func (h *Handler) CountCronJobs(c *gin.Context) {
-count, err := h.svc.CountCronJobs(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountCronJobs")
+	defer span.End()
+count, err := h.svc.CountCronJobs(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -231,8 +260,10 @@ count, err := h.svc.CountCronJobs(c.Request.Context())
 }
 
 func (h *Handler) GetCronJobByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCronJobByID")
+	defer span.End()
 	id := c.Param("id")
-	job, err := h.svc.GetCronJobByID(c.Request.Context(), id)
+	job, err := h.svc.GetCronJobByID(ctx, id)
 	if err != nil {
 		if v_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "cron job not found")
@@ -245,13 +276,15 @@ func (h *Handler) GetCronJobByID(c *gin.Context) {
 }
 
 func (h *Handler) UpdateCronJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateCronJob")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateCronJobRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	job, err := h.svc.UpdateCronJob(c.Request.Context(), id, req)
+	job, err := h.svc.UpdateCronJob(ctx, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -260,8 +293,10 @@ func (h *Handler) UpdateCronJob(c *gin.Context) {
 }
 
 func (h *Handler) DeleteCronJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteCronJob")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteCronJob(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteCronJob(ctx, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -269,10 +304,12 @@ func (h *Handler) DeleteCronJob(c *gin.Context) {
 }
 
 func (h *Handler) ToggleCronJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleCronJob")
+	defer span.End()
 	id := c.Param("id")
 	enabledStr := c.Query("enabled")
 	enabled := enabledStr == "true" || enabledStr == "1"
-	job, err := h.svc.ToggleCronJob(c.Request.Context(), id, enabled)
+	job, err := h.svc.ToggleCronJob(ctx, id, enabled)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -281,8 +318,10 @@ func (h *Handler) ToggleCronJob(c *gin.Context) {
 }
 
 func (h *Handler) RunCronJobNow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunCronJobNow")
+	defer span.End()
 	id := c.Param("id")
-	log, err := h.svc.RunCronJobNow(c.Request.Context(), id)
+	log, err := h.svc.RunCronJobNow(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -291,13 +330,15 @@ func (h *Handler) RunCronJobNow(c *gin.Context) {
 }
 
 func (h *Handler) ListCronJobLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListCronJobLogs")
+	defer span.End()
 	jobID := c.Param("id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("pageSize", "20"))
 	if pageSize <= 0 {
 		pageSize = 20
 	}
-	logs, err := h.svc.ListCronJobLogs(c.Request.Context(), jobID, page, pageSize)
+	logs, err := h.svc.ListCronJobLogs(ctx, jobID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -306,8 +347,10 @@ func (h *Handler) ListCronJobLogs(c *gin.Context) {
 }
 
 func (h *Handler) CountCronJobLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountCronJobLogs")
+	defer span.End()
 	jobID := c.Param("id")
-	count, err := h.svc.CountCronJobLogs(c.Request.Context(), jobID)
+	count, err := h.svc.CountCronJobLogs(ctx, jobID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -316,6 +359,8 @@ func (h *Handler) CountCronJobLogs(c *gin.Context) {
 }
 
 func (h *Handler) CreateUploadTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateUploadTask")
+	defer span.End()
 	var req models.CreateUploadTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -325,7 +370,7 @@ func (h *Handler) CreateUploadTask(c *gin.Context) {
 		middleware.RespondBadRequest(c, "targetPath is required")
 		return
 	}
-	task, err := h.svc.CreateUploadTask(c.Request.Context(), req)
+	task, err := h.svc.CreateUploadTask(ctx, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -334,7 +379,9 @@ func (h *Handler) CreateUploadTask(c *gin.Context) {
 }
 
 func (h *Handler) ListUploadTasks(c *gin.Context) {
-	tasks, err := h.svc.ListUploadTasks(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListUploadTasks")
+	defer span.End()
+	tasks, err := h.svc.ListUploadTasks(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -343,7 +390,9 @@ func (h *Handler) ListUploadTasks(c *gin.Context) {
 }
 
 func (h *Handler) CountUploadTasks(c *gin.Context) {
-	count, err := h.svc.CountUploadTasks(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CountUploadTasks")
+	defer span.End()
+	count, err := h.svc.CountUploadTasks(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -352,8 +401,10 @@ func (h *Handler) CountUploadTasks(c *gin.Context) {
 }
 
 func (h *Handler) GetUploadTaskByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUploadTaskByID")
+	defer span.End()
 	id := c.Param("id")
-	task, err := h.svc.GetUploadTaskByID(c.Request.Context(), id)
+	task, err := h.svc.GetUploadTaskByID(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -362,8 +413,10 @@ func (h *Handler) GetUploadTaskByID(c *gin.Context) {
 }
 
 func (h *Handler) CancelUploadTask(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelUploadTask")
+	defer span.End()
 	id := c.Param("id")
-	task, err := h.svc.CancelUploadTask(c.Request.Context(), id)
+	task, err := h.svc.CancelUploadTask(ctx, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

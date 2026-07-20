@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/oncall/models"
+)
+
 // ServiceInterface defines the interface for the oncall service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateScheduleRequest) (*models.Schedule, error)

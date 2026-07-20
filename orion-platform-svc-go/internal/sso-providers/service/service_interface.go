@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/sso-providers/models"
+)
+
 // ServiceInterface defines the interface for the sso-providers service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateSSOProviderRequest) (*models.SSOProvider, error)

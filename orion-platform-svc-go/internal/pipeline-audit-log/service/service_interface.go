@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-audit-log/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-audit-log service.
 type ServiceInterface interface {
 	CleanupExpired(ctx context.Context, tenantID string, req *models.CleanupRequest) (int64, error)

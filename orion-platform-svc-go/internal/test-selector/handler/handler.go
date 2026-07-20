@@ -10,6 +10,7 @@ import (
     "orion/platform-svc-go/internal/test-selector/service"
 
     "github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -51,8 +52,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListFiles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFiles")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     files, err := h.svc.ListFiles(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -62,8 +65,10 @@ func (h *Handler) ListFiles(c *gin.Context) {
 }
 
 func (h *Handler) GetCoverage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCoverage")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     coverage, err := h.svc.GetCoverage(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -73,8 +78,10 @@ func (h *Handler) GetCoverage(c *gin.Context) {
 }
 
 func (h *Handler) ListTestSuites(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTestSuites")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     suites, err := h.svc.ListTestSuites(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -84,8 +91,10 @@ func (h *Handler) ListTestSuites(c *gin.Context) {
 }
 
 func (h *Handler) GetTestSuite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTestSuite")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     suite, err := h.svc.GetTestSuite(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrNotFound, "test suite not found", http.StatusNotFound)
@@ -95,8 +104,10 @@ func (h *Handler) GetTestSuite(c *gin.Context) {
 }
 
 func (h *Handler) CreateTestSuite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTestSuite")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var req models.CreateTestSuiteRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -111,8 +122,10 @@ func (h *Handler) CreateTestSuite(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTestSuite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTestSuite")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var req models.UpdateTestSuiteRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -127,8 +140,10 @@ func (h *Handler) UpdateTestSuite(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTestSuite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTestSuite")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     err := h.svc.DeleteTestSuite(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -138,8 +153,10 @@ func (h *Handler) DeleteTestSuite(c *gin.Context) {
 }
 
 func (h *Handler) GetImpactAnalysis(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetImpactAnalysis")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     impact, err := h.svc.GetImpactAnalysis(ctx, tenantID, c.Query("file"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -149,8 +166,10 @@ func (h *Handler) GetImpactAnalysis(c *gin.Context) {
 }
 
 func (h *Handler) GetRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecommendations")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     var req models.RecommendationRequest
     if err := c.ShouldBindJSON(&req); err != nil {
         errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -165,8 +184,10 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     stats, err := h.svc.GetStats(ctx, tenantID)
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
@@ -176,8 +197,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) RunTestSuite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunTestSuite")
+	defer span.End()
     tenantID := c.GetString("tenant_id")
-    ctx := c.Request.Context()
+    ctx := ctx
     err := h.svc.RunTestSuite(ctx, tenantID, c.Param("id"))
     if err != nil {
         errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)

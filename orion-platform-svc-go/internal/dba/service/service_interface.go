@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/dba/models"
+)
+
 // ServiceInterface defines the interface for the dba service.
 type ServiceInterface interface {
 	ApproveOrder(ctx context.Context, id, approvedBy string) (*models.SqlOrder, error)

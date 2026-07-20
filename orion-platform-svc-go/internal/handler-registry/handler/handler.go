@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -55,13 +56,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ====== Legacy CRUD handlers (backward compatibility) ======
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateHandlerRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -70,9 +73,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -81,6 +86,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Query("domain")
 	status := c.Query("status")
@@ -88,7 +95,7 @@ func (h *Handler) List(c *gin.Context) {
 		Domain: domain,
 		Status: status,
 	}
-	items, err := h.svc.ListEntries(c.Request.Context(), tenantID, opts)
+	items, err := h.svc.ListEntries(ctx, tenantID, opts)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -97,6 +104,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateHandlerRegistryRequest
@@ -104,7 +113,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -113,9 +122,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -126,8 +137,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // HealthCheck returns the health status of the handler registry service.
 func (h *Handler) HealthCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HealthCheck")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	health, err := h.svc.HealthCheck(c.Request.Context())
+	health, err := h.svc.HealthCheck(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -138,8 +151,10 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 
 // GetDomains returns the list of distinct domains.
 func (h *Handler) GetDomains(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDomains")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	domains, err := h.svc.GetDomains(c.Request.Context(), tenantID)
+	domains, err := h.svc.GetDomains(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -149,10 +164,12 @@ func (h *Handler) GetDomains(c *gin.Context) {
 
 // GetEntry returns a single handler entry by domain and name.
 func (h *Handler) GetEntry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEntry")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Param("domain")
 	name := c.Param("name")
-	entry, err := h.svc.GetEntry(c.Request.Context(), tenantID, domain, name)
+	entry, err := h.svc.GetEntry(ctx, tenantID, domain, name)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -162,6 +179,8 @@ func (h *Handler) GetEntry(c *gin.Context) {
 
 // RegisterHandler registers a new handler entry.
 func (h *Handler) RegisterHandler(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterHandler")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := c.GetString("user_id")
 
@@ -175,7 +194,7 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 		req.RegisteredBy = createdBy
 	}
 
-	entry, err := h.svc.RegisterHandler(c.Request.Context(), tenantID, req)
+	entry, err := h.svc.RegisterHandler(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondConflict(c, err.Error())
 		return
@@ -185,10 +204,12 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 
 // Enable enables a handler entry.
 func (h *Handler) Enable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Enable")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Param("domain")
 	name := c.Param("name")
-	if err := h.svc.Enable(c.Request.Context(), tenantID, domain, name); err != nil {
+	if err := h.svc.Enable(ctx, tenantID, domain, name); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -197,10 +218,12 @@ func (h *Handler) Enable(c *gin.Context) {
 
 // Disable disables a handler entry.
 func (h *Handler) Disable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Disable")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Param("domain")
 	name := c.Param("name")
-	if err := h.svc.Disable(c.Request.Context(), tenantID, domain, name); err != nil {
+	if err := h.svc.Disable(ctx, tenantID, domain, name); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -209,10 +232,12 @@ func (h *Handler) Disable(c *gin.Context) {
 
 // Unregister removes a handler entry.
 func (h *Handler) Unregister(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Unregister")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Param("domain")
 	name := c.Param("name")
-	if err := h.svc.Unregister(c.Request.Context(), tenantID, domain, name); err != nil {
+	if err := h.svc.Unregister(ctx, tenantID, domain, name); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -221,6 +246,8 @@ func (h *Handler) Unregister(c *gin.Context) {
 
 // Invoke invokes a handler entry with the given payload.
 func (h *Handler) Invoke(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Invoke")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	domain := c.Param("domain")
 	name := c.Param("name")
@@ -235,7 +262,7 @@ func (h *Handler) Invoke(c *gin.Context) {
 		req.Payload = make(map[string]interface{})
 	}
 
-	result, err := h.svc.Invoke(c.Request.Context(), tenantID, domain, name, req.Payload)
+	result, err := h.svc.Invoke(ctx, tenantID, domain, name, req.Payload)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

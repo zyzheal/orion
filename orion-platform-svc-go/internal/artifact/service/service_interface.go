@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/artifact/models"
+)
+
 // ServiceInterface defines the interface for the artifact service.
 type ServiceInterface interface {
 	AddTags(ctx context.Context, tenantID, id string, tags []string) error

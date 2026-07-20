@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -48,13 +49,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Experiment CRUD ---
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -63,9 +66,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -78,11 +83,13 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	status := c.Query("status")
-	items, err := h.svc.List(c.Request.Context(), tenantID, status, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -91,6 +98,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateExperimentRequest
@@ -98,7 +107,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -110,9 +119,11 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Activate handles POST /experiments/:id/activate.
 func (h *Handler) Activate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Activate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.ActivateExperiment(c.Request.Context(), tenantID, id)
+	m, err := h.svc.ActivateExperiment(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -122,9 +133,11 @@ func (h *Handler) Activate(c *gin.Context) {
 
 // Archive handles POST /experiments/:id/archive.
 func (h *Handler) Archive(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Archive")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.ArchiveExperiment(c.Request.Context(), tenantID, id)
+	m, err := h.svc.ArchiveExperiment(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -136,6 +149,8 @@ func (h *Handler) Archive(c *gin.Context) {
 
 // Run handles POST /experiments/:id/run.
 func (h *Handler) Run(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Run")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.RunExperimentRequest
@@ -143,7 +158,7 @@ func (h *Handler) Run(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	run, err := h.svc.RunExperiment(c.Request.Context(), tenantID, id, req)
+	run, err := h.svc.RunExperiment(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -153,9 +168,11 @@ func (h *Handler) Run(c *gin.Context) {
 
 // GetRun handles GET /runs/:runId.
 func (h *Handler) GetRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
-	run, err := h.svc.GetRun(c.Request.Context(), tenantID, runID)
+	run, err := h.svc.GetRun(ctx, tenantID, runID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "run not found")
@@ -169,11 +186,13 @@ func (h *Handler) GetRun(c *gin.Context) {
 
 // Rollback handles POST /runs/:runId/rollback.
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	var body models.RollbackRunRequest
 	c.ShouldBindJSON(&body)
-	run, err := h.svc.RollbackRun(c.Request.Context(), tenantID, runID, body.Reason)
+	run, err := h.svc.RollbackRun(ctx, tenantID, runID, body.Reason)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -185,8 +204,10 @@ func (h *Handler) Rollback(c *gin.Context) {
 
 // GetRunning handles GET /experiments-running.
 func (h *Handler) GetRunning(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRunning")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetRunningExperiments(c.Request.Context(), tenantID)
+	items, err := h.svc.GetRunningExperiments(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -198,13 +219,15 @@ func (h *Handler) GetRunning(c *gin.Context) {
 
 // CpuSpike handles POST /inject/cpu-spike.
 func (h *Handler) CpuSpike(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CpuSpike")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExecuteCPUSpike(c.Request.Context(), tenantID, body.Target, body.Config)
+	result, err := h.svc.ExecuteCPUSpike(ctx, tenantID, body.Target, body.Config)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -214,13 +237,15 @@ func (h *Handler) CpuSpike(c *gin.Context) {
 
 // MemoryLeak handles POST /inject/memory-leak.
 func (h *Handler) MemoryLeak(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MemoryLeak")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExecuteMemoryLeak(c.Request.Context(), tenantID, body.Target, body.Config)
+	result, err := h.svc.ExecuteMemoryLeak(ctx, tenantID, body.Target, body.Config)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,13 +255,15 @@ func (h *Handler) MemoryLeak(c *gin.Context) {
 
 // NetworkLatency handles POST /inject/network-latency.
 func (h *Handler) NetworkLatency(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NetworkLatency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExecuteNetworkLatency(c.Request.Context(), tenantID, body.Target, body.Config)
+	result, err := h.svc.ExecuteNetworkLatency(ctx, tenantID, body.Target, body.Config)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -246,13 +273,15 @@ func (h *Handler) NetworkLatency(c *gin.Context) {
 
 // ServiceDown handles POST /inject/service-down.
 func (h *Handler) ServiceDown(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ServiceDown")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.InjectRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExecuteServiceDown(c.Request.Context(), tenantID, body.Target, body.Config)
+	result, err := h.svc.ExecuteServiceDown(ctx, tenantID, body.Target, body.Config)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -264,9 +293,11 @@ func (h *Handler) ServiceDown(c *gin.Context) {
 
 // Recover handles POST /recover/:experimentId.
 func (h *Handler) Recover(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Recover")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	experimentID := c.Param("experimentId")
-	result, err := h.svc.RecoverExperiment(c.Request.Context(), tenantID, experimentID)
+	result, err := h.svc.RecoverExperiment(ctx, tenantID, experimentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -276,9 +307,11 @@ func (h *Handler) Recover(c *gin.Context) {
 
 // ValidateRecovery handles POST /validate-recovery/:experimentId.
 func (h *Handler) ValidateRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidateRecovery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	experimentID := c.Param("experimentId")
-	val, err := h.svc.ValidateRecovery(c.Request.Context(), tenantID, experimentID)
+	val, err := h.svc.ValidateRecovery(ctx, tenantID, experimentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -288,9 +321,11 @@ func (h *Handler) ValidateRecovery(c *gin.Context) {
 
 // RecoveryReport handles GET /recovery-report/:experimentId.
 func (h *Handler) RecoveryReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecoveryReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	experimentID := c.Param("experimentId")
-	report, err := h.svc.GenerateRecoveryReport(c.Request.Context(), tenantID, experimentID)
+	report, err := h.svc.GenerateRecoveryReport(ctx, tenantID, experimentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -302,13 +337,15 @@ func (h *Handler) RecoveryReport(c *gin.Context) {
 
 // PreReleaseVerify handles POST /pre-release-verify.
 func (h *Handler) PreReleaseVerify(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PreReleaseVerify")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.PreReleaseVerifyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.PreReleaseVerify(c.Request.Context(), tenantID, req)
+	result, err := h.svc.PreReleaseVerify(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

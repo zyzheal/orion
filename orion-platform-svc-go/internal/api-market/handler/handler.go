@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -83,6 +84,8 @@ func (h *Handler) getOwnerID(c *gin.Context) string {
 // --- Product handlers ---
 
 func (h *Handler) CreateProduct(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProduct")
+	defer span.End()
 	var req models.CreateProductRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -90,7 +93,7 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	ownerID := h.getOwnerID(c)
-	product, err := h.svc.CreateProduct(c.Request.Context(), &req, ownerID, tenantID)
+	product, err := h.svc.CreateProduct(ctx, &req, ownerID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -99,8 +102,10 @@ func (h *Handler) CreateProduct(c *gin.Context) {
 }
 
 func (h *Handler) ListProducts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProducts")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	products, err := h.svc.ListProducts(c.Request.Context(), tenantID)
+	products, err := h.svc.ListProducts(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,9 +114,11 @@ func (h *Handler) ListProducts(c *gin.Context) {
 }
 
 func (h *Handler) GetProduct(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProduct")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	product, err := h.svc.GetProduct(c.Request.Context(), id, tenantID)
+	product, err := h.svc.GetProduct(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "product not found")
@@ -124,9 +131,11 @@ func (h *Handler) GetProduct(c *gin.Context) {
 }
 
 func (h *Handler) PublishProduct(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishProduct")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	product, err := h.svc.PublishProduct(c.Request.Context(), id, tenantID)
+	product, err := h.svc.PublishProduct(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "product not found")
@@ -139,9 +148,11 @@ func (h *Handler) PublishProduct(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProduct(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteProduct")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteProduct(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteProduct(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -156,6 +167,8 @@ func (h *Handler) DeleteProduct(c *gin.Context) {
 // --- Developer App handlers ---
 
 func (h *Handler) CreateDeveloperApp(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDeveloperApp")
+	defer span.End()
 	var req models.CreateDeveloperAppRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -163,7 +176,7 @@ func (h *Handler) CreateDeveloperApp(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	developerID := h.getOwnerID(c)
-	app, err := h.svc.CreateDeveloperApp(c.Request.Context(), &req, developerID, tenantID)
+	app, err := h.svc.CreateDeveloperApp(ctx, &req, developerID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -172,9 +185,11 @@ func (h *Handler) CreateDeveloperApp(c *gin.Context) {
 }
 
 func (h *Handler) ListApps(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListApps")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	developerID := h.getOwnerID(c)
-	apps, err := h.svc.ListAppsByDeveloper(c.Request.Context(), tenantID, developerID)
+	apps, err := h.svc.ListAppsByDeveloper(ctx, tenantID, developerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -183,9 +198,11 @@ func (h *Handler) ListApps(c *gin.Context) {
 }
 
 func (h *Handler) GetApp(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApp")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	app, err := h.svc.GetApp(c.Request.Context(), id, tenantID)
+	app, err := h.svc.GetApp(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "app not found")
@@ -200,11 +217,13 @@ func (h *Handler) GetApp(c *gin.Context) {
 // --- API Key handlers ---
 
 func (h *Handler) GenerateAPIKey(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateAPIKey")
+	defer span.End()
 	appID := c.Param("appId")
 	var req models.GenerateAPIKeyRequest
 	_ = c.ShouldBindJSON(&req) // scopes is optional, ignore bind errors
 	tenantID := h.getTenantID(c)
-	key, err := h.svc.GenerateAPIKey(c.Request.Context(), appID, req.Scopes, tenantID)
+	key, err := h.svc.GenerateAPIKey(ctx, appID, req.Scopes, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "app not found")
@@ -217,9 +236,11 @@ func (h *Handler) GenerateAPIKey(c *gin.Context) {
 }
 
 func (h *Handler) ListAPIKeys(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAPIKeys")
+	defer span.End()
 	appID := c.Param("appId")
 	tenantID := h.getTenantID(c)
-	keys, err := h.svc.ListAPIKeys(c.Request.Context(), appID, tenantID)
+	keys, err := h.svc.ListAPIKeys(ctx, appID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -229,6 +250,8 @@ func (h *Handler) ListAPIKeys(c *gin.Context) {
 }
 
 func (h *Handler) ValidateToken(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ValidateToken")
+	defer span.End()
 	var req models.ValidateTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -239,7 +262,7 @@ func (h *Handler) ValidateToken(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ValidateAPIKey(c.Request.Context(), tenantID, req.ClientID, req.ClientSecret)
+	result, err := h.svc.ValidateAPIKey(ctx, tenantID, req.ClientID, req.ClientSecret)
 	if err != nil {
 		if err == service.ErrInvalidCredentials {
 			middleware.RespondForbidden(c, "invalid credentials")
@@ -260,6 +283,8 @@ func (h *Handler) ValidateToken(c *gin.Context) {
 // --- Subscription handlers ---
 
 func (h *Handler) CheckSubscription(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckSubscription")
+	defer span.End()
 	appID := c.Query("appId")
 	productID := c.Query("productId")
 	if appID == "" || productID == "" {
@@ -267,7 +292,7 @@ func (h *Handler) CheckSubscription(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	hasAccess, err := h.svc.CheckSubscription(c.Request.Context(), appID, productID, tenantID)
+	hasAccess, err := h.svc.CheckSubscription(ctx, appID, productID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,13 +305,15 @@ func (h *Handler) CheckSubscription(c *gin.Context) {
 }
 
 func (h *Handler) Subscribe(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Subscribe")
+	defer span.End()
 	var req models.SubscribeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	err := h.svc.Subscribe(c.Request.Context(), &req, tenantID)
+	err := h.svc.Subscribe(ctx, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, err.Error())
@@ -299,11 +326,13 @@ func (h *Handler) Subscribe(c *gin.Context) {
 }
 
 func (h *Handler) ListSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSubscriptions")
+	defer span.End()
 	appID := c.Param("appId")
 	tenantID := h.getTenantID(c)
 	// Verify the user owns this app
 	ownerID := h.getOwnerID(c)
-	app, err := h.svc.GetApp(c.Request.Context(), appID, tenantID)
+	app, err := h.svc.GetApp(ctx, appID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "app not found")
@@ -317,7 +346,7 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 		middleware.RespondForbidden(c, "not authorized to view subscriptions for this app")
 		return
 	}
-	subs, err := h.svc.ListSubscriptions(c.Request.Context(), appID, tenantID)
+	subs, err := h.svc.ListSubscriptions(ctx, appID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

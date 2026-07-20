@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"net/http"
 	"strconv"
 
 	"orion/infra-ops-svc-go/internal/chaos/models"

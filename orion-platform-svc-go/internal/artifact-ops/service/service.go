@@ -6,7 +6,6 @@ import (
 
 	"orion/platform-svc-go/internal/artifact-ops/models"
 
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 

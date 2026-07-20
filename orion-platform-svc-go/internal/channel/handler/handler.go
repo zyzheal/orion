@@ -9,6 +9,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -31,13 +32,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateChannel")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         var req models.CreateChannelRequest
         if err := c.ShouldBindJSON(&req); err != nil {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+        result, err := h.svc.Create(ctx, tenantID, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -46,9 +49,11 @@ func (h *Handler) CreateChannel(c *gin.Context) {
 }
 
 func (h *Handler) GetChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChannel")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
-        result, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+        result, err := h.svc.GetByID(ctx, tenantID, id)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
@@ -57,6 +62,8 @@ func (h *Handler) GetChannel(c *gin.Context) {
 }
 
 func (h *Handler) ListChannels(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListChannels")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         filter := &models.ChannelFilter{Limit: 20}
         if t := c.Query("type"); t != "" {
@@ -72,7 +79,7 @@ func (h *Handler) ListChannels(c *gin.Context) {
         if o := c.Query("offset"); o != "" {
                 filter.Offset, _ = strconv.Atoi(o)
         }
-        result, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
+        result, total, err := h.svc.List(ctx, tenantID, filter)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -81,6 +88,8 @@ func (h *Handler) ListChannels(c *gin.Context) {
 }
 
 func (h *Handler) UpdateChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateChannel")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
         var req models.UpdateChannelRequest
@@ -88,7 +97,7 @@ func (h *Handler) UpdateChannel(c *gin.Context) {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+        result, err := h.svc.Update(ctx, tenantID, id, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "channel not found", 404)
                 return
@@ -97,9 +106,11 @@ func (h *Handler) UpdateChannel(c *gin.Context) {
 }
 
 func (h *Handler) DeleteChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteChannel")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
-        deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+        deleted, err := h.svc.Delete(ctx, tenantID, id)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -112,9 +123,11 @@ func (h *Handler) DeleteChannel(c *gin.Context) {
 }
 
 func (h *Handler) GetEnabledByType(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEnabledByType")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         channelType := c.Param("type")
-        result, err := h.svc.GetEnabledByType(c.Request.Context(), tenantID, channelType)
+        result, err := h.svc.GetEnabledByType(ctx, tenantID, channelType)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return

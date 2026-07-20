@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/event-trigger/models"
+)
+
 // ServiceInterface defines the interface for the event-trigger service.
 type ServiceInterface interface {
 	Count(ctx context.Context, tenantID string) (int, error)

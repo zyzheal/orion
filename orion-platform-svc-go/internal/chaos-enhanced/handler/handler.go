@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -60,6 +61,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Experiment handlers ---
 
 func (h *Handler) ListExperiments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExperiments")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	environmentID := c.Query("environmentId")
@@ -71,7 +74,7 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 	if environmentID == "" {
 		envPtr = nil
 	}
-	experiments, total, err := h.svc.ListExperiments(c.Request.Context(), tenantID, statusPtr, envPtr)
+	experiments, total, err := h.svc.ListExperiments(ctx, tenantID, statusPtr, envPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,13 +88,15 @@ func (h *Handler) ListExperiments(c *gin.Context) {
 }
 
 func (h *Handler) CreateExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateExperiment")
+	defer span.End()
 	var req models.CreateExperimentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	e, err := h.svc.CreateExperiment(c.Request.Context(), &req, tenantID)
+	e, err := h.svc.CreateExperiment(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -100,9 +105,11 @@ func (h *Handler) CreateExperiment(c *gin.Context) {
 }
 
 func (h *Handler) GetExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExperiment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	e, err := h.svc.GetExperiment(c.Request.Context(), id, tenantID)
+	e, err := h.svc.GetExperiment(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -115,9 +122,11 @@ func (h *Handler) GetExperiment(c *gin.Context) {
 }
 
 func (h *Handler) StartExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartExperiment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	e, err := h.svc.StartExperiment(c.Request.Context(), id, tenantID)
+	e, err := h.svc.StartExperiment(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -130,6 +139,8 @@ func (h *Handler) StartExperiment(c *gin.Context) {
 }
 
 func (h *Handler) InjectFault(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InjectFault")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
 	var req struct {
@@ -140,7 +151,7 @@ func (h *Handler) InjectFault(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	fi, err := h.svc.InjectFault(c.Request.Context(), id, tenantID, req.FaultType, req.FaultConfig)
+	fi, err := h.svc.InjectFault(ctx, id, tenantID, req.FaultType, req.FaultConfig)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -149,9 +160,11 @@ func (h *Handler) InjectFault(c *gin.Context) {
 }
 
 func (h *Handler) StopExperiment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopExperiment")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	_, err := h.svc.StopExperiment(c.Request.Context(), id, tenantID)
+	_, err := h.svc.StopExperiment(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -164,9 +177,11 @@ func (h *Handler) StopExperiment(c *gin.Context) {
 }
 
 func (h *Handler) GetExperimentStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExperimentStatus")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	status, err := h.svc.GetExperimentStatus(c.Request.Context(), id, tenantID)
+	status, err := h.svc.GetExperimentStatus(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -179,9 +194,11 @@ func (h *Handler) GetExperimentStatus(c *gin.Context) {
 }
 
 func (h *Handler) GetExperimentRecovery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExperimentRecovery")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	recovery, err := h.svc.GetExperimentRecovery(c.Request.Context(), id, tenantID)
+	recovery, err := h.svc.GetExperimentRecovery(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "experiment not found")
@@ -196,11 +213,15 @@ func (h *Handler) GetExperimentRecovery(c *gin.Context) {
 // --- Fault Library handlers ---
 
 func (h *Handler) ListFaults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFaults")
+	defer span.End()
 	faults := h.svc.AvailableFaultTypes()
 	middleware.RespondSuccess(c, faults)
 }
 
 func (h *Handler) GetConfigTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetConfigTemplate")
+	defer span.End()
 	faultType := c.Param("type")
 	template := h.svc.FaultConfigTemplate(faultType)
 	middleware.RespondSuccess(c, template)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -96,13 +97,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Cloud Account handlers ---
 
 func (h *Handler) AddProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddProvider")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.CloudAccountInput
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	account, err := h.svc.AddCloudAccount(c.Request.Context(), tenantID, body)
+	account, err := h.svc.AddCloudAccount(ctx, tenantID, body)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -111,8 +114,10 @@ func (h *Handler) AddProvider(c *gin.Context) {
 }
 
 func (h *Handler) ListProviders(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProviders")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	accounts, err := h.svc.ListCloudAccounts(c.Request.Context(), tenantID)
+	accounts, err := h.svc.ListCloudAccounts(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -140,6 +145,8 @@ func (h *Handler) ListProviders(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateProvider")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body models.UpdateCloudAccountInput
@@ -147,7 +154,7 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	account, err := h.svc.UpdateCloudAccount(c.Request.Context(), tenantID, id, body)
+	account, err := h.svc.UpdateCloudAccount(ctx, tenantID, id, body)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -156,9 +163,11 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteProvider")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.RemoveCloudAccount(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.RemoveCloudAccount(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -171,9 +180,11 @@ func (h *Handler) DeleteProvider(c *gin.Context) {
 }
 
 func (h *Handler) GetProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProvider")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	account, err := h.svc.GetProvider(c.Request.Context(), tenantID, id)
+	account, err := h.svc.GetProvider(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -184,9 +195,11 @@ func (h *Handler) GetProvider(c *gin.Context) {
 // --- Resource Inventory handlers ---
 
 func (h *Handler) ListResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListResources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	accountID := c.Query("accountId")
-	resources, err := h.svc.GetResourceInventory(c.Request.Context(), tenantID, accountID)
+	resources, err := h.svc.GetResourceInventory(ctx, tenantID, accountID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -216,10 +229,12 @@ func (h *Handler) ListResources(c *gin.Context) {
 }
 
 func (h *Handler) GetResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	provider := c.Param("provider")
 	id := c.Param("id")
-	resources, err := h.svc.GetResourceInventory(c.Request.Context(), tenantID, "")
+	resources, err := h.svc.GetResourceInventory(ctx, tenantID, "")
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -234,12 +249,14 @@ func (h *Handler) GetResource(c *gin.Context) {
 }
 
 func (h *Handler) SyncResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SyncResources")
+	defer span.End()
 	var body struct {
 		AccountID string `json:"accountId"`
 		Provider  string `json:"provider"`
 	}
 	c.ShouldBindJSON(&body)
-	result, err := h.svc.SyncResources(c.Request.Context(), "", body.AccountID)
+	result, err := h.svc.SyncResources(ctx, "", body.AccountID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -251,8 +268,10 @@ func (h *Handler) SyncResources(c *gin.Context) {
 // --- Cost Management handlers ---
 
 func (h *Handler) GetCosts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCosts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetCloudStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetCloudStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -261,9 +280,11 @@ func (h *Handler) GetCosts(c *gin.Context) {
 }
 
 func (h *Handler) GetProviderCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProviderCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	provider := c.Param("provider")
-	breakdown, err := h.svc.GetProviderCost(c.Request.Context(), tenantID, provider)
+	breakdown, err := h.svc.GetProviderCost(ctx, tenantID, provider)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -272,10 +293,12 @@ func (h *Handler) GetProviderCost(c *gin.Context) {
 }
 
 func (h *Handler) CompareCosts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompareCosts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.CostCompareInput
 	c.ShouldBindJSON(&body)
-	comparisons, err := h.svc.CompareCloudCosts(c.Request.Context(), tenantID, body)
+	comparisons, err := h.svc.CompareCloudCosts(ctx, tenantID, body)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -286,8 +309,10 @@ func (h *Handler) CompareCosts(c *gin.Context) {
 // --- Recommendations handlers ---
 
 func (h *Handler) GetRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecommendations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	recommendations, err := h.svc.GetRecommendations(c.Request.Context(), tenantID)
+	recommendations, err := h.svc.GetRecommendations(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -298,8 +323,10 @@ func (h *Handler) GetRecommendations(c *gin.Context) {
 // --- Health Check handlers ---
 
 func (h *Handler) GetHealth(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHealth")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	status, err := h.svc.GetHealthStatus(c.Request.Context(), tenantID)
+	status, err := h.svc.GetHealthStatus(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -310,8 +337,10 @@ func (h *Handler) GetHealth(c *gin.Context) {
 // --- Resource Statistics handlers ---
 
 func (h *Handler) GetStatistics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatistics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetResourceStatistics(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetResourceStatistics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -322,9 +351,11 @@ func (h *Handler) GetStatistics(c *gin.Context) {
 // --- Resource Sync handlers ---
 
 func (h *Handler) TriggerSync(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerSync")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	accountID := c.Param("accountId")
-	result, err := h.svc.SyncResources(c.Request.Context(), tenantID, accountID)
+	result, err := h.svc.SyncResources(ctx, tenantID, accountID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -335,10 +366,12 @@ func (h *Handler) TriggerSync(c *gin.Context) {
 // --- Compliance handlers ---
 
 func (h *Handler) RunComplianceCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunComplianceCheck")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.ComplianceCheckInput
 	c.ShouldBindJSON(&body)
-	report, err := h.svc.RunComplianceCheck(c.Request.Context(), tenantID, body.Categories)
+	report, err := h.svc.RunComplianceCheck(ctx, tenantID, body.Categories)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -347,6 +380,8 @@ func (h *Handler) RunComplianceCheck(c *gin.Context) {
 }
 
 func (h *Handler) GetComplianceRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComplianceRules")
+	defer span.End()
 	rules := h.svc.GetComplianceRules()
 	middleware.RespondSuccess(c, rules)
 }
@@ -354,13 +389,15 @@ func (h *Handler) GetComplianceRules(c *gin.Context) {
 // --- Scheduling handlers ---
 
 func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedulingPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.SchedulingPolicyInput
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	policy, err := h.svc.CreateSchedulingPolicy(c.Request.Context(), tenantID, body)
+	policy, err := h.svc.CreateSchedulingPolicy(ctx, tenantID, body)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -369,8 +406,10 @@ func (h *Handler) CreateSchedulingPolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedulingPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	policies, err := h.svc.ListSchedulingPolicies(c.Request.Context(), tenantID)
+	policies, err := h.svc.ListSchedulingPolicies(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -379,13 +418,15 @@ func (h *Handler) ListSchedulingPolicies(c *gin.Context) {
 }
 
 func (h *Handler) ScheduleResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScheduleResource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.ScheduleResourceInput
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	decision, err := h.svc.ScheduleResource(c.Request.Context(), tenantID, body)
+	decision, err := h.svc.ScheduleResource(ctx, tenantID, body)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -394,8 +435,10 @@ func (h *Handler) ScheduleResource(c *gin.Context) {
 }
 
 func (h *Handler) GetSchedulingHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSchedulingHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	history, err := h.svc.GetSchedulingHistory(c.Request.Context(), tenantID)
+	history, err := h.svc.GetSchedulingHistory(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -406,13 +449,15 @@ func (h *Handler) GetSchedulingHistory(c *gin.Context) {
 // --- Migration handlers ---
 
 func (h *Handler) CreateMigrationPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateMigrationPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.MigrationPlanInput
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	plan, err := h.svc.CreateMigrationPlan(c.Request.Context(), tenantID, body)
+	plan, err := h.svc.CreateMigrationPlan(ctx, tenantID, body)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -421,9 +466,11 @@ func (h *Handler) CreateMigrationPlan(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteMigration(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteMigration")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	planID := c.Param("planId")
-	result, err := h.svc.ExecuteMigration(c.Request.Context(), tenantID, planID)
+	result, err := h.svc.ExecuteMigration(ctx, tenantID, planID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return

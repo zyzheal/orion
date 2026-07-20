@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/user-profile/models"
+)
+
 // ServiceInterface defines the interface for the user-profile service.
 type ServiceInterface interface {
 	EnsureProfile(ctx context.Context, tenantID, userID string) (*models.UserProfile, error)

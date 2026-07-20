@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/ai-security/models"
+)
+
 // ServiceInterface defines the interface for the ai-security service.
 type ServiceInterface interface {
 	BlockAccess(ctx context.Context, tenantID, target string) (gin.H, error)

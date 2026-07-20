@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ci-type/models"
+	"orion/platform-svc-go/internal/ci-type/repository"
+)
+
 // ServiceInterface defines the interface for the ci-type service.
 type ServiceInterface interface {
 	CreateType(ctx context.Context, req *models.CreateCITypeRequest, tenantID string) (*models.CIType, error)

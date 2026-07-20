@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/digital-twin-simulation/models"
+)
+
 // ServiceInterface defines the interface for the digital-twin-simulation service.
 type ServiceInterface interface {
 	CreateTwin(ctx context.Context, tenantID string, req models.CreateTwinRequest) (*models.DigitalTwin, error)

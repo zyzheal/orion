@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/sla/models"
+)
+
 // ServiceInterface defines the interface for the sla service.
 type ServiceInterface interface {
 	CreateDefinition(ctx context.Context, tenantID string, req models.CreateDefinitionRequest) (*models.SLADefinition, error)

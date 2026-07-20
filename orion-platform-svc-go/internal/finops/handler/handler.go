@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -83,6 +84,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Budget Guards ---
 
 func (h *Handler) CreateBudgetGuard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBudgetGuard")
+	defer span.End()
 	var req models.CreateBudgetGuardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -93,7 +96,7 @@ func (h *Handler) CreateBudgetGuard(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	guard, err := h.svc.CreateBudgetGuard(c.Request.Context(), &req, tenantID)
+	guard, err := h.svc.CreateBudgetGuard(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -102,8 +105,10 @@ func (h *Handler) CreateBudgetGuard(c *gin.Context) {
 }
 
 func (h *Handler) ListBudgetGuards(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBudgetGuards")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	guards, err := h.svc.ListBudgetGuards(c.Request.Context(), tenantID)
+	guards, err := h.svc.ListBudgetGuards(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -112,9 +117,11 @@ func (h *Handler) ListBudgetGuards(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBudgetGuard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBudgetGuard")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteBudgetGuard(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteBudgetGuard(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -129,6 +136,8 @@ func (h *Handler) DeleteBudgetGuard(c *gin.Context) {
 // --- Evaluate Cost ---
 
 func (h *Handler) EvaluateCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateCost")
+	defer span.End()
 	var req struct {
 		PipelineID    string   `json:"pipelineId"`
 		EstimatedCost *float64 `json:"estimatedCost"`
@@ -144,7 +153,7 @@ func (h *Handler) EvaluateCost(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.EvaluateCost(c.Request.Context(), tenantID, req.PipelineID, *req.EstimatedCost, req.ProjectID, req.Environment)
+	result, err := h.svc.EvaluateCost(ctx, tenantID, req.PipelineID, *req.EstimatedCost, req.ProjectID, req.Environment)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -160,10 +169,12 @@ func (h *Handler) EvaluateCost(c *gin.Context) {
 // --- Anomalies ---
 
 func (h *Handler) DetectAnomalies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectAnomalies")
+	defer span.End()
 	var req models.DetectAnomaliesRequest
 	c.ShouldBindJSON(&req) // optional body, don't fail on bad json
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.DetectAnomalies(c.Request.Context(), tenantID, req.Days, req.Start, req.End)
+	result, err := h.svc.DetectAnomalies(ctx, tenantID, req.Days, req.Start, req.End)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -174,6 +185,8 @@ func (h *Handler) DetectAnomalies(c *gin.Context) {
 // --- Cost Trend ---
 
 func (h *Handler) GetCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostTrend")
+	defer span.End()
 	daysStr := c.Query("days")
 	days := 30
 	if daysStr != "" {
@@ -184,7 +197,7 @@ func (h *Handler) GetCostTrend(c *gin.Context) {
 		}
 	}
 	tenantID := h.getTenantID(c)
-	trend, err := h.svc.GetCostTrend(c.Request.Context(), tenantID, days)
+	trend, err := h.svc.GetCostTrend(ctx, tenantID, days)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -195,8 +208,10 @@ func (h *Handler) GetCostTrend(c *gin.Context) {
 // --- Cost Overview ---
 
 func (h *Handler) GetCostOverview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostOverview")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	overview, err := h.svc.GetCostOverview(c.Request.Context(), tenantID)
+	overview, err := h.svc.GetCostOverview(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -207,6 +222,8 @@ func (h *Handler) GetCostOverview(c *gin.Context) {
 // --- Optimization Suggestions ---
 
 func (h *Handler) ListOptimizations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOptimizations")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	category := c.Query("category")
 	minSavings := c.Query("minSavings")
@@ -222,7 +239,7 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 			minPtr = &v
 		}
 	}
-	suggestions, err := h.svc.GetOptimizationSuggestions(c.Request.Context(), tenantID, catPtr, minPtr)
+	suggestions, err := h.svc.GetOptimizationSuggestions(ctx, tenantID, catPtr, minPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -231,9 +248,11 @@ func (h *Handler) ListOptimizations(c *gin.Context) {
 }
 
 func (h *Handler) ApplyOptimization(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplyOptimization")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	applied, err := h.svc.ApplyOptimization(c.Request.Context(), tenantID, id)
+	applied, err := h.svc.ApplyOptimization(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -246,9 +265,11 @@ func (h *Handler) ApplyOptimization(c *gin.Context) {
 }
 
 func (h *Handler) RejectOptimization(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectOptimization")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	rejected, err := h.svc.RejectOptimization(c.Request.Context(), tenantID, id)
+	rejected, err := h.svc.RejectOptimization(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -263,13 +284,15 @@ func (h *Handler) RejectOptimization(c *gin.Context) {
 // --- Cost Comparison (4.40) ---
 
 func (h *Handler) CompareCosts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompareCosts")
+	defer span.End()
 	var req models.CostComparisonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.CompareCosts(c.Request.Context(), tenantID, req.ServiceA, req.ServiceB, req.Period)
+	result, err := h.svc.CompareCosts(ctx, tenantID, req.ServiceA, req.ServiceB, req.Period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,10 +303,12 @@ func (h *Handler) CompareCosts(c *gin.Context) {
 // --- Service Cost Trend (4.40) ---
 
 func (h *Handler) GetServiceCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceCostTrend")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	serviceID := c.DefaultQuery("serviceId", "default")
 	period := c.DefaultQuery("period", "monthly")
-	trend, err := h.svc.GetServiceCostTrend(c.Request.Context(), tenantID, serviceID, period)
+	trend, err := h.svc.GetServiceCostTrend(ctx, tenantID, serviceID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -294,10 +319,12 @@ func (h *Handler) GetServiceCostTrend(c *gin.Context) {
 // --- Service Optimization Suggestions (4.40) ---
 
 func (h *Handler) GetServiceOptimizationSuggestions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceOptimizationSuggestions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	serviceID := c.DefaultQuery("serviceId", "default")
 	entityType := c.DefaultQuery("entityType", "project")
-	suggestions, err := h.svc.GetServiceOptimizationSuggestions(c.Request.Context(), tenantID, serviceID, entityType)
+	suggestions, err := h.svc.GetServiceOptimizationSuggestions(ctx, tenantID, serviceID, entityType)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

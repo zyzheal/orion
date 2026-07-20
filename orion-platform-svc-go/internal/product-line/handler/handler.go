@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -72,13 +73,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== ProductLine CRUD ====================
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateProductLineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -87,9 +90,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
@@ -98,9 +103,11 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) GetByName(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetByName")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	m, err := h.svc.GetByName(c.Request.Context(), tenantID, name)
+	m, err := h.svc.GetByName(ctx, tenantID, name)
 	if err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
@@ -109,10 +116,12 @@ func (h *Handler) GetByName(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -121,6 +130,8 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateProductLineRequest
@@ -128,7 +139,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
@@ -137,9 +148,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
@@ -150,9 +163,11 @@ func (h *Handler) Delete(c *gin.Context) {
 // ==================== Lifecycle ====================
 
 func (h *Handler) Activate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Activate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Activate(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Activate(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
@@ -161,9 +176,11 @@ func (h *Handler) Activate(c *gin.Context) {
 }
 
 func (h *Handler) Suspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Suspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Suspend(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Suspend(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
@@ -177,11 +194,13 @@ func (h *Handler) Suspend(c *gin.Context) {
 // Currently returns the default "dev" environment; the TS implementation
 // resolves via environmentMappings stored in the full product-line model.
 func (h *Handler) ResolveEnvironment(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResolveEnvironment")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	branch := c.Query("branch")
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
@@ -196,11 +215,13 @@ func (h *Handler) ResolveEnvironment(c *gin.Context) {
 // RequiresApproval checks whether a branch requires approval before deployment.
 // Default: true when no mapping matches (safe default per TS service).
 func (h *Handler) RequiresApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RequiresApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	_ = c.Query("branch")
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, id); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, id); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
@@ -211,6 +232,8 @@ func (h *Handler) RequiresApproval(c *gin.Context) {
 // ==================== ReleaseTrain ====================
 
 func (h *Handler) CreateReleaseTrain(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateReleaseTrain")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	productLineID := c.Param("id")
 	var req models.CreateReleaseTrainRequest
@@ -219,11 +242,11 @@ func (h *Handler) CreateReleaseTrain(c *gin.Context) {
 		return
 	}
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, productLineID); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	rt, err := h.svc.CreateReleaseTrain(c.Request.Context(), tenantID, productLineID, req)
+	rt, err := h.svc.CreateReleaseTrain(ctx, tenantID, productLineID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -232,14 +255,16 @@ func (h *Handler) CreateReleaseTrain(c *gin.Context) {
 }
 
 func (h *Handler) GetReleaseTrains(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReleaseTrains")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	productLineID := c.Param("id")
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, productLineID); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	rts, err := h.svc.GetReleaseTrains(c.Request.Context(), tenantID, productLineID)
+	rts, err := h.svc.GetReleaseTrains(ctx, tenantID, productLineID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -250,6 +275,8 @@ func (h *Handler) GetReleaseTrains(c *gin.Context) {
 // ==================== HotfixChannel ====================
 
 func (h *Handler) CreateHotfixChannel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateHotfixChannel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	productLineID := c.Param("id")
 	var req models.CreateHotfixChannelRequest
@@ -258,11 +285,11 @@ func (h *Handler) CreateHotfixChannel(c *gin.Context) {
 		return
 	}
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, productLineID); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	hc, err := h.svc.CreateHotfixChannel(c.Request.Context(), tenantID, productLineID, req)
+	hc, err := h.svc.CreateHotfixChannel(ctx, tenantID, productLineID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -271,14 +298,16 @@ func (h *Handler) CreateHotfixChannel(c *gin.Context) {
 }
 
 func (h *Handler) GetHotfixChannels(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHotfixChannels")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	productLineID := c.Param("id")
 	// Verify product line exists
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, productLineID); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, productLineID); err != nil {
 		middleware.RespondNotFound(c, "ProductLine not found")
 		return
 	}
-	hcs, err := h.svc.GetHotfixChannels(c.Request.Context(), tenantID, productLineID)
+	hcs, err := h.svc.GetHotfixChannels(ctx, tenantID, productLineID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -287,10 +316,12 @@ func (h *Handler) GetHotfixChannels(c *gin.Context) {
 }
 
 func (h *Handler) IsHotfix(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IsHotfix")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	productLineID := c.Param("id")
 	branch := c.Query("branch")
-	isHotfix, err := h.svc.IsHotfixBranch(c.Request.Context(), tenantID, productLineID, branch)
+	isHotfix, err := h.svc.IsHotfixBranch(ctx, tenantID, productLineID, branch)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

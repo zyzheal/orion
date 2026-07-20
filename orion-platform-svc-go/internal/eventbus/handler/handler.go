@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/eventbus/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler provides HTTP route handlers for the event bus.
@@ -77,6 +78,8 @@ func parsePagination(c *gin.Context) (page, pageSize int) {
 
 // Publish handles POST /events — publish a new event.
 func (h *Handler) Publish(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Publish")
+	defer span.End()
 	var req models.PublishRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -84,7 +87,7 @@ func (h *Handler) Publish(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	event, err := h.svc.Publish(c.Request.Context(), tenantID, userID, &req)
+	event, err := h.svc.Publish(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -94,6 +97,8 @@ func (h *Handler) Publish(c *gin.Context) {
 
 // List handles GET /events — paginated event listing with optional type filter.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	page, pageSize := parsePagination(c)
@@ -104,13 +109,13 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Type = &t
 	}
 
-	events, err := h.svc.List(c.Request.Context(), tenantID, filter, offset, pageSize)
+	events, err := h.svc.List(ctx, tenantID, filter, offset, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
 
-	total, err := h.svc.Count(c.Request.Context(), tenantID)
+	total, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -126,8 +131,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Count handles GET /events/count — total event count for a tenant.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -137,13 +144,15 @@ func (h *Handler) Count(c *gin.Context) {
 
 // Connect handles POST /connect — connect to NATS cluster.
 func (h *Handler) Connect(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Connect")
+	defer span.End()
 	var req models.ConnectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.Connect(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Connect(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -153,8 +162,10 @@ func (h *Handler) Connect(c *gin.Context) {
 
 // GetStatus handles GET /status — event bus connection health check.
 func (h *Handler) GetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatus")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	status, err := h.svc.GetStatus(c.Request.Context(), tenantID)
+	status, err := h.svc.GetStatus(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -164,8 +175,10 @@ func (h *Handler) GetStatus(c *gin.Context) {
 
 // ListSubscriptions handles GET /subscriptions — active subscriptions.
 func (h *Handler) ListSubscriptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSubscriptions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	subs, err := h.svc.ListSubscriptions(c.Request.Context(), tenantID)
+	subs, err := h.svc.ListSubscriptions(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -175,6 +188,8 @@ func (h *Handler) ListSubscriptions(c *gin.Context) {
 
 // GetDLQ handles GET /dlq — dead letter queue messages.
 func (h *Handler) GetDLQ(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDLQ")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	limit := 20
 	if l := c.Query("limit"); l != "" {
@@ -185,7 +200,7 @@ func (h *Handler) GetDLQ(c *gin.Context) {
 			}
 		}
 	}
-	resp, err := h.svc.GetDLQ(c.Request.Context(), tenantID, &models.DLQQuery{Limit: limit})
+	resp, err := h.svc.GetDLQ(ctx, tenantID, &models.DLQQuery{Limit: limit})
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -195,8 +210,10 @@ func (h *Handler) GetDLQ(c *gin.Context) {
 
 // GetStats handles GET /stats — event bus statistics.
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

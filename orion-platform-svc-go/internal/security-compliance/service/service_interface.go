@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/security-compliance/models"
+)
+
 // ServiceInterface defines the interface for the security-compliance service.
 type ServiceInterface interface {
 	AutoRemediateCompliance(ctx context.Context, tenantID string, req models.RemediationRequest) (*models.RemediationResult, error)

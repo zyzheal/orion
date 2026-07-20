@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/lowcode/models"
+)
+
 // ServiceInterface defines the interface for the lowcode service.
 type ServiceInterface interface {
 	ApplyTemplate(ctx context.Context, tenantID, userID, templateID string, req *models.ApplyTemplateRequest) (*models.LowcodeFlow, error)

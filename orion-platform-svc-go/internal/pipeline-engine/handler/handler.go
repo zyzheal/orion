@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for the Pipeline Engine.
@@ -64,6 +65,8 @@ var _ = strconv.Itoa
 
 // TriggerRun triggers a pipeline execution.
 func (h *Handler) TriggerRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -83,6 +86,8 @@ func (h *Handler) TriggerRun(c *gin.Context) {
 
 // GetRun retrieves pipeline run status.
 func (h *Handler) GetRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	run, err := h.engine.GetRun(ctx, tenantID, c.Param("runId"))
@@ -95,6 +100,8 @@ func (h *Handler) GetRun(c *gin.Context) {
 
 // ListRuns lists pipeline runs.
 func (h *Handler) ListRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRuns")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	req := models.ListRunsQuery{}
@@ -116,6 +123,8 @@ func (h *Handler) ListRuns(c *gin.Context) {
 
 // GetStages retrieves stages for a run.
 func (h *Handler) GetStages(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStages")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	stages, err := h.engine.GetStages(ctx, tenantID, c.Param("runId"))
@@ -128,6 +137,8 @@ func (h *Handler) GetStages(c *gin.Context) {
 
 // GetTasks retrieves tasks for a stage.
 func (h *Handler) GetTasks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTasks")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	tasks, err := h.engine.GetTasks(ctx, tenantID, c.Param("stageId"))
@@ -140,6 +151,8 @@ func (h *Handler) GetTasks(c *gin.Context) {
 
 // CancelRun cancels a running pipeline.
 func (h *Handler) CancelRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	var req models.CancelRunRequest

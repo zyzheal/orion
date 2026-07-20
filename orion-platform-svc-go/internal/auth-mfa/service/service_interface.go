@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/auth-mfa/models"
+)
+
 // ServiceInterface defines the interface for the auth-mfa service.
 type ServiceInterface interface {
 	ActivateDevice(ctx context.Context, tenantID, id string) error

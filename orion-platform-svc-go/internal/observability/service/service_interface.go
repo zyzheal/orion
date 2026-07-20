@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/observability/models"
+)
+
 // ServiceInterface defines the interface for the observability service.
 type ServiceInterface interface {
 	CreateAlertRule(ctx context.Context, tenantID string, rule *models.AlertRule) (*models.AlertRule, error)

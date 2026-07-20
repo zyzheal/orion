@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Coordinator defines the interface for saga coordinator operations used by the handler.
@@ -54,6 +55,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateTransaction starts a new saga transaction.
 func (h *Handler) CreateTransaction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTransaction")
+	defer span.End()
 	var req models.CreateSagaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -61,7 +64,7 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 	}
 
 	tenantID := c.GetString("tenant_id")
-	tx, err := h.coordinator.Start(c.Request.Context(), tenantID, &req)
+	tx, err := h.coordinator.Start(ctx, tenantID, &req)
 	if err != nil {
 		if err.Error() == service.ErrSagaRunning.Error() {
 			middleware.RespondConflict(c, err.Error())
@@ -75,10 +78,12 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 
 // GetTransaction retrieves a saga transaction.
 func (h *Handler) GetTransaction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTransaction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	txID := c.Param("transactionId")
 
-	tx, err := h.coordinator.GetTransaction(c.Request.Context(), tenantID, txID)
+	tx, err := h.coordinator.GetTransaction(ctx, tenantID, txID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -88,6 +93,8 @@ func (h *Handler) GetTransaction(c *gin.Context) {
 
 // ListTransactions lists saga transactions.
 func (h *Handler) ListTransactions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTransactions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var q models.ListSagasQuery
@@ -96,7 +103,7 @@ func (h *Handler) ListTransactions(c *gin.Context) {
 		return
 	}
 
-	result, err := h.coordinator.ListTransactions(c.Request.Context(), tenantID, q)
+	result, err := h.coordinator.ListTransactions(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -106,6 +113,8 @@ func (h *Handler) ListTransactions(c *gin.Context) {
 
 // CancelTransaction cancels a running saga.
 func (h *Handler) CancelTransaction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelTransaction")
+	defer span.End()
 	var req models.CancelSagaRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -120,7 +129,7 @@ func (h *Handler) CancelTransaction(c *gin.Context) {
 		reason = "cancelled by user"
 	}
 
-	tx, err := h.coordinator.Cancel(c.Request.Context(), tenantID, txID, reason)
+	tx, err := h.coordinator.Cancel(ctx, tenantID, txID, reason)
 	if err != nil {
 		if err.Error() == service.ErrInvalidStatus.Error() {
 			middleware.RespondBadRequest(c, err.Error())
@@ -134,6 +143,8 @@ func (h *Handler) CancelTransaction(c *gin.Context) {
 
 // CompensateTransaction manually triggers compensation.
 func (h *Handler) CompensateTransaction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompensateTransaction")
+	defer span.End()
 	var req struct {
 		Reason string `json:"reason"`
 	}
@@ -142,7 +153,7 @@ func (h *Handler) CompensateTransaction(c *gin.Context) {
 	tenantID := c.GetString("tenant_id")
 	txID := c.Param("transactionId")
 
-	err := h.coordinator.StartCompensation(c.Request.Context(), tenantID, txID, req.Reason)
+	err := h.coordinator.StartCompensation(ctx, tenantID, txID, req.Reason)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -152,6 +163,8 @@ func (h *Handler) CompensateTransaction(c *gin.Context) {
 
 // GetSteps retrieves all steps in a transaction.
 func (h *Handler) GetSteps(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSteps")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	txID := c.Param("transactionId")
 
@@ -162,7 +175,7 @@ func (h *Handler) GetSteps(c *gin.Context) {
 	}
 	_ = q
 
-	steps, err := h.coordinator.GetSteps(c.Request.Context(), tenantID, txID)
+	steps, err := h.coordinator.GetSteps(ctx, tenantID, txID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -172,10 +185,12 @@ func (h *Handler) GetSteps(c *gin.Context) {
 
 // GetStep retrieves a single step.
 func (h *Handler) GetStep(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStep")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	stepID := c.Param("stepId")
 
-	step, err := h.coordinator.GetStepByID(c.Request.Context(), tenantID, stepID)
+	step, err := h.coordinator.GetStepByID(ctx, tenantID, stepID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

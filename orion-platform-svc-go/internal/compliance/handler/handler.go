@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -42,9 +43,11 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReports")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	framework := c.Query("framework")
-	reports, err := h.svc.ListReports(c.Request.Context(), tenantID, framework)
+	reports, err := h.svc.ListReports(ctx, tenantID, framework)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -53,8 +56,10 @@ func (h *Handler) ListReports(c *gin.Context) {
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReport")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	report, err := h.svc.GetReport(c.Request.Context(), c.Param("id"), tenantID)
+	report, err := h.svc.GetReport(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -67,13 +72,15 @@ func (h *Handler) GetReport(c *gin.Context) {
 }
 
 func (h *Handler) CreateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateReport")
+	defer span.End()
 	var req models.CreateComplianceReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	report, err := h.svc.CreateReport(c.Request.Context(), tenantID, &req)
+	report, err := h.svc.CreateReport(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -82,13 +89,15 @@ func (h *Handler) CreateReport(c *gin.Context) {
 }
 
 func (h *Handler) UpdateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateReport")
+	defer span.End()
 	var req models.UpdateComplianceReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	report, err := h.svc.UpdateReport(c.Request.Context(), c.Param("id"), tenantID, &req)
+	report, err := h.svc.UpdateReport(ctx, c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -101,8 +110,10 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteReport")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteReport(c.Request.Context(), c.Param("id"), tenantID)
+	deleted, err := h.svc.DeleteReport(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -115,8 +126,10 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 }
 
 func (h *Handler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedules")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	schedules, err := h.svc.ListSchedules(c.Request.Context(), tenantID)
+	schedules, err := h.svc.ListSchedules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -125,13 +138,15 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 }
 
 func (h *Handler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedule")
+	defer span.End()
 	var req models.CreateComplianceScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	schedule, err := h.svc.CreateSchedule(c.Request.Context(), tenantID, &req)
+	schedule, err := h.svc.CreateSchedule(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -140,8 +155,10 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSchedule")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteSchedule(c.Request.Context(), c.Param("id"), tenantID)
+	deleted, err := h.svc.DeleteSchedule(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

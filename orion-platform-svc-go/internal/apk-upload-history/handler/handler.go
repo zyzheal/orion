@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/apk-upload-history/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -33,6 +34,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListRecords(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecords")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -43,7 +46,7 @@ func (h *Handler) ListRecords(c *gin.Context) {
 		Status:      c.Query("status"),
 		PackageName: c.Query("package_name"),
 	}
-	items, total, err := h.svc.ListRecords(c.Request.Context(), tenantID, q)
+	items, total, err := h.svc.ListRecords(ctx, tenantID, q)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -52,9 +55,11 @@ func (h *Handler) ListRecords(c *gin.Context) {
 }
 
 func (h *Handler) GetRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	item, err := h.svc.GetRecord(c.Request.Context(), tenantID, id)
+	item, err := h.svc.GetRecord(ctx, tenantID, id)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -63,6 +68,8 @@ func (h *Handler) GetRecord(c *gin.Context) {
 }
 
 func (h *Handler) CreateRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -83,7 +90,7 @@ func (h *Handler) CreateRecord(c *gin.Context) {
 		Checksum:    req.Checksum,
 		UploadedBy:  req.UploadedBy,
 	}
-	item, err := h.svc.CreateRecord(c.Request.Context(), tenantID, record)
+	item, err := h.svc.CreateRecord(ctx, tenantID, record)
 	if err != nil {
 		if err == service.ErrBadRequest || err == service.ErrInvalidChecksum {
 			goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
@@ -96,6 +103,8 @@ func (h *Handler) CreateRecord(c *gin.Context) {
 }
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req struct {
@@ -106,7 +115,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	item, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, models.ApkStatus(req.Status), req.ErrorMsg)
+	item, err := h.svc.UpdateStatus(ctx, tenantID, id, models.ApkStatus(req.Status), req.ErrorMsg)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -119,10 +128,12 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRecord(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRecord")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	// Update status to failed as soft delete
-	_, err := h.svc.UpdateStatus(c.Request.Context(), tenantID, id, models.StatusFailed, "deleted by user")
+	_, err := h.svc.UpdateStatus(ctx, tenantID, id, models.StatusFailed, "deleted by user")
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -131,8 +142,10 @@ func (h *Handler) DeleteRecord(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -141,8 +154,10 @@ func (h *Handler) GetStats(c *gin.Context) {
 }
 
 func (h *Handler) RecentFailures(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecentFailures")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.RecentFailures(c.Request.Context(), tenantID)
+	items, err := h.svc.RecentFailures(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -151,6 +166,8 @@ func (h *Handler) RecentFailures(c *gin.Context) {
 }
 
 func (h *Handler) CheckDuplicate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckDuplicate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		Market      string `json:"market" binding:"required"`
@@ -161,7 +178,7 @@ func (h *Handler) CheckDuplicate(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	exists, err := h.svc.CheckDuplicate(c.Request.Context(), tenantID, req.Market, req.PackageName, req.Version)
+	exists, err := h.svc.CheckDuplicate(ctx, tenantID, req.Market, req.PackageName, req.Version)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/change/models"
+)
+
 // ServiceInterface defines the interface for the change service.
 type ServiceInterface interface {
 	AddCABDecision(ctx context.Context, tenantID, cabID string, req models.CreateCABDecisionRequest) (*models.CABDecision, error)

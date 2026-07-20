@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/workflow-svc-go/internal/workflow-webhook/models"

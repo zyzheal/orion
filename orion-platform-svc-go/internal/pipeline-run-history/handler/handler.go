@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -43,6 +44,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // RunHistory handles GET /pipelines/:id/run-history.
 func (h *Handler) RunHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RunHistory")
+	defer span.End()
 	pipelineID := c.Param("id")
 	tenantID := h.getTenantID(c)
 
@@ -62,7 +65,7 @@ func (h *Handler) RunHistory(c *gin.Context) {
 		limit = l
 	}
 
-	resp, err := h.svc.GetRunHistory(c.Request.Context(), pipelineID, tenantID, period, limit)
+	resp, err := h.svc.GetRunHistory(ctx, pipelineID, tenantID, period, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline not found")

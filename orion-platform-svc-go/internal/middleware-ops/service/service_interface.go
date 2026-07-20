@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/middleware-ops/models"
+)
+
 // ServiceInterface defines the interface for the middleware-ops service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id string) (string, error)

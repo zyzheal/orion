@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/infrastructure/models"
+)
+
 // ServiceInterface defines the interface for the infrastructure service.
 type ServiceInterface interface {
 	AllowTraffic(ctx context.Context, tenantID string, req models.AllowTrafficRequest) (*models.SandboxNetworkPolicy, error)

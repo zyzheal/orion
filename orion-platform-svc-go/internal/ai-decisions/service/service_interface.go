@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-decisions/models"
+)
+
 // ServiceInterface defines the interface for the ai-decisions service.
 type ServiceInterface interface {
 	AnalyzeDecisions(ctx context.Context, tenantID string, req *models.AnalyzeDecisionsRequest) (*models.AnalyzeDecisionsResult, error)

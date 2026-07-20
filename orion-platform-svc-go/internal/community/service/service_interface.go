@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/community/models"
+)
+
 // ServiceInterface defines the interface for the community service.
 type ServiceInterface interface {
 	Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.Community, error)

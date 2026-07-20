@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/oci-registry/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -42,8 +43,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -52,9 +55,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -63,13 +68,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.CreateOciRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -78,6 +85,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	var req models.UpdateOciRegistryRequest
@@ -85,7 +94,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -94,9 +103,11 @@ item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
@@ -104,6 +115,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) ToggleRegistry(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleRegistry")
+	defer span.End()
 	registryID := c.Param("registryId")
 	var req models.ToggleRegistryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -111,7 +124,7 @@ func (h *Handler) ToggleRegistry(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ToggleRegistry(c.Request.Context(), tenantID, registryID, &req)
+	result, err := h.svc.ToggleRegistry(ctx, tenantID, registryID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -120,6 +133,8 @@ func (h *Handler) ToggleRegistry(c *gin.Context) {
 }
 
 func (h *Handler) ListTags(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTags")
+	defer span.End()
 	registryID := c.Param("registryId")
 	name := c.Param("name")
 	var q models.TagsQuery
@@ -128,7 +143,7 @@ func (h *Handler) ListTags(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ListTags(c.Request.Context(), tenantID, registryID, name, &q)
+	result, err := h.svc.ListTags(ctx, tenantID, registryID, name, &q)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -137,11 +152,13 @@ func (h *Handler) ListTags(c *gin.Context) {
 }
 
 func (h *Handler) DeleteImage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteImage")
+	defer span.End()
 	registryID := c.Param("registryId")
 	name := c.Param("name")
 	digest := c.Param("digest")
 	tenantID := h.getTenantID(c)
-	if err := h.svc.DeleteImage(c.Request.Context(), tenantID, registryID, name, digest); err != nil {
+	if err := h.svc.DeleteImage(ctx, tenantID, registryID, name, digest); err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
 	}

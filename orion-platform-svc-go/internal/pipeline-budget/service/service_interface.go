@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-budget/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-budget service.
 type ServiceInterface interface {
 	AppendBudgetHistory(ctx context.Context, h *models.BudgetHistoryRecord) error

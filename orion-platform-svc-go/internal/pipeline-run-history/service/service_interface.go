@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-run-history/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-run-history service.
 type ServiceInterface interface {
 	GetRunHistory(ctx context.Context, pipelineID string, tenantID string, period string, limit int) (*models.RunHistoryResponse, error)

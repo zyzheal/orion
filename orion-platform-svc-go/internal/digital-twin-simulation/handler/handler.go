@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -68,13 +69,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- CRUD ---
 
 func (h *Handler) CreateTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTwinRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	twin, err := h.svc.CreateTwin(c.Request.Context(), tenantID, req)
+	twin, err := h.svc.CreateTwin(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -83,9 +86,11 @@ func (h *Handler) CreateTwin(c *gin.Context) {
 }
 
 func (h *Handler) ListTwins(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTwins")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := parseListQuery(c)
-	items, total, err := h.svc.ListTwins(c.Request.Context(), tenantID, q)
+	items, total, err := h.svc.ListTwins(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -103,9 +108,11 @@ func (h *Handler) ListTwins(c *gin.Context) {
 }
 
 func (h *Handler) GetTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	twin, err := h.svc.GetTwin(c.Request.Context(), tenantID, id)
+	twin, err := h.svc.GetTwin(ctx, tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -118,6 +125,8 @@ func (h *Handler) GetTwin(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateTwinRequest
@@ -125,7 +134,7 @@ func (h *Handler) UpdateTwin(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	twin, err := h.svc.UpdateTwin(c.Request.Context(), tenantID, id, req)
+	twin, err := h.svc.UpdateTwin(ctx, tenantID, id, req)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -138,9 +147,11 @@ func (h *Handler) UpdateTwin(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteTwin(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteTwin(ctx, tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -155,9 +166,11 @@ func (h *Handler) DeleteTwin(c *gin.Context) {
 // --- Sync ---
 
 func (h *Handler) SyncTwin(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SyncTwin")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	twin, err := h.svc.SyncTwin(c.Request.Context(), tenantID, id)
+	twin, err := h.svc.SyncTwin(ctx, tenantID, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -172,8 +185,10 @@ func (h *Handler) SyncTwin(c *gin.Context) {
 // --- State ---
 
 func (h *Handler) GetState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetState")
+	defer span.End()
 	id := c.Param("id")
-	state, err := h.svc.GetState(c.Request.Context(), id)
+	state, err := h.svc.GetState(ctx, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "twin state not found")
@@ -188,6 +203,8 @@ func (h *Handler) GetState(c *gin.Context) {
 // --- Simulate ---
 
 func (h *Handler) Simulate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Simulate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.SimulateRequest
@@ -195,7 +212,7 @@ func (h *Handler) Simulate(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	sim, err := h.svc.Simulate(c.Request.Context(), tenantID, id, req)
+	sim, err := h.svc.Simulate(ctx, tenantID, id, req)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "digital twin not found")
@@ -210,9 +227,11 @@ func (h *Handler) Simulate(c *gin.Context) {
 // --- Simulation History ---
 
 func (h *Handler) ListSimulations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSimulations")
+	defer span.End()
 	id := c.Param("id")
 	q := parseListQuery(c)
-	sims, total, err := h.svc.ListSimulations(c.Request.Context(), id, q)
+	sims, total, err := h.svc.ListSimulations(ctx, id, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -232,8 +251,10 @@ func (h *Handler) ListSimulations(c *gin.Context) {
 // --- Comparison ---
 
 func (h *Handler) GetComparison(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetComparison")
+	defer span.End()
 	id := c.Param("id")
-	comparison, err := h.svc.GetComparison(c.Request.Context(), id)
+	comparison, err := h.svc.GetComparison(ctx, id)
 	if err != nil {
 		if dt_service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "twin state not found")
@@ -248,13 +269,15 @@ func (h *Handler) GetComparison(c *gin.Context) {
 // --- Predict ---
 
 func (h *Handler) Predict(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Predict")
+	defer span.End()
 	id := c.Param("id")
 	var req models.PredictRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	prediction, err := h.svc.Predict(c.Request.Context(), id, req)
+	prediction, err := h.svc.Predict(ctx, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

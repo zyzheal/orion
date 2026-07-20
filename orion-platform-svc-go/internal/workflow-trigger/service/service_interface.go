@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/workflow-trigger/models"
+)
+
 // ServiceInterface defines the interface for the workflow-trigger service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateWorkflowTriggerRequest) (*models.WorkflowTrigger, error)

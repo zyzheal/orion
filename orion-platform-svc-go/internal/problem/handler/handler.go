@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the interface used by Handler.
@@ -89,6 +90,8 @@ func (h *Handler) getAuthUserID(c *gin.Context) *string {
 // ==================== Problem CRUD ====================
 
 func (h *Handler) ListProblems(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProblems")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	filter := &models.ProblemFilter{
@@ -102,7 +105,7 @@ func (h *Handler) ListProblems(c *gin.Context) {
 		filter.Limit = ptrInt(c, "pageSize", 20)
 	}
 
-	problems, total, err := h.svc.ListProblems(c.Request.Context(), tenantID, filter)
+	problems, total, err := h.svc.ListProblems(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -111,10 +114,12 @@ func (h *Handler) ListProblems(c *gin.Context) {
 }
 
 func (h *Handler) GetProblem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProblem")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
-	problem, err := h.svc.GetProblem(c.Request.Context(), tenantID, id)
+	problem, err := h.svc.GetProblem(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -127,6 +132,8 @@ func (h *Handler) GetProblem(c *gin.Context) {
 }
 
 func (h *Handler) CreateProblem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProblem")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	var req models.CreateProblemRequest
@@ -136,7 +143,7 @@ func (h *Handler) CreateProblem(c *gin.Context) {
 	}
 	req.CreatedBy = h.getAuthUserID(c)
 
-	problem, err := h.svc.CreateProblem(c.Request.Context(), tenantID, &req)
+	problem, err := h.svc.CreateProblem(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -149,6 +156,8 @@ func (h *Handler) CreateProblem(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProblem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateProblem")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
@@ -158,7 +167,7 @@ func (h *Handler) UpdateProblem(c *gin.Context) {
 		return
 	}
 
-	updated, err := h.svc.UpdateProblem(c.Request.Context(), tenantID, id, &req)
+	updated, err := h.svc.UpdateProblem(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -171,10 +180,12 @@ func (h *Handler) UpdateProblem(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProblem(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteProblem")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
-	err := h.svc.DeleteProblem(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteProblem(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -187,9 +198,11 @@ func (h *Handler) DeleteProblem(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -200,6 +213,8 @@ func (h *Handler) GetStats(c *gin.Context) {
 // ==================== Status Transition ====================
 
 func (h *Handler) UpdateStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateStatus")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
@@ -212,7 +227,7 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 	}
 
 	reqStruct := models.UpdateProblemRequest{Status: &req.Status}
-	updated, err := h.svc.UpdateProblem(c.Request.Context(), tenantID, id, &reqStruct)
+	updated, err := h.svc.UpdateProblem(ctx, tenantID, id, &reqStruct)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -227,6 +242,8 @@ func (h *Handler) UpdateStatus(c *gin.Context) {
 // ==================== Linking ====================
 
 func (h *Handler) LinkIncident(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LinkIncident")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	problemID := c.Param("id")
 
@@ -238,7 +255,7 @@ func (h *Handler) LinkIncident(c *gin.Context) {
 		return
 	}
 
-	problem, err := h.svc.LinkIncident(c.Request.Context(), tenantID, problemID, req.IncidentID)
+	problem, err := h.svc.LinkIncident(ctx, tenantID, problemID, req.IncidentID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -251,10 +268,12 @@ func (h *Handler) LinkIncident(c *gin.Context) {
 }
 
 func (h *Handler) GetIncidentLinks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetIncidentLinks")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	problemID := c.Param("id")
 
-	links, err := h.svc.GetIncidentLinks(c.Request.Context(), tenantID, problemID)
+	links, err := h.svc.GetIncidentLinks(ctx, tenantID, problemID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -267,6 +286,8 @@ func (h *Handler) GetIncidentLinks(c *gin.Context) {
 }
 
 func (h *Handler) LinkChange(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LinkChange")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	problemID := c.Param("id")
 
@@ -278,7 +299,7 @@ func (h *Handler) LinkChange(c *gin.Context) {
 		return
 	}
 
-	problem, err := h.svc.LinkChange(c.Request.Context(), tenantID, problemID, req.ChangeID)
+	problem, err := h.svc.LinkChange(ctx, tenantID, problemID, req.ChangeID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -291,10 +312,12 @@ func (h *Handler) LinkChange(c *gin.Context) {
 }
 
 func (h *Handler) GetChangeLinks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangeLinks")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	problemID := c.Param("id")
 
-	links, err := h.svc.GetChangeLinks(c.Request.Context(), tenantID, problemID)
+	links, err := h.svc.GetChangeLinks(ctx, tenantID, problemID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -309,6 +332,8 @@ func (h *Handler) GetChangeLinks(c *gin.Context) {
 // ==================== Known Errors (KEDB) ====================
 
 func (h *Handler) ListKnownErrors(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListKnownErrors")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	filter := &models.KnownErrorFilter{
@@ -317,7 +342,7 @@ func (h *Handler) ListKnownErrors(c *gin.Context) {
 		Offset:    (ptrInt(c, "page", 1)-1) * ptrInt(c, "pageSize", 20),
 	}
 
-	kes, total, err := h.svc.ListKnownErrors(c.Request.Context(), tenantID, filter)
+	kes, total, err := h.svc.ListKnownErrors(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -326,10 +351,12 @@ func (h *Handler) ListKnownErrors(c *gin.Context) {
 }
 
 func (h *Handler) SearchKnownErrors(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SearchKnownErrors")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	query := c.Query("q")
 
-	kes, total, err := h.svc.SearchKnownErrors(c.Request.Context(), tenantID, query)
+	kes, total, err := h.svc.SearchKnownErrors(ctx, tenantID, query)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -342,10 +369,12 @@ func (h *Handler) SearchKnownErrors(c *gin.Context) {
 }
 
 func (h *Handler) GetKnownError(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetKnownError")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
-	ke, err := h.svc.GetKnownError(c.Request.Context(), tenantID, id)
+	ke, err := h.svc.GetKnownError(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "known error not found")
@@ -358,6 +387,8 @@ func (h *Handler) GetKnownError(c *gin.Context) {
 }
 
 func (h *Handler) CreateKnownError(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateKnownError")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	var req models.CreateKnownErrorRequest
@@ -367,7 +398,7 @@ func (h *Handler) CreateKnownError(c *gin.Context) {
 	}
 	req.CreatedBy = h.getAuthUserID(c)
 
-	ke, err := h.svc.CreateKnownError(c.Request.Context(), tenantID, &req)
+	ke, err := h.svc.CreateKnownError(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "problem not found")
@@ -380,6 +411,8 @@ func (h *Handler) CreateKnownError(c *gin.Context) {
 }
 
 func (h *Handler) UpdateKnownError(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateKnownError")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
@@ -389,7 +422,7 @@ func (h *Handler) UpdateKnownError(c *gin.Context) {
 		return
 	}
 
-	ke, err := h.svc.UpdateKnownError(c.Request.Context(), tenantID, id, &req)
+	ke, err := h.svc.UpdateKnownError(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "known error not found")
@@ -402,10 +435,12 @@ func (h *Handler) UpdateKnownError(c *gin.Context) {
 }
 
 func (h *Handler) DeleteKnownError(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteKnownError")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 
-	err := h.svc.DeleteKnownError(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteKnownError(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "known error not found")

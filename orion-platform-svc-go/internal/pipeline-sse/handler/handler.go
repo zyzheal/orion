@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Hub defines the service interface needed by the SSE handler.
@@ -66,6 +67,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // StreamLogs handles GET /pipelines/sse/logs.
 // It establishes an SSE connection for streaming pipeline log events.
 func (h *Handler) StreamLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamLogs")
+	defer span.End()
 	pipelineID := c.Query("pipelineId")
 	runID := c.Query("runId")
 	logLevel := c.Query("logLevel")
@@ -96,6 +99,8 @@ func (h *Handler) StreamLogs(c *gin.Context) {
 // StreamStatus handles GET /pipelines/sse/status.
 // It establishes an SSE connection for streaming pipeline status events.
 func (h *Handler) StreamStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StreamStatus")
+	defer span.End()
 	pipelineID := c.Query("pipelineId")
 	runID := c.Query("runId")
 
@@ -119,6 +124,8 @@ func (h *Handler) StreamStatus(c *gin.Context) {
 // PublishLog handles POST /pipelines/sse/publish/log.
 // Internal endpoint that accepts a log event and broadcasts it.
 func (h *Handler) PublishLog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishLog")
+	defer span.End()
 	var req models.PublishLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -126,7 +133,7 @@ func (h *Handler) PublishLog(c *gin.Context) {
 	}
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.hub.PublishLogEvent(c.Request.Context(), tenantID, &req); err != nil {
+	if err := h.hub.PublishLogEvent(ctx, tenantID, &req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -136,6 +143,8 @@ func (h *Handler) PublishLog(c *gin.Context) {
 // PublishStatus handles POST /pipelines/sse/publish/status.
 // Internal endpoint that accepts a status event and broadcasts it.
 func (h *Handler) PublishStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishStatus")
+	defer span.End()
 	var req models.PublishStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -143,7 +152,7 @@ func (h *Handler) PublishStatus(c *gin.Context) {
 	}
 	tenantID := c.GetString("tenant_id")
 
-	if err := h.hub.PublishStatusEvent(c.Request.Context(), tenantID, &req); err != nil {
+	if err := h.hub.PublishStatusEvent(ctx, tenantID, &req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -152,12 +161,16 @@ func (h *Handler) PublishStatus(c *gin.Context) {
 
 // GetStats handles GET /pipelines/sse/stats.
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	stats := h.hub.GetStats()
 	middleware.RespondSuccess(c, stats)
 }
 
 // GetEvents handles GET /pipelines/sse/events (optional, for replay).
 func (h *Handler) GetEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEvents")
+	defer span.End()
 	pipelineID := c.Query("pipelineId")
 	runID := c.Query("runId")
 	limitStr := c.DefaultQuery("limit", "200")
@@ -172,7 +185,7 @@ func (h *Handler) GetEvents(c *gin.Context) {
 		limit = 200
 	}
 
-	events, err := h.hub.ListEvents(c.Request.Context(), pipelineID, runID, limit)
+	events, err := h.hub.ListEvents(ctx, pipelineID, runID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

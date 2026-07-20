@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-version/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-version service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, versionID string, tenantID string, tag string) (*models.PipelineVersion, error)

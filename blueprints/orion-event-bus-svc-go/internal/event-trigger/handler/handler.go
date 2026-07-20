@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"strconv"
 
 	"orion/event-bus-svc-go/internal/event-trigger/models"

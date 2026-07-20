@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/confirmation/models"
+)
+
 // ServiceInterface defines the interface for the confirmation service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id, tag string) error

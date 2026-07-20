@@ -15,8 +15,18 @@ import (
 
 // DataCompareCommand compares row counts and checksums between two databases.
 func DataCompareCommand(args map[string]string) int {
-	tsDSN := requireFlag(args, "ts-dsn")
-	goDSN := requireFlag(args, "go-dsn")
+	tsDSN, err := requireFlag(args, "ts-dsn")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v
+", err)
+		return types.ExitErr
+	}
+	goDSN, err := requireFlag(args, "go-dsn")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v
+", err)
+		return types.ExitErr
+	}
 	tableArg := args["tables"]
 	checkFK := args["fk"] == "true"
 	format := types.OutputFormat(args["format"])

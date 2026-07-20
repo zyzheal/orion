@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ephemeral-env/models"
+)
+
 // ServiceInterface defines the interface for the ephemeral-env service.
 type ServiceInterface interface {
 	CreateEnv(ctx context.Context, tenantID string, req models.CreateEphemeralEnvRequest) (*models.EphemeralEnv, error)

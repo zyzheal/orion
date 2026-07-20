@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-version/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -40,8 +41,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) GetVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersion")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	version, err := h.svc.GetVersion(c.Request.Context(), c.Param("versionId"), tenantID)
+	version, err := h.svc.GetVersion(ctx, c.Param("versionId"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -54,13 +57,15 @@ func (h *Handler) GetVersion(c *gin.Context) {
 }
 
 func (h *Handler) DiffVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DiffVersions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.DiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	diff, err := h.svc.DiffVersions(c.Request.Context(), c.Param("versionId"), req.OtherVersionID, tenantID)
+	diff, err := h.svc.DiffVersions(ctx, c.Param("versionId"), req.OtherVersionID, tenantID)
 	if err != nil {
 		if stderrors.Is(err, service.ErrVersionNotFound) {
 			middleware.RespondNotFound(c, "version not found")
@@ -73,8 +78,10 @@ func (h *Handler) DiffVersions(c *gin.Context) {
 }
 
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	_, err := h.svc.Rollback(c.Request.Context(), c.Param("versionId"), tenantID)
+	_, err := h.svc.Rollback(ctx, c.Param("versionId"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -87,13 +94,15 @@ func (h *Handler) Rollback(c *gin.Context) {
 }
 
 func (h *Handler) AddTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddTag")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.AddTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	version, err := h.svc.AddTag(c.Request.Context(), c.Param("versionId"), tenantID, req.Tag)
+	version, err := h.svc.AddTag(ctx, c.Param("versionId"), tenantID, req.Tag)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -106,9 +115,11 @@ func (h *Handler) AddTag(c *gin.Context) {
 }
 
 func (h *Handler) RemoveTag(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveTag")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	tag := c.Param("tag")
-	version, err := h.svc.RemoveTag(c.Request.Context(), c.Param("versionId"), tenantID, tag)
+	version, err := h.svc.RemoveTag(ctx, c.Param("versionId"), tenantID, tag)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")
@@ -121,13 +132,15 @@ func (h *Handler) RemoveTag(c *gin.Context) {
 }
 
 func (h *Handler) SetBaseline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetBaseline")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.SetBaselineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	version, err := h.svc.SetBaseline(c.Request.Context(), c.Param("versionId"), tenantID, req.Set)
+	version, err := h.svc.SetBaseline(ctx, c.Param("versionId"), tenantID, req.Set)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "version not found")

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 
 	"orion/workflow-svc-go/internal/approval/models"
 

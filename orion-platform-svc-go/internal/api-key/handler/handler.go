@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/api-key/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for API key management.
@@ -29,6 +30,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new API key (returns plaintext once).
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -38,7 +41,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	key, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	key, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -48,10 +51,12 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves API keys for the current user.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
-	keys, err := h.svc.List(c.Request.Context(), tenantID, userID)
+	keys, err := h.svc.List(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -61,10 +66,12 @@ func (h *Handler) List(c *gin.Context) {
 
 // Delete removes an API key by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
-	if err := h.svc.Delete(c.Request.Context(), tenantID, userID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, userID, c.Param("id")); err != nil {
 		errors.WriteError(c, errors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}

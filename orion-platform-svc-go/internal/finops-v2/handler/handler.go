@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -84,13 +85,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Cost tracking ---
 
 func (h *Handler) TrackProjectCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TrackProjectCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	entry, err := h.svc.TrackProjectCost(c.Request.Context(), tenantID, req)
+	entry, err := h.svc.TrackProjectCost(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -99,13 +102,15 @@ func (h *Handler) TrackProjectCost(c *gin.Context) {
 }
 
 func (h *Handler) TrackTenantCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TrackTenantCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	entry, err := h.svc.TrackTenantCost(c.Request.Context(), tenantID, req)
+	entry, err := h.svc.TrackTenantCost(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -114,13 +119,15 @@ func (h *Handler) TrackTenantCost(c *gin.Context) {
 }
 
 func (h *Handler) TrackTeamCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TrackTeamCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.TrackCostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	entry, err := h.svc.TrackTeamCost(c.Request.Context(), tenantID, req)
+	entry, err := h.svc.TrackTeamCost(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -129,10 +136,12 @@ func (h *Handler) TrackTeamCost(c *gin.Context) {
 }
 
 func (h *Handler) GetCostByEntity(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostByEntity")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	entityType := c.Param("entityType")
 	entityID := c.Param("entityId")
-	items, err := h.svc.GetCostByEntity(c.Request.Context(), tenantID, entityType, entityID)
+	items, err := h.svc.GetCostByEntity(ctx, tenantID, entityType, entityID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -141,11 +150,13 @@ func (h *Handler) GetCostByEntity(c *gin.Context) {
 }
 
 func (h *Handler) GetEntityCostTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEntityCostTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	entityType := c.Param("entityType")
 	entityID := c.Param("entityId")
 	period := c.DefaultQuery("period", "monthly")
-	trend, err := h.svc.GetEntityCostTrend(c.Request.Context(), tenantID, entityType, entityID, period)
+	trend, err := h.svc.GetEntityCostTrend(ctx, tenantID, entityType, entityID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -156,9 +167,11 @@ func (h *Handler) GetEntityCostTrend(c *gin.Context) {
 // --- Cost overview & breakdown ---
 
 func (h *Handler) GetCostOverview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostOverview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	period := c.DefaultQuery("period", "monthly")
-	summary, err := h.svc.GetCostSummary(c.Request.Context(), tenantID, period)
+	summary, err := h.svc.GetCostSummary(ctx, tenantID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -167,9 +180,11 @@ func (h *Handler) GetCostOverview(c *gin.Context) {
 }
 
 func (h *Handler) GetCostBreakdown(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostBreakdown")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	dimension := c.DefaultQuery("dimension", "category")
-	resp, err := h.svc.GetCostBreakdown(c.Request.Context(), tenantID, dimension)
+	resp, err := h.svc.GetCostBreakdown(ctx, tenantID, dimension)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -178,8 +193,10 @@ func (h *Handler) GetCostBreakdown(c *gin.Context) {
 }
 
 func (h *Handler) GetChargeback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChargeback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	reports, err := h.svc.GetChargebackReport(c.Request.Context(), tenantID)
+	reports, err := h.svc.GetChargebackReport(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -190,10 +207,12 @@ func (h *Handler) GetChargeback(c *gin.Context) {
 // --- Budget CRUD ---
 
 func (h *Handler) ListBudgets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBudgets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListBudgets(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.ListBudgets(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -202,13 +221,15 @@ func (h *Handler) ListBudgets(c *gin.Context) {
 }
 
 func (h *Handler) CreateBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateBudgetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	budget, err := h.svc.CreateBudget(c.Request.Context(), tenantID, req)
+	budget, err := h.svc.CreateBudget(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -217,9 +238,11 @@ func (h *Handler) CreateBudget(c *gin.Context) {
 }
 
 func (h *Handler) GetBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	budget, err := h.svc.GetBudget(c.Request.Context(), tenantID, id)
+	budget, err := h.svc.GetBudget(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "budget not found")
 		return
@@ -228,6 +251,8 @@ func (h *Handler) GetBudget(c *gin.Context) {
 }
 
 func (h *Handler) UpdateBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateBudgetRequest
@@ -235,7 +260,7 @@ func (h *Handler) UpdateBudget(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	budget, err := h.svc.UpdateBudget(c.Request.Context(), tenantID, id, req)
+	budget, err := h.svc.UpdateBudget(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -244,9 +269,11 @@ func (h *Handler) UpdateBudget(c *gin.Context) {
 }
 
 func (h *Handler) DeleteBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteBudget(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteBudget(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -254,16 +281,20 @@ func (h *Handler) DeleteBudget(c *gin.Context) {
 }
 
 func (h *Handler) GetBudgetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBudgetStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	_, err := h.svc.GetBudgetStatus(c.Request.Context(), tenantID, c.Param("id"))
+	_, err := h.svc.GetBudgetStatus(ctx, tenantID, c.Param("id"))
 	middleware.RespondInternalError(c, "GetBudgetStatus not fully implemented")
 	_ = err
 	return
 }
 
 func (h *Handler) ForecastBudget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ForecastBudget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	fc, err := h.svc.ForecastBudget(c.Request.Context(), tenantID, c.Param("id"))
+	fc, err := h.svc.ForecastBudget(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -274,10 +305,12 @@ func (h *Handler) ForecastBudget(c *gin.Context) {
 // --- Budget alerts ---
 
 func (h *Handler) CheckBudgetAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckBudgetAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.CheckBudgetAlertsRequest
 	c.ShouldBindJSON(&body)
-	alerts, err := h.svc.CheckBudgetAlerts(c.Request.Context(), tenantID, body.EntityID, body.EntityType)
+	alerts, err := h.svc.CheckBudgetAlerts(ctx, tenantID, body.EntityID, body.EntityType)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -286,7 +319,9 @@ func (h *Handler) CheckBudgetAlerts(c *gin.Context) {
 }
 
 func (h *Handler) GetAlertTriggers(c *gin.Context) {
-	triggers, err := h.svc.GetAlertTriggers(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlertTriggers")
+	defer span.End()
+	triggers, err := h.svc.GetAlertTriggers(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -297,11 +332,13 @@ func (h *Handler) GetAlertTriggers(c *gin.Context) {
 // --- Cost forecasts ---
 
 func (h *Handler) GetCostForecasts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCostForecasts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	entityType := c.DefaultQuery("entityType", "project")
 	entityID := c.DefaultQuery("entityId", "default")
 	period := c.DefaultQuery("period", "monthly")
-	fc, err := h.svc.GetCostForecast(c.Request.Context(), tenantID, entityType, entityID, period)
+	fc, err := h.svc.GetCostForecast(ctx, tenantID, entityType, entityID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -312,8 +349,10 @@ func (h *Handler) GetCostForecasts(c *gin.Context) {
 // --- Recommendations ---
 
 func (h *Handler) ListRecommendations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecommendations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.ListRecommendations(c.Request.Context(), tenantID)
+	items, err := h.svc.ListRecommendations(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -322,6 +361,8 @@ func (h *Handler) ListRecommendations(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRecommendation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRecommendation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateRecommendationRequest
@@ -329,7 +370,7 @@ func (h *Handler) UpdateRecommendation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpdateRecommendationStatus(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.svc.UpdateRecommendationStatus(ctx, tenantID, id, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -337,9 +378,11 @@ func (h *Handler) UpdateRecommendation(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRecommendation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRecommendation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteRecommendation(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteRecommendation(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -347,8 +390,10 @@ func (h *Handler) DeleteRecommendation(c *gin.Context) {
 }
 
 func (h *Handler) GetRightSizing(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRightSizing")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetRightSizingRecommendations(c.Request.Context(), tenantID)
+	items, err := h.svc.GetRightSizingRecommendations(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -357,8 +402,10 @@ func (h *Handler) GetRightSizing(c *gin.Context) {
 }
 
 func (h *Handler) GetUnusedResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUnusedResources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.DetectUnusedResources(c.Request.Context(), tenantID)
+	items, err := h.svc.DetectUnusedResources(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -367,8 +414,10 @@ func (h *Handler) GetUnusedResources(c *gin.Context) {
 }
 
 func (h *Handler) GetSavingsEstimate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSavingsEstimate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	savings, err := h.svc.EstimateSavings(c.Request.Context(), tenantID)
+	savings, err := h.svc.EstimateSavings(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -379,8 +428,10 @@ func (h *Handler) GetSavingsEstimate(c *gin.Context) {
 // --- Reports ---
 
 func (h *Handler) GetReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	reports, err := h.svc.GetReportHistory(c.Request.Context(), tenantID)
+	reports, err := h.svc.GetReportHistory(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -391,8 +442,10 @@ func (h *Handler) GetReports(c *gin.Context) {
 // --- ROI ---
 
 func (h *Handler) GetROIHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetROIHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetROIHistory(c.Request.Context(), tenantID)
+	items, err := h.svc.GetROIHistory(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -401,8 +454,10 @@ func (h *Handler) GetROIHistory(c *gin.Context) {
 }
 
 func (h *Handler) GetROISummary(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetROISummary")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	summary, err := h.svc.GetROISummary(c.Request.Context(), tenantID)
+	summary, err := h.svc.GetROISummary(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -413,8 +468,10 @@ func (h *Handler) GetROISummary(c *gin.Context) {
 // --- Metrics ---
 
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	metrics, err := h.svc.GetMetrics(c.Request.Context(), tenantID)
+	metrics, err := h.svc.GetMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -425,7 +482,9 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 // --- Health check ---
 
 func (h *Handler) HealthCheck(c *gin.Context) {
-	_, err := h.svc.HealthCheck(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HealthCheck")
+	defer span.End()
+	_, err := h.svc.HealthCheck(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -436,6 +495,8 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // --- Cost collection ---
 
 func (h *Handler) CollectCost(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CollectCost")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CollectCostRequest
 	c.ShouldBindJSON(&req)
@@ -454,7 +515,9 @@ func (h *Handler) CollectCost(c *gin.Context) {
 }
 
 func (h *Handler) GetProviders(c *gin.Context) {
-	providers, err := h.svc.GetRegisteredProviders(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProviders")
+	defer span.End()
+	providers, err := h.svc.GetRegisteredProviders(ctx)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -463,6 +526,8 @@ func (h *Handler) GetProviders(c *gin.Context) {
 }
 
 func (h *Handler) SetSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetSchedule")
+	defer span.End()
 	var req models.ScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -472,7 +537,7 @@ func (h *Handler) SetSchedule(c *gin.Context) {
 		middleware.RespondBadRequest(c, "provider and cronExpression are required")
 		return
 	}
-	if err := h.svc.SetSchedule(c.Request.Context(), req.Provider, req.CronExpression, req.Enabled); err != nil {
+	if err := h.svc.SetSchedule(ctx, req.Provider, req.CronExpression, req.Enabled); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -480,8 +545,10 @@ func (h *Handler) SetSchedule(c *gin.Context) {
 }
 
 func (h *Handler) GetSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSchedule")
+	defer span.End()
 	provider := c.Param("provider")
-	schedule, err := h.svc.GetSchedule(c.Request.Context(), provider)
+	schedule, err := h.svc.GetSchedule(ctx, provider)
 	if err != nil {
 		middleware.RespondNotFound(c, "schedule not found for provider: "+provider)
 		return

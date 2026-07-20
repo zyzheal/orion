@@ -3,7 +3,6 @@ package handler
 import (
 	"orion/ai-svc-go/internal/aireview/models"
 	"orion/ai-svc-go/internal/aireview/service"
-	"orion/go-common/pkg/auth"
 
 	"github.com/gin-gonic/gin"
 )

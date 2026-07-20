@@ -14,7 +14,12 @@ import (
 
 // ReportCommand generates a full audit report.
 func ReportCommand(args map[string]string) int {
-	dsn := requireFlag(args, "dsn")
+	dsn, err := requireFlag(args, "dsn")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v
+", err)
+		return types.ExitErr
+	}
 	outputFile := args["output"]
 
 	db, err := openDB(dsn)

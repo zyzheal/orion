@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/service-registry/models"
+	"orion/platform-svc-go/internal/service-registry/repository"
+)
+
 // ServiceInterface defines the interface for the service-registry service.
 type ServiceInterface interface {
 	Deregister(ctx context.Context, tenantID, serviceID string) error

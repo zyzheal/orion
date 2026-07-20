@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/self-healing/models"
+)
+
 // ServiceInterface defines the interface for the self-healing service.
 type ServiceInterface interface {
 	CreateIncident(ctx context.Context, tenantID string, req models.CreateIncidentRequest) (*models.HealingIncident, error)

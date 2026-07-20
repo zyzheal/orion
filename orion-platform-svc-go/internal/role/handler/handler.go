@@ -11,6 +11,7 @@ import (
 	"orion/platform-svc-go/internal/role/models"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ErrDuplicateName is the error returned when a role with the same name already exists.
@@ -52,6 +53,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new role.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.CreateRoleRequest
@@ -60,7 +63,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	role, err := h.svc.Create(c.Request.Context(), tenantID, "", &req)
+	role, err := h.svc.Create(ctx, tenantID, "", &req)
 	if err != nil {
 		if err == ErrDuplicateName {
 			orionerrors.WriteError(c, orionerrors.ErrConflict, err.Error(), http.StatusConflict)
@@ -74,6 +77,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves roles with optional status filter and pagination.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -91,7 +96,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Status = &s
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*PageSize, PageSize)
+	items, err := h.svc.List(ctx, tenantID, filter, (page-1)*PageSize, PageSize)
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -101,8 +106,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get retrieves a single role by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	role, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	role, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -112,6 +119,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update modifies an existing role.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.UpdateRoleRequest
@@ -120,7 +129,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	role, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	role, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -130,8 +139,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a role by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
 	}
@@ -140,8 +151,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count returns the total number of roles for the tenant.
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return
@@ -151,6 +164,8 @@ func (h *Handler) Count(c *gin.Context) {
 
 // SetPermissions replaces all permissions for a role.
 func (h *Handler) SetPermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetPermissions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
 	var req models.SetPermissionsRequest
@@ -159,7 +174,7 @@ func (h *Handler) SetPermissions(c *gin.Context) {
 		return
 	}
 
-	role, err := h.svc.SetPermissions(c.Request.Context(), tenantID, c.Param("id"), &req)
+	role, err := h.svc.SetPermissions(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return
@@ -169,8 +184,10 @@ func (h *Handler) SetPermissions(c *gin.Context) {
 
 // GetPermissions retrieves the permissions for a role.
 func (h *Handler) GetPermissions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPermissions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	role, err := h.svc.GetPermissions(c.Request.Context(), tenantID, c.Param("id"))
+	role, err := h.svc.GetPermissions(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		orionerrors.WriteError(c, orionerrors.ErrNotFound, err.Error(), http.StatusNotFound)
 		return

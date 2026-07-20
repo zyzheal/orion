@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // HandlerService is the contract the handler needs from the service layer.
@@ -62,8 +63,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) ListTemplates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTemplates")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	templates, total, err := h.svc.ListTemplates(c.Request.Context(), tenantID)
+	templates, total, err := h.svc.ListTemplates(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -77,9 +80,11 @@ func (h *Handler) ListTemplates(c *gin.Context) {
 }
 
 func (h *Handler) GetTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTemplate")
+	defer span.End()
 	id := c.Param("templateId")
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.GetTemplate(c.Request.Context(), id, tenantID)
+	t, err := h.svc.GetTemplate(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline template not found")
@@ -92,13 +97,15 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 }
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTemplate")
+	defer span.End()
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.CreateTemplate(c.Request.Context(), &req, tenantID)
+	t, err := h.svc.CreateTemplate(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -107,6 +114,8 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTemplate")
+	defer span.End()
 	id := c.Param("templateId")
 	var req models.UpdateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -114,7 +123,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	t, err := h.svc.UpdateTemplate(c.Request.Context(), id, &req, tenantID)
+	t, err := h.svc.UpdateTemplate(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline template not found")
@@ -127,9 +136,11 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTemplate")
+	defer span.End()
 	id := c.Param("templateId")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteTemplate(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteTemplate(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -142,6 +153,8 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 }
 
 func (h *Handler) InstantiateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InstantiateTemplate")
+	defer span.End()
 	id := c.Param("templateId")
 	var req models.InstantiateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -149,7 +162,7 @@ func (h *Handler) InstantiateTemplate(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	inst, err := h.svc.InstantiateTemplate(c.Request.Context(), id, &req, tenantID)
+	inst, err := h.svc.InstantiateTemplate(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline template not found")

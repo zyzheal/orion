@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/vectorize-rules/models"
+)
+
 // ServiceInterface defines the interface for the vectorize-rules service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateVectorizeRulesRequest) (*models.VectorizeRules, error)

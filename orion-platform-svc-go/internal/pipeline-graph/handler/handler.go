@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -46,9 +47,11 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // GetGraph handles GET /pipelines/:id/graph.
 func (h *Handler) GetGraph(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGraph")
+	defer span.End()
 	id := c.Param("id")
 
-	pipeline, err := h.svc.GetPipeline(c.Request.Context(), id)
+	pipeline, err := h.svc.GetPipeline(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline not found")
@@ -73,6 +76,8 @@ func (h *Handler) GetGraph(c *gin.Context) {
 
 // ParseYaml handles POST /pipelines/parse-yaml.
 func (h *Handler) ParseYaml(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ParseYaml")
+	defer span.End()
 	var req models.YamlParseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -90,6 +95,8 @@ func (h *Handler) ParseYaml(c *gin.Context) {
 
 // ToYaml handles POST /pipelines/to-yaml.
 func (h *Handler) ToYaml(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToYaml")
+	defer span.End()
 	var req models.YamlToJsonRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -107,6 +114,8 @@ func (h *Handler) ToYaml(c *gin.Context) {
 
 // Validate handles POST /pipelines/validate.
 func (h *Handler) Validate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Validate")
+	defer span.End()
 	var req models.ValidateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())

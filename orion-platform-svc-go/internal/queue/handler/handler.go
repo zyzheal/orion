@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/queue/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -42,8 +43,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -52,9 +55,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -63,13 +68,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.CreateQueueRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -78,6 +85,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	var req models.UpdateQueueRequest
@@ -85,7 +94,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -94,9 +103,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
 	}
@@ -104,6 +115,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) EnqueueJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnqueueJob")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	queueName := c.Param("queueName")
 	var req models.EnqueueJobRequest
@@ -111,7 +124,7 @@ func (h *Handler) EnqueueJob(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EnqueueJob(c.Request.Context(), tenantID, queueName, &req)
+	result, err := h.svc.EnqueueJob(ctx, tenantID, queueName, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -120,6 +133,8 @@ func (h *Handler) EnqueueJob(c *gin.Context) {
 }
 
 func (h *Handler) DequeueJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DequeueJob")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	queueName := c.Param("queueName")
 	var req models.DequeueRequest
@@ -127,7 +142,7 @@ func (h *Handler) DequeueJob(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.DequeueJob(c.Request.Context(), tenantID, queueName, &req)
+	result, err := h.svc.DequeueJob(ctx, tenantID, queueName, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, "internal server error")
 		return
@@ -140,6 +155,8 @@ func (h *Handler) DequeueJob(c *gin.Context) {
 }
 
 func (h *Handler) CompleteJob(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteJob")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	jobID := c.Param("id")
 	var req models.CompleteJobRequest
@@ -147,7 +164,7 @@ func (h *Handler) CompleteJob(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CompleteJob(c.Request.Context(), tenantID, jobID, &req)
+	result, err := h.svc.CompleteJob(ctx, tenantID, jobID, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return

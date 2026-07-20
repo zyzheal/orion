@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/multi-modal-trigger/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -33,8 +34,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -43,9 +46,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -54,13 +59,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.CreateMultiModalTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -69,6 +76,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
 	var req models.UpdateMultiModalTriggerRequest
@@ -76,7 +85,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,9 +94,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -95,6 +106,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteTrigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteTrigger")
+	defer span.End()
 	id := c.Param("id")
 	var req models.TriggerExecuteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -102,7 +115,7 @@ func (h *Handler) ExecuteTrigger(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ExecuteTrigger(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.ExecuteTrigger(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -111,6 +124,8 @@ func (h *Handler) ExecuteTrigger(c *gin.Context) {
 }
 
 func (h *Handler) EvaluateTrigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateTrigger")
+	defer span.End()
 	id := c.Param("id")
 	var req models.TriggerEvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -118,7 +133,7 @@ func (h *Handler) EvaluateTrigger(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.EvaluateTrigger(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.EvaluateTrigger(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -127,13 +142,15 @@ func (h *Handler) EvaluateTrigger(c *gin.Context) {
 }
 
 func (h *Handler) ProcessWebhook(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ProcessWebhook")
+	defer span.End()
 	var req models.WebhookProcessRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.ProcessWebhook(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.ProcessWebhook(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

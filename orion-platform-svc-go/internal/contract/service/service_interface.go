@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/contract/models"
+)
+
 // ServiceInterface defines the interface for the contract service.
 type ServiceInterface interface {
 	CreateContract(ctx context.Context, tenantID string, req *models.CreateContractRequest) (*models.Contract, error)

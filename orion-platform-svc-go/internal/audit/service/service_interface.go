@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/audit/models"
+)
+
 // ServiceInterface defines the interface for the audit service.
 type ServiceInterface interface {
 	ChainInfo(ctx context.Context, tenantID string) (*models.ChainInfo, error)

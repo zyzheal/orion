@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Service interface {
@@ -59,6 +60,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // ListVulnerabilities lists vulnerabilities for the current tenant.
 func (h *Handler) ListVulnerabilities(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVulnerabilities")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -102,6 +105,8 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 
 // TriggerScan triggers a dependency vulnerability scan.
 func (h *Handler) TriggerScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -122,6 +127,8 @@ func (h *Handler) TriggerScan(c *gin.Context) {
 
 // TriggerImageScan triggers a Docker image vulnerability scan using Trivy.
 func (h *Handler) TriggerImageScan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerImageScan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 
@@ -146,6 +153,8 @@ func (h *Handler) TriggerImageScan(c *gin.Context) {
 
 // GetVulnerability retrieves details for a specific vulnerability.
 func (h *Handler) GetVulnerability(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVulnerability")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")
@@ -171,6 +180,8 @@ func (h *Handler) GetVulnerability(c *gin.Context) {
 
 // Remediate marks a vulnerability as remediated, ignored, or false_positive.
 func (h *Handler) Remediate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Remediate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ctx := context.Background()
 	id := c.Param("id")

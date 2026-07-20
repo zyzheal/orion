@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/code-repo/models"
+)
+
 // ServiceInterface defines the interface for the code-repo service.
 type ServiceInterface interface {
 	AddComment(ctx context.Context, adapterID, repoID, prID string, userID, username string, req models.CreateCommentRequest) (*models.Comment, error)

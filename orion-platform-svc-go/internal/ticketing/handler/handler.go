@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -140,8 +141,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Service Control ====================
 
 func (h *Handler) StartService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartService")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.StartService(c.Request.Context(), tenantID); err != nil {
+	if err := h.svc.StartService(ctx, tenantID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -149,8 +152,10 @@ func (h *Handler) StartService(c *gin.Context) {
 }
 
 func (h *Handler) StopService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StopService")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.StopService(c.Request.Context(), tenantID); err != nil {
+	if err := h.svc.StopService(ctx, tenantID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -158,8 +163,10 @@ func (h *Handler) StopService(c *gin.Context) {
 }
 
 func (h *Handler) HealthCheck(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "HealthCheck")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	active, err := h.svc.HealthCheck(c.Request.Context(), tenantID)
+	active, err := h.svc.HealthCheck(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -170,6 +177,8 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 // ==================== Ticket CRUD ====================
 
 func (h *Handler) CreateTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -181,7 +190,7 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, "user_id required")
 		return
 	}
-	t, err := h.svc.CreateTicket(c.Request.Context(), tenantID, req, reporterID)
+	t, err := h.svc.CreateTicket(ctx, tenantID, req, reporterID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -191,6 +200,8 @@ func (h *Handler) CreateTicket(c *gin.Context) {
 
 // CreateTicketFromAlert mirrors /tickets/from-alert: creates a ticket sourced from an alert.
 func (h *Handler) CreateTicketFromAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromAlert")
+	defer span.End()
 	ticketID := c.Param("id")
 	_ = ticketID
 	h.createTicketWithSource(c, "alert")
@@ -198,6 +209,8 @@ func (h *Handler) CreateTicketFromAlert(c *gin.Context) {
 
 // CreateTicketFromIncident mirrors /tickets/from-incident: creates a ticket sourced from an incident.
 func (h *Handler) CreateTicketFromIncident(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTicketFromIncident")
+	defer span.End()
 	h.createTicketWithSource(c, "incident")
 }
 
@@ -214,7 +227,7 @@ func (h *Handler) createTicketWithSource(c *gin.Context, source string) {
 		middleware.RespondBadRequest(c, "user_id required")
 		return
 	}
-	t, err := h.svc.CreateTicket(c.Request.Context(), tenantID, req, reporterID)
+	t, err := h.svc.CreateTicket(ctx, tenantID, req, reporterID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -223,9 +236,11 @@ func (h *Handler) createTicketWithSource(c *gin.Context, source string) {
 }
 
 func (h *Handler) GetTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	t, err := h.svc.GetTicket(c.Request.Context(), tenantID, id)
+	t, err := h.svc.GetTicket(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "ticket not found")
@@ -238,9 +253,11 @@ func (h *Handler) GetTicket(c *gin.Context) {
 }
 
 func (h *Handler) ListTickets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTickets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := buildTicketListQuery(c)
-	items, err := h.svc.ListTickets(c.Request.Context(), tenantID, q)
+	items, err := h.svc.ListTickets(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -251,6 +268,8 @@ func (h *Handler) ListTickets(c *gin.Context) {
 // ==================== Workflow ====================
 
 func (h *Handler) TransitionStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TransitionStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -259,7 +278,7 @@ func (h *Handler) TransitionStatus(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.TransitionStatus(c.Request.Context(), tenantID, ticketID, req, userID)
+	t, err := h.svc.TransitionStatus(ctx, tenantID, ticketID, req, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -268,6 +287,8 @@ func (h *Handler) TransitionStatus(c *gin.Context) {
 }
 
 func (h *Handler) AssignTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssignTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -276,7 +297,7 @@ func (h *Handler) AssignTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.AssignTicket(c.Request.Context(), tenantID, ticketID, req, userID)
+	t, err := h.svc.AssignTicket(ctx, tenantID, ticketID, req, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -285,6 +306,8 @@ func (h *Handler) AssignTicket(c *gin.Context) {
 }
 
 func (h *Handler) EscalateTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EscalateTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -293,7 +316,7 @@ func (h *Handler) EscalateTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.EscalateTicket(c.Request.Context(), tenantID, ticketID, req, userID)
+	t, err := h.svc.EscalateTicket(ctx, tenantID, ticketID, req, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -302,6 +325,8 @@ func (h *Handler) EscalateTicket(c *gin.Context) {
 }
 
 func (h *Handler) ResolveTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResolveTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -310,7 +335,7 @@ func (h *Handler) ResolveTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.ResolveTicket(c.Request.Context(), tenantID, ticketID, req, userID)
+	t, err := h.svc.ResolveTicket(ctx, tenantID, ticketID, req, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -319,6 +344,8 @@ func (h *Handler) ResolveTicket(c *gin.Context) {
 }
 
 func (h *Handler) CloseTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CloseTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -326,7 +353,7 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	t, err := h.svc.CloseTicket(c.Request.Context(), tenantID, ticketID, body.Comment, userID)
+	t, err := h.svc.CloseTicket(ctx, tenantID, ticketID, body.Comment, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -335,9 +362,11 @@ func (h *Handler) CloseTicket(c *gin.Context) {
 }
 
 func (h *Handler) GetWorkflowHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWorkflowHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
-	items, err := h.svc.GetWorkflowHistory(c.Request.Context(), tenantID, ticketID)
+	items, err := h.svc.GetWorkflowHistory(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -348,13 +377,15 @@ func (h *Handler) GetWorkflowHistory(c *gin.Context) {
 // ==================== Assignment Rules ====================
 
 func (h *Handler) AddAssignmentRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddAssignmentRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAssignmentRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	r, err := h.svc.AddAssignmentRule(c.Request.Context(), tenantID, req)
+	r, err := h.svc.AddAssignmentRule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -363,8 +394,10 @@ func (h *Handler) AddAssignmentRule(c *gin.Context) {
 }
 
 func (h *Handler) GetAssignmentRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAssignmentRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	rules, err := h.svc.GetAssignmentRules(c.Request.Context(), tenantID)
+	rules, err := h.svc.GetAssignmentRules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -373,13 +406,15 @@ func (h *Handler) GetAssignmentRules(c *gin.Context) {
 }
 
 func (h *Handler) RemoveAssignmentRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveAssignmentRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		middleware.RespondBadRequest(c, "invalid rule id")
 		return
 	}
-	if err := h.svc.RemoveAssignmentRule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.RemoveAssignmentRule(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -389,6 +424,8 @@ func (h *Handler) RemoveAssignmentRule(c *gin.Context) {
 // ==================== Relations ====================
 
 func (h *Handler) AddRelation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddRelation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
 	var req models.CreateRelationRequest
@@ -396,7 +433,7 @@ func (h *Handler) AddRelation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	r, err := h.svc.AddRelation(c.Request.Context(), tenantID, ticketID, req)
+	r, err := h.svc.AddRelation(ctx, tenantID, ticketID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -405,9 +442,11 @@ func (h *Handler) AddRelation(c *gin.Context) {
 }
 
 func (h *Handler) GetRelations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRelations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
-	rels, err := h.svc.GetRelations(c.Request.Context(), tenantID, ticketID)
+	rels, err := h.svc.GetRelations(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -416,9 +455,11 @@ func (h *Handler) GetRelations(c *gin.Context) {
 }
 
 func (h *Handler) FindRelatedTickets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FindRelatedTickets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
-	rels, err := h.svc.FindRelatedTickets(c.Request.Context(), tenantID, ticketID)
+	rels, err := h.svc.FindRelatedTickets(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -427,9 +468,11 @@ func (h *Handler) FindRelatedTickets(c *gin.Context) {
 }
 
 func (h *Handler) DetectDuplicates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectDuplicates")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
-	rels, err := h.svc.DetectDuplicates(c.Request.Context(), tenantID, ticketID)
+	rels, err := h.svc.DetectDuplicates(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -438,13 +481,15 @@ func (h *Handler) DetectDuplicates(c *gin.Context) {
 }
 
 func (h *Handler) CorrelateRootCause(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CorrelateRootCause")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CorrelateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CorrelateRootCause(c.Request.Context(), tenantID, req.TicketIDs)
+	result, err := h.svc.CorrelateRootCause(ctx, tenantID, req.TicketIDs)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -455,13 +500,15 @@ func (h *Handler) CorrelateRootCause(c *gin.Context) {
 // ==================== SLA ====================
 
 func (h *Handler) AddSLATarget(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddSLATarget")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLATargetRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	sla, err := h.svc.AddSLATarget(c.Request.Context(), tenantID, req)
+	sla, err := h.svc.AddSLATarget(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -470,9 +517,11 @@ func (h *Handler) AddSLATarget(c *gin.Context) {
 }
 
 func (h *Handler) GetTicketSLA(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTicketSLA")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("id")
-	status, err := h.svc.GetTicketSLA(c.Request.Context(), tenantID, ticketID)
+	status, err := h.svc.GetTicketSLA(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -483,8 +532,10 @@ func (h *Handler) GetTicketSLA(c *gin.Context) {
 // ==================== Reports ====================
 
 func (h *Handler) GetSLACompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSLACompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	report, err := h.svc.GetSLACompliance(c.Request.Context(), tenantID)
+	report, err := h.svc.GetSLACompliance(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -493,8 +544,10 @@ func (h *Handler) GetSLACompliance(c *gin.Context) {
 }
 
 func (h *Handler) GetResolutionStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetResolutionStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetResolutionStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetResolutionStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -503,8 +556,10 @@ func (h *Handler) GetResolutionStats(c *gin.Context) {
 }
 
 func (h *Handler) GetBacklogAnalysis(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBacklogAnalysis")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	analysis, err := h.svc.GetBacklogAnalysis(c.Request.Context(), tenantID)
+	analysis, err := h.svc.GetBacklogAnalysis(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -513,8 +568,10 @@ func (h *Handler) GetBacklogAnalysis(c *gin.Context) {
 }
 
 func (h *Handler) GetTrendReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrendReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	report, err := h.svc.GetTrendReport(c.Request.Context(), tenantID)
+	report, err := h.svc.GetTrendReport(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -523,8 +580,10 @@ func (h *Handler) GetTrendReport(c *gin.Context) {
 }
 
 func (h *Handler) GetStatistics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatistics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	report, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
+	report, err := h.svc.GetStatistics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -535,13 +594,15 @@ func (h *Handler) GetStatistics(c *gin.Context) {
 // ==================== Dispatch ====================
 
 func (h *Handler) RegisterEngineer(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RegisterEngineer")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RegisterEngineerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	e, err := h.svc.RegisterEngineer(c.Request.Context(), tenantID, req)
+	e, err := h.svc.RegisterEngineer(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -550,8 +611,10 @@ func (h *Handler) RegisterEngineer(c *gin.Context) {
 }
 
 func (h *Handler) ListEngineers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEngineers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	engineers, err := h.svc.ListEngineers(c.Request.Context(), tenantID)
+	engineers, err := h.svc.ListEngineers(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -560,9 +623,11 @@ func (h *Handler) ListEngineers(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineer(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineer")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	e, err := h.svc.GetEngineer(c.Request.Context(), tenantID, id)
+	e, err := h.svc.GetEngineer(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -571,9 +636,11 @@ func (h *Handler) GetEngineer(c *gin.Context) {
 }
 
 func (h *Handler) AutoDispatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AutoDispatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
-	result, err := h.svc.AutoDispatch(c.Request.Context(), tenantID, ticketID)
+	result, err := h.svc.AutoDispatch(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -582,6 +649,8 @@ func (h *Handler) AutoDispatch(c *gin.Context) {
 }
 
 func (h *Handler) ManualDispatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ManualDispatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
 	var body struct {
@@ -591,7 +660,7 @@ func (h *Handler) ManualDispatch(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ManualDispatch(c.Request.Context(), tenantID, ticketID, body.EngineerID); err != nil {
+	if err := h.svc.ManualDispatch(ctx, tenantID, ticketID, body.EngineerID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -599,9 +668,11 @@ func (h *Handler) ManualDispatch(c *gin.Context) {
 }
 
 func (h *Handler) GetBestMatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBestMatch")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
-	result, err := h.svc.GetBestMatch(c.Request.Context(), tenantID, ticketID)
+	result, err := h.svc.GetBestMatch(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -610,13 +681,15 @@ func (h *Handler) GetBestMatch(c *gin.Context) {
 }
 
 func (h *Handler) CalculateDispatchScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CalculateDispatchScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.DispatchScoreRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CalculateDispatchScore(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CalculateDispatchScore(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -625,8 +698,10 @@ func (h *Handler) CalculateDispatchScore(c *gin.Context) {
 }
 
 func (h *Handler) GetDispatchQueueStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDispatchQueueStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	status, err := h.svc.GetDispatchQueueStatus(c.Request.Context(), tenantID)
+	status, err := h.svc.GetDispatchQueueStatus(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -635,8 +710,10 @@ func (h *Handler) GetDispatchQueueStatus(c *gin.Context) {
 }
 
 func (h *Handler) GetDispatchQueueEntries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDispatchQueueEntries")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	entries, err := h.svc.GetDispatchQueueEntries(c.Request.Context(), tenantID)
+	entries, err := h.svc.GetDispatchQueueEntries(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -645,8 +722,10 @@ func (h *Handler) GetDispatchQueueEntries(c *gin.Context) {
 }
 
 func (h *Handler) GetSLAAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSLAAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	alerts, err := h.svc.GetSLAAlerts(c.Request.Context(), tenantID)
+	alerts, err := h.svc.GetSLAAlerts(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -655,13 +734,15 @@ func (h *Handler) GetSLAAlerts(c *gin.Context) {
 }
 
 func (h *Handler) AddDispatchRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddDispatchRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AddDispatchRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	r, err := h.svc.AddDispatchRule(c.Request.Context(), tenantID, req)
+	r, err := h.svc.AddDispatchRule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -670,8 +751,10 @@ func (h *Handler) AddDispatchRule(c *gin.Context) {
 }
 
 func (h *Handler) GetDispatchRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDispatchRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	rules, err := h.svc.GetDispatchRules(c.Request.Context(), tenantID)
+	rules, err := h.svc.GetDispatchRules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -680,8 +763,10 @@ func (h *Handler) GetDispatchRules(c *gin.Context) {
 }
 
 func (h *Handler) GetLoadBalanceReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLoadBalanceReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	report, err := h.svc.GetLoadBalanceReport(c.Request.Context(), tenantID)
+	report, err := h.svc.GetLoadBalanceReport(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -690,8 +775,10 @@ func (h *Handler) GetLoadBalanceReport(c *gin.Context) {
 }
 
 func (h *Handler) GetReassignmentSuggestions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReassignmentSuggestions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	suggestions, err := h.svc.GetReassignmentSuggestions(c.Request.Context(), tenantID)
+	suggestions, err := h.svc.GetReassignmentSuggestions(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -700,8 +787,10 @@ func (h *Handler) GetReassignmentSuggestions(c *gin.Context) {
 }
 
 func (h *Handler) GetDispatchMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDispatchMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	metrics, err := h.svc.GetDispatchMetrics(c.Request.Context(), tenantID)
+	metrics, err := h.svc.GetDispatchMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -710,8 +799,10 @@ func (h *Handler) GetDispatchMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetAssignmentSuccessMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAssignmentSuccessMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	metrics, err := h.svc.GetAssignmentSuccessMetrics(c.Request.Context(), tenantID)
+	metrics, err := h.svc.GetAssignmentSuccessMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -720,8 +811,10 @@ func (h *Handler) GetAssignmentSuccessMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetTimeToAssignmentStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeToAssignmentStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetTimeToAssignmentStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetTimeToAssignmentStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -730,9 +823,11 @@ func (h *Handler) GetTimeToAssignmentStats(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineerPerformance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineerPerformance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	perf, err := h.svc.GetEngineerPerformance(c.Request.Context(), tenantID, engineerID)
+	perf, err := h.svc.GetEngineerPerformance(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -741,8 +836,10 @@ func (h *Handler) GetEngineerPerformance(c *gin.Context) {
 }
 
 func (h *Handler) GetAllEngineerPerformances(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllEngineerPerformances")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	perfs, err := h.svc.GetAllEngineerPerformances(c.Request.Context(), tenantID)
+	perfs, err := h.svc.GetAllEngineerPerformances(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -751,13 +848,15 @@ func (h *Handler) GetAllEngineerPerformances(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDispatchWeights(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDispatchWeights")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var body models.UpdateWeightsRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.UpdateDispatchWeights(c.Request.Context(), tenantID, body.Weights); err != nil {
+	if err := h.svc.UpdateDispatchWeights(ctx, tenantID, body.Weights); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -765,8 +864,10 @@ func (h *Handler) UpdateDispatchWeights(c *gin.Context) {
 }
 
 func (h *Handler) GetDispatchWeights(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDispatchWeights")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	weights, err := h.svc.GetDispatchWeights(c.Request.Context(), tenantID)
+	weights, err := h.svc.GetDispatchWeights(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -777,6 +878,8 @@ func (h *Handler) GetDispatchWeights(c *gin.Context) {
 // ==================== Transfer ====================
 
 func (h *Handler) TransferTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TransferTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
 	userID := c.GetString("user_id")
@@ -785,7 +888,7 @@ func (h *Handler) TransferTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.TransferTicket(c.Request.Context(), tenantID, ticketID, req, userID); err != nil {
+	if err := h.svc.TransferTicket(ctx, tenantID, ticketID, req, userID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -793,9 +896,11 @@ func (h *Handler) TransferTicket(c *gin.Context) {
 }
 
 func (h *Handler) GetTransferHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTransferHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
-	history, err := h.svc.GetTransferHistory(c.Request.Context(), tenantID, ticketID)
+	history, err := h.svc.GetTransferHistory(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -804,8 +909,10 @@ func (h *Handler) GetTransferHistory(c *gin.Context) {
 }
 
 func (h *Handler) GetTransferStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTransferStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetTransferStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetTransferStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -816,13 +923,15 @@ func (h *Handler) GetTransferStats(c *gin.Context) {
 // ==================== Suspend ====================
 
 func (h *Handler) CreateSuspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSuspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSuspendRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	s, err := h.svc.CreateSuspend(c.Request.Context(), tenantID, req)
+	s, err := h.svc.CreateSuspend(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -831,9 +940,11 @@ func (h *Handler) CreateSuspend(c *gin.Context) {
 }
 
 func (h *Handler) ActivateSuspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ActivateSuspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	s, err := h.svc.ActivateSuspend(c.Request.Context(), tenantID, id)
+	s, err := h.svc.ActivateSuspend(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -842,9 +953,11 @@ func (h *Handler) ActivateSuspend(c *gin.Context) {
 }
 
 func (h *Handler) EndSuspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EndSuspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	s, err := h.svc.EndSuspend(c.Request.Context(), tenantID, id)
+	s, err := h.svc.EndSuspend(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -853,9 +966,11 @@ func (h *Handler) EndSuspend(c *gin.Context) {
 }
 
 func (h *Handler) CancelSuspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelSuspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	s, err := h.svc.CancelSuspend(c.Request.Context(), tenantID, id)
+	s, err := h.svc.CancelSuspend(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -864,8 +979,10 @@ func (h *Handler) CancelSuspend(c *gin.Context) {
 }
 
 func (h *Handler) ListSuspensions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSuspensions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	suspensions, err := h.svc.ListSuspensions(c.Request.Context(), tenantID)
+	suspensions, err := h.svc.ListSuspensions(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -874,9 +991,11 @@ func (h *Handler) ListSuspensions(c *gin.Context) {
 }
 
 func (h *Handler) GetSuspend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSuspend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	s, err := h.svc.GetSuspend(c.Request.Context(), tenantID, id)
+	s, err := h.svc.GetSuspend(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -885,9 +1004,11 @@ func (h *Handler) GetSuspend(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineerSuspensions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineerSuspensions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	suspensions, err := h.svc.GetEngineerSuspensions(c.Request.Context(), tenantID, engineerID)
+	suspensions, err := h.svc.GetEngineerSuspensions(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -896,9 +1017,11 @@ func (h *Handler) GetEngineerSuspensions(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineerSuspendImpact(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineerSuspendImpact")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	impact, err := h.svc.GetEngineerSuspendImpact(c.Request.Context(), tenantID, engineerID)
+	impact, err := h.svc.GetEngineerSuspendImpact(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -909,8 +1032,10 @@ func (h *Handler) GetEngineerSuspendImpact(c *gin.Context) {
 // ==================== BI Analytics ====================
 
 func (h *Handler) GetExecutiveDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecutiveDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	dashboard, err := h.svc.GetExecutiveDashboard(c.Request.Context(), tenantID)
+	dashboard, err := h.svc.GetExecutiveDashboard(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -919,8 +1044,10 @@ func (h *Handler) GetExecutiveDashboard(c *gin.Context) {
 }
 
 func (h *Handler) GetManagerDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetManagerDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	dashboard, err := h.svc.GetManagerDashboard(c.Request.Context(), tenantID)
+	dashboard, err := h.svc.GetManagerDashboard(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -929,9 +1056,11 @@ func (h *Handler) GetManagerDashboard(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineerDashboard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineerDashboard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	dashboard, err := h.svc.GetEngineerDashboard(c.Request.Context(), tenantID, engineerID)
+	dashboard, err := h.svc.GetEngineerDashboard(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -940,9 +1069,11 @@ func (h *Handler) GetEngineerDashboard(c *gin.Context) {
 }
 
 func (h *Handler) GetEngineerEfficiency(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEngineerEfficiency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	efficiency, err := h.svc.GetEngineerEfficiency(c.Request.Context(), tenantID, engineerID)
+	efficiency, err := h.svc.GetEngineerEfficiency(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -951,9 +1082,11 @@ func (h *Handler) GetEngineerEfficiency(c *gin.Context) {
 }
 
 func (h *Handler) GetEfficiencyScore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEfficiencyScore")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	engineerID := c.Param("engineerId")
-	score, err := h.svc.GetEfficiencyScore(c.Request.Context(), tenantID, engineerID)
+	score, err := h.svc.GetEfficiencyScore(ctx, tenantID, engineerID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -962,6 +1095,8 @@ func (h *Handler) GetEfficiencyScore(c *gin.Context) {
 }
 
 func (h *Handler) ComparePeriods(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ComparePeriods")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	current := c.Query("current")
 	previous := c.Query("previous")
@@ -969,7 +1104,7 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 		middleware.RespondBadRequest(c, "current and previous period required")
 		return
 	}
-	result, err := h.svc.ComparePeriods(c.Request.Context(), tenantID, current, previous)
+	result, err := h.svc.ComparePeriods(ctx, tenantID, current, previous)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -978,13 +1113,15 @@ func (h *Handler) ComparePeriods(c *gin.Context) {
 }
 
 func (h *Handler) ExportBIData(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExportBIData")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.BIDataExportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.ExportBIData(c.Request.Context(), tenantID, req)
+	result, err := h.svc.ExportBIData(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -993,12 +1130,14 @@ func (h *Handler) ExportBIData(c *gin.Context) {
 }
 
 func (h *Handler) GetTimeTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTimeTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	period := c.Query("period")
 	if period == "" {
 		period = "week"
 	}
-	trend, err := h.svc.GetTimeTrend(c.Request.Context(), tenantID, period)
+	trend, err := h.svc.GetTimeTrend(ctx, tenantID, period)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1009,13 +1148,15 @@ func (h *Handler) GetTimeTrend(c *gin.Context) {
 // ==================== SLA Policies ====================
 
 func (h *Handler) CreateSLAPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSLAPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSLAPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.CreateSLAPolicy(c.Request.Context(), tenantID, req)
+	p, err := h.svc.CreateSLAPolicy(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1024,8 +1165,10 @@ func (h *Handler) CreateSLAPolicy(c *gin.Context) {
 }
 
 func (h *Handler) ListSLAPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSLAPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	policies, err := h.svc.ListSLAPolicies(c.Request.Context(), tenantID)
+	policies, err := h.svc.ListSLAPolicies(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1034,9 +1177,11 @@ func (h *Handler) ListSLAPolicies(c *gin.Context) {
 }
 
 func (h *Handler) GetSLAPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSLAPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	p, err := h.svc.GetSLAPolicy(c.Request.Context(), tenantID, policyID)
+	p, err := h.svc.GetSLAPolicy(ctx, tenantID, policyID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1045,6 +1190,8 @@ func (h *Handler) GetSLAPolicy(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSLAPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSLAPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
 	var req models.UpdateSLAPolicyRequest
@@ -1052,7 +1199,7 @@ func (h *Handler) UpdateSLAPolicy(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	p, err := h.svc.UpdateSLAPolicy(c.Request.Context(), tenantID, policyID, req)
+	p, err := h.svc.UpdateSLAPolicy(ctx, tenantID, policyID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1061,9 +1208,11 @@ func (h *Handler) UpdateSLAPolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSLAPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSLAPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	if err := h.svc.DeleteSLAPolicy(c.Request.Context(), tenantID, policyID); err != nil {
+	if err := h.svc.DeleteSLAPolicy(ctx, tenantID, policyID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -1071,9 +1220,11 @@ func (h *Handler) DeleteSLAPolicy(c *gin.Context) {
 }
 
 func (h *Handler) GetTicketSLAStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTicketSLAStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ticketID := c.Param("ticketId")
-	status, err := h.svc.GetTicketSLAStatus(c.Request.Context(), tenantID, ticketID)
+	status, err := h.svc.GetTicketSLAStatus(ctx, tenantID, ticketID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1082,8 +1233,10 @@ func (h *Handler) GetTicketSLAStatus(c *gin.Context) {
 }
 
 func (h *Handler) GetBreaches(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBreaches")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	breaches, err := h.svc.GetBreaches(c.Request.Context(), tenantID)
+	breaches, err := h.svc.GetBreaches(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1092,9 +1245,11 @@ func (h *Handler) GetBreaches(c *gin.Context) {
 }
 
 func (h *Handler) GetCompliance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCompliance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	policyID := c.Param("policyId")
-	result, err := h.svc.GetCompliance(c.Request.Context(), tenantID, policyID)
+	result, err := h.svc.GetCompliance(ctx, tenantID, policyID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1105,13 +1260,15 @@ func (h *Handler) GetCompliance(c *gin.Context) {
 // ==================== Automation Rules ====================
 
 func (h *Handler) CreateAutomationRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAutomationRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAutomationRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	r, err := h.svc.CreateAutomationRule(c.Request.Context(), tenantID, req)
+	r, err := h.svc.CreateAutomationRule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1120,8 +1277,10 @@ func (h *Handler) CreateAutomationRule(c *gin.Context) {
 }
 
 func (h *Handler) ListAutomationRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAutomationRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	rules, err := h.svc.ListAutomationRules(c.Request.Context(), tenantID)
+	rules, err := h.svc.ListAutomationRules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1130,6 +1289,8 @@ func (h *Handler) ListAutomationRules(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAutomationRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAutomationRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	var req models.UpdateAutomationRuleRequest
@@ -1137,7 +1298,7 @@ func (h *Handler) UpdateAutomationRule(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	r, err := h.svc.UpdateAutomationRule(c.Request.Context(), tenantID, ruleID, req)
+	r, err := h.svc.UpdateAutomationRule(ctx, tenantID, ruleID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -1146,9 +1307,11 @@ func (h *Handler) UpdateAutomationRule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAutomationRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAutomationRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	if err := h.svc.DeleteAutomationRule(c.Request.Context(), tenantID, ruleID); err != nil {
+	if err := h.svc.DeleteAutomationRule(ctx, tenantID, ruleID); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -1156,9 +1319,11 @@ func (h *Handler) DeleteAutomationRule(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	result, err := h.svc.ExecuteRule(c.Request.Context(), tenantID, ruleID)
+	result, err := h.svc.ExecuteRule(ctx, tenantID, ruleID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

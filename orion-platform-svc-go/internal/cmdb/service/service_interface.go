@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/cmdb/models"
+)
+
 // ServiceInterface defines the interface for the cmdb service.
 type ServiceInterface interface {
 	BatchCreate(ctx context.Context, items []models.BatchCreateItem, tenantID string, createdBy string) (*models.BatchResult, error)

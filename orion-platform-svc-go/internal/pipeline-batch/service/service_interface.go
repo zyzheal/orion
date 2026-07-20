@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-batch/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-batch service.
 type ServiceInterface interface {
 	AdvanceToNextBatch(ctx context.Context, id string, tenantID string) (*models.PhaseGroup, error)

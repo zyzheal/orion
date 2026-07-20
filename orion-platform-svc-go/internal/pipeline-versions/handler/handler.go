@@ -11,6 +11,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"strconv"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -51,6 +52,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Version CRUD ====================
 
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         pipelineID := c.Param("pipelineId")
 
@@ -74,7 +77,7 @@ func (h *Handler) ListVersions(c *gin.Context) {
                 q.Order = order
         }
 
-        result, err := h.svc.ListVersions(c.Request.Context(), tenantID, pipelineID, q)
+        result, err := h.svc.ListVersions(ctx, tenantID, pipelineID, q)
         if err != nil {
                 middleware.RespondInternalError(c, err.Error())
                 return
@@ -83,10 +86,12 @@ func (h *Handler) ListVersions(c *gin.Context) {
 }
 
 func (h *Handler) GetVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         versionID := c.Param("versionId")
 
-        result, err := h.svc.GetVersion(c.Request.Context(), tenantID, versionID)
+        result, err := h.svc.GetVersion(ctx, tenantID, versionID)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
@@ -99,6 +104,8 @@ func (h *Handler) GetVersion(c *gin.Context) {
 }
 
 func (h *Handler) CreateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         pipelineID := c.Param("pipelineId")
         userID := c.GetString("user_id")
@@ -112,7 +119,7 @@ func (h *Handler) CreateVersion(c *gin.Context) {
                 return
         }
 
-        result, err := h.svc.CreateVersion(c.Request.Context(), tenantID, pipelineID, &req, userID)
+        result, err := h.svc.CreateVersion(ctx, tenantID, pipelineID, &req, userID)
         if err != nil {
                 if service.IsBadRequest(err) {
                         middleware.RespondBadRequest(c, err.Error())
@@ -125,6 +132,8 @@ func (h *Handler) CreateVersion(c *gin.Context) {
 }
 
 func (h *Handler) UpdateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         versionID := c.Param("versionId")
 
@@ -134,7 +143,7 @@ func (h *Handler) UpdateVersion(c *gin.Context) {
                 return
         }
 
-        result, err := h.svc.UpdateVersion(c.Request.Context(), tenantID, versionID, &req)
+        result, err := h.svc.UpdateVersion(ctx, tenantID, versionID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
@@ -155,10 +164,12 @@ func (h *Handler) UpdateVersion(c *gin.Context) {
 }
 
 func (h *Handler) DeleteVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         versionID := c.Param("versionId")
 
-        if err := h.svc.DeleteVersion(c.Request.Context(), tenantID, versionID); err != nil {
+        if err := h.svc.DeleteVersion(ctx, tenantID, versionID); err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
                         return
@@ -172,13 +183,15 @@ func (h *Handler) DeleteVersion(c *gin.Context) {
 // ==================== Lifecycle ====================
 
 func (h *Handler) PublishVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PublishVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         versionID := c.Param("versionId")
 
         var req models.PublishVersionRequest
         _ = c.ShouldBindJSON(&req) // body optional
 
-        result, err := h.svc.PublishVersion(c.Request.Context(), tenantID, versionID, &req)
+        result, err := h.svc.PublishVersion(ctx, tenantID, versionID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
@@ -195,10 +208,12 @@ func (h *Handler) PublishVersion(c *gin.Context) {
 }
 
 func (h *Handler) DeprecateVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeprecateVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         versionID := c.Param("versionId")
 
-        result, err := h.svc.DeprecateVersion(c.Request.Context(), tenantID, versionID)
+        result, err := h.svc.DeprecateVersion(ctx, tenantID, versionID)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
@@ -211,6 +226,8 @@ func (h *Handler) DeprecateVersion(c *gin.Context) {
 }
 
 func (h *Handler) RollbackVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackVersion")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         pipelineID := c.Param("pipelineId")
 
@@ -220,7 +237,7 @@ func (h *Handler) RollbackVersion(c *gin.Context) {
                 return
         }
 
-        result, err := h.svc.RollbackVersion(c.Request.Context(), tenantID, pipelineID, &req)
+        result, err := h.svc.RollbackVersion(ctx, tenantID, pipelineID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")
@@ -239,6 +256,8 @@ func (h *Handler) RollbackVersion(c *gin.Context) {
 // ==================== Compare ====================
 
 func (h *Handler) CompareVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompareVersions")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
 
         var req models.CompareVersionsRequest
@@ -247,7 +266,7 @@ func (h *Handler) CompareVersions(c *gin.Context) {
                 return
         }
 
-        result, err := h.svc.CompareVersions(c.Request.Context(), tenantID, &req)
+        result, err := h.svc.CompareVersions(ctx, tenantID, &req)
         if err != nil {
                 if service.IsNotFound(err) {
                         middleware.RespondNotFound(c, "version not found")

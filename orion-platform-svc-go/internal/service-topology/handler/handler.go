@@ -8,6 +8,7 @@ import (
 	"orion/platform-svc-go/internal/service-topology/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,8 +42,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // CRUD handlers
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.List(c.Request.Context(), tenantID)
+	items, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -51,9 +54,11 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	item, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	item, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -62,9 +67,11 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) GetByServiceName(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetByServiceName")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	item, err := h.svc.GetByServiceName(c.Request.Context(), tenantID, name)
+	item, err := h.svc.GetByServiceName(ctx, tenantID, name)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -73,13 +80,15 @@ func (h *Handler) GetByServiceName(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateServiceTopologyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	item, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	item, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -88,6 +97,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateServiceTopologyRequest
@@ -95,7 +106,7 @@ func (h *Handler) Update(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	item, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	item, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
@@ -104,9 +115,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
 		return
 	}
@@ -116,6 +129,8 @@ func (h *Handler) Delete(c *gin.Context) {
 // Dependency graph handlers
 
 func (h *Handler) AddDependency(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddDependency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	source := c.Param("name")
 	var req models.AddDependencyRequest
@@ -128,7 +143,7 @@ func (h *Handler) AddDependency(c *gin.Context) {
 		goerr.WriteError(c, goerr.ErrBadRequest, "invalid relation_type", 400)
 		return
 	}
-	err := h.svc.AddDependency(c.Request.Context(), tenantID, source, req.TargetService, relType)
+	err := h.svc.AddDependency(ctx, tenantID, source, req.TargetService, relType)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 409)
 		return
@@ -137,10 +152,12 @@ func (h *Handler) AddDependency(c *gin.Context) {
 }
 
 func (h *Handler) RemoveDependency(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveDependency")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	source := c.Param("name")
 	target := c.Param("target")
-	if err := h.svc.RemoveDependency(c.Request.Context(), tenantID, source, target); err != nil {
+	if err := h.svc.RemoveDependency(ctx, tenantID, source, target); err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -148,9 +165,11 @@ func (h *Handler) RemoveDependency(c *gin.Context) {
 }
 
 func (h *Handler) GetDependencies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDependencies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	edges, err := h.svc.GetDependencies(c.Request.Context(), tenantID, name)
+	edges, err := h.svc.GetDependencies(ctx, tenantID, name)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -159,9 +178,11 @@ func (h *Handler) GetDependencies(c *gin.Context) {
 }
 
 func (h *Handler) GetUpstreamDependencies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUpstreamDependencies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	deps, err := h.svc.GetUpstreamDependencies(c.Request.Context(), tenantID, name)
+	deps, err := h.svc.GetUpstreamDependencies(ctx, tenantID, name)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -170,9 +191,11 @@ func (h *Handler) GetUpstreamDependencies(c *gin.Context) {
 }
 
 func (h *Handler) GetDownstreamDependents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDownstreamDependents")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	deps, err := h.svc.GetDownstreamDependents(c.Request.Context(), tenantID, name)
+	deps, err := h.svc.GetDownstreamDependents(ctx, tenantID, name)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -181,9 +204,11 @@ func (h *Handler) GetDownstreamDependents(c *gin.Context) {
 }
 
 func (h *Handler) FindImpactScope(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FindImpactScope")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	name := c.Param("name")
-	scope, err := h.svc.FindImpactScope(c.Request.Context(), tenantID, name)
+	scope, err := h.svc.FindImpactScope(ctx, tenantID, name)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -192,8 +217,10 @@ func (h *Handler) FindImpactScope(c *gin.Context) {
 }
 
 func (h *Handler) DetectCycles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectCycles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	cycles, err := h.svc.DetectCycles(c.Request.Context(), tenantID)
+	cycles, err := h.svc.DetectCycles(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -206,8 +233,10 @@ func (h *Handler) DetectCycles(c *gin.Context) {
 }
 
 func (h *Handler) GetTopologyStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTopologyStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetTopologyStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetTopologyStats(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return

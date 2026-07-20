@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Sentinel errors used by the service layer, copied here for the Service interface.
@@ -53,8 +54,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.List(c.Request.Context(), tenantID)
+	result, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -63,13 +66,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateEnvLifecycleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		if isBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -82,9 +87,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	result, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-lifecycle not found")
@@ -97,6 +104,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateEnvLifecycleRequest
@@ -104,7 +113,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-lifecycle not found")
@@ -121,9 +130,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		if isNotFound(err) {
 			middleware.RespondNotFound(c, "env-lifecycle not found")

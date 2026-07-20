@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/resilience-score/models"
+)
+
 // ServiceInterface defines the interface for the resilience-score service.
 type ServiceInterface interface {
 	Assess(ctx context.Context, tenantID string, req models.AssessResilienceRequest) (any, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/artifact-lifecycle/models"
+)
+
 // ServiceInterface defines the interface for the artifact-lifecycle service.
 type ServiceInterface interface {
 	AdvanceStage(ctx context.Context, tenantID, id string, req models.AdvanceStageRequest) (*models.ArtifactLifecycle, error)

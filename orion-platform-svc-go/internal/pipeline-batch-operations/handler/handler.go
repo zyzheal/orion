@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler handles pipeline batch operation HTTP requests.
@@ -42,13 +43,15 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 
 // BatchStart handles POST /pipelines/batch/start
 func (h *Handler) BatchStart(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStart")
+	defer span.End()
 	var req models.BatchStartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	resp, err := h.svc.BatchStart(c.Request.Context(), &req, tenantID)
+	resp, err := h.svc.BatchStart(ctx, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline not found")
@@ -62,13 +65,15 @@ func (h *Handler) BatchStart(c *gin.Context) {
 
 // BatchStop handles POST /pipelines/batch/stop
 func (h *Handler) BatchStop(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchStop")
+	defer span.End()
 	var req models.BatchStopRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	resp, err := h.svc.BatchStop(c.Request.Context(), &req, tenantID)
+	resp, err := h.svc.BatchStop(ctx, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -82,13 +87,15 @@ func (h *Handler) BatchStop(c *gin.Context) {
 
 // BatchDelete handles POST /pipelines/batch/delete
 func (h *Handler) BatchDelete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "BatchDelete")
+	defer span.End()
 	var req models.BatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	resp, err := h.svc.BatchDelete(c.Request.Context(), &req, tenantID)
+	resp, err := h.svc.BatchDelete(ctx, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline not found")

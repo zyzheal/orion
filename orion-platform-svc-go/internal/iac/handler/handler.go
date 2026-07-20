@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -75,10 +76,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Workspace CRUD ---
 
 func (h *Handler) ListWorkspaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListWorkspaces")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListWorkspaces(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.ListWorkspaces(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -87,13 +90,15 @@ func (h *Handler) ListWorkspaces(c *gin.Context) {
 }
 
 func (h *Handler) CreateWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateWorkspaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.CreateWorkspace(c.Request.Context(), tenantID, req)
+	w, err := h.svc.CreateWorkspace(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -102,9 +107,11 @@ func (h *Handler) CreateWorkspace(c *gin.Context) {
 }
 
 func (h *Handler) GetWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	w, err := h.svc.GetWorkspace(c.Request.Context(), tenantID, id)
+	w, err := h.svc.GetWorkspace(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workspace not found")
@@ -117,6 +124,8 @@ func (h *Handler) GetWorkspace(c *gin.Context) {
 }
 
 func (h *Handler) UpdateWorkspace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateWorkspace")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateWorkspaceRequest
@@ -124,7 +133,7 @@ func (h *Handler) UpdateWorkspace(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	w, err := h.svc.UpdateWorkspace(c.Request.Context(), tenantID, id, req)
+	w, err := h.svc.UpdateWorkspace(ctx, tenantID, id, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workspace not found")
@@ -139,11 +148,13 @@ func (h *Handler) UpdateWorkspace(c *gin.Context) {
 // --- Plan & Apply ---
 
 func (h *Handler) GeneratePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GeneratePlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
 	var req models.GeneratePlanRequest
 	c.ShouldBindJSON(&req)
-	plan, err := h.svc.GeneratePlan(c.Request.Context(), tenantID, workspaceID, req)
+	plan, err := h.svc.GeneratePlan(ctx, tenantID, workspaceID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -152,11 +163,13 @@ func (h *Handler) GeneratePlan(c *gin.Context) {
 }
 
 func (h *Handler) ApplyPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApplyPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
 	var req models.ApplyPlanRequest
 	c.ShouldBindJSON(&req)
-	plan, err := h.svc.ApplyPlan(c.Request.Context(), tenantID, workspaceID, req)
+	plan, err := h.svc.ApplyPlan(ctx, tenantID, workspaceID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -167,9 +180,11 @@ func (h *Handler) ApplyPlan(c *gin.Context) {
 // --- State & Resources ---
 
 func (h *Handler) GetCurrentState(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCurrentState")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
-	state, err := h.svc.GetCurrentState(c.Request.Context(), tenantID, workspaceID)
+	state, err := h.svc.GetCurrentState(ctx, tenantID, workspaceID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workspace not found")
@@ -182,9 +197,11 @@ func (h *Handler) GetCurrentState(c *gin.Context) {
 }
 
 func (h *Handler) ListResources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListResources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
-	resources, err := h.svc.ListResources(c.Request.Context(), tenantID, workspaceID)
+	resources, err := h.svc.ListResources(ctx, tenantID, workspaceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -193,6 +210,8 @@ func (h *Handler) ListResources(c *gin.Context) {
 }
 
 func (h *Handler) ImportResource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ImportResource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
 	var req models.ImportResourceRequest
@@ -200,7 +219,7 @@ func (h *Handler) ImportResource(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resource, err := h.svc.ImportResource(c.Request.Context(), tenantID, workspaceID, req)
+	resource, err := h.svc.ImportResource(ctx, tenantID, workspaceID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -211,9 +230,11 @@ func (h *Handler) ImportResource(c *gin.Context) {
 // --- State Versions ---
 
 func (h *Handler) ListStateVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListStateVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
-	versions, err := h.svc.ListStateVersions(c.Request.Context(), tenantID, workspaceID)
+	versions, err := h.svc.ListStateVersions(ctx, tenantID, workspaceID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "workspace not found")
@@ -226,6 +247,8 @@ func (h *Handler) ListStateVersions(c *gin.Context) {
 }
 
 func (h *Handler) GetStateDiff(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStateDiff")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
 	versionA := c.Query("versionA")
@@ -234,7 +257,7 @@ func (h *Handler) GetStateDiff(c *gin.Context) {
 		middleware.RespondBadRequest(c, "versionA and versionB query parameters are required")
 		return
 	}
-	diff, err := h.svc.GetStateDiff(c.Request.Context(), tenantID, workspaceID, versionA, versionB)
+	diff, err := h.svc.GetStateDiff(ctx, tenantID, workspaceID, versionA, versionB)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -245,9 +268,11 @@ func (h *Handler) GetStateDiff(c *gin.Context) {
 // --- Plan Details ---
 
 func (h *Handler) ListPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPlans")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("id")
-	plans, err := h.svc.ListPlans(c.Request.Context(), tenantID, workspaceID)
+	plans, err := h.svc.ListPlans(ctx, tenantID, workspaceID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -256,10 +281,12 @@ func (h *Handler) ListPlans(c *gin.Context) {
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlan")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	workspaceID := c.Param("workspaceId")
 	planID := c.Param("planId")
-	plan, err := h.svc.GetPlan(c.Request.Context(), tenantID, planID)
+	plan, err := h.svc.GetPlan(ctx, tenantID, planID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "plan not found")
@@ -279,8 +306,10 @@ func (h *Handler) GetPlan(c *gin.Context) {
 // --- Modules ---
 
 func (h *Handler) ListModules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListModules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	modules, err := h.svc.ListModules(c.Request.Context(), tenantID)
+	modules, err := h.svc.ListModules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -289,13 +318,15 @@ func (h *Handler) ListModules(c *gin.Context) {
 }
 
 func (h *Handler) CreateModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateModule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateModuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateModule(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateModule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -304,9 +335,11 @@ func (h *Handler) CreateModule(c *gin.Context) {
 }
 
 func (h *Handler) GetModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetModule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetModule(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetModule(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "module not found")
@@ -319,9 +352,11 @@ func (h *Handler) GetModule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteModule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteModule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteModule(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteModule(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "module not found")
 			return

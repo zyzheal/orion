@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-trend/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-trend service.
 type ServiceInterface interface {
 	GetRunHistoryCompare(ctx context.Context, pipelineIDs []string, period, granularity string) (*models.CompareResponse, error)

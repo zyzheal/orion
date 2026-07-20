@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -67,10 +68,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -79,13 +82,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTeamRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		// Check for known error types
 		msg := err.Error()
@@ -99,9 +104,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -110,6 +117,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateTeamRequest
@@ -117,7 +126,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -126,9 +135,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	result, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -137,9 +148,11 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) GetUserTeams(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetUserTeams")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	teams, err := h.svc.GetUserTeams(c.Request.Context(), userID, tenantID)
+	teams, err := h.svc.GetUserTeams(ctx, userID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -148,9 +161,11 @@ func (h *Handler) GetUserTeams(c *gin.Context) {
 }
 
 func (h *Handler) GetMembers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMembers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	teamID := c.Param("id")
-	members, err := h.svc.GetMembers(c.Request.Context(), teamID, tenantID)
+	members, err := h.svc.GetMembers(ctx, teamID, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -159,6 +174,8 @@ func (h *Handler) GetMembers(c *gin.Context) {
 }
 
 func (h *Handler) AddMember(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddMember")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	teamID := c.Param("id")
@@ -171,7 +188,7 @@ func (h *Handler) AddMember(c *gin.Context) {
 	if req.Role != nil {
 		role = *req.Role
 	}
-	err := h.svc.AddMember(c.Request.Context(), teamID, req.UserID, tenantID, role, userID)
+	err := h.svc.AddMember(ctx, teamID, req.UserID, tenantID, role, userID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -180,10 +197,12 @@ func (h *Handler) AddMember(c *gin.Context) {
 }
 
 func (h *Handler) RemoveMember(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveMember")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	teamID := c.Param("id")
 	userID := c.Param("userId")
-	removed, err := h.svc.RemoveMember(c.Request.Context(), teamID, userID, tenantID)
+	removed, err := h.svc.RemoveMember(ctx, teamID, userID, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -196,6 +215,8 @@ func (h *Handler) RemoveMember(c *gin.Context) {
 }
 
 func (h *Handler) UpdateMemberRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateMemberRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	teamID := c.Param("id")
 	userID := c.Param("userId")
@@ -204,7 +225,7 @@ func (h *Handler) UpdateMemberRole(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	err := h.svc.UpdateMemberRole(c.Request.Context(), teamID, userID, tenantID, req.Role)
+	err := h.svc.UpdateMemberRole(ctx, teamID, userID, tenantID, req.Role)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -213,9 +234,11 @@ func (h *Handler) UpdateMemberRole(c *gin.Context) {
 }
 
 func (h *Handler) GetRoles(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRoles")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	teamID := c.Param("id")
-	roles, err := h.svc.GetRoles(c.Request.Context(), teamID, tenantID)
+	roles, err := h.svc.GetRoles(ctx, teamID, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -224,6 +247,8 @@ func (h *Handler) GetRoles(c *gin.Context) {
 }
 
 func (h *Handler) AssignRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AssignRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	teamID := c.Param("id")
@@ -232,7 +257,7 @@ func (h *Handler) AssignRole(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	err := h.svc.AssignRole(c.Request.Context(), teamID, req.RoleName, tenantID, userID)
+	err := h.svc.AssignRole(ctx, teamID, req.RoleName, tenantID, userID)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -241,10 +266,12 @@ func (h *Handler) AssignRole(c *gin.Context) {
 }
 
 func (h *Handler) RemoveRole(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveRole")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	teamID := c.Param("id")
 	roleName := c.Param("roleName")
-	removed, err := h.svc.RemoveRole(c.Request.Context(), teamID, roleName, tenantID)
+	removed, err := h.svc.RemoveRole(ctx, teamID, roleName, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return

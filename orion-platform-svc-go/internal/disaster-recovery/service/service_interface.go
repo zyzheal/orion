@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/disaster-recovery/models"
+)
+
 // ServiceInterface defines the interface for the disaster-recovery service.
 type ServiceInterface interface {
 	CreatePlan(ctx context.Context, tenantID string, req models.CreateDisasterPlanRequest) (*models.DisasterPlan, error)

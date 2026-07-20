@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -74,13 +75,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Functions handlers ---
 
 func (h *Handler) CreateFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateFunctionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	f, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	f, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -89,9 +92,11 @@ func (h *Handler) CreateFunction(c *gin.Context) {
 }
 
 func (h *Handler) GetFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	f, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	f, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
@@ -104,6 +109,8 @@ func (h *Handler) GetFunction(c *gin.Context) {
 }
 
 func (h *Handler) ListFunctions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListFunctions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
@@ -116,7 +123,7 @@ func (h *Handler) ListFunctions(c *gin.Context) {
 		r := models.FunctionRuntime(runtime)
 		q.Runtime = &r
 	}
-	items, err := h.svc.List(c.Request.Context(), tenantID, q, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, q, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -125,6 +132,8 @@ func (h *Handler) ListFunctions(c *gin.Context) {
 }
 
 func (h *Handler) UpdateFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateFunctionRequest
@@ -132,7 +141,7 @@ func (h *Handler) UpdateFunction(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if _, err := h.svc.Update(c.Request.Context(), tenantID, id, req); err != nil {
+	if _, err := h.svc.Update(ctx, tenantID, id, req); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
 			return
@@ -144,9 +153,11 @@ func (h *Handler) UpdateFunction(c *gin.Context) {
 }
 
 func (h *Handler) DeleteFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
 			return
@@ -160,9 +171,11 @@ func (h *Handler) DeleteFunction(c *gin.Context) {
 // --- Deployment handlers ---
 
 func (h *Handler) DeployFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeployFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	d, err := h.svc.Deploy(c.Request.Context(), tenantID, id)
+	d, err := h.svc.Deploy(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
@@ -175,9 +188,11 @@ func (h *Handler) DeployFunction(c *gin.Context) {
 }
 
 func (h *Handler) ListDeployments(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeployments")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	items, err := h.svc.ListDeployments(c.Request.Context(), tenantID, id)
+	items, err := h.svc.ListDeployments(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -188,11 +203,13 @@ func (h *Handler) ListDeployments(c *gin.Context) {
 // --- Invocation handler ---
 
 func (h *Handler) InvokeFunction(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InvokeFunction")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var payload gin.H
 	c.ShouldBindJSON(&payload)
-	result, err := h.svc.Invoke(c.Request.Context(), tenantID, id, payload)
+	result, err := h.svc.Invoke(ctx, tenantID, id, payload)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
@@ -211,6 +228,8 @@ func (h *Handler) InvokeFunction(c *gin.Context) {
 // --- Logs handler ---
 
 func (h *Handler) GetFunctionLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFunctionLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	q := models.GetFunctionLogsQuery{}
@@ -223,7 +242,7 @@ func (h *Handler) GetFunctionLogs(c *gin.Context) {
 			q.Limit = &limit
 		}
 	}
-	items, err := h.svc.GetLogs(c.Request.Context(), tenantID, id, q)
+	items, err := h.svc.GetLogs(ctx, tenantID, id, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -234,9 +253,11 @@ func (h *Handler) GetFunctionLogs(c *gin.Context) {
 // --- Metrics handlers ---
 
 func (h *Handler) GetFunctionMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetFunctionMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetMetrics(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetMetrics(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -245,8 +266,10 @@ func (h *Handler) GetFunctionMetrics(c *gin.Context) {
 }
 
 func (h *Handler) GetAggregateMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAggregateMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	agg, err := h.svc.GetAggregateMetrics(c.Request.Context(), tenantID)
+	agg, err := h.svc.GetAggregateMetrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -257,13 +280,15 @@ func (h *Handler) GetAggregateMetrics(c *gin.Context) {
 // --- Trigger handlers ---
 
 func (h *Handler) CreateTrigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTrigger")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTriggerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	t, err := h.svc.CreateTrigger(c.Request.Context(), tenantID, req)
+	t, err := h.svc.CreateTrigger(ctx, tenantID, req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "function not found")
@@ -276,9 +301,11 @@ func (h *Handler) CreateTrigger(c *gin.Context) {
 }
 
 func (h *Handler) GetTrigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrigger")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	t, err := h.svc.GetTrigger(c.Request.Context(), tenantID, id)
+	t, err := h.svc.GetTrigger(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "trigger not found")
@@ -291,6 +318,8 @@ func (h *Handler) GetTrigger(c *gin.Context) {
 }
 
 func (h *Handler) ListTriggers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTriggers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.ListTriggersQuery{}
 	if fid := c.Query("functionId"); fid != "" {
@@ -300,7 +329,7 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 		t := models.TriggerType(typ)
 		q.Type = &t
 	}
-	items, err := h.svc.ListTriggers(c.Request.Context(), tenantID, q)
+	items, err := h.svc.ListTriggers(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -309,9 +338,11 @@ func (h *Handler) ListTriggers(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTrigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTrigger")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteTrigger(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteTrigger(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "trigger not found")
 			return
@@ -325,8 +356,10 @@ func (h *Handler) DeleteTrigger(c *gin.Context) {
 // --- Auto-scaling handler ---
 
 func (h *Handler) EvaluateAutoScaling(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluateAutoScaling")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	recommendations, err := h.svc.EvaluateAutoScaling(c.Request.Context(), tenantID)
+	recommendations, err := h.svc.EvaluateAutoScaling(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

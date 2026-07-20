@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/runbook/models"
+)
+
 // ServiceInterface defines the interface for the runbook service.
 type ServiceInterface interface {
 	CompleteExecution(ctx context.Context, tenantID, executionID string, success bool) error

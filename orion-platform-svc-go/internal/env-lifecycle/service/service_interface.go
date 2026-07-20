@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/env-lifecycle/models"
+)
+
 // ServiceInterface defines the interface for the env-lifecycle service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateEnvLifecycleRequest) (*models.EnvLifecycle, error)

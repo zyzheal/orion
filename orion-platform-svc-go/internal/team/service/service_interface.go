@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/team/models"
+)
+
 // ServiceInterface defines the interface for the team service.
 type ServiceInterface interface {
 	AddMember(ctx context.Context, teamID, userID, tenantID, role, addedBy string) error

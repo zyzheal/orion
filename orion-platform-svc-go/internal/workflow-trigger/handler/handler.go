@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for workflow trigger operations.
@@ -42,6 +43,8 @@ func getTenantID(c *gin.Context) string {
 
 // Create creates a new workflow trigger.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	var req models.CreateWorkflowTriggerRequest
@@ -50,7 +53,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	trigger, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	trigger, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -60,6 +63,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List retrieves workflow triggers with optional filters and pagination.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -84,7 +89,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Enabled = &e
 	}
 
-	items, total, err := h.svc.List(c.Request.Context(), tenantID, filter, (page-1)*pageSize, pageSize)
+	items, total, err := h.svc.List(ctx, tenantID, filter, (page-1)*pageSize, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -99,8 +104,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get retrieves a single workflow trigger by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := getTenantID(c)
-	trigger, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	trigger, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -110,6 +117,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update modifies an existing workflow trigger.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	var req models.UpdateWorkflowTriggerRequest
@@ -118,7 +127,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	trigger, err := h.svc.Update(c.Request.Context(), tenantID, c.Param("id"), &req)
+	trigger, err := h.svc.Update(ctx, tenantID, c.Param("id"), &req)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
 			middleware.RespondNotFound(c, err.Error())
@@ -132,8 +141,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete removes a workflow trigger by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := getTenantID(c)
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -142,8 +153,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Enable enables a workflow trigger.
 func (h *Handler) Enable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Enable")
+	defer span.End()
 	tenantID := getTenantID(c)
-	trigger, err := h.svc.SetEnabled(c.Request.Context(), tenantID, c.Param("id"), true)
+	trigger, err := h.svc.SetEnabled(ctx, tenantID, c.Param("id"), true)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
 			middleware.RespondNotFound(c, err.Error())
@@ -157,8 +170,10 @@ func (h *Handler) Enable(c *gin.Context) {
 
 // Disable disables a workflow trigger.
 func (h *Handler) Disable(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Disable")
+	defer span.End()
 	tenantID := getTenantID(c)
-	trigger, err := h.svc.SetEnabled(c.Request.Context(), tenantID, c.Param("id"), false)
+	trigger, err := h.svc.SetEnabled(ctx, tenantID, c.Param("id"), false)
 	if err != nil {
 		if err == models.ErrTriggerNotFound {
 			middleware.RespondNotFound(c, err.Error())
@@ -172,6 +187,8 @@ func (h *Handler) Disable(c *gin.Context) {
 
 // Trigger manually triggers a workflow execution via a trigger.
 func (h *Handler) Trigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Trigger")
+	defer span.End()
 	tenantID := getTenantID(c)
 
 	var payload map[string]interface{}
@@ -179,7 +196,7 @@ func (h *Handler) Trigger(c *gin.Context) {
 		payload = make(map[string]interface{})
 	}
 
-	if err := h.svc.Trigger(c.Request.Context(), tenantID, c.Param("id"), payload); err != nil {
+	if err := h.svc.Trigger(ctx, tenantID, c.Param("id"), payload); err != nil {
 		if err == models.ErrTriggerNotFound {
 			middleware.RespondNotFound(c, err.Error())
 			return
@@ -196,6 +213,8 @@ func (h *Handler) Trigger(c *gin.Context) {
 
 // ExecuteWorkflow executes a workflow by definition ID.
 func (h *Handler) ExecuteWorkflow(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteWorkflow")
+	defer span.End()
 	tenantID := getTenantID(c)
 	definitionID := c.Param("definitionId")
 

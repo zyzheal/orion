@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Resource and action constants for page-registry RBAC
@@ -62,12 +63,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List returns all page registry entries for the tenant.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
-	items, err := h.svc.GetAll(c.Request.Context(), tenantID)
+	items, err := h.svc.GetAll(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -80,12 +83,14 @@ func (h *Handler) List(c *gin.Context) {
 
 // ListEnabled returns only enabled page registry entries for the tenant.
 func (h *Handler) ListEnabled(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEnabled")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
 		return
 	}
-	items, err := h.svc.GetEnabled(c.Request.Context(), tenantID)
+	items, err := h.svc.GetEnabled(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -97,6 +102,8 @@ func (h *Handler) ListEnabled(c *gin.Context) {
 
 // GetByPath returns a single page registry entry by path.
 func (h *Handler) GetByPath(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetByPath")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -107,7 +114,7 @@ func (h *Handler) GetByPath(c *gin.Context) {
 		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
-	entry, err := h.svc.GetByPath(c.Request.Context(), tenantID, path)
+	entry, err := h.svc.GetByPath(ctx, tenantID, path)
 	if err != nil {
 		middleware.RespondNotFound(c, "page entry not found: "+path)
 		return
@@ -119,6 +126,8 @@ func (h *Handler) GetByPath(c *gin.Context) {
 
 // Create creates a new page registry entry.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -129,7 +138,7 @@ func (h *Handler) Create(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	entry, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	entry, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		// Detect conflict error (path already exists)
 		if errors.Is(err, fmt.Errorf("path already exists")) {
@@ -147,6 +156,8 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Update updates an existing page registry entry.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -162,7 +173,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	entry, err := h.svc.Update(c.Request.Context(), tenantID, path, req)
+	entry, err := h.svc.Update(ctx, tenantID, path, req)
 	if err != nil {
 		// Check for not found
 		if strings.Contains(err.Error(), "not found") {
@@ -185,6 +196,8 @@ func (h *Handler) Update(c *gin.Context) {
 
 // ToggleStatus toggles a page entry between enabled and disabled.
 func (h *Handler) ToggleStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -195,7 +208,7 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
-	entry, err := h.svc.ToggleStatus(c.Request.Context(), tenantID, path)
+	entry, err := h.svc.ToggleStatus(ctx, tenantID, path)
 	if err != nil {
 		middleware.RespondNotFound(c, "page entry not found: "+path)
 		return
@@ -212,6 +225,8 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 
 // Delete deletes a page registry entry.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -222,7 +237,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
-	err := h.svc.Delete(c.Request.Context(), tenantID, path)
+	err := h.svc.Delete(ctx, tenantID, path)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			middleware.RespondNotFound(c, "page entry not found: "+path)
@@ -238,6 +253,8 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // GetHistory returns history entries for a given page path.
 func (h *Handler) GetHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
 		middleware.RespondForbidden(c, "missing tenant_id")
@@ -248,7 +265,7 @@ func (h *Handler) GetHistory(c *gin.Context) {
 		middleware.RespondBadRequest(c, "path parameter is required")
 		return
 	}
-	history, err := h.svc.GetHistory(c.Request.Context(), tenantID, path)
+	history, err := h.svc.GetHistory(ctx, tenantID, path)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

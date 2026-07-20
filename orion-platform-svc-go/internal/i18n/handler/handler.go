@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -58,13 +59,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Locale Handlers ====================
 
 func (h *Handler) CreateLocale(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLocale")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateLocaleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	locale, err := h.svc.CreateLocale(c.Request.Context(), tenantID, req)
+	locale, err := h.svc.CreateLocale(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -73,8 +76,10 @@ func (h *Handler) CreateLocale(c *gin.Context) {
 }
 
 func (h *Handler) ListLocales(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLocales")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	locales, err := h.svc.ListLocales(c.Request.Context(), tenantID)
+	locales, err := h.svc.ListLocales(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,13 +90,15 @@ func (h *Handler) ListLocales(c *gin.Context) {
 // ==================== Translation Handlers ====================
 
 func (h *Handler) SetTranslation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetTranslation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SetTranslationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	translation, err := h.svc.SetTranslation(c.Request.Context(), tenantID, req.LocaleCode, req.Namespace, req.Key, req.Value)
+	translation, err := h.svc.SetTranslation(ctx, tenantID, req.LocaleCode, req.Namespace, req.Key, req.Value)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -100,13 +107,15 @@ func (h *Handler) SetTranslation(c *gin.Context) {
 }
 
 func (h *Handler) SetBulkTranslations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SetBulkTranslations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.SetBulkTranslationsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	count, err := h.svc.SetBulkTranslations(c.Request.Context(), tenantID, req.LocaleCode, req.Namespace, req.Translations)
+	count, err := h.svc.SetBulkTranslations(ctx, tenantID, req.LocaleCode, req.Namespace, req.Translations)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -115,11 +124,13 @@ func (h *Handler) SetBulkTranslations(c *gin.Context) {
 }
 
 func (h *Handler) GetTranslations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTranslations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	localeCode := c.Param("localeCode")
 	namespace := c.Query("namespace")
 
-	ctx := c.Request.Context()
+	ctx := ctx
 	if namespace != "" {
 		translations, err := h.svc.GetTranslationsByNamespace(ctx, tenantID, localeCode, namespace)
 		if err != nil {
@@ -146,12 +157,14 @@ func (h *Handler) GetTranslations(c *gin.Context) {
 }
 
 func (h *Handler) DeleteTranslation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteTranslation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	localeCode := c.Param("localeCode")
 	namespace := c.Param("namespace")
 	key := c.Param("key")
 
-	deleted, err := h.svc.DeleteTranslation(c.Request.Context(), tenantID, localeCode, namespace, key)
+	deleted, err := h.svc.DeleteTranslation(ctx, tenantID, localeCode, namespace, key)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

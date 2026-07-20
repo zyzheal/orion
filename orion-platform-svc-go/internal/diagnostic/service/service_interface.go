@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/diagnostic/models"
+)
+
 // ServiceInterface defines the interface for the diagnostic service.
 type ServiceInterface interface {
 	AddPattern(ctx context.Context, tenantID string, req *models.CreatePatternRequest) (*models.Pattern, error)

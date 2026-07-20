@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/artifact-ops/models"
+)
+
 // ServiceInterface defines the interface for the artifact-ops service.
 type ServiceInterface interface {
 	Cleanup(ctx context.Context, tenantID string) (map[string]any, error)

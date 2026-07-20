@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP handlers for webhook endpoints.
@@ -77,6 +78,8 @@ func parsePagination(c *gin.Context) (int, int) {
 
 // List handles GET /webhooks
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	page, pageSize := parsePagination(c)
 
@@ -89,7 +92,7 @@ func (h *Handler) List(c *gin.Context) {
 		filter.Enabled = &enabled
 	}
 
-	webhooks, total, err := h.svc.List(c.Request.Context(), tenantID, filter, page, pageSize)
+	webhooks, total, err := h.svc.List(ctx, tenantID, filter, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -104,6 +107,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Create handles POST /webhooks
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -111,7 +116,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	w, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	w, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -121,9 +126,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get handles GET /webhooks/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	w, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	w, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
@@ -137,6 +144,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update handles PUT /webhooks/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateWebhookRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -144,7 +153,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	w, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	w, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
@@ -158,9 +167,11 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete handles DELETE /webhooks/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
 			return
@@ -173,8 +184,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // Count handles GET /webhooks/count
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	count, err := h.svc.Count(c.Request.Context(), tenantID)
+	count, err := h.svc.Count(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -186,9 +199,11 @@ func (h *Handler) Count(c *gin.Context) {
 
 // Trigger handles POST /webhooks/:id/trigger
 func (h *Handler) Trigger(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Trigger")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	if err := h.svc.Trigger(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Trigger(ctx, tenantID, id); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
 			return
@@ -201,13 +216,15 @@ func (h *Handler) Trigger(c *gin.Context) {
 
 // TriggerByEvent handles POST /webhooks/trigger-event?event_type=xxx
 func (h *Handler) TriggerByEvent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerByEvent")
+	defer span.End()
 	eventType := c.Query("event_type")
 	if eventType == "" {
 		middleware.RespondBadRequest(c, "event_type query parameter is required")
 		return
 	}
 	tenantID := h.getTenantID(c)
-	if err := h.svc.TriggerByEvent(c.Request.Context(), tenantID, eventType); err != nil {
+	if err := h.svc.TriggerByEvent(ctx, tenantID, eventType); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -216,9 +233,11 @@ func (h *Handler) TriggerByEvent(c *gin.Context) {
 
 // RotateSecret handles POST /webhooks/:id/rotate-secret
 func (h *Handler) RotateSecret(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RotateSecret")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	secret, err := h.svc.RotateSecret(c.Request.Context(), tenantID, id)
+	secret, err := h.svc.RotateSecret(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
@@ -234,10 +253,12 @@ func (h *Handler) RotateSecret(c *gin.Context) {
 
 // ListDeliveries handles GET /webhooks/:id/deliveries
 func (h *Handler) ListDeliveries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDeliveries")
+	defer span.End()
 	webhookID := c.Param("id")
 	// Verify the webhook exists and belongs to the tenant.
 	tenantID := h.getTenantID(c)
-	if _, err := h.svc.Get(c.Request.Context(), tenantID, webhookID); err != nil {
+	if _, err := h.svc.Get(ctx, tenantID, webhookID); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "webhook not found")
 			return
@@ -248,7 +269,7 @@ func (h *Handler) ListDeliveries(c *gin.Context) {
 
 	page, pageSize := parsePagination(c)
 
-	deliveries, total, err := h.svc.ListDeliveries(c.Request.Context(), webhookID, page, pageSize)
+	deliveries, total, err := h.svc.ListDeliveries(ctx, webhookID, page, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

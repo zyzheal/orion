@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ticket-automation/models"
+)
+
 // ServiceInterface defines the interface for the ticket-automation service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, e *models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN) (*models.LTLILCLKLELTLuLALULTLOLMLALTLILOLN, error)

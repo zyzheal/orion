@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/visor-exec/models"
+)
+
 // ServiceInterface defines the interface for the visor-exec service.
 type ServiceInterface interface {
 	CancelUploadTask(ctx context.Context, id string) (*models.UploadTask, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/escalation/models"
+)
+
 // ServiceInterface defines the interface for the escalation service.
 type ServiceInterface interface {
 	CreateRule(ctx context.Context, tenantID string, req models.TriggerRequest) (*models.EscalationRule, error)

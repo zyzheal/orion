@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -59,8 +60,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Handlers ---
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetAll(c.Request.Context(), tenantID)
+	items, err := h.svc.GetAll(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -69,8 +72,10 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) ListEnabled(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListEnabled")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetEnabled(c.Request.Context(), tenantID)
+	items, err := h.svc.GetEnabled(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -79,8 +84,10 @@ func (h *Handler) ListEnabled(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	m, err := h.svc.GetByKey(c.Request.Context(), tenantID, c.Param("key"))
+	m, err := h.svc.GetByKey(ctx, tenantID, c.Param("key"))
 	if err != nil {
 		middleware.RespondNotFound(c, "sub-app not found")
 		return
@@ -89,8 +96,10 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) History(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "History")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetHistory(c.Request.Context(), tenantID, c.Param("key"))
+	items, err := h.svc.GetHistory(ctx, tenantID, c.Param("key"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -99,6 +108,8 @@ func (h *Handler) History(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	createdBy := c.GetString("user_id")
 	var req models.CreateSubAppRequest
@@ -111,9 +122,9 @@ func (h *Handler) Create(c *gin.Context) {
 	var m *models.SubApp
 	var err error
 	if createdBy != "" {
-		m, err = h.svc.Create(c.Request.Context(), tenantID, createdByPtr, req)
+		m, err = h.svc.Create(ctx, tenantID, createdByPtr, req)
 	} else {
-		m, err = h.svc.Create(c.Request.Context(), tenantID, nil, req)
+		m, err = h.svc.Create(ctx, tenantID, nil, req)
 	}
 	if err != nil {
 		if err == service.ErrSubAppKeyExists {
@@ -127,6 +138,8 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	updatedBy := c.GetString("user_id")
 	var req models.UpdateSubAppRequest
@@ -138,9 +151,9 @@ func (h *Handler) Update(c *gin.Context) {
 	var m *models.SubApp
 	var err error
 	if updatedBy != "" {
-		m, err = h.svc.Update(c.Request.Context(), tenantID, c.Param("key"), updatedByPtr, req)
+		m, err = h.svc.Update(ctx, tenantID, c.Param("key"), updatedByPtr, req)
 	} else {
-		m, err = h.svc.Update(c.Request.Context(), tenantID, c.Param("key"), nil, req)
+		m, err = h.svc.Update(ctx, tenantID, c.Param("key"), nil, req)
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {
@@ -158,15 +171,17 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) ToggleStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ToggleStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	changedBy := c.GetString("user_id")
 	changedByPtr := &changedBy
 	var m *models.SubApp
 	var err error
 	if changedBy != "" {
-		m, err = h.svc.ToggleStatus(c.Request.Context(), tenantID, c.Param("key"), changedByPtr)
+		m, err = h.svc.ToggleStatus(ctx, tenantID, c.Param("key"), changedByPtr)
 	} else {
-		m, err = h.svc.ToggleStatus(c.Request.Context(), tenantID, c.Param("key"), nil)
+		m, err = h.svc.ToggleStatus(ctx, tenantID, c.Param("key"), nil)
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {
@@ -184,14 +199,16 @@ func (h *Handler) ToggleStatus(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	changedBy := c.GetString("user_id")
 	changedByPtr := &changedBy
 	var err error
 	if changedBy != "" {
-		err = h.svc.Delete(c.Request.Context(), tenantID, c.Param("key"), changedByPtr)
+		err = h.svc.Delete(ctx, tenantID, c.Param("key"), changedByPtr)
 	} else {
-		err = h.svc.Delete(c.Request.Context(), tenantID, c.Param("key"), nil)
+		err = h.svc.Delete(ctx, tenantID, c.Param("key"), nil)
 	}
 	if err != nil {
 		if err == service.ErrSubAppNotFound {

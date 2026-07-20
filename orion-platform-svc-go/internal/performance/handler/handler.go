@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,13 +42,15 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) CreateBaseline(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateBaseline")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.CreateBaselineRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	baseline, err := h.svc.CreateBaseline(c.Request.Context(), tenantID, &req)
+	baseline, err := h.svc.CreateBaseline(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -56,8 +59,10 @@ func (h *Handler) CreateBaseline(c *gin.Context) {
 }
 
 func (h *Handler) ListBaselines(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBaselines")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	baselines, err := h.svc.ListBaselines(c.Request.Context(), tenantID)
+	baselines, err := h.svc.ListBaselines(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -66,8 +71,10 @@ func (h *Handler) ListBaselines(c *gin.Context) {
 }
 
 func (h *Handler) GetBaselineByID(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBaselineByID")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	baseline, err := h.svc.GetBaselineByID(c.Request.Context(), c.Param("id"), tenantID)
+	baseline, err := h.svc.GetBaselineByID(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "baseline not found")
@@ -80,8 +87,10 @@ func (h *Handler) GetBaselineByID(c *gin.Context) {
 }
 
 func (h *Handler) GetEvaluationHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetEvaluationHistory")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	evalHistory, err := h.svc.GetEvaluationHistory(c.Request.Context(), c.Param("id"), tenantID)
+	evalHistory, err := h.svc.GetEvaluationHistory(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -90,13 +99,15 @@ func (h *Handler) GetEvaluationHistory(c *gin.Context) {
 }
 
 func (h *Handler) EvaluatePerformance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EvaluatePerformance")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.EvaluateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.EvaluatePerformance(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.EvaluatePerformance(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -105,8 +116,10 @@ func (h *Handler) EvaluatePerformance(c *gin.Context) {
 }
 
 func (h *Handler) ProfileService(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ProfileService")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	profile, err := h.svc.ProfileService(c.Request.Context(), tenantID, c.Param("serviceName"))
+	profile, err := h.svc.ProfileService(ctx, tenantID, c.Param("serviceName"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -115,8 +128,10 @@ func (h *Handler) ProfileService(c *gin.Context) {
 }
 
 func (h *Handler) GetBottlenecks(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBottlenecks")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	bottlenecks, err := h.svc.GetBottlenecks(c.Request.Context(), tenantID, c.Param("profileId"))
+	bottlenecks, err := h.svc.GetBottlenecks(ctx, tenantID, c.Param("profileId"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -125,8 +140,10 @@ func (h *Handler) GetBottlenecks(c *gin.Context) {
 }
 
 func (h *Handler) GetSuggestions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSuggestions")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	suggestions, err := h.svc.GetSuggestions(c.Request.Context(), tenantID, c.Param("serviceName"))
+	suggestions, err := h.svc.GetSuggestions(ctx, tenantID, c.Param("serviceName"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -135,13 +152,15 @@ func (h *Handler) GetSuggestions(c *gin.Context) {
 }
 
 func (h *Handler) DetectRegression(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectRegression")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.DetectRegressionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.DetectRegression(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.DetectRegression(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -150,13 +169,15 @@ func (h *Handler) DetectRegression(c *gin.Context) {
 }
 
 func (h *Handler) RecordTestResult(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordTestResult")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.TestResultRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	err := h.svc.RecordTestResult(c.Request.Context(), tenantID, &req)
+	err := h.svc.RecordTestResult(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -165,8 +186,10 @@ func (h *Handler) RecordTestResult(c *gin.Context) {
 }
 
 func (h *Handler) GetTestResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTestResults")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	results, err := h.svc.GetTestResults(c.Request.Context(), tenantID, c.Param("service"))
+	results, err := h.svc.GetTestResults(ctx, tenantID, c.Param("service"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

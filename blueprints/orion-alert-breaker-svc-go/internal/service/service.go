@@ -86,7 +86,7 @@ func (s *AlertBreakerService) DeleteRule(ctx context.Context, tenantID, id strin
 
 // EvaluateRule evaluates rules against alert labels and returns matching actions.
 func (s *AlertBreakerService) EvaluateRule(ctx context.Context, tenantID string, req *models.EvaluateRequest) (*models.EvaluateResult, error) {
-	rules, err := s.repo.ListByTenant(ctx, tenantID)
+	_, err := s.repo.ListByTenant(ctx, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list rules for evaluation: %w", err)
 	}

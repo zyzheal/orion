@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -94,13 +95,15 @@ func parsePagination(c *gin.Context) (int, int) {
 // --- SBOM handlers ---
 
 func (h *Handler) ListSBOMs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSBOMs")
+	defer span.End()
 	var q models.ListQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	docs, total, err := h.svc.ListSBOMs(c.Request.Context(), tenantID, &q)
+	docs, total, err := h.svc.ListSBOMs(ctx, tenantID, &q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -114,13 +117,15 @@ func (h *Handler) ListSBOMs(c *gin.Context) {
 }
 
 func (h *Handler) GenerateSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateSBOM")
+	defer span.End()
 	var req models.GenerateSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	sbom, err := h.svc.GenerateSBOM(c.Request.Context(), &req, tenantID)
+	sbom, err := h.svc.GenerateSBOM(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -129,9 +134,11 @@ func (h *Handler) GenerateSBOM(c *gin.Context) {
 }
 
 func (h *Handler) GetSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSBOM")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	sbom, err := h.svc.GetSBOM(c.Request.Context(), id, tenantID)
+	sbom, err := h.svc.GetSBOM(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "sbom not found")
@@ -144,9 +151,11 @@ func (h *Handler) GetSBOM(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSBOM")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteSBOM(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteSBOM(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -161,13 +170,15 @@ func (h *Handler) DeleteSBOM(c *gin.Context) {
 // --- Component handlers ---
 
 func (h *Handler) ListComponents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListComponents")
+	defer span.End()
 	id := c.Param("id")
 	offset, limit := parsePagination(c)
 	if limit == 20 {
 		limit = 50
 	}
 	tenantID := h.getTenantID(c)
-	comps, total, err := h.svc.ListComponents(c.Request.Context(), id, tenantID, offset, limit)
+	comps, total, err := h.svc.ListComponents(ctx, id, tenantID, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -183,6 +194,8 @@ func (h *Handler) ListComponents(c *gin.Context) {
 // --- Vulnerability handlers ---
 
 func (h *Handler) ListVulnerabilities(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVulnerabilities")
+	defer span.End()
 	id := c.Param("id")
 	offset, limit := parsePagination(c)
 	if limit == 20 {
@@ -194,7 +207,7 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 	if severity != "" {
 		severityPtr = &severity
 	}
-	vulns, total, err := h.svc.ListVulnerabilities(c.Request.Context(), id, tenantID, severityPtr, offset, limit)
+	vulns, total, err := h.svc.ListVulnerabilities(ctx, id, tenantID, severityPtr, offset, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -208,11 +221,13 @@ func (h *Handler) ListVulnerabilities(c *gin.Context) {
 }
 
 func (h *Handler) ScanSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ScanSBOM")
+	defer span.End()
 	id := c.Param("id")
 	var req models.ScanRequest
 	_ = c.ShouldBindJSON(&req)
 	tenantID := h.getTenantID(c)
-	sbom, err := h.svc.ScanSBOM(c.Request.Context(), id, tenantID, &req)
+	sbom, err := h.svc.ScanSBOM(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "sbom not found")
@@ -227,9 +242,11 @@ func (h *Handler) ScanSBOM(c *gin.Context) {
 // --- License handlers ---
 
 func (h *Handler) GetLicenses(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLicenses")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	licenses, err := h.svc.GetLicenses(c.Request.Context(), id, tenantID)
+	licenses, err := h.svc.GetLicenses(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -240,9 +257,11 @@ func (h *Handler) GetLicenses(c *gin.Context) {
 // --- Attestation handlers ---
 
 func (h *Handler) ListAttestations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAttestations")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	atts, err := h.svc.ListAttestations(c.Request.Context(), id, tenantID)
+	atts, err := h.svc.ListAttestations(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -251,6 +270,8 @@ func (h *Handler) ListAttestations(c *gin.Context) {
 }
 
 func (h *Handler) CreateAttestation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAttestation")
+	defer span.End()
 	id := c.Param("id")
 	var req models.CreateAttestationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -258,7 +279,7 @@ func (h *Handler) CreateAttestation(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	att, err := h.svc.CreateAttestation(c.Request.Context(), id, tenantID, &req)
+	att, err := h.svc.CreateAttestation(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "sbom not found")
@@ -273,10 +294,12 @@ func (h *Handler) CreateAttestation(c *gin.Context) {
 // --- Export handler ---
 
 func (h *Handler) ExportSBOM(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExportSBOM")
+	defer span.End()
 	id := c.Param("id")
 	format := c.Query("format")
 	tenantID := h.getTenantID(c)
-	resp, err := h.svc.ExportSBOM(c.Request.Context(), id, tenantID, format)
+	resp, err := h.svc.ExportSBOM(ctx, id, tenantID, format)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "sbom not found")
@@ -293,13 +316,15 @@ func (h *Handler) ExportSBOM(c *gin.Context) {
 // --- Compare handler ---
 
 func (h *Handler) CompareSBOMs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompareSBOMs")
+	defer span.End()
 	var req models.CompareSBOMRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	comparison, err := h.svc.CompareSBOMs(c.Request.Context(), req.FromSBOMID, req.ToSBOMID, tenantID)
+	comparison, err := h.svc.CompareSBOMs(ctx, req.FromSBOMID, req.ToSBOMID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "sbom not found")

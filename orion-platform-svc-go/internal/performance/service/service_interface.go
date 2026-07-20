@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/performance/models"
+)
+
 // ServiceInterface defines the interface for the performance service.
 type ServiceInterface interface {
 	CreateBaseline(ctx context.Context, tenantID string, req *models.CreateBaselineRequest) (*models.Baseline, error)

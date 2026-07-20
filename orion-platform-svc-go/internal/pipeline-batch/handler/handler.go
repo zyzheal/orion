@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -46,13 +47,15 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) CreatePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePhaseGroup")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.CreatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	group, err := h.svc.CreatePhaseGroup(c.Request.Context(), tenantID, &req)
+	group, err := h.svc.CreatePhaseGroup(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -61,13 +64,15 @@ func (h *Handler) CreatePhaseGroup(c *gin.Context) {
 }
 
 func (h *Handler) ListPhaseGroups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPhaseGroups")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	pipelineID := c.Query("pipelineId")
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	offset, _ := strconv.Atoi(c.Query("offset"))
 
-	groups, total, err := h.svc.ListPhaseGroups(c.Request.Context(), tenantID,
+	groups, total, err := h.svc.ListPhaseGroups(ctx, tenantID,
 		getStrPtr(pipelineID), getStrPtr(status), &limit, &offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
@@ -77,8 +82,10 @@ func (h *Handler) ListPhaseGroups(c *gin.Context) {
 }
 
 func (h *Handler) GetPhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPhaseGroup")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.GetPhaseGroup(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.GetPhaseGroup(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "phase group not found")
@@ -91,13 +98,15 @@ func (h *Handler) GetPhaseGroup(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePhaseGroup")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req models.UpdatePhaseGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	group, err := h.svc.UpdatePhaseGroup(c.Request.Context(), c.Param("id"), tenantID, &req)
+	group, err := h.svc.UpdatePhaseGroup(ctx, c.Param("id"), tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "phase group not found")
@@ -112,8 +121,10 @@ func (h *Handler) UpdatePhaseGroup(c *gin.Context) {
 }
 
 func (h *Handler) DeletePhaseGroup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePhaseGroup")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeletePhaseGroup(c.Request.Context(), c.Param("id"), tenantID)
+	deleted, err := h.svc.DeletePhaseGroup(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "phase group not found")
@@ -130,8 +141,10 @@ func (h *Handler) DeletePhaseGroup(c *gin.Context) {
 }
 
 func (h *Handler) StartExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartExecution")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.StartExecution(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.StartExecution(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -146,8 +159,10 @@ func (h *Handler) StartExecution(c *gin.Context) {
 }
 
 func (h *Handler) PauseExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseExecution")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.PauseExecution(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.PauseExecution(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -162,8 +177,10 @@ func (h *Handler) PauseExecution(c *gin.Context) {
 }
 
 func (h *Handler) ResumeExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResumeExecution")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.ResumeExecution(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.ResumeExecution(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -178,8 +195,10 @@ func (h *Handler) ResumeExecution(c *gin.Context) {
 }
 
 func (h *Handler) AdvanceToNextBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AdvanceToNextBatch")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.AdvanceToNextBatch(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.AdvanceToNextBatch(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "phase group not found")
@@ -192,8 +211,10 @@ func (h *Handler) AdvanceToNextBatch(c *gin.Context) {
 }
 
 func (h *Handler) RollbackExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackExecution")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	group, err := h.svc.RollbackExecution(c.Request.Context(), c.Param("id"), tenantID)
+	group, err := h.svc.RollbackExecution(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		if service.IsInvalidStatus(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -208,8 +229,10 @@ func (h *Handler) RollbackExecution(c *gin.Context) {
 }
 
 func (h *Handler) ListBatchRuns(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBatchRuns")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	runs, err := h.svc.ListBatchRuns(c.Request.Context(), c.Param("id"), tenantID)
+	runs, err := h.svc.ListBatchRuns(ctx, c.Param("id"), tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -218,12 +241,14 @@ func (h *Handler) ListBatchRuns(c *gin.Context) {
 }
 
 func (h *Handler) CompleteBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteBatch")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req struct {
 		Result map[string]interface{} `json:"result"`
 	}
 	_ = c.ShouldBindJSON(&req)
-	run, err := h.svc.CompleteBatch(c.Request.Context(), c.Param("id"), c.Param("batchId"), tenantID, req.Result)
+	run, err := h.svc.CompleteBatch(ctx, c.Param("id"), c.Param("batchId"), tenantID, req.Result)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "batch run not found")
@@ -236,12 +261,14 @@ func (h *Handler) CompleteBatch(c *gin.Context) {
 }
 
 func (h *Handler) FailBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FailBatch")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	var req struct {
 		Result map[string]interface{} `json:"result"`
 	}
 	_ = c.ShouldBindJSON(&req)
-	run, err := h.svc.FailBatch(c.Request.Context(), c.Param("id"), c.Param("batchId"), tenantID, req.Result)
+	run, err := h.svc.FailBatch(ctx, c.Param("id"), c.Param("batchId"), tenantID, req.Result)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "batch run not found")

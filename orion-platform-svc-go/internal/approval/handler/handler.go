@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -77,6 +78,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Approval request handlers ---
 
 func (h *Handler) SubmitApprovalRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SubmitApprovalRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	userName := c.GetString("user_name")
@@ -85,7 +88,7 @@ func (h *Handler) SubmitApprovalRequest(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateApprovalRequest(c.Request.Context(), tenantID, userID, userName, req)
+	m, err := h.svc.CreateApprovalRequest(ctx, tenantID, userID, userName, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -94,12 +97,14 @@ func (h *Handler) SubmitApprovalRequest(c *gin.Context) {
 }
 
 func (h *Handler) ListApprovalRequests(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListApprovalRequests")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalType := c.Query("type")
 	status := c.Query("status")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.ListApprovalRequests(c.Request.Context(), tenantID, approvalType, status, limit, offset)
+	items, err := h.svc.ListApprovalRequests(ctx, tenantID, approvalType, status, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -108,9 +113,11 @@ func (h *Handler) ListApprovalRequests(c *gin.Context) {
 }
 
 func (h *Handler) GetApprovalRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApprovalRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.GetApprovalRequest(c.Request.Context(), tenantID, id)
+	m, err := h.svc.GetApprovalRequest(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "approval request not found")
@@ -123,6 +130,8 @@ func (h *Handler) GetApprovalRequest(c *gin.Context) {
 }
 
 func (h *Handler) ReviewApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReviewApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -132,7 +141,7 @@ func (h *Handler) ReviewApproval(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ReviewApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
+	if err := h.svc.ReviewApproval(ctx, tenantID, approvalID, userID, userName, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -140,6 +149,8 @@ func (h *Handler) ReviewApproval(c *gin.Context) {
 }
 
 func (h *Handler) ApproveRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -148,7 +159,7 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	if err := h.svc.ApproveRequest(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
+	if err := h.svc.ApproveRequest(ctx, tenantID, approvalID, userID, userName, body.Comment); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -156,6 +167,8 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 }
 
 func (h *Handler) RejectRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -164,7 +177,7 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	if err := h.svc.RejectRequest(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
+	if err := h.svc.RejectRequest(ctx, tenantID, approvalID, userID, userName, body.Comment); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -172,6 +185,8 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 }
 
 func (h *Handler) WithdrawApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "WithdrawApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -180,7 +195,7 @@ func (h *Handler) WithdrawApproval(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	if err := h.svc.WithdrawApproval(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
+	if err := h.svc.WithdrawApproval(ctx, tenantID, approvalID, userID, userName, body.Comment); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -188,6 +203,8 @@ func (h *Handler) WithdrawApproval(c *gin.Context) {
 }
 
 func (h *Handler) CancelApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CancelApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -196,7 +213,7 @@ func (h *Handler) CancelApproval(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	if err := h.svc.CancelApproval(c.Request.Context(), tenantID, approvalID, userID, userName, body.Comment); err != nil {
+	if err := h.svc.CancelApproval(ctx, tenantID, approvalID, userID, userName, body.Comment); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -204,6 +221,8 @@ func (h *Handler) CancelApproval(c *gin.Context) {
 }
 
 func (h *Handler) DelegateApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DelegateApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -213,7 +232,7 @@ func (h *Handler) DelegateApproval(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.DelegateApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
+	if err := h.svc.DelegateApproval(ctx, tenantID, approvalID, userID, userName, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -221,6 +240,8 @@ func (h *Handler) DelegateApproval(c *gin.Context) {
 }
 
 func (h *Handler) ReassignApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReassignApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
 	userID := c.GetString("user_id")
@@ -230,7 +251,7 @@ func (h *Handler) ReassignApproval(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ReassignApproval(c.Request.Context(), tenantID, approvalID, userID, userName, req); err != nil {
+	if err := h.svc.ReassignApproval(ctx, tenantID, approvalID, userID, userName, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -238,8 +259,10 @@ func (h *Handler) ReassignApproval(c *gin.Context) {
 }
 
 func (h *Handler) GetApprovalStatistics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApprovalStatistics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStatistics(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStatistics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -248,8 +271,10 @@ func (h *Handler) GetApprovalStatistics(c *gin.Context) {
 }
 
 func (h *Handler) GetApprovalTrend(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApprovalTrend")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	trend, err := h.svc.GetTrend(c.Request.Context(), tenantID)
+	trend, err := h.svc.GetTrend(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -258,9 +283,11 @@ func (h *Handler) GetApprovalTrend(c *gin.Context) {
 }
 
 func (h *Handler) GetApprovalHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApprovalHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	approvalID := c.Param("id")
-	history, err := h.svc.GetHistory(c.Request.Context(), tenantID, approvalID)
+	history, err := h.svc.GetHistory(ctx, tenantID, approvalID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -269,13 +296,15 @@ func (h *Handler) GetApprovalHistory(c *gin.Context) {
 }
 
 func (h *Handler) AgentAnalyze(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AgentAnalyze")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.AgentAnalyzeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.AgentAnalyze(c.Request.Context(), tenantID, req.ApprovalID)
+	result, err := h.svc.AgentAnalyze(ctx, tenantID, req.ApprovalID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -284,8 +313,10 @@ func (h *Handler) AgentAnalyze(c *gin.Context) {
 }
 
 func (h *Handler) GetPendingApprovals(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPendingApprovals")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	items, err := h.svc.GetPendingApprovals(c.Request.Context(), tenantID)
+	items, err := h.svc.GetPendingApprovals(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -294,9 +325,11 @@ func (h *Handler) GetPendingApprovals(c *gin.Context) {
 }
 
 func (h *Handler) GetMyPendingApprovals(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMyPendingApprovals")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	items, err := h.svc.GetMyPendingApprovals(c.Request.Context(), tenantID, userID)
+	items, err := h.svc.GetMyPendingApprovals(ctx, tenantID, userID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -305,6 +338,8 @@ func (h *Handler) GetMyPendingApprovals(c *gin.Context) {
 }
 
 func (h *Handler) RequestEmergencyApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RequestEmergencyApproval")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	userName := c.GetString("user_name")
@@ -313,7 +348,7 @@ func (h *Handler) RequestEmergencyApproval(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.RequestEmergencyApproval(c.Request.Context(), tenantID, userID, userName, req)
+	m, err := h.svc.RequestEmergencyApproval(ctx, tenantID, userID, userName, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -324,13 +359,15 @@ func (h *Handler) RequestEmergencyApproval(c *gin.Context) {
 // --- Templates ---
 
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateTemplate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateTemplateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.CreateTemplate(c.Request.Context(), tenantID, req)
+	m, err := h.svc.CreateTemplate(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -339,10 +376,12 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 }
 
 func (h *Handler) GetTemplates(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTemplates")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.GetTemplates(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.GetTemplates(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -353,9 +392,11 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 // --- Pipeline approval gates ---
 
 func (h *Handler) ListByRun(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListByRun")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
-	items, err := h.svc.ListByRun(c.Request.Context(), tenantID, runID)
+	items, err := h.svc.ListByRun(ctx, tenantID, runID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -364,10 +405,12 @@ func (h *Handler) ListByRun(c *gin.Context) {
 }
 
 func (h *Handler) GetStatus(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStatus")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	stageID := c.Param("stageId")
-	gate, err := h.svc.GetStatus(c.Request.Context(), tenantID, runID, stageID)
+	gate, err := h.svc.GetStatus(ctx, tenantID, runID, stageID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -376,6 +419,8 @@ func (h *Handler) GetStatus(c *gin.Context) {
 }
 
 func (h *Handler) ApproveGate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveGate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	stageID := c.Param("stageId")
@@ -385,7 +430,7 @@ func (h *Handler) ApproveGate(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	gate, err := h.svc.ApproveGate(c.Request.Context(), tenantID, runID, stageID, userID, userName, body.Comment)
+	gate, err := h.svc.ApproveGate(ctx, tenantID, runID, stageID, userID, userName, body.Comment)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -394,6 +439,8 @@ func (h *Handler) ApproveGate(c *gin.Context) {
 }
 
 func (h *Handler) RejectGate(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectGate")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	runID := c.Param("runId")
 	stageID := c.Param("stageId")
@@ -403,7 +450,7 @@ func (h *Handler) RejectGate(c *gin.Context) {
 		Comment string `json:"comment"`
 	}
 	c.ShouldBindJSON(&body)
-	gate, err := h.svc.RejectGate(c.Request.Context(), tenantID, runID, stageID, userID, userName, body.Comment)
+	gate, err := h.svc.RejectGate(ctx, tenantID, runID, stageID, userID, userName, body.Comment)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

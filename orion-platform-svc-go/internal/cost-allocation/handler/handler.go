@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the cost-allocation module's HTTP endpoints.
@@ -50,6 +51,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Allocation CRUD ====================
 
 func (h *Handler) ListAllocations(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAllocations")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.AllocationFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -61,7 +64,7 @@ func (h *Handler) ListAllocations(c *gin.Context) {
 	if t := c.Query("type"); t != "" {
 		filter.Type = &t
 	}
-	result, err := h.svc.ListAllocations(c.Request.Context(), tenantID, filter)
+	result, err := h.svc.ListAllocations(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -70,13 +73,15 @@ func (h *Handler) ListAllocations(c *gin.Context) {
 }
 
 func (h *Handler) CreateAllocation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAllocation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAllocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateAllocation(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CreateAllocation(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -85,9 +90,11 @@ func (h *Handler) CreateAllocation(c *gin.Context) {
 }
 
 func (h *Handler) GetAllocation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAllocation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetAllocation(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetAllocation(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "allocation not found")
 		return
@@ -96,6 +103,8 @@ func (h *Handler) GetAllocation(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAllocation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAllocation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateAllocationRequest
@@ -103,7 +112,7 @@ func (h *Handler) UpdateAllocation(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateAllocation(c.Request.Context(), tenantID, id, req)
+	result, err := h.svc.UpdateAllocation(ctx, tenantID, id, req)
 	if err != nil {
 		if err == repository.ErrNotFound {
 			middleware.RespondNotFound(c, "allocation not found")
@@ -116,9 +125,11 @@ func (h *Handler) UpdateAllocation(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAllocation(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAllocation")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteAllocation(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteAllocation(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -133,6 +144,8 @@ func (h *Handler) DeleteAllocation(c *gin.Context) {
 // ==================== Rules ====================
 
 func (h *Handler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	allocationID := c.Param("id")
 	var req models.CreateRuleRequest
@@ -141,7 +154,7 @@ func (h *Handler) CreateRule(c *gin.Context) {
 		return
 	}
 	req.AllocationID = allocationID
-	result, err := h.svc.CreateRule(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CreateRule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -150,9 +163,11 @@ func (h *Handler) CreateRule(c *gin.Context) {
 }
 
 func (h *Handler) ListRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	allocationID := c.Param("id")
-	result, err := h.svc.ListRules(c.Request.Context(), tenantID, allocationID)
+	result, err := h.svc.ListRules(ctx, tenantID, allocationID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -161,9 +176,11 @@ func (h *Handler) ListRules(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
-	deleted, err := h.svc.DeleteRule(c.Request.Context(), tenantID, ruleID)
+	deleted, err := h.svc.DeleteRule(ctx, tenantID, ruleID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -178,13 +195,15 @@ func (h *Handler) DeleteRule(c *gin.Context) {
 // ==================== Reports ====================
 
 func (h *Handler) CreateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateReport(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CreateReport(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -193,6 +212,8 @@ func (h *Handler) CreateReport(c *gin.Context) {
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReports")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.ReportFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -204,7 +225,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 	if s := c.Query("status"); s != "" {
 		filter.Status = &s
 	}
-	result, err := h.svc.ListReports(c.Request.Context(), tenantID, filter)
+	result, err := h.svc.ListReports(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -213,9 +234,11 @@ func (h *Handler) ListReports(c *gin.Context) {
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetReport(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetReport(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "report not found")
 		return
@@ -224,6 +247,8 @@ func (h *Handler) GetReport(c *gin.Context) {
 }
 
 func (h *Handler) CompleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CompleteReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body struct {
@@ -235,7 +260,7 @@ func (h *Handler) CompleteReport(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CompleteReport(c.Request.Context(), tenantID, id, body.TotalCost, body.AllocatedCost, body.ResultData)
+	result, err := h.svc.CompleteReport(ctx, tenantID, id, body.TotalCost, body.AllocatedCost, body.ResultData)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -244,6 +269,8 @@ func (h *Handler) CompleteReport(c *gin.Context) {
 }
 
 func (h *Handler) FailReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "FailReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var body struct {
@@ -253,7 +280,7 @@ func (h *Handler) FailReport(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.FailReport(c.Request.Context(), tenantID, id, body.ErrorMessage)
+	result, err := h.svc.FailReport(ctx, tenantID, id, body.ErrorMessage)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -262,9 +289,11 @@ func (h *Handler) FailReport(c *gin.Context) {
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteReport")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.DeleteReport(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.DeleteReport(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

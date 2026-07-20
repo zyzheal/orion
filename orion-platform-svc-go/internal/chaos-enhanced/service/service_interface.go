@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/chaos-enhanced/models"
+)
+
 // ServiceInterface defines the interface for the chaos-enhanced service.
 type ServiceInterface interface {
 	AvailableFaultTypes([]string)

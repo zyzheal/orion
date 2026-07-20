@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/user-status/models"
+)
+
 // ServiceInterface defines the interface for the user-status service.
 type ServiceInterface interface {
 	GetStatus(ctx context.Context, tenantID, userID string) (*models.UserStatus, error)

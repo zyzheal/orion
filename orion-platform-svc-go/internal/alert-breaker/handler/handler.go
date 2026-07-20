@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -28,8 +29,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListAlertBreakers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlertBreakers")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, total, err := h.svc.List(c.Request.Context(), tenantID)
+	result, total, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -38,9 +41,11 @@ func (h *Handler) ListAlertBreakers(c *gin.Context) {
 }
 
 func (h *Handler) GetAlertBreaker(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlertBreaker")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	result, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "alert breaker not found")
 		return
@@ -49,13 +54,15 @@ func (h *Handler) GetAlertBreaker(c *gin.Context) {
 }
 
 func (h *Handler) CreateAlertBreaker(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlertBreaker")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAlertBreakerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -64,6 +71,8 @@ func (h *Handler) CreateAlertBreaker(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAlertBreaker(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAlertBreaker")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateAlertBreakerRequest
@@ -71,7 +80,7 @@ func (h *Handler) UpdateAlertBreaker(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, "alert breaker not found")
 		return
@@ -80,9 +89,11 @@ func (h *Handler) UpdateAlertBreaker(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAlertBreaker(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAlertBreaker")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

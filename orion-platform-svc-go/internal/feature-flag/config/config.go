@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 )
@@ -56,7 +57,7 @@ func requireEnv(key string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	panic("required environment variable not set: " + key)
+	log.Fatal("required environment variable not set: " + key)
 }
 
 func getEnvBool(key string, defaultValue bool) bool {

@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/ai-agents/models"
+	"orion/platform-svc-go/internal/ai-agents/repository"
+)
+
 // ServiceInterface defines the interface for the ai-agents service.
 type ServiceInterface interface {
 	AgentAuditLogToResponse(log *models.AgentAuditLog) (*models.AgentAuditLogResponse, error)

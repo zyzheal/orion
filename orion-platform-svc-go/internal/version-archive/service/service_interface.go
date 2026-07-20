@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/version-archive/models"
+)
+
 // ServiceInterface defines the interface for the version-archive service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateVersionArchiveRequest) (*models.VersionArchive, error)

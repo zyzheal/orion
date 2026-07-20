@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP handlers for secret management endpoints.
@@ -55,6 +56,8 @@ func (h *Handler) getUserID(c *gin.Context) string {
 
 // Create handles POST /secrets
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -62,7 +65,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	tenantID := h.getTenantID(c)
 	userID := h.getUserID(c)
-	secret, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	secret, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -72,12 +75,14 @@ func (h *Handler) Create(c *gin.Context) {
 
 // List handles GET /secrets
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	filter := &models.ListFilter{}
 	if scope := c.Query("scope"); scope != "" {
 		filter.Scope = &scope
 	}
-	secrets, err := h.svc.List(c.Request.Context(), tenantID, filter)
+	secrets, err := h.svc.List(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -87,13 +92,15 @@ func (h *Handler) List(c *gin.Context) {
 
 // Resolve handles POST /secrets/resolve
 func (h *Handler) Resolve(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Resolve")
+	defer span.End()
 	var req models.ResolveSecretsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.Resolve(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Resolve(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -103,8 +110,10 @@ func (h *Handler) Resolve(c *gin.Context) {
 
 // Get handles GET /secrets/:id
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
-	secret, err := h.svc.Get(c.Request.Context(), id)
+	secret, err := h.svc.Get(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")
@@ -118,6 +127,8 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Update handles PUT /secrets/:id
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateSecretRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,7 +136,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	secret, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	secret, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")
@@ -139,8 +150,10 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete handles DELETE /secrets/:id
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	if err := h.svc.Delete(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, c.Param("id")); err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")
 			return
@@ -153,8 +166,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // GetReferences handles GET /secrets/:id/references
 func (h *Handler) GetReferences(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReferences")
+	defer span.End()
 	id := c.Param("id")
-	sec, err := h.svc.GetReferences(c.Request.Context(), id)
+	sec, err := h.svc.GetReferences(ctx, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "secret not found")

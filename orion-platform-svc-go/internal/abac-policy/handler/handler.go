@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -31,6 +32,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ListPolicies(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPolicies")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.ABACPolicyFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -46,7 +49,7 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 		filter.Action = &a
 	}
 
-	result, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
+	result, total, err := h.svc.List(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -55,13 +58,15 @@ func (h *Handler) ListPolicies(c *gin.Context) {
 }
 
 func (h *Handler) CreatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateABACPolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.Create(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
@@ -70,9 +75,11 @@ func (h *Handler) CreatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) GetPolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetByID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "policy not found")
 		return
@@ -81,6 +88,8 @@ func (h *Handler) GetPolicy(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateABACPolicyRequest
@@ -88,7 +97,7 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.Update(ctx, tenantID, id, &req)
 	if err != nil {
 		if err == repository.ErrNotFound {
 			middleware.RespondNotFound(c, "policy not found")
@@ -101,9 +110,11 @@ func (h *Handler) UpdatePolicy(c *gin.Context) {
 }
 
 func (h *Handler) DeletePolicy(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePolicy")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+	deleted, err := h.svc.Delete(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

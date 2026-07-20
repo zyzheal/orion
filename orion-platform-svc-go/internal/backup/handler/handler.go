@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -73,8 +74,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Backup Plan handlers ---
 
 func (h *Handler) ListPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListPlans")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	plans, total, err := h.svc.ListPlans(c.Request.Context(), tenantID)
+	plans, total, err := h.svc.ListPlans(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -88,9 +91,11 @@ func (h *Handler) ListPlans(c *gin.Context) {
 }
 
 func (h *Handler) GetPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetPlan")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.GetPlan(c.Request.Context(), id, tenantID)
+	plan, err := h.svc.GetPlan(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup plan not found")
@@ -103,13 +108,15 @@ func (h *Handler) GetPlan(c *gin.Context) {
 }
 
 func (h *Handler) CreatePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreatePlan")
+	defer span.End()
 	var req models.CreateBackupPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.CreatePlan(c.Request.Context(), &req, tenantID)
+	plan, err := h.svc.CreatePlan(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -118,6 +125,8 @@ func (h *Handler) CreatePlan(c *gin.Context) {
 }
 
 func (h *Handler) UpdatePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdatePlan")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateBackupPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,7 +134,7 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.UpdatePlan(c.Request.Context(), id, &req, tenantID)
+	plan, err := h.svc.UpdatePlan(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup plan not found")
@@ -138,9 +147,11 @@ func (h *Handler) UpdatePlan(c *gin.Context) {
 }
 
 func (h *Handler) DeletePlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeletePlan")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeletePlan(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeletePlan(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -155,8 +166,10 @@ func (h *Handler) DeletePlan(c *gin.Context) {
 // --- Recovery Plan handlers ---
 
 func (h *Handler) ListRecoveryPlans(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecoveryPlans")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	plans, total, err := h.svc.ListRecoveryPlans(c.Request.Context(), tenantID)
+	plans, total, err := h.svc.ListRecoveryPlans(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -170,9 +183,11 @@ func (h *Handler) ListRecoveryPlans(c *gin.Context) {
 }
 
 func (h *Handler) GetRecoveryPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRecoveryPlan")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.GetRecoveryPlan(c.Request.Context(), id, tenantID)
+	plan, err := h.svc.GetRecoveryPlan(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "recovery plan not found")
@@ -185,13 +200,15 @@ func (h *Handler) GetRecoveryPlan(c *gin.Context) {
 }
 
 func (h *Handler) CreateRecoveryPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRecoveryPlan")
+	defer span.End()
 	var req models.CreateRecoveryPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.CreateRecoveryPlan(c.Request.Context(), &req, tenantID)
+	plan, err := h.svc.CreateRecoveryPlan(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -200,6 +217,8 @@ func (h *Handler) CreateRecoveryPlan(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRecoveryPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRecoveryPlan")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateRecoveryPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -207,7 +226,7 @@ func (h *Handler) UpdateRecoveryPlan(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	plan, err := h.svc.UpdateRecoveryPlan(c.Request.Context(), id, &req, tenantID)
+	plan, err := h.svc.UpdateRecoveryPlan(ctx, id, &req, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "recovery plan not found")
@@ -220,9 +239,11 @@ func (h *Handler) UpdateRecoveryPlan(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRecoveryPlan(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRecoveryPlan")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteRecoveryPlan(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteRecoveryPlan(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -237,9 +258,11 @@ func (h *Handler) DeleteRecoveryPlan(c *gin.Context) {
 // --- Verify & Restore handlers ---
 
 func (h *Handler) VerifyBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "VerifyBackup")
+	defer span.End()
 	backupID := c.Param("backupId")
 	tenantID := h.getTenantID(c)
-	job, err := h.svc.VerifyBackup(c.Request.Context(), backupID, tenantID)
+	job, err := h.svc.VerifyBackup(ctx, backupID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup not found")
@@ -252,9 +275,11 @@ func (h *Handler) VerifyBackup(c *gin.Context) {
 }
 
 func (h *Handler) InitiateRestore(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InitiateRestore")
+	defer span.End()
 	planID := c.Param("planId")
 	tenantID := h.getTenantID(c)
-	restore, err := h.svc.InitiateRestore(c.Request.Context(), planID, tenantID)
+	restore, err := h.svc.InitiateRestore(ctx, planID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup plan not found")
@@ -273,13 +298,15 @@ func (h *Handler) InitiateRestore(c *gin.Context) {
 // --- Backups handlers ---
 
 func (h *Handler) ListBackups(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBackups")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	statusPtr := &status
 	if status == "" {
 		statusPtr = nil
 	}
-	jobs, total, err := h.svc.ListBackups(c.Request.Context(), tenantID, statusPtr)
+	jobs, total, err := h.svc.ListBackups(ctx, tenantID, statusPtr)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -293,9 +320,11 @@ func (h *Handler) ListBackups(c *gin.Context) {
 }
 
 func (h *Handler) GetBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBackup")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	job, err := h.svc.GetBackup(c.Request.Context(), id, tenantID)
+	job, err := h.svc.GetBackup(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup not found")
@@ -308,9 +337,11 @@ func (h *Handler) GetBackup(c *gin.Context) {
 }
 
 func (h *Handler) TriggerBackup(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TriggerBackup")
+	defer span.End()
 	planID := c.Param("planId")
 	tenantID := h.getTenantID(c)
-	job, err := h.svc.TriggerBackup(c.Request.Context(), planID, tenantID)
+	job, err := h.svc.TriggerBackup(ctx, planID, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "backup plan not found")

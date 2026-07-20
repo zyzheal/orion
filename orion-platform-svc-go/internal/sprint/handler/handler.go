@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -36,13 +37,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create creates a new sprint.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSprintRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -52,9 +55,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get returns a sprint by ID.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "not found")
 		return
@@ -64,10 +69,12 @@ func (h *Handler) Get(c *gin.Context) {
 
 // List returns a paginated list of sprints.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -77,6 +84,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Update updates an existing sprint.
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateSprintRequest
@@ -84,7 +93,7 @@ func (h *Handler) Update(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Update(c.Request.Context(), tenantID, id, req)
+	m, err := h.svc.Update(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -94,9 +103,11 @@ func (h *Handler) Update(c *gin.Context) {
 
 // Delete deletes a sprint by ID.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Delete(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Delete(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -105,9 +116,11 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // GetBoard returns the sprint board view grouped by ticket status.
 func (h *Handler) GetBoard(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBoard")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	board, err := h.svc.GetBoard(c.Request.Context(), tenantID, id)
+	board, err := h.svc.GetBoard(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "sprint not found")
 		return
@@ -117,6 +130,8 @@ func (h *Handler) GetBoard(c *gin.Context) {
 
 // AddTicket adds a ticket to a sprint.
 func (h *Handler) AddTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.AddTicketRequest
@@ -124,7 +139,7 @@ func (h *Handler) AddTicket(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.AddTicket(c.Request.Context(), tenantID, id, req)
+	result, err := h.svc.AddTicket(ctx, tenantID, id, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -134,10 +149,12 @@ func (h *Handler) AddTicket(c *gin.Context) {
 
 // RemoveTicket removes a ticket from a sprint.
 func (h *Handler) RemoveTicket(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveTicket")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	ticketID := c.Param("ticketId")
-	if err := h.svc.RemoveTicket(c.Request.Context(), tenantID, id, ticketID); err != nil {
+	if err := h.svc.RemoveTicket(ctx, tenantID, id, ticketID); err != nil {
 		middleware.RespondNotFound(c, "ticket not found in sprint")
 		return
 	}
@@ -146,6 +163,8 @@ func (h *Handler) RemoveTicket(c *gin.Context) {
 
 // ReorderTickets reorders tickets within a sprint.
 func (h *Handler) ReorderTickets(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReorderTickets")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.ReorderTicketsRequest
@@ -153,7 +172,7 @@ func (h *Handler) ReorderTickets(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.ReorderTickets(c.Request.Context(), tenantID, id, req); err != nil {
+	if err := h.svc.ReorderTickets(ctx, tenantID, id, req); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -162,9 +181,11 @@ func (h *Handler) ReorderTickets(c *gin.Context) {
 
 // GetBurndownData returns burndown data for a sprint.
 func (h *Handler) GetBurndownData(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBurndownData")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	data, err := h.svc.GetBurndownData(c.Request.Context(), tenantID, id)
+	data, err := h.svc.GetBurndownData(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

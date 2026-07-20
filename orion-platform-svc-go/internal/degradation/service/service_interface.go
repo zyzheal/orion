@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/degradation/models"
+)
+
 // ServiceInterface defines the interface for the degradation service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateDegradationRequest) (*models.Degradation, error)

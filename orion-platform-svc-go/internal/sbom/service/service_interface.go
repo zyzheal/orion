@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/sbom/models"
+)
+
 // ServiceInterface defines the interface for the sbom service.
 type ServiceInterface interface {
 	CompareSBOMs(ctx context.Context, fromID, toID, tenantID string) (*models.SBOMComparison, error)

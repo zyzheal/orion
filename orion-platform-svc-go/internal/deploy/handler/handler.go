@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Service defines the contract the handler needs from the service layer.
@@ -92,13 +93,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // Create handles POST /deploy.
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDeploymentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	m, err := h.svc.Create(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Create(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -108,9 +111,11 @@ func (h *Handler) Create(c *gin.Context) {
 
 // Get handles GET /:id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	m, err := h.svc.Get(c.Request.Context(), tenantID, id)
+	m, err := h.svc.Get(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "deployment not found")
 		return
@@ -120,10 +125,12 @@ func (h *Handler) Get(c *gin.Context) {
 
 // List handles GET /history.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, err := h.svc.List(c.Request.Context(), tenantID, limit, offset)
+	items, err := h.svc.List(ctx, tenantID, limit, offset)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -133,10 +140,12 @@ func (h *Handler) List(c *gin.Context) {
 
 // GetLatest handles GET /latest/:appName/:environment.
 func (h *Handler) GetLatest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLatest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	appName := c.Param("appName")
 	environment := c.Param("environment")
-	m, err := h.svc.GetLatest(c.Request.Context(), tenantID, appName, environment)
+	m, err := h.svc.GetLatest(ctx, tenantID, appName, environment)
 	if err != nil {
 		middleware.RespondNotFound(c, "no deployment found")
 		return
@@ -146,8 +155,10 @@ func (h *Handler) GetLatest(c *gin.Context) {
 
 // GetMetrics handles GET /metrics.
 func (h *Handler) GetMetrics(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMetrics")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	metrics, err := h.svc.Metrics(c.Request.Context(), tenantID)
+	metrics, err := h.svc.Metrics(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -157,6 +168,8 @@ func (h *Handler) GetMetrics(c *gin.Context) {
 
 // Rollback handles POST /:id/rollback.
 func (h *Handler) Rollback(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Rollback")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.RollbackRequest
@@ -164,7 +177,7 @@ func (h *Handler) Rollback(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	rb, err := h.svc.Rollback(c.Request.Context(), tenantID, id, req.TargetVersion, req.Reason)
+	rb, err := h.svc.Rollback(ctx, tenantID, id, req.TargetVersion, req.Reason)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -174,9 +187,11 @@ func (h *Handler) Rollback(c *gin.Context) {
 
 // GetRollbackHistory handles GET /:id/rollbacks.
 func (h *Handler) GetRollbackHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRollbackHistory")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
-	items, err := h.svc.GetRollbackHistory(c.Request.Context(), tenantID, deploymentID)
+	items, err := h.svc.GetRollbackHistory(ctx, tenantID, deploymentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -186,9 +201,11 @@ func (h *Handler) GetRollbackHistory(c *gin.Context) {
 
 // Cancel handles POST /:id/cancel.
 func (h *Handler) Cancel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Cancel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.Cancel(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.Cancel(ctx, tenantID, id); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -197,8 +214,10 @@ func (h *Handler) Cancel(c *gin.Context) {
 
 // GetAuditTrail handles GET /:id/audit.
 func (h *Handler) GetAuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditTrail")
+	defer span.End()
 	deploymentID := c.Param("id")
-	entries, err := h.svc.GetAuditTrail(c.Request.Context(), deploymentID)
+	entries, err := h.svc.GetAuditTrail(ctx, deploymentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -208,8 +227,10 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 
 // GetReleaseNotes handles GET /:id/release-notes.
 func (h *Handler) GetReleaseNotes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReleaseNotes")
+	defer span.End()
 	deploymentID := c.Param("id")
-	note, err := h.svc.GetReleaseNotes(c.Request.Context(), deploymentID)
+	note, err := h.svc.GetReleaseNotes(ctx, deploymentID)
 	if err != nil {
 		middleware.RespondNotFound(c, "release notes not found")
 		return
@@ -219,11 +240,13 @@ func (h *Handler) GetReleaseNotes(c *gin.Context) {
 
 // GenerateReleaseNotes handles POST /:id/release-notes/generate.
 func (h *Handler) GenerateReleaseNotes(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GenerateReleaseNotes")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
 	var req models.GenerateReleaseNotesRequest
 	c.ShouldBindJSON(&req)
-	note, err := h.svc.GenerateReleaseNotes(c.Request.Context(), tenantID, deploymentID, req.Description)
+	note, err := h.svc.GenerateReleaseNotes(ctx, tenantID, deploymentID, req.Description)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -233,11 +256,13 @@ func (h *Handler) GenerateReleaseNotes(c *gin.Context) {
 
 // GetReleaseNotesByTenant handles GET /release-notes/tenant/:tenantId.
 func (h *Handler) GetReleaseNotesByTenant(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReleaseNotesByTenant")
+	defer span.End()
 	tenantID := c.Param("tenantId")
 	if tenantID == "" {
 		tenantID = c.GetString("tenant_id")
 	}
-	notes, err := h.svc.GetReleaseNotesByTenant(c.Request.Context(), tenantID)
+	notes, err := h.svc.GetReleaseNotesByTenant(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -247,13 +272,15 @@ func (h *Handler) GetReleaseNotesByTenant(c *gin.Context) {
 
 // LinkGitCommit handles POST /:id/git/link.
 func (h *Handler) LinkGitCommit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LinkGitCommit")
+	defer span.End()
 	deploymentID := c.Param("id")
 	var req models.LinkGitCommitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	if err := h.svc.LinkGitCommit(c.Request.Context(), deploymentID, req.CommitSHA, req.Branch); err != nil {
+	if err := h.svc.LinkGitCommit(ctx, deploymentID, req.CommitSHA, req.Branch); err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
 	}
@@ -262,8 +289,10 @@ func (h *Handler) LinkGitCommit(c *gin.Context) {
 
 // GetChangelog handles GET /:id/git/changelog.
 func (h *Handler) GetChangelog(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangelog")
+	defer span.End()
 	deploymentID := c.Param("id")
-	entries, err := h.svc.GetDeploymentChangelog(c.Request.Context(), deploymentID)
+	entries, err := h.svc.GetDeploymentChangelog(ctx, deploymentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

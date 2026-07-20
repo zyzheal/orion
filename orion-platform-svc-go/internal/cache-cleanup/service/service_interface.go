@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/cache-cleanup/models"
+)
+
 // ServiceInterface defines the interface for the cache-cleanup service.
 type ServiceInterface interface {
 	Create(ctx context.Context, req *models.CreateRequest, tenantID string) (*models.CacheCleanup, error)

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/api-governance/models"
+)
+
 // ServiceInterface defines the interface for the api-governance service.
 type ServiceInterface interface {
 	CheckCompatibility(ctx context.Context, sourceVersion, targetVersion string) (*models.CompatibilityResult, error)

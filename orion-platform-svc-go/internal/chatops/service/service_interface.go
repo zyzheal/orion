@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/chatops/models"
+)
+
 // ServiceInterface defines the interface for the chatops service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, versionID, tagName, createdBy string) error

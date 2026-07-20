@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/capability/models"
+)
+
 // ServiceInterface defines the interface for the capability service.
 type ServiceInterface interface {
 	ApproveRequest(ctx context.Context, tenantID string, ticketID int, approverID string, approverRoles []string) (*models.PermissionRequest, error)

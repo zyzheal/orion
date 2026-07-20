@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"github.com/gin-gonic/gin"
+	"orion/platform-svc-go/internal/test-generation/models"
+)
+
 // ServiceInterface defines the interface for the test-generation service.
 type ServiceInterface interface {
 	AddTag(ctx context.Context, tenantID, id, tag string) (gin.H, error)

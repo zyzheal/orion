@@ -10,6 +10,7 @@ import (
 	"orion/platform-svc-go/internal/ai-gateway/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -31,8 +32,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) ProcessRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ProcessRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	var req models.GatewayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
@@ -47,8 +50,10 @@ func (h *Handler) ProcessRequest(c *gin.Context) {
 }
 
 func (h *Handler) GetRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRequest")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	resp, err := h.svc.GetRequest(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "request not found", http.StatusNotFound)
@@ -58,8 +63,10 @@ func (h *Handler) GetRequest(c *gin.Context) {
 }
 
 func (h *Handler) ListRequests(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRequests")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	q := models.ListQuery{Provider: c.Query("provider")}
 	limit := 20
 	if c.Query("limit") != "" {
@@ -75,8 +82,10 @@ func (h *Handler) ListRequests(c *gin.Context) {
 }
 
 func (h *Handler) ListByProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListByProvider")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	provider := c.Param("provider")
 	limit := 50
 	if c.Query("limit") != "" {
@@ -91,8 +100,10 @@ func (h *Handler) ListByProvider(c *gin.Context) {
 }
 
 func (h *Handler) ListByModel(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListByModel")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	model := c.Param("model")
 	limit := 50
 	if c.Query("limit") != "" {
@@ -112,8 +123,10 @@ func (h *Handler) ListByModel(c *gin.Context) {
 }
 
 func (h *Handler) ListRecent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRecent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	ctx := c.Request.Context()
+	ctx := ctx
 	n := 20
 	fmt.Sscanf(c.Param("n"), "%d", &n)
 	if n <= 0 || n > 100 {

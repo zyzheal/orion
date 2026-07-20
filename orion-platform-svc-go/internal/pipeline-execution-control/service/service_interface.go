@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-execution-control/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-execution-control service.
 type ServiceInterface interface {
 	Abort(ctx context.Context, runID string, req *models.AbortRequest, tenantID string) (*models.Run, error)

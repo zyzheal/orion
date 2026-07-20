@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/iac/models"
+)
+
 // ServiceInterface defines the interface for the iac service.
 type ServiceInterface interface {
 	ApplyPlan(ctx context.Context, tenantID, workspaceID string, req models.ApplyPlanRequest) (*models.PlanSummary, error)

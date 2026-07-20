@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -65,23 +66,27 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Skill CRUD ====================
 
 func (h *Handler) ListSkills(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSkills")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	category := c.Query("category")
 	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	skills, total := h.svc.ListSkills(c.Request.Context(), tenantID, category, status, page, limit)
+	skills, total := h.svc.ListSkills(ctx, tenantID, category, status, page, limit)
 	middleware.RespondSuccess(c, gin.H{"skills": skills, "total": total})
 }
 
 func (h *Handler) CreateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateSkillRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.CreateSkill(c.Request.Context(), tenantID, req)
+	skill, err := h.svc.CreateSkill(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -90,9 +95,11 @@ func (h *Handler) CreateSkill(c *gin.Context) {
 }
 
 func (h *Handler) GetSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	skill, err := h.svc.GetSkill(c.Request.Context(), tenantID, id)
+	skill, err := h.svc.GetSkill(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -105,6 +112,8 @@ func (h *Handler) GetSkill(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateSkillRequest
@@ -112,7 +121,7 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.UpdateSkill(c.Request.Context(), tenantID, id, req)
+	skill, err := h.svc.UpdateSkill(ctx, tenantID, id, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -125,9 +134,11 @@ func (h *Handler) UpdateSkill(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteSkill(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteSkill(ctx, tenantID, id); err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
 			return
@@ -139,8 +150,10 @@ func (h *Handler) DeleteSkill(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -151,9 +164,11 @@ func (h *Handler) GetStats(c *gin.Context) {
 // ==================== Version management ====================
 
 func (h *Handler) ListVersions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListVersions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
-	versions, err := h.svc.ListVersions(c.Request.Context(), tenantID, skillID)
+	versions, err := h.svc.ListVersions(ctx, tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -166,6 +181,8 @@ func (h *Handler) ListVersions(c *gin.Context) {
 }
 
 func (h *Handler) AddVersion(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AddVersion")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	var req models.AddVersionRequest
@@ -173,7 +190,7 @@ func (h *Handler) AddVersion(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	version, err := h.svc.AddVersion(c.Request.Context(), tenantID, skillID, req)
+	version, err := h.svc.AddVersion(ctx, tenantID, skillID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -192,6 +209,8 @@ func (h *Handler) AddVersion(c *gin.Context) {
 // ==================== Rating ====================
 
 func (h *Handler) RateSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RateSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	userID := c.GetString("user_id")
@@ -200,7 +219,7 @@ func (h *Handler) RateSkill(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	skill, err := h.svc.RateSkill(c.Request.Context(), tenantID, skillID, userID, req)
+	skill, err := h.svc.RateSkill(ctx, tenantID, skillID, userID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -213,9 +232,11 @@ func (h *Handler) RateSkill(c *gin.Context) {
 }
 
 func (h *Handler) GetRatingStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRatingStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
-	stats, err := h.svc.GetRatingStats(c.Request.Context(), tenantID, skillID)
+	stats, err := h.svc.GetRatingStats(ctx, tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -230,8 +251,10 @@ func (h *Handler) GetRatingStats(c *gin.Context) {
 // ==================== Instances ====================
 
 func (h *Handler) ListInstances(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListInstances")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	instances, err := h.svc.ListInstances(c.Request.Context(), tenantID)
+	instances, err := h.svc.ListInstances(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -240,6 +263,8 @@ func (h *Handler) ListInstances(c *gin.Context) {
 }
 
 func (h *Handler) CreateInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req struct {
 		SkillID      string `json:"skill_id" binding:"required"`
@@ -250,7 +275,7 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.CreateInstance(c.Request.Context(), tenantID, req.SkillID, models.CreateInstanceRequest{
+	inst, err := h.svc.CreateInstance(ctx, tenantID, req.SkillID, models.CreateInstanceRequest{
 		InstanceName: req.InstanceName,
 		Config:       req.Config,
 	})
@@ -266,9 +291,11 @@ func (h *Handler) CreateInstance(c *gin.Context) {
 }
 
 func (h *Handler) GetInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	inst, err := h.svc.GetInstance(c.Request.Context(), tenantID, id)
+	inst, err := h.svc.GetInstance(ctx, tenantID, id)
 	if err != nil {
 		if err == service.ErrInstanceNotFound {
 			middleware.RespondNotFound(c, "skill instance not found")
@@ -281,6 +308,8 @@ func (h *Handler) GetInstance(c *gin.Context) {
 }
 
 func (h *Handler) UpdateInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateInstanceRequest
@@ -288,7 +317,7 @@ func (h *Handler) UpdateInstance(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	inst, err := h.svc.UpdateInstance(c.Request.Context(), tenantID, id, req)
+	inst, err := h.svc.UpdateInstance(ctx, tenantID, id, req)
 	if err != nil {
 		if err == service.ErrInstanceNotFound {
 			middleware.RespondNotFound(c, "skill instance not found")
@@ -301,9 +330,11 @@ func (h *Handler) UpdateInstance(c *gin.Context) {
 }
 
 func (h *Handler) DeleteInstance(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteInstance")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteInstance(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteInstance(ctx, tenantID, id); err != nil {
 		if err == service.ErrInstanceNotFound {
 			middleware.RespondNotFound(c, "skill instance not found")
 			return
@@ -317,6 +348,8 @@ func (h *Handler) DeleteInstance(c *gin.Context) {
 // ==================== Execution ====================
 
 func (h *Handler) ExecuteSkill(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteSkill")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	userID := c.GetString("user_id")
@@ -325,7 +358,7 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	execution, err := h.svc.ExecuteSkill(c.Request.Context(), tenantID, skillID, userID, req)
+	execution, err := h.svc.ExecuteSkill(ctx, tenantID, skillID, userID, req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -338,11 +371,13 @@ func (h *Handler) ExecuteSkill(c *gin.Context) {
 }
 
 func (h *Handler) ListExecutions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListExecutions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	executions, err := h.svc.ListExecutions(c.Request.Context(), tenantID, skillID, page, limit)
+	executions, err := h.svc.ListExecutions(ctx, tenantID, skillID, page, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -353,9 +388,11 @@ func (h *Handler) ListExecutions(c *gin.Context) {
 // ==================== Review workflow ====================
 
 func (h *Handler) GetReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
-	review, err := h.svc.GetReview(c.Request.Context(), tenantID, skillID)
+	review, err := h.svc.GetReview(ctx, tenantID, skillID)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -372,10 +409,12 @@ func (h *Handler) GetReview(c *gin.Context) {
 }
 
 func (h *Handler) SubmitReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SubmitReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	userID := c.GetString("user_id")
-	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "submit", models.ReviewActionRequest{})
+	review, err := h.svc.ReviewAction(ctx, tenantID, skillID, userID, "submit", models.ReviewActionRequest{})
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -392,12 +431,14 @@ func (h *Handler) SubmitReview(c *gin.Context) {
 }
 
 func (h *Handler) ApproveReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	userID := c.GetString("user_id")
 	var req models.ReviewActionRequest
 	c.ShouldBindJSON(&req)
-	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "approve", req)
+	review, err := h.svc.ReviewAction(ctx, tenantID, skillID, userID, "approve", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -414,13 +455,15 @@ func (h *Handler) ApproveReview(c *gin.Context) {
 }
 
 func (h *Handler) RejectReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	// This is a POST with review action, so it needs a body
 	userID := c.GetString("user_id")
 	var req models.ReviewActionRequest
 	c.ShouldBindJSON(&req)
-	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "reject", req)
+	review, err := h.svc.ReviewAction(ctx, tenantID, skillID, userID, "reject", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -437,12 +480,14 @@ func (h *Handler) RejectReview(c *gin.Context) {
 }
 
 func (h *Handler) ArchiveReview(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ArchiveReview")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	userID := c.GetString("user_id")
 	var req models.ReviewActionRequest
 	c.ShouldBindJSON(&req)
-	review, err := h.svc.ReviewAction(c.Request.Context(), tenantID, skillID, userID, "archive", req)
+	review, err := h.svc.ReviewAction(ctx, tenantID, skillID, userID, "archive", req)
 	if err != nil {
 		if err == service.ErrSkillNotFound {
 			middleware.RespondNotFound(c, "skill not found")
@@ -455,9 +500,11 @@ func (h *Handler) ArchiveReview(c *gin.Context) {
 }
 
 func (h *Handler) ListReviews(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReviews")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
-	reviews, err := h.svc.ListReviews(c.Request.Context(), tenantID, status)
+	reviews, err := h.svc.ListReviews(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -468,10 +515,12 @@ func (h *Handler) ListReviews(c *gin.Context) {
 // ==================== Audit log ====================
 
 func (h *Handler) GetAuditLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	skillID := c.Param("skillId")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	logs, total := h.svc.ListAuditLogs(c.Request.Context(), tenantID, skillID, page, limit)
+	logs, total := h.svc.ListAuditLogs(ctx, tenantID, skillID, page, limit)
 	middleware.RespondSuccess(c, gin.H{"audit_logs": logs, "total": total})
 }

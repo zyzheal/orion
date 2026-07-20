@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/digital-twin/models"
+)
+
 // ServiceInterface defines the interface for the digital-twin service.
 type ServiceInterface interface {
 	CancelReplay(ctx context.Context, replayID string) (*ReplaySessionSummary, error)

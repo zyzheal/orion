@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/task-timeout/models"
+)
+
 // ServiceInterface defines the interface for the task-timeout service.
 type ServiceInterface interface {
 	CheckNow(ctx context.Context) ([]models.TimeoutTask, error)

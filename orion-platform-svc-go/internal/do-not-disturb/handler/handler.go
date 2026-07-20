@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -27,6 +28,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateDoNotDisturbRequest
@@ -34,7 +37,7 @@ func (h *Handler) Create(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.Create(c.Request.Context(), tenantID, userID, &req)
+	result, err := h.svc.Create(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -43,9 +46,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	result, err := h.svc.Get(c.Request.Context(), tenantID, userID)
+	result, err := h.svc.Get(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrNotFound, "dnd schedule not found", 404)
 		return
@@ -54,6 +59,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.UpdateDoNotDisturbRequest
@@ -61,7 +68,7 @@ func (h *Handler) Update(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.Update(c.Request.Context(), tenantID, userID, &req)
+	result, err := h.svc.Update(ctx, tenantID, userID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -70,9 +77,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) IsActive(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "IsActive")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
-	active, err := h.svc.IsActive(c.Request.Context(), tenantID, userID)
+	active, err := h.svc.IsActive(ctx, tenantID, userID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

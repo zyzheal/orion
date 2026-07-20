@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/terminal-audit/models"
+)
+
 // ServiceInterface defines the interface for the terminal-audit service.
 type ServiceInterface interface {
 	DeleteBatch(ctx context.Context, tenantID string, ids []string) (int, error)

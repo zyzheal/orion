@@ -9,6 +9,7 @@ import (
 	"orion/platform-svc-go/internal/canary-traffic/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -39,8 +40,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	entities, err := h.svc.List(c.Request.Context(), tenantID)
+	entities, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -49,13 +52,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
+	entity, err := h.svc.Create(ctx, &req, tenantID)
 	if err != nil {
 		if err == service.ErrInvalidWeights {
 			goerr.WriteError(c, goerr.ErrBadRequest, err.Error(), 400)
@@ -68,9 +73,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
+	entity, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -83,6 +90,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -90,7 +99,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
+	entity, err := h.svc.Update(ctx, id, tenantID, &req)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -103,9 +112,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.Delete(ctx, id, tenantID)
 	if err != nil {
 		goerr.WriteError(c, goerr.ErrInternal, err.Error(), 500)
 		return
@@ -118,6 +129,8 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) AdjustWeight(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AdjustWeight")
+	defer span.End()
 	id := c.Param("id")
 	var req models.AdjustWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -125,7 +138,7 @@ func (h *Handler) AdjustWeight(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.AdjustWeight(c.Request.Context(), id, tenantID, req.CanaryWeight)
+	entity, err := h.svc.AdjustWeight(ctx, id, tenantID, req.CanaryWeight)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)
@@ -142,9 +155,11 @@ func (h *Handler) AdjustWeight(c *gin.Context) {
 }
 
 func (h *Handler) GetTrafficSplit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTrafficSplit")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	split, err := h.svc.GetTrafficSplit(c.Request.Context(), id, tenantID)
+	split, err := h.svc.GetTrafficSplit(ctx, id, tenantID)
 	if err != nil {
 		if err == service.ErrNotFound {
 			goerr.WriteError(c, goerr.ErrNotFound, "not found", 404)

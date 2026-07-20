@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/project-member/models"
+)
+
 // ServiceInterface defines the interface for the project-member service.
 type ServiceInterface interface {
 	CheckRole(ctx context.Context, tenantID, projectID, userID, role string) (bool, error)

@@ -12,6 +12,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the tenant module's HTTP endpoints.
@@ -79,6 +80,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Tenant CRUD ====================
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	req := models.ListTenantRequest{
 		Page:  1,
 		Limit: 20,
@@ -92,7 +95,7 @@ func (h *Handler) List(c *gin.Context) {
 	if s := c.Query("status"); s != "" {
 		req.Status = &s
 	}
-	result, err := h.svc.ListTenants(c.Request.Context(), req)
+	result, err := h.svc.ListTenants(ctx, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -101,12 +104,14 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Count(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Count")
+	defer span.End()
 	status := c.Query("status")
 	var sPtr *string
 	if status != "" {
 		sPtr = &status
 	}
-	total, err := h.svc.TenantCount(c.Request.Context(), sPtr)
+	total, err := h.svc.TenantCount(ctx, sPtr)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -115,12 +120,14 @@ func (h *Handler) Count(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CreateTenant(c.Request.Context(), req)
+	result, err := h.svc.CreateTenant(ctx, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -129,8 +136,10 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
-	tenant, err := h.svc.GetTenant(c.Request.Context(), id)
+	tenant, err := h.svc.GetTenant(ctx, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -143,13 +152,15 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.UpdateTenant(c.Request.Context(), id, req)
+	result, err := h.svc.UpdateTenant(ctx, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -158,8 +169,10 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteTenant(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteTenant(ctx, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -167,13 +180,15 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) Split(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Split")
+	defer span.End()
 	id := c.Param("id")
 	var req models.SplitTenantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.SplitTenant(c.Request.Context(), id, req)
+	result, err := h.svc.SplitTenant(ctx, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -184,8 +199,10 @@ func (h *Handler) Split(c *gin.Context) {
 // ==================== Context / current ====================
 
 func (h *Handler) GetCurrent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetCurrent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetCurrentTenant(c.Request.Context(), tenantID)
+	result, err := h.svc.GetCurrentTenant(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -194,15 +211,19 @@ func (h *Handler) GetCurrent(c *gin.Context) {
 }
 
 func (h *Handler) Context(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Context")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	result := gin.H{"context": gin.H{"tenant_id": tenantID}}
 	errors.WriteSuccess(c, result)
 }
 
 func (h *Handler) MyTenants(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MyTenants")
+	defer span.End()
 	userID := c.GetString("user_id")
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetUserTenants(c.Request.Context(), userID, tenantID)
+	result, err := h.svc.GetUserTenants(ctx, userID, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -213,13 +234,15 @@ func (h *Handler) MyTenants(c *gin.Context) {
 // ==================== Quota ====================
 
 func (h *Handler) GetQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetQuota")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	tenantInt := 0
 	t, _ := strconv.Atoi(tenantID)
 	if t > 0 {
 		tenantInt = t
 	}
-	quota, err := h.svc.GetQuota(c.Request.Context(), tenantInt, tenantID)
+	quota, err := h.svc.GetQuota(ctx, tenantInt, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -228,6 +251,8 @@ func (h *Handler) GetQuota(c *gin.Context) {
 }
 
 func (h *Handler) UpdateQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateQuota")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	tenantInt := 0
 	t, _ := strconv.Atoi(tenantID)
@@ -239,7 +264,7 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	updated, err := h.svc.SetQuota(c.Request.Context(), tenantInt, tenantID, req)
+	updated, err := h.svc.SetQuota(ctx, tenantInt, tenantID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -248,6 +273,8 @@ func (h *Handler) UpdateQuota(c *gin.Context) {
 }
 
 func (h *Handler) CheckQuota(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CheckQuota")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	tenantInt := 0
 	t, _ := strconv.Atoi(tenantID)
@@ -259,7 +286,7 @@ func (h *Handler) CheckQuota(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CheckQuota(c.Request.Context(), tenantInt, tenantID, req)
+	result, err := h.svc.CheckQuota(ctx, tenantInt, tenantID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -270,7 +297,9 @@ func (h *Handler) CheckQuota(c *gin.Context) {
 // ==================== Namespace pool ====================
 
 func (h *Handler) PoolStatus(c *gin.Context) {
-	status, err := h.svc.GetPoolStatus(c.Request.Context())
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PoolStatus")
+	defer span.End()
+	status, err := h.svc.GetPoolStatus(ctx)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -279,13 +308,15 @@ func (h *Handler) PoolStatus(c *gin.Context) {
 }
 
 func (h *Handler) AllocateNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AllocateNamespace")
+	defer span.End()
 	var req models.NamespaceAllocateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
 	tenantInt, _ := strconv.Atoi(req.TenantID)
-	ns, err := h.svc.AllocateNamespace(c.Request.Context(), tenantInt, "tenant-workspace")
+	ns, err := h.svc.AllocateNamespace(ctx, tenantInt, "tenant-workspace")
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -294,12 +325,14 @@ func (h *Handler) AllocateNamespace(c *gin.Context) {
 }
 
 func (h *Handler) ReleaseNamespace(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ReleaseNamespace")
+	defer span.End()
 	var req models.NamespaceReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	released, err := h.svc.ReleaseNamespace(c.Request.Context(), req.NamespaceName)
+	released, err := h.svc.ReleaseNamespace(ctx, req.NamespaceName)
 	if err != nil {
 		// Treat error as success for release (namespace may not exist)
 	}
@@ -307,8 +340,10 @@ func (h *Handler) ReleaseNamespace(c *gin.Context) {
 }
 
 func (h *Handler) TenantNamespaces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TenantNamespaces")
+	defer span.End()
 	tenantID := c.Param("tenantId")
-	namespaces, err := h.svc.GetTenantNamespaces(c.Request.Context(), tenantID)
+	namespaces, err := h.svc.GetTenantNamespaces(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -317,8 +352,10 @@ func (h *Handler) TenantNamespaces(c *gin.Context) {
 }
 
 func (h *Handler) NamespaceUsage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "NamespaceUsage")
+	defer span.End()
 	tenantID := c.Param("tenantId")
-	details, err := h.svc.GetTenantNamespaces(c.Request.Context(), tenantID)
+	details, err := h.svc.GetTenantNamespaces(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -335,6 +372,8 @@ func (h *Handler) NamespaceUsage(c *gin.Context) {
 // ==================== Middleware config ====================
 
 func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetMiddlewareConfig")
+	defer span.End()
 	config := models.MiddlewareConfig{
 		Enabled:       true,
 		HeaderName:    "x-tenant-id",
@@ -344,6 +383,8 @@ func (h *Handler) GetMiddlewareConfig(c *gin.Context) {
 }
 
 func (h *Handler) UpdateMiddlewareConfig(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateMiddlewareConfig")
+	defer span.End()
 	var body struct {
 		Enabled        *bool  `json:"enabled"`
 		HeaderName     string `json:"headerName"`
@@ -361,13 +402,15 @@ func (h *Handler) UpdateMiddlewareConfig(c *gin.Context) {
 // ==================== Usage ====================
 
 func (h *Handler) Usage(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Usage")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	tenantInt := 0
 	t, _ := strconv.Atoi(tenantID)
 	if t > 0 {
 		tenantInt = t
 	}
-	quota, err := h.svc.GetQuota(c.Request.Context(), tenantInt, tenantID)
+	quota, err := h.svc.GetQuota(ctx, tenantInt, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -387,8 +430,10 @@ func (h *Handler) Usage(c *gin.Context) {
 // ==================== Users ====================
 
 func (h *Handler) ListUsers(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListUsers")
+	defer span.End()
 	tenantID := c.Param("id")
-	users, err := h.svc.ListTenantUsers(c.Request.Context(), tenantID)
+	users, err := h.svc.ListTenantUsers(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -397,6 +442,8 @@ func (h *Handler) ListUsers(c *gin.Context) {
 }
 
 func (h *Handler) RemoveUser(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RemoveUser")
+	defer span.End()
 	tenantID := c.Param("id")
 	userID := c.Param("userId")
 	currentUserID := c.GetString("user_id")
@@ -404,7 +451,7 @@ func (h *Handler) RemoveUser(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "Cannot remove yourself from the tenant", 400)
 		return
 	}
-	if err := h.svc.RemoveTenantUser(c.Request.Context(), tenantID, userID, currentUserID); err != nil {
+	if err := h.svc.RemoveTenantUser(ctx, tenantID, userID, currentUserID); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -414,6 +461,8 @@ func (h *Handler) RemoveUser(c *gin.Context) {
 // ==================== Invitations ====================
 
 func (h *Handler) Invite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Invite")
+	defer span.End()
 	tenantID := c.Param("id")
 	var req models.InviteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -423,7 +472,7 @@ func (h *Handler) Invite(c *gin.Context) {
 	if req.Role == "" {
 		req.Role = "member"
 	}
-	result, err := h.svc.InviteUser(c.Request.Context(), tenantID, req)
+	result, err := h.svc.InviteUser(ctx, tenantID, req)
 	if err != nil {
 		if err == service.ErrTenantNotFound {
 			errors.WriteError(c, errors.ErrNotFound, "tenant not found", 404)
@@ -444,8 +493,10 @@ func (h *Handler) Invite(c *gin.Context) {
 }
 
 func (h *Handler) InviteInfo(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "InviteInfo")
+	defer span.End()
 	code := c.Param("code")
-	info, err := h.svc.GetInviteByCode(c.Request.Context(), code)
+	info, err := h.svc.GetInviteByCode(ctx, code)
 	if err != nil {
 		if err == service.ErrInviteNotFound {
 			errors.WriteError(c, errors.ErrNotFound, err.Error(), 404)
@@ -458,10 +509,12 @@ func (h *Handler) InviteInfo(c *gin.Context) {
 }
 
 func (h *Handler) AcceptInvite(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AcceptInvite")
+	defer span.End()
 	code := c.Param("code")
 	userID := c.GetString("user_id")
 	// Email check would require user middleware; skip for now
-	result, err := h.svc.AcceptInvite(c.Request.Context(), code, userID, "")
+	result, err := h.svc.AcceptInvite(ctx, code, userID, "")
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -472,6 +525,8 @@ func (h *Handler) AcceptInvite(c *gin.Context) {
 // ==================== Alerts ====================
 
 func (h *Handler) Alerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Alerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.AlertsQuery{
 		Page:  1,
@@ -489,7 +544,7 @@ func (h *Handler) Alerts(c *gin.Context) {
 	if s := c.Query("status"); s != "" {
 		q.Status = &s
 	}
-	result, err := h.svc.GetAlerts(c.Request.Context(), tenantID, q)
+	result, err := h.svc.GetAlerts(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -498,8 +553,10 @@ func (h *Handler) Alerts(c *gin.Context) {
 }
 
 func (h *Handler) AlertStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "AlertStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	stats, err := h.svc.GetAlertStats(c.Request.Context(), tenantID)
+	stats, err := h.svc.GetAlertStats(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

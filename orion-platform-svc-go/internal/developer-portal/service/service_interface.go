@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/developer-portal/models"
+)
+
 // ServiceInterface defines the interface for the developer-portal service.
 type ServiceInterface interface {
 	ApproveReview(c context.Context, tenantID, id, userID string) (*models.PortalDocument, error)

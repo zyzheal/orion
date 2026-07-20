@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/tenant-gateway/models"
+)
+
 // ServiceInterface defines the interface for the tenant-gateway service.
 type ServiceInterface interface {
 	Activate(ctx context.Context, tenantID, id string) (*models.Tenant, error)

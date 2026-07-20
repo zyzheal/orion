@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes HTTP endpoints for session management operations.
@@ -33,6 +34,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List retrieves the current user's sessions.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 
@@ -45,7 +48,7 @@ func (h *Handler) List(c *gin.Context) {
 		pageSize = 50
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, userID, (page-1)*pageSize, pageSize)
+	items, err := h.svc.List(ctx, tenantID, userID, (page-1)*pageSize, pageSize)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -55,8 +58,10 @@ func (h *Handler) List(c *gin.Context) {
 
 // Get retrieves a single session by id.
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	session, err := h.svc.GetByID(c.Request.Context(), tenantID, c.Param("id"))
+	session, err := h.svc.GetByID(ctx, tenantID, c.Param("id"))
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -66,8 +71,10 @@ func (h *Handler) Get(c *gin.Context) {
 
 // Delete removes a session by id.
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Logout(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Logout(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -76,8 +83,10 @@ func (h *Handler) Delete(c *gin.Context) {
 
 // LogoutSpecific logs out a specific session.
 func (h *Handler) LogoutSpecific(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LogoutSpecific")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	if err := h.svc.Logout(c.Request.Context(), tenantID, c.Param("id")); err != nil {
+	if err := h.svc.Logout(ctx, tenantID, c.Param("id")); err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
 	}
@@ -86,6 +95,8 @@ func (h *Handler) LogoutSpecific(c *gin.Context) {
 
 // LogoutCurrent logs out the current session.
 func (h *Handler) LogoutCurrent(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LogoutCurrent")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.LogoutSessionRequest
 	if c.ShouldBindJSON(&req) != nil {
@@ -94,7 +105,7 @@ func (h *Handler) LogoutCurrent(c *gin.Context) {
 	}
 
 	// Logout all sessions for the current user to effectively log out the current session.
-	_, err := h.svc.LogoutAll(c.Request.Context(), tenantID, c.GetString("user_id"))
+	_, err := h.svc.LogoutAll(ctx, tenantID, c.GetString("user_id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -104,8 +115,10 @@ func (h *Handler) LogoutCurrent(c *gin.Context) {
 
 // LogoutAll logs out all sessions for the current user.
 func (h *Handler) LogoutAll(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "LogoutAll")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	_, err := h.svc.LogoutAll(c.Request.Context(), tenantID, c.GetString("user_id"))
+	_, err := h.svc.LogoutAll(ctx, tenantID, c.GetString("user_id"))
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

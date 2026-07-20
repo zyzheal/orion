@@ -537,6 +537,3 @@ func IsNotFound(err error) bool {
 	return errors.Is(err, ErrSBOMNotFound)
 }
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}

@@ -5,6 +5,12 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/auth-enhanced/models"
+	"time"
+)
+
 // ServiceInterface defines the interface for the auth-enhanced service.
 type ServiceInterface interface {
 	BlacklistToken(ctx context.Context, tenantID string, req *models.CreateBlacklistRequest, expiresAt time.Time) (*models.AuthTokenBlacklist, error)

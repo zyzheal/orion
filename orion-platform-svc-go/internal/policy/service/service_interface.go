@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/policy/models"
+)
+
 // ServiceInterface defines the interface for the policy service.
 type ServiceInterface interface {
 	CreateOverride(ctx context.Context, tenantID string, req models.CreateOverrideRequest, overrideBy string) (*models.PolicyOverride, error)

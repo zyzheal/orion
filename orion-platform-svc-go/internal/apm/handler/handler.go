@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,8 +42,10 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 }
 
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := h.getTenantID(c)
-	entities, err := h.svc.List(c.Request.Context(), tenantID)
+	entities, err := h.svc.List(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -51,13 +54,15 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Create(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Create")
+	defer span.End()
 	var req models.CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Create(c.Request.Context(), &req, tenantID)
+	entity, err := h.svc.Create(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -66,9 +71,11 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) Get(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Get")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Get(c.Request.Context(), id, tenantID)
+	entity, err := h.svc.Get(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -77,6 +84,8 @@ func (h *Handler) Get(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Update")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -84,7 +93,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	entity, err := h.svc.Update(c.Request.Context(), id, tenantID, &req)
+	entity, err := h.svc.Update(ctx, id, tenantID, &req)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -93,9 +102,11 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Delete")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.Delete(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.Delete(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -108,13 +119,15 @@ func (h *Handler) Delete(c *gin.Context) {
 }
 
 func (h *Handler) GetSlowTraces(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSlowTraces")
+	defer span.End()
 	q := models.SlowTracesQuery{}
 	q.TraceDurationMs = c.Query("durationMs")
 	q.Service = c.Query("service")
 	q.Start = c.Query("start")
 	q.End = c.Query("end")
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.GetSlowTraces(c.Request.Context(), tenantID, &q)
+	result, err := h.svc.GetSlowTraces(ctx, tenantID, &q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -123,13 +136,15 @@ func (h *Handler) GetSlowTraces(c *gin.Context) {
 }
 
 func (h *Handler) GetServiceTopology(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetServiceTopology")
+	defer span.End()
 	q := models.TopologyQuery{}
 	if v := c.Query("includeDependencies"); v != "" {
 		q.IncludeDependencies = v == "true"
 	}
 	q.Service = c.Query("service")
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.GetServiceTopology(c.Request.Context(), tenantID, &q)
+	result, err := h.svc.GetServiceTopology(ctx, tenantID, &q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -138,6 +153,8 @@ func (h *Handler) GetServiceTopology(c *gin.Context) {
 }
 
 func (h *Handler) GetSlowQueries(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetSlowQueries")
+	defer span.End()
 	var q models.SlowQueriesQuery
 	if v := c.DefaultQuery("minDurationMs", "0"); v != "0" {
 		var n int
@@ -153,7 +170,7 @@ func (h *Handler) GetSlowQueries(c *gin.Context) {
 		}
 	}
 	tenantID := h.getTenantID(c)
-	result, err := h.svc.GetSlowQueries(c.Request.Context(), tenantID, &q)
+	result, err := h.svc.GetSlowQueries(ctx, tenantID, &q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

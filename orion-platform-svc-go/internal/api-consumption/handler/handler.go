@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -41,6 +42,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Consumption ====================
 
 func (h *Handler) ListConsumptions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListConsumptions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.ConsumptionFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -64,7 +67,7 @@ func (h *Handler) ListConsumptions(c *gin.Context) {
 	if de := c.Query("dateTo"); de != "" {
 		filter.DateTo = &de
 	}
-	result, err := h.svc.ListConsumptions(c.Request.Context(), tenantID, filter)
+	result, err := h.svc.ListConsumptions(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -73,13 +76,15 @@ func (h *Handler) ListConsumptions(c *gin.Context) {
 }
 
 func (h *Handler) CreateConsumption(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateConsumption")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateConsumptionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateConsumption(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateConsumption(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -94,8 +99,10 @@ func (h *Handler) CreateConsumption(c *gin.Context) {
 // ==================== Limits ====================
 
 func (h *Handler) ListLimits(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListLimits")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.ListLimits(c.Request.Context(), tenantID)
+	result, err := h.svc.ListLimits(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -104,13 +111,15 @@ func (h *Handler) ListLimits(c *gin.Context) {
 }
 
 func (h *Handler) CreateLimit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateLimit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateLimitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateLimit(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateLimit(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -123,9 +132,11 @@ func (h *Handler) CreateLimit(c *gin.Context) {
 }
 
 func (h *Handler) GetLimit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetLimit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetLimit(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetLimit(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "limit not found")
@@ -138,6 +149,8 @@ func (h *Handler) GetLimit(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLimit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateLimit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateLimitRequest
@@ -145,7 +158,7 @@ func (h *Handler) UpdateLimit(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateLimit(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateLimit(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "limit not found")
@@ -162,9 +175,11 @@ func (h *Handler) UpdateLimit(c *gin.Context) {
 }
 
 func (h *Handler) DeleteLimit(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteLimit")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteLimit(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteLimit(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "limit not found")
@@ -179,8 +194,10 @@ func (h *Handler) DeleteLimit(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

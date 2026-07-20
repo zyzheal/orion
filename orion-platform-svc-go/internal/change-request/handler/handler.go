@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -65,6 +66,8 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // --- Change Request CRUD handlers ---
 
 func (h *Handler) ListRequests(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRequests")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 	status := c.Query("status")
 	changeType := c.Query("changeType")
@@ -76,7 +79,7 @@ func (h *Handler) ListRequests(c *gin.Context) {
 		RiskLevel:  ptrString(riskLevel),
 	}
 
-	reqs, total, err := h.svc.ListRequests(c.Request.Context(), tenantID, filters)
+	reqs, total, err := h.svc.ListRequests(ctx, tenantID, filters)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -90,9 +93,11 @@ func (h *Handler) ListRequests(c *gin.Context) {
 }
 
 func (h *Handler) GetRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRequest")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	req, err := h.svc.GetRequest(c.Request.Context(), id, tenantID)
+	req, err := h.svc.GetRequest(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -105,6 +110,8 @@ func (h *Handler) GetRequest(c *gin.Context) {
 }
 
 func (h *Handler) CreateRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRequest")
+	defer span.End()
 	var req models.CreateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -131,7 +138,7 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	cr, err := h.svc.CreateRequest(c.Request.Context(), &req, tenantID)
+	cr, err := h.svc.CreateRequest(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -140,6 +147,8 @@ func (h *Handler) CreateRequest(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRequest")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateChangeRequestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -147,7 +156,7 @@ func (h *Handler) UpdateRequest(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	cr, err := h.svc.UpdateRequest(c.Request.Context(), id, tenantID, &req)
+	cr, err := h.svc.UpdateRequest(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -160,9 +169,11 @@ func (h *Handler) UpdateRequest(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRequest")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.DeleteRequest(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteRequest(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -185,9 +196,11 @@ func (h *Handler) DeleteRequest(c *gin.Context) {
 // --- Approval handlers ---
 
 func (h *Handler) SubmitForApproval(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "SubmitForApproval")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	cr, err := h.svc.SubmitForApproval(c.Request.Context(), id, tenantID)
+	cr, err := h.svc.SubmitForApproval(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -204,9 +217,11 @@ func (h *Handler) SubmitForApproval(c *gin.Context) {
 }
 
 func (h *Handler) GetApprovalChain(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetApprovalChain")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	approvals, err := h.svc.GetApprovalChain(c.Request.Context(), id, tenantID)
+	approvals, err := h.svc.GetApprovalChain(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -219,6 +234,8 @@ func (h *Handler) GetApprovalChain(c *gin.Context) {
 }
 
 func (h *Handler) ApproveRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveRequest")
+	defer span.End()
 	requestID := c.Param("id")
 	approvalID := c.Param("approvalId")
 	var req models.CreateApprovalRequest
@@ -231,7 +248,7 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	approval, err := h.svc.ApproveRequest(c.Request.Context(), requestID, approvalID, tenantID, req.ApproverID, req.Comments)
+	approval, err := h.svc.ApproveRequest(ctx, requestID, approvalID, tenantID, req.ApproverID, req.Comments)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "approval not found")
@@ -248,6 +265,8 @@ func (h *Handler) ApproveRequest(c *gin.Context) {
 }
 
 func (h *Handler) RejectRequest(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectRequest")
+	defer span.End()
 	requestID := c.Param("id")
 	approvalID := c.Param("approvalId")
 	var req models.CreateApprovalRequest
@@ -260,7 +279,7 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	approval, err := h.svc.RejectRequest(c.Request.Context(), requestID, approvalID, tenantID, req.ApproverID, req.Comments)
+	approval, err := h.svc.RejectRequest(ctx, requestID, approvalID, tenantID, req.ApproverID, req.Comments)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "approval not found")
@@ -279,6 +298,8 @@ func (h *Handler) RejectRequest(c *gin.Context) {
 // --- Execution handlers ---
 
 func (h *Handler) StartExecution(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartExecution")
+	defer span.End()
 	id := c.Param("id")
 	var req models.StartExecutionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -296,7 +317,7 @@ func (h *Handler) StartExecution(c *gin.Context) {
 		}
 	}
 	tenantID := h.getTenantID(c)
-	steps, err := h.svc.StartExecution(c.Request.Context(), id, tenantID, req.Steps)
+	steps, err := h.svc.StartExecution(ctx, id, tenantID, req.Steps)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -313,9 +334,11 @@ func (h *Handler) StartExecution(c *gin.Context) {
 }
 
 func (h *Handler) GetExecutionProgress(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecutionProgress")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getTenantID(c)
-	progress, err := h.svc.GetExecutionProgress(c.Request.Context(), id, tenantID)
+	progress, err := h.svc.GetExecutionProgress(ctx, id, tenantID)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "change request not found")
@@ -328,6 +351,8 @@ func (h *Handler) GetExecutionProgress(c *gin.Context) {
 }
 
 func (h *Handler) UpdateExecutionStep(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateExecutionStep")
+	defer span.End()
 	stepID := c.Param("stepId")
 	var req models.UpdateExecutionStepRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -339,7 +364,7 @@ func (h *Handler) UpdateExecutionStep(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	step, err := h.svc.UpdateExecutionStep(c.Request.Context(), stepID, tenantID, req.Status, req.Result, req.StartedAt, req.CompletedAt)
+	step, err := h.svc.UpdateExecutionStep(ctx, stepID, tenantID, req.Status, req.Result, req.StartedAt, req.CompletedAt)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "execution step not found")

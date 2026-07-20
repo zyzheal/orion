@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/progressive/models"
+)
+
 // ServiceInterface defines the interface for the progressive service.
 type ServiceInterface interface {
 	CompleteStage(ctx context.Context, tenantID, deploymentID string, stageNumber int, healthOK bool, errorRate float64, metrics map[string]string) (*models.ProgressiveDeployment, error)

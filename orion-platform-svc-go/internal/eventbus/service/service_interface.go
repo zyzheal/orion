@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/eventbus/models"
+)
+
 // ServiceInterface defines the interface for the eventbus service.
 type ServiceInterface interface {
 	Count(ctx context.Context, tenantID string) (int, error)

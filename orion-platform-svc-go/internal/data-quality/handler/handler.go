@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -48,6 +49,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Rules ====================
 
 func (h *Handler) ListRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	filter := &models.RuleFilter{Limit: 20}
 	if l := c.Query("limit"); l != "" {
@@ -65,7 +68,7 @@ func (h *Handler) ListRules(c *gin.Context) {
 	if st := c.Query("status"); st != "" {
 		filter.Status = &st
 	}
-	result, err := h.svc.ListRules(c.Request.Context(), tenantID, filter)
+	result, err := h.svc.ListRules(ctx, tenantID, filter)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -74,13 +77,15 @@ func (h *Handler) ListRules(c *gin.Context) {
 }
 
 func (h *Handler) CreateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateRule(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateRule(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsBadRequest(err) {
 			middleware.RespondBadRequest(c, err.Error())
@@ -93,9 +98,11 @@ func (h *Handler) CreateRule(c *gin.Context) {
 }
 
 func (h *Handler) GetRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetRule(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetRule(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "rule not found")
@@ -108,6 +115,8 @@ func (h *Handler) GetRule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateRuleRequest
@@ -115,7 +124,7 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateRule(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateRule(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "rule not found")
@@ -132,9 +141,11 @@ func (h *Handler) UpdateRule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteRule(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteRule(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "rule not found")
@@ -149,13 +160,15 @@ func (h *Handler) DeleteRule(c *gin.Context) {
 // ==================== Scan Results ====================
 
 func (h *Handler) CreateScanResult(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateScanResult")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateScanResultRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateScanResult(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateScanResult(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "rule not found")
@@ -172,13 +185,15 @@ func (h *Handler) CreateScanResult(c *gin.Context) {
 }
 
 func (h *Handler) ListScanResults(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListScanResults")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	ruleID := c.Param("ruleId")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
-	result, err := h.svc.ListScanResults(c.Request.Context(), tenantID, ruleID, status)
+	result, err := h.svc.ListScanResults(ctx, tenantID, ruleID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -189,12 +204,14 @@ func (h *Handler) ListScanResults(c *gin.Context) {
 // ==================== Alerts ====================
 
 func (h *Handler) ListAlerts(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAlerts")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var status *string
 	if s := c.Query("status"); s != "" {
 		status = &s
 	}
-	result, err := h.svc.ListAlerts(c.Request.Context(), tenantID, status)
+	result, err := h.svc.ListAlerts(ctx, tenantID, status)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -203,13 +220,15 @@ func (h *Handler) ListAlerts(c *gin.Context) {
 }
 
 func (h *Handler) CreateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAlertRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.CreateAlert(c.Request.Context(), tenantID, &req)
+	result, err := h.svc.CreateAlert(ctx, tenantID, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "rule not found")
@@ -226,9 +245,11 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 }
 
 func (h *Handler) GetAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	result, err := h.svc.GetAlert(c.Request.Context(), tenantID, id)
+	result, err := h.svc.GetAlert(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "alert not found")
@@ -241,6 +262,8 @@ func (h *Handler) GetAlert(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateAlertRequest
@@ -248,7 +271,7 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	result, err := h.svc.UpdateAlert(c.Request.Context(), tenantID, id, &req)
+	result, err := h.svc.UpdateAlert(ctx, tenantID, id, &req)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "alert not found")
@@ -265,9 +288,11 @@ func (h *Handler) UpdateAlert(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAlert(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteAlert")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	err := h.svc.DeleteAlert(c.Request.Context(), tenantID, id)
+	err := h.svc.DeleteAlert(ctx, tenantID, id)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "alert not found")
@@ -282,8 +307,10 @@ func (h *Handler) DeleteAlert(c *gin.Context) {
 // ==================== Stats ====================
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -70,11 +71,13 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ---- SQL Orders ----
 
 func (h *Handler) ListOrders(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListOrders")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	result, err := h.svc.ListOrders(c.Request.Context(), tenantID, status, page, limit)
+	result, err := h.svc.ListOrders(ctx, tenantID, status, page, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -83,8 +86,10 @@ func (h *Handler) ListOrders(c *gin.Context) {
 }
 
 func (h *Handler) GetOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetOrder")
+	defer span.End()
 	id := c.Param("id")
-	order, err := h.svc.GetOrder(c.Request.Context(), id)
+	order, err := h.svc.GetOrder(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "order not found")
 		return
@@ -93,6 +98,8 @@ func (h *Handler) GetOrder(c *gin.Context) {
 }
 
 func (h *Handler) CreateOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateOrder")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.CreateOrderRequest
@@ -100,7 +107,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	order, err := h.svc.CreateOrder(c.Request.Context(), tenantID, userID, req)
+	order, err := h.svc.CreateOrder(ctx, tenantID, userID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -109,9 +116,11 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 }
 
 func (h *Handler) ApproveOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ApproveOrder")
+	defer span.End()
 	id := c.Param("id")
 	approvedBy := c.GetString("user_id")
-	order, err := h.svc.ApproveOrder(c.Request.Context(), id, approvedBy)
+	order, err := h.svc.ApproveOrder(ctx, id, approvedBy)
 	if err != nil {
 		middleware.RespondNotFound(c, "order not found")
 		return
@@ -120,8 +129,10 @@ func (h *Handler) ApproveOrder(c *gin.Context) {
 }
 
 func (h *Handler) RejectOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RejectOrder")
+	defer span.End()
 	id := c.Param("id")
-	order, err := h.svc.RejectOrder(c.Request.Context(), id)
+	order, err := h.svc.RejectOrder(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "order not found")
 		return
@@ -130,8 +141,10 @@ func (h *Handler) RejectOrder(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteOrder(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteOrder")
+	defer span.End()
 	id := c.Param("id")
-	order, err := h.svc.ExecuteOrder(c.Request.Context(), id)
+	order, err := h.svc.ExecuteOrder(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "order not found")
 		return
@@ -142,8 +155,10 @@ func (h *Handler) ExecuteOrder(c *gin.Context) {
 // ---- Data Sources ----
 
 func (h *Handler) ListDataSources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDataSources")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	sources, err := h.svc.ListDataSources(c.Request.Context(), tenantID)
+	sources, err := h.svc.ListDataSources(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -152,8 +167,10 @@ func (h *Handler) ListDataSources(c *gin.Context) {
 }
 
 func (h *Handler) GetDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDataSource")
+	defer span.End()
 	id := c.Param("id")
-	ds, err := h.svc.GetDataSource(c.Request.Context(), id)
+	ds, err := h.svc.GetDataSource(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
@@ -162,13 +179,15 @@ func (h *Handler) GetDataSource(c *gin.Context) {
 }
 
 func (h *Handler) CreateDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDataSource")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	ds, err := h.svc.CreateDataSource(c.Request.Context(), tenantID, req)
+	ds, err := h.svc.CreateDataSource(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -177,13 +196,15 @@ func (h *Handler) CreateDataSource(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDataSource")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateDataSourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	ds, err := h.svc.UpdateDataSource(c.Request.Context(), id, req)
+	ds, err := h.svc.UpdateDataSource(ctx, id, req)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
@@ -192,8 +213,10 @@ func (h *Handler) UpdateDataSource(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDataSource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDataSource")
+	defer span.End()
 	id := c.Param("id")
-	if err := h.svc.DeleteDataSource(c.Request.Context(), id); err != nil {
+	if err := h.svc.DeleteDataSource(ctx, id); err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
 	}
@@ -201,8 +224,10 @@ func (h *Handler) DeleteDataSource(c *gin.Context) {
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestConnection")
+	defer span.End()
 	id := c.Param("id")
-	result, err := h.svc.TestConnection(c.Request.Context(), id)
+	result, err := h.svc.TestConnection(ctx, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "data source not found")
 		return
@@ -213,8 +238,10 @@ func (h *Handler) TestConnection(c *gin.Context) {
 // ---- Audit Rules ----
 
 func (h *Handler) ListAuditRules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListAuditRules")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	rules, err := h.svc.ListAuditRules(c.Request.Context(), tenantID)
+	rules, err := h.svc.ListAuditRules(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -223,13 +250,15 @@ func (h *Handler) ListAuditRules(c *gin.Context) {
 }
 
 func (h *Handler) CreateAuditRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateAuditRule")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateAuditRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.CreateAuditRule(c.Request.Context(), tenantID, req)
+	rule, err := h.svc.CreateAuditRule(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -238,13 +267,15 @@ func (h *Handler) CreateAuditRule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateAuditRule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateAuditRule")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateAuditRuleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	rule, err := h.svc.UpdateAuditRule(c.Request.Context(), id, req)
+	rule, err := h.svc.UpdateAuditRule(ctx, id, req)
 	if err != nil {
 		middleware.RespondNotFound(c, "audit rule not found")
 		return
@@ -255,6 +286,8 @@ func (h *Handler) UpdateAuditRule(c *gin.Context) {
 // ---- Direct Query ----
 
 func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteDirectQuery")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	userID := c.GetString("user_id")
 	var req models.DirectQueryRequest
@@ -262,7 +295,7 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
-	resp, err := h.svc.ExecuteDirectQuery(c.Request.Context(), tenantID, userID, req)
+	resp, err := h.svc.ExecuteDirectQuery(ctx, tenantID, userID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -280,6 +313,8 @@ func (h *Handler) ExecuteDirectQuery(c *gin.Context) {
 // ---- Query Logs ----
 
 func (h *Handler) ListQueryLogs(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListQueryLogs")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.QueryLogQuery{
 		DataSourceID: c.Query("data_source_id"),
@@ -287,7 +322,7 @@ func (h *Handler) ListQueryLogs(c *gin.Context) {
 		Page:         intDef(c.Query("page"), 1),
 		Limit:        intDef(c.Query("limit"), 20),
 	}
-	result, err := h.svc.ListQueryLogs(c.Request.Context(), tenantID, q)
+	result, err := h.svc.ListQueryLogs(ctx, tenantID, q)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/maintenance-window/models"
+)
+
 // ServiceInterface defines the interface for the maintenance-window service.
 type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req *models.CreateMaintenanceWindowRequest) (*models.MaintenanceWindow, error)

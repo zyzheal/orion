@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/billing/models"
+)
+
 // ServiceInterface defines the interface for the billing service.
 type ServiceInterface interface {
 	CreateAccount(ctx context.Context, tenantID string, req *models.CreateAccountRequest) (*models.Account, error)

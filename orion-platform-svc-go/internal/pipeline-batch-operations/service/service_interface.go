@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-batch-operations/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-batch-operations service.
 type ServiceInterface interface {
 	BatchDelete(ctx context.Context, req *models.BatchDeleteRequest, tenantID string) (*models.BatchOperationResponse, error)

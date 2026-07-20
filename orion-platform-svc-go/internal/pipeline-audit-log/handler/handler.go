@@ -12,6 +12,7 @@ import (
 	"orion/platform-svc-go/internal/pipeline-audit-log/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -53,13 +54,15 @@ func (h *Handler) getTenantID(c *gin.Context) string {
 // ---------------------------------------------------------------------------
 
 func (h *Handler) Record(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Record")
+	defer span.End()
 	var req models.AuditLogRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
 		return
 	}
 	tenantID := h.getTenantID(c)
-	log, err := h.svc.Record(c.Request.Context(), &req, tenantID)
+	log, err := h.svc.Record(ctx, &req, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -68,6 +71,8 @@ func (h *Handler) Record(c *gin.Context) {
 }
 
 func (h *Handler) RecordBatch(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RecordBatch")
+	defer span.End()
 	var req models.AuditLogBatchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -78,7 +83,7 @@ func (h *Handler) RecordBatch(c *gin.Context) {
 		return
 	}
 	tenantID := h.getTenantID(c)
-	logs, err := h.svc.RecordBatch(c.Request.Context(), req.Logs, tenantID)
+	logs, err := h.svc.RecordBatch(ctx, req.Logs, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -87,6 +92,8 @@ func (h *Handler) RecordBatch(c *gin.Context) {
 }
 
 func (h *Handler) Query(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Query")
+	defer span.End()
 	tenantID := h.getTenantID(c)
 
 	runID := c.Query("runId")
@@ -132,7 +139,7 @@ func (h *Handler) Query(c *gin.Context) {
 	q.Limit = limit
 	q.Offset = offset
 
-	logs, total, err := h.svc.Query(c.Request.Context(), &q, tenantID)
+	logs, total, err := h.svc.Query(ctx, &q, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -146,13 +153,15 @@ func (h *Handler) Query(c *gin.Context) {
 }
 
 func (h *Handler) GetRunAuditTrail(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetRunAuditTrail")
+	defer span.End()
 	runID := c.Param("runId")
 	tenantID := h.getTenantID(c)
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	if limit <= 0 {
 		limit = 100
 	}
-	trail, err := h.svc.GetRunAuditTrail(c.Request.Context(), tenantID, runID, limit)
+	trail, err := h.svc.GetRunAuditTrail(ctx, tenantID, runID, limit)
 	if err != nil {
 		if service.IsNotFound(err) {
 			middleware.RespondNotFound(c, "pipeline run not found")
@@ -165,12 +174,14 @@ func (h *Handler) GetRunAuditTrail(c *gin.Context) {
 }
 
 func (h *Handler) CleanupExpired(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CleanupExpired")
+	defer span.End()
 	var req models.CleanupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		req.RetentionDays = nil // use default on bad JSON
 	}
 	tenantID := h.getTenantID(c)
-	deleted, err := h.svc.CleanupExpired(c.Request.Context(), tenantID, &req)
+	deleted, err := h.svc.CleanupExpired(ctx, tenantID, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/config/models"
+)
+
 // ServiceInterface defines the interface for the config service.
 type ServiceInterface interface {
 	ApproveChange(ctx context.Context, tenantID, id, approvedBy string) (*models.ChangeRequest, error)

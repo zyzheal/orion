@@ -7,6 +7,7 @@ import (
 
         "github.com/gin-gonic/gin"
 	"orion/go-common/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -29,13 +30,15 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateProvider")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         var req models.CreateSSOProviderRequest
         if err := c.ShouldBindJSON(&req); err != nil {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Create(c.Request.Context(), tenantID, &req)
+        result, err := h.svc.Create(ctx, tenantID, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -44,9 +47,11 @@ func (h *Handler) CreateProvider(c *gin.Context) {
 }
 
 func (h *Handler) GetProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetProvider")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
-        provider, err := h.svc.GetByID(c.Request.Context(), tenantID, id)
+        provider, err := h.svc.GetByID(ctx, tenantID, id)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
@@ -55,6 +60,8 @@ func (h *Handler) GetProvider(c *gin.Context) {
 }
 
 func (h *Handler) ListProviders(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListProviders")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         filter := &models.SSOProviderFilter{}
         if t := c.Query("type"); t != "" {
@@ -64,7 +71,7 @@ func (h *Handler) ListProviders(c *gin.Context) {
                 b := e == "true" || e == "1"
                 filter.Enabled = &b
         }
-        providers, total, err := h.svc.List(c.Request.Context(), tenantID, filter)
+        providers, total, err := h.svc.List(ctx, tenantID, filter)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -73,6 +80,8 @@ func (h *Handler) ListProviders(c *gin.Context) {
 }
 
 func (h *Handler) UpdateProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateProvider")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
         var req models.UpdateSSOProviderRequest
@@ -80,7 +89,7 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
                 errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
                 return
         }
-        result, err := h.svc.Update(c.Request.Context(), tenantID, id, &req)
+        result, err := h.svc.Update(ctx, tenantID, id, &req)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return
@@ -89,9 +98,11 @@ func (h *Handler) UpdateProvider(c *gin.Context) {
 }
 
 func (h *Handler) DeleteProvider(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteProvider")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
-        deleted, err := h.svc.Delete(c.Request.Context(), tenantID, id)
+        deleted, err := h.svc.Delete(ctx, tenantID, id)
         if err != nil {
                 errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
                 return
@@ -104,9 +115,11 @@ func (h *Handler) DeleteProvider(c *gin.Context) {
 }
 
 func (h *Handler) TestConnection(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "TestConnection")
+	defer span.End()
         tenantID := c.GetString("tenant_id")
         id := c.Param("id")
-        ok, msg, err := h.svc.TestConnection(c.Request.Context(), tenantID, id)
+        ok, msg, err := h.svc.TestConnection(ctx, tenantID, id)
         if err != nil {
                 errors.WriteError(c, errors.ErrNotFound, "provider not found", 404)
                 return

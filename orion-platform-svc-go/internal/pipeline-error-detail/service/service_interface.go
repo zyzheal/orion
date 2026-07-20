@@ -5,6 +5,11 @@
 
 package service
 
+import (
+	"context"
+	"orion/platform-svc-go/internal/pipeline-error-detail/models"
+)
+
 // ServiceInterface defines the interface for the pipeline-error-detail service.
 type ServiceInterface interface {
 	GetErrorDetail(ctx context.Context, runID string) (*models.PipelineErrorDetail, error)

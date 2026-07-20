@@ -11,6 +11,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler exposes the SLA module HTTP endpoints.
@@ -57,6 +58,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // ==================== Definition CRUD ====================
 
 func (h *Handler) ListDefinitions(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDefinitions")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.DefinitionListQuery{
 		Limit:  20,
@@ -77,7 +80,7 @@ func (h *Handler) ListDefinitions(c *gin.Context) {
 	if category := c.Query("category"); category != "" {
 		q.Category = category
 	}
-	result, err := h.svc.ListDefinitions(c.Request.Context(), tenantID, q)
+	result, err := h.svc.ListDefinitions(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -86,13 +89,15 @@ func (h *Handler) ListDefinitions(c *gin.Context) {
 }
 
 func (h *Handler) CreateDefinition(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDefinition")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.CreateDefinitionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.CreateDefinition(c.Request.Context(), tenantID, req)
+	result, err := h.svc.CreateDefinition(ctx, tenantID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -101,9 +106,11 @@ func (h *Handler) CreateDefinition(c *gin.Context) {
 }
 
 func (h *Handler) GetDefinition(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetDefinition")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	def, err := h.svc.GetDefinition(c.Request.Context(), tenantID, id)
+	def, err := h.svc.GetDefinition(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -116,6 +123,8 @@ func (h *Handler) GetDefinition(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDefinition(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDefinition")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateDefinitionRequest
@@ -123,7 +132,7 @@ func (h *Handler) UpdateDefinition(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.UpdateDefinition(c.Request.Context(), tenantID, id, req)
+	result, err := h.svc.UpdateDefinition(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -132,9 +141,11 @@ func (h *Handler) UpdateDefinition(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDefinition(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDefinition")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	if err := h.svc.DeleteDefinition(c.Request.Context(), tenantID, id); err != nil {
+	if err := h.svc.DeleteDefinition(ctx, tenantID, id); err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
 	}
@@ -144,13 +155,15 @@ func (h *Handler) DeleteDefinition(c *gin.Context) {
 // ==================== Tracking ====================
 
 func (h *Handler) StartTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "StartTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.StartTrackingRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.StartTracking(c.Request.Context(), tenantID, req)
+	result, err := h.svc.StartTracking(ctx, tenantID, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -159,6 +172,8 @@ func (h *Handler) StartTracking(c *gin.Context) {
 }
 
 func (h *Handler) ListTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	q := models.TrackingListQuery{
 		Limit:  20,
@@ -179,7 +194,7 @@ func (h *Handler) ListTracking(c *gin.Context) {
 	if eid := c.Query("entity_id"); eid != "" {
 		q.EntityID = eid
 	}
-	result, err := h.svc.ListTracking(c.Request.Context(), tenantID, q)
+	result, err := h.svc.ListTracking(ctx, tenantID, q)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -188,9 +203,11 @@ func (h *Handler) ListTracking(c *gin.Context) {
 }
 
 func (h *Handler) GetTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
-	tracking, err := h.svc.GetTracking(c.Request.Context(), tenantID, id)
+	tracking, err := h.svc.GetTracking(ctx, tenantID, id)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -203,6 +220,8 @@ func (h *Handler) GetTracking(c *gin.Context) {
 }
 
 func (h *Handler) UpdateTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 	var req models.UpdateTrackingRequest
@@ -210,7 +229,7 @@ func (h *Handler) UpdateTracking(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, err.Error(), 400)
 		return
 	}
-	result, err := h.svc.UpdateTracking(c.Request.Context(), tenantID, id, req)
+	result, err := h.svc.UpdateTracking(ctx, tenantID, id, req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -219,9 +238,11 @@ func (h *Handler) UpdateTracking(c *gin.Context) {
 }
 
 func (h *Handler) MarkMet(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MarkMet")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	trackingID := c.Param("id")
-	result, err := h.svc.MarkMet(c.Request.Context(), tenantID, trackingID)
+	result, err := h.svc.MarkMet(ctx, tenantID, trackingID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -230,13 +251,15 @@ func (h *Handler) MarkMet(c *gin.Context) {
 }
 
 func (h *Handler) MarkBreached(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "MarkBreached")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	trackingID := c.Param("id")
 	var body struct {
 		Details string `json:"details"`
 	}
 	c.ShouldBindJSON(&body)
-	result, err := h.svc.MarkBreached(c.Request.Context(), tenantID, trackingID, body.Details)
+	result, err := h.svc.MarkBreached(ctx, tenantID, trackingID, body.Details)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -245,13 +268,15 @@ func (h *Handler) MarkBreached(c *gin.Context) {
 }
 
 func (h *Handler) PauseTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PauseTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	trackingID := c.Param("id")
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	c.ShouldBindJSON(&body)
-	result, err := h.svc.PauseTracking(c.Request.Context(), tenantID, trackingID, body.Reason)
+	result, err := h.svc.PauseTracking(ctx, tenantID, trackingID, body.Reason)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -260,9 +285,11 @@ func (h *Handler) PauseTracking(c *gin.Context) {
 }
 
 func (h *Handler) ResumeTracking(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ResumeTracking")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	trackingID := c.Param("id")
-	result, err := h.svc.ResumeTracking(c.Request.Context(), tenantID, trackingID)
+	result, err := h.svc.ResumeTracking(ctx, tenantID, trackingID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -271,8 +298,10 @@ func (h *Handler) ResumeTracking(c *gin.Context) {
 }
 
 func (h *Handler) GetBreachEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetBreachEvents")
+	defer span.End()
 	trackingID := c.Param("id")
-	events, err := h.svc.GetBreachEvents(c.Request.Context(), trackingID)
+	events, err := h.svc.GetBreachEvents(ctx, trackingID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -283,6 +312,8 @@ func (h *Handler) GetBreachEvents(c *gin.Context) {
 // ==================== Breaches ====================
 
 func (h *Handler) ListBreachEvents(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListBreachEvents")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	limit := 20
 	offset := 0
@@ -292,7 +323,7 @@ func (h *Handler) ListBreachEvents(c *gin.Context) {
 	if o := c.DefaultQuery("offset", "0"); o != "" {
 	offset, _ = strconv.Atoi(o)
 	}
-	result, err := h.svc.ListBreachEvents(c.Request.Context(), tenantID, limit, offset)
+	result, err := h.svc.ListBreachEvents(ctx, tenantID, limit, offset)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -303,8 +334,10 @@ func (h *Handler) ListBreachEvents(c *gin.Context) {
 // ==================== Detection / Stats ====================
 
 func (h *Handler) DetectBreaches(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DetectBreaches")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.DetectBreaches(c.Request.Context(), tenantID)
+	result, err := h.svc.DetectBreaches(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return
@@ -313,8 +346,10 @@ func (h *Handler) DetectBreaches(c *gin.Context) {
 }
 
 func (h *Handler) GetStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
-	result, err := h.svc.GetStats(c.Request.Context(), tenantID)
+	result, err := h.svc.GetStats(ctx, tenantID)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), 500)
 		return

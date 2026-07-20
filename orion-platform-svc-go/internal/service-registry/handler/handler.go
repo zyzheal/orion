@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const resource = "service-registry"
@@ -59,6 +60,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // List handles GET /services.
 func (h *Handler) List(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "List")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
@@ -74,7 +77,7 @@ func (h *Handler) List(c *gin.Context) {
 		Offset:      offset,
 	}
 
-	items, err := h.svc.List(c.Request.Context(), tenantID, f)
+	items, err := h.svc.List(ctx, tenantID, f)
 	if err != nil {
 		middleware.RespondInternalError(c, "failed to list services: "+err.Error())
 		return
@@ -89,6 +92,8 @@ func (h *Handler) List(c *gin.Context) {
 
 // Register handles POST /register.
 func (h *Handler) Register(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Register")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -101,7 +106,7 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	// Check for duplicate serviceId within tenant
-	existing, err := h.svc.GetByServiceID(c.Request.Context(), tenantID, req.ServiceID)
+	existing, err := h.svc.GetByServiceID(ctx, tenantID, req.ServiceID)
 	if err != nil {
 		middleware.RespondInternalError(c, "failed to check existing service: "+err.Error())
 		return
@@ -113,7 +118,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	m, err := h.svc.Register(c.Request.Context(), tenantID, req)
+	m, err := h.svc.Register(ctx, tenantID, req)
 	if err != nil {
 		errors.WriteErrorWithDetails(c, errors.ErrConflict,
 			"Failed to register service: "+err.Error(), http.StatusConflict,
@@ -125,16 +130,18 @@ func (h *Handler) Register(c *gin.Context) {
 
 // Deregister handles DELETE /services/:id.
 func (h *Handler) Deregister(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Deregister")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	entity, err := h.svc.GetByInternalID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
 	}
 
-	if err := h.svc.Deregister(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
+	if err := h.svc.Deregister(ctx, tenantID, entity.ServiceID); err != nil {
 		middleware.RespondInternalError(c, "failed to deregister service: "+err.Error())
 		return
 	}
@@ -143,10 +150,12 @@ func (h *Handler) Deregister(c *gin.Context) {
 
 // Health handles GET /services/:id/health.
 func (h *Handler) Health(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Health")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	entity, err := h.svc.GetByInternalID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
@@ -170,16 +179,18 @@ func (h *Handler) Health(c *gin.Context) {
 
 // Heartbeat handles POST /services/:id/heartbeat.
 func (h *Handler) Heartbeat(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Heartbeat")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	id := c.Param("id")
 
-	entity, err := h.svc.GetByInternalID(c.Request.Context(), tenantID, id)
+	entity, err := h.svc.GetByInternalID(ctx, tenantID, id)
 	if err != nil {
 		middleware.RespondNotFound(c, "Service not found: "+id)
 		return
 	}
 
-	if err := h.svc.RecordHeartbeat(c.Request.Context(), tenantID, entity.ServiceID); err != nil {
+	if err := h.svc.RecordHeartbeat(ctx, tenantID, entity.ServiceID); err != nil {
 		middleware.RespondInternalError(c, "failed to record heartbeat: "+err.Error())
 		return
 	}

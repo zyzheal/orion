@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"orion/platform-svc-go/internal/middleware"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Handler struct {
@@ -70,6 +71,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // --- Report CRUD handlers ---
 
 func (h *Handler) CreateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateReport")
+	defer span.End()
 	var req models.CreateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -77,7 +80,7 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	req.TenantID = &tenantID
-	report, err := h.svc.CreateReport(c.Request.Context(), &req)
+	report, err := h.svc.CreateReport(ctx, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -86,9 +89,11 @@ func (h *Handler) CreateReport(c *gin.Context) {
 }
 
 func (h *Handler) GetReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReport")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	report, err := h.svc.GetReport(c.Request.Context(), id, tenantID)
+	report, err := h.svc.GetReport(ctx, id, tenantID)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -101,6 +106,8 @@ func (h *Handler) GetReport(c *gin.Context) {
 }
 
 func (h *Handler) UpdateReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateReport")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -108,7 +115,7 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	report, err := h.svc.UpdateReport(c.Request.Context(), id, tenantID, &req)
+	report, err := h.svc.UpdateReport(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -121,9 +128,11 @@ func (h *Handler) UpdateReport(c *gin.Context) {
 }
 
 func (h *Handler) DeleteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteReport")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	deleted, err := h.svc.DeleteReport(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteReport(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -136,6 +145,8 @@ func (h *Handler) DeleteReport(c *gin.Context) {
 }
 
 func (h *Handler) ListReports(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListReports")
+	defer span.End()
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	keyword := ptrIf(c.Query("keyword"))
 	category := ptrIf(c.Query("category"))
@@ -151,7 +162,7 @@ func (h *Handler) ListReports(c *gin.Context) {
 		Offset:   offset,
 	}
 
-	items, total, err := h.svc.ListReports(c.Request.Context(), tenantID, req)
+	items, total, err := h.svc.ListReports(ctx, tenantID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -167,6 +178,8 @@ func (h *Handler) ListReports(c *gin.Context) {
 // --- Datasource handlers ---
 
 func (h *Handler) CreateDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateDatasource")
+	defer span.End()
 	var req models.CreateDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -174,7 +187,7 @@ func (h *Handler) CreateDatasource(c *gin.Context) {
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	req.TenantID = &tenantID
-	ds, err := h.svc.CreateDatasource(c.Request.Context(), &req)
+	ds, err := h.svc.CreateDatasource(ctx, &req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -183,6 +196,8 @@ func (h *Handler) CreateDatasource(c *gin.Context) {
 }
 
 func (h *Handler) UpdateDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateDatasource")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateDatasourceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -190,7 +205,7 @@ func (h *Handler) UpdateDatasource(c *gin.Context) {
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	ds, err := h.svc.UpdateDatasource(c.Request.Context(), id, tenantID, &req)
+	ds, err := h.svc.UpdateDatasource(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "datasource not found")
@@ -203,9 +218,11 @@ func (h *Handler) UpdateDatasource(c *gin.Context) {
 }
 
 func (h *Handler) DeleteDatasource(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteDatasource")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	deleted, err := h.svc.DeleteDatasource(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteDatasource(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -218,8 +235,10 @@ func (h *Handler) DeleteDatasource(c *gin.Context) {
 }
 
 func (h *Handler) ListDatasources(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListDatasources")
+	defer span.End()
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	datasources, err := h.svc.ListDatasources(c.Request.Context(), tenantID)
+	datasources, err := h.svc.ListDatasources(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,6 +249,8 @@ func (h *Handler) ListDatasources(c *gin.Context) {
 // --- Schedule handlers ---
 
 func (h *Handler) CreateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateSchedule")
+	defer span.End()
 	var req models.CreateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		middleware.RespondBadRequest(c, err.Error())
@@ -242,7 +263,7 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
 	req.TenantID = &tenantID
-	schedule, err := h.svc.CreateSchedule(c.Request.Context(), &req)
+	schedule, err := h.svc.CreateSchedule(ctx, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -255,6 +276,8 @@ func (h *Handler) CreateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) UpdateSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateSchedule")
+	defer span.End()
 	id := c.Param("id")
 	var req models.UpdateScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -262,7 +285,7 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 		return
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	schedule, err := h.svc.UpdateSchedule(c.Request.Context(), id, tenantID, &req)
+	schedule, err := h.svc.UpdateSchedule(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "schedule not found")
@@ -275,9 +298,11 @@ func (h *Handler) UpdateSchedule(c *gin.Context) {
 }
 
 func (h *Handler) DeleteSchedule(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DeleteSchedule")
+	defer span.End()
 	id := c.Param("id")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	deleted, err := h.svc.DeleteSchedule(c.Request.Context(), id, tenantID)
+	deleted, err := h.svc.DeleteSchedule(ctx, id, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -290,9 +315,11 @@ func (h *Handler) DeleteSchedule(c *gin.Context) {
 }
 
 func (h *Handler) ListSchedules(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListSchedules")
+	defer span.End()
 	reportID := c.Param("id")
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	schedules, err := h.svc.ListSchedules(c.Request.Context(), reportID, tenantID)
+	schedules, err := h.svc.ListSchedules(ctx, reportID, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -303,11 +330,13 @@ func (h *Handler) ListSchedules(c *gin.Context) {
 // --- Execution / Preview handlers ---
 
 func (h *Handler) PreviewReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "PreviewReport")
+	defer span.End()
 	id := c.Param("id")
 	var req models.PreviewReportRequest
 	_ = c.ShouldBindJSON(&req)
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	result, err := h.svc.PreviewReport(c.Request.Context(), id, tenantID, &req)
+	result, err := h.svc.PreviewReport(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -320,6 +349,8 @@ func (h *Handler) PreviewReport(c *gin.Context) {
 }
 
 func (h *Handler) ExecuteReport(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ExecuteReport")
+	defer span.End()
 	id := c.Param("id")
 	var req models.ExecuteReportRequest
 	_ = c.ShouldBindJSON(&req)
@@ -333,7 +364,7 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 		req.User = &user
 	}
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	execution, err := h.svc.ExecuteReport(c.Request.Context(), id, tenantID, &req)
+	execution, err := h.svc.ExecuteReport(ctx, id, tenantID, &req)
 	if err != nil {
 		if service.IsRepoNotFound(err) {
 			middleware.RespondNotFound(c, "report not found")
@@ -346,10 +377,12 @@ func (h *Handler) ExecuteReport(c *gin.Context) {
 }
 
 func (h *Handler) GetExecutionHistory(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetExecutionHistory")
+	defer span.End()
 	id := c.Param("id")
 	limit := h.getQueryInt(c.Query("limit"), 20)
 	tenantID := h.getDefaultTenantID(c.GetString("tenant_id"))
-	executions, err := h.svc.GetExecutionHistory(c.Request.Context(), id, tenantID, limit)
+	executions, err := h.svc.GetExecutionHistory(ctx, id, tenantID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
