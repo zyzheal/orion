@@ -2002,6 +2002,28 @@ export const routes: AppRoute[] = [
     protected: true,
   },
 
+  // P0-14: 补充未注册路由 (2026-07-20)
+  {
+    path: '/digital-twin',
+    element: React.lazy(() => import('@/pages/DigitalTwin')),
+    protected: true,
+  },
+  {
+    path: '/service-registry',
+    element: React.lazy(() => import('@/pages/service-registry/ServiceRegistry')),
+    protected: true,
+  },
+  {
+    path: '/apk-credentials',
+    element: React.lazy(() => import('@/pages/pipeline-svc/ApkCredentials')),
+    protected: true,
+  },
+  {
+    path: '/apk-upload-history',
+    element: React.lazy(() => import('@/pages/pipeline-svc/ApkUploadHistory')),
+    protected: true,
+  },
+
   // 微前端子应用路由 — 必须放在所有具体路由之后、404 之前
   // 通过 :subAppKey 通配符加载任意已配置的子应用
   // 白名单验证在组件内部完成（SubAppRouteDynamic）
