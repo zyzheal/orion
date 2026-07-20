@@ -272,7 +272,6 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 
 	// Simulate rollback completion
 	eg, _ := errgroup.WithContext(ctx)
-	ch := make(chan error, 1)
 	eg.Go(func() error {
 		time.Sleep(200 * time.Millisecond)
 		if err := s.repo.SetRollbackCompleted(ctx, tenantID, rollback.ID); err == nil {
@@ -281,11 +280,6 @@ func (s *Service) Rollback(ctx context.Context, tenantID, deploymentID string, r
 		}
 		return nil
 	})
-	go func() {
-		if err := <-ch; err != nil {
-			// log silently or handle
-		}
-	}()
 	_ = eg.Wait()
 
 	return rollback, nil

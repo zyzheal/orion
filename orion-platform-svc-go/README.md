@@ -1,17 +1,29 @@
 # Orion Platform Service (Go)
 
-> Orion AI-驱动的 DevOps 平台核心服务（Go 版本）
+> Orion AI-driven DevOps 平台核心服务（Go 版本）
 >
-> 项目根目录: [MICROSERVICES.md](../MICROSERVICES.md) · 设计规范: [CLAUDE.md](../CLAUDE.md)
+> 项目根目录: [MICROSERVICES.md](../MICROSERVICES.md) · 设计规范: [CLAUDE.md](../CLAUDE.md) · API 参考: [API-QUICK-REFERENCE.md](../API-QUICK-REFERENCE.md)
 
-## 概述
+## 项目简介
 
 Orion 平台是面向研发效能的 AI 驱动的 DevOps 平台。核心主张：
 > **不替代现有工具链，而是让现有工具链变聪明** — 集成 Tekton、Knative、Prometheus、K8s 等，而非替代它们。
 
-本仓库 `orion-platform-svc-go` 是核心后端服务的 **Go 版本**，基于 Gin + sqlx，是未来微服务拆分的蓝图实现。当前生产部署以 Node.js 单体 `orion-platform-service` 为主，Go 版本正在持续迁移中。
+`orion-platform-svc-go` 是核心后端服务的 **Go 单体架构**实现，基于 Gin + sqlx + PostgreSQL，包含 **225 个业务模块**和 **455 个迁移文件**。当前生产部署以 Node.js 单体 `orion-platform-service` 为主，Go 版本正在持续迁移中。
 
-## 架构
+### 关键指标
+
+| 指标 | 数值 |
+|------|------|
+| 业务模块 | 225 (`internal/` 目录) |
+| 数据库迁移文件 | 455 (`migrations/`) |
+| Go 版本 | 1.25 |
+| 模块名 | `orion/platform-svc-go` |
+| 可执行入口 | 3 (`cmd/server`, `cmd/pipeline-engine`, `cmd/audit-cli`) |
+| 公共库 | 2 (`pkg/idempotency`, `pkg/nats`) |
+| 文档 | 11 份 (`docs/`) |
+
+## 架构概览
 
 | 组件 | 技术选型 | 说明 |
 |------|----------|------|
@@ -27,17 +39,34 @@ Orion 平台是面向研发效能的 AI 驱动的 DevOps 平台。核心主张�
 ### 分层架构
 
 ```
-internal/
-├── <module>/
-│   ├── handler/        # HTTP 路由处理（Gin handler）
-│   ├── service/        # 业务逻辑层
-│   ├── repository/     # 数据访问层（sqlx + PostgreSQL）
-│   └── model/          # 领域模型
-├── domain/             # DDD 领域层（eventstore, commands）
-├── middleware/         # 全局中间件（认证、日志、CORS）
-├── idempotency/        # 幂等性控制
-├── nats/               # NATS 事件总线封装
-└── ...                 # 225+ 业务模块
+orion-platform-svc-go/
+├── cmd/                    # 可执行入口
+│   ├── server/             # 主服务入口
+│   ├── pipeline-engine/    # 流水线引擎独立进程
+│   └── audit-cli/          # 审计 CLI 工具
+├── internal/               # 225 个业务模块
+│   ├── <module>/
+│   │   ├── handler/        # HTTP 路由处理（Gin handler）
+│   │   ├── service/        # 业务逻辑层
+│   │   ├── repository/     # 数据访问层（sqlx + PostgreSQL）
+│   │   └── model/          # 领域模型
+│   ├── middleware/          # 全局中间件（认证、日志、CORS）
+│   └── domain/             # DDD 领域层（eventstore, commands）
+├── pkg/                    # 公共库
+│   ├── idempotency/        # 幂等性控制
+│   └── nats/               # NATS 事件总线封装
+├── migrations/             # 455 个数据库迁移文件
+└── docs/                   # 项目文档
+```
+
+### 请求处理流程
+
+```
+Client -> Gin Router -> Middleware Chain (Auth/Logger/CORS) -> Handler -> Service -> Repository -> PostgreSQL
+                                                                  |
+                                                               NATS (事件)
+                                                                  |
+                                                               Redis (缓存)
 ```
 
 ## 快速开始
@@ -62,7 +91,7 @@ docker compose exec postgres pg_isready
 go mod download
 
 # 3. 运行数据库迁移
-# 迁移文件位于 migrations/ 目录（420+ 文件）
+# 迁移文件位于 migrations/ 目录（455 个文件）
 # 通过 server 启动时自动执行迁移
 
 # 4. 配置环境变量
@@ -114,11 +143,11 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 
 完整配置参见 [.env.example](.env.example)。
 
-## 模块结构
+## 核心模块列表
 
 `internal/` 下包含 **225 个业务模块**，按领域划分：
 
-### 认证与权限
+### 认证与权限 (14 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -132,21 +161,22 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `session` | 会话管理 |
 | `user` / `user-activity` / `user-profile` / `user-status` / `user-token` | 用户体系 |
 
-### 流水线与制品
+### 流水线与制品 (18 模块)
 
 | 模块 | 说明 |
 |------|------|
 | `pipeline` | 流水线编排 |
 | `pipeline-engine` | 流水线执行引擎 |
 | `pipeline-sse` | 实时日志 SSE 推送 |
-| `pipeline-templates` / `pipeline-template` | 模板管理 |
+| `pipeline-template` / `pipeline-templates` | 模板管理 |
 | `pipeline-run-history` / `pipeline-version` / `pipeline-versions` | 运行历史与版本 |
 | `pipeline-graph` / `pipeline-audit-log` / `pipeline-batch` | 图、审计、批量 |
+| `pipeline-budget` / `pipeline-batch-operations` / `pipeline-execution-control` | 预算、批量操作、执行控制 |
 | `build` / `build-env` | 构建环境 |
 | `artifact` / `artifact-lifecycle` / `artifact-ops` / `artifact-version` | 制品全生命周期 |
 | `version-archive` | 版本归档 |
 
-### AI 平台
+### AI 平台 (14 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -164,7 +194,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `vector` / `vector-store` / `vectorize-rules` | 向量数据库 |
 | `chatops` | ChatOps 对话 |
 
-### 可观测性与告警
+### 可观测性与告警 (14 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -178,8 +208,9 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `inspection` | 巡检 |
 | `incident` / `incident-action` | 事件管理 |
 | `self-healing` / `self-service` | 自愈/自助 |
+| `slo` / `sla` | 服务等级目标/协议 |
 
-### 治理与合规
+### 治理与合规 (10 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -193,7 +224,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `change` / `change-request` | 变更管理 |
 | `approval` | 审批流程 |
 
-### 基础设施与部署
+### 基础设施与部署 (12 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -205,8 +236,9 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `iac` | 基础设施即代码 |
 | `disaster-recovery` | 灾备 |
 | `backup` | 备份 |
+| `ephemeral-env` | 临时环境 |
 
-### CMDB 与服务
+### CMDB 与服务 (8 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -216,7 +248,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `topology` | 拓扑发现 |
 | `digital-twin` / `digital-twin-simulation` | 数字孪生 |
 
-### 配置与密钥
+### 配置与密钥 (6 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -225,7 +257,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `global-param` | 全局参数 |
 | `secret` | 密钥管理 |
 
-### 成本与计费
+### 成本与计费 (5 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -234,7 +266,7 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `cost-allocation` | 成本分摊 |
 | `capacity` | 容量管理 |
 
-### 通知与消息
+### 通知与消息 (8 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -245,21 +277,22 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `message-queue` | 消息队列 |
 | `do-not-disturb` | 免打扰 |
 
-### CI/CD 与自动化
+### CI/CD 与自动化 (18 模块)
 
 | 模块 | 说明 |
 |------|------|
-| `build` / `build-env` | 构建 |
 | `cron` | 定时任务 |
 | `ticketing` / `ticket-automation` / `ticket-knowledge` | 工单系统 |
 | `workflow` / `workflow-task` / `workflow-trigger` / `workflow-webhook` | 工作流 |
 | `event-trigger` / `event-trigger-registry` | 事件触发 |
 | `plugin` / `plugin-hotreload` | 插件系统 |
 | `feature-flag` | 功能开关 |
-| `webhook` | Webhook |
+| `webhook` / `webhook/store` | Webhook |
 | `mcp` | Model Context Protocol |
+| `code-repo` / `branch-policy` | 代码仓库与分支策略 |
+| `ci-type` | CI 类型管理 |
 
-### 其他核心模块
+### 其他核心模块 (20+ 模块)
 
 | 模块 | 说明 |
 |------|------|
@@ -269,15 +302,19 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
 | `chaos` / `chaos-enhanced` / `chaos-gateway` | 混沌工程 |
 | `team` / `project` / `product-line` / `sprint` | 团队协作 |
 | `test-selector` / `test-generation` | 测试管理 |
-| `report-designer` | 报表设计器 |
 | `subapp` | 微前端子应用 |
 | `page-registry` | 页面注册 |
 | `visor-exec` | 可视化执行 |
 | `health-check` | 健康检查 |
+| `smart-deploy` / `canary-traffic` / `progressive` | 智能部署与金丝雀 |
+| `autonomous-pipeline` | 自主流水线 |
+| `data-pipeline` / `data-quality` / `data-lineage` | 数据管道 |
+| `integration` / `api-market` / `api-governance` / `api-consumption` | 集成与 API 管理 |
+| `gateway-dynamic` | 动态网关 |
 
 ## 数据库迁移
 
-迁移文件位于 `migrations/` 目录，共 **420+ 文件**，格式为 SQL。
+迁移文件位于 `migrations/` 目录，共 **455 个文件**，格式为 SQL。
 
 ```bash
 # 查看可用迁移
@@ -288,13 +325,13 @@ go run ./cmd/server/
 ```
 
 迁移文件命名约定：
-- `<seq>_<description>.sql` — 正向迁移
-- `<seq>_<description>_down.sql` — 回滚迁移
+- `<seq>_<description>.sql` 正向迁移
+- `<seq>_<description>_down.sql` 回滚迁移（部分文件）
 
 ## API
 
 - API 端点通过 Gin 路由注册在各模块的 `handler/` 目录
-- 完整 API 参考: [../API-QUICK-REFERENCE.md](../API-QUICK-REFERENCE.md)
+- 完整 API 参考: [API-QUICK-REFERENCE.md](../API-QUICK-REFERENCE.md)（626 路由，77 模块）
 - 健康检查: `GET /healthz`
 - 服务端口: `8080`
 
@@ -314,7 +351,7 @@ go test ./internal/auth/... -v
 go test ./internal/... -cover
 ```
 
-## 项目文档
+## 文档索引
 
 | 文档 | 说明 |
 |------|------|
@@ -325,6 +362,10 @@ go test ./internal/... -cover
 | [docs/notification-cutover-runbook.md](docs/notification-cutover-runbook.md) | 通知模块切换手册 |
 | [docs/ai-python-migration-plan.md](docs/ai-python-migration-plan.md) | AI Python 迁移计划 |
 | [docs/ai-unified-cutover-plan.md](docs/ai-unified-cutover-plan.md) | AI 统一切换计划 |
+| [docs/expert-review-2026-07-16.md](docs/expert-review-2026-07-16.md) | 专家评审报告 |
+| [docs/schema-consistency-test.sql](docs/schema-consistency-test.sql) | 数据库 schema 一致性测试 |
+| [docs/review/](docs/review/) | 代码评审文档目录 |
+| [docs/expert-review-2026-07-16/](docs/expert-review-2026-07-16/) | 专家评审详细报告目录 |
 
 ## 生态与依赖
 
