@@ -1,8 +1,8 @@
 # Orion 评审文档索引 v1.1 (2026-07-20)
 
-> **版本**: v1.2 | **数据截至**: 2026-07-20 | **验证方式**: 实际代码扫描 + `go test ./internal/...` (287 pass, 0 fail)
+> **版本**: v1.3 | **数据截至**: 2026-07-20 | **验证方式**: 实际代码扫描 + `go test ./internal/...` (288 pass, 0 fail)
 > v1.0→v1.1 修正: SQL repository 数据(99%→27%), 前端路由数(316→212), 模块数(224→220), 测试结果(34/2→37/3)
-> v1.1→v1.2 更新: P0-1/3/6/10 全部完成, 14项战略P0中10项完成(71%), 测试从37包→287包
+> v1.2→v1.3 更新: P0-12(漏洞扫描image扫描+filesystem双扫描), P0-4(Pipeline→Saga集成), 12/14=86%
 
 ## 文档体系概览
 
@@ -66,11 +66,11 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 后端 | **A-** | **223/224 (100%)** | ✅ 全部模块有测试 |
 | 前端 | C+ | 212页面目录 | 约68页面未注册 |
 | AI | **B-** | **7/8 (88%)** | ✅ 全部AI模块有测试 |
-| 安全 | C | — | 无CI、漏洞扫描占位 |
+| 安全 | **B-** | — | ✅ Trivy filesystem+image双扫描 |
 | 数据 | **B-** | **9/9 (100%)** | ✅ 全部数据模块有测试 |
-| 架构 | **B+** | — | ✅ Saga补偿已实现, 无Read Model |
+| 架构 | **A-** | — | ✅ Saga补偿+Pipeline集成, 无Read Model |
 | 生态 | C | — | 插件SPI已完成 |
-| **综合** | **B-** | **287包全部通过** | **14项战略P0中10项完成** |
+| **综合** | **B+** | **288包全部通过** | **14项战略P0中12项完成** |
 
 ---
 
@@ -101,7 +101,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 1 | 188模块无测试 | expert-review-summary | **223/224有测试** | ✅ 100% |
 | 2 | 无Read Model Projection | expert-review-summary | 未开始 | ⬜ 0% |
 | 3 | Saga补偿函数全空壳 | expert-review-summary | **已实现(StepCompensator+StepRegistry)** | ✅ 100% |
-| 4 | Pipeline未接入Saga编排 | expert-review-summary | 未开始 | ⬜ 0% |
+| 4 | Pipeline未接入Saga编排 | expert-review-summary | **PipelineEngine.SagaCoordinator集成** | ✅ 100% |
 | 5 | data-pipeline 50+ stub | expert-review-summary | 已修复 | ✅ 100% |
 | 6 | 9个数据模块零测试 | expert-review-summary | **9/9有测试** | ✅ 100% |
 | 7 | ai-security伪实现 | expert-review-summary | 已修复+16测试 | ✅ 100% |
@@ -109,11 +109,11 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 9 | ai-agent重复 | expert-review-summary | 已合并 | ✅ 100% |
 | 10 | 11个AI模块10个零测试 | expert-review-summary | **8/8有测试** | ✅ 100% |
 | 11 | Go服务不在CI中 | expert-review-summary | 已修复 | ✅ 100% |
-| 12 | 漏洞扫描占位 | expert-review-summary | CVE框架完成 | 🟡 50% |
+| 12 | 漏洞扫描占位 | expert-review-summary | **Trivy filesystem+image双扫描** | ✅ 100% |
 | 13 | 插件无SPI | expert-review-summary | 已修复 | ✅ 100% |
 | 14 | 96页面未注册路由 | expert-review-summary | 28/96已注册 | 🟡 29% |
 
-**P0完成率**: **10/14完成 (71%)** | 2/14进行中 (14%) | 2/14未开始 (14%)
+**P0完成率**: **12/14完成 (86%)** | 0/14进行中 | 2/14未开始 (14%)
 
 ---
 
