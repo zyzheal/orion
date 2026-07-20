@@ -1,8 +1,11 @@
-# Orion 全系统深度评审执行计划 (2026-07-19)
+# Orion 全系统深度评审执行计划 (2026-07-19) v1.0
 
-**来源**: `system-deep-audit-2026-07-19.md`  
-**评审范围**: orion-platform-svc-go (主服务) + orion-go-common (共享库) + 25 个 Go 蓝图微服务 + orion-api-gateway + 前端  
-**总体评分**: B (共享基础设施优秀，测试/安全/数据库迁移是主要短板)
+> **版本**: v1.0 | **数据截至**: 2026-07-19 | **验证方式**: 基于system-deep-audit执行路线图分析
+> **来源**: `system-deep-audit-2026-07-19.md`
+> ⚠️ 遗留问题: 模块数"225/218"与INDEX v1.1"220/215"有偏差; SQL repository数据以INDEX v1.1为准
+> **P0定义**: 本文档原始P0为"代码级"（立即修复项），统一采用INDEX.md v1.1三阶体系（阻塞级/高优先级/架构缺陷），详见 `docs/review/INDEX.md`
+> **评审范围**: orion-platform-svc-go (主服务) + orion-go-common (共享库) + 25 个 Go 蓝图微服务 + orion-api-gateway + 前端
+> **总体评分**: B (共享基础设施优秀，测试/安全/数据库迁移是主要短板)
 
 ---
 

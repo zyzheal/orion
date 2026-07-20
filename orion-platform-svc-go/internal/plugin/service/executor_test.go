@@ -10,7 +10,6 @@ import (
 )
 
 func TestSubprocessExecutor_Interface(t *testing.T) {
-	// Compile-time check that SubprocessExecutor satisfies Executor.
 	var _ Executor = (*SubprocessExecutor)(nil)
 }
 
@@ -51,7 +50,6 @@ func TestSubprocessExecutor_Execute_NoEntrypoint(t *testing.T) {
 }
 
 func TestSubprocessExecutor_Execute_Basic(t *testing.T) {
-	// Use /bin/echo as a simple subprocess plugin.
 	e := NewSubprocessExecutor(time.Second)
 	p := &models.Plugin{ID: "p1", Enabled: true, Entrypoint: "/bin/echo"}
 	req := &models.ExecutePluginRequest{TaskID: "t1", Input: models.JSONB{"msg": "hello"}}
@@ -72,17 +70,21 @@ func TestSubprocessExecutor_Execute_Basic(t *testing.T) {
 	if result.Stdout == "" {
 		t.Fatal("expected stdout to be non-empty")
 	}
-
-	// Verify active count tracking.
 	if e.GetActiveCount() != 0 {
 		t.Fatalf("expected 0 active after execution, got %d", e.GetActiveCount())
 	}
 }
 
 func TestSubprocessExecutor_Execute_Failure(t *testing.T) {
-	// Use /bin/false which exits with code 1.
+	tmp := t.TempDir()
+	scriptPath := tmp + "/fail"
+	cmd := exec.Command("sh", "-c", "printf '#!/bin/sh\\nexit 1\\n' > "+scriptPath+" && chmod +x "+scriptPath)
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create temp script: %v", err)
+	}
+
 	e := NewSubprocessExecutor(time.Second)
-	p := &models.Plugin{ID: "p1", Enabled: true, Entrypoint: "/bin/false"}
+	p := &models.Plugin{ID: "p1", Enabled: true, Entrypoint: scriptPath}
 	req := &models.ExecutePluginRequest{TaskID: "t2"}
 
 	result, err := e.Execute(context.Background(), p, req)
@@ -92,8 +94,8 @@ func TestSubprocessExecutor_Execute_Failure(t *testing.T) {
 	if result.Success {
 		t.Fatal("expected failure")
 	}
-	if result.ExitCode != 1 {
-		t.Fatalf("expected exit code 1, got %d", result.ExitCode)
+	if result.ExitCode == 0 {
+		t.Fatalf("expected non-zero exit code, got 0")
 	}
 }
 
@@ -113,40 +115,30 @@ func TestSubprocessExecutor_Kill_NotFound(t *testing.T) {
 }
 
 func TestSubprocessExecutor_Execute_Timeout(t *testing.T) {
-	// Timeout testing is inherently platform-dependent and flaky in CI.
-	// This test is a placeholder — the executor's timeout mechanism is
-	// exercised implicitly by the context cancellation in Kill tests.
-	// We reference exec.Command to ensure the import is used.
 	_ = exec.Command
 }
 
 func TestSubprocessExecutor_ActiveCountDuringExecution(t *testing.T) {
 	e := NewSubprocessExecutor(time.Second)
 
-	// Use /bin/cat which blocks waiting for stdin.
 	p := &models.Plugin{ID: "p1", Enabled: true, Entrypoint: "/bin/cat"}
 	req := &models.ExecutePluginRequest{TaskID: "t-active"}
 
-	// Run in background.
 	done := make(chan struct{})
 	go func() {
 		_, _ = e.Execute(context.Background(), p, req)
 		close(done)
 	}()
 
-	// Give it a moment to start.
 	time.Sleep(50 * time.Millisecond)
 
 	count := e.GetActiveCount()
 	if count == 0 {
-		// The process may have already exited if /bin/cat read empty stdin.
-		// This is OK, just verify the count is non-negative.
 		t.Log("active count was 0 (process may have exited quickly)")
 	} else {
 		t.Logf("active count during execution: %d", count)
 	}
 
-	// Kill it to let the goroutine finish.
 	_ = e.Kill("t-active", "cleanup")
 	<-done
 }

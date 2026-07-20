@@ -68,7 +68,8 @@ func performRequest(h *Handler, handlerFn func(c *gin.Context), method string, b
 // ==================== GetGraph ====================
 
 func TestHandler_GetGraph_Success(t *testing.T) {
-	graph := &models.DependencyGraph{Nodes: []string{"a"}}
+	graph := &models.DependencyGraph{TotalEdges: 1,
+		IsSafe: true, Cycles: []models.Cycle{}}
 	h := newHandlerWithSvc(&mockSvc{
 		getGraphFn: func(ctx context.Context) (*models.DependencyGraph, error) { return graph, nil },
 	})
@@ -87,7 +88,7 @@ func TestHandler_GetGraph_Error(t *testing.T) {
 // ==================== CheckDefinition ====================
 
 func TestHandler_CheckDefinition_Success(t *testing.T) {
-	check := &models.DependencyCheck{Valid: true}
+	check := &models.DependencyCheck{IsSafe: true}
 	h := newHandlerWithSvc(&mockSvc{
 		checkDefinitionFn: func(ctx context.Context, definitionID string) (*models.DependencyCheck, error) { return check, nil },
 	})

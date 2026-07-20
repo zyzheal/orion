@@ -1,8 +1,10 @@
-# Orion 30 维度代码级深度审计报告 (2026-07-19)
+# Orion 30 维度代码级深度审计报告 (2026-07-19) v1.0
 
-**评审方法**: 代码自动扫描 (grep/CodeGraph/AST) + 编译验证 + 测试执行  
-**基于框架**: [orion-24-dimension-review-2026-07-18.md](../architecture/orion-24-dimension-review-2026-07-18.md) + 扩展 6 维度  
-**目的**: 用实际代码扫描数据填补原报告中"数据不足"的标注，扩展至 30 维度全量评审
+> **版本**: v1.0 | **数据截至**: 2026-07-19 | **验证方式**: grep/CodeGraph/AST自动扫描 + 编译验证 + 测试执行
+> **基于**: [orion-24-dimension-review-2026-07-18.md](../architecture/orion-24-dimension-review-2026-07-18.md) + 扩展 6 维度
+> ⚠️ 遗留问题: handler模块数"225"与INDEX v1.1"220"偏差5; SQL repository数据(61个28%)以INDEX v1.1为准(57个27%)
+> **P0定义**: 本文档原始P0为"安全级"（漏洞严重性），统一采用INDEX.md v1.1三阶体系（阻塞级/高优先级/架构缺陷），详见 `docs/review/INDEX.md`
+> **目的**: 用实际代码扫描数据填补原报告中"数据不足"的标注，扩展至 30 维度全量评审
 
 ---
 
