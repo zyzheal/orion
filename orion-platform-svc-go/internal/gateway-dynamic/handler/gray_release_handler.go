@@ -6,6 +6,7 @@ import (
 	"orion/platform-svc-go/internal/gateway-dynamic/service"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 	"orion/platform-svc-go/internal/middleware"
 )
 
@@ -48,6 +49,8 @@ func (h *GrayReleaseHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // CreateGrayRelease creates a gray release config for a route.
 func (h *GrayReleaseHandler) CreateGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "CreateGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.PostForm("route_id")
 	if routeID == "" {
@@ -65,7 +68,7 @@ func (h *GrayReleaseHandler) CreateGrayRelease(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Create(c.Request.Context(), tenantID, routeID, req)
+	result, err := h.svc.Create(ctx, tenantID, routeID, req)
 	if err != nil {
 		if err == models.ErrInvalidPercentage {
 			middleware.RespondBadRequest(c, err.Error())
@@ -79,10 +82,12 @@ func (h *GrayReleaseHandler) CreateGrayRelease(c *gin.Context) {
 
 // GetGrayRelease retrieves gray release status for a route.
 func (h *GrayReleaseHandler) GetGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.Param("routeID")
 
-	result, err := h.svc.Get(c.Request.Context(), tenantID, routeID)
+	result, err := h.svc.Get(ctx, tenantID, routeID)
 	if err != nil {
 		middleware.RespondNotFound(c, err.Error())
 		return
@@ -92,6 +97,8 @@ func (h *GrayReleaseHandler) GetGrayRelease(c *gin.Context) {
 
 // UpdateGrayRelease modifies gray release config.
 func (h *GrayReleaseHandler) UpdateGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "UpdateGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.Param("routeID")
 
@@ -101,7 +108,7 @@ func (h *GrayReleaseHandler) UpdateGrayRelease(c *gin.Context) {
 		return
 	}
 
-	result, err := h.svc.Update(c.Request.Context(), tenantID, routeID, req)
+	result, err := h.svc.Update(ctx, tenantID, routeID, req)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -111,10 +118,12 @@ func (h *GrayReleaseHandler) UpdateGrayRelease(c *gin.Context) {
 
 // EnableGrayRelease activates gray release for a route.
 func (h *GrayReleaseHandler) EnableGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "EnableGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.Param("routeID")
 
-	result, err := h.svc.Enable(c.Request.Context(), tenantID, routeID)
+	result, err := h.svc.Enable(ctx, tenantID, routeID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -124,10 +133,12 @@ func (h *GrayReleaseHandler) EnableGrayRelease(c *gin.Context) {
 
 // DisableGrayRelease deactivates gray release for a route.
 func (h *GrayReleaseHandler) DisableGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "DisableGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.Param("routeID")
 
-	result, err := h.svc.Disable(c.Request.Context(), tenantID, routeID)
+	result, err := h.svc.Disable(ctx, tenantID, routeID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -137,10 +148,12 @@ func (h *GrayReleaseHandler) DisableGrayRelease(c *gin.Context) {
 
 // RollbackGrayRelease performs a rollback on gray release for a route.
 func (h *GrayReleaseHandler) RollbackGrayRelease(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "RollbackGrayRelease")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 	routeID := c.Param("routeID")
 
-	result, err := h.svc.Rollback(c.Request.Context(), tenantID, routeID)
+	result, err := h.svc.Rollback(ctx, tenantID, routeID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -150,9 +163,11 @@ func (h *GrayReleaseHandler) RollbackGrayRelease(c *gin.Context) {
 
 // GrayReleaseStats returns aggregate gray release stats for a tenant.
 func (h *GrayReleaseHandler) GrayReleaseStats(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GrayReleaseStats")
+	defer span.End()
 	tenantID := c.GetString("tenant_id")
 
-	stats, err := h.svc.Stats(c.Request.Context(), tenantID)
+	stats, err := h.svc.Stats(ctx, tenantID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

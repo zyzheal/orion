@@ -11,12 +11,15 @@ import (
 	"context"
 
 	orionlog "orion/go-common/pkg/logger"
+	"orion/platform-svc-go/internal/middleware"
 	"go.uber.org/zap"
 )
 
 func main() {
 	logger := orionlog.Must(orionlog.DefaultConfig("orion-platform-svc"))
 	defer logger.Sync()
+
+	middleware.RegisterPrometheusMetrics()
 
 	infra := initInfrastructure(logger)
 	initWiring(infra, logger)
