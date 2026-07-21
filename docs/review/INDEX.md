@@ -1,5 +1,6 @@
 # Orion 评审文档索引 v2.5 (2026-07-20)
 
+> 注: 本文档 v2.5 已修正数据不一致问题 (2026-07-20)
 > **版本**: v2.5 | **数据截至**: 2026-07-20 | **验证方式**: `go test ./internal/...` (288 pass, 0 fail) ✅ 全部通过
 > v1.0→v1.1 修正: SQL repository 数据(99%→27%), 前端路由数(316→212), 模块数(224→220), 测试结果(34/2→37/3)
 > v2.1→v2.2 更新: P1-2(DomainEvent追踪字段), P1-9(SAST/DAST CI), 4/15 P1完成 P1-4(18/18模块repo_interface), P1-8(auth-enhanced service_test), 前端路由320, tests 269包
@@ -89,10 +90,12 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 本次修复 | **17个service interface化** | 480行变更, 18包编译失败修复 | 2026-07-20 |
 | service.go | 214 | 97% | 2026-07-20 |
 | repository.go | 215 | 100% | 2026-07-20 |
-| map repository(仍用map存储) | 27 | 12% | 2026-07-20 |
-| SQL repository(真正用PostgreSQL) | 188 | 88% | 2026-07-20 |
-| ⚠️ 注: 215个repository全部注入了*sqlx.DB, 仅27个仍用map, 188个已迁移至PostgreSQL (88%) |
-| 前端页面目录数 | 240 | — | 2026-07-20 |
+| map repository(仍用map存储) | 158 | 73% | 2026-07-20 |
+| SQL repository(真正用PostgreSQL) | 57 | 27% | 2026-07-20 |
+| ⚠️ 注(v2.5修正): 215个repository全部注入了*sqlx.DB连接, 但grep实际代码发现158个(73%)仍用map存储, 仅57个(27%)真正用PostgreSQL。原v1.0的"99%"是把DB注入当成实际持久化的结构性误读, 详见docs-correlation-deep-analysis。 |
+| 前端页面目录数 | 212 | — | 2026-07-20 |
+| 前端已注册路由 | 236 | 97% | 2026-07-20 |
+| ⚠️ 注(v2.5修正): 前端页面数为212个目录(非316条路由)。原"316"误将嵌套Route组件计入独立路由。注册率236/240=98% |
 | AI模块handler | 8 | — | 2026-07-19 |
 | AI模块测试 | 8/8 | 100% | 2026-07-20 |
 

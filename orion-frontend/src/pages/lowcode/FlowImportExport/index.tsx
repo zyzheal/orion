@@ -366,7 +366,7 @@ const FlowImportExportPage: React.FC = () => {
 
             {/* Import preview */}
             {importPreview && (
-              <Card size="small" style={{ marginTop: spacing.sm, background: '#f5f5f7' }}>
+              <Card size="small" style={{ marginTop: spacing.sm, background: colors.light.bg.secondary }}>
                 <Statistic
                   title="流程名称"
                   value={importPreview.name}

@@ -236,12 +236,12 @@ export default function FlowDesigner() {
             <Descriptions.Item label="创建时间">{selectedFlow.createdAt}</Descriptions.Item>
             <Descriptions.Item label="更新时间">{selectedFlow.updatedAt}</Descriptions.Item>
             <Descriptions.Item label="节点定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+              <pre style={{ maxHeight: 200, overflow: 'auto', background: colors.light.bg.tertiary, padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedFlow.nodes, null, 2)}
               </pre>
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
-              <pre style={{ maxHeight: 200, overflow: 'auto', background: '#f5f5f5', padding: 8, borderRadius: 4 }}>
+              <pre style={{ maxHeight: 200, overflow: 'auto', background: colors.light.bg.tertiary, padding: 8, borderRadius: 4 }}>
                 {JSON.stringify(selectedFlow.edges, null, 2)}
               </pre>
             </Descriptions.Item>
