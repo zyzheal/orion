@@ -10,45 +10,49 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// PluginInterface — local SPI that mirrors go-common/plugin.Plugin with
-// metadata accessor methods (ID, Name, Version).
+// PluginInstance — SPI wrapper around go-common/plugin.Plugin
 // ---------------------------------------------------------------------------
 
 // PluginInstance wraps a concrete plugin.Plugin implementation and exposes
-// metadata (ID, name, version) that the engine needs for lifecycle management.
+// metadata via accessor methods (ID, Name, Version) for lifecycle management.
 type PluginInstance struct {
-	ID        string
-	Name      string
-	Version   string
+	id        string
+	name      string
+	version   string
 	impl      plugin.Plugin
 	enabled   atomic.Bool
-	healthErr atomic.Value // nil = healthy; error = degraded
+	healthErr atomic.Value // healthySentinel = healthy; error = degraded
 
 	// Lifecycle state
-	mu      sync.RWMutex
+	mu          sync.RWMutex
 	initialized bool
 }
+
+// healthySentinel is stored in atomic.Value when the plugin is healthy.
+// atomic.Value.Store(nil) panics in Go, so we use a non-nil sentinel instead.
+type healthySentinel struct{}
 
 // NewPluginInstance creates a new PluginInstance wrapping the given impl.
 func NewPluginInstance(id, name, version string, impl plugin.Plugin) *PluginInstance {
 	p := &PluginInstance{
-		ID:      id,
-		Name:    name,
-		Version: version,
+		id:      id,
+		name:    name,
+		version: version,
 		impl:    impl,
 	}
 	p.enabled.Store(true)
+	p.healthErr.Store(healthySentinel{})
 	return p
 }
 
 // ID returns the unique plugin identifier.
-func (p *PluginInstance) ID() string { return p.ID }
+func (p *PluginInstance) ID() string { return p.id }
 
 // Name returns the human-readable plugin name.
-func (p *PluginInstance) Name() string { return p.Name }
+func (p *PluginInstance) Name() string { return p.name }
 
 // Version returns the semantic version.
-func (p *PluginInstance) Version() string { return p.Version }
+func (p *PluginInstance) Version() string { return p.version }
 
 // Enabled returns whether the plugin is enabled.
 func (p *PluginInstance) Enabled() bool { return p.enabled.Load() }
@@ -57,7 +61,7 @@ func (p *PluginInstance) Enabled() bool { return p.enabled.Load() }
 func (p *PluginInstance) SetEnabled(v bool) { p.enabled.Store(v) }
 
 // Init calls the underlying plugin's Init method.
-// Returns ErrNotInitialized if already initialized.
+// Returns ErrAlreadyInitialized if already initialized.
 func (p *PluginInstance) Init(ctx context.Context, cfg plugin.PluginConfig) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -73,7 +77,7 @@ func (p *PluginInstance) Init(ctx context.Context, cfg plugin.PluginConfig) erro
 		return err
 	}
 	p.initialized = true
-	p.setHealthErr(nil)
+	p.healthErr.Store(healthySentinel{})
 	return nil
 }
 
@@ -93,7 +97,7 @@ func (p *PluginInstance) Execute(ctx context.Context, pctx plugin.PluginContext,
 }
 
 // Shutdown calls the underlying plugin's Shutdown method.
-// Safe to call multiple times (idempotent on the impl side — we guard on initialized).
+// Safe to call multiple times (idempotent on the impl side).
 func (p *PluginInstance) Shutdown(ctx context.Context) error {
 	if !p.isInitialized() {
 		return nil
@@ -127,12 +131,15 @@ func (p *PluginInstance) HealthErr() error {
 	if v == nil {
 		return nil
 	}
+	if _, ok := v.(healthySentinel); ok {
+		return nil
+	}
 	return v.(error)
 }
 
 func (p *PluginInstance) setHealthErr(err error) {
 	if err == nil {
-		p.healthErr.Store(nil)
+		p.healthErr.Store(healthySentinel{})
 	} else {
 		p.healthErr.Store(err)
 	}
@@ -153,7 +160,6 @@ func (p *PluginInstance) isInitialized() bool {
 type Registry struct {
 	mu       sync.RWMutex
 	plugins  map[string]*PluginInstance // keyed by ID
-	initOnce sync.Once
 
 	// Stats
 	initializedCount atomic.Int32
@@ -180,11 +186,12 @@ func (r *Registry) Register(ctx context.Context, id, name, version string, impl 
 }
 
 // Unregister removes a plugin from the registry and shuts it down.
+// Returns ErrNotRegistered if the plugin does not exist.
 func (r *Registry) Unregister(ctx context.Context, id string) error {
 	r.mu.Lock()
 	inst, ok := r.plugins[id]
 	if !ok {
-		delete(r.plugins, id)
+		r.mu.Unlock()
 		return ErrNotRegistered
 	}
 	delete(r.plugins, id)
@@ -244,7 +251,6 @@ func (r *Registry) InitAll(ctx context.Context, cfgMap map[string]plugin.PluginC
 	for id, inst := range r.All() {
 		cfg, ok := cfgMap[id]
 		if !ok {
-			// Use defaults if no config provided.
 			cfg = plugin.PluginConfig{ID: id, Version: inst.Version()}
 		}
 		if err := inst.Init(ctx, cfg); err != nil {
@@ -256,7 +262,7 @@ func (r *Registry) InitAll(ctx context.Context, cfgMap map[string]plugin.PluginC
 
 // ShutdownAll shuts down all plugins.
 func (r *Registry) ShutdownAll(ctx context.Context) map[string]error {
-	errors := make(map[string]error)
+errors := make(map[string]error)
 	for id, inst := range r.All() {
 		if err := inst.Shutdown(ctx); err != nil {
 			errors[id] = err
@@ -279,9 +285,9 @@ func (r *Registry) Info(id string, stats *PluginStats) *plugin.PluginInfo {
 		return nil
 	}
 	info := &plugin.PluginInfo{
-		ID:       inst.ID(),
-		Version:  inst.Version(),
-		Healthy:  inst.HealthErr() == nil && inst.isInitialized() && inst.Enabled(),
+		ID:      inst.ID(),
+		Version: inst.Version(),
+		Healthy: inst.HealthErr() == nil && inst.isInitialized() && inst.Enabled(),
 	}
 	if stats != nil {
 		info.Running = int(stats.Running())
@@ -297,9 +303,9 @@ func (r *Registry) Info(id string, stats *PluginStats) *plugin.PluginInfo {
 
 // PluginStats tracks execution statistics for a single plugin.
 type PluginStats struct {
-	running atomic.Int32
+	running  atomic.Int32
 	executed atomic.Int32
-	failed atomic.Int32
+	failed   atomic.Int32
 	lastExec atomic.Int64
 }
 
@@ -345,7 +351,7 @@ func (s *PluginStats) LastExec() time.Time {
 // ---------------------------------------------------------------------------
 
 var (
-	ErrAlreadyRegistered    = plugin.ErrPluginRejected  // reuse go-common sentinel
-	ErrAlreadyInitialized   = plugin.ErrPluginRejected  // reuse — plugin init is single-shot
-	ErrNotRegistered        = plugin.ErrPluginNotFound  // reuse
+	ErrAlreadyRegistered  = plugin.ErrPluginRejected // reuse go-common sentinel
+	ErrAlreadyInitialized = plugin.ErrPluginRejected // reuse — plugin init is single-shot
+	ErrNotRegistered      = plugin.ErrPluginNotFound // reuse
 )

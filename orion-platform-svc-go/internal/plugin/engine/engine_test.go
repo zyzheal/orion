@@ -149,21 +149,55 @@ func TestEngine_PanicRecovery(t *testing.T) {
 
 func TestEngine_ConcurrencyLimit(t *testing.T) {
 	e := NewEngine(Config{MaxConcurrentPerPlugin: 1}, logger)
-	impl := &mockPlugin{result: &plugin.ExecuteResult{Success: true}}
-	e.RegisterBuiltin("test", "Test", "1.0.0", impl)
+
+	// blockingPlugin blocks Execute on a channel so the first call holds the
+	// concurrency slot until we close it.
+	block := make(chan struct{})
+	blocking := &blockingPlugin{result: &plugin.ExecuteResult{Success: true}, block: block}
+	e.RegisterBuiltin("test", "Test", "1.0.0", blocking)
 	inst, _ := e.registry.Get("test")
 	inst.Init(context.Background(), plugin.PluginConfig{ID: "test"})
+
+	// First call in a goroutine; it blocks inside Execute holding the slot.
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := e.Execute(context.Background(), "test",
+			plugin.PluginContext{TaskID: "t1"}, nil)
+		errCh <- err
+	}()
+
+	// Give the first call time to acquire the slot.
+	time.Sleep(50 * time.Millisecond)
+
+	// Second call should be rejected because the slot is held.
 	_, err := e.Execute(context.Background(), "test",
-		plugin.PluginContext{TaskID: "t1"}, nil)
-	if err != nil {
-		t.Fatalf("first execute: %v", err)
-	}
-	_, err = e.Execute(context.Background(), "test",
 		plugin.PluginContext{TaskID: "t2"}, nil)
 	if err != plugin.ErrPluginRejected {
 		t.Fatalf("expected ErrPluginRejected, got %v", err)
 	}
+
+	close(block)
+	<-errCh
 }
+
+// blockingPlugin blocks its Execute call on a channel until released.
+type blockingPlugin struct {
+	result *plugin.ExecuteResult
+	block  <-chan struct{}
+}
+
+func (b *blockingPlugin) Init(ctx context.Context, cfg plugin.PluginConfig) error {
+	return nil
+}
+
+func (b *blockingPlugin) Execute(ctx context.Context, pctx plugin.PluginContext,
+	input map[string]interface{}) (*plugin.ExecuteResult, error) {
+	<-b.block
+	return b.result, nil
+}
+
+func (b *blockingPlugin) Shutdown(ctx context.Context) error { return nil }
+func (b *blockingPlugin) Health(ctx context.Context) error   { return nil }
 
 func TestEngine_DisabledPlugin(t *testing.T) {
 	e := NewEngine(Config{}, logger)

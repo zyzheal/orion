@@ -12,18 +12,18 @@ import (
 
 // ServiceInterface defines the interface for the data-pipeline service.
 type ServiceInterface interface {
-	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Pipeline, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	Get(ctx context.Context, tenantID, id string) (*models.Record, error)
+	Get(ctx context.Context, tenantID, id string) (*models.Pipeline, error)
 	GetLineage(ctx context.Context, tenantID, id string) (map[string]any, error)
 	GetLogs(ctx context.Context, tenantID, id string) ([]string, error)
 	GetStatus(ctx context.Context, tenantID, id string) (string, error)
-	List(ctx context.Context, tenantID string) ([]models.Record, error)
+	List(ctx context.Context, tenantID string) ([]models.Pipeline, error)
 	ListSchemas(ctx context.Context, tenantID string) ([]string, error)
 	Pause(ctx context.Context, tenantID, id string) error
 	Resume(ctx context.Context, tenantID, id string) error
 	RunPipeline(ctx context.Context, tenantID, id string) error
-	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Pipeline, error)
 }
 
 // Ensure compile-time safety: *Service implements ServiceInterface.

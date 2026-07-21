@@ -299,7 +299,11 @@ func (e *Evaluator) evaluateNull(ctx context.Context, rule *models.Rule, samples
 	for _, s := range samples {
 		if s == nil {
 			failed++
-			errMsgs = append(errMsgs, fmt.Sprintf("null value in column %q", rule.TargetColumn))
+			col := "<unknown>"
+			if rule.TargetColumn != nil {
+				col = *rule.TargetColumn
+			}
+			errMsgs = append(errMsgs, fmt.Sprintf("null value in column %q", col))
 			continue
 		}
 		if blankRe != nil {

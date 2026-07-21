@@ -148,11 +148,12 @@ func (e *Engine) Execute(ctx context.Context, id string,
 	execCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Execute with panic recovery.
-	result, err := func() (*plugin.ExecuteResult, error) {
+	// Execute with panic recovery. Named returns so the defer can overwrite
+	// them after recover.
+	result, err := func() (r *plugin.ExecuteResult, e error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = plugin.ErrPluginPanic
+				e = plugin.ErrPluginPanic
 			}
 		}()
 		return inst.Execute(execCtx, pctx, input)
@@ -216,17 +217,8 @@ func (e *Engine) HotReload(ctx context.Context, id string,
 
 	e.logger.Info("hot-reloading plugin", zap.String("plugin", id))
 
-	// Shutdown old instance.
-	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	_ = inst.Shutdown(shutdownCtx)
-	cancel()
-
-	// Remove old instance.
-	if err := e.registry.Unregister(ctx, id); err != nil {
-		return err
-	}
-
-	// Build new instance.
+	// Build new instance BEFORE destroying the old one — if factory is nil we
+	// must not unregister, or the caller loses the only copy.
 	var newID, newName, newVersion string
 	var impl plugin.Plugin
 	if factory != nil {
@@ -234,6 +226,15 @@ func (e *Engine) HotReload(ctx context.Context, id string,
 	} else {
 		newID, newName, newVersion = id, inst.Name(), inst.Version()
 		return ErrNoFactoryForHotReload
+	}
+
+	// Shutdown old instance and remove it from the registry.
+	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	_ = inst.Shutdown(shutdownCtx)
+	cancel()
+
+	if err := e.registry.Unregister(ctx, id); err != nil {
+		return err
 	}
 
 	// Re-register new instance.
@@ -318,11 +319,24 @@ func (e *Engine) watchLoop(ctx context.Context) {
 	lastMtime := make(map[string]time.Time)
 
 	for {
+		// Snapshot the ticker under lock to avoid a nil-channel read race
+		// with Stop(). The select expression is evaluated once per iteration,
+		// so a local copy is safe even after Stop() sets reloadTicker to nil.
+		e.reloadMu.Lock()
+		ticker := e.reloadTicker
+		e.reloadMu.Unlock()
+
+		// Stop() may set ticker to nil; treat that as a termination signal.
+		if ticker == nil {
+			e.logger.Info("hot-reload watch loop stopped")
+			return
+		}
+
 		select {
 		case <-ctx.Done():
 			e.logger.Info("hot-reload watch loop stopped")
 			return
-		case <-e.reloadTicker.C:
+		case <-ticker.C:
 			e.doPoll(ctx, lastMtime)
 		}
 	}

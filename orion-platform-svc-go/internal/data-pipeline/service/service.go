@@ -11,12 +11,12 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error)
+	Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Pipeline, error)
 	Delete(ctx context.Context, tenantID, id string) error
-	GetByID(ctx context.Context, tenantID, id string) (*models.Record, error)
-	List(ctx context.Context, tenantID string) ([]models.Record, error)
-	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error)
-	UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Record, error)
+	GetByID(ctx context.Context, tenantID, id string) (*models.Pipeline, error)
+	List(ctx context.Context, tenantID string) ([]models.Pipeline, error)
+	Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Pipeline, error)
+	UpdateStatus(ctx context.Context, tenantID, id, status string) (*models.Pipeline, error)
 }
 
 type Service struct {
@@ -27,19 +27,19 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) List(ctx context.Context, tenantID string) ([]models.Record, error) {
+func (s *Service) List(ctx context.Context, tenantID string) ([]models.Pipeline, error) {
 	return s.repo.List(ctx, tenantID)
 }
 
-func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Record, error) {
+func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Pipeline, error) {
 	return s.repo.GetByID(ctx, tenantID, id)
 }
 
-func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Record, error) {
+func (s *Service) Create(ctx context.Context, tenantID string, req models.CreateRequest) (*models.Pipeline, error) {
 	return s.repo.Create(ctx, tenantID, req)
 }
 
-func (s *Service) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Record, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, req models.CreateRequest) (*models.Pipeline, error) {
 	return s.repo.Update(ctx, tenantID, id, req)
 }
 
