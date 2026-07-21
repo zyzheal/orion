@@ -1,0 +1,184 @@
+# Prometheus alert rules for Orion platform (Phase 2)
+# Matches metrics emitted by orion-platform-service and orion-platform-svc-go:
+#   - orion_http_requests_total{method,handler,status}
+#   - orion_http_requests_duration_seconds{method,handler} (histogram)
+#   - orion_http_requests_errors_total{method,handler}
+#   - up{job}
+#   - container_memory_working_set_bytes{container_name}
+#   - container_memory_limit_bytes{container_name}
+#   - node_filesystem_avail_bytes{mountpoint}
+#   - node_filesystem_size_bytes{mountpoint}
+
+groups:
+  - name: orion-phase2-alerts
+    interval: 30s
+    rules:
+      # ------------------------------------------------------------------
+      # Error rate alerts
+      # ------------------------------------------------------------------
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(orion_http_requests_total{status=~"4..|5.."}[5m]))
+          /
+          sum(rate(orion_http_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error rate detected (>5% in 5m)"
+          description: "Combined 4xx/5xx error rate is {{ $value | humanizePercentage }} (threshold: 5%) over last 5m."
+
+      - alert: HighErrorRateCritical
+        expr: |
+          sum(rate(orion_http_requests_total{status=~"4..|5.."}[5m]))
+          /
+          sum(rate(orion_http_requests_total[5m]))
+          > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical error rate (>10% in 2m)"
+          description: "Combined error rate is {{ $value | humanizePercentage }} (threshold: 10%) over last 5m."
+
+      # ------------------------------------------------------------------
+      # Latency alerts
+      # ------------------------------------------------------------------
+      - alert: HighP99Latency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(orion_http_requests_duration_seconds_bucket[2m])) by (le))
+          > 0.5
+        for: 2m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High P99 latency (>500ms for 2m)"
+          description: "P99 request latency is {{ $value | humanizeDuration }} (threshold: 500ms) over last 2m."
+
+      - alert: HighP99LatencyCritical
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(orion_http_requests_duration_seconds_bucket[2m])) by (le))
+          > 2.0
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical P99 latency (>2s for 2m)"
+          description: "P99 request latency is {{ $value | humanizeDuration }} (threshold: 2s) over last 2m."
+
+      # ------------------------------------------------------------------
+      # Availability alerts
+      # ------------------------------------------------------------------
+      - alert: ServiceDown
+        expr: |
+          absent(up{job=~".*orion.*"} == 1)
+        for: 1m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Orion service is down (no healthcheck for 1m)"
+          description: "Service {{ $labels.job }} has been unreachable for more than 1 minute."
+
+      - alert: NoTraffic
+        expr: |
+          sum(rate(orion_http_requests_total[5m])) == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "No traffic detected"
+          description: "No requests received in the last 5 minutes. Service may be down or misconfigured."
+
+      # ------------------------------------------------------------------
+      # Resource alerts - Memory
+      # ------------------------------------------------------------------
+      - alert: HighMemoryUsage
+        expr: |
+          avg by (container_name) (
+            container_memory_working_set_bytes{container_name=~"orion-.*"}
+          )
+          /
+          avg by (container_name) (
+            container_memory_limit_bytes{container_name=~"orion-.*"}
+          )
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High memory usage (>85% for 5m) on {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} memory usage is {{ $value | humanizePercentage }} of limit for over 5 minutes."
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          avg by (container_name) (
+            container_memory_working_set_bytes{container_name=~"orion-.*"}
+          )
+          /
+          avg by (container_name) (
+            container_memory_limit_bytes{container_name=~"orion-.*"}
+          )
+          > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical memory usage (>95%) on {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} memory usage is {{ $value | humanizePercentage }} of limit."
+
+      # ------------------------------------------------------------------
+      # Resource alerts - Disk
+      # ------------------------------------------------------------------
+      - alert: HighDiskUsage
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint!~"\\/run\\/.*|\\/sys\\/.*"}
+           / node_filesystem_size_bytes{mountpoint!~"\\/run\\/.*|\\/sys\\/.*"})
+          > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High disk usage (>90% for 10m) on {{ $labels.mountpoint }}"
+          description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | humanizePercentage }} full (available: {{ $value | humanize1024 }})."
+
+      - alert: CriticalDiskUsage
+        expr: |
+          (1 - node_filesystem_avail_bytes{mountpoint!~"\\/run\\/.*|\\/sys\\/.*"}
+           / node_filesystem_size_bytes{mountpoint!~"\\/run\\/.*|\\/sys\\/.*"})
+          > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical disk usage (>95%) on {{ $labels.mountpoint }}"
+          description: "Filesystem {{ $labels.mountpoint }} on {{ $labels.instance }} is {{ $value | humanizePercentage }} full."
+
+      # ------------------------------------------------------------------
+      # Module-level error alerts
+      # ------------------------------------------------------------------
+      - alert: ModuleHighErrorRate
+        expr: |
+          sum by (handler) (rate(orion_http_requests_errors_total[5m]))
+          /
+          sum by (handler) (rate(orion_http_requests_total[5m]))
+          > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High error rate for module {{ $labels.handler }}"
+          description: "Module {{ $labels.handler }} error rate is {{ $value | humanizePercentage }} over last 5m."
