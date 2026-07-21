@@ -1341,7 +1341,7 @@ Phase 6: 服务治理 + Go 迁移（6 周，W18-W24）
 | AI 域 TS → Python | [AI 迁移计划](docs/ai-migration-plan-2026-07-02.md) | [AI 迁移进度](memory/ai-migration-progress.md) | 🔄 进行中 (Phase 4 完成) | Phase 4 辅助能力迁移完成 |
 | TS → Go (47 服务) | [Go 迁移逻辑](docs/ts-to-go-migration-logic-2026-07-02.md) | [Go 迁移进度](memory/go-migration-progress.md) | 🔄 Batch 1-3 蓝图完成，NATS JetStream 消费者全部 47 服务集成完成 | Phase 1 + 4.67 完成 |
 | | | | | **必须先完成 1.17 + 4.67** |
-| Map → PostgreSQL | [清理清单](docs/architecture/清理与待实现清单-2026-07-01.md) | [持久化进度](memory/persistence-migration-progress.md) | ✅ 97% 完成（337 repositories，剩余为缓存/运行时结构） | Phase 1 完成 |
+| Map → PostgreSQL | [清理清单](docs/architecture/清理与待实现清单-2026-07-01.md) | [持久化进度](memory/persistence-migration-progress.md) | ✅ 27% 真正PostgreSQL（57/215 repositories），73%仍用map存储（158个） | Phase 1 完成 |
 | AI Python 化 | [AI Python 化计划](docs/ai-python-migration-plan.md) | — | 🔄 进行中 (Phase 4.5-4.11 完成) | Phase 4 辅助能力迁移完成 + 决策端点扩展 |
 | 前端 mock 清理 | — | [前端 mock 进度](memory/frontend-mock-cleanup-progress.md) | ✅ 100% 完成 | CacheConfigPage(4.74) + AIReview ReviewDetail(4.75) 已修复，mock 数据全部替换为真实 API |
 
