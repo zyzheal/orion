@@ -372,7 +372,7 @@ const FlowVersionsPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="节点快照">
               <pre style={{
-                maxHeight: 200, overflow: 'auto', background: '#f5f5f7',
+                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
                 {JSON.stringify(selectedVersion.snapshot?.nodes || [], null, 2)}
@@ -380,7 +380,7 @@ const FlowVersionsPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="连线快照">
               <pre style={{
-                maxHeight: 200, overflow: 'auto', background: '#f5f5f7',
+                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
                 {JSON.stringify(selectedVersion.snapshot?.edges || [], null, 2)}

@@ -362,7 +362,7 @@ const TemplateMarketPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="节点定义">
               <pre style={{
-                maxHeight: 200, overflow: 'auto', background: '#f5f5f7',
+                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
                 {JSON.stringify(selectedTemplate.definition.nodes, null, 2)}
@@ -370,7 +370,7 @@ const TemplateMarketPage: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="连线定义">
               <pre style={{
-                maxHeight: 200, overflow: 'auto', background: '#f5f5f7',
+                maxHeight: 200, overflow: 'auto', background: colors.neutral[100],
                 padding: spacing.sm, borderRadius: 8, fontSize: 12,
               }}>
                 {JSON.stringify(selectedTemplate.definition.edges, null, 2)}

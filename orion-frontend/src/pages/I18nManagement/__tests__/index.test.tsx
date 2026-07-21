@@ -4,15 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import function from '../index';
+import I18nManagementPage from '../index';
 
 const renderWithRouter = (ui: React.ReactElement) => {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
-describe('function', () => {
+describe('I18nManagement', () => {
   it('renders without crashing', () => {
-    renderWithRouter(<function />);
+    renderWithRouter(<I18nManagementPage />);
     expect(document.body).toBeTruthy();
   });
 });

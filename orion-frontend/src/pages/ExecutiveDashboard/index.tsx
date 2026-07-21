@@ -80,12 +80,9 @@ const ExecutiveDashboard: React.FC = () => {
   // Retry handler - reload page on error
   const handleRetry = () => window.location.reload();
 
-  // Defensive: ensure data has required structure
-  const overview = (apiData as any).overview;
-  const trends = (apiData as any).trends;
-  const teamRanking = (apiData as any).teamRanking;
-  const alerts = (apiData as any).alerts;
-  const distribution = (apiData as any).distribution;
+  // Cast API data to expected type (useBiDashboard returns BiDashboardData union)
+  const data = apiData as ExecutiveDashboardData | undefined;
+  const { overview, trends, teamRanking, alerts, distribution } = data ?? {} as ExecutiveDashboardData;
 
   // Build KPI metrics from API data (must be called unconditionally)
   const kpiMetrics: KPIMetric[] = useMemo(
@@ -291,9 +288,6 @@ const ExecutiveDashboard: React.FC = () => {
     );
   }
 
-  // Cast API data to expected type
-  const data = apiData as ExecutiveDashboardData | undefined;
-
   if (!data) {
     return null; // Will show loading/error via DataState
   }
@@ -350,10 +344,10 @@ const ExecutiveDashboard: React.FC = () => {
               title="工单量趋势（近14天）"
               data={[
                 recentVolumeTrend.map(
-                  (d: any): TrendDataPoint => ({ period: d.period, value: d.created, label: '创建' })
+                  (d): TrendDataPoint => ({ period: d.period, value: d.created, label: '创建' })
                 ),
                 recentVolumeTrend.map(
-                  (d: any): TrendDataPoint => ({ period: d.period, value: d.resolved, label: '解决' })
+                  (d): TrendDataPoint => ({ period: d.period, value: d.resolved, label: '解决' })
                 ),
               ]}
               height={240}
@@ -369,7 +363,7 @@ const ExecutiveDashboard: React.FC = () => {
               data={[
                 (trends?.slaComplianceTrend || [])
                   .slice(-14)
-                  .map((d: any): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })),
+                  .map((d): TrendDataPoint => ({ period: d.period, value: d.rate, label: 'SLA' })),
               ]}
               height={240}
               showArea={true}
@@ -399,12 +393,12 @@ const ExecutiveDashboard: React.FC = () => {
           <CardPanel title="需关注工程师" extra={<Tag color="orange">Attention</Tag>}>
             <BarChart
               data={(teamRanking?.bottomPerformers || []).map(
-                (m: any): BarDataItem => ({ label: m.name, value: m.score })
+                (m): BarDataItem => ({ label: m.name, value: m.score })
               )}
               height={200}
             />
             <div style={{ marginTop: spacing.sm, padding: `0 ${spacing[2]}` }}>
-              {(teamRanking?.bottomPerformers || []).map((member: any) => (
+              {(data?.teamRanking?.bottomPerformers || []).map((member) => (
                 <div key={member.engineerId} style={{ marginBottom: spacing[2] }}>
                   <Text type="warning" style={{ fontSize: spacing[3] }}>
                     <WarningOutlined style={{ marginRight: 4 }} />
@@ -462,7 +456,7 @@ const ExecutiveDashboard: React.FC = () => {
             <PieChart
               title="工单分类分布"
               data={Object.entries(distribution?.byCategory || {}).map(
-                ([key, val]: [string, any]): PieDataItem => ({
+                ([key, val]): PieDataItem => ({
                   name: categoryNames[key] || key,
                   value: val.count,
                 })
@@ -479,7 +473,7 @@ const ExecutiveDashboard: React.FC = () => {
           <CardPanel title="优先级分布">
             <BarChart
               data={Object.entries(distribution?.byPriority || {}).flatMap(
-                ([key, val]: [string, any]): BarDataItem[] => [
+                ([key, val]): BarDataItem[] => [
                   { label: priorityNames[key] || key, value: val.count, series: '总数' },
                   { label: priorityNames[key] || key, value: val.resolved, series: '已解决' },
                 ]

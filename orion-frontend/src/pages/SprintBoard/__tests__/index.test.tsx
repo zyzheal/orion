@@ -4,15 +4,15 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import function from '../index';
+import SprintBoardPage from '../index';
 
 const renderWithRouter = (ui: React.ReactElement) => {
   return render(<MemoryRouter>{ui}</MemoryRouter>);
 };
 
-describe('function', () => {
+describe('SprintBoard', () => {
   it('renders without crashing', () => {
-    renderWithRouter(<function />);
+    renderWithRouter(<SprintBoardPage />);
     expect(document.body).toBeTruthy();
   });
 });

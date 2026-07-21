@@ -268,7 +268,7 @@ const GlobalParamsPage: React.FC = () => {
         {Object.keys(resolveResult).length > 0 && (
           <div style={{ marginTop: spacing.md }}>
             <Text strong>解析结果：</Text>
-            <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 6, marginTop: 8 }}>
+            <pre style={{ background: colors.neutral[200], padding: spacing.md, borderRadius: 6, marginTop: spacing.sm }}>
               {JSON.stringify(resolveResult, null, 2)}
             </pre>
           </div>

@@ -83,9 +83,9 @@ const { Option } = Select;
 // ============================================================================
 
 const SLA_TIER_COLORS: Record<string, string> = {
-  gold: '#faad14',
-  silver: '#bfbfbf',
-  bronze: '#d48806',
+  gold: colors.warning[500],
+  silver: colors.neutral[400],
+  bronze: colors.warning[600],
 };
 
 const SLA_TIER_LABELS: Record<string, string> = {
@@ -817,13 +817,13 @@ const ServiceCatalog: React.FC = () => {
       dataIndex: 'title',
       key: 'title',
       width: 220,
-      render: (value: string, record: CatalogRequest) => (
+      render: (value: unknown, record: CatalogRequest) => (
         <Text
           strong
           style={{ cursor: 'pointer', color: colors.primary[500] }}
           onClick={() => handleViewRequest(record)}
         >
-          {value}
+          {value as string}
         </Text>
       ),
     },
@@ -832,8 +832,8 @@ const ServiceCatalog: React.FC = () => {
       dataIndex: 'service_id',
       key: 'service_id',
       width: 140,
-      render: (value: string) => (
-        <Text>{serviceNameMap[value] || value}</Text>
+      render: (value: unknown) => (
+        <Text>{serviceNameMap[value as string] || (value as string)}</Text>
       ),
     },
     {
@@ -841,8 +841,9 @@ const ServiceCatalog: React.FC = () => {
       dataIndex: 'priority',
       key: 'priority',
       width: 80,
-      render: (value: string) => {
-        const cfg = REQUEST_PRIORITY_CONFIG[value] || { color: 'default', label: value };
+      render: (value: unknown) => {
+        const v = value as string;
+        const cfg = REQUEST_PRIORITY_CONFIG[v] || { color: 'default', label: v };
         return (
           <Tag color={cfg.color} style={{ margin: 0, borderRadius: componentRadius.tag }}>
             {cfg.label}
@@ -855,8 +856,9 @@ const ServiceCatalog: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (value: string) => {
-        const cfg = REQUEST_STATUS_CONFIG[value] || { color: 'default', label: value };
+      render: (value: unknown) => {
+        const v = value as string;
+        const cfg = REQUEST_STATUS_CONFIG[v] || { color: 'default', label: v };
         return <Badge status={cfg.color as 'success' | 'processing' | 'default' | 'error' | 'warning'} text={cfg.label} />;
       },
     },
@@ -872,16 +874,16 @@ const ServiceCatalog: React.FC = () => {
       dataIndex: 'assigned_to',
       key: 'assigned_to',
       width: 100,
-      render: (value: string | undefined) => value || <Text type="secondary">未分配</Text>,
+      render: (value: unknown) => (value as string) || <Text type="secondary">未分配</Text>,
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 140,
-      render: (value: string) => (
+      render: (value: unknown) => (
         <Text type="secondary" style={{ fontSize: 13 }}>
-          {dayjs(value).format('MM-DD HH:mm')}
+          {dayjs(value as string).format('MM-DD HH:mm')}
         </Text>
       ),
     },
@@ -1121,6 +1123,7 @@ const ServiceCatalog: React.FC = () => {
             <Descriptions.Item label="状态">
               <Badge status={statusCfg.color as 'success' | 'processing' | 'default' | 'error' | 'warning'} text={statusCfg.label} />
             </Descriptions.Item>
+            <Descriptions.Item label="优先级">
               <Tag color={priorityCfg.color} style={{ margin: 0 }}>
                 {priorityCfg.label}
               </Tag>

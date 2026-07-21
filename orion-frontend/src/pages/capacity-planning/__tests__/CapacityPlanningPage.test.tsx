@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import CapacityPlanningPage from ''../' + component_name';
+import CapacityPlanningPage from '../CapacityPlanningPage';
 
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');

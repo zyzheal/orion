@@ -71,6 +71,16 @@ func (r *Repository) CountScans(ctx context.Context, tenantID string) (int, erro
 
 // ==================== Security Findings ====================
 
+// isValidSeverity checks that a severity string is one of the known allowed values.
+// This whitelist prevents SQL injection when severity is used in dynamic SQL.
+func isValidSeverity(severity string) bool {
+	switch severity {
+	case "critical", "high", "medium", "low", "info":
+		return true
+	}
+	return false
+}
+
 func (r *Repository) CreateFinding(ctx context.Context, d *models.SecurityFinding) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO security_findings
@@ -121,6 +131,10 @@ func (r *Repository) ListFindings(ctx context.Context, tenantID string, offset, 
 	args := []interface{}{tenantID}
 
 	if severity != "" {
+		// Whitelist validation prevents SQL injection on user-supplied severity.
+		if !isValidSeverity(severity) {
+			return items, nil // silently ignore unrecognised filter value
+		}
 		query = `SELECT * FROM security_findings WHERE tenant_id=$1 AND severity=$2 ORDER BY created_at DESC OFFSET $3 LIMIT $4`
 		args = append(args, severity, offset, limit)
 	} else {

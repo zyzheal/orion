@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import ApiGovernancePage from ''../' + component_name';
+import ApiGovernancePage from '../ApiGovernancePage';
 
 vi.mock('antd', async () => {
   const actual = await vi.importActual<typeof import('antd')>('antd');

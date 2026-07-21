@@ -279,21 +279,21 @@ const ScriptVersionsPage: React.FC = () => {
                   key: 'added',
                   label: `Added (${diffData.added.length})`,
                   children: diffData.added.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: '#f5f5f5', padding: 12 }}>{diffData.added.join('\n')}</pre>
+                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12 }}>{diffData.added.join('\n')}</pre>
                     : <Empty description="无新增行" />,
                 },
                 {
                   key: 'removed',
                   label: `Removed (${diffData.removed.length})`,
                   children: diffData.removed.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: '#f5f5f5', padding: 12, color: colors.error[500] }}>{diffData.removed.join('\n')}</pre>
+                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12, color: colors.error[500] }}>{diffData.removed.join('\n')}</pre>
                     : <Empty description="无删除行" />,
                 },
                 {
                   key: 'modified',
                   label: `Modified (${diffData.modified.length})`,
                   children: diffData.modified.length > 0
-                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: '#f5f5f5', padding: 12 }}>{diffData.modified.join('\n')}</pre>
+                    ? <pre style={{ maxHeight: 300, overflow: 'auto', background: colors.neutral[200], padding: 12 }}>{diffData.modified.join('\n')}</pre>
                     : <Empty description="无变更行" />,
                 },
               ]}
