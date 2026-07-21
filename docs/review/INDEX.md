@@ -135,7 +135,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 2 | DomainEvent 缺 CorrelationID/CausationID | **✅ Event+PublishRequest 已加** | ✅ |
 | 3 | 微前端子应用间通信协议 | 🟡 `eventBus.ts`+Channel API | 80% |
 | 4 | 217模块无 Repository Interface | **✅ 194/194已实现** | ✅ 100% |
-| 5 | 157 repository 仍用 map 存储 | ✅ 27/27 已确认使用 PostgreSQL | 100% |
+| 5 | 157 repository 仍用 map 存储 | 🟡 158个仍用map(73%), 57个已迁移至PG(27%) | 27% |
 | 6 | Design Token 使用率低 | 🟡 559/655页面已用 | 85% |
 | 7 | 39% API 客户端未使用 | 🟡 100/246未使用(44%) | 44% |
 | 8 | auth-enhanced 无测试 | **✅ 已加 service_test** | ✅ |
@@ -147,7 +147,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 14 | webhook 无重试/死信队列 | ✅ WebhookDelivery模型+重试机制 | ✅ |
 | 15 | 缺少 API 版本管理策略 | 🟡 ApiVersionManager+Registry+11测试 | 80% |
 
-**P1完成率**: **15/15 (100%)** — P1-1/2/4/5/8/9/10/11/12/13/14/15 完全完成; P1-3/6 实质实现(80-85%); P1-7 数据清理任务(44%已识别，无需代码修改)。P1-5 确认 27 个 map repos 均使用 PostgreSQL；P1-4 全部 194 个 service.go 已添加 RepositoryInterface，go test 0 FAIL。
+**P1完成率**: **13/15 (87%)** — P1-1/2/4/8/9/10/11/12/13/14/15 完全完成; P1-3/6 实质实现(80-85%); P1-7 数据清理任务(44%已识别，无需代码修改)。P1-5 经代码核实: 215个repository中158个(73%)仍用map存储, 仅57个(27%)真正使用PostgreSQL; P1-4 全部 194 个 service.go 已添加 RepositoryInterface，go test 0 FAIL。
 
 
 ---
@@ -155,7 +155,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 ## 下一步工作（P1 剩余项优先级排序）
 
 > 已完成：P1-1/2/4/5/8/9/10/11/12/13/14/15（13项完全完成）；P1-3/6（80-85%已有实质实现）
-> 2026-07-20 修正：P1-4 已完全修复，194/194 个 service.go 全部有 RepositoryInterface，go test 0 FAIL；P1-5 确认 100%（27 个 map repos 均用 PostgreSQL）；P1-7 核实为 100/246=44%（数据清理型任务）
+> 2026-07-20 修正：P1-4 已完全修复，194/194 个 service.go 全部有 RepositoryInterface，go test 0 FAIL；P1-5 经代码核实修正(原100%→27%: 158个仍用map, 57个已迁移PG)；P1-7 核实为 100/246=44%（数据清理型任务）
 
 | 优先级 | 项 | 预估工时 | 备注 |
 |:------:|------|:--------:|------|
@@ -166,7 +166,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | 2 | **P1-11: 数据质量执行引擎完善** | 1-2d | 已有handler+service，需补充执行引擎 |
 | 3 | **P1-12/13: AI 决策+网关实际LLM对接** | 1-2d | 已有handler+service，需对接真实LLM provider |
 
-**综合评分演进**: C+ → A (288 tests pass, 14/14 P0 complete, 15/15 P1 complete)
+**综合评分演进**: C+ → A (288 tests pass, 14/14 P0 complete, 13/15 P1 complete; P1-5 map迁移需继续推进)
 
 ## 文档更新时间线
 
@@ -179,7 +179,7 @@ system-deep-audit-2026-07-19.md  (785行, 34KB)
 | final-30-dimension-audit | Jul 19 19:03 | Agent E | 基于expert-review |
 
 **注意**: 5个Agent并行生成，无共享上下文，导致P0定义和统计数据不一致。
-本INDEX.md v2.4（2026-07-20）作为统一索引，修正了v1.0的所有数字不一致和结构性误读（SQL repository 99%→27%→88%, 前端路由316→212），并通过代码核实修正P1完成度（14/15完成，10项从0%修正为44%-100%）。
+本INDEX.md v2.5（2026-07-20）作为统一索引，修正了v1.0的所有数字不一致和结构性误读（SQL repository 99%→27% 真实持久化率, 前端路由316→212页面目录），并通过代码核实修正P1完成度（13/15完成，P1-5从100%修正为27%）。详见docs-correlation-deep-analysis-2026-07-20.md。
 
 ---
 
