@@ -8,8 +8,8 @@ import (
 	"errors"
 	"time"
 
-	"orion/platform-svc-go/internal/ai/llm-provider"
 	"orion/platform-svc-go/internal/ai-gateway/models"
+	"orion/platform-svc-go/internal/ai/llm-provider"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -32,36 +32,9 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
-// WithLLMProvider injects an LLM provider registry into the service.
-func (s *Service) WithLLMProvider(provider *llmprovider.ProviderRegistry) *Service {
+// WithLLMProvider sets the LLM provider registry used by the ai-gateway service.
+func (s *Service) WithLLMProvider(provider *llmprovider.ProviderRegistry) {
 	s.provider = provider
-	return s
-}
-
-// ExecuteLLMRequest resolves the appropriate LLM provider for the requested
-// model, performs a synchronous chat completion, and returns the response.
-func (s *Service) ExecuteLLMRequest(ctx context.Context, req *models.GatewayRequest) (*llmprovider.ChatResponse, error) {
-	if req.Model == "" {
-		return nil, ErrBadRequest
-	}
-	if s.provider == nil {
-		return nil, llmprovider.ErrProviderNotFound
-	}
-
-	p, err := s.provider.Resolve(req.Model)
-	if err != nil {
-		return nil, err
-	}
-
-	llmReq := &llmprovider.ChatRequest{
-		Model:       req.Model,
-		Messages:    []llmprovider.Message{{Role: "user", Content: req.Input}},
-		Temperature: req.Temperature,
-		MaxTokens:   req.MaxTokens,
-		TopP:        1.0,
-	}
-
-	return p.Chat(ctx, llmReq)
 }
 
 // RecordRequest logs a gateway request/response pair with validation.
