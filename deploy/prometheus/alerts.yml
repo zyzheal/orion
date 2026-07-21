@@ -182,3 +182,122 @@ groups:
         annotations:
           summary: "High error rate for module {{ $labels.handler }}"
           description: "Module {{ $labels.handler }} error rate is {{ $value | humanizePercentage }} over last 5m."
+
+      # ------------------------------------------------------------------
+      # Resource alerts - CPU
+      # ------------------------------------------------------------------
+      - alert: HighCPUUsage
+        expr: |
+          avg by (container_name) (
+            rate(container_cpu_usage_seconds_total{container_name=~"orion-.*"}[5m])
+          )
+          /
+          avg by (container_name) (
+            count by (container_name) (
+              rate(container_cpu_usage_seconds_total{container_name=~"orion-.*"}[5m])
+            )
+          )
+          > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High CPU usage (>80% for 5m) on {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} CPU usage is {{ $value | humanizePercentage }} for over 5 minutes."
+
+      - alert: CriticalCPUUsage
+        expr: |
+          avg by (container_name) (
+            rate(container_cpu_usage_seconds_total{container_name=~"orion-.*"}[5m])
+          )
+          /
+          avg by (container_name) (
+            count by (container_name) (
+              rate(container_cpu_usage_seconds_total{container_name=~"orion-.*"}[5m])
+            )
+          )
+          > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical CPU usage (>95% for 2m) on {{ $labels.container_name }}"
+          description: "Container {{ $labels.container_name }} CPU usage is {{ $value | humanizePercentage }}."
+
+      # ------------------------------------------------------------------
+      # Database alerts
+      # ------------------------------------------------------------------
+      - alert: HighDBQueryTime
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(orion_pg_query_duration_seconds_bucket[5m])) by (le)
+          )
+          > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High DB query time (P99 >1s over 5m)"
+          description: "Database P99 query latency is {{ $value | humanizeDuration }} (threshold: 1s) over last 5m."
+
+      - alert: CriticalDBQueryTime
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(orion_pg_query_duration_seconds_bucket[5m])) by (le)
+          )
+          > 3.0
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical DB query time (P99 >3s over 5m)"
+          description: "Database P99 query latency is {{ $value | humanizeDuration }} (threshold: 3s) over last 5m."
+
+      # ------------------------------------------------------------------
+      # GC alerts
+      # ------------------------------------------------------------------
+      - alert: HighGCPause
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(go_gc_pause_seconds_bucket{job=~".*orion.*"}[5m])) by (le)
+          )
+          > 0.2
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High GC pause (P99 >200ms over 5m)"
+          description: "GC P99 pause is {{ $value | humanizeDuration }} (threshold: 200ms) over last 5m."
+
+      - alert: CriticalGCPause
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(go_gc_pause_seconds_bucket{job=~".*orion.*"}[5m])) by (le)
+          )
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Critical GC pause (P99 >500ms over 5m)"
+          description: "GC P99 pause is {{ $value | humanizeDuration }} (threshold: 500ms) over last 5m."
+
+      # ------------------------------------------------------------------
+      # Rate limiting alerts
+      # ------------------------------------------------------------------
+      - alert: HighRateLimitHits
+        expr: |
+          sum(rate(orion_http_requests_total{status="429"}[1m])) > 100
+        for: 1m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "High rate limit hits (>100/min)"
+          description: "Rate limited requests (HTTP 429) are {{ $value | humanize }} per minute, exceeding the 100/min threshold."
