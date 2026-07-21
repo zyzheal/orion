@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"orion/platform-svc-go/internal/ai/llm-provider"
 	"orion/platform-svc-go/internal/ai-decisions/models"
 	"orion/platform-svc-go/internal/ai-decisions/repository"
 )
@@ -31,11 +32,17 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo     RepositoryInterface
+	provider *llmprovider.ProviderRegistry
 }
 
 func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
+}
+
+// WithLLMProvider sets the LLM provider registry used for generating decisions.
+func (s *Service) WithLLMProvider(provider *llmprovider.ProviderRegistry) {
+	s.provider = provider
 }
 
 var (
