@@ -6,6 +6,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"orion/platform-svc-go/internal/ai-gateway/models"
@@ -83,4 +84,68 @@ func (s *Service) ListRecent(ctx context.Context, tenantID string, n int) ([]mod
 // GetByModel returns all requests for a given model (alias for ListRequests with model filter).
 func (s *Service) GetByModel(ctx context.Context, tenantID, model string) ([]models.GatewayResponse, int, error) {
 	return s.repo.List(ctx, tenantID, models.ListQuery{Provider: model})
+}
+
+// Chat delegates a chat completion request to the resolved LLM provider.
+func (s *Service) Chat(ctx context.Context, req *models.ChatRequest) (*models.ChatResponse, error) {
+	if s.provider == nil {
+		return nil, fmt.Errorf("LLM provider registry not configured")
+	}
+	if req == nil || req.Model == "" {
+		return nil, ErrBadRequest
+	}
+	provider, err := s.provider.Resolve(req.Model)
+	if err != nil {
+		return nil, err
+	}
+	llmReq := &llmprovider.ChatRequest{
+		Model:       req.Model,
+		Messages:    convertMessages(req.Messages),
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
+		TopP:        req.TopP,
+	}
+	llmResp, err := provider.Chat(ctx, llmReq)
+	if err != nil {
+		return nil, err
+	}
+	return &models.ChatResponse{
+		Content:      llmResp.Content,
+		Model:        llmResp.Model,
+		Provider:     string(llmResp.Provider),
+		InputTokens:  llmResp.InputTokens,
+		OutputTokens: llmResp.OutputTokens,
+		TotalTokens:  llmResp.TotalTokens,
+		LatencyMs:    llmResp.LatencyMs,
+		FinishReason: llmResp.FinishReason,
+	}, nil
+}
+
+// convertMessages converts ai-gateway model messages to LLM provider messages.
+func convertMessages(msgs []models.Message) []llmprovider.Message {
+	if msgs == nil {
+		return []llmprovider.Message{}
+	}
+	out := make([]llmprovider.Message, len(msgs))
+	for i, m := range msgs {
+		out[i] = llmprovider.Message{Role: m.Role, Content: m.Content}
+	}
+	return out
+}
+
+// ListModels returns the list of registered LLM providers and their enabled state.
+func (s *Service) ListModels() []models.ProviderModel {
+	if s.provider == nil {
+		return []models.ProviderModel{}
+	}
+	names := s.provider.Providers()
+	out := make([]models.ProviderModel, 0, len(names))
+	for _, name := range names {
+		enabled := s.provider.IsEnabled(name)
+		out = append(out, models.ProviderModel{
+			Provider: string(name),
+			Enabled:  enabled,
+		})
+	}
+	return out
 }

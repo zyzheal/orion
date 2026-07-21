@@ -248,3 +248,80 @@ func (r *Repository) GetStats(ctx context.Context, tenantID string) (*models.Qua
 func joinSetClauses(clauses []string) string {
 	return strings.Join(clauses, ", ")
 }
+
+// --- Quality Results (quality_results table) ---
+
+func (r *Repository) CreateQualityResult(ctx context.Context, result *models.QualityResult) error {
+	result.ID = uuid.New().String()
+	result.ExecutedAt = time.Now().UTC()
+	_, err := r.db.NamedExecContext(ctx,
+		`INSERT INTO quality_results (id, tenant_id, rule_id, table_name, column_name, check_type, passed_count, failed_count, total_count, score, details, executed_at)
+		 VALUES (:id, :tenantId, :ruleId, :tableName, :columnName, :checkType, :passedCount, :failedCount, :totalCount, :score, :details, :executedAt)`,
+		result)
+	return err
+}
+
+func (r *Repository) ListQualityResultsByTable(ctx context.Context, tenantID, tableName string) ([]models.QualityResult, error) {
+	var results []models.QualityResult
+	err := r.db.SelectContext(ctx, &results,
+		`SELECT * FROM quality_results WHERE tenant_id=$1 AND table_name=$2 ORDER BY executed_at DESC`, tenantID,tableName)
+	return results, err
+}
+
+// AggregateQualityScore computes the quality score from quality_results rows.
+func (r *Repository) AggregateQualityScore(ctx context.Context, tenantID, tableName string) (*models.QualityScore, error) {
+	// Fetch all results for the table
+	results, err := r.ListQualityResultsByTable(ctx, tenantID, tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(results) == 0 {
+		return &models.QualityScore{
+			TableName: tableName,
+			Score:     100.0,
+			Breakdown: make(map[string]models.Breakdown),
+		}, nil
+	}
+
+	var totalRecords, totalPassed, totalFailed int64
+	breakdown := make(map[string]models.Breakdown)
+
+	for _, qr := range results {
+		totalRecords += qr.TotalCount
+		totalPassed += qr.PassedCount
+		totalFailed += qr.FailedCount
+
+		// Key for breakdown: columnName if present, else "full_table"
+		key := "full_table"
+		if qr.ColumnName != nil && *qr.ColumnName != "" {
+			key = *qr.ColumnName
+		}
+
+		if _, ok := breakdown[key]; !ok {
+			breakdown[key] = models.Breakdown{
+				CheckType: qr.CheckType,
+			}
+		}
+		bd := breakdown[key]
+		bd.TotalRecords += qr.TotalCount
+		bd.Passed += qr.PassedCount
+		bd.Failed += qr.FailedCount
+		breakdown[key] = bd
+	}
+
+	score := 0.0
+	if totalRecords > 0 {
+		score = float64(totalPassed) / float64(totalRecords) * 100
+	}
+
+	return &models.QualityScore{
+		TableName:    tableName,
+		TotalRules:   int64(len(results)),
+		TotalRecords: totalRecords,
+		TotalPassed:  totalPassed,
+		TotalFailed:  totalFailed,
+		Score:        score,
+		Breakdown:    breakdown,
+	}, nil
+}

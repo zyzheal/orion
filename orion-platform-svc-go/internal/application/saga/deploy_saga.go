@@ -150,10 +150,10 @@ func CreateDeploySagaSteps() []saga.SagaStep {
 				if deploymentID == "" {
 					return nil
 				}
+				// Record which full_deploy steps are about to be deleted for audit
 				// Remove completed full_deploy step result(s) from the saga history
 				removed := clearStepsByStatus(inst, "full_deploy", "COMPLETED")
 				// Clear deployment_id from ContextData so downstream compensators cannot consume it
-				deletedIDs := getStepsByDeleted(inst, "full_deploy", "COMPLETED")
 				delete(inst.ContextData, "deployment_id")
 				comp := saga.SagaCompensation{
 					StepID:     "full_deploy",
@@ -164,7 +164,6 @@ func CreateDeploySagaSteps() []saga.SagaStep {
 				inst.CompensationLog = append(inst.CompensationLog, comp)
 				_ = deploymentID // side-effect: in production calls RollbackFullDeploy(deploymentID)
 				_ = removed      // side-effect: removed N full_deploy step(s) from saga history
-				_ = deletedIDs   // side-effect: recorded deleted full_deploy step(s) for audit
 				return nil
 			},
 		},

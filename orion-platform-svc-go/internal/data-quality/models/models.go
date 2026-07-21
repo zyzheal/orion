@@ -119,3 +119,48 @@ type QualityStats struct {
 	OpenAlerts     int     `json:"openAlerts"`
 	CriticalAlerts int     `json:"criticalAlerts"`
 }
+
+// QualityScore holds aggregated quality data for a table.
+type QualityScore struct {
+	TableName    string           `json:"tableName"`
+	TotalRules   int64            `json:"totalRules"`
+	TotalRecords int64            `json:"totalRecords"`
+	TotalPassed  int64            `json:"totalPassed"`
+	TotalFailed  int64            `json:"totalFailed"`
+	Score        float64          `json:"score"`
+	Breakdown    map[string]Breakdown `json:"breakdown"`
+}
+
+// Breakdown holds per-column quality breakdown.
+type Breakdown struct {
+	TotalRecords int64  `json:"totalRecords"`
+	Passed       int64  `json:"passed"`
+	Failed       int64  `json:"failed"`
+	CheckType    string `json:"checkType"`
+}
+
+// QualityResult represents a persisted quality check result (quality_results table).
+type QualityResult struct {
+	ID          string     `json:"id" db:"id"`
+	TenantID    string     `json:"tenantId" db:"tenant_id"`
+	RuleID      string     `json:"ruleId" db:"rule_id"`
+	TableName   string     `json:"tableName" db:"table_name"`
+	ColumnName  *string    `json:"columnName" db:"column_name"`
+	CheckType   string     `json:"checkType" db:"check_type"`
+	PassedCount int64      `json:"passedCount" db:"passed_count"`
+	FailedCount int64      `json:"failedCount" db:"failed_count"`
+	TotalCount  int64      `json:"totalCount" db:"total_count"`
+	Score       *float64   `json:"score" db:"score"`
+	Details     *string    `json:"details" db:"details"`
+	ExecutedAt  time.Time  `json:"executedAt" db:"executed_at"`
+}
+
+// RunRuleRequest is the request body for running a quality check.
+type RunRuleRequest struct {
+	RuleID     *string     `json:"ruleId"`
+	TableName  string      `json:"tableName" binding:"required"`
+	ColumnName *string     `json:"columnName"`
+	CheckType  string      `json:"checkType" binding:"required"`
+	Params     *string     `json:"params"`
+	Samples    []interface{} `json:"samples"`
+}

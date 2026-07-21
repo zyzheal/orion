@@ -23,12 +23,42 @@ func NewHandler(svc *service.Service) *Handler {
 
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	r := rg.Group("/ai-gateway")
+	// Explicit routes before catch-all :id to avoid path collision
+	r.POST("/chat", auth.RequirePermission("ai-gateway", "write"), h.Chat)
+	r.GET("/models", auth.RequirePermission("ai-gateway", "read"), h.ListModels)
 	r.POST("", auth.RequirePermission("ai-gateway", "write"), h.ProcessRequest)
 	r.GET("/:id", auth.RequirePermission("ai-gateway", "read"), h.GetRequest)
 	r.GET("", auth.RequirePermission("ai-gateway", "read"), h.ListRequests)
 	r.GET("/by-provider/:provider", auth.RequirePermission("ai-gateway", "read"), h.ListByProvider)
 	r.GET("/by-model/:model", auth.RequirePermission("ai-gateway", "read"), h.ListByModel)
 	r.GET("/recent/:n", auth.RequirePermission("ai-gateway", "read"), h.ListRecent)
+}
+
+func (h *Handler) Chat(c *gin.Context) {
+	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "Chat")
+	defer span.End()
+	var req models.ChatRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if req.Model == "" {
+		errors.WriteError(c, errors.ErrBadRequest, "model is required", http.StatusBadRequest)
+		return
+	}
+	resp, err := h.svc.Chat(ctx, &req)
+	if err != nil {
+		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	errors.WriteSuccess(c, resp)
+}
+
+func (h *Handler) ListModels(c *gin.Context) {
+	_, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "ListModels")
+	defer span.End()
+	providers := h.svc.ListModels()
+	errors.WriteSuccess(c, providers)
 }
 
 func (h *Handler) ProcessRequest(c *gin.Context) {
