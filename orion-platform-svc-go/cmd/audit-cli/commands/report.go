@@ -16,8 +16,7 @@ import (
 func ReportCommand(args map[string]string) int {
 	dsn, err := requireFlag(args, "dsn")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v
-", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return types.ExitErr
 	}
 	outputFile := args["output"]

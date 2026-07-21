@@ -95,7 +95,7 @@ func buildContent(file *ast.File, methods []method, srcPath string) string {
 	sb.WriteString("import (\n")
 	sb.WriteString("\t\"context\"\n")
 	if modelsImport != "" {
-		"have_models"
+		_ = "have_models"
 		sb.WriteString("\t\"" + modelsImport + "\"\n")
 	}
 	sb.WriteString(")\n\n")
