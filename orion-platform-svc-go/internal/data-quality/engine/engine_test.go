@@ -262,6 +262,170 @@ func TestEvaluator_UnsupportedType(t *testing.T) {
 	}
 }
 
+func TestEvaluator_Completeness_Nil(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "completeness-test", RuleType: "completeness"}
+	input := &EvaluationInput{Samples: []interface{}{1.0, nil, 3.0, nil}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 2 {
+		t.Fatalf("expected 2 failed (nils), got %d", ev.Result.FailedRecords)
+	}
+	if ev.Result.PassedRecords != 2 {
+		t.Fatalf("expected 2 passed, got %d", ev.Result.PassedRecords)
+	}
+}
+
+func TestEvaluator_Completeness_AllPass(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "completeness-test", RuleType: "completeness"}
+	input := &EvaluationInput{Samples: []interface{}{1.0, 2.0, 3.0}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 0 {
+		t.Fatalf("expected 0 failed, got %d", ev.Result.FailedRecords)
+	}
+	if ev.Result.PassedRecords != 3 {
+		t.Fatalf("expected 3 passed, got %d", ev.Result.PassedRecords)
+	}
+}
+
+func TestEvaluator_Uniqueness_AllUnique(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "uniqueness-test", RuleType: "uniqueness"}
+	input := &EvaluationInput{Samples: []interface{}{1, 2, 3, 4}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 0 {
+		t.Fatalf("expected 0 failed, got %d", ev.Result.FailedRecords)
+	}
+	if ev.Result.PassedRecords != 4 {
+		t.Fatalf("expected 4 passed, got %d", ev.Result.PassedRecords)
+	}
+}
+
+func TestEvaluator_Uniqueness_HasDuplicates(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "uniqueness-test", RuleType: "uniqueness"}
+	input := &EvaluationInput{Samples: []interface{}{1, 1, 2, 3, 3, 3}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// 1 appears 2x -> 1 duplicate; 3 appears 3x -> 2 duplicates; total 3 failed
+	if ev.Result.FailedRecords != 3 {
+		t.Fatalf("expected 3 failed (duplicates), got %d", ev.Result.FailedRecords)
+	}
+}
+
+func TestEvaluator_Referential_AllValid(t *testing.T) {
+	e := &Evaluator{}
+	expr := "A,B,C"
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "ref-test", RuleType: "referential", Expression: &expr}
+	input := &EvaluationInput{Samples: []interface{}{"A", "B", "C"}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 0 {
+		t.Fatalf("expected 0 failed, got %d", ev.Result.FailedRecords)
+	}
+}
+
+func TestEvaluator_Referential_Invalid(t *testing.T) {
+	e := &Evaluator{}
+	expr := "A,B,C"
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "ref-test", RuleType: "referential", Expression: &expr}
+	input := &EvaluationInput{Samples: []interface{}{"A", "X", "B", "Y"}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 2 {
+		t.Fatalf("expected 2 failed (X,Y), got %d", ev.Result.FailedRecords)
+	}
+	if ev.Result.PassedRecords != 2 {
+		t.Fatalf("expected 2 passed, got %d", ev.Result.PassedRecords)
+	}
+}
+
+func TestEvaluator_Referential_NoExpression(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "ref-test", RuleType: "referential"}
+	input := &EvaluationInput{Samples: []interface{}{"A", "B"}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 2 {
+		t.Fatalf("expected 2 failed (no expression), got %d", ev.Result.FailedRecords)
+	}
+}
+
+func TestEvaluator_CustomSQL_AllPass(t *testing.T) {
+	e := &Evaluator{}
+	threshold := 0.0
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "sql-test", RuleType: "custom_sql", Threshold: &threshold}
+	input := &EvaluationInput{Samples: []interface{}{0.0, 0.0}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 0 {
+		t.Fatalf("expected 0 failed, got %d", ev.Result.FailedRecords)
+	}
+}
+
+func TestEvaluator_CustomSQL_ExceedsThreshold(t *testing.T) {
+	e := &Evaluator{}
+	threshold := 5.0
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "sql-test", RuleType: "custom_sql", Threshold: &threshold}
+	input := &EvaluationInput{Samples: []interface{}{3.0, 10.0, 7.0}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 2 {
+		t.Fatalf("expected 2 failed (>5), got %d", ev.Result.FailedRecords)
+	}
+	if ev.Result.PassedRecords != 1 {
+		t.Fatalf("expected 1 passed, got %d", ev.Result.PassedRecords)
+	}
+}
+
+func TestEvaluator_CustomSQL_NilSample(t *testing.T) {
+	e := &Evaluator{}
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "sql-test", RuleType: "custom_sql"}
+	input := &EvaluationInput{Samples: []interface{}{nil, 1.0}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 1 {
+		t.Fatalf("expected 1 failed (nil), got %d", ev.Result.FailedRecords)
+	}
+}
+
+func TestEvaluator_NullCheck_RegExOverride(t *testing.T) {
+	e := &Evaluator{}
+	expr := "^\\s*$"
+	rule := &models.Rule{ID: "r", TenantID: "t", Name: "null-test", RuleType: "null_check", Expression: &expr}
+	input := &EvaluationInput{Samples: []interface{}{"hello", "   ", "world"}}
+	ev, err := e.Evaluate(context.Background(), rule, input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ev.Result.FailedRecords != 1 {
+		t.Fatalf("expected 1 failed (whitespace), got %d", ev.Result.FailedRecords)
+	}
+}
+
 func TestEvaluator_Persist_NoCallback(t *testing.T) {
 	e := &Evaluator{} // OnEvaluate is nil
 	err := e.Persist(context.Background(), newRule("t", "t", 1, ""), &EvaluationResult{})

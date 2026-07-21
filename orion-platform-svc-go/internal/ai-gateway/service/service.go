@@ -38,7 +38,8 @@ func (s *Service) WithLLMProvider(provider *llmprovider.ProviderRegistry) {
 	s.provider = provider
 }
 
-// RecordRequest logs a gateway request/response pair with validation.
+// RecordRequest logs a gateway request/response pair with validation only
+// (does not invoke the LLM). Use ProcessRequest to actually call the LLM.
 func (s *Service) RecordRequest(ctx context.Context, tenantID string, req *models.GatewayRequest) (*models.GatewayResponse, error) {
 	if req.Model == "" {
 		return nil, ErrBadRequest
@@ -50,6 +51,48 @@ func (s *Service) RecordRequest(ctx context.Context, tenantID string, req *model
 		Model:     req.Model,
 		Provider:  req.Provider,
 		Input:     req.Input,
+		CreatedAt: time.Now().UTC(),
+	}
+	return s.repo.Create(ctx, tenantID, resp)
+}
+
+// ProcessRequest validates the request, calls the resolved LLM provider, and
+// persists the full response (content, tokens, latency) to the repository.
+func (s *Service) ProcessRequest(ctx context.Context, tenantID string, req *models.GatewayRequest) (*models.GatewayResponse, error) {
+	if req.Model == "" {
+		return nil, ErrBadRequest
+	}
+	if req.Input == "" {
+		return nil, ErrBadRequest
+	}
+	if s.provider == nil {
+		return nil, fmt.Errorf("LLM provider registry not configured")
+	}
+
+	provider, err := s.provider.Resolve(req.Model)
+	if err != nil {
+		return nil, err
+	}
+
+	llmReq := &llmprovider.ChatRequest{
+		Model:       req.Model,
+		Messages:    []llmprovider.Message{{Role: "user", Content: req.Input}},
+		Temperature: req.Temperature,
+		MaxTokens:   req.MaxTokens,
+	}
+	start := time.Now()
+	llmResp, err := provider.Chat(ctx, llmReq)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &models.GatewayResponse{
+		Model:     req.Model,
+		Provider:  string(llmResp.Provider),
+		Input:     req.Input,
+		Output:    llmResp.Content,
+		Tokens:    llmResp.TotalTokens,
+		LatencyMs: time.Since(start).Milliseconds(),
 		CreatedAt: time.Now().UTC(),
 	}
 	return s.repo.Create(ctx, tenantID, resp)

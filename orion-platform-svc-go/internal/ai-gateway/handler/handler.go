@@ -70,7 +70,7 @@ func (h *Handler) ProcessRequest(c *gin.Context) {
 		errors.WriteError(c, errors.ErrBadRequest, "invalid request", http.StatusBadRequest)
 		return
 	}
-	resp, err := h.svc.RecordRequest(ctx, tenantID, &req)
+	resp, err := h.svc.ProcessRequest(ctx, tenantID, &req)
 	if err != nil {
 		errors.WriteError(c, errors.ErrInternal, err.Error(), http.StatusInternalServerError)
 		return

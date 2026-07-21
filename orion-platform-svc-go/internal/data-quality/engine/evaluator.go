@@ -67,17 +67,22 @@ func (e *Evaluator) Evaluate(ctx context.Context, rule *models.Rule, input *Eval
 	var errMsgs []string
 
 	switch strings.ToLower(strings.TrimSpace(rule.RuleType)) {
-	case "threshold_check":
+	case "threshold_check", "range":
 		passed, failed, errMsgs = e.evaluateThreshold(ctx, rule, samples)
 	case "range_check":
 		passed, failed, errMsgs = e.evaluateRange(ctx, rule, samples)
-	case "_check":
-		// null_check: any nil/zero-value sample fails the rule.
+	case "null_check", "completeness":
+		// null_check / completeness: any nil/zero-value sample fails the rule.
 		// A non-nil expression overrides to a regex match (e.g. "^[^\\s]+$" to reject blanks).
 		passed, failed, errMsgs = e.evaluateNull(ctx, rule, samples)
 	case "pattern_match":
 		passed, failed, errMsgs = e.evaluatePattern(ctx, rule, samples)
-		passed, failed, errMsgs = e.evaluatePattern(ctx, rule, samples)
+	case "uniqueness":
+		passed, failed, errMsgs = e.evaluateUniqueness(ctx, rule, samples)
+	case "referential":
+		passed, failed, errMsgs = e.evaluateReferential(ctx, rule, samples)
+	case "custom_sql":
+		passed, failed, errMsgs = e.evaluateCustomSQL(ctx, rule, samples)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, rule.RuleType)
 	}
@@ -279,7 +284,7 @@ func (e *Evaluator) evaluatePattern(ctx context.Context, rule *models.Rule, samp
 	return passed, failed, errMsgs
 }
 
-// --- null_check -------------------------------------------------------------------
+// --- null_check / completeness ---------------------------------------------------
 
 func (e *Evaluator) evaluateNull(ctx context.Context, rule *models.Rule, samples []interface{}) (int64, int64, []string) {
 	var passed, failed int64
@@ -316,6 +321,143 @@ func (e *Evaluator) evaluateNull(ctx context.Context, rule *models.Rule, samples
 		}
 		passed++
 	}
+	return passed, failed, errMsgs
+}
+
+// --- uniqueness ------------------------------------------------------------------
+
+// evaluateUniqueness checks that all samples are unique.
+// Each sample is a value (any type, compared by fmt.Sprintf conversion).
+// Threshold represents the allowed duplicate ratio (e.g. 0.0 = zero duplicates allowed).
+func (e *Evaluator) evaluateUniqueness(ctx context.Context, rule *models.Rule, samples []interface{}) (int64, int64, []string) {
+	var passed, failed int64
+	var errMsgs []string
+
+	if len(samples) == 0 {
+		return 0, 0, nil
+	}
+
+	seen := make(map[string]int)
+	for _, s := range samples {
+		key := fmt.Sprintf("%v", s)
+		seen[key]++
+	}
+
+	allowDup := false
+	if rule.Threshold != nil && *rule.Threshold > 0 {
+		allowDup = true
+	}
+
+	for key, count := range seen {
+		if count > 1 {
+			if allowDup {
+				// With threshold, only flag if duplicates exceed allowed ratio.
+				continue
+			}
+			// Each occurrence beyond the first is a failure.
+			failed += int64(count - 1)
+			errMsgs = append(errMsgs, fmt.Sprintf("duplicate value %q appears %d times", key, count))
+		} else {
+			passed++
+		}
+	}
+
+	if failed == 0 {
+		// All unique → all passed.
+		passed = int64(len(samples))
+	}
+
+	return passed, failed, errMsgs
+}
+
+// --- referential -----------------------------------------------------------------
+
+// evaluateReferential checks that each sample value exists in the referenced set.
+// The referenced values are passed as Samples; duplicates in samples are allowed
+// and each sample is checked independently.
+//
+// Typical usage: samples = [value1, value2, ...] (the values to check)
+// The Expression holds a comma-separated list of valid referenced values.
+func (e *Evaluator) evaluateReferential(ctx context.Context, rule *models.Rule, samples []interface{}) (int64, int64, []string) {
+	var passed, failed int64
+	var errMsgs []string
+
+	if rule.Expression == nil {
+		// No referenced values provided → all samples fail.
+		for _, s := range samples {
+			failed++
+			errMsgs = append(errMsgs, fmt.Sprintf("referential check: no valid values configured, sample %v not found", s))
+		}
+		return passed, failed, errMsgs
+	}
+
+	validSet := make(map[string]bool)
+	for _, v := range strings.Split(*rule.Expression, ",") {
+		validSet[strings.TrimSpace(v)] = true
+	}
+
+	if len(validSet) == 0 {
+		return 0, int64(len(samples)), []string{"referential check: no valid values configured"}
+	}
+
+	for _, s := range samples {
+		str := fmt.Sprintf("%v", s)
+		if validSet[str] {
+			passed++
+		} else {
+			failed++
+			errMsgs = append(errMsgs, fmt.Sprintf("value %q not found in referenced set", str))
+		}
+	}
+
+	return passed, failed, errMsgs
+}
+
+// --- custom_sql ------------------------------------------------------------------
+
+// evaluateCustomSQL treats each sample as a pre-computed result from a SQL query.
+// The semantics: when a sample is nil/zero it counts as failed; when it is a
+// numeric value it is compared against the rule.Threshold.
+//
+// Typical usage: the caller runs the custom SQL, passes a single sample with
+// the aggregated result (e.g. COUNT of violations), and the evaluator checks
+// it against Threshold.
+func (e *Evaluator) evaluateCustomSQL(ctx context.Context, rule *models.Rule, samples []interface{}) (int64, int64, []string) {
+	var passed, failed int64
+	var errMsgs []string
+
+	threshold := 0.0
+	if rule.Threshold != nil {
+		threshold = *rule.Threshold
+	}
+
+	for _, s := range samples {
+		if s == nil {
+			failed++
+			errMsgs = append(errMsgs, "custom_sql: sample is nil")
+			continue
+		}
+		v, ok := toFloat64(s)
+		if !ok {
+			// Non-numeric sample from custom SQL: treat as a violation count.
+			// If the string is "0" it passes, anything else fails.
+			str := fmt.Sprintf("%v", s)
+			if str == "0" {
+				passed++
+			} else {
+				failed++
+				errMsgs = append(errMsgs, fmt.Sprintf("custom_sql: non-numeric result %q exceeds threshold %g", str, threshold))
+			}
+			continue
+		}
+		if v <= threshold {
+			passed++
+		} else {
+			failed++
+			errMsgs = append(errMsgs, fmt.Sprintf("custom_sql: result %g exceeds threshold %g", v, threshold))
+		}
+	}
+
 	return passed, failed, errMsgs
 }
 
