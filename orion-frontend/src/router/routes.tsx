@@ -1398,10 +1398,10 @@ export const routes: AppRoute[] = [
     element: React.lazy(() => import('@/pages/multi-cloud/MultiCloudPage')),
     protected: true,
   },
-  // Data Pipeline (Phase 4)
+  // Data Pipeline (Phase 4) — Pipeline Management Page
   {
     path: '/data-pipeline',
-    element: React.lazy(() => import('@/pages/data-pipeline/DataPipelinePage')),
+    element: React.lazy(() => import('@/pages/pipeline/PipelineManagementPage')),
     protected: true,
   },
   // Digital Twin (Phase 4)
