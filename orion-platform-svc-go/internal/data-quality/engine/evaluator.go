@@ -71,7 +71,12 @@ func (e *Evaluator) Evaluate(ctx context.Context, rule *models.Rule, input *Eval
 		passed, failed, errMsgs = e.evaluateThreshold(ctx, rule, samples)
 	case "range_check":
 		passed, failed, errMsgs = e.evaluateRange(ctx, rule, samples)
+	case "_check":
+		// null_check: any nil/zero-value sample fails the rule.
+		// A non-nil expression overrides to a regex match (e.g. "^[^\\s]+$" to reject blanks).
+		passed, failed, errMsgs = e.evaluateNull(ctx, rule, samples)
 	case "pattern_match":
+		passed, failed, errMsgs = e.evaluatePattern(ctx, rule, samples)
 		passed, failed, errMsgs = e.evaluatePattern(ctx, rule, samples)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedType, rule.RuleType)
@@ -270,6 +275,42 @@ func (e *Evaluator) evaluatePattern(ctx context.Context, rule *models.Rule, samp
 		} else {
 			passed++
 		}
+	}
+	return passed, failed, errMsgs
+}
+
+// --- null_check -------------------------------------------------------------------
+
+func (e *Evaluator) evaluateNull(ctx context.Context, rule *models.Rule, samples []interface{}) (int64, int64, []string) {
+	var passed, failed int64
+	var errMsgs []string
+
+	// Optional regex override: when an expression is set, treat it as a
+	// "blank/dirty" regex that samples must NOT match (i.e. pattern must not appear).
+	var blankRe *regexp.Regexp
+	if rule.Expression != nil && *rule.Expression != "" {
+		re, err := regexp.Compile(*rule.Expression)
+		if err != nil {
+			return 0, int64(len(samples)), []string{fmt.Sprintf("invalid null-check regex %q: %v", *rule.Expression, err)}
+		}
+		blankRe = re
+	}
+
+	for _, s := range samples {
+		if s == nil {
+			failed++
+			errMsgs = append(errMsgs, fmt.Sprintf("null value in column %q", rule.TargetColumn))
+			continue
+		}
+		if blankRe != nil {
+			str := fmt.Sprintf("%v", s)
+			if blankRe.MatchString(str) {
+				failed++
+				errMsgs = append(errMsgs, fmt.Sprintf("value %q matched blank pattern %q", str, blankRe.String()))
+				continue
+			}
+		}
+		passed++
 	}
 	return passed, failed, errMsgs
 }
