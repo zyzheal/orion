@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/task-timeout/models"
+	"orion/platform-svc-go/internal/middleware"
 
 	"go.uber.org/zap"
 )
@@ -163,7 +164,8 @@ func (s *Service) checkOnce(ctx context.Context) {
 
 	tasks, err := s.GetTimedOutTasks(ctx)
 	if err != nil {
-		s.logger.Error("task timeout checker: scan failed", zap.Error(err))
+		traceID := middleware.GetTraceIDFromCtx(ctx)
+		s.logger.Error("task timeout checker: scan failed", zap.Error(err), zap.String("trace_id", traceID))
 		return
 	}
 

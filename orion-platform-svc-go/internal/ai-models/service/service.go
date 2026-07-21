@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"orion/platform-svc-go/internal/ai-models/models"
+	"orion/platform-svc-go/internal/middleware"
 
 	"go.uber.org/zap"
 )
@@ -93,7 +94,8 @@ func (s *Service) RegisterModel(ctx context.Context, tenantID, userID string, re
 	if err := s.repo.CreateModel(ctx, m); err != nil {
 		return nil, err
 	}
-	s.log.Info("model registered", zap.String("model_id", m.ID), zap.String("name", m.Name))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("model registered", zap.String("model_id", m.ID), zap.String("name", m.Name), zap.String("trace_id", traceID))
 	return m, nil
 }
 
@@ -155,7 +157,8 @@ func (s *Service) DeleteModel(ctx context.Context, tenantID, modelID string) err
 	if err := s.repo.DeleteModel(ctx, tenantID, modelID); err != nil {
 		return err
 	}
-	s.log.Info("model deleted", zap.String("model_id", modelID))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("model deleted", zap.String("model_id", modelID), zap.String("trace_id", traceID))
 	return nil
 }
 
@@ -224,7 +227,8 @@ func (s *Service) PublishVersion(ctx context.Context, tenantID, modelID, userID 
 		return nil, err
 	}
 
-	s.log.Info("version published", zap.String("model_id", modelID), zap.String("version", versionNum))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("version published", zap.String("model_id", modelID), zap.String("version", versionNum), zap.String("trace_id", traceID))
 	return v, nil
 }
 
@@ -261,7 +265,8 @@ func (s *Service) PromoteVersion(ctx context.Context, tenantID, modelID, version
 	if err != nil {
 		return nil, err
 	}
-	s.log.Info("version promoted", zap.String("version_id", versionID), zap.String("target", string(req.TargetEnvironment)))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("version promoted", zap.String("version_id", versionID), zap.String("target", string(req.TargetEnvironment)), zap.String("trace_id", traceID))
 	return updated, nil
 }
 
@@ -301,7 +306,8 @@ func (s *Service) RollbackVersion(ctx context.Context, tenantID, modelID string)
 		}
 	}
 
-	s.log.Info("version rolled back", zap.String("model_id", modelID), zap.String("version", prevVersion.Version))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("version rolled back", zap.String("model_id", modelID), zap.String("version", prevVersion.Version), zap.String("trace_id", traceID))
 	return prevVersion, nil
 }
 
@@ -364,7 +370,8 @@ func (s *Service) ConfigureCanary(ctx context.Context, tenantID, modelID string,
 	if err := s.repo.CreateCanary(ctx, c); err != nil {
 		return nil, err
 	}
-	s.log.Info("canary configured", zap.String("model_id", modelID), zap.String("target_version", c.TargetVersion))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("canary configured", zap.String("model_id", modelID), zap.String("target_version", c.TargetVersion), zap.String("trace_id", traceID))
 	return c, nil
 }
 
@@ -387,7 +394,8 @@ func (s *Service) StopCanary(ctx context.Context, tenantID, modelID string) erro
 	if err := s.repo.UpdateCanary(ctx, tenantID, modelID, false, models.CanaryStatusAborted); err != nil {
 		return err
 	}
-	s.log.Info("canary stopped", zap.String("model_id", modelID))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	s.log.Info("canary stopped", zap.String("model_id", modelID), zap.String("trace_id", traceID))
 	return nil
 }
 

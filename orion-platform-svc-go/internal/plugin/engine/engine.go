@@ -10,6 +10,7 @@ import (
 
 	"orion/go-common/pkg/plugin"
 
+	"orion/platform-svc-go/internal/middleware"
 	"orion/platform-svc-go/internal/plugin/spi"
 
 	"go.uber.org/zap"
@@ -164,9 +165,11 @@ func (e *Engine) Execute(ctx context.Context, id string,
 		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, plugin.ErrPluginTimeout
 		}
+		traceID := middleware.GetTraceIDFromCtx(execCtx)
 		e.logger.Error("plugin execution failed",
 			zap.String("plugin", id),
-			zap.Error(err))
+			zap.Error(err),
+			zap.String("trace_id", traceID))
 		// Graceful degradation: do not remove the plugin; record health error
 		// after repeated failures (handled by degraded guard).
 		return nil, err
@@ -215,7 +218,8 @@ func (e *Engine) HotReload(ctx context.Context, id string,
 		return err
 	}
 
-	e.logger.Info("hot-reloading plugin", zap.String("plugin", id))
+	traceID := middleware.GetTraceIDFromCtx(ctx)
+	e.logger.Info("hot-reloading plugin", zap.String("plugin", id), zap.String("trace_id", traceID))
 
 	// Build new instance BEFORE destroying the old one — if factory is nil we
 	// must not unregister, or the caller loses the only copy.
@@ -245,7 +249,7 @@ func (e *Engine) HotReload(ctx context.Context, id string,
 	cfg := plugin.PluginConfig{ID: newID, Version: newVersion}
 	if initErr := newInst.Init(ctx, cfg); initErr != nil {
 		e.logger.Warn("hot-reload init failed, marking unhealthy",
-			zap.String("plugin", newID), zap.Error(initErr))
+			zap.String("plugin", newID), zap.Error(initErr), zap.String("trace_id", traceID))
 	}
 
 	// Keep the watch file entry.
@@ -258,7 +262,8 @@ func (e *Engine) HotReload(ctx context.Context, id string,
 
 	e.logger.Info("plugin hot-reloaded",
 		zap.String("plugin", newID),
-		zap.String("version", newVersion))
+		zap.String("version", newVersion),
+		zap.String("trace_id", traceID))
 	return nil
 }
 
@@ -334,7 +339,8 @@ func (e *Engine) watchLoop(ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
-			e.logger.Info("hot-reload watch loop stopped")
+			traceID := middleware.GetTraceIDFromCtx(ctx)
+			e.logger.Info("hot-reload watch loop stopped", zap.String("trace_id", traceID))
 			return
 		case <-ticker.C:
 			e.doPoll(ctx, lastMtime)
@@ -360,15 +366,19 @@ func (e *Engine) doPoll(ctx context.Context, lastMtime map[string]time.Time) {
 		mtime := info.ModTime()
 		prev, seen := lastMtime[id]
 		if seen && !mtime.Equal(prev) {
+			traceID := middleware.GetTraceIDFromCtx(ctx)
 			e.logger.Info("file change detected, hot-reloading",
 				zap.String("plugin", id),
-				zap.String("path", path))
+				zap.String("path", path),
+				zap.String("trace_id", traceID))
 			// Trigger hot-reload asynchronously.
 			go func(pid, p string) {
 				if reloadErr := e.HotReload(ctx, pid, nil); reloadErr != nil {
+					traceID := middleware.GetTraceIDFromCtx(ctx)
 					e.logger.Error("hot-reload failed",
 						zap.String("plugin", pid),
-						zap.Error(reloadErr))
+						zap.Error(reloadErr),
+						zap.String("trace_id", traceID))
 				}
 			}(id, path)
 		}

@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"orion/platform-svc-go/internal/efficiency/models"
+	"orion/platform-svc-go/internal/middleware"
 )
 
 func (s *Service) standardizeDeploymentFrequency(_context context.Context, tenantID string, df models.DeploymentFrequency) models.DORAMetricResult {
@@ -99,13 +100,14 @@ func (s *Service) saveSnapshot(ctx context.Context, tenantID string, timeWindow 
 	snapshot.CapturedAt = time.Now().UTC()
 	if s.repo != nil {
 		eg, _ := errgroup.WithContext(ctx)
+		traceID := middleware.GetTraceIDFromCtx(ctx)
 		eg.Go(func() error {
 			if err := s.repo.CreateSnapshot(ctx, &snapshot); err != nil {
-				slog.Error("efficiency: failed to create snapshot", "tenantID", tenantID, "window", timeWindow, "error", err)
+				slog.Error("efficiency: failed to create snapshot", "tenantID", tenantID, "window", timeWindow, "error", err, "trace_id", traceID)
 				return err
 			}
 			if err := s.repo.PruneOldSnapshots(ctx, tenantID, 100); err != nil {
-				slog.Error("efficiency: failed to prune old snapshots", "tenantID", tenantID, "error", err)
+				slog.Error("efficiency: failed to prune old snapshots", "tenantID", tenantID, "error", err, "trace_id", traceID)
 				return err
 			}
 			return nil

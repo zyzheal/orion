@@ -133,6 +133,15 @@ func WithTraceID(ctx context.Context, id string) context.Context {
 	return trace.ContextWithSpanContext(ctx, sc)
 }
 
+// GetTraceIDFromCtx extracts the trace ID from a context.Context, suitable for
+// service/repository layers. Falls back to "no-trace-id" when no span is present.
+func GetTraceIDFromCtx(ctx context.Context) string {
+	if spanCtx := trace.SpanContextFromContext(ctx); spanCtx.IsValid() {
+		return spanCtx.TraceID().String()
+	}
+	return "no-trace-id"
+}
+
 // generateTraceID returns a 32-hex-digit UUID (no hyphens).
 func generateTraceID() string {
 	b := make([]byte, 16)
