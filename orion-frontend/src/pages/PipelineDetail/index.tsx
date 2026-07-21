@@ -396,11 +396,11 @@ const PipelineDetail: React.FC = () => {
       const runsRes = await getPipelineRuns(id!);
       const runsData = extractList(runsRes);
       const latestRun = runsData[0] || null;
-      setPipeline((prev: any) => ({
+      setPipeline((prev: PipelineDisplay) => ({
         ...prev,
-        status: (latestRun as any)?.status || 'running',
-        runNumber: (latestRun as any)?.runNumber || (prev as any).runNumber + 1,
-        stages: (latestRun as any)?.stages || [],
+        status: latestRun?.status || 'running',
+        runNumber: latestRun?.runNumber || prev.runNumber + 1,
+        stages: latestRun?.stages || [],
       }));
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -419,10 +419,10 @@ const PipelineDetail: React.FC = () => {
       const runsRes = await getPipelineRuns(id!);
       const runsData = extractList(runsRes);
       const latestRun = runsData[0] || null;
-      setPipeline((prev: any) => ({
+      setPipeline((prev: PipelineDisplay) => ({
         ...prev,
-        status: (latestRun as any)?.status || (prev as any).status,
-        stages: (latestRun as any)?.stages || (prev as any).stages,
+        status: latestRun?.status || prev.status,
+        stages: latestRun?.stages || prev.stages,
       }));
     } catch {
       // Silent reload failure — the error detail component handles its own retry
@@ -635,7 +635,7 @@ const PipelineDetail: React.FC = () => {
                   padding: '8px 0',
                 }}
               >
-                {pipeline.stages?.map((stage: any, index: number) => (
+                {pipeline.stages?.map((stage: PipelineStage, index: number) => (
                   <React.Fragment key={stage.name}>
                     {/* Stage node */}
                     <div
@@ -715,7 +715,7 @@ const PipelineDetail: React.FC = () => {
               {/* Stage details table */}
               {pipeline.stages && pipeline.stages.length > 0 && (
                 <div style={{ marginTop: spacing.sm }}>
-                  {pipeline.stages.map((stage: any, index: number) => (
+                  {pipeline.stages.map((stage: PipelineStage, index: number) => (
                     <Card
                       key={stage.name}
                       size="small"
@@ -755,7 +755,7 @@ const PipelineDetail: React.FC = () => {
                       {/* Steps within the stage */}
                       {stage.steps && stage.steps.length > 0 && (
                         <Space direction="vertical" size={4}>
-                          {stage.steps.map((step: any) => (
+                          {stage.steps.map((step: PipelineStep) => (
                             <div
                               key={step.name}
                               style={{
@@ -811,7 +811,7 @@ const PipelineDetail: React.FC = () => {
                 color: colors.neutral[300],
               }}
             >
-              {pipeline.stages?.map((stage: any) => (
+              {pipeline.stages?.map((stage: PipelineStage) => (
                 <div key={stage.name} style={{ marginBottom: spacing.md }}>
                   {/* Stage header */}
                   <div
@@ -828,7 +828,7 @@ const PipelineDetail: React.FC = () => {
                   </div>
                   {/* Stage logs */}
                   {stage.logs && stage.logs.length > 0 ? (
-                    stage.logs.map((log: any, index: number) => (
+                    stage.logs.map((log: string, index: number) => (
                       <div key={index} style={{ paddingLeft: spacing.md }}>
                         {log.includes('FAIL') ? (
                           <span style={{ color: colors.error[500] }}>{log}</span>
