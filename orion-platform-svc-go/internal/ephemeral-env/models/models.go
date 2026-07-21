@@ -15,13 +15,13 @@ type EphemeralEnv struct {
 
 // CreateEphemeralEnvRequest is the request body for creating an environment.
 type CreateEphemeralEnvRequest struct {
-	EnvironmentName string `json:"environment_name"`
-	TTLSeconds      int    `json:"ttl_seconds"`
+	EnvironmentName string `json:"environment_name" binding:"required"`
+	TTLSeconds      int    `json:"ttl_seconds" binding:"required"`
 }
 
 // ExtendTTLRequest is the request body for extending TTL.
 type ExtendTTLRequest struct {
-	TTLSeconds int `json:"ttl_seconds"`
+	TTLSeconds int `json:"ttl_seconds" binding:"required"`
 }
 
 // EnvLog represents a log entry for an ephemeral environment.

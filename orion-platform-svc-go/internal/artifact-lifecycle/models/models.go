@@ -15,14 +15,14 @@ type ArtifactLifecycle struct {
 
 // CreateArtifactLifecycleRequest is the request body for creating a lifecycle record.
 type CreateArtifactLifecycleRequest struct {
-	ArtifactID string `json:"artifact_id"`
-	Stage      string `json:"stage"`
-	Status     string `json:"stage_status"`
+	ArtifactID string `json:"artifact_id" binding:"required"`
+	Stage      string `json:"stage" binding:"required"`
+	Status     string `json:"stage_status" binding:"required"`
 }
 
 // AdvanceStageRequest is the request body for advancing a lifecycle stage.
 type AdvanceStageRequest struct {
-	Stage string `json:"stage"`
+	Stage string `json:"stage" binding:"required"`
 }
 
 // ListLifecycleResponse returns a paginated list.

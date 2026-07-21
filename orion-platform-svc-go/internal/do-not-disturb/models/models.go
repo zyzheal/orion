@@ -20,7 +20,7 @@ type CreateDoNotDisturbRequest struct {
 	Enabled   bool   `json:"enabled"`
 	StartHour int    `json:"startHour"`
 	EndHour   int    `json:"endHour"`
-	Timezone  string `json:"timezone"`
+	Timezone  string `json:"timezone" binding:"required"`
 	Weekdays  []int  `json:"weekdays"`
 }
 
@@ -30,5 +30,5 @@ type UpdateDoNotDisturbRequest struct {
 	StartHour *int    `json:"startHour"`
 	EndHour   *int    `json:"endHour"`
 	Timezone  *string `json:"timezone"`
-	Weekdays  []int   `json:"weekdays"`
+	Weekdays  []int   `json:"weekdays" binding:"required"`
 }

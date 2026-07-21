@@ -11,8 +11,8 @@ type UserProfile struct {
 }
 
 type UpdateProfileRequest struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	FirstName string `json:"firstName" binding:"required"`
+	LastName  string `json:"lastName" binding:"required"`
 	Bio       string `json:"bio"`
 	Timezone  string `json:"timezone"`
 	AvatarURL string `json:"avatarUrl"`

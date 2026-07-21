@@ -18,7 +18,7 @@ type EscalationRule struct {
 
 // TriggerRequest is the payload for triggering an escalation rule.
 type TriggerRequest struct {
-	Message string `json:"message"`
+	Message string `json:"message" binding:"required"`
 }
 
 // TriggerEvent is the persisted escalation event record.

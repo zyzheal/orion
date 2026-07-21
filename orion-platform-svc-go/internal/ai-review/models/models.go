@@ -19,8 +19,8 @@ type ReviewResponse struct {
 
 // CreateReviewRequest is the request body for creating a review.
 type CreateReviewRequest struct {
-	Content   string `json:"content"`
-	CreatedBy string `json:"created_by"`
+	Content   string `json:"content" binding:"required"`
+	CreatedBy string `json:"created_by" binding:"required"`
 }
 
 // ReviewResponseResult wraps the result of a review.

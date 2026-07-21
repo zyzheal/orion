@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Metric struct {
-	Name      string            `json:"name" db:"name"`
+	Name      string            `json:"name" db:"name" binding:"required"`
 	Value     float64           `json:"value" db:"value"`
 	Tags      map[string]string `json:"tags" db:"tags"`
 	Timestamp time.Time         `json:"timestamp" db:"timestamp"`
@@ -17,10 +17,10 @@ type Dashboard struct {
 
 type AlertRule struct {
 	ID        string  `json:"id" db:"id"`
-	Metric    string  `json:"metric" db:"metric"`
+	Metric    string  `json:"metric" db:"metric" binding:"required"`
 	Operator  string  `json:"operator" db:"operator"`
 	Threshold float64 `json:"threshold" db:"threshold"`
-	Severity  string  `json:"severity" db:"severity"`
+	Severity  string  `json:"severity" db:"severity" binding:"required"`
 	Enabled   bool    `json:"enabled" db:"enabled"`
 }
 

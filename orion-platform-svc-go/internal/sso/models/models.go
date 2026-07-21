@@ -10,8 +10,8 @@ import (
 type SSOProvider struct {
 	ID           string            `db:"id" json:"id"`
 	TenantID     string            `db:"tenant_id" json:"tenant_id"`
-	Name         string            `db:"name" json:"name"`
-	ProviderType string            `db:"provider_type" json:"provider_type"`
+	Name         string            `db:"name" json:"name" binding:"required"`
+	ProviderType string            `db:"provider_type" json:"provider_type" binding:"required"`
 	Config       map[string]string `db:"config" json:"config"`
 	Status       string            `db:"status" json:"status"`
 	CreatedAt    time.Time         `db:"created_at" json:"created_at"`
@@ -20,8 +20,8 @@ type SSOProvider struct {
 
 // SSOLoginRequest is the payload for initiating an SSO login.
 type SSOLoginRequest struct {
-	ProviderID  string `json:"provider_id"`
-	RedirectURL string `json:"redirect_url"`
+	ProviderID  string `json:"provider_id" binding:"required"`
+	RedirectURL string `json:"redirect_url" binding:"required"`
 }
 
 // SSOSession tracks an in-flight SSO login session.

@@ -17,16 +17,16 @@ type DisasterPlan struct {
 
 // CreateDisasterPlanRequest is the request body for creating a plan.
 type CreateDisasterPlanRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Steps       []string `json:"steps"`
+	Name        string   `json:"name" binding:"required"`
+	Description string   `json:"description" binding:"required"`
+	Steps       []string `json:"steps" binding:"required"`
 }
 
 // UpdateDisasterPlanRequest is the request body for updating a plan.
 type UpdateDisasterPlanRequest struct {
 	Name        *string  `json:"name"`
 	Description *string  `json:"description"`
-	Steps       []string `json:"steps"`
+	Steps       []string `json:"steps" binding:"required"`
 }
 
 // RecoveryRun represents one execution of a disaster plan.

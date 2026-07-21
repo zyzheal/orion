@@ -2,15 +2,15 @@ package models
 
 // PrivacyConfig holds per-tenant privacy settings.
 type PrivacyConfig struct {
-	ID                 string            `json:"id" db:"id"`
-	TenantID           string            `json:"tenant_id" db:"tenant_id"`
-	DataMask           string            `json:"dataMask" db:"data_mask"` // "enabled"|"disabled"
+	ID                 string            `json:"id" db:"id" binding:"required"`
+	TenantID           string            `json:"tenant_id" db:"tenant_id" binding:"required"`
+	DataMask           string            `json:"dataMask" db:"data_mask" binding:"required"` // "enabled"|"disabled"
 	RetentionDays      int               `json:"retentionDays" db:"retention_days"`
 	DataEncryption     bool              `json:"dataEncryption" db:"data_encryption"`
 	AnonymousStats     bool              `json:"anonymousStats" db:"anonymous_stats"`
 	CCPAEnabled        bool              `json:"ccpaEnabled" db:"ccpa_enabled"`
 	GDPRCompliance     bool              `json:"gdrpCompliance" db:"gdpr_compliance"`
-	UserDeletionPolicy string            `json:"userDeletionPolicy" db:"user_deletion_policy"` // "graceful"|"immediate"
+	UserDeletionPolicy string            `json:"userDeletionPolicy" db:"user_deletion_policy" binding:"required"` // "graceful"|"immediate"
 	Metadata           map[string]string `json:"metadata" db:"metadata"`
 }
 
