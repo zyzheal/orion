@@ -22,7 +22,7 @@ type Hub interface {
 	PublishLogEvent(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
 	PublishStatusEvent(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
 	GetStats() *models.SSEStats
-	ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 // Handler exposes HTTP handlers for pipeline SSE endpoints.
@@ -47,10 +47,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	f.GET("/status", auth.RequirePermission("pipeline", "read"), h.StreamStatus)
 
 	// POST /pipelines/sse/publish/log - Internal endpoint to publish log events
-	f.POST("/publish/log", h.PublishLog)
+	f.POST("/publish/log", auth.RequirePermission("pipeline", "write"), h.PublishLog)
 
 	// POST /pipelines/sse/publish/status - Internal endpoint to publish status events
-	f.POST("/publish/status", h.PublishStatus)
+	f.POST("/publish/status", auth.RequirePermission("pipeline", "write"), h.PublishStatus)
 
 	// GET /pipelines/sse/stats - Connection statistics
 	f.GET("/stats", auth.RequirePermission("pipeline", "read"), h.GetStats)
@@ -186,7 +186,11 @@ func (h *Handler) GetEvents(c *gin.Context) {
 		limit = 200
 	}
 
-	events, err := h.hub.ListEvents(ctx, pipelineID, runID, limit)
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = "00000000-0000-0000-0000-000000000000"
+	}
+	events, err := h.hub.ListEvents(ctx, tenantID, pipelineID, runID, limit)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

@@ -102,10 +102,13 @@ func (r *Repository) CreateTrafficRecord(ctx context.Context, in models.CreateTr
 	return record, nil
 }
 
-func (r *Repository) FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error) {
+func (r *Repository) FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error) {
 	var records []models.TrafficRecord
 	err := r.db.SelectContext(ctx, &records,
-		`SELECT * FROM digital_twin_traffic_records WHERE twin_id=$1 ORDER BY started_at DESC`, twinID)
+		`SELECT r.* FROM digital_twin_traffic_records r
+		 INNER JOIN digital_twins t ON r.twin_id = t.id
+		 WHERE r.twin_id=$1 AND t.tenant_id=$2
+		 ORDER BY r.started_at DESC`, twinID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,33 +138,38 @@ func (r *Repository) CreateReplaySession(ctx context.Context, in models.CreateRe
 	return session, nil
 }
 
-func (r *Repository) FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error) {
+func (r *Repository) FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error) {
 	var sessions []models.ReplaySession
 	err := r.db.SelectContext(ctx, &sessions,
-		`SELECT * FROM digital_twin_replay_sessions WHERE twin_id=$1 ORDER BY started_at DESC`, twinID)
+		`SELECT s.* FROM digital_twin_replay_sessions s
+		 INNER JOIN digital_twins t ON s.twin_id = t.id
+		 WHERE s.twin_id=$1 AND t.tenant_id=$2
+		 ORDER BY s.started_at DESC`, twinID, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return sessions, nil
 }
 
-func (r *Repository) FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error) {
+func (r *Repository) FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error) {
 	var s models.ReplaySession
 	err := r.db.GetContext(ctx, &s,
-		`SELECT * FROM digital_twin_replay_sessions WHERE id=$1`, id)
+		`SELECT s.* FROM digital_twin_replay_sessions s
+		 INNER JOIN digital_twins t ON s.twin_id = t.id
+		 WHERE s.id=$1 AND t.tenant_id=$2`, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	return &s, nil
 }
 
-func (r *Repository) UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error) {
+func (r *Repository) UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error) {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE digital_twin_replay_sessions SET status=$1, updated_at=NOW() WHERE id=$2`, status, id)
 	if err != nil {
 		return nil, err
 	}
-	return r.FindReplaySessionById(ctx, id)
+	return r.FindReplaySessionById(ctx, tenantID, id)
 }
 
 // --- Sentinel errors ---

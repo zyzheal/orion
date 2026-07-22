@@ -17,10 +17,10 @@ type ServiceInterface interface {
 	Create(ctx context.Context, tenantID string, req models.CreateDeploymentRequest) (*models.Deployment, error)
 	GenerateReleaseNotes(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
 	Get(ctx context.Context, tenantID, id string) (*models.Deployment, error)
-	GetAuditTrail(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
-	GetDeploymentChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	GetAuditTrail(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
+	GetDeploymentChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error)
 	GetLatest(ctx context.Context, tenantID, appName, environment string) (*models.Deployment, error)
-	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error)
 	GetReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
 	GetRollbackHistory(ctx context.Context, tenantID, id string) ([]models.Rollback, error)
 	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error

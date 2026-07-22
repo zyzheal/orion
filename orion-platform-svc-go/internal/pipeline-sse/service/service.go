@@ -19,7 +19,7 @@ import (
 type Repository interface {
 	CreateLogEvent(ctx context.Context, tenantID string, event *models.PublishLogRequest) error
 	CreateStatusEvent(ctx context.Context, tenantID string, event *models.PublishStatusRequest) error
-	ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 // SSEHub manages in-memory SSE connections and event broadcasting.
@@ -221,9 +221,9 @@ func (h *SSEHub) Shutdown() {
 }
 
 // ListEvents delegates to the repository for event replay.
-func (h *SSEHub) ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+func (h *SSEHub) ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 	if h.repo == nil {
 		return []map[string]interface{}{}, nil
 	}
-	return h.repo.ListEvents(ctx, pipelineID, runID, limit)
+	return h.repo.ListEvents(ctx, tenantID, pipelineID, runID, limit)
 }

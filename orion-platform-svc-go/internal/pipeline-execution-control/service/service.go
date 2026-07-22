@@ -19,7 +19,7 @@ type RepositoryInterface interface {
 	GetRunByID(ctx context.Context, id string, tenantID string) (*models.Run, error)
 	ListCheckpoints(ctx context.Context, runID string, tenantID string) ([]models.Checkpoint, error)
 	ListLogsByRunID(ctx context.Context, runID string, tenantID string) ([]models.ExecutionControlLog, error)
-	UpdateRunStatus(ctx context.Context, id string, tenantID string, status string) error
+	UpdateRunStatus(ctx context.Context, id string, tenantID, oldStatus, newStatus string) error
 }
 
 type Service struct {
@@ -53,7 +53,7 @@ func (s *Service) Pause(ctx context.Context, runID string, req *models.PauseRequ
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "paused"); err != nil {
+	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, run.Status, "paused"); err != nil {
 		return nil, err
 	}
 	return s.repo.GetRunByID(ctx, runID, tenantID)
@@ -82,7 +82,7 @@ func (s *Service) Resume(ctx context.Context, runID string, req *models.ResumeRe
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "running"); err != nil {
+	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "", "running"); err != nil {
 		return nil, err
 	}
 	return s.repo.GetRunByID(ctx, runID, tenantID)
@@ -115,7 +115,7 @@ func (s *Service) Abort(ctx context.Context, runID string, req *models.AbortRequ
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "aborted"); err != nil {
+	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "", "aborted"); err != nil {
 		return nil, err
 	}
 	return s.repo.GetRunByID(ctx, runID, tenantID)
@@ -149,7 +149,7 @@ func (s *Service) Retry(ctx context.Context, runID string, req *models.RetryRequ
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "running"); err != nil {
+	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "", "running"); err != nil {
 		return nil, err
 	}
 	return s.repo.GetRunByID(ctx, runID, tenantID)
@@ -175,7 +175,7 @@ func (s *Service) Restart(ctx context.Context, runID string, req *models.Restart
 	if err := s.repo.CreateLog(ctx, log); err != nil {
 		return nil, err
 	}
-	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "running"); err != nil {
+	if err := s.repo.UpdateRunStatus(ctx, runID, tenantID, "", "running"); err != nil {
 		return nil, err
 	}
 	return s.repo.GetRunByID(ctx, runID, tenantID)

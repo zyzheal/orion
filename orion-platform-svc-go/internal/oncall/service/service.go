@@ -13,23 +13,23 @@ import (
 
 // RepositoryInterface defines the repository methods used by the service.
 type RepositoryInterface interface {
-	CreateAssignment(ctx context.Context, a *models.Assignment) error
-	CreateOverride(ctx context.Context, o *models.Override) error
+	CreateAssignment(ctx context.Context, tenantID string, a *models.Assignment) error
+	CreateOverride(ctx context.Context, tenantID string, o *models.Override) error
 	CreateSchedule(ctx context.Context, s *models.Schedule) error
-	DeleteAssignment(ctx context.Context, id string) (bool, error)
-	DeleteOverride(ctx context.Context, id string) (bool, error)
-	DeleteSchedule(ctx context.Context, id string) (bool, error)
-	GetActiveOverrides(ctx context.Context, scheduleID string, now time.Time) ([]models.Override, error)
-	GetAssignment(ctx context.Context, id string) (*models.Assignment, error)
-	GetOverride(ctx context.Context, id string) (*models.Override, error)
-	GetSchedule(ctx context.Context, id string) (*models.Schedule, error)
-	GetScheduleAssignments(ctx context.Context, scheduleID string, now time.Time) ([]models.Assignment, error)
-	ListAssignments(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error)
-	ListOverrides(ctx context.Context, scheduleID *string) ([]models.Override, int, error)
+	DeleteAssignment(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteOverride(ctx context.Context, tenantID, id string) (bool, error)
+	DeleteSchedule(ctx context.Context, tenantID, id string) (bool, error)
+	GetActiveOverrides(ctx context.Context, tenantID, scheduleID string, now time.Time) ([]models.Override, error)
+	GetAssignment(ctx context.Context, tenantID, id string) (*models.Assignment, error)
+	GetOverride(ctx context.Context, tenantID, id string) (*models.Override, error)
+	GetSchedule(ctx context.Context, tenantID, id string) (*models.Schedule, error)
+	GetScheduleAssignments(ctx context.Context, tenantID, scheduleID string, now time.Time) ([]models.Assignment, error)
+	ListAssignments(ctx context.Context, tenantID string, scheduleID *string) ([]models.Assignment, int, error)
+	ListOverrides(ctx context.Context, tenantID string, scheduleID *string) ([]models.Override, int, error)
 	ListSchedules(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error)
-	UpdateAssignment(ctx context.Context, id string, updates map[string]interface{}) (*models.Assignment, error)
-	UpdateOverride(ctx context.Context, id string, updates map[string]interface{}) (*models.Override, error)
-	UpdateSchedule(ctx context.Context, id string, updates map[string]interface{}) (*models.Schedule, error)
+	UpdateAssignment(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Assignment, error)
+	UpdateOverride(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Override, error)
+	UpdateSchedule(ctx context.Context, tenantID, id string, updates map[string]interface{}) (*models.Schedule, error)
 }
 
 type Service struct {
@@ -77,15 +77,15 @@ func (s *Service) Create(ctx context.Context, tenantID string, req *models.Creat
 	return schedule, nil
 }
 
-func (s *Service) Get(ctx context.Context, id string) (*models.Schedule, error) {
-	return s.repo.GetSchedule(ctx, id)
+func (s *Service) Get(ctx context.Context, tenantID, id string) (*models.Schedule, error) {
+	return s.repo.GetSchedule(ctx, tenantID, id)
 }
 
 func (s *Service) List(ctx context.Context, tenantID string, status *string) ([]models.Schedule, int, error) {
 	return s.repo.ListSchedules(ctx, tenantID, status)
 }
 
-func (s *Service) Update(ctx context.Context, id string, req *models.UpdateScheduleRequest) (*models.Schedule, error) {
+func (s *Service) Update(ctx context.Context, tenantID, id string, req *models.UpdateScheduleRequest) (*models.Schedule, error) {
 	updates := map[string]interface{}{}
 	if req.Name != nil && *req.Name != "" {
 		updates["name"] = *req.Name
@@ -114,16 +114,16 @@ func (s *Service) Update(ctx context.Context, id string, req *models.UpdateSched
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
-	return s.repo.UpdateSchedule(ctx, id, updates)
+	return s.repo.UpdateSchedule(ctx, tenantID, id, updates)
 }
 
-func (s *Service) Delete(ctx context.Context, id string) (bool, error) {
-	return s.repo.DeleteSchedule(ctx, id)
+func (s *Service) Delete(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.DeleteSchedule(ctx, tenantID, id)
 }
 
 // --- Assignment CRUD ---
 
-func (s *Service) CreateAssignment(ctx context.Context, req *models.CreateAssignmentRequest) (*models.Assignment, error) {
+func (s *Service) CreateAssignment(ctx context.Context, tenantID string, req *models.CreateAssignmentRequest) (*models.Assignment, error) {
 	startTime, err := time.Parse("2006-01-02T15:04:05Z", req.StartTime)
 	if err != nil {
 		return nil, err
@@ -143,21 +143,21 @@ func (s *Service) CreateAssignment(ctx context.Context, req *models.CreateAssign
 	if req.Role != "" {
 		assignment.Role = req.Role
 	}
-	if err := s.repo.CreateAssignment(ctx, assignment); err != nil {
+	if err := s.repo.CreateAssignment(ctx, tenantID, assignment); err != nil {
 		return nil, err
 	}
 	return assignment, nil
 }
 
-func (s *Service) GetAssignment(ctx context.Context, id string) (*models.Assignment, error) {
-	return s.repo.GetAssignment(ctx, id)
+func (s *Service) GetAssignment(ctx context.Context, tenantID, id string) (*models.Assignment, error) {
+	return s.repo.GetAssignment(ctx, tenantID, id)
 }
 
-func (s *Service) ListAssignments(ctx context.Context, scheduleID *string) ([]models.Assignment, int, error) {
-	return s.repo.ListAssignments(ctx, scheduleID)
+func (s *Service) ListAssignments(ctx context.Context, tenantID string, scheduleID *string) ([]models.Assignment, int, error) {
+	return s.repo.ListAssignments(ctx, tenantID, scheduleID)
 }
 
-func (s *Service) UpdateAssignment(ctx context.Context, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error) {
+func (s *Service) UpdateAssignment(ctx context.Context, tenantID, id string, req *models.UpdateAssignmentRequest) (*models.Assignment, error) {
 	updates := map[string]interface{}{}
 	if req.AssigneeID != nil && *req.AssigneeID != "" {
 		updates["assignee_id"] = *req.AssigneeID
@@ -183,16 +183,16 @@ func (s *Service) UpdateAssignment(ctx context.Context, id string, req *models.U
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
-	return s.repo.UpdateAssignment(ctx, id, updates)
+	return s.repo.UpdateAssignment(ctx, tenantID, id, updates)
 }
 
-func (s *Service) DeleteAssignment(ctx context.Context, id string) (bool, error) {
-	return s.repo.DeleteAssignment(ctx, id)
+func (s *Service) DeleteAssignment(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.DeleteAssignment(ctx, tenantID, id)
 }
 
 // --- Override CRUD ---
 
-func (s *Service) CreateOverride(ctx context.Context, req *models.CreateOverrideRequest) (*models.Override, error) {
+func (s *Service) CreateOverride(ctx context.Context, tenantID string, req *models.CreateOverrideRequest) (*models.Override, error) {
 	startTime, err := time.Parse("2006-01-02T15:04:05Z", req.StartTime)
 	if err != nil {
 		return nil, err
@@ -209,21 +209,21 @@ func (s *Service) CreateOverride(ctx context.Context, req *models.CreateOverride
 		StartTime:    startTime,
 		EndTime:      endTime,
 	}
-	if err := s.repo.CreateOverride(ctx, override); err != nil {
+	if err := s.repo.CreateOverride(ctx, tenantID, override); err != nil {
 		return nil, err
 	}
 	return override, nil
 }
 
-func (s *Service) GetOverride(ctx context.Context, id string) (*models.Override, error) {
-	return s.repo.GetOverride(ctx, id)
+func (s *Service) GetOverride(ctx context.Context, tenantID, id string) (*models.Override, error) {
+	return s.repo.GetOverride(ctx, tenantID, id)
 }
 
-func (s *Service) ListOverrides(ctx context.Context, scheduleID *string) ([]models.Override, int, error) {
-	return s.repo.ListOverrides(ctx, scheduleID)
+func (s *Service) ListOverrides(ctx context.Context, tenantID string, scheduleID *string) ([]models.Override, int, error) {
+	return s.repo.ListOverrides(ctx, tenantID, scheduleID)
 }
 
-func (s *Service) UpdateOverride(ctx context.Context, id string, req *models.UpdateOverrideRequest) (*models.Override, error) {
+func (s *Service) UpdateOverride(ctx context.Context, tenantID, id string, req *models.UpdateOverrideRequest) (*models.Override, error) {
 	updates := map[string]interface{}{}
 	if req.AssigneeID != nil && *req.AssigneeID != "" {
 		updates["assignee_id"] = *req.AssigneeID
@@ -249,20 +249,20 @@ func (s *Service) UpdateOverride(ctx context.Context, id string, req *models.Upd
 	if len(updates) == 0 {
 		return nil, errors.New("no fields to update")
 	}
-	return s.repo.UpdateOverride(ctx, id, updates)
+	return s.repo.UpdateOverride(ctx, tenantID, id, updates)
 }
 
-func (s *Service) DeleteOverride(ctx context.Context, id string) (bool, error) {
-	return s.repo.DeleteOverride(ctx, id)
+func (s *Service) DeleteOverride(ctx context.Context, tenantID, id string) (bool, error) {
+	return s.repo.DeleteOverride(ctx, tenantID, id)
 }
 
 // --- On-Call Now ---
 
-func (s *Service) GetOnCallNow(ctx context.Context, scheduleID string) (*models.CurrentOnCallResult, error) {
+func (s *Service) GetOnCallNow(ctx context.Context, tenantID, scheduleID string) (*models.CurrentOnCallResult, error) {
 	now := time.Now().UTC()
 
 	// Check overrides first (they take precedence)
-	overrides, err := s.repo.GetActiveOverrides(ctx, scheduleID, now)
+	overrides, err := s.repo.GetActiveOverrides(ctx, tenantID, scheduleID, now)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +279,7 @@ func (s *Service) GetOnCallNow(ctx context.Context, scheduleID string) (*models.
 	}
 
 	// Fall back to regular assignments
-	assignments, err := s.repo.GetScheduleAssignments(ctx, scheduleID, now)
+	assignments, err := s.repo.GetScheduleAssignments(ctx, tenantID, scheduleID, now)
 	if err != nil {
 		return nil, err
 	}

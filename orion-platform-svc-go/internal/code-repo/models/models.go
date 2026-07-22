@@ -5,6 +5,7 @@ import "time"
 // CodeRepoAdapter represents a source control adapter (GitHub, GitLab, etc.).
 type CodeRepoAdapter struct {
 	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	Name      string    `json:"name" db:"name"`
 	Type      string    `json:"type" db:"type"`     // github, gitlab, bitbucket
 	Status    string    `json:"status" db:"status"` // active, inactive
@@ -14,6 +15,7 @@ type CodeRepoAdapter struct {
 // CodeRepo represents a repository linked through an adapter.
 type CodeRepo struct {
 	AdapterID     string    `json:"adapter_id" db:"adapter_id"`
+	TenantID      string    `json:"tenant_id" db:"tenant_id"`
 	RepoID        string    `json:"repo_id" db:"repo_id"`
 	Name          string    `json:"name" db:"name"`
 	FullName      string    `json:"full_name" db:"full_name"`
@@ -25,6 +27,7 @@ type CodeRepo struct {
 
 // Branch represents a git branch.
 type Branch struct {
+	TenantID    string `json:"tenant_id" db:"tenant_id"`
 	Name        string `json:"name" db:"name"`
 	Default     bool   `json:"default" db:"default"`
 	CommitSHA   string `json:"commit_sha" db:"commit_sha"`
@@ -39,6 +42,7 @@ type CreateBranchRequest struct {
 // PullRequest represents a merge request / pull request.
 type PullRequest struct {
 	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	Title     string    `json:"title" db:"title"`
 	Body      string    `json:"body" db:"body"`
 	State     string    `json:"state" db:"state"` // open, closed, merged
@@ -75,6 +79,7 @@ type MergeOptions struct {
 // Review represents a PR review.
 type Review struct {
 	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	PRID      string    `json:"pr_id" db:"pr_id"`
 	UserID    string    `json:"user_id" db:"user_id"`
 	Username  string    `json:"username" db:"username"`

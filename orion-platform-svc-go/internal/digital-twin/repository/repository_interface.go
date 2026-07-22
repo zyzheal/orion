@@ -14,11 +14,11 @@ type RepositoryInterface interface {
 	FindAllTwins(ctx context.Context, tenantID string) ([]models.DigitalTwin, error)
 	CreateSnapshot(ctx context.Context, twinID, name string) (*models.Snapshot, error)
 	CreateTrafficRecord(ctx context.Context, in models.CreateTrafficRecordInput) (*models.TrafficRecord, error)
-	FindTrafficRecordsByTwinID(ctx context.Context, twinID string) ([]models.TrafficRecord, error)
+	FindTrafficRecordsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.TrafficRecord, error)
 	CreateReplaySession(ctx context.Context, in models.CreateReplaySessionInput) (*models.ReplaySession, error)
-	FindReplaySessionsByTwinID(ctx context.Context, twinID string) ([]models.ReplaySession, error)
-	FindReplaySessionById(ctx context.Context, id string) (*models.ReplaySession, error)
-	UpdateReplaySession(ctx context.Context, id, status string) (*models.ReplaySession, error)
+	FindReplaySessionsByTwinID(ctx context.Context, tenantID, twinID string) ([]models.ReplaySession, error)
+	FindReplaySessionById(ctx context.Context, tenantID, id string) (*models.ReplaySession, error)
+	UpdateReplaySession(ctx context.Context, tenantID, id, status string) (*models.ReplaySession, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

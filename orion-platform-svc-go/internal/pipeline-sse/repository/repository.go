@@ -68,16 +68,16 @@ func (r *Repository) CreateStatusEvent(ctx context.Context, tenantID string, eve
 }
 
 // ListEvents retrieves persisted SSE events for a given pipeline run, ordered by creation time.
-func (r *Repository) ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
+func (r *Repository) ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
 	rows, err := r.db.QueryxContext(ctx,
 		`SELECT id, tenant_id, pipeline_id, run_id, event_type, status, stage_id, stage_name, step_name, log_line, level, progress, created_at
 		 FROM pipeline_sse_events
-		 WHERE pipeline_id = $1 AND run_id = $2
+		 WHERE tenant_id = $1 AND pipeline_id = $2 AND run_id = $3
 		 ORDER BY created_at ASC
-		 LIMIT $3`, pipelineID, runID, limit)
+		 LIMIT $4`, tenantID, pipelineID, runID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func (r *Repository) ListEvents(ctx context.Context, pipelineID, runID string, l
 }
 
 // DeleteEventsByRun removes all events for a given pipeline run.
-func (r *Repository) DeleteEventsByRun(ctx context.Context, pipelineID, runID string) error {
+func (r *Repository) DeleteEventsByRun(ctx context.Context, tenantID, pipelineID, runID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM pipeline_sse_events WHERE pipeline_id = $1 AND run_id = $2`,
-		pipelineID, runID)
+		`DELETE FROM pipeline_sse_events WHERE tenant_id = $1 AND pipeline_id = $2 AND run_id = $3`,
+		tenantID, pipelineID, runID)
 	return err
 }

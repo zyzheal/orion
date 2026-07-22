@@ -23,12 +23,12 @@ type Service interface {
 	Rollback(ctx context.Context, tenantID, id string, targetVersion, reason string) (*models.Rollback, error)
 	GetRollbackHistory(ctx context.Context, tenantID, id string) ([]models.Rollback, error)
 	Cancel(ctx context.Context, tenantID, id string) error
-	GetAuditTrail(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
-	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	GetAuditTrail(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
+	GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error)
 	GenerateReleaseNotes(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
 	GetReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
 	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error
-	GetDeploymentChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	GetDeploymentChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error)
 }
 
 type Handler struct {
@@ -217,8 +217,9 @@ func (h *Handler) Cancel(c *gin.Context) {
 func (h *Handler) GetAuditTrail(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetAuditTrail")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
-	entries, err := h.svc.GetAuditTrail(ctx, deploymentID)
+	entries, err := h.svc.GetAuditTrail(ctx, tenantID, deploymentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return
@@ -230,8 +231,9 @@ func (h *Handler) GetAuditTrail(c *gin.Context) {
 func (h *Handler) GetReleaseNotes(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetReleaseNotes")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
-	note, err := h.svc.GetReleaseNotes(ctx, deploymentID)
+	note, err := h.svc.GetReleaseNotes(ctx, tenantID, deploymentID)
 	if err != nil {
 		middleware.RespondNotFound(c, "release notes not found")
 		return
@@ -292,8 +294,9 @@ func (h *Handler) LinkGitCommit(c *gin.Context) {
 func (h *Handler) GetChangelog(c *gin.Context) {
 	ctx, span := otel.Tracer("orion-platform-svc").Start(c.Request.Context(), "GetChangelog")
 	defer span.End()
+	tenantID := c.GetString("tenant_id")
 	deploymentID := c.Param("id")
-	entries, err := h.svc.GetDeploymentChangelog(ctx, deploymentID)
+	entries, err := h.svc.GetDeploymentChangelog(ctx, tenantID, deploymentID)
 	if err != nil {
 		middleware.RespondInternalError(c, err.Error())
 		return

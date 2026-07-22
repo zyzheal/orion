@@ -90,11 +90,12 @@ func (r *Repository) GetRunByID(ctx context.Context, id string, tenantID string)
 	return &run, nil
 }
 
-func (r *Repository) UpdateRunStatus(ctx context.Context, id string, tenantID string, status string) error {
+func (r *Repository) UpdateRunStatus(ctx context.Context, id string, tenantID, oldStatus, newStatus string) error {
 	now := time.Now().UTC()
 	result, err := r.db.ExecContext(ctx,
-		`UPDATE pipeline_runs SET status=$1, updated_at=$2 WHERE id=$3 AND tenant_id=$4`,
-		status, now, id, tenantID)
+		`UPDATE pipeline_runs SET status=$1, updated_at=$2
+		 WHERE id=$3 AND tenant_id=$4 AND status=$5`,
+		newStatus, now, id, tenantID, oldStatus)
 	if err != nil {
 		return err
 	}

@@ -23,7 +23,7 @@ type ServiceInterface interface {
 	StreamStatusEvents(c *gin.Context, connID string)
 	GetStats() *models.SSEStats
 	Shutdown()
-	ListEvents(ctx context.Context, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
+	ListEvents(ctx context.Context, tenantID, pipelineID, runID string, limit int) ([]map[string]interface{}, error)
 }
 
 // Ensure compile-time safety: *SSEHub implements ServiceInterface.

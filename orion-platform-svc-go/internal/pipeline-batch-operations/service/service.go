@@ -6,11 +6,11 @@ package service
 import (
 	"context"
 	"errors"
+	"orion/platform-svc-go/internal/pipeline-batch-operations/models"
+	pipeline_models "orion/platform-svc-go/internal/pipeline/models"
 	"fmt"
-	"log"
 
 	"orion/go-common/pkg/sentinel"
-	"orion/platform-svc-go/internal/pipeline-batch-operations/models"
 )
 
 // RepositoryInterface defines the repository methods used by the service.
@@ -21,16 +21,27 @@ type RepositoryInterface interface {
 	RecordBatchStop(ctx context.Context, req *models.BatchStopRequest, tenantID string) (string, error)
 }
 
+// PipelineServiceInterface defines the pipeline service methods used by the batch operations service.
+type PipelineServiceInterface interface {
+	StartRun(ctx context.Context, tenantID, id string) (*pipeline_models.PipelineRunResult, error)
+	StopRun(ctx context.Context, tenantID, runID string) error
+	DeletePipeline(ctx context.Context, tenantID, id string) (bool, error)
+}
+
 // MaxBatchSize is the maximum number of items allowed in a batch operation.
 const MaxBatchSize = 50
 
 // Service coordinates batch pipeline operations.
 type Service struct {
-	repo RepositoryInterface
+	repo            RepositoryInterface
+	pipelineService PipelineServiceInterface
 }
 
-func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+func NewService(repo RepositoryInterface, pipelineService PipelineServiceInterface) *Service {
+	return &Service{
+		repo:            repo,
+		pipelineService: pipelineService,
+	}
 }
 
 // BatchStart starts a batch of pipelines.
@@ -44,9 +55,26 @@ func (s *Service) BatchStart(ctx context.Context, req *models.BatchStartRequest,
 		return nil, err
 	}
 
-	results := s.simulateOperations(req.PipelineIDs, func(_ string) (string, *string) {
-		return "started", nil
-	})
+	results := make([]models.BatchOperationResult, len(req.PipelineIDs))
+	for i, id := range req.PipelineIDs {
+		result, err := s.pipelineService.StartRun(ctx, tenantID, id)
+		if err != nil {
+			results[i] = models.BatchOperationResult{
+				ID:     id,
+				Status: "error",
+				Error:  strPtr(err.Error()),
+			}
+		} else {
+			status := "started"
+			if result != nil && result.Status != "" {
+				status = result.Status
+			}
+			results[i] = models.BatchOperationResult{
+				ID:     id,
+				Status: status,
+			}
+		}
+	}
 
 	_ = s.repo.FinalizeOperationRequest(ctx, opID, tenantID)
 
@@ -64,7 +92,22 @@ func (s *Service) BatchStop(ctx context.Context, req *models.BatchStopRequest, t
 		return nil, err
 	}
 
-	results := s.simulateStopOperations(req.ExecutionIDs)
+	results := make([]models.BatchOperationResult, len(req.ExecutionIDs))
+	for i, id := range req.ExecutionIDs {
+		err := s.pipelineService.StopRun(ctx, tenantID, id)
+		if err != nil {
+			results[i] = models.BatchOperationResult{
+				ID:     id,
+				Status: "error",
+				Error:  strPtr(err.Error()),
+			}
+		} else {
+			results[i] = models.BatchOperationResult{
+				ID:     id,
+				Status: "stopped",
+			}
+		}
+	}
 
 	_ = s.repo.FinalizeOperationRequest(ctx, "", tenantID)
 
@@ -82,7 +125,24 @@ func (s *Service) BatchDelete(ctx context.Context, req *models.BatchDeleteReques
 		return nil, err
 	}
 
-	results := s.simulateDeleteOperations(req.PipelineIDs)
+	results := make([]models.BatchOperationResult, len(req.PipelineIDs))
+	for i, id := range req.PipelineIDs {
+		deleted, err := s.pipelineService.DeletePipeline(ctx, tenantID, id)
+		if err != nil {
+			results[i] = models.BatchOperationResult{
+				ID:      id,
+				Status:  "error",
+				Error:   strPtr(err.Error()),
+				Deleted: &deleted,
+			}
+		} else {
+			results[i] = models.BatchOperationResult{
+				ID:      id,
+				Status:  "deleted",
+				Deleted: &deleted,
+			}
+		}
+	}
 
 	_ = s.repo.FinalizeOperationRequest(ctx, "", tenantID)
 
@@ -105,67 +165,12 @@ func validateBatch(ids []string, entityType string) error {
 	return nil
 }
 
-// simulateOperations simulates starting pipelines by returning a success status for each.
-// TODO: Replace with actual downstream pipeline service calls.
-func (s *Service) simulateOperations(ids []string, statusFn func(string) (string, *string)) []models.BatchOperationResult {
-	log.Println("[WARNING] pipeline-batch-operations: simulateOperations is a simulation, not calling actual downstream services")
-	results := make([]models.BatchOperationResult, len(ids))
-	for i, id := range ids {
-		status, err := statusFn(id)
-		results[i] = models.BatchOperationResult{
-			ID:     id,
-			Status: status,
-			Error:  err,
-		}
-	}
-	return results
-}
-
-// simulateStopOperations simulates stopping pipeline runs, marking some as skipped.
-// TODO: Replace with actual downstream pipeline execution service calls.
-func (s *Service) simulateStopOperations(executionIDs []string) []models.BatchOperationResult {
-	log.Println("[WARNING] pipeline-batch-operations: simulateStopOperations is a simulation, not calling actual downstream services")
-	results := make([]models.BatchOperationResult, len(executionIDs))
-	for i, id := range executionIDs {
-		// Simulate: odd-indexed items are skipped (already stopped)
-		if i%2 == 1 {
-			results[i] = models.BatchOperationResult{
-				ID:     id,
-				Status: "skipped",
-				Error:  strPtr("already stopped"),
-			}
-		} else {
-			results[i] = models.BatchOperationResult{
-				ID:     id,
-				Status: "stopped",
-			}
-		}
-	}
-	return results
-}
-
-// simulateDeleteOperations simulates deleting pipelines.
-// TODO: Replace with actual downstream pipeline service calls.
-func (s *Service) simulateDeleteOperations(pipelineIDs []string) []models.BatchOperationResult {
-	log.Println("[WARNING] pipeline-batch-operations: simulateDeleteOperations is a simulation, not calling actual downstream services")
-	results := make([]models.BatchOperationResult, len(pipelineIDs))
-	for i, id := range pipelineIDs {
-		deleted := true
-		results[i] = models.BatchOperationResult{
-			ID:      id,
-			Status:  "deleted",
-			Deleted: &deleted,
-		}
-	}
-	return results
-}
-
 // buildResponse builds a BatchOperationResponse from results.
 func buildResponse(results []models.BatchOperationResult, ids []string) *models.BatchOperationResponse {
 	succeeded := 0
 	failed := 0
 	for _, r := range results {
-		if r.Status == "started" {
+		if r.Status == "started" || r.Status == "deleted" {
 			succeeded++
 		} else {
 			failed++
@@ -191,6 +196,7 @@ func buildStopResponse(results []models.BatchOperationResult, ids []string) *mod
 		case "skipped":
 			skipped++
 		default:
+			// "error" and any unknown status are counted as failed
 			failed++
 		}
 	}

@@ -19,12 +19,12 @@ type RepositoryInterface interface {
 	CreateRollback(ctx context.Context, tenantID, deploymentID, fromVersion, toVersion, reason string) (*models.Rollback, error)
 	ListRollbacks(ctx context.Context, tenantID, deploymentID string) ([]models.Rollback, error)
 	CreateAuditEntry(ctx context.Context, deploymentID, action, userID, details string) error
-	ListAuditEntries(ctx context.Context, deploymentID string) ([]models.AuditEntry, error)
+	ListAuditEntries(ctx context.Context, tenantID, deploymentID string) ([]models.AuditEntry, error)
 	CreateReleaseNote(ctx context.Context, tenantID, deploymentID, content string) (*models.ReleaseNote, error)
-	GetReleaseNotes(ctx context.Context, deploymentID string) (*models.ReleaseNote, error)
+	GetReleaseNotes(ctx context.Context, tenantID, deploymentID string) (*models.ReleaseNote, error)
 	ListReleaseNotesByTenant(ctx context.Context, tenantID string) ([]models.ReleaseNote, error)
 	LinkGitCommit(ctx context.Context, deploymentID, commitSHA, branch string) error
-	ListChangelog(ctx context.Context, deploymentID string) ([]models.GitChangelogEntry, error)
+	ListChangelog(ctx context.Context, tenantID, deploymentID string) ([]models.GitChangelogEntry, error)
 }
 
 // Ensure Repository implements RepositoryInterface.

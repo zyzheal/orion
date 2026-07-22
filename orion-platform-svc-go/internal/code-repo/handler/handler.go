@@ -28,7 +28,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 	// --- Adapters ---
 	// GET /code-repo/adapters
-	cr.GET("/adapters", h.ListAdapters)
+	cr.GET("/adapters", auth.RequirePermission("code_repo", "read"), h.ListAdapters)
 
 	// --- Repositories ---
 	// GET /code-repo/:adapterId/repos

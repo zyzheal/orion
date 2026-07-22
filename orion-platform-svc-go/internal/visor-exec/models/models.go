@@ -6,6 +6,7 @@ import "time"
 
 type CommandLog struct {
 	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	Command   string    `json:"command" db:"command"`
 	HostIDs   string    `json:"host_ids" db:"host_ids"`
 	HostCount int       `json:"host_count" db:"host_count"`
@@ -28,6 +29,7 @@ type CommandLogDetail struct {
 
 type Template struct {
 	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenant_id" db:"tenant_id"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
 	Content     string    `json:"content" db:"content"`
@@ -54,6 +56,7 @@ type UpdateTemplateRequest struct {
 
 type CronJob struct {
 	ID             string     `json:"id" db:"id"`
+	TenantID       string     `json:"tenant_id" db:"tenant_id"`
 	Name           string     `json:"name" db:"name"`
 	Command        string     `json:"command" db:"command"`
 	HostIDs        string     `json:"host_ids" db:"host_ids"`
@@ -89,6 +92,7 @@ type ToggleCronJobRequest struct {
 
 type CronJobLog struct {
 	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenant_id" db:"tenant_id"`
 	JobID     string    `json:"job_id" db:"job_id"`
 	CommandID string    `json:"command_id" db:"command_id"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`

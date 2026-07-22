@@ -22,7 +22,7 @@ type RepositoryInterface interface {
 	DeleteDocument(ctx context.Context, tenantID, id string) error
 	IncrementViews(ctx context.Context, tenantID, id string) error
 	CreateDocumentVersion(ctx context.Context, v *models.DocumentVersion) error
-	GetDocumentVersions(ctx context.Context, documentID string) ([]models.DocumentVersion, error)
+	GetDocumentVersions(ctx context.Context, tenantID, documentID string) ([]models.DocumentVersion, error)
 	GetDocumentStats(ctx context.Context, tenantID string) (*models.DocumentStats, error)
 	GetCategories(ctx context.Context, tenantID string) ([]models.CategoryInfo, error)
 	GetPopularDocuments(ctx context.Context, tenantID string) ([]models.PortalDocument, error)

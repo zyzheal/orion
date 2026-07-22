@@ -134,9 +134,9 @@ func (r *Repository) CreateDocumentVersion(ctx context.Context, v *models.Docume
 	return err
 }
 
-func (r *Repository) GetDocumentVersions(ctx context.Context, documentID string) ([]models.DocumentVersion, error) {
+func (r *Repository) GetDocumentVersions(ctx context.Context, tenantID, documentID string) ([]models.DocumentVersion, error) {
 	var versions []models.DocumentVersion
-	err := r.db.SelectContext(ctx, &versions, `SELECT * FROM portal_document_versions WHERE document_id=$1 ORDER BY created_at DESC`, documentID)
+	err := r.db.SelectContext(ctx, &versions, `SELECT v.* FROM portal_document_versions v INNER JOIN portal_documents d ON d.id = v.document_id WHERE v.document_id=$1 AND d.tenant_id=$2 ORDER BY v.created_at DESC`, documentID, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -472,12 +472,12 @@ func (r *Repository) GetUsageRecords(ctx context.Context, tenantID, subscription
 	}
 	offset := filter.Page * pageSize
 	var records []models.UsageRecord
-	err := r.db.SelectContext(ctx, &records, `SELECT * FROM dev_portal_usage_records WHERE subscription_id=$1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, subscriptionID, pageSize, offset)
+	err := r.db.SelectContext(ctx, &records, `SELECT u.* FROM dev_portal_usage_records u INNER JOIN dev_portal_subscriptions s ON s.id = u.subscription_id WHERE u.subscription_id=$1 AND s.tenant_id=$2 ORDER BY u.created_at DESC LIMIT $3 OFFSET $4`, subscriptionID, tenantID, pageSize, offset)
 	if err != nil {
 		return nil, 0, err
 	}
 	var total int
-	err = r.db.GetContext(ctx, &total, `SELECT count(*) FROM dev_portal_usage_records WHERE subscription_id=$1`, subscriptionID)
+	err = r.db.GetContext(ctx, &total, `SELECT count(*) FROM dev_portal_usage_records u INNER JOIN dev_portal_subscriptions s ON s.id = u.subscription_id WHERE u.subscription_id=$1 AND s.tenant_id=$2`, subscriptionID, tenantID)
 	if err != nil {
 		return nil, 0, err
 	}
