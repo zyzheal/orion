@@ -2,6 +2,9 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -148,6 +151,86 @@ func (r *Repository) List(ctx context.Context, tenantID string, q models.ListQue
 	return &models.TenantListResponse{Tenants: items, Total: total}, nil
 }
 
+// --- Quota ---
+
+func (r *Repository) GetQuota(ctx context.Context, tenantID, tenantKey string) (*models.TenantQuota, error) {
+	var quotaJSON sql.NullString
+	err := r.db.GetContext(ctx, &quotaJSON,
+		`SELECT quota_status FROM tenants WHERE id=$1 AND tenant_id=$2`, tenantKey, tenantID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, sql.ErrNoRows
+		}
+		return nil, fmt.Errorf("tenant-gateway get quota: %w", err)
+	}
+	if !quotaJSON.Valid || quotaJSON.String == "" {
+		return nil, sql.ErrNoRows
+	}
+	var quota models.TenantQuota
+	if err := json.Unmarshal([]byte(quotaJSON.String), &quota); err != nil {
+		return nil, fmt.Errorf("tenant-gateway unmarshal quota: %w", err)
+	}
+	return &quota, nil
+}
+
+func (r *Repository) CreateQuota(ctx context.Context, tenantID, tenantKey string, quota *models.TenantQuota) error {
+	quotaJSON, err := json.Marshal(quota)
+	if err != nil {
+		return fmt.Errorf("tenant-gateway marshal quota: %w", err)
+	}
+	result, err := r.db.ExecContext(ctx,
+		`UPDATE tenants SET quota_status=$1, updated_at=$2
+		WHERE id=$3 AND tenant_id=$4`,
+		quotaJSON, time.Now().Unix(), tenantKey, tenantID)
+	if err != nil {
+		return fmt.Errorf("tenant-gateway create quota: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("tenant-gateway create quota rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("tenant-gateway create quota: tenant %q not found", tenantKey)
+	}
+	return nil
+}
+
+func (r *Repository) UpdateQuota(ctx context.Context, tenantID, tenantKey string, updates map[string]interface{}) error {
+	// Read current quota first.
+	existing, err := r.GetQuota(ctx, tenantID, tenantKey)
+	if err != nil {
+		return err
+	}
+	// Apply updates.
+	for k, v := range updates {
+		switch k {
+		case "requests_per_minute":
+			if val, ok := v.(int); ok {
+				existing.RequestsPerMinute = val
+			}
+		case "max_storage_gb":
+			if val, ok := v.(int); ok {
+				existing.MaxStorageGB = val
+			}
+		case "max_agents":
+			if val, ok := v.(int); ok {
+				existing.MaxAgents = val
+			}
+		case "max_deployments":
+			if val, ok := v.(int); ok {
+				existing.MaxDeployments = val
+			}
+		case "cpu_limit":
+			if val, ok := v.(int); ok {
+				existing.CPULimit = val
+			}
+		}
+	}
+	return r.CreateQuota(ctx, tenantID, tenantKey, existing)
+}
+
+// --- helpers ---
+
 func (r *Repository) listRows(ctx context.Context, tenantID string, q models.ListQuery) ([]models.Tenant, error) {
 	sql, args := buildListSQL(tenantID, q)
 	var items []models.Tenant
@@ -180,6 +263,7 @@ func buildListWhere(tenantID string, q models.ListQuery) (string, []interface{})
 		base += fmt.Sprintf(" AND status=$%d", pos)
 	}
 	if q.Tier != nil && string(*q.Tier) != "" {
+		_ = pos
 		pos++
 		args = append(args, string(*q.Tier))
 		base += fmt.Sprintf(" AND tier=$%d", pos)

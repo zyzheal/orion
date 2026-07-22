@@ -99,3 +99,82 @@ type FixVulnerabilityResult struct {
 	Status        string   `json:"status"`    // ok|partial|unavailable
 	Message       string   `json:"message"`
 }
+
+// ---- AI Security engine: policies, audit, blocks, risk ----
+
+// SecurityPolicy represents an AI security policy enforced by the engine.
+type SecurityPolicy struct {
+	ID          string    `json:"id" db:"id"`
+	TenantID    string    `json:"tenantId" db:"tenant_id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description" db:"description"`
+	Severity    string    `json:"severity" db:"severity"` // low|medium|high|critical
+	Actions     []string  `json:"actions" db:"-"`         // JSONB list of action strings
+	Enabled     bool      `json:"enabled" db:"enabled"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+}
+
+// CreatePolicyRequest is the input for creating a new security policy.
+type CreatePolicyRequest struct {
+	Name        string                 `json:"name" binding:"required"`
+	Description string                 `json:"description"`
+	Severity    string                 `json:"severity" binding:"required"` // low|medium|high|critical
+	Actions     []string               `json:"actions"`
+	Config      map[string]interface{} `json:"config"`
+}
+
+// AuditLog represents a security audit event.
+type AuditLog struct {
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenantId" db:"tenant_id"`
+	EventType string    `json:"eventType" db:"event_type"`
+	Actor     string    `json:"actor" db:"actor"`
+	Resource  string    `json:"resource" db:"resource"`
+	Action    string    `json:"action" db:"action"`
+	Timestamp time.Time `json:"timestamp" db:"timestamp"`
+	Metadata  string    `json:"metadata" db:"metadata"` // JSONB serialized
+}
+
+// AuditLogFilter holds query filters for audit log retrieval.
+type AuditLogFilter struct {
+	EventType  string `json:"eventType" query:"event_type"`
+	Actor      string `json:"actor" query:"actor"`
+	From       string `json:"from" query:"from"`     // RFC3339 timestamp
+	To         string `json:"to" query:"to"`         // RFC3339 timestamp
+}
+
+// BlockRecord represents an access block entry.
+type BlockRecord struct {
+	ID        string    `json:"id" db:"id"`
+	TenantID  string    `json:"tenantId" db:"tenant_id"`
+	Target    string    `json:"target" db:"target"`    // user / IP / agent identifier
+	Reason    string    `json:"reason" db:"reason"`
+	BlockedBy string    `json:"blockedBy" db:"blocked_by"`
+	Active    bool      `json:"active" db:"active"`
+	ExpiresAt *time.Time `json:"expiresAt" db:"expires_at"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+}
+
+// BlockRequest is the input for creating a block.
+type BlockRequest struct {
+	Target    string     `json:"target" binding:"required"` // user / IP / agent
+	Reason    string     `json:"reason" binding:"required"`
+	BlockedBy string     `json:"blockedBy"`                // empty = system
+	ExpiresAt *time.Time `json:"expiresAt"`                // nil = no expiry
+}
+
+// RiskScoreResult is the output of the risk scoring engine.
+type RiskScoreResult struct {
+	Target  string   `json:"target"`
+	Score   int      `json:"score"`   // 0-100
+	Level   string   `json:"level"`   // low|medium|high|critical
+	Factors []string `json:"factors"` // risk factors contributing to the score
+}
+
+// isExpired reports whether a BlockRecord is past its optional expiry.
+func (b *BlockRecord) isExpired() bool {
+	if b.ExpiresAt == nil {
+		return false
+	}
+	return time.Now().After(*b.ExpiresAt)
+}

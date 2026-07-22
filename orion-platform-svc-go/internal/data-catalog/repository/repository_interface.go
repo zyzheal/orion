@@ -16,4 +16,7 @@ type RepositoryInterface interface {
 	Search(ctx context.Context, tenantID string, q models.SearchRequest) ([]models.Entry, error)
 	Count(ctx context.Context, tenantID string) (int, error)
 	GetByTable(ctx context.Context, tenantID, tableName string) ([]models.Entry, error)
+	// CreateOrUpdateCatalogEntry upserts a discovered table into the catalog.
+	// It returns (newEntries, updatedEntries, error).
+	CreateOrUpdateCatalogEntry(ctx context.Context, tenantID string, databaseName string, schema *models.DiscoveredSchema) (int, int, error)
 }

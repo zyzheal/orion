@@ -123,11 +123,11 @@ func (s *Service) GetEntriesByTable(ctx context.Context, tenantID, tableName str
 func (s *Service) Discover(ctx context.Context, tenantID string) *models.DiscoverySummary {
 	// TODO: connect to database catalog, introspect schemas, create/update entries.
 	return &models.DiscoverySummary{
-		ScannedTables:  0,
-		NewEntries:     0,
-		UpdatedEntries: 0,
-		Status:         "staged",
-		Message:        "auto-discovery is a stub — integrate with database introspection",
+		TotalTablesDiscovered: 0,
+		NewEntriesCreated:     0,
+		UpdatedEntries:        0,
+		Status:                "staged",
+		Message:               "auto-discovery is a stub — integrate with database introspection",
 	}
 }
 

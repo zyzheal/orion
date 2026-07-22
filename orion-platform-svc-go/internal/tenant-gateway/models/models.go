@@ -6,9 +6,12 @@ package models
 type TenantTier string
 
 const (
-	TierFree     TenantTier = "free"
-	TierStandard TenantTier = "standard"
-	TierPremium  TenantTier = "premium"
+	TierFree       TenantTier = "free"
+	TierBasic      TenantTier = "basic"
+	TierStandard   TenantTier = "standard"
+	TierPremium    TenantTier = "premium"
+	TierPro        TenantTier = "pro"
+	TierEnterprise TenantTier = "enterprise"
 )
 
 // TenantStatus represents the operational status of a tenant.
@@ -72,6 +75,11 @@ type QuotaChanges struct {
 	QueueDepth        *int `json:"queue_depth"`
 	DailyTokenQuota   *int `json:"daily_token_quota"`
 	APIQps            *int `json:"api_qps"`
+	// Extended quota fields for platform-level limits.
+	RequestsPerMinute *int `json:"requests_per_minute"`
+	MaxStorageGB      *int `json:"max_storage_gb"`
+	MaxAgents         *int `json:"max_agents"`
+	MaxDeployments    *int `json:"max_deployments"`
 }
 
 // QuotaAdjustmentRequest is the body for POST /tenants/:id/quota.
@@ -94,6 +102,11 @@ type TenantQuota struct {
 	DailyTokenQuota   int `json:"dailyTokenQuota" db:"daily_token_quota"`
 	APIQps            int `json:"apiQps" db:"api_qps"`
 	DailyHoursQuota   int `json:"dailyHoursQuota" db:"daily_hours_quota"`
+	// Extended quota fields for platform-level limits.
+	RequestsPerMinute int `json:"requestsPerMinute" db:"requests_per_minute"`
+	MaxStorageGB      int `json:"maxStorageGb" db:"max_storage_gb"`
+	MaxAgents         int `json:"maxAgents" db:"max_agents"`
+	MaxDeployments    int `json:"maxDeployments" db:"max_deployments"`
 }
 
 // ListQuery is the filter/pagination model for GET /tenants.
@@ -120,6 +133,9 @@ type QuotaStatusResponse struct {
 	Alerts   string      `json:"alerts"` // JSONB stored, returned as string
 }
 
+// MaxInt is the largest positive int, treated as "unlimited" for Enterprise.
+const MaxInt = int(^uint(0) >> 1)
+
 // DefaultQuotas returns the built-in quota defaults per tier.
 func DefaultQuotas() map[TenantTier]TenantQuota {
 	return map[TenantTier]TenantQuota{
@@ -134,6 +150,26 @@ func DefaultQuotas() map[TenantTier]TenantQuota {
 			DailyTokenQuota:   10000,
 			APIQps:            10,
 			DailyHoursQuota:   10,
+			RequestsPerMinute: 100,
+			MaxStorageGB:      1,
+			MaxAgents:         1,
+			MaxDeployments:    5,
+		},
+		TierBasic: {
+			CPURequest:        200,
+			CPULimit:          400,
+			MemoryRequest:     256,
+			MemoryLimit:       512,
+			Storage:           5,
+			ConcurrentRunners: 3,
+			QueueDepth:        50,
+			DailyTokenQuota:   50000,
+			APIQps:            50,
+			DailyHoursQuota:   50,
+			RequestsPerMinute: 1000,
+			MaxStorageGB:      10,
+			MaxAgents:         5,
+			MaxDeployments:    50,
 		},
 		TierStandard: {
 			CPURequest:        500,
@@ -146,6 +182,10 @@ func DefaultQuotas() map[TenantTier]TenantQuota {
 			DailyTokenQuota:   100000,
 			APIQps:            100,
 			DailyHoursQuota:   100,
+			RequestsPerMinute: 1000,
+			MaxStorageGB:      10,
+			MaxAgents:         5,
+			MaxDeployments:    50,
 		},
 		TierPremium: {
 			CPURequest:        2000,
@@ -158,6 +198,42 @@ func DefaultQuotas() map[TenantTier]TenantQuota {
 			DailyTokenQuota:   1000000,
 			APIQps:            1000,
 			DailyHoursQuota:   1000,
+			RequestsPerMinute: 10000,
+			MaxStorageGB:      100,
+			MaxAgents:         20,
+			MaxDeployments:    500,
+		},
+		TierPro: {
+			CPURequest:        4000,
+			CPULimit:          8000,
+			MemoryRequest:     4096,
+			MemoryLimit:       16384,
+			Storage:           500,
+			ConcurrentRunners: 100,
+			QueueDepth:        5000,
+			DailyTokenQuota:   5000000,
+			APIQps:            5000,
+			DailyHoursQuota:   5000,
+			RequestsPerMinute: 10000,
+			MaxStorageGB:      100,
+			MaxAgents:         20,
+			MaxDeployments:    500,
+		},
+		TierEnterprise: {
+			CPURequest:        MaxInt,
+			CPULimit:          MaxInt,
+			MemoryRequest:     MaxInt,
+			MemoryLimit:       MaxInt,
+			Storage:           MaxInt,
+			ConcurrentRunners: MaxInt,
+			QueueDepth:        MaxInt,
+			DailyTokenQuota:   MaxInt,
+			APIQps:            MaxInt,
+			DailyHoursQuota:   MaxInt,
+			RequestsPerMinute: MaxInt,
+			MaxStorageGB:      MaxInt,
+			MaxAgents:         MaxInt,
+			MaxDeployments:    MaxInt,
 		},
 	}
 }

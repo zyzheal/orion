@@ -212,3 +212,86 @@ func joinCommaSep(parts []string) string {
 	}
 	return result
 }
+
+// CreateOrUpdateCatalogEntry upserts a discovered table into the catalog.
+// It creates a table-level entry and one entry per column, returning counts of new vs updated entries.
+func (r *Repository) CreateOrUpdateCatalogEntry(ctx context.Context, tenantID string, databaseName string, schema *models.DiscoveredSchema) (int, int, error) {
+	newCount, updatedCount := 0, 0
+
+	// Upsert the table-level entry (no column_name).
+	tableEntry := &models.Entry{
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		Name:         schema.TableName,
+		Description:  "Discovered table",
+		DataType:     "table",
+		TableName:    schema.TableName,
+		ColumnName:   "",
+		DatabaseName: databaseName,
+		UpdatedAt:    time.Now().UTC(),
+		CreatedAt:    time.Now().UTC(),
+	}
+
+	// Check if table entry already exists for this database.
+	var existingID string
+	err := r.db.GetContext(ctx, &existingID,
+		`SELECT id FROM data_catalog_entries WHERE tenant_id=$1 AND table_name=$2 AND data_type=$3 AND database_name=$4 AND column_name=''`,
+		tenantID, schema.TableName, "table", databaseName)
+
+	if err == nil {
+		// Exists — update timestamp.
+		_, err = r.db.ExecContext(ctx,
+			`UPDATE data_catalog_entries SET last_updated=$1 WHERE id=$2`,
+			time.Now().UTC(), existingID)
+		if err != nil {
+			return newCount, updatedCount, err
+		}
+		updatedCount++
+	} else {
+		// Does not exist — create.
+		_, err = r.db.NamedExecContext(ctx,
+			`INSERT INTO data_catalog_entries (id, tenant_id, name, description, data_type, table_name, column_name, data_format, sample_values, schema_version, owner, database_name, last_updated, created_at)
+			 VALUES (:id, :tenant_id, :name, :description, :data_type, :table_name, :column_name, :data_format, :sample_values, :schema_version, :owner, :database_name, :last_updated, :created_at)`,
+			tableEntry)
+		if err != nil {
+			return newCount, updatedCount, err
+		}
+		newCount++
+	}
+
+	// Upsert column-level entries.
+	for _, col := range schema.Columns {
+		columnName := col.Name
+		if columnName == "" {
+			continue
+		}
+		var colEntryID string
+		err = r.db.GetContext(ctx, &colEntryID,
+			`SELECT id FROM data_catalog_entries WHERE tenant_id=$1 AND table_name=$2 AND column_name=$3 AND database_name=$4`,
+			tenantID, schema.TableName, columnName, databaseName)
+
+		if err == nil {
+			_, err = r.db.ExecContext(ctx,
+				`UPDATE data_catalog_entries SET data_type=$1, last_updated=$2 WHERE id=$3`,
+				col.DataType, time.Now().UTC(), colEntryID)
+			if err != nil {
+				return newCount, updatedCount, err
+			}
+			updatedCount++
+		} else {
+			now := time.Now().UTC()
+			_, err = r.db.ExecContext(ctx,
+				`INSERT INTO data_catalog_entries (id, tenant_id, name, description, data_type, table_name, column_name, database_name, last_updated, created_at)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+				uuid.New().String(), tenantID,
+				col.DataType, fmt.Sprintf("Column %s in table %s", columnName, schema.TableName),
+				col.DataType, schema.TableName, columnName, databaseName, now, now)
+			if err != nil {
+				return newCount, updatedCount, err
+			}
+			newCount++
+		}
+	}
+
+	return newCount, updatedCount, nil
+}

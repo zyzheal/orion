@@ -31,15 +31,28 @@ type RepositoryInterface interface {
 }
 
 type Service struct {
-	repo RepositoryInterface
+	repo     RepositoryInterface
+	registry *AgentRegistry
 }
 
 func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+	return &Service{
+		repo:     repo,
+		registry: NewAgentRegistry(),
+	}
+}
+
+// WithRegistry replaces the default agent registry on the service.
+func (s *Service) WithRegistry(registry *AgentRegistry) {
+	if registry != nil {
+		s.registry = registry
+	}
 }
 
 var (
-	ErrAgentNotFound = errors.New("agent not found")
+	ErrAgentNotFound  = errors.New("agent not found")
+	ErrInputEmpty     = errors.New("agent input must not be empty")
+	ErrExecutorFailed = errors.New("agent executor failed")
 )
 
 func IsNotFound(err error) bool {
@@ -235,9 +248,9 @@ func (s *Service) GetAgentStats(ctx context.Context, tenantID string) (*models.A
 
 // --- Execution ---
 
-// ExecuteAgent is the business-logic hook for running an agent.
-// Currently a no-op stub matching the TS registry-based execute flow;
-// actual execution delegates to the registered agent.
+// ExecuteAgent dispatches execution to the appropriate AgentExecutor via
+// the AgentRegistry based on the agent's scenario. Falls back to the
+// generic executor for unknown scenarios.
 func (s *Service) ExecuteAgent(ctx context.Context, agentID string, tenantID string, req *models.ExecuteAgentRequest) (*models.ExecuteAgentResult, error) {
 	// Verify the agent exists and is enabled
 	agent, err := s.repo.GetByID(ctx, agentID, tenantID)
@@ -248,47 +261,73 @@ func (s *Service) ExecuteAgent(ctx context.Context, agentID string, tenantID str
 		return nil, fmt.Errorf("agent %s is disabled", agentID)
 	}
 
-	// Status transition: idle -> running -> idle
-	s.repo.UpdateAgentStatus(ctx, agentID, tenantID, models.AgentStatusRunning)
-
-	start := time.Now()
-	// TODO: wire actual agent execution through AgentRegistry.
-	// For now return a success result mirroring the TS default response.
-	elapsed := int(time.Since(start).Milliseconds())
-
-	result := &models.ExecuteAgentResult{
-		Success:    true,
-		Data:       map[string]interface{}{"message": "agent executed successfully"},
-		DurationMs: elapsed,
-		TokenUsage: &models.AgentTokenUsage{Input: 0, Output: 0, Total: 0},
+	// Status transition: idle -> running
+	_, err = s.repo.UpdateAgentStatus(ctx, agentID, tenantID, models.AgentStatusRunning)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set agent running: %w", err)
 	}
 
-	s.repo.UpdateAgentStatus(ctx, agentID, tenantID, models.AgentStatusIdle)
+	start := time.Now()
+	var execErr error
 
-	// Persist audit log
+	// Dispatch execution through the AgentRegistry by agent scenario.
+	execResult, execErr := s.registry.Dispatch(ctx, agent, req.Input)
+
+	elapsed := int(time.Since(start).Milliseconds())
+
+	var result *models.ExecuteAgentResult
+	if execErr != nil {
+		executionErr := execErr.Error()
+		result = &models.ExecuteAgentResult{
+			Success:    false,
+			Error:      executionErr,
+			DurationMs: elapsed,
+			TokenUsage: &models.AgentTokenUsage{Input: 0, Output: 0, Total: 0},
+		}
+		// Revert to error status
+		_, _ = s.repo.UpdateAgentStatus(ctx, agentID, tenantID, models.AgentStatusError)
+	} else {
+		result = &models.ExecuteAgentResult{
+			Success:    execResult.Success,
+			Data:       execResult.Data,
+			Error:      execResult.Error,
+			DurationMs: elapsed,
+			TokenUsage: execResult.TokenUsage,
+		}
+		// Revert to idle on success
+		_, _ = s.repo.UpdateAgentStatus(ctx, agentID, tenantID, models.AgentStatusIdle)
+	}
+
+	// Persist audit log with execution result
 	contextMap := map[string]interface{}{
 		"traceId":  req.TraceID,
 		"userId":   req.UserID,
 		"tenantId": tenantID,
+		"scenario": agent.Scenario,
+		"provider": agent.Provider,
 		"metadata": req.Metadata,
 	}
 	inputJSON, _ := json.Marshal(req.Input)
 	outputJSON, _ := json.Marshal(result)
 
 	err = s.RecordAuditLog(ctx, tenantID, &models.AgentAuditLog{
-		AgentID:    agentID,
-		Context:    string(mustJSON(contextMap)),
-		Input:      string(inputJSON),
-		Output:     string(outputJSON),
-		DurationMs: elapsed,
-		Success:    result.Success,
-		CreatedAt:  time.Now().Unix(),
+		AgentID:      agentID,
+		Context:      string(mustJSON(contextMap)),
+		Input:        string(inputJSON),
+		Output:       string(outputJSON),
+		DurationMs:   elapsed,
+		InputTokens:  0,
+		OutputTokens: 0,
+		TotalTokens:  0,
+		Success:      result.Success,
+		Error:        sql.NullString{String: result.Error, Valid: result.Error != ""},
+		CreatedAt:    time.Now().Unix(),
 	})
 	if err != nil {
-		// Non-fatal: execution succeeded but audit log failed
+		// Non-fatal: execution result already computed, audit log is best-effort
 	}
 
-	return result, nil
+	return result, execErr
 }
 
 // AgentToInfo converts a database AIAgent to the API-facing AgentInfo.

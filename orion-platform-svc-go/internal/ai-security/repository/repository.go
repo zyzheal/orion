@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-
-	"orion/platform-svc-go/internal/ai-security/models"
+	"fmt"
 
 	"orion/go-common/pkg/sentinel"
+	"orion/platform-svc-go/internal/ai-security/models"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -81,36 +81,94 @@ func (r *Repository) Delete(ctx context.Context, tenantID, id string) error {
 
 // ---- Vulnerability / CVE scanning ----
 
-// FindVulnerabilities runs a Trivy-based scan against the given image
-// reference and returns all CVEs plus an aggregated severity summary.
-//
-// When the Trivy engine cannot be reached the method degrades gracefully:
-// it returns a Degraded result with the errors observed rather than a hard
-// failure. This lets the API surface still respond for monitoring / dashboard
-// consumers.
 func (r *Repository) FindVulnerabilities(ctx context.Context, tenantID string, image string) (*models.ScanVulnerabilitiesResult, error) {
 	return nil, ErrVulnerabilityEngine
 }
 
-// GetVulnerability retrieves the details for a single CVE by ID.
 func (r *Repository) GetVulnerability(ctx context.Context, tenantID, cveID string) (*models.Vulnerability, error) {
 	return nil, sentinel.NotFound
 }
 
-// ListVulnerabilities lists previously recorded vulnerabilities for a tenant,
-// optionally scoped to an image.
 func (r *Repository) ListVulnerabilities(ctx context.Context, tenantID string) ([]models.Vulnerability, error) {
 	return []models.Vulnerability{}, nil
 }
 
-// FixVulnerability marks one or more CVEs as remediated for the given image
-// and returns the fix outcome.
 func (r *Repository) FixVulnerability(ctx context.Context, tenantID, image string, cveIDs []string) (*models.FixVulnerabilityResult, error) {
 	return nil, ErrNoFixAvailable
 }
 
-// CheckVulnerability performs a live CVE look-up (Trivy DB) and returns the
-// detail payload. Returns ErrVulnerabilityEngine when the engine is down.
 func (r *Repository) CheckVulnerability(ctx context.Context, tenantID, cveID string) (*models.CheckVulnerabilityResult, error) {
 	return nil, ErrVulnerabilityEngine
+}
+
+// ---- AI Security engine: policies, audit, blocks ----
+
+// ListPolicies retrieves all security policies for a tenant.
+func (r *Repository) ListPolicies(ctx context.Context, tenantID string) ([]models.SecurityPolicy, error) {
+	var policies []models.SecurityPolicy
+	err := r.db.SelectContext(ctx, &policies,
+		"SELECT * FROM ai_security_policies WHERE tenant_id=$1 ORDER BY created_at DESC", tenantID)
+	return policies, err
+}
+
+// ListAuditLogs retrieves audit log entries with optional filtering.
+func (r *Repository) ListAuditLogs(ctx context.Context, tenantID string, filter *models.AuditLogFilter) ([]models.AuditLog, error) {
+	var logs []models.AuditLog
+	stmt := "SELECT * FROM ai_security_audit_logs WHERE tenant_id=$1"
+	args := []interface{}{tenantID}
+	argPos := 2
+
+	if filter != nil {
+		if filter.EventType != "" {
+			stmt += fmt.Sprintf(" AND event_type=$%d", argPos)
+			args = append(args, filter.EventType)
+			argPos++
+		}
+		if filter.Actor != "" {
+			stmt += fmt.Sprintf(" AND actor=$%d", argPos)
+			args = append(args, filter.Actor)
+			argPos++
+		}
+		if filter.From != "" {
+			stmt += fmt.Sprintf(" AND timestamp >= $%d", argPos)
+			args = append(args, filter.From)
+			argPos++
+		}
+		if filter.To != "" {
+			stmt += fmt.Sprintf(" AND timestamp <= $%d", argPos)
+			args = append(args, filter.To)
+			argPos++
+		}
+	}
+	stmt += " ORDER BY timestamp DESC"
+
+	err := r.db.SelectContext(ctx, &logs, stmt, args...)
+	return logs, err
+}
+
+// CreateBlock creates a new block record.
+func (r *Repository) CreateBlock(ctx context.Context, tenantID string, block *models.BlockRecord) error {
+	_, err := r.db.NamedExecContext(ctx, `
+		INSERT INTO ai_security_blocks (id, tenant_id, target, reason, blocked_by, expires_at, created_at)
+		VALUES (:id, :tenant_id, :target, :reason, :blocked_by, :expires_at, :created_at)`,
+		block)
+	return err
+}
+
+// GetBlock retrieves a block by target.
+func (r *Repository) GetBlock(ctx context.Context, tenantID, target string) (*models.BlockRecord, error) {
+	var block models.BlockRecord
+	err := r.db.GetContext(ctx, &block,
+		"SELECT * FROM ai_security_blocks WHERE tenant_id=$1 AND target=$2 AND (expires_at IS NULL OR expires_at > NOW())",
+		tenantID, target)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil // No block exists
+	}
+	return &block, err
+}
+
+// DeleteBlock removes a block record.
+func (r *Repository) DeleteBlock(ctx context.Context, tenantID, target string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM ai_security_blocks WHERE tenant_id=$1 AND target=$2", tenantID, target)
+	return err
 }
