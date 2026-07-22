@@ -562,6 +562,9 @@ func setupRouter(infra *infrastructure, logger *zap.Logger) *gin.Engine {
   if message_queueH != nil {
     message_queueH.RegisterRoutes(api)
   }
+  if clusterH != nil {
+    clusterH.RegisterRoutes(api)
+  }
 	}
 
 	return r

@@ -306,6 +306,11 @@ import (
 	message_queue_repo "orion/platform-svc-go/internal/message-queue/repository"
 	message_queue_service "orion/platform-svc-go/internal/message-queue/service"
 
+	// ---- P0-18: K8s Provisioner ----
+	cluster_handler "orion/platform-svc-go/internal/cluster/handler"
+	cluster_repo "orion/platform-svc-go/internal/cluster/repository"
+	cluster_service "orion/platform-svc-go/internal/cluster/service"
+
 	"os"
 
 	"go.uber.org/zap"
@@ -457,6 +462,7 @@ var (
 	maintenance_windowH *maintenance_window_handler.Handler
 	message_queueH      *message_queue_handler.Handler
 	storageH            *storage_handler.Handler
+	clusterH            *cluster_handler.Handler
 	metricsH            *metrics_handler.Handler
 	multi_modal_triggerH *multi_modal_trigger_handler.Handler
 	notification_mgmtH  *notification_mgmt_handler.Handler
@@ -629,5 +635,10 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	message_queueRepo := message_queue_repo.NewRepository(infra.db.DB)
 	message_queueSvc := message_queue_service.NewService(message_queueRepo)
 	message_queueH = message_queue_handler.NewHandler(message_queueSvc)
+
+	// P0-18: K8s Provisioner
+	clusterRepo := cluster_repo.NewRepository(infra.db.DB)
+	clusterSvc := cluster_service.NewService(clusterRepo)
+	clusterH = cluster_handler.NewHandler(clusterSvc)
 
 }
