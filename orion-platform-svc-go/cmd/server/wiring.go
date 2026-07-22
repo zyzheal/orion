@@ -306,6 +306,15 @@ import (
 	message_queue_repo "orion/platform-svc-go/internal/message-queue/repository"
 	message_queue_service "orion/platform-svc-go/internal/message-queue/service"
 
+	// ---- P0-4: AI Inference Proxy ----
+	aiInference_handler "orion/platform-svc-go/internal/ai-inference/handler"
+	aiInference_service "orion/platform-svc-go/internal/ai-inference/service"
+
+	// ---- P0-20: Network Management Module ----
+	network_handler "orion/platform-svc-go/internal/network/handler"
+	network_repo "orion/platform-svc-go/internal/network/repository"
+	network_service "orion/platform-svc-go/internal/network/service"
+
 	// ---- P0-18: K8s Provisioner ----
 	cluster_handler "orion/platform-svc-go/internal/cluster/handler"
 	cluster_repo "orion/platform-svc-go/internal/cluster/repository"
@@ -463,6 +472,8 @@ var (
 	message_queueH      *message_queue_handler.Handler
 	storageH            *storage_handler.Handler
 	clusterH            *cluster_handler.Handler
+	aiInferenceH        *aiInference_handler.Handler
+	networkH            *network_handler.Handler
 	metricsH            *metrics_handler.Handler
 	multi_modal_triggerH *multi_modal_trigger_handler.Handler
 	notification_mgmtH  *notification_mgmt_handler.Handler
@@ -640,5 +651,14 @@ func initWiring(infra *infrastructure, logger *zap.Logger) {
 	clusterRepo := cluster_repo.NewRepository(infra.db.DB)
 	clusterSvc := cluster_service.NewService(clusterRepo)
 	clusterH = cluster_handler.NewHandler(clusterSvc)
+
+	// P0-4: AI Inference Proxy (HTTP proxy to Python AI service)
+	aiInferenceSvc := aiInference_service.NewPythonInferenceService()
+	aiInferenceH = aiInference_handler.NewHandler(aiInferenceSvc)
+
+	// P0-20: Network Management Module
+	networkRepo := network_repo.NewRepository(infra.db.DB)
+	networkSvc := network_service.NewService(networkRepo)
+	networkH = network_handler.NewHandler(networkSvc)
 
 }
